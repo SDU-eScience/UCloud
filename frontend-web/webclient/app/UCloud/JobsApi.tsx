@@ -89,6 +89,17 @@ export interface Job extends Resource<JobUpdate, JobStatus, JobSpecification> {
 export interface ComputeSupport extends ProductSupport {
     docker: DockerSupport;
     virtualMachine: VirtualMachineSupport;
+    native: NativeSupport;
+}
+
+export interface NativeSupport {
+    enabled?: boolean;
+    web?: boolean;
+    vnc?: boolean;
+    logs?: boolean;
+    terminal?: boolean;
+    timeExtension?: boolean;
+    utilization?: boolean;
 }
 
 export interface DockerSupport {

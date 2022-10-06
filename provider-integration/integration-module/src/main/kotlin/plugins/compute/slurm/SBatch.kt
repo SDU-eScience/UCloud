@@ -1,24 +1,31 @@
 package dk.sdu.cloud.plugins.compute.slurm
 
+import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.app.store.api.ApplicationParameter
+import dk.sdu.cloud.app.store.api.ApplicationType
 import dk.sdu.cloud.app.store.api.ArgumentBuilder
+import dk.sdu.cloud.app.store.api.BooleanFlagParameter
+import dk.sdu.cloud.app.store.api.EnvironmentVariableParameter
+import dk.sdu.cloud.app.store.api.InvocationParameterContext
+import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.api.ToolBackend
+import dk.sdu.cloud.app.store.api.VariableInvocationParameter
+import dk.sdu.cloud.app.store.api.WordInvocationParameter
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.storage.PathConverter
+import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 private fun escapeBash(value: String): String {
     return buildString {
         for (char in value) {
             append(
                 when (char) {
-                    '\\' -> "\\\\"
                     '\'' -> "'\"'\"'"
-                    '\"' -> "\\\""
-                    '`' -> "\\`"
-                    '$' -> "\\$"
                     else -> char
                 }
             )
@@ -29,10 +36,12 @@ private fun escapeBash(value: String): String {
 suspend fun createSbatchFile(
     ctx: PluginContext,
     job: Job,
-    config: SlurmConfig,
+    plugin: SlurmPlugin,
     account: String?,
     jobFolder: String?,
 ): String {
+    val pluginConfig = plugin.pluginConfig
+
     @Suppress("DEPRECATION") val timeAllocation = job.specification.timeAllocation
         ?: job.status.resolvedApplication!!.invocation.tool.tool!!.description.defaultTimeAllocation
 
@@ -42,15 +51,17 @@ suspend fun createSbatchFile(
     //sbatch will stop processing further #SBATCH directives once the first non-comment non-whitespace line has been reached in the script.
     // remove whitespaces
     val app = job.status.resolvedApplication!!.invocation
+    val tool = job.status.resolvedApplication!!.invocation.tool.tool!!
     val givenParameters =
         job.specification.parameters!!.mapNotNull { (paramName, value) ->
             app.parameters.find { it.name == paramName }!! to value
         }.toMap()
-    val cliInvocation = app.invocation.flatMap { parameter ->
-        parameter.buildInvocationList(givenParameters, builder = OurArgBuilder(PathConverter(ctx)))
+    val argBuilder = OurArgBuilder(PathConverter(ctx))
+    var cliInvocation = app.invocation.flatMap { parameter ->
+        parameter.buildInvocationList(givenParameters, builder = argBuilder)
     }.joinToString(separator = " ") { "'" + escapeBash(it) + "'" }
 
-    val memoryAllocation = if (config.useFakeMemoryAllocations) {
+    val memoryAllocation = if (pluginConfig.useFakeMemoryAllocations) {
         "50M"
     } else {
         "${resolvedProduct.memoryInGigs ?: 1}G"
@@ -64,10 +75,7 @@ suspend fun createSbatchFile(
 
     return buildString {
         appendLine("#!/usr/bin/env bash")
-        appendLine("#")
-        appendLine("# POSTFIX START")
 
-        appendLine("#")
         run {
             if (jobFolder != null) appendLine("#SBATCH --chdir \"$jobFolder\"")
             appendLine("#SBATCH --cpus-per-task ${resolvedProduct.cpu ?: 1}")
@@ -76,7 +84,7 @@ suspend fun createSbatchFile(
             appendLine("#SBATCH --time $formattedTime")
             appendLine("#SBATCH --nodes ${job.specification.replicas}")
             appendLine("#SBATCH --job-name ${job.id}")
-            appendLine("#SBATCH --partition ${config.partition}")
+            appendLine("#SBATCH --partition ${pluginConfig.partition}")
             appendLine("#SBATCH --parsable")
             appendLine("#SBATCH --output=std.out")
             appendLine("#SBATCH --error=std.err")
@@ -86,12 +94,84 @@ suspend fun createSbatchFile(
             appendLine("#SBATCH --get-user-env")
             if (account != null) appendLine("#SBATCH --account=$account")
         }
-        appendLine("#")
 
-        appendLine("# POSTFIX END")
-        appendLine("#")
+        val appMetadata = job.status.resolvedApplication!!.metadata
+        if (appMetadata.name.startsWith(slurmRawScriptPrefix)) {
+            val script = ((job.specification.parameters ?: emptyMap())["script"] as? AppParameterValue.Text)?.value
+                ?: "echo 'No script found'"
+            appendLine(script)
+            return@buildString
+        }
+
+        val allocatedPort = Random.nextInt(10_000, 50_000)
+
+        if (app.applicationType == ApplicationType.WEB) {
+            appendLine("export UCLOUD_PORT=$allocatedPort")
+            appendLine("echo $allocatedPort > '$jobFolder/${SlurmPlugin.ALLOCATED_PORT_FILE}'")
+        }
+
+        for ((key, param) in (app.environment ?: emptyMap())) {
+            val value = param.buildInvocationList(givenParameters, InvocationParameterContext.ENVIRONMENT, argBuilder)
+                .joinToString(separator = " ") { "'" + escapeBash(it) + "'" }
+
+            appendLine("export $key=$value")
+        }
+
+        if (tool.description.requiredModules.isNotEmpty()) {
+            appendLine("module purge")
+            for (module in tool.description.requiredModules) {
+                appendLine("module load '${module}'")
+            }
+        }
+
+        val udocker = plugin.udocker
+        val useUDocker = tool.description.backend == ToolBackend.DOCKER && udocker != null
+        if (useUDocker && udocker != null) {
+            val containerImage = (tool.description.container ?: tool.description.image)!!
+            val udockerPath = udocker.install()
+            ProcessingScope.launch {
+                udocker.pullImage(containerImage)
+            }
+
+            // TODO(Dan): Need to verify that the image has been downloaded before the script continues.
+
+            appendLine("export PATH=\$PATH:$udockerPath")
+
+            // TODO(Dan): Only the bash part has been tested, haven't tested if this works in practice.
+            appendLine(
+                """
+                    while :
+                    do
+                        udocker images | grep "$containerImage" 2> /dev/null
+                        if [ "$?" -eq 0 ]
+                        then
+                            break
+                        fi
+
+                        sleep 1
+                    done    
+                """.trimIndent()
+            )
+
+            appendLine("udocker create --name=${job.id} $containerImage")
+            appendLine("udocker setup --execmode=${pluginConfig.udocker.execMode.name} ${job.id}")
+            val oldCli = cliInvocation
+            cliInvocation = "udocker run "
+            cliInvocation += "--bindhome "
+            cliInvocation += "--hostauth "
+            cliInvocation += "--hostenv "
+            cliInvocation += "-v /sys "
+            cliInvocation += "-v /proc "
+            cliInvocation += "-v /var/run  "
+            cliInvocation += "-v /dev "
+            cliInvocation += "--nobanner "
+            cliInvocation += "--dri "
+            cliInvocation += "--publish $allocatedPort:$allocatedPort "
+            cliInvocation += "${job.id} "
+            cliInvocation += oldCli
+        }
+
         appendLine("srun --output='std-%n.out' --error='std-%n.err' $cliInvocation")
-        appendLine("#EOF")
     }
 }
 
@@ -109,3 +189,5 @@ private class OurArgBuilder(
         }
     }
 }
+
+private const val slurmRawScriptPrefix = "slurm-script-"

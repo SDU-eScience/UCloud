@@ -7,6 +7,11 @@ fun doesCallRequireSignature(providerId: String, incomingCall: String): Boolean 
     return when (incomingCall) {
         // TODO(Dan): Not entirely complete but will probably cover most if not all calls
         "file.$providerId.download.download" -> false
+        "jobs.compute.$providerId.shell.open" -> false
+
+        // NOTE(Dan): We skip check because the cancel call comes much after the initial call. This is a limitation
+        // of the current system which should be improved.
+        "jobs.provider.$providerId.follow" -> false
         else -> true
     }
 }

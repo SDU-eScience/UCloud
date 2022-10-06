@@ -11,7 +11,8 @@ import {GrayBox} from "../Create";
 export function peerResourceAllowed(app: UCloud.compute.Application) {
     const invocation = app.invocation;
     const tool = invocation.tool.tool!.description;
-    return invocation.allowAdditionalPeers !== false && tool.backend !== "VIRTUAL_MACHINE"
+    return (invocation.allowAdditionalPeers !== false && tool.backend === "DOCKER") ||
+        invocation.allowAdditionalPeers === true;
 }
 
 export const PeerResource: React.FunctionComponent<{

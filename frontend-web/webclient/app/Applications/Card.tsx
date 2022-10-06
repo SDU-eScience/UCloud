@@ -279,7 +279,7 @@ export function appColor(hash: number): number {
     return (hash >>> 22) % (nColors - 1); // last color not used
 }
 
-const AbsoluteNoPointerEvents = styled(Absolute)`
+export const AbsoluteNoPointerEvents = styled(Absolute)`
     pointer-events: none;
 `;
 

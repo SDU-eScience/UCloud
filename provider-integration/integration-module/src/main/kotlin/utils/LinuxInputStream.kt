@@ -1,5 +1,6 @@
-package dk.sdu.cloud.plugins.storage.ucloud
+package dk.sdu.cloud.utils
 
+import dk.sdu.cloud.plugins.storage.ucloud.DefaultByteArrayPool
 import io.ktor.utils.io.pool.*
 import libc.clib
 import java.io.InputStream

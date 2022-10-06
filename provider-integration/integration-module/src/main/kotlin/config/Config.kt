@@ -86,13 +86,31 @@ data class ConfigSchema(
 
         @Serializable
         data class Database(
-            val file: String,
-        )
+            val embedded: Embedded? = null,
+            val external: External? = null,
+        ) {
+            @Serializable
+            data class Embedded(
+                val directory: String,
+                // NOTE(Dan): Set to 0 for a random port
+                val port: Int = 5432
+            )
+
+            @Serializable
+            data class External(
+                val hostname: String,
+                val port: Int? = null,
+                val username: String,
+                val password: String,
+                val database: String
+            )
+        }
 
         @Serializable
         data class Envoy(
             val executable: String? = null,
             val directory: String,
+            val downstreamTls: Boolean = false,
         )
     }
 
@@ -273,6 +291,8 @@ data class ConfigSchema(
                 val useFakeMemoryAllocations: Boolean = false,
                 val accountMapper: AccountMapper = AccountMapper.None(),
                 val modifySlurmConf: String? = "/etc/slurm/slurm.conf",
+                val web: Web = Web.None(),
+                val udocker: UDocker = UDocker()
             ) : Jobs() {
                 @Serializable
                 sealed class AccountMapper {
@@ -285,6 +305,39 @@ data class ConfigSchema(
                     @Serializable
                     @SerialName("Extension")
                     data class Extension(val extension: String) : AccountMapper()
+                }
+
+                @Serializable
+                sealed class Web {
+                    @Serializable
+                    @SerialName("None")
+                    class None : Web()
+
+                    @Serializable
+                    @SerialName("Simple")
+                    class Simple(
+                        val domainPrefix: String,
+                        val domainSuffix: String,
+                    ) : Web()
+                }
+
+                @Serializable
+                data class UDocker(
+                    val enabled: Boolean = false,
+                    val execMode: ExecMode = ExecMode.P2
+                ) {
+                    enum class ExecMode {
+                        P1,
+                        P2,
+                        F1,
+                        F2,
+                        F3,
+                        F4,
+                        R1,
+                        R2,
+                        R3,
+                        S1
+                    }
                 }
             }
 

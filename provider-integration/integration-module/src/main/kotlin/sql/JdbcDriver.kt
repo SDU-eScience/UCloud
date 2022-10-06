@@ -61,10 +61,8 @@ class SimpleConnectionPool(val size: Int, private val constructor: (pool: Simple
     }
 }
 
-class JdbcDriver(
-    private val file: String
-) : DBContext.ConnectionFactory() {
-    private val pool = SimpleConnectionPool(8) { pool ->
+class SqliteJdbcDriver(private val file: String) : JdbcDriver() {
+    override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
         JdbcConnection(
             DriverManager.getConnection("jdbc:sqlite:$file", SQLiteConfig().apply {
                 setJournalMode(SQLiteConfig.JournalMode.WAL)
@@ -76,6 +74,10 @@ class JdbcDriver(
             pool
         )
     }
+}
+
+abstract class JdbcDriver : DBContext.ConnectionFactory() {
+    protected abstract val pool: SimpleConnectionPool
 
     override suspend fun openSession(): JdbcConnection {
         return pool.borrow()
@@ -234,7 +236,7 @@ class JdbcPreparedStatement(
 
     private fun willReturnResults(): Boolean {
         return try {
-            statement.metaData.columnCount > 0
+            (statement.metaData?.columnCount ?: 0) > 0
         } catch (ex: SQLException) {
             false
         }

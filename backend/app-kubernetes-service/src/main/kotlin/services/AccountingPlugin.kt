@@ -27,7 +27,7 @@ import kotlin.random.Random
 object AccountingPlugin : JobManagementPlugin, Loggable {
     override val log = logger()
     const val LAST_PERFORMED_AT_ANNOTATION = "ucloud.dk/lastAccountingTs"
-    const val TIME_BETWEEN_ACCOUNTING = 1000L * 60 * 15
+    const val TIME_BETWEEN_ACCOUNTING = 1000L * 60 * 30
 
     override suspend fun JobManagement.onJobComplete(jobId: String, jobFromServer: VolcanoJob) {
         log.trace("Accounting because job has completed!")
@@ -83,7 +83,7 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
             }
 
             k8.scope.launch {
-                delay(Random.nextLong(60000 * 5))
+                delay(Random.nextLong(60000 * 10))
                 // NOTE(Dan): Pushing this into a separate coroutine since we have seen quite bad performance from the
                 // accounting system. Doing this, we run the risk of things happening in a surprising order. For
                 // example, we might perform accounting of job completion and then perform accounting of the job. We

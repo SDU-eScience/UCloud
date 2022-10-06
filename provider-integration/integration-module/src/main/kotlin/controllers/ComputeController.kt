@@ -378,8 +378,7 @@ class ComputeController(
         }
 
         ktor.routing {
-            if (!controllerContext.configuration.shouldRunUserCode()) return@routing
-
+            if (!controllerContext.configuration.shouldRunServerCode()) return@routing
             val ipcClient = controllerContext.pluginContext.ipcClient
 
             get("/ucloud/$providerId/authorize-app") {
@@ -470,10 +469,11 @@ class ComputeController(
             val generatedSessionId = secureToken(32)
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into compute_sessions(session, session_type, job_id, job_rank, plugin_name, plugin_data,
                             target)
-                        values (:session, :session_type, :job_id, :job_rank, :plugin_name, :plugin_data, :target)
+                        values (:session, :session_type, :job_id, :job_rank, :plugin_name, :plugin_data, :target::text)
                     """
                 ).useAndInvokeAndDiscard(
                     prepare = {
@@ -504,7 +504,8 @@ class ComputeController(
                         EnvoyCluster.create(
                             "_$generatedSessionId",
                             target.clusterAddress,
-                            target.clusterPort
+                            target.clusterPort,
+                            useDns = target.useDnsForAddressLookup
                         )
                     )
                 }
@@ -537,6 +538,7 @@ class ComputeController(
             var response: ComputeSessionIpc.Session? = null
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         select session_type, job_id, job_rank, plugin_name, plugin_data, target
                         from compute_sessions
@@ -607,6 +609,7 @@ object ComputeSessionIpc : IpcContainer("compute_sessions") {
         val clusterPort: Int,
         // TODO(Dan): Might want to make this a sealed class at this point. It is ignored for anything but web
         val webSessionIsPublic: Boolean = false,
+        val useDnsForAddressLookup: Boolean = false,
     )
 
     val create = createHandler(Session.serializer(), FindByStringId.serializer())

@@ -1,10 +1,10 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.7.0"
+    kotlin("jvm") version "1.7.20"
     application
     id("org.graalvm.buildtools.native") version "0.9.13"
-    kotlin("plugin.serialization") version "1.7.0"
+    kotlin("plugin.serialization") version "1.7.20"
 }
 
 group = "dk.sdu.cloud"
@@ -13,11 +13,12 @@ version = "2022.3.0"
 repositories {
     mavenCentral()
     mavenLocal()
+    maven("https://mvn.cloud.sdu.dk")
 }
 
 dependencies {
     run {
-        val version = "2022.2.16"
+        val version = "2022.2.19"
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 
         ucloud("file-orchestrator-service-api")
@@ -33,9 +34,7 @@ dependencies {
 
     run {
         val ktorVersion = "2.0.2"
-        fun ktor(module: String) {
-            implementation("io.ktor:ktor-$module:$ktorVersion")
-        }
+        fun ktor(module: String) = implementation("io.ktor:ktor-$module:$ktorVersion")
 
         ktor("client-websockets")
         ktor("client-cio")
@@ -50,10 +49,13 @@ dependencies {
         ktor("websockets")
     }
 
-    implementation("ch.qos.logback:logback-classic:1.2.11")
-    implementation("com.auth0:java-jwt:3.8.3")
+    implementation("ch.qos.logback:logback-classic:1.4.1")
+    implementation("com.auth0:java-jwt:4.0.0")
     implementation("org.xerial:sqlite-jdbc:3.36.0.3")
-    implementation("com.charleskorn.kaml:kaml:0.46.0")
+    implementation("com.charleskorn.kaml:kaml:0.47.0")
+
+    implementation(project(":embedded-postgres"))
+    implementation("org.postgresql:postgresql:42.5.0")
 
     testImplementation(kotlin("test"))
 }

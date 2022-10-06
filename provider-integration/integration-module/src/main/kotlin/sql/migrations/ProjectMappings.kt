@@ -5,7 +5,7 @@ import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 
 fun V1__ProjectMapping(): MigrationScript = MigrationScript("V1__ProjectMapping") { session ->
     session.prepareStatement(
-        //language=SQLite
+        //language=postgresql
         """
             create table project_mapping(
                 ucloud_id text primary key not null,

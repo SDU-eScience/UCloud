@@ -395,6 +395,7 @@ object UserMapping {
 
         dbConnection.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     select ucloud_id
                     from user_mapping
@@ -417,6 +418,7 @@ object UserMapping {
         val items = ArrayList<ConnectionEntry>()
         dbConnection.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     select ucloud_id, local_identity
                     from user_mapping
@@ -441,6 +443,7 @@ object UserMapping {
 
         dbConnection.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     select local_identity
                     from user_mapping
@@ -492,9 +495,11 @@ object UserMapping {
     ) {
         ctx.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
-                    insert or replace into user_mapping (ucloud_id, local_identity)
+                    insert into user_mapping (ucloud_id, local_identity)
                     values (:ucloud_id, :local_id)
+                    on conflict (ucloud_id) do update set ucloud_id = :ucloud_id, local_identity = :local_id
                 """
             ).useAndInvokeAndDiscard(
                 prepare = {
@@ -530,6 +535,7 @@ object UserMapping {
     ) {
         dbConnection.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     delete from user_mapping
                     where ucloud_id = :ucloud_id
@@ -557,6 +563,7 @@ object UserMapping {
     suspend fun clearMappingByLocalId(localId: Int) {
         dbConnection.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     delete from user_mapping
                     where local_identity = :local_id
@@ -574,8 +581,9 @@ object MessageSigningKeyStore {
     suspend fun clearMapping(performedBy: Int, mapping: Int, ctx: DBContext = dbConnection) {
         ctx.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
-                   delete from message_signing_key
+                    delete from message_signing_key
                     where
                         ucloud_user in (
                             select ucloud_id
@@ -595,6 +603,7 @@ object MessageSigningKeyStore {
         val result = ArrayList<String>()
         ctx.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     select public_key
                     from message_signing_key
@@ -616,6 +625,7 @@ object MessageSigningKeyStore {
         var result: Int? = null
         ctx.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     insert into message_signing_key (public_key, ucloud_user)
                     values (:public_key, :ucloud_user)
@@ -641,6 +651,7 @@ object MessageSigningKeyStore {
 
         ctx.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     update message_signing_key
                     set is_key_active = true
@@ -659,8 +670,9 @@ object MessageSigningKeyStore {
         val result = ArrayList<KeyInfo>()
         ctx.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
-                    select cast(strftime('%s', ts) as bigint), id, public_key
+                    select extract(epoch from ts) as bigint, id, public_key
                     from message_signing_key
                     where
                         ucloud_user in (
@@ -671,7 +683,7 @@ object MessageSigningKeyStore {
                 """
             ).useAndInvoke(
                 prepare = {
-                    bindInt("performed_by", performedBy)
+                    bindString("performed_by", performedBy.toString())
                 },
                 readRow = { row ->
                     result.add(

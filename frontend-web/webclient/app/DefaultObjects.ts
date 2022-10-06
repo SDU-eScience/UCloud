@@ -21,8 +21,8 @@ import {useEffect} from "react";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {UCLOUD_CORE} from "@/UCloud/ResourceApi";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {History} from "history";
 import {useHistory} from "react-router";
+import {initTerminalState, TerminalState} from "@/Terminal/State";
 
 export enum KeyCode {
     ENTER = 13,
@@ -146,6 +146,7 @@ interface LegacyReduxObject {
     avatar: AvatarReduxObject;
     responsive?: ResponsiveReduxObject;
     project: ProjectRedux.State;
+    terminal: TerminalState;
     loading?: boolean;
 }
 
@@ -177,6 +178,7 @@ export function initObject(): ReduxObject {
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         responsive: undefined,
+        terminal: initTerminalState(),
     };
 }
 
