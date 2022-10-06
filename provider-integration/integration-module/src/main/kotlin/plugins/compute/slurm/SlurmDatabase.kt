@@ -65,7 +65,7 @@ object SlurmDatabase {
                     result.add(
                         SlurmJob(
                             row.getString(0)!!, row.getString(1)!!, row.getString(2)!!, row.getString(3)!!,
-                            row.getInt(4)!!, row.getLong(5)!!
+                            row.getBoolean(4)!!, row.getLong(5)!!
                         )
                     )
                 }
