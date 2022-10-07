@@ -1,18 +1,26 @@
 package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.debug.*
+import dk.sdu.cloud.ipc.IpcContainer
+import dk.sdu.cloud.ipc.IpcServer
+import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.plugins.AllocationNotification
 import dk.sdu.cloud.plugins.AllocationPlugin
 import dk.sdu.cloud.plugins.OnResourceAllocationResult
 import dk.sdu.cloud.plugins.rpcClient
+import dk.sdu.cloud.project.api.v2.ProjectNotification
 import dk.sdu.cloud.project.api.v2.ProjectNotifications
 import dk.sdu.cloud.project.api.v2.ProjectNotificationsProvider
 import dk.sdu.cloud.service.Controller
@@ -24,14 +32,46 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
-class NotificationController(
+@Serializable
+data class EventPauseState(val isPaused: Boolean)
+
+@Serializable
+sealed class UCloudCoreEvent {
+    abstract val id: String
+
+    @Serializable
+    data class Project(
+        override val id: String,
+        val event: ProjectNotification
+    ) : UCloudCoreEvent()
+
+    @Serializable
+    data class Allocation(
+        override val id: String,
+        val event: DepositNotification
+    ) : UCloudCoreEvent()
+}
+
+object EventIpc : IpcContainer("events") {
+    val updatePauseState = updateHandler("updatePauseState", EventPauseState.serializer(), Unit.serializer())
+    val retrievePauseState = updateHandler("retrievePauseState", Unit.serializer(), EventPauseState.serializer())
+
+    val browse = browseHandler(Unit.serializer(), PageV2.serializer(UCloudCoreEvent.serializer()))
+    val delete = deleteHandler(FindByStringId.serializer(), Unit.serializer())
+    val replay = updateHandler("replay", Unit.serializer(), Unit.serializer())
+}
+
+class EventController(
     private val controllerContext: ControllerContext,
-) : Controller {
+) : Controller, IpcController {
     private val debug: DebugSystem?
         get() = controllerContext.pluginContext.debugSystem
+    private var isPaused = false
 
     private val nextPull = AtomicLong(0L)
 
@@ -39,7 +79,7 @@ class NotificationController(
         if (!controllerContext.configuration.shouldRunServerCode()) return
 
         controllerContext.configuration.plugins.temporary
-            .onConnectionCompleteHandlers.add(this@NotificationController::onConnectionComplete)
+            .onConnectionCompleteHandlers.add(this@EventController::onConnectionComplete)
 
         val provider = controllerContext.configuration.core.providerId
         val projectApi = ProjectNotificationsProvider(provider)
@@ -58,6 +98,65 @@ class NotificationController(
         startLoop()
     }
 
+    override fun configureIpc(server: IpcServer) {
+        server.addHandler(EventIpc.updatePauseState.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            isPaused = request.isPaused
+        })
+
+        server.addHandler(EventIpc.retrievePauseState.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            EventPauseState(isPaused)
+        })
+
+        val projectPrefix = "p-"
+        val depositPrefix = "a-"
+        val rpcClient = controllerContext.pluginContext.rpcClient
+
+        server.addHandler(EventIpc.browse.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+            val projectBatch = ProjectNotifications.retrieve.call(Unit, rpcClient).orThrow().responses.map {
+                UCloudCoreEvent.Project(projectPrefix + it.id, it)
+            }
+
+            val allocationBatch = DepositNotifications.retrieve.call(Unit, rpcClient).orThrow().responses.map {
+                UCloudCoreEvent.Allocation(depositPrefix + it.id, it)
+            }
+
+            PageV2(Int.MAX_VALUE, projectBatch + allocationBatch, null)
+        })
+
+        server.addHandler(EventIpc.delete.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+            if (request.id.startsWith(depositPrefix)) {
+                DepositNotifications.markAsRead.call(
+                    bulkRequestOf(DepositNotificationsMarkAsReadRequestItem(request.id.removePrefix(depositPrefix))),
+                    rpcClient
+                ).orThrow()
+            } else if (request.id.startsWith(projectPrefix)) {
+                ProjectNotifications.markAsRead.call(
+                    bulkRequestOf(FindByStringId(request.id.removePrefix(projectPrefix))),
+                    rpcClient
+                ).orThrow()
+            }
+        })
+
+        server.addHandler(EventIpc.replay.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            if (isPaused) {
+                throw RPCException(
+                    "The system is currently paused, you cannot trigger a replay now",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            triggerPullRequest()
+            nextRescan = 0L
+        })
+    }
+
     private fun triggerPullRequest() {
         nextPull.set(0L)
     }
@@ -65,12 +164,22 @@ class NotificationController(
     private fun startLoop() {
         ProcessingScope.launch {
             while (isActive) {
+                if (isPaused) {
+                    delay(1000)
+                    continue
+                }
+
                 loopNotifications()
             }
         }
 
         ProcessingScope.launch {
             while (isActive) {
+                if (isPaused) {
+                    delay(1000)
+                    continue
+                }
+
                 loopScans()
             }
         }

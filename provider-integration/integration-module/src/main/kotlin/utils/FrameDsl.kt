@@ -38,7 +38,10 @@ class FrameDsl(private val isParsable: Boolean) {
                         inline(name.padEnd(maxLength + 1))
                         inline("| ")
                     }
-                    line(content)
+                    for ((idx, line) in content.lines().withIndex()) {
+                        if (idx != 0) inline(" ".repeat((maxLength + 3)))
+                        line(line)
+                    }
                 }
             } else {
                 line(CommaSeparatedValues.produce(fields.map { it.second }))

@@ -31,7 +31,7 @@ class UCloudConnectionPlugin : ConnectionPlugin {
             val subject = UCloudSubject(username)
             val extension = pluginConfig.extensions.onConnectionComplete
             val result = if (extension != null) {
-                onConnectionComplete.invoke(extension, subject)
+                onConnectionComplete.invoke(this, extension, subject)
             } else {
                 null
             }

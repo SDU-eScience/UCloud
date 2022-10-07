@@ -36,9 +36,6 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
-import dk.sdu.cloud.utils.LinuxFileHandle
-import dk.sdu.cloud.utils.LinuxInputStream
-import dk.sdu.cloud.utils.LinuxOutputStream
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
 import io.ktor.util.*
@@ -48,6 +45,17 @@ import org.slf4j.LoggerFactory
 import java.sql.DriverManager
 
 fun main(args: Array<String>) {
+    if (false) {
+        /*
+        Save extension failures in the database and create a CLI to inspect failures
+
+        Create a CLI for forcing:
+        - Project event replay
+        - Allocation event replay
+
+        Allow manual mark as complete for bad events
+         */
+    }
     try {
         // NOTE(Dan): The integration module of UCloud can start in one of three modes. What the integration module
         // does and starts depends heavily on the mode we are started in. We present a short summary of the modes here,
@@ -671,7 +679,7 @@ fun main(args: Array<String>) {
                     LicenseController(controllerContext),
                     ShareController(controllerContext),
                     ConnectionController(controllerContext, envoyConfig),
-                    NotificationController(controllerContext),
+                    EventController(controllerContext),
                 )
             }
 

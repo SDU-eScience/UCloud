@@ -49,6 +49,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         private set
     private val mutex = Mutex()
     private val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+    private lateinit var ctx: PluginContext
 
     private data class CollectionChargeCredits(
         val lastCharged: Date,
@@ -61,6 +62,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     }
 
     override suspend fun PluginContext.initialize() {
+        ctx = this
         partnerPlugin = (config.plugins.files[pluginName] as? PosixFilesPlugin) ?:
             error("Posix file-collection plugins requires a matching partner plugin of type Posix with name '$pluginName'")
         pathConverter = PathConverter(this)
@@ -86,7 +88,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             @Suppress("DEPRECATION")
             val extension = pluginConfig.extensions.driveLocator ?: pluginConfig.extensions.additionalCollections
             if (extension != null) {
-                retrieveCollections.invoke(extension, owner).forEach {
+                retrieveCollections.invoke(ctx, extension, owner).forEach {
                     collections.add(
                         PathConverter.Collection(owner.toResourceOwner(), it.title, it.path, product)
                     )
@@ -288,7 +290,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         return when (val cfg = pluginConfig.accounting) {
             null -> 0
             else -> {
-                calculateUsage.invoke(cfg, CalculateUsageRequest(coll.localPath)).bytesUsed
+                calculateUsage.invoke(ctx, cfg, CalculateUsageRequest(coll.localPath)).bytesUsed
             }
         }
     }
