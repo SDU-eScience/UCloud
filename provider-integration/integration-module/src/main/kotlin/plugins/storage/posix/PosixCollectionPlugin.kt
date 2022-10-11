@@ -1,9 +1,11 @@
 package dk.sdu.cloud.plugins.storage.posix
 
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -15,8 +17,11 @@ import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.enterContext
 import dk.sdu.cloud.debug.logD
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.ipc.IpcContainer
+import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.PathConverter
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.useAndInvoke
@@ -36,6 +41,10 @@ import kotlinx.serialization.builtins.serializer
 import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.math.floor
+
+object PosixCollectionIpc : IpcContainer("posixfscoll") {
+    val retrieveCollections = retrieveHandler(ResourceOwner.serializer(), PageV2.serializer(FindByPath.serializer()))
+}
 
 class PosixCollectionPlugin : FileCollectionPlugin {
     override val pluginTitle: String = "Posix"
@@ -66,6 +75,18 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         partnerPlugin = (config.plugins.files[pluginName] as? PosixFilesPlugin) ?:
             error("Posix file-collection plugins requires a matching partner plugin of type Posix with name '$pluginName'")
         pathConverter = PathConverter(this)
+
+        if (config.shouldRunServerCode()) {
+            ipcServer.addHandler(PosixCollectionIpc.retrieveCollections.handler { _, request ->
+                PageV2(
+                    Int.MAX_VALUE,
+                    ResourceOwnerWithId.load(request, ctx)?.let { owner ->
+                        locateAndRegisterCollections(owner).map { FindByPath(it.localPath) }
+                    } ?: emptyList(),
+                    null
+                )
+            })
+        }
     }
 
     override suspend fun PluginContext.onAllocationCompleteInServerMode(notification: AllocationNotification) {

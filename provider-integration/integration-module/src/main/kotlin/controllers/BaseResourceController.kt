@@ -31,7 +31,7 @@ abstract class BaseResourceController<
     protected fun lookupPluginOrNull(product: ProductReference): Plugin? {
         return retrievePlugins()?.find { plugin ->
             plugin.productAllocation.any { it.id == product.id && it.category == product.category }
-        } 
+        }
     }
 
     protected fun lookupPlugin(product: ProductReference): Plugin {
@@ -139,6 +139,19 @@ abstract class BaseResourceController<
                     }
                 )
             }
+        }
+
+        implement(api.updateAcl) {
+            if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+            ok(
+                dispatchToPlugin(plugins, request.items, { it.resource }) { plugin, request ->
+                    with(plugin) {
+                        updateAcl(request)
+                        BulkResponse(request.items.map { Unit })
+                    }
+                }
+            )
         }
 
         implement(api.verify) {

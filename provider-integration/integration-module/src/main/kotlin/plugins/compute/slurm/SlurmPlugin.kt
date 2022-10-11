@@ -21,6 +21,7 @@ import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.compute.udocker.UDocker
+import dk.sdu.cloud.plugins.storage.posix.PosixCollectionIpc
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
@@ -34,6 +35,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -59,6 +62,7 @@ class SlurmPlugin : ComputePlugin {
     var udocker: UDocker? = null
         private set
     private val didInitKeys = AtomicBoolean(false)
+    private lateinit var ctx: PluginContext
 
     override fun configure(config: ConfigSchema.Plugins.Jobs) {
         this.pluginConfig = config as SlurmConfig
@@ -66,6 +70,7 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun PluginContext.initialize() {
+        ctx = this
         if (config.shouldRunServerCode()) {
             if (accountMapperOrNull == null) accountMapperOrNull = AccountMapper(this)
             if (productEstimatorOrNull == null) productEstimatorOrNull = ProductEstimator(config)
@@ -152,8 +157,28 @@ class SlurmPlugin : ComputePlugin {
 
     // User Mode
     // =================================================================================================================
-    private fun findJobFolder(jobId: String): String? {
-        val homeDirectory = homeDirectory()
+    private var baseJobDirectory: String? = null
+    private val baseJobDirectoryMutex = Mutex()
+    private suspend fun findJobFolder(job: Job): String? {
+        val jobId = job.id
+        val homeDirectory: String = if (baseJobDirectory != null) {
+            baseJobDirectory!!
+        } else {
+            baseJobDirectoryMutex.withLock {
+                if (baseJobDirectory != null) {
+                    baseJobDirectory!!
+                } else {
+                    val baseDir = ctx.ipcClient.sendRequest(
+                        PosixCollectionIpc.retrieveCollections,
+                        job.owner
+                    ).items.singleOrNull()?.id ?: homeDirectory()
+
+                    baseJobDirectory = baseDir
+                    baseDir
+                }
+            }
+        }
+
         if (!fileExists(homeDirectory)) return null
         val jobsDir = homeDirectory.removeSuffix("/") + "/UCloud Jobs"
         if (!fileExists(jobsDir)) {
@@ -174,7 +199,7 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun RequestContext.create(resource: Job): FindByStringId? {
-        val jobFolder = findJobFolder(resource.id)
+        val jobFolder = findJobFolder(resource)
 
         val account = ipcClient.sendRequest(
             SlurmAccountIpc.retrieve,
@@ -228,7 +253,7 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun ComputePlugin.FollowLogsContext.follow(job: Job) {
-        val jobFolder = findJobFolder(job.id)
+        val jobFolder = findJobFolder(job)
 
         class OutputFile(val rank: Int, val out: NativeFile?, val err: NativeFile?)
 
@@ -330,7 +355,7 @@ class SlurmPlugin : ComputePlugin {
                 val nodes = cli.getJobNodeList(slurmJob.slurmId)
                 val nodeToUse = nodes[job.rank]
                     ?: throw RPCException("Unable to connect to job", HttpStatusCode.BadGateway)
-                val jobFolder = findJobFolder(jobId)
+                val jobFolder = findJobFolder(job.job)
                     ?: throw RPCException("Unable to connect to job", HttpStatusCode.BadGateway)
                 val port = runCatching { File(jobFolder, ALLOCATED_PORT_FILE).readText().trim().toInt() }.getOrNull()
                     ?: throw RPCException("Unable to connect to job - Try again later", HttpStatusCode.BadGateway)
