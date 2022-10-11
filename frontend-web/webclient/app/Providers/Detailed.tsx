@@ -1,6 +1,7 @@
 import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {Feature, hasFeature} from "@/Features";
 import * as React from "react";
-import Providers from "@/assets/Providers/info.json";
+import Providers from "@/Assets/Providers/info.json";
 import {useParams} from "react-router";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import {Box, Button, ExternalLink, Flex, Markdown, Text} from "@/ui-components";
@@ -13,6 +14,8 @@ import HighlightedCard from "@/ui-components/HighlightedCard";
 import {MachineView} from "@/Products/Products";
 
 export default function DetailedProvider() {
+    if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
+
     const params = useParams<{id: string}>();
     const entry = React.useMemo(() => Providers.providers.find(it => it.id === params.id), [params.id]);
 
@@ -20,7 +23,7 @@ export default function DetailedProvider() {
 
     if (!entry) return null;
 
-    const main = <Box px="12px">
+    const main = <Box px="12px" maxWidth={"2200px"}>
         <Flex>
             <div>
                 <ProviderLogo providerId={entry.id} size={200} />
