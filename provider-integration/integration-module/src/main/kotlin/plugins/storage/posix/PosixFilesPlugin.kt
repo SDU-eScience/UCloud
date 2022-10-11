@@ -42,6 +42,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.builtins.serializer
 import libc.clib
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
@@ -66,6 +67,11 @@ class PosixFilesPlugin : FilePlugin {
     override suspend fun PluginContext.initialize() {
         pathConverter = PathConverter(this)
         taskSystem = PosixTaskSystem(this, pathConverter)
+
+        // NOTE(Dan): Set the umask required for this plugin. This is done to make sure that projects have predictable
+        // results regardless of how the underlying system is configured. Without this, it is entirely possible that
+        // users can create directories which no other member can use.
+        clib.umask("0007".toInt(8))
     }
 
     private val tasksInitializedMutex = Mutex()
@@ -497,7 +503,19 @@ class PosixFilesPlugin : FilePlugin {
             val file = pathConverter.ucloudToInternal(UCloudFile.create(it.id))
 
             // Confirm that we can open the file
-            NativeFile.open(file.path, readOnly = false, mode = null).close()
+            try {
+                NativeFile.open(file.path, readOnly = false, mode = null).close()
+            } catch (ex: FileNotFoundException) {
+                throw RPCException(
+                    "You lack the permissions to create a file here",
+                    HttpStatusCode.BadRequest
+                )
+            } catch (ex: Throwable) {
+                throw RPCException(
+                    "Unknown error. Perhaps you are not allowed to create a file here?",
+                    HttpStatusCode.BadRequest
+                )
+            }
 
             FileUploadSession(secureToken(64), file.path)
         }

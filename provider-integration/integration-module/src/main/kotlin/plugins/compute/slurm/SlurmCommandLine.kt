@@ -46,8 +46,8 @@ class SlurmCommandLine(
 
         if (resp.statusCode != 0) {
             throw RPCException(
-                "Failed to cancel job (${resp.stdout} ${resp.statusCode})",
-                HttpStatusCode.InternalServerError
+                "Failed to cancel job. You can only cancel a job which you have started.",
+                HttpStatusCode.BadRequest
             )
         }
     }
