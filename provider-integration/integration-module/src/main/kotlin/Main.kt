@@ -548,15 +548,18 @@ fun main(args: Array<String>) {
             } else {
                 DebugMessageTransformer.Production
             }
+            val structuredLogs = File(config.core.logs.directory, "structured").also { it.mkdirs() }.absolutePath
             val debugSystem = when (serverMode) {
                 ServerMode.Server -> CommonDebugSystem(
                     "IM/Server",
-                    CommonFile(config.core.logs.directory), debugTransformer
+                    CommonFile(structuredLogs),
+                    debugTransformer
                 )
 
                 ServerMode.User -> CommonDebugSystem(
                     "IM/User/${clib.getuid()}",
-                    CommonFile(config.core.logs.directory), debugTransformer
+                    CommonFile(structuredLogs),
+                    debugTransformer
                 )
 
                 else -> null

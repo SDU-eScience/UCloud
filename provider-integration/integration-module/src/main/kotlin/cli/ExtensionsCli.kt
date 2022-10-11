@@ -81,7 +81,7 @@ fun ExtensionsCli(controllerContext: ControllerContext) {
                 val events = ipcClient.sendRequest(
                     ExtensionLogIpc.browse,
                     ExtensionLogFlags(
-                        findBooleanOption("--failures", args),
+                        if (findBooleanOption("--failures", args)) true else null,
                         findOption("--extension", args),
                         findOption("--before-relative", args),
                         findOption("--after-relative", args),
