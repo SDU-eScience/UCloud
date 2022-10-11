@@ -5,7 +5,6 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -38,7 +37,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
-import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.math.floor
 
@@ -57,7 +55,6 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     lateinit var pathConverter: PathConverter
         private set
     private val mutex = Mutex()
-    private val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
     private lateinit var ctx: PluginContext
 
     private data class CollectionChargeCredits(
@@ -169,18 +166,18 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                     else -> 0
                 }.toLong()
 
-                val lastChargedPeriodEnd = dateFormatter.format(Date(Time.now() - periodFractionSeconds * 1000))
+                val lastChargedPeriodEnd = (Time.now() - periodFractionSeconds * 1000) / 1000.0
 
                 session.prepareStatement(
                 """
-                    insert into posix_storage_scan
-                    (id, last_charged_period_end) values (:id, :last_charged_period_end)
+                    insert into posix_storage_scan (id, last_charged_period_end) 
+                    values (:id, to_timestamp(:last_charged_period_end))
                     on conflict (id) do update set last_charged_period_end = :last_charged_period_end
                 """
                 ).useAndInvokeAndDiscard(
                     prepare = {
                         bindString("id", it.resourceChargeCredits.id)
-                        bindString("last_charged_period_end", lastChargedPeriodEnd)
+                        bindDouble("last_charged_period_end", lastChargedPeriodEnd)
                     }
                 )
             }
@@ -265,13 +262,12 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                             session.prepareStatement(
                                                 """
                                                 insert into posix_storage_scan
-                                                (id, last_charged_period_end) values (:id, :last_charged_period_end)
-                                                on conflict (id) do update set last_charged_period_end = :last_charged_period_end
+                                                (id, last_charged_period_end) values (:id, now())
+                                                on conflict (id) do update set last_charged_period_end = now()
                                             """
                                             ).useAndInvokeAndDiscard(
                                                 prepare = {
                                                     bindString("id", coll.id)
-                                                    bindString("last_charged_period_end", dateFormatter.format(Date(Time.now())))
                                                 }
                                             )
                                             Date(Time.now())
@@ -338,16 +334,14 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             val lastCharges: MutableMap<String, Date> = HashMap()
             session.prepareStatement(
                 """
-                    select id, last_charged_period_end from posix_storage_scan
+                    select id, (extract(epoch from last_charged_period_end) * 1000)::int8 as last_charge_period_end
+                    from posix_storage_scan
                 """
             ).useAndInvoke(
                 readRow = {
-                    val productId = it.getString(0)
-                    val lastScanTime = it.getString(1)
-
-                    if (!productId.isNullOrBlank() && !lastScanTime.isNullOrBlank()) {
-                        lastCharges[productId] = dateFormatter.parse(lastScanTime)
-                    }
+                    val productId = it.getString(0)!!
+                    val lastScanTime = it.getLong(1)!!
+                    lastCharges[productId] = Date(lastScanTime)
                 }
             )
             lastCharges
