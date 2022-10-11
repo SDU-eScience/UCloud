@@ -322,7 +322,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
                 val customCallback = onConnectionCompleteCustomCallback
                 if (customCallback == null) {
-                    val result = onConnectionComplete.invoke(configuration.extensions.onConnectionComplete, subject)
+                    val result = onConnectionComplete.invoke(this@initializeRpcServer, configuration.extensions.onConnectionComplete, subject)
                     UserMapping.insertMapping(
                         subject.ucloudIdentity,
                         result.uid,
