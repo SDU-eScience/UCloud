@@ -1,5 +1,6 @@
 package dk.sdu.cloud.sql
 
+import dk.sdu.cloud.DB_CONNECTION_POOL_SIZE
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.debug.DebugContext
 import dk.sdu.cloud.debug.DebugMessage
@@ -60,7 +61,7 @@ class SimpleConnectionPool(val size: Int, private val constructor: (pool: Simple
 }
 
 class SqliteJdbcDriver(private val file: String) : JdbcDriver() {
-    override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
+    override val pool: SimpleConnectionPool = SimpleConnectionPool(DB_CONNECTION_POOL_SIZE) { pool ->
         JdbcConnection(
             DriverManager.getConnection("jdbc:sqlite:$file", SQLiteConfig().apply {
                 setJournalMode(SQLiteConfig.JournalMode.WAL)

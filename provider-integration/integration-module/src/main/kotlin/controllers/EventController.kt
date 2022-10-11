@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.config.ConfigSchema
@@ -23,9 +24,12 @@ import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.project.api.v2.ProjectNotification
 import dk.sdu.cloud.project.api.v2.ProjectNotifications
 import dk.sdu.cloud.project.api.v2.ProjectNotificationsProvider
+import dk.sdu.cloud.project.api.v2.Projects
+import dk.sdu.cloud.project.api.v2.ProjectsRetrieveRequest
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.utils.forEachGraal
 import kotlin.math.min
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -202,7 +206,7 @@ class EventController(
             } catch (ex: Throwable) {
                 log.info(
                     "Caught exception while processing notifications from UCloud/Core: " +
-                        ex.stackTraceToString()
+                            ex.stackTraceToString()
                 )
             }
 
@@ -226,7 +230,7 @@ class EventController(
         } catch (ex: Throwable) {
             log.info(
                 "Caught an exception while scanning allocations. We will retry again in a minute: " +
-                    ex.stackTraceToString()
+                        ex.stackTraceToString()
             )
             nextRescan = now + (1000L * 60)
         }
@@ -257,7 +261,7 @@ class EventController(
                     } catch (ex: Throwable) {
                         log.warn(
                             "Caught an exception while handling project update: ${item.project}\n" +
-                                ex.stackTraceToString()
+                                    ex.stackTraceToString()
                         )
                     }
                 }
@@ -473,6 +477,8 @@ class EventController(
     private suspend fun scanAllocations() {
         var allocationsScanned = 0
         var next: String? = null
+
+        val trackedProjects = HashSet<String>()
         while (currentCoroutineContext().isActive) {
             val providerSummaryResponse = Wallets.retrieveProviderSummary.call(
                 WalletsRetrieveProviderSummaryRequest(next = next),
@@ -500,6 +506,33 @@ class EventController(
             }?.value
 
             if (allPlugin != null) dispatchSyncToPlugin(allPlugin, providerSummary)
+
+            val projectPlugin = controllerContext.configuration.plugins.projects ?: continue
+            providerSummary
+                .asSequence()
+                .mapNotNull { (it.owner as? WalletOwner.Project)?.projectId }
+                .toList()
+                .forEachGraal { projectId ->
+                    if (projectId in trackedProjects) return@forEachGraal
+                    trackedProjects.add(projectId)
+                    val project = Projects.retrieve.call(
+                        ProjectsRetrieveRequest(projectId, includeMembers = true, includeGroups = true, includePath = true),
+                        controllerContext.pluginContext.rpcClient
+                    ).orNull() ?: return@forEachGraal
+
+                    with(controllerContext.pluginContext) {
+                        with(projectPlugin) {
+                            try {
+                                onProjectUpdated(project)
+                            } catch (ex: Throwable) {
+                                log.warn(
+                                    "Caught an exception while handling project update: ${project}\n" +
+                                            ex.stackTraceToString()
+                                )
+                            }
+                        }
+                    }
+                }
         }
 
         debug.logD(

@@ -815,7 +815,7 @@ private suspend fun testDB(db: DBContext) {
 
 private fun createDBConnection(database: VerifiedConfig.Server.Database): DBContext {
     return object : JdbcDriver() {
-        override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
+        override val pool: SimpleConnectionPool = SimpleConnectionPool(DB_CONNECTION_POOL_SIZE) { pool ->
             JdbcConnection(
                 DriverManager.getConnection(database.jdbcUrl, database.username, database.password),
                 pool
@@ -823,6 +823,8 @@ private fun createDBConnection(database: VerifiedConfig.Server.Database): DBCont
         }
     }
 }
+
+const val DB_CONNECTION_POOL_SIZE = 8
 
 private fun readSelfExecutablePath(): String {
     return File("/proc/self/exe").toPath().readSymbolicLink().toFile().absolutePath

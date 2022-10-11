@@ -17,21 +17,31 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
 @Serializable
-data class ExtensionFailure(
+data class ExtensionLog(
     val timestamp: Long,
     val request: String,
     val extensionPath: String,
     val stdout: String,
     val stderr: String,
     val statusCode: Int,
+    val success: Boolean,
 
     val uid: Int = -1,
     val id: String = "",
 )
 
-object ExtensionFailureIpc : IpcContainer("ipc_failure") {
-    val create = createHandler(ExtensionFailure.serializer(), Unit.serializer())
-    val browse = browseHandler(Unit.serializer(), PageV2.serializer(ExtensionFailure.serializer()))
+@Serializable
+data class ExtensionLogFlags(
+    val filterFailure: Boolean? = null,
+    val filterExtension: String? = null,
+    val filterBeforeRelative: String? = null,
+    val filterAfterRelative: String? = null,
+)
+
+object ExtensionLogIpc : IpcContainer("extension_log") {
+    val create = createHandler(ExtensionLog.serializer(), Unit.serializer())
+    val retrieve = retrieveHandler(FindByStringId.serializer(), ExtensionLog.serializer())
+    val browse = browseHandler(ExtensionLogFlags.serializer(), PageV2.serializer(ExtensionLog.serializer()))
     val markAsRead = updateHandler("markAsRead", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer())
     val clear = updateHandler("clear", Unit.serializer(), Unit.serializer())
 }
@@ -53,23 +63,13 @@ class TypedExtension<Request, Response>(
 
         fileDelete(tempFilePath)
 
-        runCatching {
-            context.ipcClient.sendRequest(
-                ExtensionFailureIpc.create,
-                ExtensionFailure(
-                    Time.now(),
-                    requestText,
-                    extensionPath,
-                    response.stdout,
-                    response.stderr,
-                    response.statusCode
-                )
-            )
-        }
-
+        var success = false
         return try {
-            defaultMapper.decodeFromString(responseType, response.stdout)
+            defaultMapper.decodeFromString(responseType, response.stdout).also {
+                success = true
+            }
         } catch (ex: Throwable) {
+            success = false
             throw ExtensionException(buildString {
                 appendLine("Extension '$extensionPath' has failed!")
                 appendLine()
@@ -89,6 +89,21 @@ class TypedExtension<Request, Response>(
                 appendLine("Decoding exception:")
                 appendLine(ex.stackTraceToString().prependIndent("    "))
             })
+        } finally {
+            runCatching {
+                context.ipcClient.sendRequest(
+                    ExtensionLogIpc.create,
+                    ExtensionLog(
+                        Time.now(),
+                        requestText,
+                        extensionPath,
+                        response.stdout,
+                        response.stderr,
+                        response.statusCode,
+                        success
+                    )
+                )
+            }
         }
     }
 
@@ -125,7 +140,10 @@ inline fun <reified Req, reified Resp> optionalExtension(
 suspend fun <Req, Resp> TypedExtensionWithExecutable<Req, Resp>.invoke(context: PluginContext, request: Req): Resp =
     extension.invoke(context, executable, request)
 
-suspend fun <Req, Resp> TypedExtensionWithExecutable<Req, Resp>?.optionalInvoke(context: PluginContext, request: Req): Resp? =
+suspend fun <Req, Resp> TypedExtensionWithExecutable<Req, Resp>?.optionalInvoke(
+    context: PluginContext,
+    request: Req
+): Resp? =
     this?.invoke(context, request)
 
 class ExtensionException(message: String) : RuntimeException(message)
