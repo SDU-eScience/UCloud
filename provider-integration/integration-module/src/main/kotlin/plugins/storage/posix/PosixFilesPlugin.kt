@@ -219,13 +219,18 @@ class PosixFilesPlugin : FilePlugin {
 
     private suspend fun PosixTask.Copy.process() {
         val source = pathConverter.ucloudToInternal(UCloudFile.create(request.oldId)).toNioPath()
+        val destination = run {
+            val desiredDestination = pathConverter.ucloudToInternal(UCloudFile.create(request.newId)).toNioPath()
+            createAccordingToPolicy(
+                desiredDestination.parent.toInternalFile(),
+                desiredDestination.toInternalFile().path.fileName(),
+                request.conflictPolicy
+            ).toNioPath()
+        }
 
-        val desiredDestination = pathConverter.ucloudToInternal(UCloudFile.create(request.newId)).toNioPath()
-        val destination = createAccordingToPolicy(
-            desiredDestination.parent.toInternalFile(),
-            desiredDestination.toInternalFile().path.fileName(),
-            request.conflictPolicy
-        ).toNioPath()
+        if (destination.startsWith(source)) {
+            return
+        }
 
         val copyOptions = buildList<CopyOption> {
             if (request.conflictPolicy == WriteConflictPolicy.REPLACE) add(StandardCopyOption.REPLACE_EXISTING)
