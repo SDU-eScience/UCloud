@@ -86,7 +86,6 @@ class NotificationController(
 
                 debug.enterContext("Allocation notifications") {
                     processAllocations()
-                    processAllocationsDetailed()
                 }
             } catch (ex: Throwable) {
                 log.info(
@@ -172,7 +171,7 @@ class NotificationController(
 
     // Allocations
     // ================================================================================================================
-    private suspend fun processAllocationsDetailed() {
+    private suspend fun processAllocations() {
         // TODO(Dan): Very fragile piece of code that will break if too many people don't connect to the system. We
         //  are only marking notifications as read if we can resolve the owner. This can easily lead to a situation
         //  where the batch is always full of items that we cannot handle/starvation problem.
@@ -183,10 +182,44 @@ class NotificationController(
 
         if (batch.responses.isEmpty()) return
 
-        val output = arrayOfNulls<OnResourceAllocationResult>(batch.responses.size)
+        val detailed = processAllocationsDetailed(batch.responses)
+        val summed = processAllocationsSummed(batch.responses)
+        val combined = summed.mapIndexed { idx, value ->
+            value ?: detailed[idx]
+        }
+
+        val items = ArrayList<DepositNotificationsMarkAsReadRequestItem>()
+        for ((index, res) in combined.withIndex()) {
+            if (res == null) continue
+            items.add(
+                DepositNotificationsMarkAsReadRequestItem(
+                    batch.responses[index].id,
+                    (res as? OnResourceAllocationResult.ManageThroughProvider)?.uniqueId
+                )
+            )
+        }
+
+        if (items.isNotEmpty()) {
+            DepositNotifications.markAsRead.call(
+                BulkRequest(items),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow()
+        }
+
+        debug.logD(
+            "Processed ${items.size} allocations",
+            Unit.serializer(),
+            Unit,
+            if (items.size == 0) MessageImportance.IMPLEMENTATION_DETAIL
+            else MessageImportance.THIS_IS_NORMAL
+        )
+    }
+
+    private suspend fun processAllocationsDetailed(notifications: List<DepositNotification>): Array<OnResourceAllocationResult?> {
+        val output = arrayOfNulls<OnResourceAllocationResult>(notifications.size)
         val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, DetailedAllocationNotification>>>()
 
-        outer@ for ((idx, notification) in batch.responses.withIndex()) {
+        outer@ for ((idx, notification) in notifications.withIndex()) {
             val combinedProviderSummary = Wallets.retrieveProviderSummary.call(
                 WalletsRetrieveProviderSummaryRequest(
                     filterOwnerId = when (val owner = notification.owner) {
@@ -240,49 +273,13 @@ class NotificationController(
             }
         }
 
-        val items = ArrayList<DepositNotificationsMarkAsReadRequestItem>()
-        for ((index, res) in output.withIndex()) {
-            if (res == null) continue
-
-            items.add(
-                DepositNotificationsMarkAsReadRequestItem(
-                    batch.responses[index].id,
-                    (res as? OnResourceAllocationResult.ManageThroughProvider)?.uniqueId
-                )
-            )
-        }
-
-        if (items.isNotEmpty()) {
-            DepositNotifications.markAsRead.call(
-                BulkRequest(items),
-                controllerContext.pluginContext.rpcClient
-            ).orThrow()
-        }
-
-        debug.logD(
-            "Processed ${items.size} allocations",
-            Unit.serializer(),
-            Unit,
-            if (items.size == 0) MessageImportance.IMPLEMENTATION_DETAIL
-            else MessageImportance.THIS_IS_NORMAL
-        )
+        return output
     }
 
-    private suspend fun processAllocations() {
-        // TODO(Dan): Very fragile piece of code that will break if too many people don't connect to the system. We
-        //  are only marking notifications as read if we can resolve the owner. This can easily lead to a situation
-        //  where the batch is always full of items that we cannot handle/starvation problem.
-        val batch = DepositNotifications.retrieve.call(
-            Unit,
-            controllerContext.pluginContext.rpcClient
-        ).orThrow()
-
-        if (batch.responses.isEmpty()) return
-
-        val output = arrayOfNulls<OnResourceAllocationResult>(batch.responses.size)
+    private suspend fun processAllocationsSummed(notifications: List<DepositNotification>): Array<OnResourceAllocationResult?> {
+        val output = arrayOfNulls<OnResourceAllocationResult>(notifications.size)
         val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, AllocationNotification>>>()
-
-        outer@ for ((idx, notification) in batch.responses.withIndex()) {
+        outer@ for ((idx, notification) in notifications.withIndex()) {
             val combinedProviderSummary = Wallets.retrieveProviderSummary.call(
                 WalletsRetrieveProviderSummaryRequest(
                     filterOwnerId = when (val owner = notification.owner) {
@@ -298,7 +295,6 @@ class NotificationController(
                 val productType = providerSummary.productType
 
                 val list = notificationsByType[productType] ?: ArrayList()
-                notificationsByType[productType] = list
                 val newPair = Pair(idx, prepareAllocationNotification(providerSummary) ?: continue)
                 val existing = list.find { it.first == newPair.first && it.second.owner == newPair.second.owner && it.second.productCategory == newPair.second.productCategory }
 
@@ -307,10 +303,10 @@ class NotificationController(
                 } else {
                     list.add(newPair)
                 }
+
+                notificationsByType[productType] = list
             }
         }
-
-        println(notificationsByType)
 
         for ((type, list) in notificationsByType) {
             val plugins = controllerContext.configuration.plugins
@@ -344,32 +340,7 @@ class NotificationController(
             }
         }
 
-        val items = ArrayList<DepositNotificationsMarkAsReadRequestItem>()
-        for ((index, res) in output.withIndex()) {
-            if (res == null) continue
-
-            items.add(
-                DepositNotificationsMarkAsReadRequestItem(
-                    batch.responses[index].id,
-                    (res as? OnResourceAllocationResult.ManageThroughProvider)?.uniqueId
-                )
-            )
-        }
-
-        if (items.isNotEmpty()) {
-            DepositNotifications.markAsRead.call(
-                BulkRequest(items),
-                controllerContext.pluginContext.rpcClient
-            ).orThrow()
-        }
-
-        debug.logD(
-            "Processed ${items.size} allocations",
-            Unit.serializer(),
-            Unit,
-            if (items.size == 0) MessageImportance.IMPLEMENTATION_DETAIL
-            else MessageImportance.THIS_IS_NORMAL
-        )
+        return output
     }
 
     private suspend fun notifyPlugins(notification: AllocationNotification) {
