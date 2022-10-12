@@ -13,42 +13,42 @@ class ExtensionAllocationPlugin : AllocationPlugin {
         this.pluginConfig = config as ConfigSchema.Plugins.Allocations.Extension
     }
 
-    override suspend fun PluginContext.onResourceAllocation(
-        notifications: List<AllocationNotification>
+    override suspend fun PluginContext.onResourceAllocationTotal(
+        notifications: List<AllocationNotificationTotal>
     ): List<OnResourceAllocationResult> {
         val results = ArrayList<OnResourceAllocationResult>()
         for (notification in notifications) {
-            results.add(onAllocation.invoke(pluginConfig.extensions.onAllocation, notification))
+            results.add(onAllocationTotal.invoke(pluginConfig.extensions.onAllocationTotal, notification))
         }
         return results
     }
 
-    override suspend fun PluginContext.onResourceAllocationDetailed(
-        notifications: List<DetailedAllocationNotification>
+    override suspend fun PluginContext.onResourceAllocationSingle(
+        notifications: List<AllocationNotificationSingle>
     ): List<OnResourceAllocationResult> {
         val results = ArrayList<OnResourceAllocationResult>()
         for (notification in notifications) {
-            results.add(onAllocationDetailed.invoke(pluginConfig.extensions.onAllocationDetailed, notification))
+            results.add(onAllocationSingle.invoke(pluginConfig.extensions.onAllocationSingle, notification))
         }
         return results
     }
 
-    override suspend fun PluginContext.onResourceSynchronization(notifications: List<AllocationNotification>) {
+    override suspend fun PluginContext.onResourceSynchronizationTotal(notifications: List<AllocationNotificationTotal>) {
         for (notification in notifications) {
-            onSynchronization.invoke(pluginConfig.extensions.onSynchronization, notification)
+            onSynchronizationTotal.invoke(pluginConfig.extensions.onSynchronizationTotal, notification)
         }
     }
 
-    override suspend fun PluginContext.onResourceSynchronizationDetailed(notifications: List<DetailedAllocationNotification>) {
+    override suspend fun PluginContext.onResourceSynchronizationSingle(notifications: List<AllocationNotificationSingle>) {
         for (notification in notifications) {
-            onSynchronizationDetailed.invoke(pluginConfig.extensions.onSynchronizationDetailed, notification)
+            onSynchronizationSingle.invoke(pluginConfig.extensions.onSynchronizationSingle, notification)
         }
     }
 
     private companion object Extensions {
-        val onAllocation = extension(AllocationNotification.serializer(), OnResourceAllocationResult.serializer())
-        val onAllocationDetailed = extension(DetailedAllocationNotification.serializer(), OnResourceAllocationResult.serializer())
-        val onSynchronization = extension(AllocationNotification.serializer(), Unit.serializer())
-        val onSynchronizationDetailed = extension(DetailedAllocationNotification.serializer(), Unit.serializer())
+        val onAllocationTotal = extension(AllocationNotificationTotal.serializer(), OnResourceAllocationResult.serializer())
+        val onAllocationSingle = extension(AllocationNotificationSingle.serializer(), OnResourceAllocationResult.serializer())
+        val onSynchronizationTotal = extension(AllocationNotificationTotal.serializer(), Unit.serializer())
+        val onSynchronizationSingle = extension(AllocationNotificationSingle.serializer(), Unit.serializer())
     }
 }

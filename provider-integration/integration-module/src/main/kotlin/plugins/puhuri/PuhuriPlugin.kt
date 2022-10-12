@@ -415,7 +415,7 @@ class PuhuriPlugin : ProjectPlugin {
         }
     }
 
-    suspend fun onAllocations(allocations: List<DetailedAllocationNotification>) {
+    suspend fun onAllocations(allocations: List<AllocationNotificationSingle>) {
         // NOTE(Dan): This function is invoked both when new allocations arrive and when we are synchronizing
         // allocations. This function starts by throwing away a lot of information which are not used. That is because
         // we currently support Puhuri in a very limited fashion. We assume we can only allocate one type of CPU, one
@@ -515,14 +515,14 @@ class PuhuriAllocationPlugin : AllocationPlugin {
         }
     }
 
-    override suspend fun PluginContext.onResourceAllocationDetailed(
-        notifications: List<DetailedAllocationNotification>
+    override suspend fun PluginContext.onResourceAllocationSingle(
+        notifications: List<AllocationNotificationSingle>
     ): List<OnResourceAllocationResult> {
         puhuriPlugin.onAllocations(notifications)
         return notifications.map { OnResourceAllocationResult.ManageThroughUCloud }
     }
 
-    override suspend fun PluginContext.onResourceSynchronizationDetailed(notifications: List<DetailedAllocationNotification>) {
+    override suspend fun PluginContext.onResourceSynchronizationSingle(notifications: List<AllocationNotificationSingle>) {
         puhuriPlugin.onAllocations(notifications)
     }
 }

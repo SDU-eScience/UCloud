@@ -182,10 +182,10 @@ class NotificationController(
 
         if (batch.responses.isEmpty()) return
 
-        val detailed = processAllocationsDetailed(batch.responses)
-        val summed = processAllocationsSummed(batch.responses)
-        val combined = summed.mapIndexed { idx, value ->
-            value ?: detailed[idx]
+        val singles = processAllocationsSingles(batch.responses)
+        val totals = processAllocationsTotals(batch.responses)
+        val combined = totals.mapIndexed { idx, value ->
+            value ?: singles[idx]
         }
 
         val items = ArrayList<DepositNotificationsMarkAsReadRequestItem>()
@@ -215,9 +215,9 @@ class NotificationController(
         )
     }
 
-    private suspend fun processAllocationsDetailed(notifications: List<DepositNotification>): Array<OnResourceAllocationResult?> {
+    private suspend fun processAllocationsSingles(notifications: List<DepositNotification>): Array<OnResourceAllocationResult?> {
         val output = arrayOfNulls<OnResourceAllocationResult>(notifications.size)
-        val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, DetailedAllocationNotification>>>()
+        val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, AllocationNotificationSingle>>>()
 
         outer@ for ((idx, notification) in notifications.withIndex()) {
             val combinedProviderSummary = Wallets.retrieveProviderSummary.call(
@@ -237,7 +237,7 @@ class NotificationController(
                 val list = notificationsByType[productType] ?: ArrayList()
                 notificationsByType[productType] = list
 
-                list.add(Pair(idx, prepareDetailedAllocationNotification(providerSummary) ?: continue))
+                list.add(Pair(idx, prepareAllocationNotificationSingle(providerSummary) ?: continue))
             }
         }
 
@@ -248,7 +248,7 @@ class NotificationController(
             with(controllerContext.pluginContext) {
                 if (allocationPlugin != null) {
                     val response = with(allocationPlugin) {
-                        onResourceAllocationDetailed(list.map { it.second })
+                        onResourceAllocationSingle(list.map { it.second })
                     }
 
                     for ((request, pluginResponse) in list.zip(response)) {
@@ -269,16 +269,16 @@ class NotificationController(
 
         allPlugin?.run {
             with(controllerContext.pluginContext) {
-                onResourceAllocationDetailed(notificationsByType.entries.flatMap { (_, allocs) -> allocs.map { it.second } })
+                onResourceAllocationSingle(notificationsByType.entries.flatMap { (_, allocs) -> allocs.map { it.second } })
             }
         }
 
         return output
     }
 
-    private suspend fun processAllocationsSummed(notifications: List<DepositNotification>): Array<OnResourceAllocationResult?> {
+    private suspend fun processAllocationsTotals(notifications: List<DepositNotification>): Array<OnResourceAllocationResult?> {
         val output = arrayOfNulls<OnResourceAllocationResult>(notifications.size)
-        val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, AllocationNotification>>>()
+        val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, AllocationNotificationTotal>>>()
         outer@ for ((idx, notification) in notifications.withIndex()) {
             val combinedProviderSummary = Wallets.retrieveProviderSummary.call(
                 WalletsRetrieveProviderSummaryRequest(
@@ -315,7 +315,7 @@ class NotificationController(
             with(controllerContext.pluginContext) {
                 if (allocationPlugin != null) {
                     val response = with(allocationPlugin) {
-                        onResourceAllocation(list.map { it.second })
+                        onResourceAllocationTotal(list.map { it.second })
                     }
 
                     for ((request, pluginResponse) in list.zip(response)) {
@@ -336,14 +336,14 @@ class NotificationController(
 
         allPlugin?.run {
             with(controllerContext.pluginContext) {
-                onResourceAllocation(notificationsByType.entries.flatMap { (_, allocs) -> allocs.map { it.second } })
+                onResourceAllocationTotal(notificationsByType.entries.flatMap { (_, allocs) -> allocs.map { it.second } })
             }
         }
 
         return output
     }
 
-    private suspend fun notifyPlugins(notification: AllocationNotification) {
+    private suspend fun notifyPlugins(notification: AllocationNotificationTotal) {
         val plugins = controllerContext.configuration.plugins
         plugins.resourcePlugins().asSequence()
             .filter { plugin ->
@@ -352,13 +352,13 @@ class NotificationController(
             .forEach { plugin ->
                 with(controllerContext.pluginContext) {
                     with(plugin) {
-                        onAllocationCompleteInServerMode(notification)
+                        onAllocationCompleteInServerModeTotal(notification)
                     }
                 }
             }
     }
 
-    private suspend fun notifyPlugins(notification: DetailedAllocationNotification) {
+    private suspend fun notifyPlugins(notification: AllocationNotificationSingle) {
         val plugins = controllerContext.configuration.plugins
         plugins.resourcePlugins().asSequence()
             .filter { plugin ->
@@ -367,7 +367,7 @@ class NotificationController(
             .forEach { plugin ->
                 with(controllerContext.pluginContext) {
                     with(plugin) {
-                        onAllocationCompleteInServerModeDetailed(notification)
+                        onAllocationCompleteInServerModeSingle(notification)
                     }
                 }
             }
@@ -375,7 +375,7 @@ class NotificationController(
 
     private fun onConnectionComplete(ucloudId: String, localId: Int) {
         runBlocking {
-            val notifications = ArrayList<AllocationNotification>()
+            val notifications = ArrayList<AllocationNotificationTotal>()
             var next: String? = null
             while (true) {
                 val providerSummary = Wallets.retrieveProviderSummary.call(
@@ -390,7 +390,7 @@ class NotificationController(
 
                 for (summary in providerSummary.items) {
                     notifications.add(
-                        AllocationNotification(
+                        AllocationNotificationTotal(
                             min(summary.maxUsableBalance, summary.maxPromisedBalance),
                             ResourceOwnerWithId.User(ucloudId, localId),
                             summary.categoryId.name,
@@ -410,7 +410,7 @@ class NotificationController(
                 if (allocationPlugin != null) {
                     with(controllerContext.pluginContext) {
                         with(allocationPlugin) {
-                            onResourceAllocation(listOf(notification))
+                            onResourceAllocationTotal(listOf(notification))
                         }
                     }
                 }
@@ -426,15 +426,15 @@ class NotificationController(
             if (allPlugin != null) {
                 with(controllerContext.pluginContext) {
                     with(allPlugin) {
-                        onResourceAllocation(notifications)
+                        onResourceAllocationTotal(notifications)
                     }
                 }
             }
         }
     }
 
-    private suspend fun prepareDetailedAllocationNotification(summary: ProviderWalletSummary): DetailedAllocationNotification? {
-        return DetailedAllocationNotification(
+    private suspend fun prepareAllocationNotificationSingle(summary: ProviderWalletSummary): AllocationNotificationSingle? {
+        return AllocationNotificationSingle(
             min(summary.maxUsableBalance, summary.maxPromisedBalance),
             ResourceOwnerWithId.load(summary.owner, controllerContext.pluginContext) ?: run {
                 log.info("Could not find UID/GID for ${summary.owner}")
@@ -446,8 +446,8 @@ class NotificationController(
         )
     }
 
-    private suspend fun prepareAllocationNotification(summary: ProviderWalletSummary): AllocationNotification? {
-        return AllocationNotification(
+    private suspend fun prepareAllocationNotification(summary: ProviderWalletSummary): AllocationNotificationTotal? {
+        return AllocationNotificationTotal(
             min(summary.maxUsableBalance, summary.maxPromisedBalance),
             ResourceOwnerWithId.load(summary.owner, controllerContext.pluginContext) ?: run {
                 log.info("Could not find UID/GID for ${summary.owner}")
@@ -503,7 +503,7 @@ class NotificationController(
         with(controllerContext.pluginContext) {
             with(plugin) {
                 val items = list.mapNotNull { prepareAllocationNotification(it) }
-                if (items.isNotEmpty()) onResourceSynchronization(items)
+                if (items.isNotEmpty()) onResourceSynchronizationTotal(items)
             }
         }
     }
