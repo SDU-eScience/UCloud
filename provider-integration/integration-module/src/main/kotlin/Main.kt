@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
+import dk.sdu.cloud.plugins.storage.posix.posixFilePermissionsFromInt
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
 import io.ktor.util.*
@@ -537,7 +538,15 @@ fun main(args: Array<String>) {
             } else {
                 DebugMessageTransformer.Production
             }
-            val structuredLogs = File(config.core.logs.directory, "structured").also { it.mkdirs() }.absolutePath
+            val structuredLogs = File(config.core.logs.directory, "structured").also {
+                it.mkdirs()
+                runCatching {
+                    java.nio.file.Files.setPosixFilePermissions(
+                        it.toPath(),
+                        posixFilePermissionsFromInt("777".toInt(8))
+                    )
+                }
+            }.absolutePath
             val debugSystem = when (serverMode) {
                 ServerMode.Server -> CommonDebugSystem(
                     "IM/Server",

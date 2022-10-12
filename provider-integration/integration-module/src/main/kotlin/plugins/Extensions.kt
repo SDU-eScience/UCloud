@@ -36,6 +36,7 @@ data class ExtensionLogFlags(
     val filterExtension: String? = null,
     val filterBeforeRelative: String? = null,
     val filterAfterRelative: String? = null,
+    val query: String? = null,
 )
 
 object ExtensionLogIpc : IpcContainer("extension_log") {

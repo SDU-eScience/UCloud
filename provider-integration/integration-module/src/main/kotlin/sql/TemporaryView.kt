@@ -35,17 +35,18 @@ data class TemporaryView<T>(
         fun <T> generate(
             serializer: KSerializer<T>,
             tableName: String,
-            propertyToColumnGenerator: (property: String) -> String = ::defaultSqlPropertyExtractor,
+            viewName: String = tableName + "_json",
+            propertyToColumnGenerator: (property: String) -> RawSql = ::defaultSqlPropertyExtractor,
         ): TemporaryView<T> {
             return TemporaryView(serializer) { session ->
                 session.prepareStatement(
                     buildString {
-                        append("create or replace temporary view ${tableName}_json as select row.*, jsonb_build_object(")
+                        append("create or replace temporary view $viewName as select row.*, jsonb_build_object(")
                         for (i in 0 until serializer.descriptor.elementsCount) {
                             val name = serializer.descriptor.getElementName(i)
                             if (i != 0) append(", ")
                             append("'$name', ")
-                            append(propertyToColumnGenerator(name))
+                            append(propertyToColumnGenerator(name).sql)
                         }
                         append(") as serialized from $tableName row")
                     }
@@ -55,12 +56,20 @@ data class TemporaryView<T>(
     }
 }
 
-fun timestampExtractor(property: String): String {
-    return "(extract(epoch from $property) * 1000)::int8"
+fun emptySqlString(): RawSql {
+    return RawSql("''")
 }
 
-fun stringIdExtractor(property: String): String {
-    return "$property::text"
+fun sqlNull(): RawSql {
+    return RawSql("NULL")
+}
+
+fun timestampExtractor(property: String): RawSql {
+    return RawSql("(extract(epoch from $property) * 1000)::int8")
+}
+
+fun stringIdExtractor(property: String): RawSql {
+    return RawSql("$property::text")
 }
 
 fun camelToSnake(text: String): String {
@@ -76,11 +85,11 @@ fun camelToSnake(text: String): String {
     return builder.toString()
 }
 
-fun defaultSqlPropertyExtractor(prop: String): String {
+fun defaultSqlPropertyExtractor(prop: String): RawSql {
     return when (prop) {
         "createdAt", "modifiedAt", "updatedAt", "ts", "timestamp" -> timestampExtractor(prop)
         "id" -> stringIdExtractor(prop)
-        else -> camelToSnake(prop)
+        else -> RawSql(camelToSnake(prop))
     }
 }
 

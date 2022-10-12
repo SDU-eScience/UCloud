@@ -18,6 +18,8 @@ import dk.sdu.cloud.prettyMapper
 import dk.sdu.cloud.sql.TemporaryView
 import dk.sdu.cloud.sql.bindBooleanNullable
 import dk.sdu.cloud.sql.bindStringNullable
+import dk.sdu.cloud.sql.defaultSqlPropertyExtractor
+import dk.sdu.cloud.sql.emptySqlString
 import dk.sdu.cloud.sql.queryJson
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
@@ -63,6 +65,11 @@ fun ExtensionsCli(controllerContext: ControllerContext) {
                     optional = true,
                     description = "Filters out entries which does not occur before the time specified"
                 )
+                arg(
+                    "--query=<query>",
+                    optional = true,
+                    description = "Generic search query in the results"
+                )
             }
 
             subcommand("delete", "Deletes one or more entries from the log") {
@@ -77,7 +84,7 @@ fun ExtensionsCli(controllerContext: ControllerContext) {
         }
 
         when (args.getOrNull(0)) {
-            null, "read" -> {
+            "read" -> {
                 val events = ipcClient.sendRequest(
                     ExtensionLogIpc.browse,
                     ExtensionLogFlags(
@@ -85,6 +92,7 @@ fun ExtensionsCli(controllerContext: ControllerContext) {
                         findOption("--extension", args),
                         findOption("--before-relative", args),
                         findOption("--after-relative", args),
+                        findOption("--query", args)
                     )
                 ).items
 
@@ -154,6 +162,14 @@ fun ExtensionsCli(controllerContext: ControllerContext) {
     })
 
     val logJsonView = TemporaryView.generate(ExtensionLog.serializer(), "extension_log")
+    val logJsonViewSlim = TemporaryView.generate(ExtensionLog.serializer(), "extension_log", "extension_log_slim") { prop ->
+        when (prop) {
+            "request" -> emptySqlString()
+            "stdout" -> emptySqlString()
+            "stderr" -> emptySqlString()
+            else -> defaultSqlPropertyExtractor(prop)
+        }
+    }
 
     val ipcServer = controllerContext.pluginContext.ipcServerOptional
     ipcServer?.addHandler(ExtensionLogIpc.browse.handler { user, request ->
@@ -161,23 +177,31 @@ fun ExtensionsCli(controllerContext: ControllerContext) {
 
         val rows = dbConnection.withSession { session ->
             session.queryJson(
-                logJsonView,
+                logJsonViewSlim,
                 """
                     select serialized
-                    from extension_log_json
+                    from extension_log_slim
                     where
                         (:filter_failure::bool is null or :filter_failure::bool = not success) and
                         (:filter_extension::text is null or extension_path ilike '%' || :filter_extension::text || '%') and
                         (:filter_before_relative::text is null or timestamp < now() - :filter_before_relative::interval) and
-                        (:filter_after_relative::text is null or timestamp > now() - :filter_after_relative::interval)
+                        (:filter_after_relative::text is null or timestamp > now() - :filter_after_relative::interval) and
+                        (
+                            :query::text is null or
+                            stdout ilike '%' || :query || '%' or
+                            stderr ilike '%' || :query || '%' or
+                            request ilike '%' || :query || '%' or
+                            extension_path ilike '%' || :query || '%'
+                        )
                     order by timestamp desc
-                    limit 100
+                    limit 35
                 """,
                 prepare = {
                     bindBooleanNullable("filter_failure", request.filterFailure)
                     bindStringNullable("filter_extension", request.filterExtension)
                     bindStringNullable("filter_before_relative", request.filterBeforeRelative)
                     bindStringNullable("filter_after_relative", request.filterAfterRelative)
+                    bindStringNullable("query", request.query)
                 }
             )
         }

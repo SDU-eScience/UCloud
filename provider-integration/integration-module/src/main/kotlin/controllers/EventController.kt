@@ -491,6 +491,44 @@ class EventController(
             allocationsScanned += providerSummaryResponse.items.size
             if (providerSummary.isEmpty()) break
 
+            // NOTE(Dan): Before we synchronize the allocations, attempt to synchronize the project. This will solve
+            // issues when the project has failed the synchronization earlier.
+            val projectPlugin = controllerContext.configuration.plugins.projects
+            if (projectPlugin != null) {
+                providerSummary
+                    .asSequence()
+                    .mapNotNull {
+                        (it.owner as? WalletOwner.Project)?.projectId
+                    }
+                    .toList()
+                    .forEachGraal { projectId ->
+                        if (projectId in trackedProjects) return@forEachGraal
+                        trackedProjects.add(projectId)
+                        try {
+                            val project = Projects.retrieve.call(
+                                ProjectsRetrieveRequest(
+                                    projectId,
+                                    includeMembers = true,
+                                    includeGroups = true,
+                                    includePath = true
+                                ),
+                                controllerContext.pluginContext.rpcClient
+                            ).orThrow()
+
+                            with(controllerContext.pluginContext) {
+                                with(projectPlugin) {
+                                    onProjectUpdated(project)
+                                }
+                            }
+                        } catch (ex: Throwable) {
+                            log.warn(
+                                "Caught an exception while handling project update: ${projectId}\n" +
+                                        ex.stackTraceToString()
+                            )
+                        }
+                    }
+            }
+
             val notificationsByType = providerSummary.groupBy { it.productType }
 
             for ((type, list) in notificationsByType) {
@@ -507,32 +545,6 @@ class EventController(
 
             if (allPlugin != null) dispatchSyncToPlugin(allPlugin, providerSummary)
 
-            val projectPlugin = controllerContext.configuration.plugins.projects ?: continue
-            providerSummary
-                .asSequence()
-                .mapNotNull { (it.owner as? WalletOwner.Project)?.projectId }
-                .toList()
-                .forEachGraal { projectId ->
-                    if (projectId in trackedProjects) return@forEachGraal
-                    trackedProjects.add(projectId)
-                    val project = Projects.retrieve.call(
-                        ProjectsRetrieveRequest(projectId, includeMembers = true, includeGroups = true, includePath = true),
-                        controllerContext.pluginContext.rpcClient
-                    ).orNull() ?: return@forEachGraal
-
-                    with(controllerContext.pluginContext) {
-                        with(projectPlugin) {
-                            try {
-                                onProjectUpdated(project)
-                            } catch (ex: Throwable) {
-                                log.warn(
-                                    "Caught an exception while handling project update: ${project}\n" +
-                                            ex.stackTraceToString()
-                                )
-                            }
-                        }
-                    }
-                }
         }
 
         debug.logD(
