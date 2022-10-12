@@ -295,7 +295,7 @@ class NotificationController(
                 val productType = providerSummary.productType
 
                 val list = notificationsByType[productType] ?: ArrayList()
-                val newPair = Pair(idx, prepareAllocationNotification(providerSummary) ?: continue)
+                val newPair = Pair(idx, prepareAllocationNotificationTotal(providerSummary) ?: continue)
                 val existing = list.find { it.first == newPair.first && it.second.owner == newPair.second.owner && it.second.productCategory == newPair.second.productCategory }
 
                 if (existing != null) {
@@ -375,7 +375,9 @@ class NotificationController(
 
     private fun onConnectionComplete(ucloudId: String, localId: Int) {
         runBlocking {
-            val notifications = ArrayList<AllocationNotificationTotal>()
+            val notificationsTotal = HashMap<String, AllocationNotificationTotal>()
+            val notificationsSingle = ArrayList<AllocationNotificationSingle>()
+
             var next: String? = null
             while (true) {
                 val providerSummary = Wallets.retrieveProviderSummary.call(
@@ -389,22 +391,43 @@ class NotificationController(
                 ).orThrow()
 
                 for (summary in providerSummary.items) {
-                    notifications.add(
-                        AllocationNotificationTotal(
+                    notificationsSingle.add(
+                        AllocationNotificationSingle(
+                            min(summary.maxUsableBalance, summary.maxPromisedBalance),
+                            ResourceOwnerWithId.User(ucloudId, localId),
+                            summary.id,
+                            summary.categoryId.name,
+                            summary.productType,
+                        )
+                    )
+
+                    if (notificationsTotal[summary.id] != null) {
+                        val newBalance = notificationsTotal[summary.id]?.balance?.plus(
+                            min(
+                                summary.maxUsableBalance,
+                                summary.maxPromisedBalance
+                            )
+                        )
+
+                        notificationsTotal[summary.id]?.balance = (newBalance ?: notificationsTotal[summary.id]?.balance) as Long
+                    } else {
+                        notificationsTotal[summary.id] = AllocationNotificationTotal(
                             min(summary.maxUsableBalance, summary.maxPromisedBalance),
                             ResourceOwnerWithId.User(ucloudId, localId),
                             summary.categoryId.name,
                             summary.productType,
                         )
-                    )
+                    }
+
+
                 }
 
                 next = providerSummary.next
                 if (next == null) break
             }
 
-            for (notification in notifications) {
-                val plugins = controllerContext.configuration.plugins
+            val plugins = controllerContext.configuration.plugins
+            for (notification in notificationsTotal.values) {
                 val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == notification.productType }
                     ?.value
                 if (allocationPlugin != null) {
@@ -418,6 +441,18 @@ class NotificationController(
                 notifyPlugins(notification)
             }
 
+            for (notification in notificationsSingle) {
+                val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == notification.productType }
+                    ?.value
+
+                if (allocationPlugin != null) {
+                    with(controllerContext.pluginContext) {
+                        with(allocationPlugin) {
+                            onResourceAllocationSingle(listOf(notification))
+                        }
+                    }
+                }
+            }
 
             val allPlugin = controllerContext.configuration.plugins.allocations.entries.find { (t) ->
                 t == ConfigSchema.Plugins.AllocationsProductType.ALL
@@ -426,7 +461,8 @@ class NotificationController(
             if (allPlugin != null) {
                 with(controllerContext.pluginContext) {
                     with(allPlugin) {
-                        onResourceAllocationTotal(notifications)
+                        onResourceAllocationTotal(notificationsTotal.values.toList())
+                        onResourceAllocationSingle(notificationsSingle)
                     }
                 }
             }
@@ -446,7 +482,7 @@ class NotificationController(
         )
     }
 
-    private suspend fun prepareAllocationNotification(summary: ProviderWalletSummary): AllocationNotificationTotal? {
+    private suspend fun prepareAllocationNotificationTotal(summary: ProviderWalletSummary): AllocationNotificationTotal? {
         return AllocationNotificationTotal(
             min(summary.maxUsableBalance, summary.maxPromisedBalance),
             ResourceOwnerWithId.load(summary.owner, controllerContext.pluginContext) ?: run {
@@ -502,7 +538,7 @@ class NotificationController(
     private suspend fun dispatchSyncToPlugin(plugin: AllocationPlugin, list: List<ProviderWalletSummary>) {
         with(controllerContext.pluginContext) {
             with(plugin) {
-                val items = list.mapNotNull { prepareAllocationNotification(it) }
+                val items = list.mapNotNull { prepareAllocationNotificationTotal(it) }
                 if (items.isNotEmpty()) onResourceSynchronizationTotal(items)
             }
         }
