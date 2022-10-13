@@ -17,10 +17,11 @@ import Text from "@/ui-components/Text";
 import TextArea from "@/ui-components/TextArea";
 import {ThemeColor} from "@/ui-components/theme";
 import Tooltip from "@/ui-components/Tooltip";
-import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
     browseWallets,
     explainAllocation,
+    explainUsage,
     normalizeBalanceForBackend,
     normalizeBalanceForFrontend,
     Product,
@@ -56,7 +57,7 @@ import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {Spacer} from "@/ui-components/Spacer";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {ButtonGroup, Divider, Truncate} from "@/ui-components";
+import {ButtonGroup, Divider, Link, Truncate} from "@/ui-components";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Logo} from "./ProjectBrowser";
 import {format} from "date-fns";
@@ -88,13 +89,14 @@ import {
     updateState,
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {useProjectId, useProjectManagementStatus} from "..";
+import {membershipSearch, ProjectMember, ProjectRole, useProjectId, useProjectManagementStatus} from "..";
 import {displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 import {Accordion} from "@/ui-components/Accordion";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {useProjectStatus} from "../cache";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing_project",
@@ -531,7 +533,11 @@ function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: 
             <TableRow key={a.id} onClick={() => onClick(wallet, a)} cursor="pointer">
                 <TableCell width="200px">{wallet.paysFor.provider}</TableCell>
                 <TableCell width="200px">{wallet.paysFor.name}</TableCell>
-                <TableCell width="200px">{a.localBalance}</TableCell>
+                <TableCell width="200px">
+                    {normalizeBalanceForFrontend(a.balance, wallet.productType, wallet.chargeType, wallet.unit)}
+                    {" "}
+                    {explainUsage(wallet.productType, wallet.chargeType, wallet.unit)}
+                </TableCell>
                 <TableCell width="45px">{a.id}</TableCell>
             </TableRow>
         )}
@@ -541,9 +547,9 @@ function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: 
 function titleFromTarget(target: RequestTarget): string {
     switch (target) {
         case RequestTarget.EXISTING_PROJECT:
-            return "Viewing project";
+            return "Existing project";
         case RequestTarget.NEW_PROJECT:
-            return "Create project";
+            return "New project";
         case RequestTarget.PERSONAL_PROJECT:
             return "My workspace";
         case RequestTarget.VIEW_APPLICATION:
@@ -727,6 +733,26 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const projectManagement = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
         const isRecipient = checkIsGrantRecipient(target, grantApplication, isAdminOrPI(projectManagement.projectDetails.data.whoami.role));
+
+
+        useEffect(() => {
+            // HACK(Jonas): I don't know why, but the membership search result doesn't actually
+            // propagate up to this component. Inside the hook, is seems correct, though.
+            if (Client.hasActiveProject && RequestTarget.EXISTING_PROJECT === target) {
+                projectManagement.setProjectMemberParams(
+                    membershipSearch(projectManagement.projectMemberParams.parameters)
+                );
+            }
+        }, [Client.hasActiveProject]);
+
+        React.useEffect(() => {
+            if (!projectTitleRef.current) return;
+            if (target === RequestTarget.EXISTING_PROJECT) {
+                projectTitleRef.current.value = projectManagement.projectDetails.data.title;
+            } else if (target === RequestTarget.PERSONAL_PROJECT) {
+                projectTitleRef.current.value = "My Workspace";
+            }
+        }, [projectTitleRef, grantApplication, projectManagement.projectDetails]);
 
         const editApplication = useCallback(async (autoMessage: boolean = false) => {
             setSubmissionsLoading(true);
@@ -1138,11 +1164,18 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]} /> : null
                 }
                 sidebar={<>
-                    {target !== RequestTarget.VIEW_APPLICATION ? (
+                    {target !== RequestTarget.VIEW_APPLICATION ? (<>
                         <Button fullWidth disabled={grantFinalized || submitLoading} onClick={submitRequest}>
                             Submit Application
                         </Button>
-                    ) : null}
+                        {target === RequestTarget.NEW_PROJECT ? null : (
+                            <Link to="/project/grants/new">
+                                <Button mt="8px" fullWidth>
+                                    New project
+                                </Button>
+                            </Link>
+                        )}
+                    </>) : null}
                     {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
                         isLocked ? (
                             (isRecipient || isApprover ?
@@ -1185,21 +1218,19 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 main={<>
                     <Flex justifyContent="center">
                         <Box maxWidth={1400} width="100%">
-                            {target !== RequestTarget.NEW_PROJECT ? null : (
+                            {target === RequestTarget.VIEW_APPLICATION ? null : (
                                 <>
+                                    <Heading.h3>Requesting for {titleFromTarget(target).toLowerCase()}</Heading.h3>
                                     <Label mb={16} mt={16}>
                                         Principal Investigator (PI)
                                         <Input
-                                            value={
-                                                `${Client.userInfo?.firstNames} ${Client.userInfo?.lastName} ` +
-                                                `(${Client.username})`
-                                            }
+                                            value={piForProject(target, projectManagement.projectMembers.data.items)}
                                             disabled
                                         />
                                     </Label>
                                     <Label mb={16} mt={16}>
                                         Project title
-                                        <Input ref={projectTitleRef} />
+                                        <Input ref={projectTitleRef} disabled={target !== RequestTarget.NEW_PROJECT} />
                                     </Label>
                                 </>
                             )}
@@ -1416,7 +1447,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                 isRecipient={isRecipient}
                                             />))}
 
-                            <CommentApplicationWrapper>
+                            <CommentApplicationWrapper style={{display: target === RequestTarget.VIEW_APPLICATION || grantGiversInUse.length > 0 ? undefined : "none"}}>
                                 <RequestFormContainer>
                                     <Heading.h4>Application</Heading.h4>
                                     <TextArea
@@ -1785,7 +1816,10 @@ function AsProductType(props: {
                     )}
                     projectId={props.projectId}
                     isRecipient={props.isRecipient}
-                    wallets={filteredWallets}
+                    wallets={filteredWallets.filter(it =>
+                        it.paysFor.name === pc.metadata.category.name &&
+                        it.paysFor.provider === pc.metadata.category.provider
+                    )}
                 />
             )}
         </ResourceContainer>}
@@ -1952,6 +1986,17 @@ const PostCommentWrapper = styled.form`
         justify-content: flex-end;
     }
 `;
+
+function piForProject(target: RequestTarget, projectMembers: ProjectMember[]): string {
+    switch (target) {
+        case RequestTarget.NEW_PROJECT:
+        case RequestTarget.PERSONAL_PROJECT:
+            return `${Client.userInfo?.firstNames} ${Client.userInfo?.lastName} ` + `(${Client.username})`;
+        case RequestTarget.EXISTING_PROJECT:
+            return projectMembers.find(it => it.role === ProjectRole.PI)?.username ?? "";
+    }
+    return "";
+}
 
 const PostCommentWidget: React.FunctionComponent<{
     grantId: string,

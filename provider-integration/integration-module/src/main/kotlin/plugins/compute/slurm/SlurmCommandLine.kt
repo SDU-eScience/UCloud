@@ -46,8 +46,8 @@ class SlurmCommandLine(
 
         if (resp.statusCode != 0) {
             throw RPCException(
-                "Failed to cancel job (${resp.stdout} ${resp.statusCode})",
-                HttpStatusCode.InternalServerError
+                "Failed to cancel job. You can only cancel a job which you have started.",
+                HttpStatusCode.BadRequest
             )
         }
     }
@@ -113,6 +113,8 @@ class SlurmCommandLine(
     }
 
     private suspend fun expandNodeList(str: String): Map<Int, String> {
+        if (str.isBlank()) return emptyMap()
+
         val (code, stdout) = executeCommandToText(SCTL_EXE) {
             configureSlurm()
             addArg("show")
@@ -121,9 +123,8 @@ class SlurmCommandLine(
         }
 
         if (code != 0) error("Unknown exception when performing expandNodeList")
-        val nodes = stdout.lines()
-        if (nodes.isEmpty()) error("Empty NodeList")
 
+        val nodes = stdout.lines().filter { it.isNotBlank() }
         return nodes.mapIndexed { idx, item -> idx to item }.toMap()
     }
 

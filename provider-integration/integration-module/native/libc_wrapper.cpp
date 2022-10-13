@@ -332,7 +332,7 @@ JNIEXPORT jint JNICALL Java_libc_LibC_closedir(JNIEnv *env, jobject thisRef, jlo
 #include <pty.h>
 #include <sys/ioctl.h>
 
-JNIEXPORT jint JNICALL Java_libc_LibC_createAndForkPty(JNIEnv *env, jobject thisRef) {
+JNIEXPORT jint JNICALL Java_libc_LibC_createAndForkPty(JNIEnv *env, jobject thisRef, jobjectArray command, jobjectArray envArray) {
     int masterFd;
 
     struct winsize winp = {0};
@@ -342,9 +342,30 @@ JNIEXPORT jint JNICALL Java_libc_LibC_createAndForkPty(JNIEnv *env, jobject this
     pid_t pid = forkpty(&masterFd, 0, 0, &winp);
     if (pid == 0) {
         setenv("TERM", "xterm", 0);
-        setenv("LANG", "en_US.UTF-8", 0);
 
-        char *argList[] = {"bash", NULL};
+        int envLength = env->GetArrayLength(envArray);
+        for (int i = 0; i + 1 < envLength; i += 2) {
+            jstring keyString = (jstring) env->GetObjectArrayElement(envArray, i);
+            jstring valueString = (jstring) env->GetObjectArrayElement(envArray, i + 1);
+
+            const char *keyBytes = env->GetStringUTFChars(keyString, NULL);
+            const char *valueBytes = env->GetStringUTFChars(valueString, NULL);
+
+            setenv(keyBytes, valueBytes, 0);
+
+            env->ReleaseStringUTFChars(keyString, keyBytes);
+            env->ReleaseStringUTFChars(valueString, valueBytes);
+        }
+
+        int commandLength = env->GetArrayLength(command);
+        char **argList = (char **) malloc(sizeof(char*) * (commandLength + 1));
+        argList[commandLength] = NULL;
+        for (int i = 0; i < commandLength; i++) {
+            jstring keyString = (jstring) env->GetObjectArrayElement(command, i);
+            const char *keyBytes = env->GetStringUTFChars(keyString, NULL);
+            argList[i] = (char *) keyBytes;
+        }
+
         execvp(argList[0], argList);
         printf("Failed to start bash!\n");
         exit(0);
@@ -356,10 +377,14 @@ JNIEXPORT jint JNICALL Java_libc_LibC_createAndForkPty(JNIEnv *env, jobject this
 
 JNIEXPORT jint JNICALL Java_libc_LibC_resizePty(JNIEnv *env, jobject thisRef, jint masterFd, jint cols, jint rows) {
     struct winsize winp = {0};
-    winp.ws_col = 80;
-    winp.ws_row = 25;
+    winp.ws_col = cols;
+    winp.ws_row = rows;
     ioctl(masterFd, TIOCSWINSZ, &winp);
     return 0;
+}
+
+JNIEXPORT jint JNICALL Java_libc_LibC_umask(JNIEnv *env, jobject thisRef, jint mask) {
+    return umask(mask);
 }
 
 #ifdef __cplusplus

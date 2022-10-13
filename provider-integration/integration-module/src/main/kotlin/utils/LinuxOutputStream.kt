@@ -1,4 +1,4 @@
-package dk.sdu.cloud.plugins.storage.ucloud
+package dk.sdu.cloud.utils
 
 import libc.clib
 import java.io.OutputStream

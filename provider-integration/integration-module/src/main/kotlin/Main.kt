@@ -36,9 +36,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
-import dk.sdu.cloud.plugins.storage.ucloud.LinuxFileHandle
-import dk.sdu.cloud.plugins.storage.ucloud.LinuxInputStream
-import dk.sdu.cloud.plugins.storage.ucloud.LinuxOutputStream
+import dk.sdu.cloud.plugins.storage.posix.posixFilePermissionsFromInt
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
 import io.ktor.util.*
@@ -48,85 +46,6 @@ import org.slf4j.LoggerFactory
 import java.sql.DriverManager
 
 fun main(args: Array<String>) {
-    if (false) {
-        /*
-        Both web applications and VNC applications appear to be viable
-
-        VNC:
-        - Software availability on Hippo:
-          - X11 is available as a module on Hippo
-          - Xvfb is also available
-          - TurboVNC is in EasyBuild but fails installation (pam-devel and libpam0g-dev missing in OS)
-        - General strategy:
-          - Load required modules for an X11 server
-          - Start a VNC server on some free port with some authentication token
-          - Potentially, run websockify to actually access the VNC server
-          - Tunnel traffic directly from Envoy to the VNC (websockify) server
-
-        Web:
-        - Software availability on Hippo:
-          - Nothing too interesting in module spider
-          -
-        General strategy:
-          - Load required modules for server
-          - Start the application using some free port
-          - Tunnel traffic directly from Envoy to server
-
-        Batch applications:
-        - Potential applications:
-          - Just select an sbatch script?
-            - Not obvious why anyone would ever do this, it is much faster to do via SSH and you obviously know how to
-          - sbatch applications with input files?
-            - This would probably require some kind of frontend and backend support to be useful
-          - Gromacs?
-            - Quite a lot of options which take _a long time_ to port into UCloud
-            - UCloud also doesn't do it very well, if we want to do something like this, we would be better off creating a
-              better system for batch apps. The UI just isn't useful enough.
-            - Often you need to run a full workflow, not just a single step
-          - For all of this to work, we should implement some way of putting a "pre-init" script into the invocation
-            - This should only work for native
-            - Would help us load the correct modules without knowing about the module system
-
-        Terminal integration:
-        - Integrated application for terminal
-        - For Hippo and other similar providers:
-          - Exec into the frontend?
-          - Could sit as an integrated part of the UCloud UI?
-
-        UDocker:
-        - It is fairly limiting in what it can _actually_ do
-        - Shouldn't be too hard to implement
-
-        Singularity:
-        - Probably better
-
-        All interactive applications:
-        - Need to find free port
-        - Need to dynamically forward
-        - Need some form of authentication
-          - This means Core support for VNC, we cannot use a hardcoded password
-        -
-                 */
-        val masterFd = clib.createAndForkPty()
-        println("Master fd is $masterFd")
-        val ins = LinuxOutputStream(LinuxFileHandle.createOrThrow(masterFd, { error("Bad") }))
-        val outs = LinuxInputStream(LinuxFileHandle.createOrThrow(masterFd, { error("Bad") }))
-
-        ins.write("ls -l\n".encodeToByteArray())
-
-        val byteArray = ByteArray(256)
-        while (true) {
-            val read = outs.read(byteArray)
-            if (read == -1) break
-            print(byteArray.decodeToString(endIndex = read))
-        }
-
-        println("Done")
-        while (true) {
-            Thread.sleep(50)
-        }
-    }
-
     try {
         // NOTE(Dan): The integration module of UCloud can start in one of three modes. What the integration module
         // does and starts depends heavily on the mode we are started in. We present a short summary of the modes here,
@@ -619,15 +538,26 @@ fun main(args: Array<String>) {
             } else {
                 DebugMessageTransformer.Production
             }
+            val structuredLogs = File(config.core.logs.directory, "structured").also {
+                it.mkdirs()
+                runCatching {
+                    java.nio.file.Files.setPosixFilePermissions(
+                        it.toPath(),
+                        posixFilePermissionsFromInt("777".toInt(8))
+                    )
+                }
+            }.absolutePath
             val debugSystem = when (serverMode) {
                 ServerMode.Server -> CommonDebugSystem(
                     "IM/Server",
-                    CommonFile(config.core.logs.directory), debugTransformer
+                    CommonFile(structuredLogs),
+                    debugTransformer
                 )
 
                 ServerMode.User -> CommonDebugSystem(
                     "IM/User/${clib.getuid()}",
-                    CommonFile(config.core.logs.directory), debugTransformer
+                    CommonFile(structuredLogs),
+                    debugTransformer
                 )
 
                 else -> null
@@ -750,7 +680,7 @@ fun main(args: Array<String>) {
                     LicenseController(controllerContext),
                     ShareController(controllerContext),
                     ConnectionController(controllerContext, envoyConfig),
-                    NotificationController(controllerContext),
+                    EventController(controllerContext),
                 )
             }
 
@@ -886,7 +816,7 @@ private suspend fun testDB(db: DBContext) {
 
 private fun createDBConnection(database: VerifiedConfig.Server.Database): DBContext {
     return object : JdbcDriver() {
-        override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
+        override val pool: SimpleConnectionPool = SimpleConnectionPool(DB_CONNECTION_POOL_SIZE) { pool ->
             JdbcConnection(
                 DriverManager.getConnection(database.jdbcUrl, database.username, database.password),
                 pool
@@ -894,6 +824,8 @@ private fun createDBConnection(database: VerifiedConfig.Server.Database): DBCont
         }
     }
 }
+
+const val DB_CONNECTION_POOL_SIZE = 8
 
 private fun readSelfExecutablePath(): String {
     return File("/proc/self/exe").toPath().readSymbolicLink().toFile().absolutePath

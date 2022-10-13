@@ -57,8 +57,9 @@ class LibC {
 
     external fun getuid(): Int
 
-    external fun createAndForkPty(): Int
+    external fun createAndForkPty(command: Array<String>, env: Array<String>): Int
     external fun resizePty(masterFd: Int, cols: Int, rows: Int): Int
+    external fun umask(mask: Int): Int
 
     companion object {
         init {

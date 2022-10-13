@@ -5,7 +5,7 @@ import * as Heading from "@/ui-components/Heading";
 import {ListRow} from "@/ui-components/List";
 import {apiUpdate, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
-import {EventHandler, MouseEvent, useCallback, useEffect} from "react";
+import {EventHandler, MouseEvent, useCallback, useEffect, useState} from "react";
 import {PageV2, provider} from "@/UCloud";
 import IntegrationApi = provider.im;
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -25,6 +25,7 @@ import {Feature, hasFeature} from "@/Features";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {Operations} from "@/ui-components/Operation";
+import Spinner from "@/LoadingIcon/LoadingIcon";
 
 const lastConnectionAt = new LocalStorageCache<number>("last-connection-at");
 
@@ -40,6 +41,8 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
         {noop: true},
         emptyPageV2
     );
+
+    const [isConnecting, setIsConnecting] = useState(false);
 
     const [commandLoading, invokeCommand] = useCloudCommand();
     const history = useHistory();
@@ -71,50 +74,55 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
     }, [providers.data]);
 
     const connectToProvider = useCallback(async (providerData: provider.IntegrationBrowseResponseItem) => {
-        lastConnectionAt.update(timestampUnixMs());
-        const res = await invokeCommand<provider.IntegrationConnectResponse>(
-            IntegrationApi.connect({provider: providerData.provider})
-        );
+        setIsConnecting(true);
+        try {
+            lastConnectionAt.update(timestampUnixMs());
+            const res = await invokeCommand<provider.IntegrationConnectResponse>(
+                IntegrationApi.connect({provider: providerData.provider})
+            );
 
-        if (res) {
-            if (providerData.requiresMessageSigning) {
-                const postOptions: RequestInit = {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Accept": "application/json",
-                    },
-                    mode: "cors",
-                    credentials: "omit",
-                    body: JSON.stringify({
-                        publicKey: retrieveOrInitializePublicSigningKey()
-                    })
-                };
+            if (res) {
+                if (providerData.requiresMessageSigning) {
+                    const postOptions: RequestInit = {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Accept": "application/json",
+                        },
+                        mode: "cors",
+                        credentials: "omit",
+                        body: JSON.stringify({
+                            publicKey: retrieveOrInitializePublicSigningKey()
+                        })
+                    };
 
-                fetch(res.redirectTo, postOptions)
-                    .then(it => it.json())
-                    .then(resp => {
-                        const redirectTo = resp["redirectTo"];
-                        if (!redirectTo || typeof redirectTo !== "string") throw "Invalid response from server";
+                    fetch(res.redirectTo, postOptions)
+                        .then(it => it.json())
+                        .then(resp => {
+                            const redirectTo = resp["redirectTo"];
+                            if (!redirectTo || typeof redirectTo !== "string") throw "Invalid response from server";
 
-                        // TODO(Dan): There is no guarantee that this was _actually_ successful. But we are also never
-                        //   notified by anything that this went well, so we have no other choice that to just assume
-                        //   that authentication is going to go well. Worst case, the user will have their key
-                        //   invalidated when they attempt to make a request.
+                            // TODO(Dan): There is no guarantee that this was _actually_ successful. But we are also never
+                            //   notified by anything that this went well, so we have no other choice that to just assume
+                            //   that authentication is going to go well. Worst case, the user will have their key
+                            //   invalidated when they attempt to make a request.
 
-                        markSigningKeyAsUploadedToProvider(providerData.providerTitle);
+                            markSigningKeyAsUploadedToProvider(providerData.providerTitle);
 
-                        document.location.href = redirectTo;
-                    })
-                    .catch(() => {
-                        snackbarStore.addFailure(
-                            "UCloud was not able to initiate a connection. Try again later.",
-                            true
-                        );
-                    });
-            } else {
-                document.location.href = res.redirectTo;
+                            document.location.href = redirectTo;
+                        })
+                        .catch(() => {
+                            snackbarStore.addFailure(
+                                "UCloud was not able to initiate a connection. Try again later.",
+                                true
+                            );
+                        });
+                } else {
+                    document.location.href = res.redirectTo;
+                }
             }
+        } finally {
+            setIsConnecting(false);
         }
     }, []);
 
@@ -179,7 +187,18 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
                                     forceEvaluationOnOpen
                                 />
                             </> :
-                            <Button onClick={() => connectToProvider(it)}>Connect</Button>
+                            <Button
+                                height={40}
+                                onClick={() => connectToProvider(it)}
+                                disabled={isConnecting}
+                            >
+                                {isConnecting ?
+                                    <div style={{marginTop: "-8px"}}>
+                                        <Spinner size={16} />
+                                    </div> :
+                                    "Connect"
+                                }
+                            </Button>
                         }
                     />
                 );

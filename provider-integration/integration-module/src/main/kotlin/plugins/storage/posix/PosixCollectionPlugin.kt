@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins.storage.posix
 
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
 import dk.sdu.cloud.calls.BulkRequest
@@ -15,8 +16,11 @@ import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.enterContext
 import dk.sdu.cloud.debug.logD
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.ipc.IpcContainer
+import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.PathConverter
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.useAndInvoke
@@ -33,9 +37,12 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
-import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.math.floor
+
+object PosixCollectionIpc : IpcContainer("posixfscoll") {
+    val retrieveCollections = retrieveHandler(ResourceOwner.serializer(), PageV2.serializer(FindByPath.serializer()))
+}
 
 class PosixCollectionPlugin : FileCollectionPlugin {
     override val pluginTitle: String = "Posix"
@@ -48,7 +55,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     lateinit var pathConverter: PathConverter
         private set
     private val mutex = Mutex()
-    private val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+    private lateinit var ctx: PluginContext
 
     private data class CollectionChargeCredits(
         val lastCharged: Date,
@@ -61,9 +68,22 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     }
 
     override suspend fun PluginContext.initialize() {
+        ctx = this
         partnerPlugin = (config.plugins.files[pluginName] as? PosixFilesPlugin) ?:
             error("Posix file-collection plugins requires a matching partner plugin of type Posix with name '$pluginName'")
         pathConverter = PathConverter(this)
+
+        if (config.shouldRunServerCode()) {
+            ipcServer.addHandler(PosixCollectionIpc.retrieveCollections.handler { _, request ->
+                PageV2(
+                    Int.MAX_VALUE,
+                    ResourceOwnerWithId.load(request, ctx)?.let { owner ->
+                        locateAndRegisterCollections(owner).map { FindByPath(it.localPath) }
+                    } ?: emptyList(),
+                    null
+                )
+            })
+        }
     }
 
     override suspend fun PluginContext.onAllocationCompleteInServerMode(notification: AllocationNotification) {
@@ -86,7 +106,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             @Suppress("DEPRECATION")
             val extension = pluginConfig.extensions.driveLocator ?: pluginConfig.extensions.additionalCollections
             if (extension != null) {
-                retrieveCollections.invoke(extension, owner).forEach {
+                retrieveCollections.invoke(ctx, extension, owner).forEach {
                     collections.add(
                         PathConverter.Collection(owner.toResourceOwner(), it.title, it.path, product)
                     )
@@ -146,18 +166,18 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                     else -> 0
                 }.toLong()
 
-                val lastChargedPeriodEnd = dateFormatter.format(Date(Time.now() - periodFractionSeconds * 1000))
+                val lastChargedPeriodEnd = (Time.now() - periodFractionSeconds * 1000) / 1000.0
 
                 session.prepareStatement(
                 """
-                    insert into posix_storage_scan
-                    (id, last_charged_period_end) values (:id, :last_charged_period_end)
+                    insert into posix_storage_scan (id, last_charged_period_end) 
+                    values (:id, to_timestamp(:last_charged_period_end))
                     on conflict (id) do update set last_charged_period_end = :last_charged_period_end
                 """
                 ).useAndInvokeAndDiscard(
                     prepare = {
                         bindString("id", it.resourceChargeCredits.id)
-                        bindString("last_charged_period_end", lastChargedPeriodEnd)
+                        bindDouble("last_charged_period_end", lastChargedPeriodEnd)
                     }
                 )
             }
@@ -242,13 +262,12 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                             session.prepareStatement(
                                                 """
                                                 insert into posix_storage_scan
-                                                (id, last_charged_period_end) values (:id, :last_charged_period_end)
-                                                on conflict (id) do update set last_charged_period_end = :last_charged_period_end
+                                                (id, last_charged_period_end) values (:id, now())
+                                                on conflict (id) do update set last_charged_period_end = now()
                                             """
                                             ).useAndInvokeAndDiscard(
                                                 prepare = {
                                                     bindString("id", coll.id)
-                                                    bindString("last_charged_period_end", dateFormatter.format(Date(Time.now())))
                                                 }
                                             )
                                             Date(Time.now())
@@ -288,7 +307,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         return when (val cfg = pluginConfig.accounting) {
             null -> 0
             else -> {
-                calculateUsage.invoke(cfg, CalculateUsageRequest(coll.localPath)).bytesUsed
+                calculateUsage.invoke(ctx, cfg, CalculateUsageRequest(coll.localPath)).bytesUsed
             }
         }
     }
@@ -315,16 +334,14 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             val lastCharges: MutableMap<String, Date> = HashMap()
             session.prepareStatement(
                 """
-                    select id, last_charged_period_end from posix_storage_scan
+                    select id, (extract(epoch from last_charged_period_end) * 1000)::int8 as last_charge_period_end
+                    from posix_storage_scan
                 """
             ).useAndInvoke(
                 readRow = {
-                    val productId = it.getString(0)
-                    val lastScanTime = it.getString(1)
-
-                    if (!productId.isNullOrBlank() && !lastScanTime.isNullOrBlank()) {
-                        lastCharges[productId] = dateFormatter.parse(lastScanTime)
-                    }
+                    val productId = it.getString(0)!!
+                    val lastScanTime = it.getLong(1)!!
+                    lastCharges[productId] = Date(lastScanTime)
                 }
             )
             lastCharges

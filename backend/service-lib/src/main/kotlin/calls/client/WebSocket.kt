@@ -68,8 +68,14 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
 
             // For some reason ktor's websocket client does not currently work when pointed at WSS, but works fine
             // when redirected from WS to WSS.
-            val port = targetHost.takeIf { it.port != 443 }?.port ?: 80
-            val scheme = "ws"
+            val port = targetHost.port ?: if (targetHost.scheme == "https") 443 else 80
+            val scheme = when {
+                targetHost.scheme == "http" -> "ws"
+                targetHost.scheme == "https" -> "wss"
+                port == 80 -> "ws"
+                port == 443 -> "wss"
+                else -> "ws"
+            }
 
             val path = call.websocket.path.removePrefix("/")
 
@@ -302,16 +308,13 @@ internal class WSConnectionPool {
 
             val url = URLBuilder(location).build()
             log.info("Building new websocket connection to $url")
-            val session = websocketClient.webSocketSession(
-                host = url.host,
-                port = url.port,
-                path = url.fullPath,
-                block = {
-                    if (proxiedTo != null) {
-                        header("UCloud-Username", base64Encode(proxiedTo.encodeToByteArray()))
-                    }
+            val session = websocketClient.webSocketSession {
+                url(url)
+
+                if (proxiedTo != null) {
+                    header("UCloud-Username", base64Encode(proxiedTo.encodeToByteArray()))
                 }
-            )
+            }
 
             val wrappedSession = WSClientSession(session)
             connectionPool[key] = wrappedSession

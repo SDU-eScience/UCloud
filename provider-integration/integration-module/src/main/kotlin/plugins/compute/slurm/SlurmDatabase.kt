@@ -48,7 +48,7 @@ object SlurmDatabase {
             session.prepareStatement(
                 //language=postgresql
                 """
-                    select ucloud_id, local_id, partition, lastknown, status
+                    select ucloud_id, local_id, partition, lastknown, status, elapsed
                     from job_mapping
                     where
                         (:filter_slurm_id::text is null or local_id = :filter_slurm_id::text) and
@@ -65,7 +65,7 @@ object SlurmDatabase {
                     result.add(
                         SlurmJob(
                             row.getString(0)!!, row.getString(1)!!, row.getString(2)!!, row.getString(3)!!,
-                            row.getBoolean(4)!!
+                            row.getBoolean(4)!!, row.getLong(5)!!
                         )
                     )
                 }

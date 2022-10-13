@@ -141,3 +141,11 @@ suspend fun genericCommandLineHandler(block: suspend () -> Unit): Nothing {
         exitProcess(1)
     }
 }
+
+fun findOption(option: String, args: List<String>): String? {
+    return args.find { it.startsWith("$option=") }?.removePrefix("$option=")
+}
+
+fun findBooleanOption(option: String, args: List<String>): Boolean {
+    return args.any { it == option }
+}

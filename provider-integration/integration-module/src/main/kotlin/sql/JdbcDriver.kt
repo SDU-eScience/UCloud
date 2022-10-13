@@ -1,5 +1,7 @@
 package dk.sdu.cloud.sql
 
+import dk.sdu.cloud.DB_CONNECTION_POOL_SIZE
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.debug.DebugContext
 import dk.sdu.cloud.debug.DebugMessage
 import dk.sdu.cloud.debug.MessageImportance
@@ -12,10 +14,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.*
 import org.sqlite.SQLiteConfig
 import org.sqlite.SQLiteException
 import org.sqlite.SQLiteOpenMode
@@ -62,7 +61,7 @@ class SimpleConnectionPool(val size: Int, private val constructor: (pool: Simple
 }
 
 class SqliteJdbcDriver(private val file: String) : JdbcDriver() {
-    override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
+    override val pool: SimpleConnectionPool = SimpleConnectionPool(DB_CONNECTION_POOL_SIZE) { pool ->
         JdbcConnection(
             DriverManager.getConnection("jdbc:sqlite:$file", SQLiteConfig().apply {
                 setJournalMode(SQLiteConfig.JournalMode.WAL)
@@ -231,6 +230,48 @@ class JdbcPreparedStatement(
 
         for (idx in indices(param)) {
             statement.setDouble(idx + 1, value)
+        }
+    }
+
+    override suspend fun bindList(param: String, value: List<Any?>) {
+        debugParameters[param] = JsonArray(
+            value.map {
+                when (it) {
+                    is Boolean -> JsonPrimitive(it)
+
+                    is String -> JsonPrimitive(it)
+
+                    is Short -> JsonPrimitive(it)
+                    is Int -> JsonPrimitive(it)
+                    is Long -> JsonPrimitive(it)
+
+                    is Float -> JsonPrimitive(it)
+                    is Double -> JsonPrimitive(it)
+
+                    else -> throw IllegalArgumentException("$it has an unsupported type")
+                }
+            }
+        )
+
+        val sqlArray = statement.connection.createArrayOf(
+            when (value.find { it != null }) {
+                is Boolean -> "boolean"
+                is String -> "text"
+
+                is Short -> "int2"
+                null, is Int -> "int4"
+                is Long -> "int8"
+
+                is Float -> "float4"
+                is Double -> "float8"
+
+                else -> error("Not supported to happen")
+            },
+            value.toTypedArray()
+        )
+
+        for (idx in indices(param)) {
+            statement.setArray(idx + 1, sqlArray)
         }
     }
 
