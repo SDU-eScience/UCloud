@@ -3,6 +3,7 @@ package dk.sdu.cloud.calls.server
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.Time
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import java.time.Period
@@ -61,7 +62,11 @@ var IngoingCall.audit: AuditData
         attributes[AuditData.auditDataKey] = value
     }
 
+val IngoingCall.auditOrNull: AuditData?
+    get() = attributes.getOrNull(AuditData.auditDataKey)
+
 // Backwards compatible handler
 fun <A> CallHandler<*, *, *>.audit(payload: A) {
+    if (ctx.auditOrNull == null) ctx.audit = AuditData(Time.now())
     ctx.audit.requestToAudit = payload
 }

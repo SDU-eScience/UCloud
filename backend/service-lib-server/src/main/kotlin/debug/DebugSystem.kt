@@ -18,7 +18,7 @@ class DebugSystemFeature : MicroFeature, DebugSystem {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
         developmentMode = ctx.developmentModeEnabled
         var logLocation = "."
-        val potentialDirectories = listOf("/var/log/ucloud", "/tmp", "./")
+        val potentialDirectories = listOf("/var/log/ucloud/structured", "/tmp", "./")
         for (loc in potentialDirectories) {
             val dir = File(loc)
             if (!dir.exists()) {

@@ -128,7 +128,7 @@ class AccountMapper(
                 )
 
                 SlurmKey(
-                    lookupExtension.invoke(mapper.extension, request).account,
+                    lookupExtension.invoke(ctx, mapper.extension, request).account,
                     partition
                 )
             }

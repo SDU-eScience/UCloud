@@ -17,7 +17,7 @@ import org.elasticsearch.action.search.SearchResponse
 class ApplicationSearchService (
     private val db: AsyncDBSessionFactory,
     private val searchDao: ApplicationSearchAsyncDao,
-    private val elasticDao: ElasticDao,
+    private val elasticDao: ElasticDao?,
     private val applicationDao: AppStoreAsyncDao,
     private val authenticatedClient: AuthenticatedClient
 ) {
@@ -102,9 +102,9 @@ class ApplicationSearchService (
 
         val queryTerms = normalizedQuery.split(" ").filter { it.isNotBlank() }
 
-        val results = elasticDao.search(queryTerms, normalizedTags)
-
-        if (results.hits.hits.isEmpty()) {
+        val results = elasticDao?.search(queryTerms, normalizedTags)
+        val hits = results?.hits?.hits ?: emptyArray()
+        if (hits.isEmpty()) {
             return Page(
                 0,
                 paging.itemsPerPage,
@@ -120,7 +120,7 @@ class ApplicationSearchService (
         }
 
         if (showAllVersions) {
-            val embeddedNameAndVersionList = results.hits.map {
+            val embeddedNameAndVersionList = hits.map {
                 val result = defaultMapper.decodeFromString<ElasticIndexedApplication>(it.sourceAsString)
                 EmbeddedNameAndVersion(result.name, result.version)
             }
@@ -132,7 +132,7 @@ class ApplicationSearchService (
             return sortAndCreatePageByScore(applications, results, user, paging)
 
         } else {
-            val titles = results.hits.map {
+            val titles = hits.map {
                 val result = defaultMapper.decodeFromString<ElasticIndexedApplication>(it.sourceAsString)
                 result.title
             }
@@ -147,7 +147,7 @@ class ApplicationSearchService (
 
     private suspend fun sortAndCreatePageByScore(
         applications: List<Application>,
-        results: SearchResponse,
+        results: SearchResponse?,
         user: SecurityPrincipal,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
@@ -160,7 +160,7 @@ class ApplicationSearchService (
 
         val sortedList = mutableListOf<Application>()
 
-        results.hits.hits.forEach {
+        results?.hits?.hits?.forEach {
             val foundEntity =
                 map[EmbeddedNameAndVersion(it.sourceAsMap["name"].toString(), it.sourceAsMap["version"].toString())]
             if (foundEntity != null) {

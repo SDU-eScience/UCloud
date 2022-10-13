@@ -4,6 +4,7 @@
             "id": "ucloud",
             "title": "UCloud",
             "logo": "ucloud.png",
+            "shortDescription": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
             "description": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
             "url": "https://docs.cloud.sdu.dk/",
             "texts": [
@@ -21,7 +22,8 @@
             "id": "hippo",
             "title": "Hippo",
             "logo": "hippo.png",
-            "description": "The DeiC Large Memory HPC system is a small system consisting of large memory nodes (between 1 and 4 TB RAM per node) configured as a traditional Slurm cluster.",
+            "shortDescription": "The DeiC Large Memory HPC system is a system consisting of large memory nodes (up to 4 TB RAM per node).",
+            "description": "The DeiC Large Memory HPC system is a system consisting of large memory nodes (between 1 and 4 TB RAM per node) configured as a traditional Slurm cluster.",
             "url": "https://docs.hpc-type3.sdu.dk/",
             "texts": [
                 {
@@ -38,6 +40,7 @@
             "id": "sophia",
             "title": "Sophia",
             "logo": "sophia.png",
+            "shortDescription": "The Sophia cluster is a collaboration between DTU, DTU Wind Energy and DTU Mechanics.",
             "description": "The Sophia cluster is a collaboration between DTU, DTU Wind Energy and DTU Mechanics.",
             "url": "https://dtu-sophia.github.io/docs/",
             "texts": [
@@ -57,8 +60,9 @@
         },
         {
             "id": "lumi",
-            "title": "Lumi",
+            "title": "LUMI",
             "logo": "lumi.png",
+            "shortDescription": "LUMI is one of the three European pre-exascale supercomputers.",
             "description": "LUMI is one of the three European pre-exascale supercomputers. It's an HPE Cray EX supercomputer consisting of several hardware partitions targeted different use cases.",
             "url": "",
             "texts": [

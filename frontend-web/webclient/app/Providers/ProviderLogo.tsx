@@ -30,7 +30,8 @@ export const ProviderLogo: React.FunctionComponent<{providerId: string; size: nu
 
 const LogoWrapper = styled.div<{size: number}>`
   --wrapper-size: ${p => p.size}px;
-  --logo-padding: 5px;
+  --border-radius: 8px;
+  --logo-padding: calc(var(--wrapper-size) / 10);
   
   display: flex;
   align-items: center;
@@ -38,14 +39,14 @@ const LogoWrapper = styled.div<{size: number}>`
   color: white;
   font-size: calc(var(--wrapper-size) - 8px);
   
-  padding: var(--logo-padding);
-  border-radius: calc(var(--logo-padding) * 1.5);
+  border-radius: var(--border-radius);
   background-color: var(--blue);
   width: var(--wrapper-size);
   height: var(--wrapper-size);
   
   img {
-    width: calc(var(--wrapper-size) - var(--logo-padding));
+    padding: var(--logo-padding);
+    max-width: calc(var(--wrapper-size) - var(--logo-padding));
     max-height: calc(var(--wrapper-size) - var(--logo-padding));
   }
 `;

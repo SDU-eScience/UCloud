@@ -30,7 +30,7 @@ import {BrowseType} from "@/Resource/BrowseType";
 
 const MAX_CONCURRENT_UPLOADS = 5;
 const entityName = "Upload";
-const maxChunkSize = 32 * 1000 * 1000;
+const maxChunkSize = 16 * 1000 * 1000;
 const UPLOAD_EXPIRATION_MILLIS = 2 * 24 * 3600 * 1000;
 
 interface LocalStorageFileUploadInfo {

@@ -51,7 +51,7 @@ class PathConverter(private val ctx: PluginContext) {
     }
 
     suspend fun registerCollectionWithUCloud(collections: List<Collection>) {
-        FileCollectionsControl.register.call(
+        val response = FileCollectionsControl.register.call(
             BulkRequest(
                 collections.map { home ->
                     ProviderRegisteredResource(
@@ -68,7 +68,11 @@ class PathConverter(private val ctx: PluginContext) {
                 }
             ),
             ctx.rpcClient
-        ).orThrow()
+        )
+
+        if (!response.statusCode.isSuccess() && response.statusCode.value != 409) {
+            response.orThrow()
+        }
     }
 
     private fun lookupCollectionFromPath(internalFile: InternalFile): FileCollection {

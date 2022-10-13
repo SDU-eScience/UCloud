@@ -18,14 +18,14 @@ class ExtensionAllocationPlugin : AllocationPlugin {
     ): List<OnResourceAllocationResult> {
         val results = ArrayList<OnResourceAllocationResult>()
         for (notification in notifications) {
-            results.add(onAllocation.invoke(pluginConfig.extensions.onAllocation, notification))
+            results.add(onAllocation.invoke(this, pluginConfig.extensions.onAllocation, notification))
         }
         return results
     }
 
     override suspend fun PluginContext.onResourceSynchronization(notifications: List<AllocationNotification>) {
         for (notification in notifications) {
-            onSynchronization.invoke(pluginConfig.extensions.onSynchronization, notification)
+            onSynchronization.invoke(this, pluginConfig.extensions.onSynchronization, notification)
         }
     }
 

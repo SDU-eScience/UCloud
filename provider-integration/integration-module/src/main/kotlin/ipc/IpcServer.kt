@@ -283,8 +283,8 @@ class IpcServer(
     }
 
     private suspend fun processIpcClient(client: SocketChannel) {
-        val writeBuffer = ByteBuffer.allocate(1024 * 4)
-        val readBuffer = ByteBuffer.allocate(1024 * 4)
+        val writeBuffer = ByteBuffer.allocate(1024 * 64)
+        val readBuffer = ByteBuffer.allocate(1024 * 64)
         val messageBuilder = MessageBuilder(1024 * 512)
 
         fun parseMessage(): JsonRpcRequest {
@@ -371,7 +371,8 @@ class IpcServer(
                     is JsonRpcResponse.Success -> JsonRpcResponse.Success.serializer()
                 }
 
-                if (!sendMessage((defaultMapper.encodeToString(serializer as KSerializer<Any>, response) + "\n"))) {
+                val encodeToString = defaultMapper.encodeToString(serializer as KSerializer<Any>, response)
+                if (!sendMessage((encodeToString + "\n"))) {
                     break
                 }
             }

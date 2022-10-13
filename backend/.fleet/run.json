@@ -1,0 +1,66 @@
+{
+  "configurations": [
+    {
+      "name": "Build backend",
+      "type": "gradle",
+      "tasks": [
+        ":launcher:classes"
+      ],
+      "initScripts": {
+        "flmapper": "ext.mapPath = { path -> null }",
+        "Build backend": "System.setProperty('org.gradle.java.compile-classpath-packaging', 'true')\n"
+      },
+      "debugJvm": "true"
+    },
+    {
+      "name": "UCloud/Core",
+      "type": "jps-run",
+      "dependsOn": [
+        "Build backend"
+      ],
+      "mainClass": "dk.sdu.cloud.MainKt",
+      "module": "ucloud.launcher.main",
+      "options": [
+        "-Dfile.encoding=UTF-8"
+      ],
+      "args": [
+        "--dev",
+        "--config-dir",
+        "$USER_HOME$/ucloud"
+      ],
+    },
+    {
+      "name": "UCloud/Core Migrate",
+      "type": "jps-run",
+      "dependsOn": [
+        "Build backend"
+      ],
+      "mainClass": "dk.sdu.cloud.MainKt",
+      "module": "ucloud.launcher.main",
+      "options": [
+        "-Dfile.encoding=UTF-8"
+      ],
+      "args": [
+        "--dev",
+        "--config-dir",
+        "$USER_HOME$/ucloud",
+        "--run-script",
+        "migrate-db"
+      ],
+    },
+    {
+      "name": "Frontend",
+      "type": "command",
+      "environment": {
+        "npm_config_color": "always",
+        "MOCHA_COLORS": "1",
+        "FORCE_COLOR": "true",
+        "DEBUG_COLORS": "true",
+        "COLORTERM": "true",
+      },
+      "workingDir": "$PROJECT_DIR$/../frontend-web/webclient/",
+      "program": "$USER_HOME$/.nvm/versions/node/v16.14.0/bin/npx",
+      "args": ["vite", "--mode", "http://localhost:45000", "--port", "45002"],
+    },
+  ]
+}

@@ -119,6 +119,25 @@ function setStoredSortDirection(title: string, order: "ascending" | "descending"
     localStorage.setItem(`${title}:sortDirection`, order);
 }
 
+function getStoredFilters(title: string): Record<string, string> | null {
+    const data = localStorage.getItem(`${title}:filters`);
+    if (!data) return null;
+    try {
+        const parsed = JSON.parse(data);
+        if (typeof parsed === "object") {
+            return parsed as Record<string, string>;
+        } else {
+            return null;
+        }
+    }  catch (e) {
+        return null;
+    }
+}
+
+function setStoredFilters(title: string, filters: Record<string, string>) {
+    localStorage.setItem(`${title}:filters`, JSON.stringify(filters));
+}
+
 export function ResourceBrowse<Res extends Resource, CB = undefined>({
     onSelect, api, ...props
 }: PropsWithChildren<ResourceBrowseProps<Res, CB>> & {/* HACK(Jonas) */disableSearch?: boolean/* HACK(Jonas): End */}): ReactElement | null {
@@ -133,7 +152,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(props.inlineProduct ?? null);
     const [renamingValue, setRenamingValue] = useState("");
     const [commandLoading, invokeCommand] = useCloudCommand();
-    const [filters, setFilters] = useState<Record<string, string>>({});
+    const [filters, setFilters] = useState<Record<string, string>>(getStoredFilters(api.title) ?? {});
     const [sortDirection, setSortDirection] = useState<"ascending" | "descending">(getStoredSortDirection(api.title) ?? api.defaultSortDirection);
     const [sortColumn, setSortColumn] = useState<string | undefined>(getStoredSortColumn(api.title) ?? undefined);
     const history = useHistory();
@@ -152,6 +171,9 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const isWorkspaceAdmin = projectId === undefined ? true : !project.loading && isAdminOrPI(project.fetch().status.myRole);
 
     useEffect(() => toggleSet.uncheckAll(), [props.additionalFilters]);
+    useEffectSkipMount(() => {
+        setStoredFilters(api.title, filters);
+    }, [filters]);
 
     const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);

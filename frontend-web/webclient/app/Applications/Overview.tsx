@@ -50,7 +50,8 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
         "Salmon",
         "SAMtools",
         "Seqtk",
-    ];
+        "Space Ranger",
+    ].sort();
 
     const featuredTags = [
         "Engineering",

@@ -1176,7 +1176,8 @@ class ProjectService(
                     ActorAndProject(Actor.System, null),
                     BulkRequest(usersAndProjects.map { GroupMember(it.first, group) }),
                     ctx = session,
-                    dispatchUpdate = false
+                    dispatchUpdate = false,
+                    allowNoChange = true
                 )
             }
 
@@ -1682,6 +1683,7 @@ class ProjectService(
         request: BulkRequest<GroupMember>,
         ctx: DBContext = db,
         dispatchUpdate: Boolean = true,
+        allowNoChange: Boolean = false
     ) {
         val (actor) = actorAndProject
         ctx.withSession { session ->
@@ -1716,7 +1718,7 @@ class ProjectService(
                 """
             ).rowsAffected > 0
 
-            if (!success) {
+            if (!success && !allowNoChange) {
                 throw RPCException(
                     "Unable to add member to group. Maybe they are no longer in the project? " +
                         "Try refreshing or contact support for assistance.",
