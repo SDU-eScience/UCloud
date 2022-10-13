@@ -30,7 +30,6 @@ import dk.sdu.cloud.app.store.services.ElasticDao
 import dk.sdu.cloud.app.store.services.FavoriteAsyncDao
 import dk.sdu.cloud.app.store.services.FavoriteService
 import dk.sdu.cloud.app.store.services.LogoService
-import dk.sdu.cloud.app.store.services.TagTable
 import dk.sdu.cloud.app.store.services.ToolAsyncDao
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.app.store.util.yamlMapper
@@ -149,7 +148,7 @@ class Server(override val micro: Micro) : CommonServer {
                             val tags = tagDAO.findTagsForApp(
                                 session,
                                 app.getField(ApplicationTable.idName)
-                            ).map { it.getField(TagTable.tag) }
+                            )
 
                             elasticDAO.createApplicationInElastic(name, version, description, title, tags)
                             log.info("created: ${app.getField(ApplicationTable.idName)}" +

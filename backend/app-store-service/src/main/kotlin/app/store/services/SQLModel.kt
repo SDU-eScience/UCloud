@@ -32,12 +32,6 @@ object FavoriteApplicationTable : SQLTable("favorited_by") {
     val id = long("id")
 }
 
-object TagTable : SQLTable("application_tags") {
-    val applicationName = text("application_name", notNull = true)
-    val tag = text("tag", notNull = true)
-    val id = long("id")
-}
-
 /**
  * Updated in:
  *

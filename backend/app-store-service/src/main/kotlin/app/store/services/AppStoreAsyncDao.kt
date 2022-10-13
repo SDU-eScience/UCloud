@@ -47,35 +47,35 @@ class AppStoreAsyncDao(
                         setParameter("exclude", excludeTools?.map { it.toLowerCase() } ?: emptyList())
                     },
                     """
-                    SELECT T.application_name, T.tag, T.id FROM application_tags AS T, applications AS A
-                    WHERE T.application_name = A.name AND T.tag IN (select unnest(:tags::text[])) AND (
-                        (
-                            A.is_public = TRUE
-                        ) OR (
-                            cast(:project as text) is null AND :user IN (
-                                SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
+                        select distinct at.application_name as app_name
+                        from app_store.application_tags as at, app_store.applications as a
+                        where at.application_name = a.name and at.tag_id in (
+                            select id from app_store.tags where lower(tag) in (select lower(unnest(:tags::text[])))
+                        ) and (
+                            (
+                                a.is_public = true
+                            ) or (
+                                :project is null and :user in (
+                                    select p1.username from app_store.permissions as p1 where p1.application_name = a.name
+                                )
+                            ) or (
+                                :project is not null and exists (
+                                    select p2.project_group from app_store.permissions as p2 where
+                                        p2.application_name = a.name and
+                                        p2.project = cast(:project as text) and
+                                        p2.project_group in (select unnest(:groups::text[]))
+                                )
+                            ) or (
+                                :isAdmin
                             )
-                        ) OR (
-                            cast(:project as text) IS not null AND exists (
-                                SELECT P2.project_group FROM permissions AS P2 WHERE
-                                    P2.application_name = A.name AND
-                                    P2.project = cast(:project as text) AND
-                                    P2.project_group IN (select unnest (:groups::text[]))
-                            )
-                        ) or (
-                            :isAdmin
-                        )
-                    ) AND (A.tool_name NOT IN (select unnest(:exclude::text[])))
-                    ORDER BY A.name
+                        ) and (a.tool_name not in (select unnest(:exclude::text[])))
+                        order by at.application_name;
                     """
                 )
                 .rows
                 .toList()
-                .distinctBy {
-                    it.getField(TagTable.applicationName)
-                }
-                .map {
-                    it.getField(TagTable.applicationName)
+                .mapNotNull {
+                    it.getString("app_name")
                 }
         }
     }
@@ -464,35 +464,27 @@ class AppStoreAsyncDao(
             if (isProvider) {
                 // TODO(Dan): Need to rework how this app-store works. There isn't even a unique constraint on
                 //  (application, tag)
-                val tagExists = session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("name", description.metadata.name)
-                            setParameter("provider_tag", providerName)
-                        },
-                        """
-                            select 1
-                            from
-                                app_store.application_tags tag
-                            where
-                                tag.application_name = :name and
-                                tag.tag = :provider_tag
-                        """
-                    )
-                    .rows.isNotEmpty()
+                // UPDATE(Brian): There is now
+                val tagId = session.sendPreparedStatement(
+                    {
+                        setParameter("provider_tag", providerName)
+                    },
+                    """
+                        insert into app_store.tags (tag) values (:providerTag) returning id
+                    """
+                ).rows.first().getInt(0)
 
-                if (!tagExists) {
-                    session.sendPreparedStatement(
-                        {
-                            setParameter("name", description.metadata.name)
-                            setParameter("provider_tag", providerName)
-                        },
-                        """
-                            insert into app_store.application_tags (id, application_name, tag) 
-                            values (nextval('app_store.hibernate_sequence'), :name, :provider_tag)
-                        """
-                    )
-                }
+                // TODO(Brian): Is the ID used for anything?
+                session.sendPreparedStatement(
+                    {
+                        setParameter("name", description.metadata.name)
+                        setParameter("tag_id", tagId)
+                    },
+                    """
+                        insert into app_store.application_tags (id, application_name, tag_id)
+                        values (nextval('app_store.hibernate_sequence'), :name, :tag_id)
+                    """
+                )
             }
         }
     }
@@ -591,9 +583,9 @@ class AppStoreAsyncDao(
                             setParameter("allapps", allApplicationsOnPage.toList())
                         },
                         """
-                            SELECT *
-                            FROM application_tags
-                            WHERE application_name IN (select unnest(:allapps::text[]))
+                            select application_name, tag
+                            from app_store.application_tags, app_store.tags
+                            where application_name in (select unnest(:allapps::text[])) and tag_id = tags.id
                         """
                     )
                     .rows
@@ -605,8 +597,8 @@ class AppStoreAsyncDao(
                 }
 
                 val allTagsForApplication = allTagsForApplicationsOnPage
-                    .filter { item.metadata.name == it.getField(TagTable.applicationName) }
-                    .map { it.getField(TagTable.tag) }
+                    .filter { item.metadata.name == it.getString("application_name") }
+                    .mapNotNull { it.getString("tag") }
                     .toSet()
                     .toList()
 
@@ -623,17 +615,15 @@ class AppStoreAsyncDao(
                                 setParameter("appname", item.metadata.name)
                             },
                             """
-                                SELECT * 
-                                FROM application_tags
-                                WHERE application_name = :appname
+                                select distinct tag
+                                from app_store.application_tags, app_store.tags
+                                where application_name = :appname and tag_id = tags.id
                             """
                         )
                         .rows
-                        .map {
-                            it.getField(TagTable.tag)
+                        .mapNotNull {
+                            it.getString("tag")
                         }
-                        .toSet()
-                        .toList()
                 }
 
                 ApplicationWithFavoriteAndTags(item.metadata, item.invocation, false, allTagsForApplication)
