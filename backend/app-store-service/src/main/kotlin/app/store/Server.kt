@@ -56,7 +56,11 @@ class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
 
     override fun start() {
-        val elasticDAO = ElasticDao(micro.elasticHighLevelClient)
+        val elasticClientOrNull = runCatching {
+            micro.elasticHighLevelClient
+        }.getOrNull()
+
+        val elasticDAO = if (elasticClientOrNull != null) ElasticDao(elasticClientOrNull) else null
         val toolDAO = ToolAsyncDao()
         val aclDao = AclAsyncDao()
         val publicDAO = ApplicationPublicAsyncDao()
@@ -76,7 +80,7 @@ class Server(override val micro: Micro) : CommonServer {
             toolDAO,
             aclDao,
             elasticDAO,
-            micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
+            micro.eventStreamServiceOrNull?.createProducer(AppStoreStreams.AppDeletedStream)
         )
         val logoService = LogoService(db, appLogoDAO, toolDAO)
         val tagService = ApplicationTagsService(db, tagDAO, elasticDAO)
@@ -151,7 +155,7 @@ class Server(override val micro: Micro) : CommonServer {
                                 app.getField(ApplicationTable.idName)
                             ).map { it.getField(TagTable.tag) }
 
-                            elasticDAO.createApplicationInElastic(name, version, description, title, tags)
+                            elasticDAO?.createApplicationInElastic(name, version, description, title, tags)
                             log.info("created: ${app.getField(ApplicationTable.idName)}" +
                                     ":${app.getField(ApplicationTable.idVersion)}"
                             )

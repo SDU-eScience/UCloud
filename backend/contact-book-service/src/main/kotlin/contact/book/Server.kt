@@ -12,6 +12,7 @@ class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
 
     override fun start() {
+        if (micro.featureOrNull(ElasticFeature) == null) return
 
         val contactsDAO = ContactBookElasticDao(micro.elasticHighLevelClient)
 
@@ -36,9 +37,5 @@ class Server(override val micro: Micro) : CommonServer {
 
         startServices()
 
-    }
-
-    override fun stop() {
-        super.stop()
     }
 }

@@ -1,0 +1,151 @@
+# NOTE(Dan): This is a simplified compose file for personal use at the moment.
+# NOTE(Dan): For this to work, you need to add the ucloud is manually in the /mnt/passwd folder (see launcher for details). Otherwise the ucloud user won't be available in the cluster.
+# NOTE(Dan): Network doesn't work without `sudo iptables -A INPUT -i docker0 -j ACCEPT`
+
+version: "3.9"
+services:
+  integration-module:
+    environment:
+      - SLURM_CONF=/etc/slurm/slurm.conf
+      - DATA_MOUNT=/data
+    init: true
+    image: dreg.cloud.sdu.dk/ucloud-dev/integration-module:2022.2.0
+    volumes:
+      - imGradle:/root/.gradle
+      - imData:/etc/ucloud
+      - ~/.gradle/gradle.properties:/root/.gradle/gradle.properties
+      - ${PWD}:/opt/ucloud
+      - slurm_jobdir:/data
+      - ${PWD}/.compose/passwd:/mnt/passwd
+      - ${PWD}/.compose/cluster-home:/home
+      - ucloudLogs:/var/log/ucloud
+    command:
+      - bash
+      - -c
+      - "bash /opt/ucloud-default-config/config_installer.sh ; tail -f /dev/null"
+    depends_on:
+      - c2
+    hostname: integration-module
+    ports:
+      - ${INTEGRATION_PORT:-8889}:8889
+    labels:
+      - "cluster=slurm"
+    network_mode: bridge
+
+  mysql:
+    image: mysql:5.7
+    hostname: mysql
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_DATABASE: slurm_acct_db
+      MYSQL_USER: slurm
+      MYSQL_PASSWORD: password
+    volumes:
+      - var_lib_mysql:/var/lib/mysql
+    labels:
+      - "cluster=slurm"
+    network_mode: bridge
+
+
+  slurmdbd:
+    image: dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0
+    command: ["slurmdbd", "sshd", "user-sync"]
+    network_mode: bridge
+    hostname: slurmdbd
+    volumes:
+      - etc_munge:/etc/munge
+      - etc_slurm:/etc/slurm
+      - var_log_slurm:/var/log/slurm
+      - ${PWD}/.compose/passwd:/mnt/passwd
+      - ${PWD}/.compose/cluster-home:/home
+      - ${PWD}:/opt/ucloud
+    expose:
+      - "6819"
+    depends_on:
+      - mysql
+    labels:
+      - "cluster=slurm"
+
+
+  slurmctld:
+    image: dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0
+    command: ["slurmctld", "sshd", "user-sync"]
+    network_mode: bridge
+    hostname: slurmctld
+    volumes:
+      - etc_munge:/etc/munge
+      - etc_slurm:/etc/slurm
+      - slurm_jobdir:/data
+      - var_log_slurm:/var/log/slurm
+      - ${PWD}/.compose/passwd:/mnt/passwd
+      - ${PWD}/.compose/cluster-home:/home
+      - ${PWD}:/opt/ucloud
+    expose:
+      - "6817"
+    depends_on:
+      - slurmdbd
+    labels:
+      - "cluster=slurm"
+
+
+  c1:
+    image: dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0
+    command: ["slurmd", "sshd", "user-sync"]
+    network_mode: bridge
+    hostname: c1
+    volumes:
+      - etc_munge:/etc/munge
+      - etc_slurm:/etc/slurm
+      - slurm_jobdir:/data
+      - var_log_slurm:/var/log/slurm
+      - ${PWD}/.compose/passwd:/mnt/passwd
+      - ${PWD}/.compose/cluster-home:/home
+      - ${PWD}:/opt/ucloud
+    expose:
+      - "6818"
+    depends_on:
+      - slurmctld
+    labels:
+      - "cluster=slurm"
+
+
+  c2:
+    image: dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0
+    command: ["slurmd", "sshd", "user-sync"]
+    hostname: c2
+    network_mode: bridge
+    volumes:
+      - etc_munge:/etc/munge
+      - etc_slurm:/etc/slurm
+      - slurm_jobdir:/data
+      - var_log_slurm:/var/log/slurm
+      - ${PWD}/.compose/passwd:/mnt/passwd
+      - ${PWD}/.compose/cluster-home:/home
+      - ${PWD}:/opt/ucloud
+    expose:
+      - "6818"
+    depends_on:
+      - slurmctld
+      - slurmdbd
+      - c1
+    labels:
+      - "cluster=slurm"
+    #IM deployed only when cluster healthy
+    healthcheck:
+      test: ["CMD", "/usr/bin/sinfo"]
+      interval: 1m
+      timeout: 2s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  imData: {}
+  imGradle: {}
+  ucloudLogs: {}
+
+  # SLURM volumes
+  etc_munge: {}
+  etc_slurm: {}
+  slurm_jobdir: {}
+  var_lib_mysql: {}
+  var_log_slurm: {}
