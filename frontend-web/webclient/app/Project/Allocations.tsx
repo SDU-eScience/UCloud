@@ -1,15 +1,14 @@
-import {browseWallets, ChargeType, explainAllocation, normalizeBalanceForFrontend, ProductPriceUnit, ProductType, productTypes, productTypeToIcon, usageExplainer, Wallet, WalletAllocation} from "@/Accounting";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {browseWallets, ChargeType, explainAllocation, normalizeBalanceForFrontend, ProductCategoryId, ProductPriceUnit, ProductType, productTypes, productTypeToIcon, usageExplainer, Wallet, WalletAllocation} from "@/Accounting";
+import {apiBrowse, apiSearch, useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {PageV2} from "@/UCloud";
+import {PageV2, PaginationRequestV2} from "@/UCloud";
 import {Box, Flex, Grid, Icon, Link, Text} from "@/ui-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import * as React from "react";
 import {useCallback, useState} from "react";
-import {browseSubAllocations, searchSubAllocations, SubAllocation, useProjectManagementStatus} from ".";
 import * as Heading from "@/ui-components/Heading";
 import {SubAllocationViewer} from "./SubAllocations";
 import format from "date-fns/format";
@@ -21,11 +20,43 @@ import {VisualizationSection} from "./Resources";
 import formatDistance from "date-fns/formatDistance";
 import {Spacer} from "@/ui-components/Spacer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
+import {useProject} from "./cache";
+import {isAdminOrPI, useProjectId} from "./Api";
+
+export interface SubAllocation {
+    id: string;
+    path: string;
+    startDate: number;
+    endDate?: number | null;
+
+    productCategoryId: ProductCategoryId;
+    productType: ProductType;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
+
+    workspaceId: string;
+    workspaceTitle: string;
+    workspaceIsProject: boolean;
+    projectPI?: string;
+
+    remaining: number;
+    initialBalance: number;
+}
+
+export function browseSubAllocations(request: PaginationRequestV2): APICallParameters {
+    return apiBrowse(request, "/api/accounting/wallets", "subAllocation");
+}
+
+export function searchSubAllocations(request: {query: string} & PaginationRequestV2): APICallParameters {
+    return apiSearch(request, "/api/accounting/wallets", "subAllocation");
+}
+
 
 const FORMAT = "dd/MM/yyyy";
 
 function Allocations(): JSX.Element {
-    const managementStatus = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
+    const projectId = useProjectId();
+    const project = useProject();
 
     useTitle("Allocations");
 
@@ -58,7 +89,7 @@ function Allocations(): JSX.Element {
 
     React.useEffect(() => {
         reloadPage();
-    }, [managementStatus.projectId])
+    }, [projectId])
 
     useRefreshFunction(reloadPage);
 
@@ -77,7 +108,7 @@ function Allocations(): JSX.Element {
             <Grid gridGap="0px">
                 <Wallets wallets={wallets.data.items} />
             </Grid>
-            {managementStatus.allowManagement ?
+            {!project.loading && isAdminOrPI(project.fetch().status.myRole) ?
                 <SubAllocationViewer
                     allocations={allocations}
                     generation={allocationGeneration}

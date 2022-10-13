@@ -1,46 +1,27 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
-import { useCallback, useEffect } from "react";
-import { Text, Flex, Card, Icon, Link } from "@/ui-components";
-import { default as Api, Project } from "./Api";
+import {useEffect} from "react";
+import {Text, Flex, Card, Icon, Link} from "@/ui-components";
+import {default as Api, isAdminOrPI, Project, useProjectFromParams} from "./Api";
 import {GridCardGroup} from "@/ui-components/Grid";
-import {useCloudAPI} from "@/Authentication/DataHook";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import styled from "styled-components";
-import { useHistory, useParams } from "react-router";
-import { useTitle } from "@/Navigation/Redux/StatusActions";
-import { useSidebarPage, SidebarPages } from "@/ui-components/Sidebar";
-import { isAdminOrPI } from "@/Utilities/ProjectUtilities";
-import { BreadCrumbsBase } from "@/ui-components/Breadcrumbs";
+import {useHistory, useParams} from "react-router";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "@/ui-components/Sidebar";
+import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import HighlightedCard from "@/ui-components/HighlightedCard";
-import { shorten } from "@/Utilities/TextUtilities";
+import {shorten} from "@/Utilities/TextUtilities";
 
 // Primary user interface
 // ================================================================================
 const ProjectDashboard: React.FunctionComponent = () => {
     // Input "parameters"
     const history = useHistory();
-    const params = useParams<{ project: string }>();
-    const projectId = params.project;
 
-    // Remote data
-    const [projectFromApi, fetchProject] = useCloudAPI<Project | null>({noop: true}, null);
-
-    // UI state
-
-    // UI callbacks and state manipulation
-    const reload = useCallback(() => {
-        fetchProject(Api.retrieve({
-            id: projectId,
-            includePath: true,
-            includeMembers: true,
-            includeArchived: true,
-            includeGroups: true,
-        }));
-    }, [projectId]);
+    const {project, projectId, reload} = useProjectFromParams();
 
     // Aliases and computed data
-    const project = projectFromApi.data;
     const isAdmin = !project ? false : isAdminOrPI(project.status.myRole!);
 
     // Effects
@@ -55,9 +36,9 @@ const ProjectDashboard: React.FunctionComponent = () => {
         <MainContainer
             header={<Flex>
                 <ProjectBreadcrumbsWrapper mb="12px" embedded={false}>
-                    <span><Link to="/projects2">My Projects</Link></span>
+                    <span><Link to="/projects">My Projects</Link></span>
                     <span>
-                        <Link to={`/projects2/${projectId}`}>
+                        <Link to={`/projects/${projectId}`}>
                             {shorten(20, project.specification.title)}
                         </Link>
                     </span>
@@ -70,7 +51,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                     <ProjectDashboardGrid minmax={330}>
                         <HighlightedCard
                             subtitle={<RightArrow />}
-                            onClick={() => history.push(`/projects2/${projectId}/members`)}
+                            onClick={() => history.push(`/projects/${projectId}/members`)}
                             title="Members"
                             icon="user"
                             color="blue"
@@ -100,6 +81,16 @@ const ProjectDashboard: React.FunctionComponent = () => {
                         </HighlightedCard>
 
                         <HighlightedCard
+                            title={"Resource Allocations"}
+                            icon="grant"
+                            color="darkGreen"
+                            isLoading={false}
+                            onClick={() => history.push("/project/allocations")}
+                            subtitle={<RightArrow />}
+                        >
+                        </HighlightedCard>
+
+                        <HighlightedCard
                             subtitle={<RightArrow />}
                             onClick={() => history.push("/project/grants/ingoing")}
                             title="Grant Applications"
@@ -121,7 +112,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                         {!isAdmin ? null : (
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => history.push("/project/settings")}
+                                onClick={() => history.push(`/project/settings/${projectId}`)}
                                 title="Settings"
                                 icon="properties"
                                 color="orange"
@@ -141,7 +132,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
 
                         {!isAdmin ? null :
                             <HighlightedCard
-                                subtitle={<RightArrow/>}
+                                subtitle={<RightArrow />}
                                 onClick={() => history.push(`/subprojects?subproject=${projectId}`)}
                                 title="Subprojects"
                                 icon="projects"

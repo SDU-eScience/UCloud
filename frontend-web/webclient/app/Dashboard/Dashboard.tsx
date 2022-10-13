@@ -47,7 +47,6 @@ import {Job, api as JobsApi} from "@/UCloud/JobsApi";
 import {ItemRow} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
-import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 
@@ -76,7 +75,8 @@ function browseGrantsApplications(request: BrowseApplicationsRequest): APICallPa
 import {Connect} from "@/Providers/Connect";
 import {NotificationDashboardCard} from "@/Notifications";
 import {grantsLink} from "@/UtilityFunctions";
-import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {isAdminOrPI, useProjectId} from "@/Project/Api";
+import {useProject} from "@/Project/cache";
 
 function Dashboard(props: DashboardProps): JSX.Element {
     useSearch(defaultSearch);
@@ -385,8 +385,11 @@ function DashboardResources({products}: {
         return wallets;
     }, [products.data.items]);
 
-    const projectId = useProjectId()
+    const projectId = useProjectId();
 
+
+    const project = useProject();
+    const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
     const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"}>
@@ -403,10 +406,10 @@ function DashboardResources({products}: {
         >
             {wallets.length === 0 ? (
                 <NoResultsCardBody title={"No available resources"}>
-                    <Text>
+                    {!canApply ? null : <Text>
                         Apply for resources to use storage and compute on UCloud.
                         {applyLinkButton}
-                    </Text>
+                    </Text>}
                 </NoResultsCardBody>
             ) :
                 <>
@@ -450,8 +453,8 @@ const DashboardGrantApplications: React.FunctionComponent<{
     );
 
 
-    const project = useProjectManagementStatus({isRootComponent: false, allowPersonalProject: true});
-    const canApply = !Client.hasActiveProject || isAdminOrPI(project.projectDetails.data.whoami.role);
+    const project = useProject();
+    const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
     if (!canApply) return null;
 

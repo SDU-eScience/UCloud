@@ -16,8 +16,8 @@ import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
 import {useCallback, useEffect} from "react";
 import {setActivePage} from "@/Navigation/Redux/StatusActions";
-import {ProjectRole, useProjectId, UserInProject, viewProject} from "@/Project";
-import {useGlobalCloudAPI} from "@/Authentication/DataHook";
+import {useProjectId} from "@/Project/Api";
+import {useProject} from "@/Project/cache";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;
@@ -216,26 +216,11 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
 
     if (useFrameHidden()) return null;
 
+    const project = useProject();
     const projectId = useProjectId();
-    const [projectDetails, fetchProjectDetails] = useGlobalCloudAPI<UserInProject>(
-        "projectManagementDetails",
-        {noop: true},
-        {
-            projectId: projectId ?? "",
-            favorite: false,
-            needsVerification: false,
-            title: "",
-            whoami: {username: Client.username ?? "", role: ProjectRole.USER},
-            archived: false
-        }
-    );
-
-    useEffect(() => {
-        if (projectId) fetchProjectDetails(viewProject({id: projectId}));
-    }, [projectId]);
 
     const projectPath = joinToString(
-        [...(projectDetails.data.ancestorPath?.split("/")?.filter(it => it.length > 0) ?? []), projectDetails.data.title],
+        [...(project.fetch().status.path?.split("/")?.filter(it => it.length > 0) ?? []), project.fetch().specification.title],
         "/"
     );
     const copyProjectPath = useCallback(() => {
@@ -273,7 +258,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                 </SidebarTextLabel>
             </> : null}
             {!projectId ? null : <>
-                <SidebarTextLabel icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1} space={".5em"}>
+                <SidebarTextLabel key={projectId} icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1} space={".5em"}>
                     <Tooltip
                         left="-50%"
                         top="1"

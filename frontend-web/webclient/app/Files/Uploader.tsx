@@ -317,6 +317,7 @@ const Uploader: React.FunctionComponent = () => {
     }, [onSelectedFile, uploaderVisible]);
 
     useEffect(() => {
+        // Note(Jonas): This causes this entire component to re-render every 500ms.
         const interval = setInterval(() => {
             setUploads([...uploads]);
         }, 500);

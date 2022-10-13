@@ -1,15 +1,6 @@
 import * as React from "react";
 import Divider from "@/ui-components/Divider";
 import {
-    leaveProject,
-    ProjectRole,
-    renameProject,
-    setProjectArchiveStatus,
-    setProjectArchiveStatusBulk,
-    useProjectManagementStatus,
-    UserInProject
-} from "@/Project/index";
-import {
     Box,
     Button,
     Flex,
@@ -42,6 +33,9 @@ import {
     ToggleSubProjectsRenamingRequest
 } from "@/Project/Grant";
 import {buildQueryString} from "@/Utilities/URIUtilities";
+import ProjectAPI, {OldProjectRole, Project, ProjectSpecification, useProjectFromParams} from "@/Project/Api";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 const ActionContainer = styled.div`
     & > * {
@@ -79,17 +73,18 @@ const PageTab: React.FunctionComponent<{
     page: SettingsPage,
     title: string,
     activePage: SettingsPage;
-}> = ({page, title, activePage}) => {
+    projectId: string;
+}> = ({page, title, activePage, projectId}) => {
     return <SelectableText mr={"1em"} fontSize={3} selected={activePage === page}>
-        <Link to={`/project/settings/${page}`}>
+        <Link to={`/project/settings/${projectId}/${page}?`}>
             {title}
         </Link>
     </SelectableText>;
 };
 
 export const ProjectSettings: React.FunctionComponent = () => {
-    const {projectId, projectRole, projectDetails, projectDetailsParams, fetchProjectDetails, reloadProjectStatus} =
-        useProjectManagementStatus({isRootComponent: true});
+    const {project, projectId} = useProjectFromParams();
+
     const params = useParams<{page?: SettingsPage;}>();
     const page = params.page ?? SettingsPage.AVAILABILITY;
 
@@ -101,39 +96,47 @@ export const ProjectSettings: React.FunctionComponent = () => {
     );
 
     useEffect(() => {
+        if (!projectId) return;
         fetchEnabled((externalApplicationsEnabled({projectId})));
     }, [projectId]);
 
     const history = useHistory();
+
+    if (!projectId || !project) return null;
+
+    const {status} = project;
+
+    const crumbs = [{title: project?.specification.title ?? ""}].concat([{title: "Settings"}]);
+
     return (
         <MainContainer
-            header={<ProjectBreadcrumbs crumbs={[{title: "Settings"}]} />}
+            header={<ProjectBreadcrumbs omitActiveProject crumbs={crumbs} />}
             main={
                 <ActionContainer>
                     <SelectableTextWrapper>
-                        <PageTab activePage={page} page={SettingsPage.AVAILABILITY} title={"Project Availability"} />
-                        <PageTab activePage={page} page={SettingsPage.INFO} title={"Project Information"} />
-                        <PageTab activePage={page} page={SettingsPage.SUBPROJECTS} title={"Subprojects"} />
+                        <PageTab activePage={page} projectId={projectId} page={SettingsPage.AVAILABILITY} title={"Project Availability"} />
+                        <PageTab activePage={page} projectId={projectId} page={SettingsPage.INFO} title={"Project Information"} />
+                        <PageTab activePage={page} projectId={projectId} page={SettingsPage.SUBPROJECTS} title={"Subprojects"} />
                         {!enabled.data.enabled ? null :
-                            <PageTab activePage={page} page={SettingsPage.GRANT_SETTINGS} title={"Grant Settings"} />
+                            <PageTab activePage={page} projectId={projectId} page={SettingsPage.GRANT_SETTINGS} title={"Grant Settings"} />
                         }
                     </SelectableTextWrapper>
 
                     {page !== SettingsPage.AVAILABILITY ? null : (
                         <>
                             <ArchiveSingleProject
-                                isArchived={projectDetails.data.archived}
+                                isArchived={status.archived}
                                 projectId={projectId}
-                                projectRole={projectRole}
-                                title={projectDetails.data.title}
+                                projectRole={status.myRole!}
+                                title={project.specification.title}
                                 onSuccess={() => history.push("/projects")}
                             />
                             <Divider />
                             <LeaveProject
                                 onSuccess={() => history.push("/")}
-                                projectDetails={projectDetails.data}
+                                projectTitle={project.specification.title}
                                 projectId={projectId}
-                                projectRole={projectRole}
+                                projectRole={status.myRole!}
                             />
                         </>
                     )}
@@ -141,11 +144,8 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         <>
                             <ChangeProjectTitle
                                 projectId={projectId}
-                                projectDetails={projectDetails.data}
-                                onSuccess={() => {
-                                    fetchProjectDetails(projectDetailsParams);
-                                    reloadProjectStatus();
-                                }}
+                                projectSpecification={project.specification}
+                                onSuccess={() => project}
                             />
                             {enabled.data.enabled ? <Divider /> : null}
                             <LogoAndDescriptionSettings />
@@ -158,7 +158,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         <>
                             <SubprojectSettings
                                 projectId={projectId}
-                                projectRole={projectRole}
+                                projectRole={status.myRole!}
                                 setLoading={() => false}
                             />
                         </>
@@ -172,7 +172,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
 
 interface ChangeProjectTitleProps {
     projectId: string;
-    projectDetails: UserInProject;
+    projectSpecification: ProjectSpecification;
     onSuccess: () => void;
 }
 
@@ -188,8 +188,8 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
 
     useEffect(() => {
         setAllowRenaming(getRenamingStatusForSubProject({projectId: props.projectId}));
-        if (newProjectTitle.current) newProjectTitle.current.value = props.projectDetails.title;
-    }, [props.projectId, props.projectDetails]);
+        if (newProjectTitle.current) newProjectTitle.current.value = props.projectSpecification.title;
+    }, [props.projectId, props.projectSpecification]);
 
     return (
         <Box flexGrow={1}>
@@ -210,12 +210,10 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
                     return;
                 }
 
-                const success = await invokeCommand(renameProject(
-                    {
-                        id: props.projectId,
-                        newTitle: titleValue
-                    }
-                )) !== null;
+                const success = await invokeCommand(ProjectAPI.renameProject(bulkRequestOf({
+                    id: props.projectId,
+                    newTitle: titleValue
+                }))) !== null;
 
                 if (success) {
                     props.onSuccess();
@@ -235,7 +233,7 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
                             placeholder="New project title"
                             autoComplete="off"
                             onChange={() => {
-                                if (newProjectTitle.current?.value !== props.projectDetails.title) {
+                                if (newProjectTitle.current?.value !== props.projectSpecification.title) {
                                     setSaveDisabled(false);
                                 } else {
                                     setSaveDisabled(true);
@@ -258,7 +256,7 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
 
 interface AllowRenamingProps {
     projectId: string;
-    projectRole: ProjectRole;
+    projectRole: OldProjectRole;
     setLoading: (loading: boolean) => void;
 }
 
@@ -318,7 +316,7 @@ const SubprojectSettings: React.FC<AllowRenamingProps> = props => {
     };
 
     return <>
-        {props.projectRole === ProjectRole.USER ? null : (
+        {props.projectRole === OldProjectRole.USER ? null : (
             <ActionBox>
                 <Box flexGrow={1}>
                     <Label
@@ -342,7 +340,7 @@ const SubprojectSettings: React.FC<AllowRenamingProps> = props => {
 
 interface ArchiveSingleProjectProps {
     isArchived: boolean;
-    projectRole: ProjectRole;
+    projectRole: OldProjectRole;
     projectId: string;
     title: string;
     onSuccess: () => void;
@@ -350,7 +348,7 @@ interface ArchiveSingleProjectProps {
 
 export const ArchiveSingleProject: React.FC<ArchiveSingleProjectProps> = props => {
     return <>
-        {props.projectRole === ProjectRole.USER ? null : (
+        {props.projectRole === OldProjectRole.USER ? null : (
             <ActionBox>
                 <Box flexGrow={1}>
                     <Heading.h4>Project Archival</Heading.h4>
@@ -387,16 +385,13 @@ export const ArchiveSingleProject: React.FC<ArchiveSingleProjectProps> = props =
                     <Button
                         color={"orange"}
                         onClick={() => {
+                            const operation = props.isArchived ? ProjectAPI.unarchive : ProjectAPI.archive;
                             addStandardDialog({
                                 title: "Are you sure?",
                                 message: `Are you sure you wish to ` +
                                     `${props.isArchived ? "unarchive" : "archive"} ${props.title}?`,
                                 onConfirm: async () => {
-                                    const success = await callAPIWithErrorHandler(
-                                        setProjectArchiveStatus({
-                                            archiveStatus: !props.isArchived,
-                                        }, props.projectId)
-                                    );
+                                    const success = await callAPIWithErrorHandler(operation(bulkRequestOf({id: props.projectId})));
                                     if (success) {
                                         props.onSuccess();
                                         dialogStore.success();
@@ -416,18 +411,18 @@ export const ArchiveSingleProject: React.FC<ArchiveSingleProjectProps> = props =
 };
 
 interface ArchiveProjectProps {
-    projects: UserInProject[];
+    projects: Project[];
     onSuccess: () => void;
 }
 
 export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
     const multipleProjects = props.projects.length > 1;
-    const archived = props.projects.every(it => it.archived);
+    const archived = props.projects.every(it => it.status.archived);
     let projectTitles = "";
     props.projects.forEach(project =>
-        projectTitles += project.title + ","
+        projectTitles += project.specification.title + ","
     );
-    const anyUserRoles = props.projects.some(it => it.whoami.role === ProjectRole.USER);
+    const anyUserRoles = props.projects.some(it => it.status.myRole === OldProjectRole.USER);
     projectTitles = projectTitles.substr(0, projectTitles.length - 1);
     return <>
         {anyUserRoles ? null : (
@@ -471,15 +466,15 @@ export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
                     <Button
                         color={"orange"}
                         onClick={() => {
+                            const operation = archived ? ProjectAPI.unarchive : ProjectAPI.archive;
+
                             addStandardDialog({
                                 title: "Are you sure?",
                                 message: `Are you sure you wish to ` +
                                     `${archived ? "unarchive" : "archive"} ${projectTitles}?`,
                                 onConfirm: async () => {
                                     const success = await callAPIWithErrorHandler(
-                                        setProjectArchiveStatusBulk({
-                                            projects: props.projects,
-                                        })
+                                        operation(bulkRequestOf(...props.projects.map(it => it)))
                                     );
                                     if (success) {
                                         props.onSuccess();
@@ -500,9 +495,9 @@ export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
 };
 
 interface LeaveProjectProps {
-    projectRole: ProjectRole;
+    projectRole: OldProjectRole;
     projectId: string;
-    projectDetails: UserInProject;
+    projectTitle: string;
     onSuccess: () => void;
 }
 
@@ -531,7 +526,7 @@ export const LeaveProject: React.FC<LeaveProjectProps> = props => {
                     </ul>
                 </Text>
 
-                {props.projectRole !== ProjectRole.PI ? null : (
+                {props.projectRole !== OldProjectRole.PI ? null : (
                     <Text>
                         <b>You must transfer the principal investigator role to another member before
                             leaving the project!</b>
@@ -541,13 +536,16 @@ export const LeaveProject: React.FC<LeaveProjectProps> = props => {
             <Flex>
                 <Button
                     color="red"
-                    disabled={props.projectRole === ProjectRole.PI}
+                    disabled={props.projectRole === OldProjectRole.PI}
                     onClick={() => {
                         addStandardDialog({
                             title: "Are you sure?",
-                            message: `Are you sure you wish to leave ${props.projectDetails.title}?`,
+                            message: `Are you sure you wish to leave ${props.projectTitle}?`,
                             onConfirm: async () => {
-                                const success = await callAPIWithErrorHandler(leaveProject({}, props.projectId));
+                                const success = await callAPIWithErrorHandler({
+                                    ...ProjectAPI.deleteMember(bulkRequestOf({username: Client.username!})),
+                                    projectOverride: props.projectId
+                                });
                                 if (success) {
                                     props.onSuccess();
                                     dialogStore.success();
