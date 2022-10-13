@@ -5,19 +5,16 @@ import {ConfirmCancelButtons} from "@/UtilityComponents";
 import {MembersList} from "@/Project/MembersList";
 import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import ProjectAPI, {isAdminOrPI, ProjectMember} from "@/Project/Api";
-import {useParams} from "react-router";
-import {useProject} from "./cache";
+import ProjectAPI, {isAdminOrPI, ProjectMember, useGroupIdAndMemberId, useProjectFromParams} from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 
+// UNUSED (Used by unused component)
 const GroupView: React.FunctionComponent = () => {
     const renameRef = React.useRef<HTMLInputElement>(null);
     const [, runCommand] = useCloudCommand();
     const [renamingGroup, setRenamingGroup] = React.useState<boolean>(false);
 
-    const locationParams = useParams<{group: string; member?: string}>();
-    const groupId = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
-    const membersPage = locationParams.member ? decodeURIComponent(locationParams.member) : undefined;
+    const [groupId, membersPage] = useGroupIdAndMemberId();
 
     async function renameGroup(): Promise<void> {
         const newTitle = renameRef.current?.value;
@@ -36,13 +33,13 @@ const GroupView: React.FunctionComponent = () => {
     }
 
     // TODO(Jonas): Is this always correct?
-    const project = useProject();
-    const allowManagement = isAdminOrPI(project.fetch().status.myRole);
+    const {project, projectId, reload} = useProjectFromParams();
+    const allowManagement = isAdminOrPI(project?.status.myRole);
 
-    const group = project.fetch().status.groups?.find(it => it.id === groupId);
+    const group = project?.status.groups?.find(it => it.id === groupId);
     const members = React.useMemo(() => {
-        return (group?.status.members?.map(m => project.fetch().status.members?.find(it => it.username === m)).filter(it => it) ?? []) as ProjectMember[]
-    }, [project.fetch()]);
+        return (group?.status.members?.map(m => project?.status.members?.find(it => it.username === m)).filter(it => it) ?? []) as ProjectMember[]
+    }, [project]);
 
 
     const header = (
@@ -116,16 +113,16 @@ const GroupView: React.FunctionComponent = () => {
             <Text mt={40} textAlign="center">
                 <Heading.h4>No members in group</Heading.h4>
                 You can add members by clicking on the green arrow in the
-                &apos;Members of {project.fetch().specification.title}&apos; panel.
+                &apos;Members of {project?.specification.title}&apos; panel.
             </Text>
         }
         <MembersList
             members={members}
             onRemoveMember={removeMember}
-            projectId={project.fetch().id}
-            projectRole={project.fetch().status.myRole!}
+            projectId={projectId}
+            projectRole={project?.status.myRole!}
             allowRoleManagement={false}
-            groups={project.fetch().status.groups!}
+            groups={project?.status.groups!}
             showRole={false}
         />
     </>;
@@ -134,7 +131,7 @@ const GroupView: React.FunctionComponent = () => {
         if (!groupId) return;
 
         await runCommand(ProjectAPI.deleteGroupMember(bulkRequestOf({group: groupId, username: member})));
-        project.reload();
+        reload();
     }
 };
 

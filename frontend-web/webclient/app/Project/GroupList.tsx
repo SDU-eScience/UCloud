@@ -15,8 +15,7 @@ import {useRef, useState} from "react";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import {Spacer} from "@/ui-components/Spacer";
 import {Operation, Operations} from "@/ui-components/Operation";
-import ProjectAPI, {isAdminOrPI, ProjectGroup} from "@/Project/Api";
-import {useProject} from "./cache";
+import ProjectAPI, {isAdminOrPI, ProjectGroup, useGroupIdAndMemberId, useProjectFromParams} from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 
 export interface GroupWithSummary {
@@ -28,15 +27,13 @@ export interface GroupWithSummary {
 
 const baseContext = "/projects/groups";
 
+// UNUSED
 const GroupList: React.FunctionComponent = () => {
     const history = useHistory();
-    const project = useProject();
+    const {project, reload} = useProjectFromParams();
+    const [groupId, membersPage] = useGroupIdAndMemberId();
 
-    const locationParams = useParams<{group: string; member?: string}>();
-    const groupId = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
-    const membersPage = locationParams.member ? decodeURIComponent(locationParams.member) : undefined;
-
-    const allowManagement = isAdminOrPI(project.fetch().status.myRole);
+    const allowManagement = isAdminOrPI(project?.status.myRole);
 
     const [creatingGroup, setCreatingGroup] = useState(false);
     const [, setLoading] = useState(false);
@@ -63,8 +60,7 @@ const GroupList: React.FunctionComponent = () => {
         }
     ];
 
-    const groups = project.fetch().status.groups ?? [];
-
+    const groups = project?.status.groups ?? [];
 
     if (groupId) return <GroupView />;
     const content = (
@@ -170,7 +166,7 @@ const GroupList: React.FunctionComponent = () => {
             snackbarStore.addSuccess(`Group created`, true);
             createGroupRef.current!.value = "";
             setCreatingGroup(false);
-            project.reload();
+            reload();
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Could not create group."), false);
         } finally {
@@ -191,12 +187,10 @@ const GroupList: React.FunctionComponent = () => {
             return;
         }
 
-        project.reload();
+        reload();
         setRenamingGroup(null);
         snackbarStore.addSuccess("Project group renamed", true);
     }
 };
 
 type GroupOperation = Operation<ProjectGroup>;
-
-export default GroupList;

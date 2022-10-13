@@ -299,6 +299,7 @@ export function useProjectFromParams(): {project: Project | null; reload: () => 
             includeMembers: true,
             includeArchived: true,
             includeGroups: true,
+            includeSettings: true,
         }));
     }, [projectId]);
 
