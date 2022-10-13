@@ -18,9 +18,11 @@ import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.detailD
 import dk.sdu.cloud.debug.enterContext
 import dk.sdu.cloud.events.RedisConnectionManager
+import dk.sdu.cloud.grant.api.ProjectWithTitle
 import dk.sdu.cloud.micro.MicroAttributeKey
 import dk.sdu.cloud.micro.MicroFeatureFactory
 import dk.sdu.cloud.micro.serviceDescription
+import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
@@ -227,6 +229,7 @@ sealed class AccountingRequest {
 
     data class BrowseSubAllocations(
         override val actor: Actor,
+        val owner: String,
         val filterType: ProductType?,
         val query: String?,
         override var id: Long = -1
@@ -273,7 +276,7 @@ sealed class AccountingResponse {
     ): AccountingResponse()
 
     data class BrowseSubAllocations(
-        val allocations: List<ApiWalletAllocation>,
+        val allocations: List<SubAllocation>,
         override var id: Long = -1
     ): AccountingResponse()
 }
@@ -336,6 +339,9 @@ class AccountingProcessor(
     private val activeProcessor = distributedState.create(ActiveProcessor.serializer(), "accounting-active-processor", 60_000)
 
     suspend fun retrieveActiveProcessor(): String? {
+        if (isActiveProcessor) {
+            return null
+        }
         return activeProcessor.get()?.address
     }
 
@@ -362,7 +368,7 @@ class AccountingProcessor(
     private val products = ProductCache(db)
 
     private val processorLock = Mutex()
-
+    private var isActiveProcessor = false
     // Primary interface
     // =================================================================================================================
     // The accounting processors is fairly simple to use. It must first be started by call start(). After this you can
@@ -389,6 +395,7 @@ class AccountingProcessor(
         if (!didAcquire) return
         log.info("This service has become the master responsible for handling Accounting proccessor events!")
         activeProcessor.set(ActiveProcessor(addressToSelf))
+        isActiveProcessor = true
 
         // NOTE(Dan): Delay the initial scan to wait for server to be ready (needed for local dev)
         delay(15_000)
@@ -444,6 +451,7 @@ class AccountingProcessor(
         if (!disableMasterElection) {
             if (!lock.renew(90_000)) {
                 log.warn("Lock was lost")
+                isActiveProcessor = false
                 return false
             }
             activeProcessor.set(ActiveProcessor(addressToSelf))
@@ -940,7 +948,6 @@ class AccountingProcessor(
             null,
             null
         ).id
-
         val transactionId = transactionId()
         dirtyTransactions.add(
             Transaction.Deposit(
@@ -957,7 +964,6 @@ class AccountingProcessor(
                 transactionId
             )
         )
-
         return AccountingResponse.RootDeposit(created)
     }
 
@@ -1428,11 +1434,50 @@ class AccountingProcessor(
     private suspend fun browseSubAllocations(
         request: AccountingRequest.BrowseSubAllocations
     ): AccountingResponse {
-        val wallet = findWallet()
-        val query = request.query
-        val filterType = request.filterType
-        allocations.mapNotNull { it }.filter { it.parentAllocation }
-        AccountingResponse.BrowseSubAllocations(listOf())
+        val currentProjectWalletsIds = wallets.mapNotNull { if (it?.owner == request.owner) it.id else null }
+        val currentProjectAllocations = mutableListOf<Int>()
+        val subAllocations = mutableListOf<WalletAllocation>()
+        allocations.forEach {
+            if (it != null && currentProjectWalletsIds.contains(it.associatedWallet)) {
+                currentProjectAllocations.add(it.id)
+            }
+            if (it != null && currentProjectAllocations.contains(it.parentAllocation)) {
+                subAllocations.add(it)
+            }
+        }
+        val list = subAllocations.mapNotNull { allocation ->
+            val wall = wallets[allocation.associatedWallet]
+            if (wall != null) {
+                val projectInfo = projects.retrieveProjectInfoFromTitle(wall.owner)
+                SubAllocation(
+                    id = allocation.id.toString(),
+                    path = allocation.toApiAllocation().allocationPath.joinToString(separator = "."),
+                    startDate = allocation.notBefore,
+                    endDate = allocation.notAfter,
+                    productCategoryId = wall.paysFor,
+                    productType = wall.productType,
+                    chargeType = wall.chargeType,
+                    unit = wall.unit,
+                    workspaceId = projectInfo.first.projectId,
+                    workspaceTitle = projectInfo.first.title,
+                    workspaceIsProject = true,
+                    projectPI = projectInfo.second,
+                    remaining = allocation.currentBalance,
+                    initialBalance = allocation.initialBalance
+                )
+            } else null
+        }
+        val filteredList = if (request.query == null) {
+            list
+        } else {
+            val query = request.query
+            list.filter {
+                it.workspaceTitle.contains(query) ||
+                    it.productCategoryId.name.contains(query) ||
+                    it.productCategoryId.provider.contains(query)
+            }
+        }
+        return AccountingResponse.BrowseSubAllocations(filteredList)
     }
 
     // Database synchronization
@@ -1575,7 +1620,7 @@ class AccountingProcessor(
                 }
 
                 debug.detailD("Dealing with transactions", Unit.serializer(), Unit)
-                dirtyTransactions.forEach { println(it) }
+
                 dirtyTransactions.chunkedSequence(500).forEach { chunk ->
                     session.sendPreparedStatement(
                         {
@@ -1791,15 +1836,20 @@ private class ProjectCache(private val db: DBContext) {
     private data class ProjectMember(val username: String, val project: String, val role: ProjectRole)
 
     private val projectMembers = AtomicReference<List<ProjectMember>>(emptyList())
+    private val projects = AtomicReference<List<Pair<ProjectWithTitle, String>>>(emptyList())
     private val fillMutex = Mutex()
 
     suspend fun fillCache() {
-        val before = projectMembers.get()
+        val beforeMembers = projectMembers.get()
+        val beforeProjects = projects.get()
         fillMutex.withLock {
-            val current = projectMembers.get()
-            if (current != before) return
+            val currentMembers = projectMembers.get()
+            val currentProjects = projects.get()
+            if (currentMembers != beforeMembers || currentProjects != beforeProjects) return
 
             val projectMembers = ArrayList<ProjectMember>()
+            //Project with title and PI
+            val projects = ArrayList<Pair<ProjectWithTitle, String>>()
 
             db.withSession { session ->
                 session.sendPreparedStatement(
@@ -1825,11 +1875,48 @@ private class ProjectCache(private val db: DBContext) {
 
                 session.sendPreparedStatement({}, "close project_load")
 
-                if (!this.projectMembers.compareAndSet(current, projectMembers)) {
+                if (!this.projectMembers.compareAndSet(currentMembers, projectMembers)) {
+                    error("Project members were updated even though we have the mutex")
+                }
+
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        declare project_curs cursor for 
+                        select p.id, p.title, pm.username
+                        from project.projects p join project.project_members pm on p.id = pm.project_id
+                        where pm.role = 'PI'
+                    """.trimIndent()
+                )
+
+                while (true) {
+                    val rows = session.sendPreparedStatement({}, "fetch forward 500 from project_curs").rows
+                    if (rows.isEmpty()) break
+
+                    for (row in rows) {
+                        val projectId = row.getString(0)!!
+                        val projectTitle = row.getString(1)!!
+                        val pi = row.getString(2)!!
+                        projects.add(Pair(ProjectWithTitle(projectId, projectTitle), pi))
+                    }
+                }
+
+                session.sendPreparedStatement({}, "close project_curs")
+
+                if (!this.projects.compareAndSet(currentProjects, projects)) {
                     error("Project members were updated even though we have the mutex")
                 }
             }
         }
+    }
+
+    suspend fun retrieveProjectInfoFromTitle(title: String, allowCacheRefill: Boolean = true): Pair<ProjectWithTitle, String> {
+        val project = projects.get().find { it.first.projectId == title }
+        if (project == null && allowCacheRefill) {
+            fillCache()
+            return retrieveProjectInfoFromTitle(title, false)
+        }
+        return project ?: Pair(ProjectWithTitle(title, title), title)
     }
 
     suspend fun retrieveProjectRole(username: String, project: String, allowCacheRefill: Boolean = true): ProjectRole? {

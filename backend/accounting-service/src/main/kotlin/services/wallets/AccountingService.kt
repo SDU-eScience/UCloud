@@ -264,97 +264,29 @@ class AccountingService(
         request: SubAllocationQuery,
         query: String? = null,
     ): PageV2<SubAllocation> {
-        processor.browseSubAllocations(AccountingRequest.BrowseSubAllocations(actorAndProject.actor, request.filterType, query))
-        return db.paginateV2(
-            actorAndProject.actor,
-            request.normalize(),
-            create = { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("username", actorAndProject.actor.safeUsername())
-                        setParameter("project", actorAndProject.project)
-                        setParameter("filter_type", request.filterType?.name)
-                        setParameter("query", query)
-                    },
-                    """
-                        declare c cursor for
-                        select
-                            jsonb_build_object(
-                                'id', alloc.id, 
-                                'path', alloc.allocation_path::text,
-                                
-                                'workspaceId', coalesce(alloc_project.id, alloc_owner.username),
-                                'workspaceTitle', coalesce(alloc_project.title, alloc_owner.username),
-                                'workspaceIsProject', alloc_project.id is not null,
-                                'projectPI', pm.username,
-                                'remaining', alloc.balance,
-                                'initialBalance', alloc.initial_balance,
-                                'productCategoryId', jsonb_build_object(
-                                    'name', pc.category,
-                                    'provider', pc.provider
-                                ),
-                                'productType', pc.product_type,
-                                'chargeType', pc.charge_type,
-                                'unit', pc.unit_of_price,
-                                'startDate', provider.timestamp_to_unix(alloc.start_date),
-                                'endDate', provider.timestamp_to_unix(alloc.end_date)
-                            )
-                        from
-                            accounting.wallet_owner owner join
-                            accounting.wallets owner_wallets on owner.id = owner_wallets.owned_by join
-                            accounting.product_categories pc on owner_wallets.category = pc.id join
+        val owner = if (actorAndProject.project == null) actorAndProject.actor.safeUsername() else actorAndProject.project!!
 
-                            accounting.wallet_allocations owner_allocations on
-                                owner_wallets.id = owner_allocations.associated_wallet join
+        val hits = processor.browseSubAllocations(AccountingRequest.BrowseSubAllocations(actorAndProject.actor, owner, request.filterType, query))
+        if (hits.allocations.isEmpty()) { return PageV2(request.itemsPerPage ?: 50, emptyList(), null) }
 
-                            accounting.wallet_allocations alloc on
-                                owner_allocations.allocation_path @> alloc.allocation_path and
-                                owner_allocations.allocation_path != alloc.allocation_path join
-                            accounting.wallets alloc_wallet on alloc.associated_wallet = alloc_wallet.id join
+        val numberOfItems = request.itemsPerPage ?: 50
 
-                            accounting.wallet_owner alloc_owner on alloc_wallet.owned_by = alloc_owner.id left join
-                            project.projects alloc_project on alloc_owner.project_id = alloc_project.id left join
+        return if (request.next == null) {
+            PageV2(
+                numberOfItems,
+                hits.allocations.chunked(numberOfItems)[0],
+                if (numberOfItems > hits.allocations.size) null else 1.toString()
+            )
+        } else {
+            val next = request.next!!.toInt()
+            val results = hits.allocations.chunked(numberOfItems)[next]
 
-                            project.project_members owner_pm on
-                                owner.project_id = owner_pm.project_id and
-                                owner_pm.username = :username and
-                                (owner_pm.role = 'ADMIN' or owner_pm.role = 'PI') left join
-                            project.project_members pm on 
-                                alloc_project.id = pm.project_id  and
-                                pm.role = 'PI'
-                        where
-                            (
-                                (
-                                    :project::text is not null and
-                                    owner.project_id = :project and
-                                    owner_pm.username is not null
-                                ) or
-                                (
-                                    :project::text is null and
-                                    owner.username = :username
-                                )
-                            ) and
-                            (
-                                :filter_type::accounting.product_type is null or
-                                pc.product_type = :filter_type::accounting.product_type
-                            ) and
-                            (
-                                :query::text is null or
-                                alloc_project.title ilike '%' || :query || '%' or
-                                alloc_owner.username ilike '%' || :query || '%' or
-                                pc.category ilike '%' || :query || '%' or
-                                pc.provider ilike '%' || :query || '%'
-                            ) and
-                            (
-                                nlevel(owner_allocations.allocation_path) = nlevel(alloc.allocation_path) - 1
-                            )
-                        order by alloc_owner.username, alloc_owner.project_id, pc.provider, pc.category, alloc.id
-                    """,
-                    "Accounting Browse Allocations"
-                )
-            },
-            mapper = { _, rows -> rows.map { defaultMapper.decodeFromString(it.getString(0)!!) } }
-        )
+            PageV2(
+                numberOfItems,
+                results,
+                if (results.size < numberOfItems) null else (next + 1).toString()
+            )
+        }
     }
 
     suspend fun retrieveUsage(

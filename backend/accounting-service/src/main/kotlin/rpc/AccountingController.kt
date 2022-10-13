@@ -98,12 +98,10 @@ class AccountingController(
         }
 
         implement(Wallets.searchSubAllocations) {
-            //TODO()
             ok(accounting.browseSubAllocations(actorAndProject, request, request.query))
         }
 
         implement(Wallets.browseSubAllocations) {
-            //TODO() Fix update 30 sek delay?
             ok(accounting.browseSubAllocations(actorAndProject, request))
         }
 
