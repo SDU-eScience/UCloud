@@ -172,7 +172,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                 """
                     insert into posix_storage_scan (id, last_charged_period_end) 
                     values (:id, to_timestamp(:last_charged_period_end))
-                    on conflict (id) do update set last_charged_period_end = :last_charged_period_end
+                    on conflict (id) do update set last_charged_period_end = to_timestamp(:last_charged_period_end)
                 """
                 ).useAndInvokeAndDiscard(
                     prepare = {
