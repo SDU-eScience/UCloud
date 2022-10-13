@@ -24,3 +24,5 @@ delete from app_store.tags where id = 0;
 
 alter table app_store.application_tags
     drop column tag;
+
+create unique index on app_store.application_tags(tag_id,application_name);
