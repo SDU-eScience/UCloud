@@ -83,7 +83,7 @@ const PageTab: React.FunctionComponent<{
 };
 
 export const ProjectSettings: React.FunctionComponent = () => {
-    const {project, projectId} = useProjectFromParams();
+    const {project, projectId, reload} = useProjectFromParams();
 
     const params = useParams<{page?: SettingsPage;}>();
     const page = params.page ?? SettingsPage.AVAILABILITY;
@@ -129,7 +129,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                                 projectId={projectId}
                                 projectRole={status.myRole!}
                                 title={project.specification.title}
-                                onSuccess={() => history.push("/projects")}
+                                onSuccess={() => reload()}
                             />
                             <Divider />
                             <LeaveProject
@@ -145,7 +145,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             <ChangeProjectTitle
                                 projectId={projectId}
                                 projectSpecification={project.specification}
-                                onSuccess={() => project}
+                                onSuccess={() => reload()}
                             />
                             {enabled.data.enabled ? <Divider /> : null}
                             <LogoAndDescriptionSettings />
@@ -391,7 +391,10 @@ export const ArchiveSingleProject: React.FC<ArchiveSingleProjectProps> = props =
                                 message: `Are you sure you wish to ` +
                                     `${props.isArchived ? "unarchive" : "archive"} ${props.title}?`,
                                 onConfirm: async () => {
-                                    const success = await callAPIWithErrorHandler(operation(bulkRequestOf({id: props.projectId})));
+                                    const success = await callAPIWithErrorHandler(
+                                        props.isArchived ?
+                                            ProjectAPI.unarchive(bulkRequestOf({id: props.projectId})) :
+                                            ProjectAPI.archive(bulkRequestOf({id: props.projectId})));
                                     if (success) {
                                         props.onSuccess();
                                         dialogStore.success();

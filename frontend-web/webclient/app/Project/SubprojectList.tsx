@@ -129,7 +129,6 @@ export default function SubprojectList(): JSX.Element | null {
     const location = useLocation();
     const subprojectFromQuery = getQueryParamOrElse(location.search, "subproject", "");
     const history = useHistory();
-    const [overrideRedirect, setOverride] = React.useState(false);
 
     const [project, fetchProject] = useCloudAPI<Project>(
         {noop: true},
@@ -139,12 +138,6 @@ export default function SubprojectList(): JSX.Element | null {
     React.useEffect(() => {
         if (subprojectFromQuery) fetchProject(ProjectAPI.retrieve({id: subprojectFromQuery}));
     }, [subprojectFromQuery]);
-
-    React.useEffect(() => {
-        if (overrideRedirect) {
-            history.push(`/subprojects?subproject=${subprojectFromQuery}`);
-        }
-    }, [subprojectFromQuery, overrideRedirect]);
 
     const dispatch = useDispatch();
     const setProject = React.useCallback((id: string, title: string) => {
@@ -184,11 +177,10 @@ export default function SubprojectList(): JSX.Element | null {
         setCreating(false);
 
         try {
-            const result = await invokeCommand(ProjectAPI.create({
+            const [result] = (await invokeCommand(ProjectAPI.create(bulkRequestOf({
                 title: subprojectName,
                 parent: subprojectFromQuery
-            }));
-            setOverride(true);
+            })))).responses;
             dispatchSetProjectAction(dispatch, result.id);
             history.push("/project/grants/existing/");
         } catch (e) {

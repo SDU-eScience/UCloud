@@ -2,11 +2,12 @@
  * Cache for project and group membership.
  */
 import {useGlobal} from "@/Utilities/ReduxHooks";
-import {useCallback, useEffect} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import ProjectAPI, {Project, useProjectId} from "./Api";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {getStoredProject} from "./Redux";
+import {displayErrorMessageOrDefault, errorMessageOrDefault} from "@/UtilityFunctions";
 
 // This needs to be global
 let cacheIsLoading = false;
@@ -25,7 +26,7 @@ export function emptyProject(): Project {
     }
 }
 
-export function useProject(): {fetch(): Project; reload(): void; loading: boolean;} {
+export function useProject(): {fetch(): Project; reload(): void; loading: boolean; error: string;} {
     const [cache, setCache] = useGlobal(
         "projectCache",
         {
@@ -34,6 +35,8 @@ export function useProject(): {fetch(): Project; reload(): void; loading: boolea
         }
     );
 
+    const [error, setError] = useState("");
+
     const projectId = useProjectId();
     const [loading, invokeCommand] = useCloudCommand();
 
@@ -41,20 +44,25 @@ export function useProject(): {fetch(): Project; reload(): void; loading: boolea
         if (cacheIsLoading) return;
         const projectId = getStoredProject()
         if (!projectId) return;
-        cacheIsLoading = true;
-        const project = await invokeCommand<Project>(ProjectAPI.retrieve({
-            id: getStoredProject() ?? "",
-            includeGroups: true,
-            includeFavorite: true,
-            includeArchived: true,
-            includeMembers: true,
-            includePath: true,
-            includeSettings: true
-        }));
-        if (project !== null) {
-            setCache({expiresAt: +(new Date()) + cacheMaxAge, project});
-        } else {
-            setCache({...cache, expiresAt: +(new Date()) + (1000 * 30)});
+        try {
+            cacheIsLoading = true;
+            const project = await invokeCommand<Project>(ProjectAPI.retrieve({
+                id: getStoredProject() ?? "",
+                includeGroups: true,
+                includeFavorite: true,
+                includeArchived: true,
+                includeMembers: true,
+                includePath: true,
+                includeSettings: true
+            }), {defaultErrorHandler: false});
+            if (project !== null) {
+                setCache({expiresAt: +(new Date()) + cacheMaxAge, project});
+            } else {
+                setCache({...cache, expiresAt: +(new Date()) + (1000 * 30)});
+            }
+            setError("");
+        } catch (e) {
+            setError(errorMessageOrDefault(e, "Failed to fetch project"));
         }
 
         cacheIsLoading = false;
@@ -71,11 +79,11 @@ export function useProject(): {fetch(): Project; reload(): void; loading: boolea
 
     useEffect(() => {
         if (projectId !== cache.project.id || projectId == null) {
-             reload();
+            reload();
         }
     }, [projectId, cache.project.id])
 
-    return {fetch, reload, loading};
+    return {fetch, reload, loading, error};
 }
 
 export interface ProjectCache {

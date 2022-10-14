@@ -100,7 +100,7 @@ class ProjectApi {
         return apiBrowse(request, this.baseContext);
     }
 
-    public create(request: ProjectSpecification): APICallParameters {
+    public create(request: BulkRequest<ProjectSpecification>): APICallParameters {
         return apiCreate(request, this.baseContext);
     }
 

@@ -276,10 +276,10 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
 
         try {
             if (recipient.asNewProject) {
-                const result = await invokeCommand(ProjectAPI.create({
+                const [result] = (await invokeCommand(ProjectAPI.create(bulkRequestOf({
                     title: recipientId,
                     parent: projectId
-                }), {defaultErrorHandler: false});
+                })), {defaultErrorHandler: false})).responses;
                 recipientTitle = result.id;
             } else {
                 const result = await invokeCommand<RetrieveRecipientResponse>(retrieveRecipient({query: recipientId}), {defaultErrorHandler: false});

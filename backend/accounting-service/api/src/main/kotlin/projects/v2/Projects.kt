@@ -75,11 +75,6 @@ data class Project(
             this project. The path does not start or end with a '/'. If the project is a root, then "" will be returned.
         """)
         var path: String? = null,
-
-        @UCloudApiDoc("""
-            The verification state of the project's memberships.
-        """)
-        val needsVerification: Boolean,
     )
 
     @Serializable
