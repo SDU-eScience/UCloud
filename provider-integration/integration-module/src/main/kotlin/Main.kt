@@ -332,6 +332,7 @@ fun main(args: Array<String>) {
                     allowHeader("refreshToken")
                     allowHeader("chunked-upload-offset")
                     allowHeader("chunked-upload-token")
+                    allowHeader("ucloud-username")
                     allowHeader("upload-name")
                 }
 

@@ -449,10 +449,10 @@ class FileController(
         implement(uploadApi.upload) {
             val sctx = ctx as? HttpCall ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             val offset = sctx.ktor.call.request.header("Chunked-Upload-Offset")?.toLongOrNull()
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                ?: throw RPCException("Missing or invalid offset", HttpStatusCode.BadRequest)
 
             val token = sctx.ktor.call.request.header("Chunked-Upload-Token")
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
 
             with(requestContext(controllerContext)) {
                 val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))

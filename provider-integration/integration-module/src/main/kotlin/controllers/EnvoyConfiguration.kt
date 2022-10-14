@@ -408,7 +408,10 @@ class EnvoyRouteConfiguration(
                     is EnvoyRoute.WebAuthorizeSession -> 5
                     is EnvoyRoute.WebIngressSession -> 6
 
-                    is EnvoyRoute.Standard -> 10
+                    is EnvoyRoute.Standard -> {
+                        if (it.ucloudIdentity == null) 11
+                        else 10
+                    }
                 }
             }
 
@@ -495,7 +498,7 @@ class EnvoyRouteConfiguration(
                                                                     JsonObject(
                                                                         mapOf(
                                                                             "name" to JsonPrimitive("usernameHint"),
-                                                                            "string_matcher" to JsonObject(
+                                                                            "string_match" to JsonObject(
                                                                                 mapOf(
                                                                                     "exact" to JsonPrimitive(base64Encode(ucloudIdentity.encodeToByteArray()))
                                                                                 )
