@@ -266,6 +266,7 @@ class SlurmCommandLine(
         const val SQUEUE_EXE = "/usr/bin/squeue"
         const val SINFO_EXE = "/usr/bin/sinfo"
         const val SACCT_EXE = "/usr/bin/sacct"
+        const val SRUN_EXE = "/usr/bin/srun"
         const val SCTL_EXE = "/usr/bin/scontrol"
         const val SLURM_CONF_KEY = "SLURM_CONF"
         private val memorySuffix = Regex("[KMGTP][cn]?")

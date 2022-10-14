@@ -35,7 +35,7 @@ private val pluginLookupTable = mapOf<KClass<*>, () -> Plugin<*>>(
 
     // Jobs
     // ================================================================================================================
-    SlurmConfig::class to { SlurmPlugin() },
+    ConfigSchema.Plugins.Jobs.Slurm::class to { SlurmPlugin() },
     ConfigSchema.Plugins.Jobs.Puhuri::class to { PuhuriComputePlugin() },
     ConfigSchema.Plugins.Jobs.UCloud::class to { UCloudComputePlugin() },
 

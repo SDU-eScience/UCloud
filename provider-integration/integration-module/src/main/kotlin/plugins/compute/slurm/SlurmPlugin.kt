@@ -45,8 +45,7 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.ArrayList
 import kotlin.math.max
-
-typealias SlurmConfig = ConfigSchema.Plugins.Jobs.Slurm
+import dk.sdu.cloud.config.ConfigSchema.Plugins.Jobs.Slurm as SlurmConfig
 
 class SlurmPlugin : ComputePlugin {
     override val pluginTitle: String = "Slurm"
@@ -372,7 +371,9 @@ class SlurmPlugin : ComputePlugin {
             }
 
             InteractiveSessionType.SHELL -> {
-                if (pluginConfig.terminal.generateSshKeys && didInitKeys.compareAndSet(false, true)) {
+                val terminal = pluginConfig.terminal
+                val generateSshKeys = (terminal as? SlurmConfig.Terminal.Ssh)?.generateSshKeys
+                if (terminal.enabled && generateSshKeys == true && didInitKeys.compareAndSet(false, true)) {
                     val publicKeyFile = File("${homeDirectory()}/.ssh/$sshId.pub")
 
                     if (!publicKeyFile.exists()) {
@@ -407,25 +408,40 @@ class SlurmPlugin : ComputePlugin {
 
         val masterFd = clib.createAndForkPty(
             command = buildList {
-                add("/usr/bin/ssh")
-                add("-tt")
-                add("-oStrictHostKeyChecking=accept-new")
+                when (pluginConfig.terminal) {
+                    is SlurmConfig.Terminal.Ssh -> {
+                        add("/usr/bin/ssh")
+                        add("-tt")
+                        add("-oStrictHostKeyChecking=accept-new")
 
-                if (pluginConfig.terminal.generateSshKeys) {
-                    add("-i")
-                    add("${homeDirectory()}/.ssh/${sshId}")
+                        if ((pluginConfig.terminal as? SlurmConfig.Terminal.Ssh)?.generateSshKeys == true) {
+                            add("-i")
+                            add("${homeDirectory()}/.ssh/${sshId}")
+                        }
+
+                        add(nodeToUse)
+                        add(buildString {
+                            append("([ -x /bin/bash ] && exec /bin/bash) || ")
+                            append("([ -x /usr/bin/bash ] && exec /usr/bin/bash) || ")
+                            append("([ -x /bin/zsh ] && exec /bin/zsh) || ")
+                            append("([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || ")
+                            append("([ -x /bin/fish ] && exec /bin/fish) || ")
+                            append("([ -x /usr/bin/fish ] && exec /usr/bin/fish) || ")
+                            append("exec /bin/sh")
+                        })
+                    }
+
+                    is SlurmConfig.Terminal.Slurm -> {
+                        add(SlurmCommandLine.SRUN_EXE)
+                        add("--overlap")
+                        add("--pty")
+                        add("--jobid=${slurmJob.slurmId}")
+                        add("-w")
+                        add(nodeToUse)
+                        add("bash")
+                    }
                 }
 
-                add(nodeToUse)
-                add(buildString {
-                    append("([ -x /bin/bash ] && exec /bin/bash) || ")
-                    append("([ -x /usr/bin/bash ] && exec /usr/bin/bash) || ")
-                    append("([ -x /bin/zsh ] && exec /bin/zsh) || ")
-                    append("([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || ")
-                    append("([ -x /bin/fish ] && exec /bin/fish) || ")
-                    append("([ -x /usr/bin/fish ] && exec /usr/bin/fish) || ")
-                    append("exec /bin/sh")
-                })
             }.toTypedArray(),
             env = arrayOf(
                 "TERM", "xterm"
