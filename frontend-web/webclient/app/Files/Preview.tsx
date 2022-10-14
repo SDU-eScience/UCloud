@@ -3,7 +3,7 @@ import * as React from "react";
 import {extensionFromPath, extensionTypeFromPath, isExtPreviewSupported} from "@/UtilityFunctions";
 import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
 import {Markdown} from "@/ui-components";
-import {api as FilesApi, FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
+import {api as FilesApi, FilesCreateDownloadResponseItem, normalizeDownloadEndpoint, UFile} from "@/UCloud/FilesApi";
 import {useEffect, useState} from "react";
 import {fileName} from "@/Utilities/FileUtilities";
 import {bulkRequestOf} from "@/DefaultObjects";
@@ -37,7 +37,7 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
                     setError("Unable to display preview. Try again later or with a different file.");
                     return;
                 }
-                const content = await fetch(downloadEndpoint);
+                const content = await fetch(normalizeDownloadEndpoint(downloadEndpoint));
                 switch (type) {
                     case "image":
                     case "audio":

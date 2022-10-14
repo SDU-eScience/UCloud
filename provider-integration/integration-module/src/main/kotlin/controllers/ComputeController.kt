@@ -521,13 +521,7 @@ class ComputeController(
                 }
 
                 InteractiveSessionType.SHELL -> {
-                    envoy.requestConfiguration(
-                        EnvoyRoute.ShellSession(
-                            generatedSessionId,
-                            controllerContext.configuration.core.providerId,
-                            ucloudIdentity ?: EnvoyConfigurationService.IM_SERVER_CLUSTER
-                        )
-                    )
+                    // Do nothing
                 }
             }
 

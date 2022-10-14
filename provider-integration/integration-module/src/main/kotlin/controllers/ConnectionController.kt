@@ -47,7 +47,6 @@ object ConnectionIpc : IpcContainer("connections") {
     val browse = browseHandler(PaginationRequestV2.serializer(), PageV2.serializer(ConnectionEntry.serializer()))
     val registerConnection = updateHandler("registerConnection", ConnectionEntry.serializer(), Unit.serializer())
     val removeConnection = updateHandler("removeConnection", FindByUsername.serializer(), Unit.serializer())
-    val registerSessionProxy = updateHandler("registerSessionProxy", OpenSession.Shell.serializer(), Unit.serializer())
 }
 
 object MessageSigningIpc : IpcContainer("rpcsigning") {
@@ -85,20 +84,6 @@ class ConnectionController(
     override fun configureIpc(server: IpcServer) {
         if (!controllerContext.configuration.shouldRunServerCode()) return
         val envoyConfig = envoyConfig ?: return
-
-        server.addHandler(ConnectionIpc.registerSessionProxy.handler { user, request ->
-            val ucloudIdentity = UserMapping.localIdToUCloudId(user.uid.toInt())
-                ?: throw RPCException("Unknown user", HttpStatusCode.Forbidden)
-
-            envoyConfig.requestConfiguration(
-                EnvoyRoute.ShellSession(
-                    request.sessionIdentifier,
-                    controllerContext.configuration.core.providerId,
-                    ucloudIdentity
-                ),
-                null,
-            )
-        })
 
         server.addHandler(ConnectionIpc.browse.handler { user, request ->
             if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
