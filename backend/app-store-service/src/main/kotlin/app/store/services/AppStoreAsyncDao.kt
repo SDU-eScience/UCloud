@@ -48,19 +48,19 @@ class AppStoreAsyncDao(
                     },
                     """
                         select distinct at.application_name as app_name
-                        from app_store.application_tags as at, app_store.applications as a
+                        from application_tags as at, applications as a
                         where at.application_name = a.name and at.tag_id in (
-                            select id from app_store.tags where lower(tag) in (select lower(unnest(:tags::text[])))
+                            select id from tags where lower(tag) in (select lower(unnest(:tags::text[])))
                         ) and (
                             (
                                 a.is_public = true
                             ) or (
-                                :project is null and :user in (
-                                    select p1.username from app_store.permissions as p1 where p1.application_name = a.name
+                                cast(:project as text) is null and :user in (
+                                    select p1.username from permissions as p1 where p1.application_name = a.name
                                 )
                             ) or (
-                                :project is not null and exists (
-                                    select p2.project_group from app_store.permissions as p2 where
+                                cast(:project as text) is not null and exists (
+                                    select p2.project_group from permissions as p2 where
                                         p2.application_name = a.name and
                                         p2.project = cast(:project as text) and
                                         p2.project_group in (select unnest(:groups::text[]))
@@ -272,8 +272,8 @@ class AppStoreAsyncDao(
                                                 order by created_at desc
                                             ) as rno
                                         from
-                                            app_store.applications a left join
-                                            app_store.permissions p on a.name = p.application_name left join
+                                            applications a left join
+                                            permissions p on a.name = p.application_name left join
                                             project_info pinfo
                                                 on p.project = pinfo.current_project and p.project_group = pinfo.project_group
                                         where
@@ -470,7 +470,7 @@ class AppStoreAsyncDao(
                         setParameter("provider_tag", providerName)
                     },
                     """
-                        insert into app_store.tags (tag) values (:providerTag) returning id
+                        insert into tags (tag) values (:providerTag) returning id
                     """
                 ).rows.first().getInt(0)
 
@@ -481,7 +481,7 @@ class AppStoreAsyncDao(
                         setParameter("tag_id", tagId)
                     },
                     """
-                        insert into app_store.application_tags (id, application_name, tag_id)
+                        insert into application_tags (id, application_name, tag_id)
                         values (nextval('app_store.hibernate_sequence'), :name, :tag_id)
                     """
                 )
@@ -584,7 +584,7 @@ class AppStoreAsyncDao(
                         },
                         """
                             select application_name, tag
-                            from app_store.application_tags, app_store.tags
+                            from application_tags, tags
                             where application_name in (select unnest(:allapps::text[])) and tag_id = tags.id
                         """
                     )
@@ -616,7 +616,7 @@ class AppStoreAsyncDao(
                             },
                             """
                                 select distinct tag
-                                from app_store.application_tags, app_store.tags
+                                from application_tags, tags
                                 where application_name = :appname and tag_id = tags.id
                             """
                         )
@@ -717,7 +717,7 @@ class AppStoreAsyncDao(
                     },
                     """
                         SELECT *
-                        FROM app_store.applications
+                        FROM applications
                         WHERE (name, version) IN (select unnest(:names::text[]), unnest(:versions::text[]))
                     """
                 )
