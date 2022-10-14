@@ -126,7 +126,6 @@ function createResumeable(
             request.open("POST", strategy!.endpoint.replace("integration-module:8889", "localhost:9000"));
             request.setRequestHeader("Chunked-Upload-Token", strategy!.token);
             request.setRequestHeader("Chunked-Upload-Offset", (reader.offset - chunk.byteLength).toString(10));
-            request.setRequestHeader("Chunked-Upload-Offset", (reader.offset - chunk.byteLength).toString(10));
             request.setRequestHeader("UCloud-Username", b64EncodeUnicode(Client.username!));
             request.responseType = "text";
 
