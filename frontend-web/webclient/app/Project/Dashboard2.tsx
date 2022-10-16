@@ -75,7 +75,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                             title={"Resources and Usage"}
                             icon="grant"
                             color="purple"
-                            onClick={() => history.push("/project/resources")}
+                            onClick={() => history.push(`/project/resources/${projectId ?? ""}`)}
                             subtitle={<RightArrow />}
                         >
                         </HighlightedCard>
@@ -85,7 +85,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                             icon="grant"
                             color="darkGreen"
                             isLoading={false}
-                            onClick={() => history.push("/project/allocations")}
+                            onClick={() => history.push(`/project/allocations/${projectId ?? ""}`)}
                             subtitle={<RightArrow />}
                         >
                         </HighlightedCard>

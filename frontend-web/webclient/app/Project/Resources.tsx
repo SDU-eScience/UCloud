@@ -34,6 +34,7 @@ import HighlightedCard from "@/ui-components/HighlightedCard";
 import {BrowseType} from "@/Resource/BrowseType";
 import {format} from "date-fns/esm";
 import {Spacer} from "@/ui-components/Spacer";
+import {useProjectFromParams} from "./Api";
 
 
 const ANIMATION_DURATION = 1000;
@@ -95,6 +96,10 @@ const Resources: React.FunctionComponent = () => {
     const [breakdowns, fetchBreakdowns] = useCloudAPI<{charts: BreakdownChart[]}>({noop: true}, {charts: []});
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
 
+    const {projectId, project} = useProjectFromParams();
+
+    const isMyWorkspace = projectId == null;
+
     const [maximizedUsage, setMaximizedUsage] = useState<number | null>(null);
 
     const onUsageMaximize = useCallback((idx: number) => {
@@ -103,9 +108,9 @@ const Resources: React.FunctionComponent = () => {
     }, [maximizedUsage]);
 
     const reloadPage = useCallback(() => {
-        fetchUsage(retrieveUsage({...filters}));
-        fetchBreakdowns(retrieveBreakdown({...filters}));
-        fetchWallets(browseWallets({itemsPerPage: 50, ...filters}));
+        fetchUsage({...retrieveUsage({...filters}), projectOverride: projectId});
+        fetchBreakdowns({...retrieveBreakdown({...filters}), projectOverride: projectId});
+        fetchWallets({...browseWallets({itemsPerPage: 50, ...filters}), projectOverride: projectId});
         setMaximizedUsage(null);
     }, [filters]);
 
@@ -133,11 +138,13 @@ const Resources: React.FunctionComponent = () => {
         };
     }, [filters]);
 
+    const crumbs = [{title: isMyWorkspace ? "My workspace" : project?.specification.title ?? ""}, {title: "Resource Usage"}];
+
     return (
         <MainContainer
             header={<Spacer
                 width={"calc(100% - var(--sidebarWidth))"}
-                left={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resource Usage"}]} />}
+                left={<ProjectBreadcrumbs omitActiveProject crumbs={crumbs} />}
                 right={<Box ml="12px" width="512px">Viewing usage from {filterStart} to {filterEnd}</Box>}
             />}
             sidebar={<ResourceFilter

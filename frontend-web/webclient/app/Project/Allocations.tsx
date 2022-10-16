@@ -20,8 +20,8 @@ import {VisualizationSection} from "./Resources";
 import formatDistance from "date-fns/formatDistance";
 import {Spacer} from "@/ui-components/Spacer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
-import {useProject} from "./cache";
-import {isAdminOrPI, useProjectId} from "./Api";
+import {isAdminOrPI, useProjectFromParams, useProjectId} from "./Api";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 export interface SubAllocation {
     id: string;
@@ -55,8 +55,7 @@ export function searchSubAllocations(request: {query: string} & PaginationReques
 const FORMAT = "dd/MM/yyyy";
 
 function Allocations(): JSX.Element {
-    const projectId = useProjectId();
-    const project = useProject();
+    const {project, projectId, loading} = useProjectFromParams();
 
     useTitle("Allocations");
 
@@ -66,7 +65,7 @@ function Allocations(): JSX.Element {
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
 
     const loadMoreAllocations = useCallback(() => {
-        fetchAllocations(browseSubAllocations({itemsPerPage: 250, next: allocations.data.next}));
+        fetchAllocations({...browseSubAllocations({itemsPerPage: 250, next: allocations.data.next}), projectOverride: projectId});
     }, [allocations.data]);
 
     const filterByAllocation = useCallback((allocationId: string) => {
@@ -82,8 +81,8 @@ function Allocations(): JSX.Element {
     }, [setFilters]);
 
     const reloadPage = useCallback(() => {
-        fetchWallets(browseWallets({itemsPerPage: 50, ...filters}));
-        fetchAllocations(browseSubAllocations({itemsPerPage: 250, ...filters}));
+        fetchWallets({...browseWallets({itemsPerPage: 50, ...filters})});
+        fetchAllocations({...browseSubAllocations({itemsPerPage: 250, ...filters}), projectOverride: projectId});
         setAllocationGeneration(prev => prev + 1);
     }, [filters]);
 
@@ -94,21 +93,23 @@ function Allocations(): JSX.Element {
     useRefreshFunction(reloadPage);
 
     const onSubAllocationQuery = useCallback((query: string) => {
-        fetchAllocations(searchSubAllocations({query, itemsPerPage: 250}));
+        fetchAllocations({...searchSubAllocations({query, itemsPerPage: 250}), projectOverride: projectId});
         setAllocationGeneration(prev => prev + 1);
     }, []);
+
+    const breadcrumbs = [{title: projectId ? project?.specification.title ?? "" : "My workspace"}, {title: "Allocations"}];
 
     return <MainContainer
         header={<Spacer
             width={"calc(100% - var(--sidebarWidth))"}
-            left={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Allocations"}]} />}
+            left={<ProjectBreadcrumbs omitActiveProject crumbs={breadcrumbs} />}
             right={<Box ml="12px" width="512px"></Box>}
         />}
         main={<>
             <Grid gridGap="0px">
                 <Wallets wallets={wallets.data.items} />
             </Grid>
-            {!project.loading && isAdminOrPI(project.fetch().status.myRole) ?
+            {!loading && isAdminOrPI(project?.status.myRole) ?
                 <SubAllocationViewer
                     allocations={allocations}
                     generation={allocationGeneration}

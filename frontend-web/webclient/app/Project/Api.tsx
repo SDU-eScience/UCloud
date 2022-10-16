@@ -286,28 +286,30 @@ export function useSubprojectFromURL(request: ProjectFlags): {project: Project; 
 }
 
 
-export function useProjectFromParams(): {project: Project | null; reload: () => void; projectId: string} {
+export function useProjectFromParams(): {project: Project | null; reload: () => void; projectId: string; loading: boolean;} {
     const params = useParams<{project: string}>();
     const projectId = params.project;
 
     const [projectFromApi, fetchProject] = useCloudAPI<Project | null>({noop: true}, null);
 
     const reload = useCallback(() => {
-        fetchProject(api.retrieve({
-            id: projectId,
-            includePath: true,
-            includeMembers: true,
-            includeArchived: true,
-            includeGroups: true,
-            includeSettings: true,
-        }));
+        if (projectId) {
+            fetchProject(api.retrieve({
+                id: projectId,
+                includePath: true,
+                includeMembers: true,
+                includeArchived: true,
+                includeGroups: true,
+                includeSettings: true,
+            }));
+        }
     }, [projectId]);
 
     useEffect(() => {
         reload();
     }, [projectId]);
 
-    return {project: projectFromApi.data, projectId, reload}
+    return {project: projectFromApi.data, projectId, reload, loading: projectFromApi.loading}
 }
 
 
