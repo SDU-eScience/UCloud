@@ -26,3 +26,11 @@ alter table app_store.application_tags
     drop column tag;
 
 create unique index on app_store.application_tags(tag_id,application_name);
+
+alter table app_store.application_tags drop column id;
+
+create table app_store.overview (
+    reference_type text not null,
+    reference_id text not null,
+    order_id int not null
+);
