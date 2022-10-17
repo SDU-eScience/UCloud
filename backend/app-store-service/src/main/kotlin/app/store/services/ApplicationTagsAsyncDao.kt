@@ -28,7 +28,7 @@ class ApplicationTagsAsyncDao() {
                     setParameter("tags", tags)
                 },
                 """
-                    insert into app_store.tags (tag)
+                    insert into tags (tag)
                         select unnest(:tags::text[])
                 """
             )
@@ -42,9 +42,9 @@ class ApplicationTagsAsyncDao() {
                     setParameter("tags", tags)
                 },
                 """
-                    insert into app_store.application_tags (id, application_name, tag_id)
+                    insert into application_tags (id, application_name, tag_id)
                         select :id, :application_name, id
-                        from app_store.tags where
+                        from tags where
                             lower(tag) in (select lower(unnest(:tags::text[])))
                         on conflict do nothing 
                 """
@@ -69,10 +69,10 @@ class ApplicationTagsAsyncDao() {
                     setParameter("tags", tags)
                 },
                 """
-                    delete from app_store.application_tags
+                    delete from application_tags
                         where application_name = :app_name and
                         tag_id in (
-                            select id from app_store.tags where tag in (select lower(unnest(:tags::text[])))
+                            select id from tags where tag in (select lower(unnest(:tags::text[])))
                         )
                 """
             )
@@ -90,7 +90,7 @@ class ApplicationTagsAsyncDao() {
                 },
                 """
                     select t.tag
-                    from app_store.application_tags
+                    from application_tags
                     inner join tags t on t.id = application_tags.tag_id
                     where application_name = :app_name and tag_id 
                     
