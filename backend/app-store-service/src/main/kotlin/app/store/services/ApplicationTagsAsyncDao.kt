@@ -33,17 +33,14 @@ class ApplicationTagsAsyncDao() {
                 """
             )
 
-            // TODO(Brian): Do we even need this ID?
-            val id = session.allocateId()
             session.sendPreparedStatement(
                 {
-                    setParameter("id", id)
                     setParameter("application_name", applicationName)
                     setParameter("tags", tags)
                 },
                 """
-                    insert into application_tags (id, application_name, tag_id)
-                        select :id, :application_name, id
+                    insert into application_tags (application_name, tag_id)
+                        select :application_name, id
                         from tags where
                             lower(tag) in (select lower(unnest(:tags::text[])))
                         on conflict do nothing 

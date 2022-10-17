@@ -481,8 +481,8 @@ class AppStoreAsyncDao(
                         setParameter("tag_id", tagId)
                     },
                     """
-                        insert into application_tags (id, application_name, tag_id)
-                        values (nextval('app_store.hibernate_sequence'), :name, :tag_id)
+                        insert into application_tags (application_name, tag_id)
+                        values (:name, :tag_id)
                     """
                 )
             }
