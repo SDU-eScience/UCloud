@@ -18,6 +18,7 @@ import kotlinx.serialization.encodeToString
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.util.*
+import kotlin.collections.ArrayList
 
 @Suppress("TooManyFunctions") // Does not make sense to split
 class AppStoreAsyncDao(
@@ -474,7 +475,6 @@ class AppStoreAsyncDao(
                     """
                 ).rows.first().getInt(0)
 
-                // TODO(Brian): Is the ID used for anything?
                 session.sendPreparedStatement(
                     {
                         setParameter("name", description.metadata.name)
@@ -487,6 +487,58 @@ class AppStoreAsyncDao(
                 )
             }
         }
+    }
+
+    suspend fun overview(
+        ctx: DBContext,
+        user: SecurityPrincipal,
+        project: String?
+    ): List<AppStoreOverviewSection> {
+        val sections = ArrayList<AppStoreOverviewSection>()
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("user", user.username)
+                    setParameter("role", user.role.name)
+                },
+                """
+                    select reference_id, reference_type, application_to_json(a, t),
+                        exists(select * from favorited_by where the_user = :user and application_name = a.name)
+                    from overview, applications a
+                    join tools t on
+                        a.tool_name = t.name and a.tool_version = t.version
+                    where ((reference_type = 'TOOL' and lower(tool_name) = lower(reference_id))
+                        or (
+                            reference_type = 'TAG' and
+                            a.name in (select application_name
+                                from application_tags
+                                where tag_id in (select id from tags where lower(tag) = lower(reference_id))
+                            )
+                        )) and (a.is_public or :role = 'ADMIN')
+                    order by order_id
+                """
+            ).rows.forEach { row ->
+                val refId = row.getString(0)!!
+                val type = AppStoreOverviewSectionType.valueOf(row.getString(1)!!)
+                val app = defaultMapper.decodeFromString<Application>(row.getString(2)!!)
+                val favorite = row.getBoolean(3)!!
+                val appWithFavorite = ApplicationSummaryWithFavorite(app.metadata, favorite, listOf("Syncthing"))
+
+
+                val section = sections.find { it.name == refId && it.type == type }
+                if (section != null) {
+                    section.apps.add(appWithFavorite)
+                } else {
+                    sections.add(
+                        AppStoreOverviewSection(
+                            refId, type, arrayListOf(appWithFavorite)
+                        )
+                    )
+                }
+            }
+        }
+
+        return sections
     }
 
     suspend fun delete(

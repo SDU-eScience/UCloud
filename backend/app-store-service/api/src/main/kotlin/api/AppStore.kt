@@ -173,6 +173,25 @@ typealias FindLatestByToolResponse = Page<Application>
 data class DeleteAppRequest(val appName: String, val appVersion: String)
 typealias DeleteAppResponse = Unit
 
+typealias AppStoreOverviewRequest = Unit
+@Serializable
+data class AppStoreOverviewResponse(
+    val items: List<AppStoreOverviewSection>
+)
+
+@Serializable
+data class AppStoreOverviewSection(
+    val name: String,
+    val type: AppStoreOverviewSectionType,
+    val apps: ArrayList<ApplicationSummaryWithFavorite>
+)
+
+@Serializable
+enum class AppStoreOverviewSectionType {
+    TAG,
+    TOOL
+}
+
 @UCloudApiExampleValue
 fun exampleApplication(
     name: String,
@@ -858,6 +877,26 @@ ${ApiConventions.nonConformingApiWarning}
         documentation {
             summary = "Lists all Applications"
             description = "Results are not ordered in any specific fashion"
+        }
+    }
+
+    val overview = call("overview", AppStoreOverviewRequest.serializer(), AppStoreOverviewResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.AUTHENTICATED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"overview"
+            }
+
+            documentation {
+                summary = "Returns the application catalog overview"
+            }
         }
     }
 

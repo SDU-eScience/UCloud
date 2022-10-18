@@ -317,6 +317,14 @@ class AppStoreService(
         }
     }
 
+    suspend fun overview(securityPrincipal: SecurityPrincipal, project: String?): AppStoreOverviewResponse {
+        return AppStoreOverviewResponse(
+            db.withTransaction {
+                applicationDao.overview(db, securityPrincipal, project)
+            }
+        )
+    }
+
     suspend fun create(actorAndProject: ActorAndProject, application: Application, content: String) {
         db.withTransaction { session ->
             applicationDao.create(session, actorAndProject, application, content)
