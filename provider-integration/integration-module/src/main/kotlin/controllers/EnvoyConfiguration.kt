@@ -494,18 +494,22 @@ class EnvoyRouteConfiguration(
                                                         "match" to JsonObject(
                                                             buildMap {
                                                                 put("prefix", JsonPrimitive("/"))
-                                                                put("query_parameters", JsonArray(
-                                                                    JsonObject(
-                                                                        mapOf(
-                                                                            "name" to JsonPrimitive("usernameHint"),
-                                                                            "string_match" to JsonObject(
-                                                                                mapOf(
-                                                                                    "exact" to JsonPrimitive(base64Encode(ucloudIdentity.encodeToByteArray()))
+                                                                put(
+                                                                    "query_parameters", JsonArray(
+                                                                        JsonObject(
+                                                                            mapOf(
+                                                                                "name" to JsonPrimitive("usernameHint"),
+                                                                                "string_match" to JsonObject(
+                                                                                    mapOf(
+                                                                                        "exact" to JsonPrimitive(
+                                                                                            base64Encode(ucloudIdentity.encodeToByteArray())
+                                                                                        )
+                                                                                    )
                                                                                 )
                                                                             )
                                                                         )
                                                                     )
-                                                                ))
+                                                                )
                                                             }
                                                         ),
                                                         "route" to standardRouteConfig,
