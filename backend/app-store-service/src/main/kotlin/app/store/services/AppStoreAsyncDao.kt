@@ -503,7 +503,8 @@ class AppStoreAsyncDao(
                 },
                 """
                     select reference_id, reference_type, application_to_json(a, t),
-                        exists(select * from favorited_by where the_user = :user and application_name = a.name)
+                        exists(select * from favorited_by where the_user = :user and application_name = a.name) favorite,
+                           (select json_agg(tag) from tags where id in (select tag_id from application_tags where application_name = a.name)) tags
                     from overview, applications a
                     join tools t on
                         a.tool_name = t.name and a.tool_version = t.version
@@ -518,11 +519,12 @@ class AppStoreAsyncDao(
                     order by order_id
                 """
             ).rows.forEach { row ->
-                val refId = row.getString(0)!!
-                val type = AppStoreOverviewSectionType.valueOf(row.getString(1)!!)
-                val app = defaultMapper.decodeFromString<Application>(row.getString(2)!!)
-                val favorite = row.getBoolean(3)!!
-                val appWithFavorite = ApplicationSummaryWithFavorite(app.metadata, favorite, listOf("Syncthing"))
+                val refId = row.getString("reference_id")!!
+                val type = AppStoreOverviewSectionType.valueOf(row.getString("reference_type")!!)
+                val app = defaultMapper.decodeFromString<Application>(row.getString("application_to_json")!!)
+                val favorite = row.getBoolean("favorite")!!
+                val tags = defaultMapper.decodeFromString<List<String>>(row.getString("tags")!!)
+                val appWithFavorite = ApplicationSummaryWithFavorite(app.metadata, favorite, tags)
 
 
                 val section = sections.find { it.name == refId && it.type == type }
