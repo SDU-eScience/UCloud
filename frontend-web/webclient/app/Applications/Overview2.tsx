@@ -1,6 +1,6 @@
 import { emptyPage, emptyPageV2 } from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
-import React, * as React from "react";
+import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import styled from "styled-components";
 import {Box, Flex, Link} from "@/ui-components";
