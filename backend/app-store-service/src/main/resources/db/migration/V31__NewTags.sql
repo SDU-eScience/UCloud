@@ -34,3 +34,33 @@ create table app_store.overview (
     reference_id text not null,
     order_id int not null
 );
+
+create sequence app_store.overview_order_sequence start 1 increment 1;
+
+insert into app_store.overview (reference_type, reference_id, order_id)
+    select 'TAG', id, nextval('overview_order_sequence') from app_store.tags where tag in (
+        'Featured',
+        'Engineering',
+        'Data Analytics',
+        'Social Science',
+        'Applied Science',
+        'Natural Science',
+        'Development',
+        'Virtual Machines',
+        'Digital Humanities',
+        'Health Science',
+        'Bioinformatics'
+    );
+
+insert into app_store.overview (reference_type, reference_id, order_id) values
+    ('TOOL', 'BEDTools', nextval('overview_order_sequence')),
+    ('TOOL', 'Cell Ranger', nextval('overview_order_sequence')),
+    ('TOOL', 'HOMER', nextval('overview_order_sequence')),
+    ('TOOL', 'Kallisto', nextval('overview_order_sequence')),
+    ('TOOL', 'MACS2', nextval('overview_order_sequence')),
+    ('TOOL', 'SAMtools', nextval('overview_order_sequence')),
+    ('TOOL', 'Salmon', nextval('overview_order_sequence')),
+    ('TOOL', 'Seqtk', nextval('overview_order_sequence')),
+    ('TOOL', 'Space Ranger', nextval('overview_order_sequence')),
+    ('TOOL', 'nf-core', nextval('overview_order_sequence'))
+;
