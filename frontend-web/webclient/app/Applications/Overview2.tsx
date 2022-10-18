@@ -65,12 +65,9 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
         {items: []}
     );
 
-
     const [refreshId, setRefreshId] = useState<number>(0);
 
-
     useEffect(() => {
-        console.log("Fetching overview");
         fetchOverview(UCloud.compute.apps.appStoreOverview());
     }, [refreshId]);
 
@@ -255,20 +252,14 @@ interface TagGridProps {
 const TagGrid: React.FunctionComponent<TagGridProps> = (
     {tag, rows, items, tagBanList = [], favoriteStatus, onFavorite, refreshId}: TagGridProps
 ) => {
-    console.log("taggrid " + tag);
-    console.log(items);
     const showFavorites = tag == SPECIAL_FAVORITE_TAG;
 
-    console.log(tagBanList);
     let filteredItems = items
         .filter(it => !it.tags.some(_tag => tagBanList.includes(_tag)))
         .filter(item => {
             const isFavorite = favoriteStatus[favoriteStatusKey(item)]?.override ?? item.favorite;
             return isFavorite === showFavorites;
         });
-
-    console.log("filtered");
-    console.log(filteredItems);
 
     if (showFavorites) {
         filteredItems = filteredItems.concat(
@@ -337,18 +328,6 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
 };
 
 const ToolGroup: React.FunctionComponent<{tag: string, items: ApplicationSummaryWithFavorite[], refreshId: number}> = ({tag, items, refreshId}) => {
-    console.log("Toolgroup"+tag);
-    console.log(items);
-    /*const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
-        {noop: true},
-        emptyPage
-    );
-
-    useEffect(() => {
-        fetchApplications(UCloud.compute.apps.searchTags({query: tag, itemsPerPage: 100, page: 0}));
-    }, [tag, refreshId]);*/
-
-    //const page = appResp.data;
     const allTags = items.map(it => it.tags);
     const tags = new Set<string>();
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));
@@ -383,9 +362,6 @@ const ToolGroup: React.FunctionComponent<{tag: string, items: ApplicationSummary
                             {items.map(application => {
                                 const [first, second, third] = getColorFromName(application.metadata.name);
                                 const withoutTag = removeTagFromTitle(tag, application.metadata.title);
-                                console.log(tag);
-                                console.log(application.metadata.title);
-                                console.log(withoutTag);
                                 return (
                                     <div key={application.metadata.name}>
                                         <SmallCard
