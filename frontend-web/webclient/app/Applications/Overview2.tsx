@@ -1,6 +1,6 @@
 import { emptyPage, emptyPageV2 } from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
-import * as React from "react";
+import React, * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import styled from "styled-components";
 import {Box, Flex, Link} from "@/ui-components";
@@ -18,11 +18,14 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
+import AppStoreOverview = compute.AppStoreOverview;
+import AppStoreOverviewSectionType = compute.AppStoreOverviewSectionType;
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
 import {PageV2, provider} from "@/UCloud";
 import IntegrationApi = provider.im;
 import { inDevEnvironment, onDevSite } from "@/UtilityFunctions";
+import Spinner from "@/LoadingIcon/LoadingIcon";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -57,6 +60,20 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
         emptyPage
     );
 
+    const [sections, fetchOverview] = useCloudAPI<AppStoreOverview>(
+        {noop: true},
+        {items: []}
+    );
+
+
+    const [refreshId, setRefreshId] = useState<number>(0);
+
+
+    useEffect(() => {
+        console.log("Fetching overview");
+        fetchOverview(UCloud.compute.apps.appStoreOverview());
+    }, [refreshId]);
+
     const defaultTools = tools.data.items.map(it => it.description.title);
 
     const featuredTags = [
@@ -72,12 +89,12 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
         "Bioinformatics"
     ];
 
+    // TODO(Brian)
     const [providers, fetchProviders] = useCloudAPI<PageV2<provider.IntegrationBrowseResponseItem>>(
         {noop: true},
         emptyPageV2
     );
 
-    const [refreshId, setRefreshId] = useState<number>(0);
 
     useResourceSearch(ApiLike);
 
@@ -115,56 +132,49 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
         }
     }, [loadingCommand, favoriteStatus]);
 
+    const [favorites, fetchFavorites] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
+        {noop: true},
+        emptyPage,
+    );
+
+    useEffect(() => {
+        fetchFavorites(UCloud.compute.apps.retrieveFavorites({itemsPerPage: 100, page: 0}));
+    }, [refreshId]);
+
     const main = (
         <>
-            <TagGrid
+            {<TagGrid
                 tag={SPECIAL_FAVORITE_TAG}
+                items={favorites.data.items}
                 tagBanList={[]}
                 columns={7}
                 rows={3}
                 favoriteStatus={favoriteStatus}
                 onFavorite={onFavorite}
                 refreshId={refreshId}
-            />
+            />}
 
-            <TagGrid
-                tag={"Featured"}
-                columns={7}
-                rows={3}
-                favoriteStatus={favoriteStatus}
-                onFavorite={onFavorite}
-                refreshId={refreshId}
-            />
-
-            {!inDevEnvironment() && !onDevSite() ? null :
-                providers.data.items.map(provider =>
-                    <TagGrid
-                        key={provider.providerTitle}
-                        tag={provider.providerTitle}
-                        columns={7}
-                        rows={1}
-                        favoriteStatus={favoriteStatus}
-                        onFavorite={onFavorite}
-                        tagBanList={defaultTools}
-                        refreshId={refreshId}
-                    />
-                )
-            }
-
-            {featuredTags.map(tag =>
-                <TagGrid
-                    key={tag}
-                    tag={tag}
-                    columns={7}
-                    rows={1}
-                    favoriteStatus={favoriteStatus}
-                    onFavorite={onFavorite}
-                    tagBanList={defaultTools}
-                    refreshId={refreshId}
-                />
+            {sections.loading ? <Spinner /> :
+                sections.data.items.map(section => 
+                    section.type === AppStoreOverviewSectionType.TAG ?
+                        <>
+                            <TagGrid
+                                key={section.name+section.type}
+                                tag={section.name}
+                                items={section.apps}
+                                columns={7}
+                                rows={1}
+                                favoriteStatus={favoriteStatus}
+                                onFavorite={onFavorite}
+                                //tagBanList={defaultTools}
+                                refreshId={refreshId}
+                            />
+                        </>
+                    :
+                        <>
+                            <ToolGroup refreshId={refreshId} items={section.apps} key={section.name} tag={section.name} />
+                        </>
             )}
-
-            {defaultTools.map(tag => <ToolGroup refreshId={refreshId} key={tag} tag={tag} />)}
         </>
     );
     return (<MainContainer main={main} />);
@@ -233,6 +243,7 @@ const TagGridBottomBox = styled.div<TagGridBoxProps>`
 
 interface TagGridProps {
     tag: string;
+    items: ApplicationSummaryWithFavorite[];
     tagBanList?: string[];
     columns: number;
     rows: number;
@@ -242,30 +253,22 @@ interface TagGridProps {
 }
 
 const TagGrid: React.FunctionComponent<TagGridProps> = (
-    {tag, rows, tagBanList = [], favoriteStatus, onFavorite, refreshId}: TagGridProps
+    {tag, rows, items, tagBanList = [], favoriteStatus, onFavorite, refreshId}: TagGridProps
 ) => {
+    console.log("taggrid " + tag);
+    console.log(items);
     const showFavorites = tag == SPECIAL_FAVORITE_TAG;
-    const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
-        {noop: true},
-        emptyPage,
-    );
 
-    console.log(tag);
-
-    useEffect(() => {
-        if (showFavorites) {
-            fetchApplications(UCloud.compute.apps.retrieveFavorites({itemsPerPage: 100, page: 0}));
-        } else {
-            fetchApplications(UCloud.compute.apps.searchTags({query: tag, itemsPerPage: 100, page: 0}));
-        }
-    }, [tag, refreshId]);
-
-    let filteredItems = appResp.data.items
+    console.log(tagBanList);
+    let filteredItems = items
         .filter(it => !it.tags.some(_tag => tagBanList.includes(_tag)))
         .filter(item => {
             const isFavorite = favoriteStatus[favoriteStatusKey(item)]?.override ?? item.favorite;
             return isFavorite === showFavorites;
         });
+
+    console.log("filtered");
+    console.log(filteredItems);
 
     if (showFavorites) {
         filteredItems = filteredItems.concat(
@@ -333,22 +336,22 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
     );
 };
 
-const ToolGroup: React.FunctionComponent<{tag: string, refreshId: number}> = ({tag, refreshId}) => {
-    const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
+const ToolGroup: React.FunctionComponent<{tag: string, items: ApplicationSummaryWithFavorite[], refreshId: number}> = ({tag, items, refreshId}) => {
+    console.log("Toolgroup"+tag);
+    console.log(items);
+    /*const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
         {noop: true},
         emptyPage
     );
 
     useEffect(() => {
         fetchApplications(UCloud.compute.apps.searchTags({query: tag, itemsPerPage: 100, page: 0}));
-    }, [tag, refreshId]);
+    }, [tag, refreshId]);*/
 
-    const page = appResp.data;
-    const allTags = page.items.map(it => it.tags);
+    //const page = appResp.data;
+    const allTags = items.map(it => it.tags);
     const tags = new Set<string>();
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));
-
-    console.log(page.items.length);
 
     return (
         <ToolGroupWrapper>
@@ -377,9 +380,12 @@ const ToolGroup: React.FunctionComponent<{tag: string, refreshId: number}> = ({t
                             gridGap="8px"
                             gridAutoFlow="column"
                         >
-                            {page.items.map(application => {
+                            {items.map(application => {
                                 const [first, second, third] = getColorFromName(application.metadata.name);
                                 const withoutTag = removeTagFromTitle(tag, application.metadata.title);
+                                console.log(tag);
+                                console.log(application.metadata.title);
+                                console.log(withoutTag);
                                 return (
                                     <div key={application.metadata.name}>
                                         <SmallCard
@@ -415,7 +421,8 @@ function removeTagFromTitle(tag: string, title: string): string {
         if (titlenew.endsWith("pl")) {
             return titlenew.slice(tag.length + 2, -3);
         } else {
-            return titlenew.slice(tag.length + 2);
+            //return titlenew.slice(tag.length + 2);
+            return titlenew;
         }
     } else {
         return title;

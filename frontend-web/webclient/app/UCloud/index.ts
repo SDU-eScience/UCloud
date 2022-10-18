@@ -2622,6 +2622,19 @@ export interface TagSearchRequest {
     itemsPerPage?: number /* int32 */,
     page?: number /* int32 */,
 }
+export interface AppStoreOverviewRequest {}
+export interface AppStoreOverview {
+    items: AppStoreSection[],
+}
+export interface AppStoreSection {
+    name: string,
+    type: AppStoreOverviewSectionType,
+    apps: ApplicationSummaryWithFavorite[]
+}
+export enum AppStoreOverviewSectionType {
+    TAG = "TAG",
+    TOOL = "TOOL"
+}
 export interface AppSearchRequest {
     query: string,
     itemsPerPage?: number /* int32 */,
@@ -3155,6 +3168,15 @@ export function searchTags(
         parameters: request,
         reloadId: Math.random(),
     };
+}
+export function appStoreOverview(): APICallParameters<AppStoreOverviewRequest, AppStoreOverview> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/hpc/apps/overview", {}),
+        parameters: requestAnimationFrame,
+        reloadId: Math.random(),
+    }
 }
 export function searchApps(
     request: AppSearchRequest
