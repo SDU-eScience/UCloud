@@ -35,7 +35,7 @@ class InternalTokenValidationJWT(
 
     private fun createVerifier(audience: List<String>? = null): JWTVerifier {
         return JWT.require(algorithm).run {
-            if (issuer != null) withIssuer("cloud.sdu.dk")
+            if (issuer != null) withIssuer(issuer)
             if (audience != null) {
                 withAudience(*audience.toTypedArray())
             }
