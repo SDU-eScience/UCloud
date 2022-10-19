@@ -507,7 +507,9 @@ class AppStoreAsyncDao(
                         reference_type,
                         application_to_json(a, t),
                         exists(select * from favorited_by where the_user = :user and application_name = a.name) favorite,
-                        (select json_agg(tag) from tags where id in (select tag_id from application_tags where application_name = a.name)) tags
+                        (select json_agg(tag) from tags where id in (select tag_id from application_tags where application_name = a.name)) tags,
+                        columns,
+                        rows 
                     from
                         overview,
                         (select distinct on (name) * from applications order by name) a
@@ -521,7 +523,7 @@ class AppStoreAsyncDao(
                                 where tag_id in (select id from tags where id = cast(reference_id as int))
                             )
                         )) and (a.is_public or :role = 'ADMIN')
-                    order by order_id, a.name
+                    order by order_id, a.title
                 """
             ).rows.forEach { row ->
                 val refId = row.getString("reference_id")!!
@@ -529,6 +531,8 @@ class AppStoreAsyncDao(
                 val type = AppStoreOverviewSectionType.valueOf(row.getString("reference_type")!!)
                 val app = defaultMapper.decodeFromString<Application>(row.getString("application_to_json")!!)
                 val favorite = row.getBoolean("favorite")!!
+                val columns = row.getInt("columns")!!
+                val rows = row.getInt("rows")!!
                 val tags = try {
                     defaultMapper.decodeFromString<List<String>>(row.getString("tags")!!)
                 } catch(e: NullPointerException) {
@@ -544,7 +548,9 @@ class AppStoreAsyncDao(
                         AppStoreOverviewSection(
                             tagName ?: refId,
                             type,
-                            arrayListOf(appWithFavorite)
+                            arrayListOf(appWithFavorite),
+                            columns,
+                            rows
                         )
                     )
                 }

@@ -183,7 +183,9 @@ data class AppStoreOverviewResponse(
 data class AppStoreOverviewSection(
     val name: String,
     val type: AppStoreOverviewSectionType,
-    val apps: ArrayList<ApplicationSummaryWithFavorite>
+    val apps: ArrayList<ApplicationSummaryWithFavorite>,
+    val columns: Int,
+    val rows: Int
 )
 
 @Serializable
