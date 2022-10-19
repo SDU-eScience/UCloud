@@ -371,9 +371,12 @@ class SlurmPlugin : ComputePlugin {
             }
 
             InteractiveSessionType.SHELL -> {
+                shellTracer { "Starting to open Slurm shell" }
                 val terminal = pluginConfig.terminal
+                shellTracer { "$terminal" }
                 val generateSshKeys = (terminal as? SlurmConfig.Terminal.Ssh)?.generateSshKeys
                 if (terminal.enabled && generateSshKeys == true && didInitKeys.compareAndSet(false, true)) {
+                    shellTracer { "We need to generate an SSH key" }
                     val publicKeyFile = File("${homeDirectory()}/.ssh/$sshId.pub")
 
                     if (!publicKeyFile.exists()) {
@@ -392,6 +395,7 @@ class SlurmPlugin : ComputePlugin {
                     }
                 }
 
+                shellTracer { "Success! We are ready to send a session." }
                 ComputeSession()
             }
 
@@ -402,14 +406,19 @@ class SlurmPlugin : ComputePlugin {
     @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) {
         val shellIsActive = isActive
+        shellTracer { "Looking for slurm job $jobId" }
         val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(jobId))
+        shellTracer { "Got a job $slurmJob" }
         val nodes: Map<Int, String> = cli.getJobNodeList(slurmJob.slurmId)
+        shellTracer { "Found nodes $nodes" }
         val nodeToUse = nodes[jobRank] ?: throw RPCException("Could not locate job node", HttpStatusCode.BadGateway)
+        shellTracer { "Found the node to use $nodeToUse" }
 
         val masterFd = clib.createAndForkPty(
             command = buildList {
                 when (pluginConfig.terminal) {
                     is SlurmConfig.Terminal.Ssh -> {
+                        shellTracer { "Using SSH to connect to $nodeToUse" }
                         add("/usr/bin/ssh")
                         add("-tt")
                         add("-oStrictHostKeyChecking=accept-new")
@@ -432,6 +441,7 @@ class SlurmPlugin : ComputePlugin {
                     }
 
                     is SlurmConfig.Terminal.Slurm -> {
+                        shellTracer { "Using srun to connect to $nodeToUse" }
                         add(SlurmCommandLine.SRUN_EXE)
                         add("--overlap")
                         add("--pty")
@@ -441,20 +451,24 @@ class SlurmPlugin : ComputePlugin {
                         add("bash")
                     }
                 }
-
-            }.toTypedArray(),
+            }.also { shellTracer { "Command is $it" } }.toTypedArray(),
             env = arrayOf(
                 "TERM", "xterm"
             )
         )
+        shellTracer { "master fd is $masterFd" }
         val processInput = LinuxOutputStream(LinuxFileHandle.createOrThrow(masterFd, { error("Bad fd") }))
         val processOutput = LinuxInputStream(LinuxFileHandle.createOrThrow(masterFd, { error("Bad fd") }))
 
         val userInputToSsh = ProcessingScope.launch {
+            shellTracer { "userInputToSsh init" }
             while (shellIsActive() && isActive && !receiveChannel.isClosedForReceive) {
+                shellTracer { "userInputToSsh spin" }
                 select {
                     receiveChannel.onReceiveCatching {
+                        shellTracer { "Got input?" }
                         val userInput = it.getOrNull() ?: return@onReceiveCatching Unit
+                        shellTracer { "input = $userInput" }
 
                         when (userInput) {
                             is ShellRequest.Input -> {
@@ -484,8 +498,12 @@ class SlurmPlugin : ComputePlugin {
         val sshOutputToUser = ProcessingScope.launch {
             val readBuffer = ByteArray(256)
 
+            shellTracer { "sshOutputToUser ready" }
             while (shellIsActive() && isActive) {
+                shellTracer { "sshOutputToUser spin" }
                 val bytesRead = processOutput.read(readBuffer)
+                shellTracer { "sshOutputToUser read $bytesRead" }
+
                 if (bytesRead <= 0) break
                 val decodedString = readBuffer.decodeToString(0, bytesRead)
                 emitData(decodedString)
@@ -494,9 +512,23 @@ class SlurmPlugin : ComputePlugin {
 
         while (currentCoroutineContext().isActive) {
             val shouldBreak = select {
-                sshOutputToUser.onJoin { true }
-                userInputToSsh.onJoin { true }
-                onTimeout(500) { !shellIsActive() }
+                sshOutputToUser.onJoin {
+                    shellTracer { "Join sshOutputToUser" }
+                    true
+                }
+
+                userInputToSsh.onJoin {
+                    shellTracer { "Join sshOutputToUser" }
+                    true
+                }
+
+                onTimeout(500) {
+                    val shouldBreak = !shellIsActive()
+                    if (shouldBreak) {
+                        shellTracer { "Breaking because shell is no longer active" }
+                    }
+                    shouldBreak
+                }
             }
 
             if (shouldBreak) break

@@ -39,6 +39,7 @@ import dk.sdu.cloud.controllers.*
 import dk.sdu.cloud.plugins.storage.posix.posixFilePermissionsFromInt
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
+import dk.sdu.cloud.config.ConfigSchema.Core.Logs.Tracer as TracerFeature
 import io.ktor.util.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.builtins.ListSerializer
@@ -212,6 +213,13 @@ fun main(args: Array<String>) {
             // modes have access to all services.
             // =======================================================================================================
 
+            // Feature traces
+            // -------------------------------------------------------------------------------------------------------
+            run {
+                val trace = config.core.logs.trace
+                shellTracer = createFeatureTracer(TracerFeature.SHELL in trace, "Shell")
+            }
+
             // Database services
             // -------------------------------------------------------------------------------------------------------
             if (config.serverOrNull != null && serverMode == ServerMode.Server) {
@@ -318,6 +326,18 @@ fun main(args: Array<String>) {
                     allowHost("localhost:9000")
                     val ucloudHost = config.core.hosts.ucloud.toStringOmitDefaultPort()
                     allowHost(ucloudHost.substringAfter("://"), listOf(ucloudHost.substringBefore("://")))
+
+                    val selfHost = config.core.hosts.self?.toStringOmitDefaultPort()
+                    if (selfHost != null) {
+                        allowHost(selfHost.substringAfter("://"), listOf(selfHost.substringBefore("://")))
+                    }
+
+                    println(config.core.cors.allowHosts.toString())
+                    config.core.cors.allowHosts.forEach {
+                        println("Setting $it")
+                        allowHost(it.removePrefix("https://").removePrefix("http://"), listOf("https", "http"))
+                    }
+
                     allowMethod(HttpMethod.Get)
                     allowMethod(HttpMethod.Post)
                     allowMethod(HttpMethod.Put)

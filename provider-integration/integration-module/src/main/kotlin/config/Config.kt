@@ -40,6 +40,7 @@ data class ConfigSchema(
         val launchRealUserInstances: Boolean = true,
         val allowRootMode: Boolean = false,
         val developmentMode: Boolean? = null,
+        val cors: Cors? = null,
     ) {
         @Serializable
         data class Hosts(
@@ -54,7 +55,17 @@ data class ConfigSchema(
 
         @Serializable
         data class Logs(
-            val directory: String,
+            val directory: String? = null,
+            val trace: List<Tracer>? = emptyList(),
+        ) {
+            enum class Tracer {
+                SHELL
+            }
+        }
+
+        @Serializable
+        data class Cors(
+            val allowHosts: List<String>? = null
         )
     }
 
@@ -180,6 +191,7 @@ data class ConfigSchema(
                 val requireSigning: Boolean = false,
                 val signing: Signing? = null,
                 override val installSshKeys: Boolean = true,
+                val experimental: Experimental = Experimental(),
             ) : Connection(), WithAutoInstallSshKey {
                 @Serializable
                 data class Ttl(
@@ -210,12 +222,26 @@ data class ConfigSchema(
                 data class Signing(
                     val algorithm: SignatureType,
                     val key: String,
+                    val issuer: String? = null,
                 )
 
                 enum class SignatureType {
                     // NOTE(Dan): This is incomplete
                     RS256,
                     ES256
+                }
+
+                @Serializable
+                data class Experimental(
+                    val tokenToUse: TokenToUse = TokenToUse.id_token
+                )
+
+                enum class TokenToUse {
+                    // NOTE(Dan): The spec says you should use this
+                    id_token,
+
+                    // NOTE(Dan): ...and not this one.
+                    access_token
                 }
             }
         }
