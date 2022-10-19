@@ -13,6 +13,9 @@ html {
 
 code {
     font-family: 'JetBrains Mono', monospace;
+    background-color: #e1e3e5;
+    padding: 4px;
+    border-radius: 4px;
 }
 
 .summary {
@@ -38,6 +41,10 @@ th, td {
     padding: 8px;
 }
 
+pre > code {
+    background-color: unset;
+}
+
 pre {
     background-color: #282c35;
     color: #ffffff;
@@ -59,3 +66,31 @@ a {
     color: #006aff;
 }
 
+doc-prop {
+    display: block;
+    margin: 32px 0;
+}
+
+doc-prop .top-line {
+    border-top: 1px solid rgb(100, 100, 100);
+    padding-top: 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+doc-prop .is-required {
+    color: red;
+}
+
+doc-prop .default-value::before {
+    content: "(Default: ";
+}
+
+doc-prop .default-value::after {
+    content: ")";
+}
+
+doc-prop section {
+    margin-left: 40px;
+}
