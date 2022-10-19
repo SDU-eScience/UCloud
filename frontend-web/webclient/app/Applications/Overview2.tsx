@@ -126,8 +126,8 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
                             key={section.name+section.type}
                             tag={section.name}
                             items={section.apps}
-                            columns={7}
-                            rows={1}
+                            columns={section.columns}
+                            rows={section.rows}
                             favoriteStatus={favoriteStatus}
                             onFavorite={onFavorite}
                             tagBanList={['Engineering']}

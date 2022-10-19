@@ -2629,7 +2629,9 @@ export interface AppStoreOverview {
 export interface AppStoreSection {
     name: string,
     type: AppStoreOverviewSectionType,
-    apps: ApplicationSummaryWithFavorite[]
+    apps: ApplicationSummaryWithFavorite[],
+    columns: number,
+    rows: number
 }
 export enum AppStoreOverviewSectionType {
     TAG = "TAG",
