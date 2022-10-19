@@ -43,23 +43,6 @@ function favoriteStatusKey(app: ApplicationSummaryWithFavorite): string {
 type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
 
 export const ApplicationsOverview2: React.FunctionComponent = () => {
-    /*const defaultTools = [
-        "BEDTools",
-        "Cell Ranger",
-        "HOMER",
-        "Kallisto",
-        "MACS2",
-        "nf-core",
-        "Salmon",
-        "SAMtools",
-        "Seqtk",
-    ];*/
-
-    const [tools, fetchTools] = useCloudAPI(
-        UCloud.compute.tools.listAll({page: 0, itemsPerPage: 50}),
-        emptyPage
-    );
-
     const [sections, fetchOverview] = useCloudAPI<AppStoreOverview>(
         {noop: true},
         {items: []}
@@ -70,21 +53,6 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
     useEffect(() => {
         fetchOverview(UCloud.compute.apps.appStoreOverview());
     }, [refreshId]);
-
-    const defaultTools = tools.data.items.map(it => it.description.title);
-
-    const featuredTags = [
-        "Engineering",
-        "Data Analytics",
-        "Social Science",
-        "Applied Science",
-        "Natural Science",
-        "Development",
-        "Virtual Machines",
-        "Digital Humanities",
-        "Health Science",
-        "Bioinformatics"
-    ];
 
     // TODO(Brian)
     const [providers, fetchProviders] = useCloudAPI<PageV2<provider.IntegrationBrowseResponseItem>>(
@@ -140,7 +108,7 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
 
     const main = (
         <>
-            {<TagGrid
+            <TagGrid
                 tag={SPECIAL_FAVORITE_TAG}
                 items={favorites.data.items}
                 tagBanList={[]}
@@ -149,28 +117,24 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
                 favoriteStatus={favoriteStatus}
                 onFavorite={onFavorite}
                 refreshId={refreshId}
-            />}
+            />
 
             {sections.loading ? <Spinner /> :
                 sections.data.items.map(section => 
                     section.type === AppStoreOverviewSectionType.TAG ?
-                        <>
-                            <TagGrid
-                                key={section.name+section.type}
-                                tag={section.name}
-                                items={section.apps}
-                                columns={7}
-                                rows={1}
-                                favoriteStatus={favoriteStatus}
-                                onFavorite={onFavorite}
-                                //tagBanList={defaultTools}
-                                refreshId={refreshId}
-                            />
-                        </>
+                        <TagGrid
+                            key={section.name+section.type}
+                            tag={section.name}
+                            items={section.apps}
+                            columns={7}
+                            rows={1}
+                            favoriteStatus={favoriteStatus}
+                            onFavorite={onFavorite}
+                            tagBanList={['Engineering']}
+                            refreshId={refreshId}
+                        />
                     :
-                        <>
-                            <ToolGroup refreshId={refreshId} items={section.apps} key={section.name} tag={section.name} />
-                        </>
+                        <ToolGroup refreshId={refreshId} items={section.apps} key={section.name+section.type} tag={section.name} />
             )}
         </>
     );
@@ -286,9 +250,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
         filteredItems = newList;
     }
 
-    filteredItems = filteredItems.sort((a, b) => a.metadata.title.localeCompare(b.metadata.title));
     if (filteredItems.length === 0) return (null);
-
     return (
         <>
             <TagGridTopBox isFavorite={showFavorites}>
@@ -312,15 +274,15 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                     gridTemplateColumns={showFavorites ? "repeat(auto-fill, minmax(400px, 1fr))" : "repeat(auto-fill, 400px)"}
                     style={{gridAutoFlow: showFavorites ? "row" : "column"}}
                 >
-                    {filteredItems.map(app => (
+                    {filteredItems.map(app => 
                         <ApplicationCard
-                            key={`${app.metadata.name}-${app.metadata.version}`}
+                            key={`${app.metadata.name}`}
                             onFavorite={() => onFavorite(app)}
                             app={app}
                             isFavorite={showFavorites}
                             tags={app.tags}
                         />
-                    ))}
+                    )}
                 </Grid>
             </TagGridBottomBox>
         </>
@@ -397,8 +359,7 @@ function removeTagFromTitle(tag: string, title: string): string {
         if (titlenew.endsWith("pl")) {
             return titlenew.slice(tag.length + 2, -3);
         } else {
-            //return titlenew.slice(tag.length + 2);
-            return titlenew;
+            return titlenew.slice(tag.length + 2);
         }
     } else {
         return title;
