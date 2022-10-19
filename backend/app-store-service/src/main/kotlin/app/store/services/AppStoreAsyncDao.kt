@@ -502,38 +502,49 @@ class AppStoreAsyncDao(
                     setParameter("role", user.role.name)
                 },
                 """
-                    select reference_id, reference_type, application_to_json(a, t),
+                    select reference_id,
+                        (select tag from tags where reference_type = 'TAG' and id = cast(reference_id as int) limit 1) tag_name,
+                        reference_type,
+                        application_to_json(a, t),
                         exists(select * from favorited_by where the_user = :user and application_name = a.name) favorite,
-                           (select json_agg(tag) from tags where id in (select tag_id from application_tags where application_name = a.name)) tags
-                    from overview, applications a
+                        (select json_agg(tag) from tags where id in (select tag_id from application_tags where application_name = a.name)) tags
+                    from
+                        overview,
+                        (select distinct on (name) * from applications order by name) a
                     join tools t on
                         a.tool_name = t.name and a.tool_version = t.version
                     where ((reference_type = 'TOOL' and lower(tool_name) = lower(reference_id))
                         or (
                             reference_type = 'TAG' and
-                            a.name in (select application_name
+                            lower(a.name) in (select lower(application_name)
                                 from application_tags
-                                where tag_id in (select id from tags where lower(tag) = lower(reference_id))
+                                where tag_id in (select id from tags where id = cast(reference_id as int))
                             )
                         )) and (a.is_public or :role = 'ADMIN')
-                    order by order_id
+                    order by order_id, a.name
                 """
             ).rows.forEach { row ->
                 val refId = row.getString("reference_id")!!
+                val tagName = row.getString("tag_name")
                 val type = AppStoreOverviewSectionType.valueOf(row.getString("reference_type")!!)
                 val app = defaultMapper.decodeFromString<Application>(row.getString("application_to_json")!!)
                 val favorite = row.getBoolean("favorite")!!
-                val tags = defaultMapper.decodeFromString<List<String>>(row.getString("tags")!!)
+                val tags = try {
+                    defaultMapper.decodeFromString<List<String>>(row.getString("tags")!!)
+                } catch(e: NullPointerException) {
+                    emptyList()
+                }
                 val appWithFavorite = ApplicationSummaryWithFavorite(app.metadata, favorite, tags)
 
-
-                val section = sections.find { it.name == refId && it.type == type }
+                val section = sections.find { (it.name == tagName || it.name == refId) && it.type == type }
                 if (section != null) {
                     section.apps.add(appWithFavorite)
                 } else {
                     sections.add(
                         AppStoreOverviewSection(
-                            refId, type, arrayListOf(appWithFavorite)
+                            tagName ?: refId,
+                            type,
+                            arrayListOf(appWithFavorite)
                         )
                     )
                 }
