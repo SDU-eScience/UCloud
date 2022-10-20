@@ -513,8 +513,8 @@ class AppStoreAsyncDao(
                 """
                     select reference_id,
                         (select tag from tags where reference_type = 'TAG' and id = cast(reference_id as int) limit 1) tag_name,
+                        a.name, a.version, a.authors, a.title, a.description, a.website, a.is_public,
                         reference_type,
-                        application_to_json(a, t),
                         exists(select * from favorited_by where the_user = :user and application_name = a.name) favorite,
                         (select json_agg(tag) from tags where id in (select tag_id from application_tags where application_name = a.name)) tags,
                         columns,
@@ -556,16 +556,20 @@ class AppStoreAsyncDao(
                 val refId = row.getString("reference_id")!!
                 val tagName = row.getString("tag_name")
                 val type = AppStoreSectionType.valueOf(row.getString("reference_type")!!)
-                val app = defaultMapper.decodeFromString<Application>(row.getString("application_to_json")!!)
+                val applicationMetadata = ApplicationMetadata(
+                    row.getString("name")!!,
+                    row.getString("version")!!,
+                    defaultMapper.decodeFromString(row.getString("authors") ?: "[]"),
+                    row.getString("title")!!,
+                    row.getString("description")!!,
+                    row.getString("website"),
+                    row.getBoolean("is_public")!!
+                )
                 val favorite = row.getBoolean("favorite")!!
                 val columns = row.getInt("columns")!!
                 val rows = row.getInt("rows")!!
-                val tags = try {
-                    defaultMapper.decodeFromString<List<String>>(row.getString("tags")!!)
-                } catch(e: NullPointerException) {
-                    emptyList()
-                }
-                val appWithFavorite = ApplicationSummaryWithFavorite(app.metadata, favorite, tags)
+                val tags = defaultMapper.decodeFromString<List<String>>(row.getString("tags") ?: "[]")
+                val appWithFavorite = ApplicationSummaryWithFavorite(applicationMetadata, favorite, tags)
 
                 val section = sections.find { it.name == tagName || it.name == refId }
                 if (section != null) {
