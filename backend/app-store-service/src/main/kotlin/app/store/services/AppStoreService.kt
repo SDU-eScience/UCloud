@@ -29,8 +29,8 @@ class AppStoreService(
     private val publicDAO: ApplicationPublicAsyncDao,
     private val toolDao: ToolAsyncDao,
     private val aclDao: AclAsyncDao,
-    private val elasticDao: ElasticDao,
-    private val appEventProducer: AppEventProducer
+    private val elasticDao: ElasticDao?,
+    private val appEventProducer: AppEventProducer?
 ) {
 
     suspend fun findByNameAndVersion(
@@ -335,7 +335,7 @@ class AppStoreService(
         db.withTransaction { session ->
             applicationDao.create(session, actorAndProject, application, content)
         }
-        elasticDao.createApplicationInElastic(
+        elasticDao?.createApplicationInElastic(
             application.metadata.name,
             application.metadata.version,
             application.metadata.description,
@@ -354,14 +354,14 @@ class AppStoreService(
             applicationDao.delete(session, securityPrincipal, project, projectGroups, appName, appVersion)
         }
 
-        appEventProducer.produce(
+        appEventProducer?.produce(
             AppEvent.Deleted(
                 appName,
                 appVersion
             )
         )
 
-        elasticDao.deleteApplicationInElastic(appName, appVersion)
+        elasticDao?.deleteApplicationInElastic(appName, appVersion)
     }
 
     suspend fun findLatestByTool(

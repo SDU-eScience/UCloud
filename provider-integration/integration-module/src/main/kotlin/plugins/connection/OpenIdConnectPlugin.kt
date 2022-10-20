@@ -100,13 +100,13 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 signing != null -> {
                     when (signing.algorithm) {
                         ConfigSchema.Plugins.Connection.OpenIdConnect.SignatureType.RS256 -> {
-                            InternalTokenValidationJWT.withPublicCertificate(signing.key, issuer = null)
+                            InternalTokenValidationJWT.withPublicCertificate(signing.key, issuer = signing.issuer)
                         }
 
                         ConfigSchema.Plugins.Connection.OpenIdConnect.SignatureType.ES256 -> {
                             InternalTokenValidationJWT.withEs256(
                                 signing.key,
-                                issuer = null,
+                                issuer = signing.issuer,
                             )
                         }
                     }
@@ -214,7 +214,17 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 // Assuming that this goes well, we will verify that the tokens also make sense. We do the verification
                 // based on certificates which we receive from the configuration.
                 // TODO(Dan): Confirm that Keycloak still works with id_token
-                val jwt = accessTokenValidator.validateOrNull(tokenResponse.id_token)?.claims
+                val isUsingIdToken = configuration.experimental.tokenToUse ==
+                    ConfigSchema.Plugins.Connection.OpenIdConnect.TokenToUse.id_token
+
+                val tokenToUse = when (configuration.experimental.tokenToUse) {
+                    ConfigSchema.Plugins.Connection.OpenIdConnect.TokenToUse.id_token -> tokenResponse.id_token
+
+                    // NOTE(Dan): Using the access_token is not something you should do according to the spec
+                    ConfigSchema.Plugins.Connection.OpenIdConnect.TokenToUse.access_token -> tokenResponse.access_token
+                }
+
+                val jwt = accessTokenValidator.validateOrNull(tokenToUse)?.claims
                     ?: run {
                         log.debug("OIDC failed due to a bad token: ${tokenResponse.access_token}")
                         debugSystem.detailD(
@@ -227,38 +237,42 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 val subject = run {
                     // NOTE(Dan): The JWT has already been validated in terms of the certificate and the time.
 
-                    // We verify the following values, just in case. We are not currently following the spec 100% in
-                    // terms of what we should verify.
-                    // TODO(Dan): Verify that the audience does indeed contain the client-id.
-                    val returnedSessionState = jwt["session_state"]?.takeIf { !it.isNull }?.asString()
-                    val azp = jwt["azp"]?.takeIf { !it.isNull }?.asString()
-                    val aud = jwt["aud"]?.takeIf { !it.isNull }?.asList(String::class.java)
+                    if (isUsingIdToken) {
+                        // We verify the following values, just in case. We are not currently following the spec 100% in
+                        // terms of what we should verify.
+                        // TODO(Dan): Verify that the audience does indeed contain the client-id.
+                        val returnedSessionState = jwt["session_state"]?.takeIf { !it.isNull }?.asString()
+                        val azp = jwt["azp"]?.takeIf { !it.isNull }?.asString()
+                        val aud = runCatching {
+                            jwt["aud"]?.takeIf { !it.isNull }?.asList(String::class.java)
+                        }.getOrNull() ?: listOfNotNull(jwt["aud"]?.takeIf { !it.isNull }?.asString())
 
-                    if (aud?.contains(configuration.client.id) != true) {
-                        debugSystem.detailD(
-                            "Rejecting OIDC callback: Bad session state",
-                            OpenIdConnectToken.serializer(), tokenResponse
-                        )
-                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                    }
+                        if (aud.contains(configuration.client.id) != true) {
+                            debugSystem.detailD(
+                                "Rejecting OIDC callback: Bad session state",
+                                OpenIdConnectToken.serializer(), tokenResponse
+                            )
+                            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        }
 
-                    if (returnedSessionState != request.session_state) {
-                        log.debug("OIDC failed due to bad session state ($returnedSessionState != ${request.session_state}")
+                        if (returnedSessionState != request.session_state) {
+                            log.debug("OIDC failed due to bad session state ($returnedSessionState != ${request.session_state}")
 
-                        debugSystem.detailD(
-                            "Rejecting OIDC callback: Bad session state",
-                            OpenIdConnectToken.serializer(), tokenResponse
-                        )
-                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                    }
+                            debugSystem.detailD(
+                                "Rejecting OIDC callback: Bad session state",
+                                OpenIdConnectToken.serializer(), tokenResponse
+                            )
+                            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        }
 
-                    if (azp != null && azp != configuration.client.id) {
-                        log.debug("OIDC failed due to azp not matching configured client ($azp != ${configuration.client.id}")
-                        debugSystem.detailD(
-                            "Rejecting OIDC callback: Bad azp",
-                            OpenIdConnectToken.serializer(), tokenResponse
-                        )
-                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        if (azp != null && azp != configuration.client.id) {
+                            log.debug("OIDC failed due to azp not matching configured client ($azp != ${configuration.client.id}")
+                            debugSystem.detailD(
+                                "Rejecting OIDC callback: Bad azp",
+                                OpenIdConnectToken.serializer(), tokenResponse
+                            )
+                            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        }
                     }
 
                     // We also fetch some additional information which can be of use to the extensions which performs

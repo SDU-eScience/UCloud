@@ -27,6 +27,8 @@ import {useSelector} from "react-redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
+import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 const MAX_CONCURRENT_UPLOADS = 5;
 const entityName = "Upload";
@@ -124,7 +126,7 @@ function createResumeable(
             request.open("POST", strategy!.endpoint.replace("integration-module:8889", "localhost:9000"));
             request.setRequestHeader("Chunked-Upload-Token", strategy!.token);
             request.setRequestHeader("Chunked-Upload-Offset", (reader.offset - chunk.byteLength).toString(10));
-            request.setRequestHeader("Content-Type", "application/octet-stream");
+            request.setRequestHeader("UCloud-Username", b64EncodeUnicode(Client.username!));
             request.responseType = "text";
 
             request.upload.onprogress = ev => {
