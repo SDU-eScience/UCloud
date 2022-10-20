@@ -45,3 +45,69 @@ class DocProperty extends HTMLElement {
 }
 
 customElements.define("doc-prop", DocProperty);
+
+class DocPropContainer extends HTMLElement {
+    constructor() {
+        super();
+
+        const canCollapse = this.getAttribute("can-collapse") !== null || this.getAttribute("collapsed") !== null;
+
+        if (canCollapse) {
+            const container = document.createElement("div");
+            container.classList.add("collapsible");
+            let isFirst = true;
+            const childProps = this.querySelectorAll(":scope > doc-prop");
+            for (const child of childProps) {
+                if (isFirst) {
+                    isFirst = false;
+                    continue;
+                }
+
+                container.appendChild(child);
+            }
+
+            if (childProps.length > 1) {
+                const collapseToggle = document.createElement("a");
+                collapseToggle.ariaRoleDescription = "button";
+                collapseToggle.href = "javascript:;";
+                collapseToggle.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    this.toggleAttribute("collapsed");
+                });
+
+                this.appendChild(collapseToggle);
+                this.appendChild(container);
+
+                const onCollapsed = () => {
+                    const isCollapsed = this.getAttribute("collapsed") !== null;
+                    container.style.display = isCollapsed ? "none" : "block";
+                    collapseToggle.text = isCollapsed ? "Show all details" : "Hide details";
+                };
+
+                onCollapsed();
+                new MutationObserver(onCollapsed).observe(this, { attributes: true, attributeFilter: ["collapsed"] });
+            }
+        }
+    }
+}
+
+customElements.define("doc-prop-container", DocPropContainer);
+
+
+class DocSealedContainer extends HTMLElement {
+    constructor() {
+        super();
+
+        const firstPropContainer = this.querySelector("doc-prop-container");
+        if (firstPropContainer) {
+            const instructions = document.createElement("p");
+            instructions.innerHTML = `
+                Select <i>one</i> of the following:
+            `;
+            this.insertBefore(instructions, firstPropContainer);
+        }
+    }
+}
+
+customElements.define("doc-sealed-container", DocSealedContainer);
+

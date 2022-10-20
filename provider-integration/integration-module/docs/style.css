@@ -24,6 +24,14 @@ code {
     font-size: 120%;
 }
 
+th ul, td ul {
+    margin: 0;
+}
+
+li {
+    margin: 16px;
+}
+
 table {
     border: 1px solid black;
     text-align: left;
@@ -34,6 +42,7 @@ table {
 
 tr {
     border: 1px solid black;
+    vertical-align: top;
 }
 
 th, td {
@@ -91,6 +100,24 @@ doc-prop .default-value::after {
     content: ")";
 }
 
-doc-prop section {
+doc-prop section, doc-prop doc-sealed-container {
     margin-left: 40px;
+}
+
+input[type=checkbox] {
+    height: 24px;
+    width: 24px;
+}
+
+doc-sealed-container {
+    display: block;
+}
+
+
+doc-sealed-container doc-prop-container div.collapsible > doc-prop {
+    margin-left: 40px;
+}
+
+doc-prop-container[collapsed] .detailed {
+    display: none;
 }
