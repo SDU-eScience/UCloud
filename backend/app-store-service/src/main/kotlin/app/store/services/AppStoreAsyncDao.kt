@@ -492,14 +492,23 @@ class AppStoreAsyncDao(
     suspend fun overview(
         ctx: DBContext,
         user: SecurityPrincipal,
-        project: String?
+        project: String?,
+        memberGroups: List<String>
     ): List<AppStoreOverviewSection> {
+        val groups = if (memberGroups.isEmpty()) {
+            listOf("")
+        } else {
+            memberGroups
+        }
+
         val sections = ArrayList<AppStoreOverviewSection>()
         ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
                     setParameter("user", user.username)
-                    setParameter("role", user.role.name)
+                    setParameter("is_admin", Roles.PRIVILEGED.contains(user.role))
+                    setParameter("project", project)
+                    setParameter("groups", groups)
                 },
                 """
                     select reference_id,
@@ -513,18 +522,34 @@ class AppStoreAsyncDao(
                     from
                         overview,
                         (select * from applications a1 where created_at in (
-                            select max(created_at) from applications b1 where a1.name = b1.name
+                            select max(created_at)
+                            from applications a2 where a1.name = a2.name and (
+                                :is_admin or (
+                                    a2.is_public or (
+                                        cast(:project as text) is null and :user in (
+                                            select p.username from app_store.permissions p where p.application_name = a1.name
+                                        )
+                                    ) or (
+                                        cast(:project as text) is not null and exists (
+                                            select p.project_group from app_store.permissions p where 
+                                                p.application_name = a1.name and 
+                                                p.project = cast(:project as text) and 
+                                                p.project_group in (select unnest(:groups::text[]))
+                                         )
+                                    )
+                                )
+                            )
                         ) order by name) a
                     join tools t on
                         a.tool_name = t.name and a.tool_version = t.version
-                    where ((reference_type = 'TOOL' and lower(tool_name) = lower(reference_id))
+                    where (reference_type = 'TOOL' and lower(tool_name) = lower(reference_id))
                         or (
                             reference_type = 'TAG' and
                             lower(a.name) in (select lower(application_name)
                                 from application_tags
                                 where tag_id in (select id from tags where id = cast(reference_id as int))
                             )
-                        )) and (a.is_public or :role = 'ADMIN')
+                        )
                     order by order_id, a.title
                 """
             ).rows.forEach { row ->
