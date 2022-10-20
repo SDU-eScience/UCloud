@@ -494,14 +494,14 @@ class AppStoreAsyncDao(
         user: SecurityPrincipal,
         project: String?,
         memberGroups: List<String>
-    ): List<AppStoreOverviewSection> {
+    ): List<AppStoreSection> {
         val groups = if (memberGroups.isEmpty()) {
             listOf("")
         } else {
             memberGroups
         }
 
-        val sections = ArrayList<AppStoreOverviewSection>()
+        val sections = ArrayList<AppStoreSection>()
         ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -555,7 +555,7 @@ class AppStoreAsyncDao(
             ).rows.forEach { row ->
                 val refId = row.getString("reference_id")!!
                 val tagName = row.getString("tag_name")
-                val type = AppStoreOverviewSectionType.valueOf(row.getString("reference_type")!!)
+                val type = AppStoreSectionType.valueOf(row.getString("reference_type")!!)
                 val app = defaultMapper.decodeFromString<Application>(row.getString("application_to_json")!!)
                 val favorite = row.getBoolean("favorite")!!
                 val columns = row.getInt("columns")!!
@@ -567,19 +567,37 @@ class AppStoreAsyncDao(
                 }
                 val appWithFavorite = ApplicationSummaryWithFavorite(app.metadata, favorite, tags)
 
-                val section = sections.find { (it.name == tagName || it.name == refId) && it.type == type }
+                val section = sections.find { it.name == tagName || it.name == refId }
                 if (section != null) {
-                    section.apps.add(appWithFavorite)
+                    when (section) {
+                        is AppStoreSection.Tag -> {
+                            section.applications.add(appWithFavorite)
+                        }
+                        is AppStoreSection.Tool -> {
+                            section.applications.add(appWithFavorite)
+                        }
+                    }
                 } else {
-                    sections.add(
-                        AppStoreOverviewSection(
-                            tagName ?: refId,
-                            type,
-                            arrayListOf(appWithFavorite),
-                            columns,
-                            rows
-                        )
-                    )
+                    val newSection = when (type) {
+                        AppStoreSectionType.TAG -> {
+                            AppStoreSection.Tag(
+                                tagName ?: "",
+                                arrayListOf(appWithFavorite),
+                                columns,
+                                rows
+                            )
+                        }
+                        AppStoreSectionType.TOOL -> {
+                            AppStoreSection.Tool(
+                                refId,
+                                arrayListOf(appWithFavorite),
+                                columns,
+                                rows
+                            )
+                        }
+                    }
+
+                    sections.add(newSection)
                 }
             }
         }

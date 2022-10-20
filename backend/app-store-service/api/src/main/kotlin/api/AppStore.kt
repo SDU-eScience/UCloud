@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.store.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -174,22 +175,41 @@ data class DeleteAppRequest(val appName: String, val appVersion: String)
 typealias DeleteAppResponse = Unit
 
 typealias AppStoreOverviewRequest = Unit
+
 @Serializable
 data class AppStoreOverviewResponse(
-    val items: List<AppStoreOverviewSection>
+    val sections: List<AppStoreSection>
 )
 
 @Serializable
-data class AppStoreOverviewSection(
-    val name: String,
-    val type: AppStoreOverviewSectionType,
-    val apps: ArrayList<ApplicationSummaryWithFavorite>,
-    val columns: Int,
+sealed class AppStoreSection {
+    abstract val name: String
+    @Serializable
+    @SerialName("tag")
+    data class Tag(
+        override val name: String,
+        val applications: ArrayList<ApplicationSummaryWithFavorite>,
+        override val columns: Int,
+        override val rows: Int
+    ) : AppStoreSection(), WithDimensions
+
+    @Serializable
+    @SerialName("tool")
+    data class Tool(
+        override val name: String,
+        val applications: ArrayList<ApplicationSummaryWithFavorite>,
+        override val columns: Int,
+        override val rows: Int
+    ) : AppStoreSection(), WithDimensions
+}
+
+interface WithDimensions {
     val rows: Int
-)
+    val columns: Int
+}
 
 @Serializable
-enum class AppStoreOverviewSectionType {
+enum class AppStoreSectionType {
     TAG,
     TOOL
 }

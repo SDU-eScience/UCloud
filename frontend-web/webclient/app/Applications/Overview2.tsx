@@ -19,12 +19,9 @@ import * as UCloud from "@/UCloud";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import AppStoreOverview = compute.AppStoreOverview;
-import AppStoreOverviewSectionType = compute.AppStoreOverviewSectionType;
+import AppStoreSectionType = compute.AppStoreSectionType;
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
-import {PageV2, provider} from "@/UCloud";
-import IntegrationApi = provider.im;
-import { inDevEnvironment, onDevSite } from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 
 export const ApiLike: ReducedApiInterface = {
@@ -45,7 +42,7 @@ type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummary
 export const ApplicationsOverview2: React.FunctionComponent = () => {
     const [sections, fetchOverview] = useCloudAPI<AppStoreOverview>(
         {noop: true},
-        {items: []}
+        {sections: []}
     );
 
     const [refreshId, setRefreshId] = useState<number>(0);
@@ -53,13 +50,6 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
     useEffect(() => {
         fetchOverview(UCloud.compute.apps.appStoreOverview());
     }, [refreshId]);
-
-    // TODO(Brian)
-    const [providers, fetchProviders] = useCloudAPI<PageV2<provider.IntegrationBrowseResponseItem>>(
-        {noop: true},
-        emptyPageV2
-    );
-
 
     useResourceSearch(ApiLike);
 
@@ -72,10 +62,6 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
 
     const [loadingCommand, invokeCommand] = useCloudCommand();
     const [favoriteStatus, setFavoriteStatus] = useState<FavoriteStatus>({});
-
-    useEffect(() => {
-        fetchProviders(IntegrationApi.browse({}));
-    }, []);
 
     const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
         if (!loadingCommand) {
@@ -118,23 +104,21 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
                 onFavorite={onFavorite}
                 refreshId={refreshId}
             />
-
-            {sections.loading ? <Spinner /> :
-                sections.data.items.map(section => 
-                    section.type === AppStoreOverviewSectionType.TAG ?
-                        <TagGrid
-                            key={section.name+section.type}
-                            tag={section.name}
-                            items={section.apps}
-                            columns={section.columns}
-                            rows={section.rows}
-                            favoriteStatus={favoriteStatus}
-                            onFavorite={onFavorite}
-                            tagBanList={['Engineering']}
-                            refreshId={refreshId}
-                        />
-                    :
-                        <ToolGroup refreshId={refreshId} items={section.apps} key={section.name+section.type} tag={section.name} />
+            {sections.data.sections.map(section => 
+                section.type === AppStoreSectionType.TAG ?
+                    <TagGrid
+                        key={section.name+section.type}
+                        tag={section.name}
+                        items={section.applications}
+                        columns={section.columns}
+                        rows={section.rows}
+                        favoriteStatus={favoriteStatus}
+                        onFavorite={onFavorite}
+                        tagBanList={['Engineering']}
+                        refreshId={refreshId}
+                    />
+                :
+                    <ToolGroup refreshId={refreshId} items={section.applications} key={section.name+section.type} tag={section.name} />
             )}
         </>
     );

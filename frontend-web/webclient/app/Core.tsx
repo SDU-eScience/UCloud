@@ -116,8 +116,8 @@ const Core = (): JSX.Element => (
                         <Route exact path={"/syncthing"} component={requireAuth(SyncthingOverview)}/>
 
                         <Route exact path="/applications" component={requireAuth(Applications)}/>
-                        <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)}/>
-                        <Route exact path="/applications/overview2" component={requireAuth(ApplicationsOverview2)}/>
+                        <Route exact path="/applications/overview_old" component={requireAuth(ApplicationsOverview)}/>
+                        <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview2)}/>
                         <Route exact path="/applications/search" component={requireAuth(Search)}/>
 
                         {!inDevEnvironment() ? null :

@@ -2624,18 +2624,18 @@ export interface TagSearchRequest {
 }
 export interface AppStoreOverviewRequest {}
 export interface AppStoreOverview {
-    items: AppStoreSection[],
+    sections: AppStoreSection[],
 }
 export interface AppStoreSection {
     name: string,
-    type: AppStoreOverviewSectionType,
-    apps: ApplicationSummaryWithFavorite[],
+    type: AppStoreSectionType,
+    applications: ApplicationSummaryWithFavorite[],
     columns: number,
     rows: number
 }
-export enum AppStoreOverviewSectionType {
-    TAG = "TAG",
-    TOOL = "TOOL"
+export enum AppStoreSectionType {
+    TAG = "tag",
+    TOOL = "tool"
 }
 export interface AppSearchRequest {
     query: string,
