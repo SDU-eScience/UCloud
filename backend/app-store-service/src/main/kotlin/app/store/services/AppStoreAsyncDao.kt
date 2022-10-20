@@ -512,7 +512,9 @@ class AppStoreAsyncDao(
                         rows 
                     from
                         overview,
-                        (select distinct on (name) * from applications order by name) a
+                        (select * from applications a1 where created_at in (
+                            select max(created_at) from applications b1 where a1.name = b1.name
+                        ) order by name) a
                     join tools t on
                         a.tool_name = t.name and a.tool_version = t.version
                     where ((reference_type = 'TOOL' and lower(tool_name) = lower(reference_id))
