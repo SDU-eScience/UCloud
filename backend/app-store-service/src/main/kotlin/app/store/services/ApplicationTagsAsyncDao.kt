@@ -30,6 +30,7 @@ class ApplicationTagsAsyncDao() {
                 """
                     insert into tags (tag)
                         select unnest(:tags::text[])
+                        on conflict do nothing
                 """
             )
 
@@ -69,7 +70,7 @@ class ApplicationTagsAsyncDao() {
                     delete from application_tags
                         where application_name = :app_name and
                         tag_id in (
-                            select id from tags where tag in (select lower(unnest(:tags::text[])))
+                            select id from tags where lower(tag) in (select lower(unnest(:tags::text[])))
                         )
                 """
             )
