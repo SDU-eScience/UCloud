@@ -20,8 +20,7 @@ import {VisualizationSection} from "./Resources";
 import formatDistance from "date-fns/formatDistance";
 import {Spacer} from "@/ui-components/Spacer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
-import {isAdminOrPI, useProjectFromParams, useProjectId} from "./Api";
-import {Client} from "@/Authentication/HttpClientInstance";
+import {isAdminOrPI, useProjectFromParams} from "./Api";
 
 export interface SubAllocation {
     id: string;
@@ -81,21 +80,23 @@ function Allocations(): JSX.Element {
     }, [setFilters]);
 
     const reloadPage = useCallback(() => {
-        fetchWallets({...browseWallets({itemsPerPage: 50, ...filters})});
-        fetchAllocations({...browseSubAllocations({itemsPerPage: 250, ...filters}), projectOverride: projectId});
-        setAllocationGeneration(prev => prev + 1);
-    }, [filters]);
+        if (projectId) {
+            fetchWallets({...browseWallets({itemsPerPage: 50, ...filters}), projectOverride: projectId});
+            fetchAllocations({...browseSubAllocations({itemsPerPage: 250, ...filters}), projectOverride: projectId});
+            setAllocationGeneration(prev => prev + 1);
+        }
+    }, [filters, projectId]);
 
     React.useEffect(() => {
         reloadPage();
-    }, [projectId])
+    }, [projectId]);
 
     useRefreshFunction(reloadPage);
 
     const onSubAllocationQuery = useCallback((query: string) => {
         fetchAllocations({...searchSubAllocations({query, itemsPerPage: 250}), projectOverride: projectId});
         setAllocationGeneration(prev => prev + 1);
-    }, []);
+    }, [projectId]);
 
     const breadcrumbs = [{title: projectId ? project?.specification.title ?? "" : "My workspace"}, {title: "Allocations"}];
 
@@ -111,6 +112,7 @@ function Allocations(): JSX.Element {
             </Grid>
             {!loading && isAdminOrPI(project?.status.myRole) ?
                 <SubAllocationViewer
+                    key={projectId}
                     allocations={allocations}
                     generation={allocationGeneration}
                     loadMore={loadMoreAllocations}
