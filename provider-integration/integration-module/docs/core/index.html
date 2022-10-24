@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Core - UCloud/IM Documentation</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body class="content">
+    <h1>Core</h1>
+    <div class="summary">
+        Contains information that are at the core of integration module. All plugins and service modes depend on this
+        information.
+    </div>
+
+    <table>
+        <tbody>
+            <tr>
+                <th width="120px">File</th>
+                <td><code>core.yaml</code></td>
+            </tr>
+            <tr>
+                <th>Permissions</th>
+                <td><code>rw-r--r-- (644)</code></td>
+            </tr>
+            <tr>
+                <th>Mandatory</th>
+                <td>Yes</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <doc-prop-container>
+        <doc-prop name="providerId" type="string" required>
+            <p>
+                The provider ID that you have been allocated by the UCloud/Core operators. During development and 
+                evaluation, this is a property you set.
+            </p>
+        </doc-prop>
+        <doc-prop name="hosts" type="section" required>
+            <section>
+                <doc-prop name="ucloud" type="section" required>
+                    <section>
+                        <doc-prop name="host" type="string">
+                            <p>The hostname of the server. <b>For example:</b> <code>cloud.sdu.dk</code>.</p>
+                        </doc-prop>
+                        <doc-prop name="scheme" type="one of: http, https">
+                            <p>The scheme used for communication. This can be either http or https.</p>
+                        </doc-prop>
+                        <doc-prop name="port" type="number">
+                            <p>The TCP port used for communication. <b>For example:</b> <code>443</code>.</p>
+                        </doc-prop>
+                    </section>
+                </doc-prop>
+                <doc-prop name="self" type="section">
+                    <p>
+                        Points to the publicly accessible address of the integration module. If UCloud/IM is deployed
+                        behind a reverse proxy, then this should point to the reverse proxy and not the internal address
+                        of the IM.
+                    </p>
+                    <p>Uses the same format as <code>hosts/ucloud</code>.</p>
+                </doc-prop>
+            </section>
+        </doc-prop>
+        <doc-prop name="launchRealUserInstances" type="boolean" default="true">
+            <p>
+                If true, then UCloud/IM will launch sub-instances for each end-user. In other words, UCloud/IM will 
+                run as the real user, and their permissions are thus limited by what they can normally do.
+            </p>
+            <p>
+                If false, then UCloud/IM will never launch sub-instances. Instead all communication will be handled
+                by the service user.
+            </p>
+            <p>
+                Most plugins declares which mode they support. Only a few plugins support running with service users and
+                with local users.
+            </p>
+        </doc-prop>
+        <doc-prop name="allowRootMode" type="boolean" default="false">
+            <p>
+                Allows running UCloud/IM as the root user. By default, UCloud/IM will refuse to run as the root user. 
+                This can be useful for some deployments which only uses a service user.
+            </p>
+        </doc-prop>
+        <doc-prop name="developmentMode" type="boolean" default="false">
+            <p>
+                When true, UCloud/IM runs in development mode. Development mode turns off <i>a lot</i> of security
+                features to make development easier. This also turns on highly detailed logging output. This logging 
+                output contains <i>all</i> the details, including security tokens. We highly recommend that you do not 
+                use <code>developmentMode: true</code> for any production deployment.
+            </p>
+        </doc-prop>
+        <doc-prop name="ipc" type="section">
+            <section>
+                <doc-prop name="directory" type="string" default="/var/run/ucloud">
+                    <p>
+                        The directory used for IPC communication. This directory must already exist and have the 
+                        service user as the owner. It must have mode <code>rwxr-xr-x (755)</code>.
+                    </p>
+                </doc-prop>
+            </section>
+        </doc-prop>
+        <doc-prop name="logs" type="section">
+            <section>
+                <doc-prop name="directory" type="string" default="/var/logs/ucloud">
+                    <p>
+                        The directory used for logs. This directory must already exist and have the 
+                        service user as the owner. It must have mode <code>rwx-wx-wx (733)</code>.
+                    </p>
+                </doc-prop>
+                <doc-prop name="trace" type="enum[]" default="[]">
+                    <p>
+                        A list of features to produce detailed logging output for. This logging output will not contain
+                        sensitive data and can be used in production.
+                    </p>
+
+                    <b>Feature list:</b>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Value</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>SHELL</code></td>
+                                <td>Logging output for the interactive terminal feature.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </doc-prop>
+            </section>
+        </doc-prop>
+
+        <doc-prop name="cors" type="section">
+            <p>
+                A section containing additional hosts needed for CORS. This section is rarely required. Unless
+                operations which require communication between end-users and UCloud/IM are broken, then you do not
+                need this section. Examples of this include: interactive shells, file uploads and downloads.
+            </p>
+            <section>
+                <doc-prop name="allowHosts" type="string[]">
+                    <p>
+                        Each entry of this property should contain the hostname of each additional entry. 
+                        <b>For example:</b> <code>foobar.example.com</code>.
+                    </p>
+                </doc-prop>
+            </section>
+        </doc-prop>
+    </doc-prop-container>
+
+    <script src="/app.js"></script>
+</body>
+
+</html>

@@ -141,3 +141,14 @@ class DocSnippet extends HTMLElement {
 }
 
 customElements.define("doc-snippet", DocSnippet);
+
+class DocTodo extends HTMLElement {
+    constructor() {
+        super();
+
+        this.innerText = `This section is still under construction. The section can be misleading, incorrect or 
+            simply incomplete. Use any information from this section with caution.`;
+    }
+}
+
+customElements.define("doc-todo", DocTodo);

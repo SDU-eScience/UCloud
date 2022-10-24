@@ -498,61 +498,50 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         }
 
         val database: VerifiedConfig.Server.Database = if (mode == ServerMode.Server) {
-            val dbconfig = config.server.database ?: ConfigSchema.Server.Database(
-                embedded = ConfigSchema.Server.Database.Embedded(
-                    File(config.configurationDirectory, "pgsql").absolutePath
-                ),
+            val database = config.server.database ?: ConfigSchema.Server.Database.Embedded(
+                File(config.configurationDirectory, "pgsql").absolutePath
             )
 
-            val external = dbconfig.external
-            val embedded = dbconfig.embedded
+            when (database) {
+                is ConfigSchema.Server.Database.Embedded -> {
+                    val workDir = File(database.directory)
+                    workDir.mkdirs()
+                    verifyFile(workDir.absolutePath, FileType.DIRECTORY)
+                    val dataDir = File(workDir, "data")
 
-            if (embedded == null && external == null) {
-                emitError("Either embedded or external database must be specified")
-            }
+                    val embeddedPostgres = EmbeddedPostgres.builder().apply {
+                        setCleanDataDirectory(false)
+                        setDataDirectory(dataDir.also { it.mkdirs() })
+                        setOverrideWorkingDirectory(workDir)
+                        setUseUnshare(clib.getuid() == 0)
+                        setPort(database.port)
+                    }.start()
 
-            if (embedded != null && external != null) {
-                emitError("Database cannot be both embedded and external at the same time")
-            }
+                    VerifiedConfig.Server.Database(
+                        dataDir,
+                        embeddedPostgres.getJdbcUrl("postgres", "postgres"),
+                        EmbeddedPostgres.PG_SUPERUSER,
+                        embeddedPostgres.password,
+                    )
+                }
 
-            if (embedded != null) {
-                val workDir = File(embedded.directory)
-                workDir.mkdirs()
-                verifyFile(workDir.absolutePath, FileType.DIRECTORY)
-                val dataDir = File(workDir, "data")
-
-                val embeddedPostgres = EmbeddedPostgres.builder().apply {
-                    setCleanDataDirectory(false)
-                    setDataDirectory(dataDir.also { it.mkdirs() })
-                    setOverrideWorkingDirectory(workDir)
-                    setUseUnshare(clib.getuid() == 0)
-                    setPort(embedded.port)
-                }.start()
-
-                VerifiedConfig.Server.Database(
-                    dataDir,
-                    embeddedPostgres.getJdbcUrl("postgres", "postgres"),
-                    EmbeddedPostgres.PG_SUPERUSER,
-                    embeddedPostgres.password,
-                )
-            } else if (external != null) {
-                VerifiedConfig.Server.Database(
-                    null,
-                    buildString {
-                        append("jdbc:postgresql://")
-                        append(external.hostname)
-                        if (external.port != null) {
-                            append(':')
-                            append(external.port)
-                        }
-                        append('/')
-                        append(external.database)
-                    },
-                    external.username,
-                    external.password,
-                )
-            } else {
-                emitError("Internal config error")
+                is ConfigSchema.Server.Database.External -> {
+                    VerifiedConfig.Server.Database(
+                        null,
+                        buildString {
+                            append("jdbc:postgresql://")
+                            append(database.hostname)
+                            if (database.port != null) {
+                                append(':')
+                                append(database.port)
+                            }
+                            append('/')
+                            append(database.database)
+                        },
+                        database.username,
+                        database.password,
+                    )
+                }
             }
         } else {
             VerifiedConfig.Server.Database(null, "", null, null)

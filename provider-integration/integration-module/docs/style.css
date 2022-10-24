@@ -68,7 +68,7 @@ figcaption::before {
 }
 
 figcaption {
-    text-align: center;
+    text-align: left;
 }
 
 a {
@@ -120,4 +120,17 @@ doc-sealed-container doc-prop-container div.collapsible > doc-prop {
 
 doc-prop-container[collapsed] .detailed {
     display: none;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+doc-todo {
+    padding: 16px;
+    display: block;
+    text-align: center;
+    width: 100%;
+    background: red;
+    color: white;
 }
