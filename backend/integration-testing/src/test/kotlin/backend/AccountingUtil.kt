@@ -23,6 +23,26 @@ suspend fun retrieveWalletsInternal(walletOwner: WalletOwner, serviceClient: Aut
     ).orThrow().wallets
 }
 
+suspend fun generateChargeBulk(
+    size: Int,
+    walletOwner: WalletOwner,
+    units: Long,
+    periods: Long,
+    productReference: ProductReference,
+    user: String,
+): List<ChargeWalletRequestItem> {
+    return List<ChargeWalletRequestItem>(size) { index ->
+        ChargeWalletRequestItem(
+            walletOwner,
+            units,
+            periods,
+            productReference,
+            user,
+            "Charge number $index"
+        )
+    }
+}
+
 suspend fun retrieveAllocationsInternal(
     owner: WalletOwner,
     categoryId: ProductCategoryId,
