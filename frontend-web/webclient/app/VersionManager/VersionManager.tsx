@@ -51,13 +51,10 @@ const NotifyBox = styled.div`
     animation: ${animation} 0.7s infinite alternate;
 `;
 
-function appVersionResource(): string {
-    if (inDevEnvironment()) return "/public/AppVersion.txt";
-    else return "/AppVersion.txt";
-}
+const APP_VERSION_RESOURCE = "/AppVersion.txt";
 
 function fetchNewVersion(currentVersion: string, setNewVersion: (v: string) => void): void {
-    fetch(appVersionResource()).then(it => {
+    fetch(APP_VERSION_RESOURCE).then(it => {
         if (it.ok) {
             it.text().then(version => {
                 if (currentVersion !== version) setNewVersion(version);
@@ -68,7 +65,7 @@ function fetchNewVersion(currentVersion: string, setNewVersion: (v: string) => v
 }
 
 async function initialFetch(setInitial: (v: string) => void): Promise<void> {
-    fetch(appVersionResource()).then(it => {
+    fetch(APP_VERSION_RESOURCE).then(it => {
         if (it.ok) {
             it.text().then(version => setInitial(version));
         } else {
