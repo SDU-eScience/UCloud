@@ -111,3 +111,33 @@ class DocSealedContainer extends HTMLElement {
 
 customElements.define("doc-sealed-container", DocSealedContainer);
 
+class DocSnippet extends HTMLElement {
+    constructor() {
+        super();
+
+        let text = this.innerText;
+        text = text.replace("\t", "    ");
+        if (text.startsWith("\n")) text = text.substring(1);
+        if (text.startsWith("\r\n")) text = text.substring(2);
+
+        const lines = text.split("\n");
+        if (lines.length === 0) return;
+
+        let numberOfSpaces = 0;
+        const firstLine = lines[0];
+        for (let i = 0; i < firstLine.length; i++) {
+            if (firstLine[i] === " ") numberOfSpaces++;
+            else break;
+        }
+
+        let newText = "";
+        for (const line of lines) {
+            if (newText !== "") newText += "\n";
+            newText += line.substring(numberOfSpaces);
+        }
+
+        this.innerHTML = `<pre><code>${newText}</code></pre>`;
+    }
+}
+
+customElements.define("doc-snippet", DocSnippet);

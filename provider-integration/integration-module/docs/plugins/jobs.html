@@ -63,7 +63,8 @@
                 <tr>
                     <td><a href="#slurm">Slurm</a></td>
                     <td>
-                        Integrates with the popular <a href="https://slurm.schedmd.com/overview.html" target="_blank">Slurm workload manager</a>.
+                        Integrates with the popular <a href="https://slurm.schedmd.com/overview.html"
+                            target="_blank">Slurm workload manager</a>.
                         Tuned specifically for HPC environments.
                     </td>
                     <td><input type="checkbox" disabled /></td>
@@ -72,7 +73,8 @@
                 <tr>
                     <td><a href="#ucloud">UCloud</a></td>
                     <td>
-                        Integrates with container-based orchestrators. Only supports <a href="https://kubernetes.io/" target="_blank">Kubernetes</a> 
+                        Integrates with container-based orchestrators. Only supports <a href="https://kubernetes.io/"
+                            target="_blank">Kubernetes</a>
                         at the moment.
                     </td>
                     <td><input type="checkbox" checked disabled /></td>
@@ -80,7 +82,8 @@
                 </tr>
                 <tr>
                     <td><a href="#puhuri">Puhuri</a></td>
-                    <td>Integrates with compute resources accessible through <a href="https://puhuri.neic.no/" target="_blank">Puhuri</a>.</td>
+                    <td>Integrates with compute resources accessible through <a href="https://puhuri.neic.no/"
+                            target="_blank">Puhuri</a>.</td>
                     <td><input type="checkbox" checked disabled /></td>
                     <td><input type="checkbox" disabled /></td>
                 </tr>
@@ -111,15 +114,55 @@
                         <doc-prop name="type" type='"None"'>
                             <p>
                                 Without an account mapper, the user will <i>always</i> use their default Slurm account.
-                                It is highly recommended that you define an account mapper for production environments 
-                                given that end-users will not be able to specify the account by just switching 
+                                It is highly recommended that you define an account mapper for production environments
+                                given that end-users will not be able to specify the account by just switching
                                 workspace.
                             </p>
                         </doc-prop>
                     </doc-prop-container>
                     <doc-prop-container collapsed>
                         <doc-prop name="type" type='"Extension"'></doc-prop>
-                        <doc-prop name="extension" type="string"></doc-prop>
+                        <doc-prop name="extension" type="string">
+                            <p>
+                                The extension script to run to perform a mapping between a workspace and a Slurm
+                                account.
+                                The script runs in the context of the UCloud/IM service account.
+                            </p>
+
+                            <b>Example request (personal workspace):</b>
+                            <doc-snippet>
+                                {
+                                "owner": {
+                                "type": "user",
+
+                                "username": "UCLOUD USERNAME",
+                                "uid": 100000
+                                },
+                                "productCategory": "UCLOUD PRODUCT CATEGORY",
+                                "partition": "PARTITION"
+                                }
+                            </doc-snippet>
+
+                            <b>Example request (project):</b>
+                            <doc-snippet>
+                                {
+                                "owner": {
+                                "type": "project",
+
+                                "projectId": "UCLOUD PROJECT ID",
+                                "gid": 400000
+                                },
+                                "productCategory": "UCLOUD PRODUCT CATEGORY",
+                                "partition": "PARTITION"
+                                }
+                            </doc-snippet>
+
+                            <b>Example response:</b>
+
+                            <doc-snippet>
+                                { "account": "myprojectaccount" }
+                            </doc-snippet>
+                        </doc-prop>
                     </doc-prop-container>
                 </doc-sealed-container>
             </doc-prop>
@@ -129,7 +172,7 @@
                         <doc-prop name="type" type='"None"'>
                             <p>
                                 Disables the use of interactive web applications. Users will never be presented with the
-                                option of opening the web interface of an application. Users can still run applications 
+                                option of opening the web interface of an application. Users can still run applications
                                 of type <code>WEB</code> but the interface will not be accessible.
                             </p>
                         </doc-prop>
@@ -146,33 +189,33 @@
                                 <p>
                                     Running this implementation has several requirements on the provider:
 
-                                    <ul>
-                                        <li>
-                                            The provider must forward all traffic to hosts which uses the following 
-                                            format: <code>${domainPrefix}${ucloudJobId}${domainSuffix}</code> (e.g. 
-                                            <code>app-41231.usercontent.example.com</code>)
-                                        </li>
+                                <ul>
+                                    <li>
+                                        The provider must forward all traffic to hosts which uses the following
+                                        format: <code>${domainPrefix}${ucloudJobId}${domainSuffix}</code> (e.g.
+                                        <code>app-41231.usercontent.example.com</code>)
+                                    </li>
 
-                                        <li>
-                                            The UCloud/IM server must be able to speak directly to the compute nodes 
-                                            on any port in the 10000 (inclusive) to 50000 (exclusive) range.
-                                        </li>
-                                    </ul>
+                                    <li>
+                                        The UCloud/IM server must be able to speak directly to the compute nodes
+                                        on any port in the 10000 (inclusive) to 50000 (exclusive) range.
+                                    </li>
+                                </ul>
                                 </p>
                                 <p>
                                     In addition, any native applications created for this provider must be cooperative.
                                     In practice this means that application should do one of the following:
 
-                                    <ol>
-                                        <li>
-                                            Read the <code>UCLOUD_PORT</code> environment variable and start the 
-                                            application on this port
-                                        </li>
-                                        <li>
-                                            Or select a random free port and write the port number in the
-                                            <code>allocated-port.txt</code> file of the current working directory
-                                        </li>
-                                    </ol>
+                                <ol>
+                                    <li>
+                                        Read the <code>UCLOUD_PORT</code> environment variable and start the
+                                        application on this port
+                                    </li>
+                                    <li>
+                                        Or select a random free port and write the port number in the
+                                        <code>allocated-port.txt</code> file of the current working directory
+                                    </li>
+                                </ol>
                                 </p>
                             </div>
                         </doc-prop>
@@ -183,20 +226,168 @@
                         </doc-prop>
                         <doc-prop name="domainSuffix" type="string" required>
                             <p>
-                                The suffix of the virtual host to use. For example: <code>.usercontent.example.com</code>.
+                                The suffix of the virtual host to use. For example:
+                                <code>.usercontent.example.com</code>.
                             </p>
                         </doc-prop>
                     </doc-prop-container>
                 </doc-sealed-container>
             </doc-prop>
-            <doc-prop name="udocker" type="section"></doc-prop>
-            <doc-prop name="terminal" type="section" default="type: SSH"></doc-prop>
+            <doc-prop name="udocker" type="section">
+                <section>
+                    <doc-prop name="enabled" type="boolean" default="false"></doc-prop>
+                    <doc-prop name="execMode" type="enum" default="P2">
+                        <p>
+                            See <a href="https://indigo-dc.github.io/udocker/user_manual.html#327-setup" target="_blank">
+                                this section</a> of the UDocker documentation for more information.
+                        </p>
+                        <table>
+                            <thead>
+                                <th>Value</th>
+                                <th>Engine</th>
+                                <th>Description</th>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>P1</code></td>
+                                    <td>PRoot</td>
+                                    <td>accelerated mode using seccomp</td>
+                                </tr>
+                                <tr>
+                                    <td><code>P2</code></td>
+                                    <td>PRoot</td>
+                                    <td>seccomp accelerated mode disabled</td>
+                                </tr>
+                                <tr>
+                                    <td><code>F1</code></td>
+                                    <td>Fakechroot</td>
+                                    <td>exec with direct loader invocation</td>
+                                </tr>
+
+                                <tr>
+                                    <td><code>F2</code></td>
+                                    <td>Fakechroot</td>
+                                    <td>F1 plus modified loader</td>
+                                </tr>
+
+                                <tr>
+                                    <td><code>F3</code></td>
+                                    <td>Fakechroot</td>
+                                    <td>fix ELF headers in binaries</td>
+                                </tr>
+
+                                <tr>
+                                    <td><code>F4</code></td>
+                                    <td>Fakechroot</td>
+                                    <td>F3 plus enables new executables and libs</td>
+                                </tr>
+
+                                <tr>
+                                    <td><code>R1</code></td>
+                                    <td>runc</td>
+                                    <td>rootless user mode namespaces</td>
+                                </tr>
+
+                                <tr>
+                                    <td><code>R2</code></td>
+                                    <td>runc</td>
+                                    <td>R1 plus P1 for software installation</td>
+                                </tr>
+
+                                <tr>
+                                    <td><code>R3</code></td>
+                                    <td>runc</td>
+                                    <td>R1 plus P2 for software installation</td>
+                                </tr>
+
+                                <tr>
+                                    <td><code>S1</code></td>
+                                    <td>Singularity</td>
+                                    <td>uses singularity if available in the host</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </doc-prop>
+                </section>
+            </doc-prop>
+            <doc-prop name="terminal" type="section" default="type: SSH">
+                <p>
+                    When enabled, this feature gives end-users a way to open an interactive terminal which is connected
+                    to one of the compute nodes which are running a user's job. This allows end-users to diagnose and
+                    monitor batch jobs. But it can also be used to run interactive jobs instead. 
+                </p>
+
+                <doc-sealed-container>
+                    <doc-prop-container collapsed>
+                        <doc-prop name="type" type='"SSH"'>
+                            <p>Interactive terminals using SSH from the UCloud/IM server to the compute node.</p>
+                            <div class="detailed">
+                                <p>
+                                    The SSH command will be invoked as the local user. The local user must be able to
+                                    access any of the compute nodes without typing passwords for any keys used during
+                                    authentication. This will either require the user to generate these keys, or
+                                    UCloud/IM can generate them on demand if <code>generateSshKeys</code> is true.
+                                </p>
+                            </div>
+                        </doc-prop>
+                        <doc-prop name="enabled" type="boolean" default="true"></doc-prop>
+                        <doc-prop name="generateSshKeys" type="boolean" default="false">
+                            <p>
+                                If true, UCloud/IM will automatically generate keys used for the purpose of serving
+                                an interactive terminal. This key will not have a password and will automatically be 
+                                added to the <code>~/.ssh/authorized_keys</code> file. This key will be generated the
+                                first time a user attempts to open an interactive terminal.
+                            </p>
+                        </doc-prop>
+                    </doc-prop-container>
+                    <doc-prop-container collapsed>
+                        <doc-prop name="type" type='"Slurm"'>
+                            <p>
+                                Interactive terminals created using <code>srun --pty --override=$jobId bash</code>.
+                            </p>
+                        </doc-prop>
+
+                        <doc-prop name="enabled" type="boolean" default="true"></doc-prop>
+                    </doc-prop-container>
+                </doc-sealed-container>
+            </doc-prop>
             <doc-prop name="useFakeMemoryAllocations" type="boolean" default="false">
                 <p>
                     A property used only for development purposes. This causes the plugin to use a small static memory
                     allocation instead of the actual amount mentioned in the product specification.
                 </p>
             </doc-prop>
+        </doc-prop-container>
+    </section>
+
+    <section id="ucloud">
+        <h3>UCloud</h3>
+
+        <doc-prop-container>
+            <doc-prop name="type" type='"UCloud"' required></doc-prop>
+            <doc-prop name="matches" type="string" required></doc-prop>
+
+            <doc-prop name="kubeConfig" type="string"></doc-prop>
+            <doc-prop name="kubeSvcOverride" type="string"></doc-prop>
+            <doc-prop name="useMachineSelector" type="boolean" default="false"></doc-prop>
+            <doc-prop name="systemReservedCpuMillis" type="int" default="0"></doc-prop>
+            <doc-prop name="systemReservedMemMegabytes" type="int" default="0"></doc-prop>
+            <doc-prop name="forceMinimumReservation" type="boolean" default="false"></doc-prop>
+            <doc-prop name="nodeToleration" type="section"></doc-prop>
+            <doc-prop name="namespace" type="string" default="app-kubernetes"></doc-prop>
+            <doc-prop name="scheduler" type="enum" default="Volcano"></doc-prop>
+            <doc-prop name="categoryToSelector" type="map[string, string]"></doc-prop>
+            <doc-prop name="fakeIpMount" type="boolean" default="false"></doc-prop>
+            <doc-prop name="ssh" type="section"></doc-prop>
+        </doc-prop-container>
+    </section>
+
+    <section id="puhuri">
+        <h3>Puhuri</h3>
+
+        <doc-prop-container>
+            <doc-prop name="type" type='"Puhuri"' required></doc-prop>
+            <doc-prop name="matches" type="string" required></doc-prop>
         </doc-prop-container>
     </section>
 
