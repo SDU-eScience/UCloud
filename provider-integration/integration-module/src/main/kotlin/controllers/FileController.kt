@@ -77,7 +77,6 @@ class FileController(
                 val id = secureToken(32).replace("/", "-")
 
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         insert into tasks(title, ucloud_task_id, local_identity)
                         values (:title, :task_id, :local)
@@ -101,7 +100,6 @@ class FileController(
             var doesExist = false
             dbConnection.withSession { session ->
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         select ucloud_task_id
                         from tasks
@@ -135,7 +133,6 @@ class FileController(
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         insert into file_download_sessions(session, plugin_name, plugin_data)
                         values (:session, :plugin_name, :plugin_data)
@@ -148,22 +145,12 @@ class FileController(
                     }
                 )
             }
-
-            envoyConfig.requestConfiguration(
-                EnvoyRoute.DownloadSession(
-                    request.session,
-                    controllerContext.configuration.core.providerId,
-                    ucloudIdentity ?: EnvoyConfigurationService.IM_SERVER_CLUSTER
-                ),
-                null,
-            )
         })
 
         server.addHandler(FilesDownloadIpc.retrieve.handler { _, request ->
             var result: FileSessionWithPlugin? = null
             dbConnection.withSession { session ->
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         select plugin_name, plugin_data
                         from file_download_sessions
@@ -194,7 +181,6 @@ class FileController(
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         insert into file_upload_sessions(session, plugin_name, plugin_data)
                         values (:session, :plugin_name, :plugin_data)
@@ -207,22 +193,12 @@ class FileController(
                     }
                 )
             }
-
-            envoyConfig.requestConfiguration(
-                EnvoyRoute.UploadSession(
-                    request.session,
-                    controllerContext.configuration.core.providerId,
-                    ucloudIdentity ?: EnvoyConfigurationService.IM_SERVER_CLUSTER
-                ),
-                null,
-            )
         })
 
         server.addHandler(FilesUploadIpc.retrieve.handler { _, request ->
             var result: FileSessionWithPlugin? = null
             dbConnection.withSession { session ->
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         select plugin_name, plugin_data
                         from file_upload_sessions
@@ -473,10 +449,10 @@ class FileController(
         implement(uploadApi.upload) {
             val sctx = ctx as? HttpCall ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             val offset = sctx.ktor.call.request.header("Chunked-Upload-Offset")?.toLongOrNull()
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                ?: throw RPCException("Missing or invalid offset", HttpStatusCode.BadRequest)
 
             val token = sctx.ktor.call.request.header("Chunked-Upload-Token")
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
 
             with(requestContext(controllerContext)) {
                 val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))

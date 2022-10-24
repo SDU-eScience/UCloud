@@ -38,7 +38,8 @@ data class VerifiedConfig(
         val logs: Logs,
         val launchRealUserInstances: Boolean,
         val allowRootMode: Boolean,
-        val developmentMode: Boolean
+        val developmentMode: Boolean,
+        val cors: Cors
     ) {
         data class Hosts(
             val ucloud: Host,
@@ -50,7 +51,12 @@ data class VerifiedConfig(
         )
 
         data class Logs(
-            val directory: String
+            val directory: String,
+            val trace: List<ConfigSchema.Core.Logs.Tracer>
+        )
+
+        data class Cors(
+            val allowHosts: List<String>
         )
     }
 
@@ -366,7 +372,14 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 )
             )
 
-            VerifiedConfig.Core.Logs(directory)
+            val trace = config.core.logs?.trace ?: emptyList()
+
+            VerifiedConfig.Core.Logs(directory, trace)
+        }
+
+        val cors = run {
+            val allowHosts = core.cors?.allowHosts ?: emptyList()
+            VerifiedConfig.Core.Cors(allowHosts)
         }
 
         if (core.launchRealUserInstances && core.allowRootMode) {
@@ -381,7 +394,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             logs,
             core.launchRealUserInstances,
             core.allowRootMode,
-            core.developmentMode ?: (core.hosts.ucloud.host == "backend")
+            core.developmentMode ?: (core.hosts.ucloud.host == "backend"),
+            cors
         )
     }
 

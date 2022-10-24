@@ -84,7 +84,7 @@ fun startProcess(
         if (workingDir != null) directory(workingDir)
 
         if (!attachStdout) redirectOutput(ProcessBuilder.Redirect.DISCARD)
-        if (!attachStderr) redirectOutput(ProcessBuilder.Redirect.DISCARD)
+        if (!attachStderr) redirectError(ProcessBuilder.Redirect.DISCARD)
     }.start()
 
     if (!attachStdin) jvmProcess.outputStream.close()

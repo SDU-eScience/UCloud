@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Connections - UCloud/IM Documentation</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body class="content">
+    <section>
+        <h1>Plugins / Connections</h1>
+        <div class="summary">
+            Connections are used to handle what happens when a user clicks on the "Connect" button after they have
+            received an allocation for your provider. This forms the foundation of the user-mapping between UCloud
+            identities and your local identities.
+        </div>
+
+        <table>
+            <tbody>
+                <tr>
+                    <th width="120px">File</th>
+                    <td><code>plugins.yaml</code></td>
+                </tr>
+                <tr>
+                    <th>Mandatory</th>
+                    <td>Yes</td>
+                </tr>
+                <tr>
+                    <th>Section</th>
+                    <td><code>connections</code></td>
+                </tr>
+                <tr>
+                    <th>Plugin type</th>
+                    <td>Singleton</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h2>Implementations</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Pros</th>
+                    <th>Cons</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><a href="#ucloud">UCloud</a></td>
+                    <td>Allows a UCloud user to authenticate purely using their UCloud identity.</td>
+                    <td>
+                        <ul>
+                            <li>Fully automatic, one click solution for end-users</li>
+                            <li>Requires no provider infrastructure</li>
+                            <li>Ideal for development and evaluation purposes</li>
+                            <li>Ideal for providers without local identities</li>
+                        </ul>
+                    </td>
+                    <td>
+                        <ul>
+                            <li>Security of provider identities now depends on the security of UCloud identities</li>
+                            <li>Unable to link to existing identities</li>
+                            <li>End-to-end verification is not possible</li>
+                        </ul>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td><a href="#openidconnect">OpenIdConnect</a></td>
+                    <td>UCloud users can connect to an existing or new provider identity using the OpenId Connect
+                        protocol</td>
+                    <td>
+                        <ul>
+                            <li>Fully automatic</li>
+                            <li>Allows linking with existing identities</li>
+                            <li>Security of provider identities rely mostly on provider's own security</li>
+                            <li>End-to-end verification is possible</li>
+                        </ul>
+                    </td>
+                    <td>
+                        <ul>
+                            <li>Requires an OpenId Connect identity provider</li>
+                            <li>Requires automatic procedures for user and identity management</li>
+                            <li>Does not make sense if provider has no local identities</li>
+                        </ul>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td><a href="#ticket">Ticket</a></td>
+                    <td>UCloud users connect using a manual, provider dependent, workflow</td>
+                    <td>
+                        <ul>
+                            <li>Allows linking with existing identities</li>
+                            <li>Security of provider identities rely mostly on provider's own security</li>
+                            <li>End-to-end verification is possible</li>
+                            <li>Requires no automatic procedures for user and identity management</li>
+                        </ul>
+                    </td>
+                    <td>
+                        <ul>
+                            <li>Workflow is not automatic and requires operator presence</li>
+                            <li>Significant degradation of user experience</li>
+                        </ul>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <section id="ucloud">
+            <h3>UCloud</h3>
+
+            <p>
+                Allows a UCloud user to authenticate purely using their UCloud identity.	
+            </p>
+
+            <doc-prop-container>
+                <doc-prop name="type" type='"UCloud"' required />
+
+                <doc-prop name="redirectTo" type="string" required>
+                    <p>
+                        Defines a URL where the end-user will be redirect once the connection has completed. This could
+                        be the link to a provider specified web-page which contain instructions on how to use your
+                        system. Alternatively, you can redirect the end-user back to UCloud.
+                    </p>
+                </doc-prop>
+
+                <doc-prop name="installSshKeys" type="boolean" default="true">
+                    <p>
+                        If true then keys uploaded through UCloud/Core will automatically be synchronized with the
+                        end-user's <code>~/.ssh/authorized_keys</code> file. This installation mechanism will only
+                        change
+                        keys which are managed by UCloud/IM.
+                    </p>
+                </doc-prop>
+
+                <doc-prop name="insecureMessageSigningForDevelopmentPurposesOnly" type="boolean" default="false">
+                    <p>
+                        This property should only be set to true for development purposes! This will turn on end-to-end
+                        verification of user communication, even though, this plugin does not handle keys in a secure
+                        manner. If you wish to run end-to-end verification then you must use some other plugin
+                        implementation!
+                    </p>
+                </doc-prop>
+
+                <doc-prop name="extensions" type="section">
+                    <section>
+                        <doc-prop name="onConnectionComplete" type="string" default="null">
+                            <p>
+                                Extension script invoked immediately after a user clicks on the "Connect" button. This
+                                extension is expected to create users and allocate any other resources the user
+                                requires.
+                                The extension is expected to return the UID of the user which has been created. The
+                                extension should be able to be invoked multiple times for the same user. The UID
+                                returned
+                                between invocations should be stable as the user will otherwise lose access to old
+                                resources.
+
+                                The extension must follow the general extension contract.
+                            </p>
+
+                            <b>Example request:</b>
+
+                            <pre><code>{ "username": "UCLOUD USERNAME" }</code></pre>
+
+                            <b>Example response:</b>
+                            <pre><code>{ "uid": 1000 }</code></pre>
+                        </doc-prop>
+                    </section>
+                </doc-prop>
+            </doc-prop-container>
+        </section>
+
+        <section id="openidconnect">
+            <h3>OpenIdConnect</h3>
+
+            <p>
+                UCloud users can connect to an existing or new provider identity using the OpenId Connect protocol.
+            </p>
+
+            <p>
+                The OpenIdConnect plugin will <i>always</i> use the authorization code flow. The callback URL must
+                include <code>${providerUrl}/connection/oidc-cb</code>.
+            </p>
+
+            <doc-prop-container>
+                <doc-prop name="type" type='"OpenIdConnect"' required />
+
+                <doc-prop name="client" type="section" required>
+                    <p>
+                        Contains information about the OpenId client. This information is typically given to you by the
+                        identity provider when you register the client. For more information, see the documentation of
+                        your
+                        identity provider.
+                    </p>
+
+                    <section>
+                        <doc-prop name="id" type="string" required>
+                            The client identifier as specified in <a
+                                href="https://www.rfc-editor.org/rfc/rfc6749">RFC6749</a>.
+                        </doc-prop>
+                        <doc-prop name="secret" type="string" required>
+                            The client secret as specified in <a
+                                href="https://www.rfc-editor.org/rfc/rfc6749">RFC6749</a>.
+                        </doc-prop>
+                    </section>
+                </doc-prop>
+
+                <doc-prop name="endpoints" type="section" required>
+                    <p>
+                        Contains information about the OpenId identity provider's endpoints. For more information, see
+                        the
+                        documentation of your identity provider.
+                    </p>
+
+                    <section>
+                        <doc-prop name="auth" type="string" required>
+                            The authorization endpoint as defined <a
+                                href="https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest">here</a>
+                        </doc-prop>
+                        <doc-prop name="token" type="string" required>
+                            The token endpoint as defined <a
+                                href="https://openid.net/specs/openid-connect-core-1_0.html#rfc.section.3.1.2.7">here</a>
+                        </doc-prop>
+                    </section>
+                </doc-prop>
+
+                <doc-prop name="signing" type="section" required>
+                    Defines how the OpenIdConnect IdP signs the <code>id_token</code>. For more information, see the
+                    documentation of your OpenIdConnect identity provider.
+
+                    <section>
+                        <doc-prop name="algorithm" type="one of: RS256, ES256" required />
+                        <doc-prop name="key" type="string" required />
+                        <doc-prop name="issuer" type="string" default="null">
+                            The issuer as specified in the <code>id_token</code> JWT. If null or unspecified then the
+                            issuer of the token will not be checked.
+                        </doc-prop>
+                    </section>
+                </doc-prop>
+
+                <doc-prop name="mappingTimeToLive" type="section" required>
+                    Defines for how long the mapping between a UCloud identity and provider identity will live. In other
+                    words, this defines how often the end-user must re-authenticate by clicking "Connect" in the
+                    user-interface.
+
+                    <section>
+                        <doc-prop name="days" type="int" default="0" />
+                        <doc-prop name="hours" type="int" default="0" />
+                        <doc-prop name="minutes" type="int" default="0" />
+                        <doc-prop name="seconds" type="int" default="0" />
+                    </section>
+                </doc-prop>
+
+                <doc-prop name="requireSigning" type="boolean" default="false">
+                    If true, enables end-to-end verification between end-user and provider.
+                </doc-prop>
+
+                <doc-prop name="redirectUrl" type="string">
+                    <p>
+                        Defines a URL where the end-user will be redirect once the connection has completed. This could
+                        be
+                        the link to a provider specified web-page which contain instructions on how to use your system.
+                        Alternatively, you can redirect the end-user back to UCloud.
+                    </p>
+                </doc-prop>
+
+                <doc-prop name="installSshKeys" type="boolean" default="true">
+                    <p>
+                        If true then keys uploaded through UCloud/Core will automatically be synchronized with the
+                        end-user's <code>~/.ssh/authorized_keys</code> file. This installation mechanism will only
+                        change
+                        keys which are managed by UCloud/IM.
+                    </p>
+                </doc-prop>
+
+                <doc-prop name="extensions" type="section" required>
+                    <section>
+                        <doc-prop name="onConnectionComplete" type="string" required>
+                            <p>
+                                Extension script invoked immediately after a user clicks on the "Connect" button. This
+                                extension is expected to create users and allocate any other resources the user
+                                requires. The extension is expected to return the UID of the user which has been
+                                created. The extension should be able to be invoked multiple times for the same user.
+                                The UID returned between invocations should be stable as the user will otherwise lose
+                                access to old resources.
+
+                                The extension must follow the general extension contract.
+                            </p>
+
+                            <b>Example request:</b>
+
+                            <pre><code>{
+    "ucloudIdentity": "ucloud username",
+    "subject": "oidc username",
+    "preferredUsername": "oidc (optional)",
+    "name": "oidc (optional)",
+    "givenName": "oidc (optional)",
+    "familyName": "oidc (optional)",
+    "middleName": "oidc (optional)",
+    "nickname": "oidc (optional)",
+    "email": "oidc (optional)",
+    "emailVerified": false,
+    "phoneNumber": "oidc (optional)",
+    "phoneNumberVerified": false
+}</code></pre>
+
+                            <b>Example response:</b>
+                            <pre><code>{ "uid": 1000 }</code></pre>
+                        </doc-prop>
+                    </section>
+                </doc-prop>
+            </doc-prop-container>
+        </section>
+
+        <section id="ticket">
+            <h3>Ticket</h3>
+
+            <doc-prop-container>
+                <doc-prop name="type" type='"Ticket"' required />
+
+                <doc-prop name="installSshKeys" type="boolean" default="true">
+                    <p>
+                        If true then keys uploaded through UCloud/Core will automatically be synchronized with the
+                        end-user's <code>~/.ssh/authorized_keys</code> file. This installation mechanism will only
+                        change keys which are managed by UCloud/IM.
+                    </p>
+                </doc-prop>
+            </doc-prop-container>
+        </section>
+    </section>
+
+    <script src="/app.js"></script>
+</body>
+
+</html>

@@ -19,7 +19,7 @@ import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {BrowseType} from "@/Resource/BrowseType";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {FilesBrowse} from "@/Files/Files";
-import {api as FilesApi} from "@/UCloud/FilesApi";
+import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
 import {JobBrowse} from "../Browse";
 import {format, isToday} from "date-fns/esm";
@@ -102,7 +102,7 @@ export const ImportParameters: React.FunctionComponent<{
             if (!downloadEndpoint) {
                 return;
             }
-            const content = await fetch(downloadEndpoint);
+            const content = await fetch(normalizeDownloadEndpoint(downloadEndpoint));
             if (content.ok) importParameters(new File([await content.blob()], "params"));
         } catch (e) {
             errorMessageOrDefault(e, "Failed to fetch parameters from job file.")
