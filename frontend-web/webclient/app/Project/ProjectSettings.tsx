@@ -36,6 +36,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import ProjectAPI, {OldProjectRole, Project, ProjectSpecification, useProjectFromParams} from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {useProject} from "./cache";
 
 const ActionContainer = styled.div`
     & > * {
@@ -185,10 +186,13 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
         {noop: true},
         {allowed: false}
     );
+    
+    const project = useProject();
 
     useEffect(() => {
         setAllowRenaming(getRenamingStatusForSubProject({projectId: props.projectId}));
         if (newProjectTitle.current) newProjectTitle.current.value = props.projectSpecification.title;
+        if (props.projectId === project.fetch().id) project.reload();
     }, [props.projectId, props.projectSpecification]);
 
     return (
