@@ -2622,6 +2622,7 @@ export interface TagSearchRequest {
     itemsPerPage?: number /* int32 */,
     page?: number /* int32 */,
 }
+export interface ListTagsRequest {}
 export interface AppStoreOverviewRequest {}
 export interface AppStoreOverview {
     sections: AppStoreSection[],
@@ -3170,6 +3171,17 @@ export function searchTags(
         parameters: request,
         reloadId: Math.random(),
     };
+}
+export function listTags(
+    request: ListTagsRequest
+): APICallParameters<ListTagsRequest, string[]> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/hpc/apps" + "/listTags", {}),
+        parameters: request,
+        reloadId: Math.random(),
+    }
 }
 export function appStoreOverview(): APICallParameters<AppStoreOverviewRequest, AppStoreOverview> {
     return {

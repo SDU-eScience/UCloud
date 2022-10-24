@@ -8,6 +8,7 @@ interface ContentValuePair {content: string; value: string}
 interface DataListProps {
     options: ContentValuePair[];
     onSelect: (value: string) => void;
+    onChange?: (value: string) => void;
     placeholder: string;
     width?: number | string;
     clearOnSelect?: boolean;
@@ -53,7 +54,14 @@ export class DataList extends React.PureComponent<DataListProps, {
                             autoComplete="off"
                             type="text"
                             value={this.state.text}
-                            onChange={({target}) => this.setState(() => ({text: target.value}))}
+                            onChange={({target}) => {
+                                this.setState(() => ({text: target.value}));
+                            }}
+                            onKeyUp={() => {
+                                if (this.props.onChange) {
+                                    this.props.onChange(this.state.text);
+                                }
+                            }}
                         />
                         <Icon name="chevronDown" mb="9px" size={14} />
                     </FormField>
