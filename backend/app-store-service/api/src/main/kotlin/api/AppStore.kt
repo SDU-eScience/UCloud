@@ -1004,6 +1004,26 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
+    val listTags = call("listTags", Unit.serializer(), ListSerializer(String.serializer()), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"listTags"
+            }
+        }
+
+        documentation {
+            summary = "List all application tags"
+        }
+    }
+
     val uploadLogo = call("uploadLogo", UploadApplicationLogoRequest.serializer(), UploadApplicationLogoResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 roles = Roles.PRIVILEGED

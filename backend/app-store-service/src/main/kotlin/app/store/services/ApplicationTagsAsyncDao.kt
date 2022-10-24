@@ -98,4 +98,18 @@ class ApplicationTagsAsyncDao() {
             }
         }
     }
+
+    suspend fun listTags(
+        ctx: DBContext
+    ): List<String> {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                """
+                    select tag from tags
+                """
+            ).rows.mapNotNull {
+                it.getString(0)
+            }
+        }
+    }
 }
