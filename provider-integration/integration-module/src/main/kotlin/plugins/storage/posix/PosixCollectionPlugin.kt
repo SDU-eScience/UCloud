@@ -57,6 +57,10 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     private val mutex = Mutex()
     private lateinit var ctx: PluginContext
 
+    @Suppress("DEPRECATION")
+    private val accountingExtension: String?
+        get() = pluginConfig.extensions.accounting ?: pluginConfig.accounting
+
     private data class CollectionChargeCredits(
         val lastCharged: Date,
         val priceUnit: ProductPriceUnit,
@@ -196,7 +200,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
 
     private var nextScan = 0L
     override suspend fun PluginContext.runMonitoringLoopInServerMode() {
-        if (pluginConfig.accounting == null) return
+        if (accountingExtension == null) return
 
         val productCategories = productAllocation.map { it.category }.toSet()
         while (currentCoroutineContext().isActive) {
@@ -304,7 +308,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     }
 
     private suspend fun calculateUsage(coll: PathConverter.Collection): Long {
-        return when (val cfg = pluginConfig.accounting) {
+        return when (val cfg = accountingExtension) {
             null -> 0
             else -> {
                 calculateUsage.invoke(ctx, cfg, CalculateUsageRequest(coll.localPath)).bytesUsed

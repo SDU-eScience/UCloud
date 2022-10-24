@@ -115,7 +115,7 @@ class DocSnippet extends HTMLElement {
     constructor() {
         super();
 
-        let text = this.innerText;
+        let text = this.textContent;
         text = text.replace("\t", "    ");
         if (text.startsWith("\n")) text = text.substring(1);
         if (text.startsWith("\r\n")) text = text.substring(2);
