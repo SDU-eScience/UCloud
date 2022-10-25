@@ -14,7 +14,7 @@ bundle {
         addSimpleMapping("/favicon.ico")
         addSimpleMapping("/favicon.svg")
         addSimpleMapping("/AppVersion.txt")
-        addSimpleMapping("/ProviderImages/")
+        addSimpleMapping("/Images/")
     }
 
     val deployment = withDeployment(injectAllDefaults = false) {
