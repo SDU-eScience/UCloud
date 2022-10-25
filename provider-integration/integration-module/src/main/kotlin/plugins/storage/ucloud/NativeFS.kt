@@ -12,6 +12,9 @@ import dk.sdu.cloud.plugins.components
 import dk.sdu.cloud.plugins.fileName
 import dk.sdu.cloud.plugins.parent
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.utils.LinuxFileHandle
+import dk.sdu.cloud.utils.LinuxInputStream
+import dk.sdu.cloud.utils.LinuxOutputStream
 import io.ktor.util.*
 import io.ktor.utils.io.pool.*
 import libc.NativeStat

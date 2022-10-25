@@ -59,6 +59,7 @@ interface JobFeature {
 }
 
 class JobManagement(
+    val pluginName: String,
     val k8: K8Dependencies,
     val runtime: ContainerRuntime,
     private val jobCache: VerifiedJobCache,

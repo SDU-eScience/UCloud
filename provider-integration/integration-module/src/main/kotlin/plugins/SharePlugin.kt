@@ -45,11 +45,11 @@ abstract class SharePlugin : ResourcePlugin<Product.Storage, ShareSupport, Share
     override fun supportsServiceUserMode(): Boolean = true
     override fun supportsRealUserMode(): Boolean = false
 
-    final override suspend fun RequestContext.init(owner: ResourceOwner) {
+    final override suspend fun RequestContext.initInUserMode(owner: ResourceOwner) {
         // Do nothing
     }
 
-    final override suspend fun PluginContext.onAllocationComplete(notification: AllocationNotification) {
+    final override suspend fun PluginContext.onAllocationCompleteInServerMode(notification: AllocationNotification) {
         // Do nothing
     }
 
@@ -118,7 +118,11 @@ abstract class SharePlugin : ResourcePlugin<Product.Storage, ShareSupport, Share
         // Do nothing
     }
 
-    final override suspend fun PluginContext.runMonitoringLoop() {
+    final override suspend fun PluginContext.runMonitoringLoopInUserMode() {
+        // Do nothing
+    }
+
+    final override suspend fun PluginContext.runMonitoringLoopInServerMode() {
         // Do nothing
     }
 }

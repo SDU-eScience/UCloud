@@ -34,6 +34,7 @@ import dk.sdu.cloud.plugins.ipcServer
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.utils.CommaSeparatedValues
+import dk.sdu.cloud.utils.forEachGraal
 import dk.sdu.cloud.utils.sendTerminalMessage
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
@@ -163,8 +164,8 @@ fun UsageCli(controllerContext: ControllerContext) {
             var idSuffix = 0
             fun hiddenId(): String = RESOURCE_HIDDEN_BY_PROVIDER + uniquePrefix + idSuffix++
 
-            for ((type, allPoints) in rowsByType) {
-                allPoints.chunked(250).forEach { chunk ->
+            rowsByType.forEachGraal { type, allPoints ->
+                allPoints.asSequence().chunked(250).forEach { chunk ->
                     when (type) {
                         ProductType.STORAGE -> {
                             ids = FileCollectionsControl.register.call(

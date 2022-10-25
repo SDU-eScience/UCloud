@@ -10,7 +10,14 @@ import ApplicationParameter = compute.ApplicationParameter;
 import {GrayBox} from "../Create";
 
 export function folderResourceAllowed(app: UCloud.compute.Application): boolean {
-    return !(app.invocation.allowAdditionalMounts === false || (app.invocation.allowAdditionalMounts == null && app.invocation.applicationType === "BATCH"));
+    if (app.invocation.allowAdditionalMounts != null) return app.invocation.allowAdditionalMounts;
+
+    // noinspection RedundantIfStatementJS
+    if (app.invocation.applicationType !== "BATCH" && app.invocation.tool.tool!.description.backend === "DOCKER") {
+        return true;
+    }
+
+    return false;
 }
 
 export const FolderResource: React.FunctionComponent<{

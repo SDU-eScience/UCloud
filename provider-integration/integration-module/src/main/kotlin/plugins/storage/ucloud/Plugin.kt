@@ -305,9 +305,7 @@ class UCloudFilePlugin : FilePlugin {
         req: FilesProviderStreamingSearchRequest
     ): ReceiveChannel<FilesProviderStreamingSearchResult.Result> = queries.streamingSearch(req)
 
-    override suspend fun PluginContext.runMonitoringLoop() {
-        if (config.shouldRunServerCode()) return
-
+    override suspend fun PluginContext.runMonitoringLoopInServerMode() {
         while (coroutineContext.isActive) {
             try {
                 if (pluginConfig.accountingEnabled) {
@@ -348,7 +346,7 @@ class UCloudFileCollectionPlugin : FileCollectionPlugin {
         }
     }
 
-    override suspend fun RequestContext.init(owner: ResourceOwner) {
+    override suspend fun RequestContext.initInUserMode(owner: ResourceOwner) {
         filePlugin.memberFiles.initializeMemberFiles(owner.createdBy, owner.project)
     }
 

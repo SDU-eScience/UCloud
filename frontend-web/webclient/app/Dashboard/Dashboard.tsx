@@ -11,7 +11,7 @@ import * as Heading from "@/ui-components/Heading";
 import List from "@/ui-components/List";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
-import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
+import {DashboardOperations, DashboardProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
 import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
@@ -21,13 +21,10 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {dispatchSetProjectAction} from "@/Project/Redux";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {
-    GrantApplication,
     GrantApplicationFilter,
-    ingoingGrantApplications,
     IngoingGrantApplicationsResponse,
-    listOutgoingApplications
 } from "@/Project/Grant";
-import {GrantApplicationList} from "@/Project/Grant/IngoingApplications";
+import {GrantApplicationList} from "@/Project/Grant/GrantApplications";
 import * as UCloud from "@/UCloud";
 import {PageV2} from "@/UCloud";
 import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
@@ -50,8 +47,36 @@ import {Job, api as JobsApi} from "@/UCloud/JobsApi";
 import {ItemRow} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
-import {ConnectDashboardCard} from "@/Providers/ConnectDashboardCard";
+import {useProjectId, useProjectManagementStatus} from "@/Project";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
+
+// TODO(Jonas): Move
+// 29/8 2022
+interface BrowseApplicationsRequest {
+    filter: "SHOW_ALL" | "ACTIVE" | "INACTIVE";
+
+    includeIngoingApplications: boolean;
+    includeOutgoingApplications: boolean;
+
+    itemsPerPage?: number;
+    next?: string;
+    consistency?: "PREFER" | "REQUIRE";
+    itemsToSkip?: number;
+}
+
+function browseGrantsApplications(request: BrowseApplicationsRequest): APICallParameters<BrowseApplicationsRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/grant/browse", request),
+        parameters: request,
+        payload: request
+    }
+}
+import {Connect} from "@/Providers/Connect";
 import {NotificationDashboardCard} from "@/Notifications";
+import {grantsLink} from "@/UtilityFunctions";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 
 function Dashboard(props: DashboardProps): JSX.Element {
     useSearch(defaultSearch);
@@ -96,12 +121,16 @@ function Dashboard(props: DashboardProps): JSX.Element {
             filterUsable: true,
             includeBalance: true
         }));
-        fetchOutgoingApps(listOutgoingApplications({
+        fetchOutgoingApps(browseGrantsApplications({
             itemsPerPage: 10,
-            filter: GrantApplicationFilter.SHOW_ALL
+            includeIngoingApplications: false,
+            includeOutgoingApplications: true,
+            filter: GrantApplicationFilter.ACTIVE
         }));
-        fetchIngoingApps(ingoingGrantApplications({
+        fetchIngoingApps(browseGrantsApplications({
             itemsPerPage: 10,
+            includeIngoingApplications: true,
+            includeOutgoingApplications: false,
             filter: GrantApplicationFilter.ACTIVE
         }));
         fetchFavoriteFiles(metadataApi.browse({
@@ -132,7 +161,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
             <DashboardResources products={products} />
             <DashboardProjectUsage charts={usage} />
             <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
-            <ConnectDashboardCard/>
+            <Connect embedded />
         </GridCardGroup>
     );
 
@@ -168,7 +197,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
         >
             {favorites.length !== 0 ? null : (
                 <NoResultsCardBody title={"No favorites"}>
-                    <Text width="100%">
+                    <Text textAlign="center" width="100%">
                         As you as add favorites, they will appear here.
                         <Link to={"/drives"} mt={8}>
                             <Button fullWidth mt={8}>Explore files</Button>
@@ -266,15 +295,8 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
         >
             {props.charts.data.charts.length !== 0 ? null : (
                 <NoResultsCardBody title={"No usage"}>
-                    <Text>
+                    <Text textAlign="center">
                         As you use the platform, usage will appear here.
-
-                        <Link to={"/drives"} mt={8}>
-                            <Button fullWidth mt={8}>Explore files</Button>
-                        </Link>
-                        <Link to={"/applications/overview"} mt={8}>
-                            <Button fullWidth mt={8}>Explore applications</Button>
-                        </Link>
                     </Text>
                 </NoResultsCardBody>
             )}
@@ -320,8 +342,7 @@ function DashboardRuns({runs}: {
             </NoResultsCardBody>
         ) :
             <List>
-                {runs.data.items.map((job, idx) =>
-                    idx >= 7 ? null :
+                {runs.data.items.slice(0, 7).map(job =>
                     <ItemRow
                         key={job.id}
                         item={job}
@@ -341,28 +362,34 @@ function DashboardRuns({runs}: {
 function DashboardResources({products}: {
     products: APICallState<PageV2<Product>>;
 }): JSX.Element | null {
-    const wallets: (ProductMetadata & {balance: number})[] = [];
+    const wallets = React.useMemo(() => {
+        const wallets: (ProductMetadata & {balance: number})[] = [];
 
-    for (const product of products.data.items) {
-        const metadata: (ProductMetadata & {balance: number}) = {
-            category: product.category,
-            freeToUse: product.freeToUse,
-            productType: product.productType,
-            chargeType: product.chargeType,
-            hiddenInGrantApplications: product.hiddenInGrantApplications,
-            unitOfPrice: product.unitOfPrice,
-            balance: product.balance!
-        };
+        for (const product of products.data.items) {
+            const metadata: (ProductMetadata & {balance: number}) = {
+                category: product.category,
+                freeToUse: product.freeToUse,
+                productType: product.productType,
+                chargeType: product.chargeType,
+                hiddenInGrantApplications: product.hiddenInGrantApplications,
+                unitOfPrice: product.unitOfPrice,
+                balance: product.balance!
+            };
 
-        if (!product.freeToUse) {
-            if (wallets.find(it => productCategoryEquals(it.category, metadata.category)) === undefined) {
-                wallets.push(metadata);
+            if (!product.freeToUse) {
+                if (wallets.find(it => productCategoryEquals(it.category, metadata.category)) === undefined) {
+                    wallets.push(metadata);
+                }
             }
         }
-    }
+        return wallets;
+    }, [products.data.items]);
+
+    const projectId = useProjectId()
+
 
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
-    const applyLinkButton = <Link to={"/project/grants-landing"}>
+    const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"}>
         <Button fullWidth mb={"4px"}>Apply for resources</Button>
     </Link>;
 
@@ -400,7 +427,6 @@ function DashboardResources({products}: {
                             </Table>
                         </Box>
                         <Box flexGrow={1} />
-                        {applyLinkButton}
                     </Flex>
                 </>
             }
@@ -423,6 +449,12 @@ const DashboardGrantApplications: React.FunctionComponent<{
             </Link>
     );
 
+
+    const project = useProjectManagementStatus({isRootComponent: false, allowPersonalProject: true});
+    const canApply = !Client.hasActiveProject || isAdminOrPI(project.projectDetails.data.whoami.role);
+
+    if (!canApply) return null;
+
     return <HighlightedCard
         title={title}
         color="green"
@@ -444,19 +476,22 @@ const DashboardGrantApplications: React.FunctionComponent<{
         {both ? <Heading.h5 color="gray" my="4px">Outgoing</Heading.h5> : null}
         {outgoingApps.error ? null : (
             <>
-                {outgoingApps.data.items.length !== 0 ? null : (
+                {outgoingApps.data.items.length !== 0 || ingoingApps.data.items.length > 0 ? null : (
                     <>
                         <NoResultsCardBody title={"No recent outgoing applications"}>
                             Apply for resources to use storage and compute on UCloud.
-                            <Link to={"/project/grants-landing"} width={"100%"}>
-                                <Button fullWidth mt={8}>Apply for resources</Button>
-                            </Link>
                         </NoResultsCardBody>
                     </>
                 )}
-                <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim />
+
+                {outgoingApps.data.items.length === 0 ? null : (
+                    <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim />
+                )}
             </>
         )}
+        <Link to={grantsLink(Client)} width={"100%"}>
+            <Button fullWidth my={8}>Apply for resources</Button>
+        </Link>
     </HighlightedCard>;
 };
 
@@ -516,7 +551,4 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
-const mapStateToProps = (state: ReduxObject): DashboardStateProps => ({
-});
-
-export default connect(mapStateToProps, mapDispatchToProps)(Dashboard);
+export default connect(null, mapDispatchToProps)(Dashboard);

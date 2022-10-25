@@ -38,7 +38,7 @@ class Server(
     override fun start() {
         val db = AsyncDBSessionFactory(micro)
         @Suppress("UNCHECKED_CAST") val tokenValidation = micro.tokenValidation as TokenValidation<DecodedJWT>
-        val streams = micro.eventStreamService
+        val streams = micro.eventStreamServiceOrNull
 
         val passwordHashingService = PasswordHashingService()
         val twoFactorDao = TwoFactorAsyncDAO()
@@ -50,7 +50,7 @@ class Server(
         val userCreationService = UserCreationService(
             db,
             userDao,
-            streams.createProducer(AuthStreams.UserUpdateStream)
+            streams?.createProducer(AuthStreams.UserUpdateStream)
         )
 
         val totpService = WSTOTPService()
@@ -80,13 +80,16 @@ class Server(
             service to lists.flatMap { it.parsedScopes }.toSet()
         }.toMap()
 
-        // TODO This service is accepting way too many dependencies.
         val tokenService = TokenService(
             db,
             personService,
             userDao,
             refreshTokenDao,
-            JWTFactory(jwtAlg, config.serviceLicenseAgreement, disable2faCheck = micro.developmentModeEnabled),
+            JWTFactory(
+                jwtAlg,
+                config.serviceLicenseAgreement,
+                disable2faCheck = micro.developmentModeEnabled || config.disable2faCheck
+            ),
             userCreationService,
             tokenValidation,
             mergedExtensions,

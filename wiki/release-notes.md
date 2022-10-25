@@ -7,6 +7,54 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 07-10-22
+
+```
+✅  Deployment(accounting, 2022.2.20-accounting10) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2022.2.20-accounting10) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 2022.2.20-accounting10) (UP-TO-DATE)
+```
+
+## 06-10-22
+
+```
+✅  Deployment(accounting, 2022.2.20-accounting1) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 2022.2.20) (UP-TO-DATE)
+```
+
+
+
+## 22-09-22
+
+```
+✅  Deployment(app-kubernetes, 2022.2.14) (UP-TO-DATE)
+```
+
+
+
+## 01-09-22
+
+```
+✅  Deployment(webclient, 2022.2.10) (UP-TO-DATE)
+```
+
+
+
+## 31-08-22
+
+```
+✅  Deployment(app-kubernetes, 2022.2.9) (UP-TO-DATE)
+✅  Deployment(webclient, 2022.2.9) (UP-TO-DATE)
+```
+
+
+
+## 29-08-22
+
+```
+✅  Deployment(app-kubernetes, 2022.2.8) (UP-TO-DATE)
+```
+
 ## 25-08-22
 
 Fixes an overflow in file sorting also deploys latest version of the frontend.

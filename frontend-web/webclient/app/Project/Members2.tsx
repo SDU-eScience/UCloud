@@ -382,7 +382,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
 }
 
 interface ActionCallbacks {
-    history: History;
+    history: ReturnType<typeof useHistory>;
     pureDispatch: (action: ProjectAction) => void;
     requestReload: () => void; // NOTE(Dan): use when it is difficult to rollback a change
 }

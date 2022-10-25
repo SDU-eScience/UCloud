@@ -22,7 +22,7 @@ suspend fun PluginContext.installSshKeyWithDefaults(
 ) {
     // NOTE(Dan): This function only works for real users. For service users, we definitely do not want to be
     // installing any keys
-    if (!config.core.launchRealUserInstances) return
+    if (!config.core.launchRealUserInstances && System.getenv("UCLOUD_SSH_KEY_SERVICE_DEMO") == null) return
 
     val connectionPluginConfig = config.rawPluginConfig.connection
     if (connectionPluginConfig !is ConfigSchema.Plugins.WithAutoInstallSshKey) return

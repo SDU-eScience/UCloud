@@ -8,7 +8,7 @@ import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.withSession
 
 object FeatureFirewall : JobFeature {
-    var gatewayCidr: String? = null
+    val gatewayCidr: ArrayList<String> = ArrayList()
 
     override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         for (peer in job.peers) {
@@ -41,9 +41,8 @@ object FeatureFirewall : JobFeature {
                 builder.allowNetworkFromSubnet("$internalIp/32")
             }
 
-            val gatewayCidr = gatewayCidr
-            if (gatewayCidr != null) {
-                builder.allowNetworkFromSubnet(gatewayCidr)
+            for (cidr in gatewayCidr) {
+                builder.allowNetworkFromSubnet(cidr)
             }
         }
 

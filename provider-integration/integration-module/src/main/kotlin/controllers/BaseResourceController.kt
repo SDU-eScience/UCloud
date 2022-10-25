@@ -37,17 +37,17 @@ abstract class BaseResourceController<
     protected fun lookupPluginOrNull(product: ProductReference): Plugin? {
         return retrievePlugins()?.find { plugin ->
             plugin.productAllocation.any { it.id == product.id && it.category == product.category }
-        } 
+        }
     }
 
     protected fun lookupPlugin(product: ProductReference): Plugin {
         return lookupPluginOrNull(product) ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
     }
 
-    protected fun <Request : Any, Response> CallHandler<*, *, *>.dispatchToPlugin(
+    protected suspend fun <Request : Any, Response> CallHandler<*, *, *>.dispatchToPlugin(
         plugins: Collection<Plugin>,
         items: List<Request>,
-        selector: (Request) -> Res,
+        selector: suspend (Request) -> Resource<*, *>,
         dispatcher: suspend RequestContext.(plugin: Plugin, request: BulkRequest<Request>) -> BulkResponse<Response>
     ): BulkResponse<Response> {
         val response = ArrayList<Response?>()
@@ -68,10 +68,10 @@ abstract class BaseResourceController<
 
     protected data class ReorderedItem<T>(val originalIndex: Int, val item: T)
 
-    protected fun <T> groupResources(
+    protected suspend fun <T> groupResources(
         plugins: Collection<Plugin>,
         items: List<T>,
-        selector: (T) -> Res,
+        selector: suspend (T) -> Resource<*, *>,
     ): Map<Plugin, List<ReorderedItem<T>>> {
         val result = HashMap<Plugin, ArrayList<ReorderedItem<T>>>()
         for ((index, item) in items.withIndex()) {
@@ -147,6 +147,19 @@ abstract class BaseResourceController<
             }
         }
 
+        implement(api.updateAcl) {
+            if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+            ok(
+                dispatchToPlugin(plugins, request.items, { it.resource }) { plugin, request ->
+                    with(plugin) {
+                        updateAcl(request)
+                        BulkResponse(request.items.map { Unit })
+                    }
+                }
+            )
+        }
+
         implement(api.verify) {
             if (!config.shouldRunServerCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
@@ -166,7 +179,7 @@ abstract class BaseResourceController<
             plugins.forEach { plugin ->
                 with(requestContext(controllerContext)) {
                     with(plugin) {
-                        init(request.principal)
+                        initInUserMode(request.principal)
                     }
                 }
             }

@@ -4,8 +4,11 @@ import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.plugins.*
+import dk.sdu.cloud.sql.postgres.EmbeddedPostgres
 import dk.sdu.cloud.utils.*
+import libc.clib
 import java.io.File
+import java.nio.file.Files
 import kotlin.system.exitProcess
 
 // NOTE(Dan): To understand how this class is loaded, see the note in `Config.kt` of this package.
@@ -35,6 +38,8 @@ data class VerifiedConfig(
         val logs: Logs,
         val launchRealUserInstances: Boolean,
         val allowRootMode: Boolean,
+        val developmentMode: Boolean,
+        val cors: Cors
     ) {
         data class Hosts(
             val ucloud: Host,
@@ -46,7 +51,12 @@ data class VerifiedConfig(
         )
 
         data class Logs(
-            val directory: String
+            val directory: String,
+            val trace: List<ConfigSchema.Core.Logs.Tracer>
+        )
+
+        data class Cors(
+            val allowHosts: List<String>
         )
     }
 
@@ -73,12 +83,16 @@ data class VerifiedConfig(
         }
 
         data class Database(
-            val file: String,
+            val embeddedDataDirectory: File?,
+            val jdbcUrl: String,
+            val username: String?,
+            val password: String?,
         )
 
         data class Envoy(
             val executable: String?,
             val directory: String,
+            val downstreamTls: Boolean,
         )
     }
 
@@ -340,7 +354,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 verifyFile(
                     core.ipc?.directory ?: "/var/run/ucloud",
                     FileType.DIRECTORY,
-                    baseReference
+                    baseReference,
+                    requireWriteAccess = mode == ServerMode.Server
                 )
             )
 
@@ -352,18 +367,36 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 verifyFile(
                     core.logs?.directory ?: "/var/log/ucloud",
                     FileType.DIRECTORY,
-                    baseReference
+                    baseReference,
+                    requireWriteAccess = true
                 )
             )
 
-            VerifiedConfig.Core.Logs(directory)
+            val trace = config.core.logs?.trace ?: emptyList()
+
+            VerifiedConfig.Core.Logs(directory, trace)
+        }
+
+        val cors = run {
+            val allowHosts = core.cors?.allowHosts ?: emptyList()
+            VerifiedConfig.Core.Cors(allowHosts)
         }
 
         if (core.launchRealUserInstances && core.allowRootMode) {
             emitError("core.allowRootMode is only allowed if core.launchRealUserInstances = false")
         }
 
-        VerifiedConfig.Core(certificate, providerId, hosts, ipc, logs, core.launchRealUserInstances, core.allowRootMode)
+        VerifiedConfig.Core(
+            certificate,
+            providerId,
+            hosts,
+            ipc,
+            logs,
+            core.launchRealUserInstances,
+            core.allowRootMode,
+            core.developmentMode ?: (core.hosts.ucloud.host == "backend"),
+            cors
+        )
     }
 
     val server: VerifiedConfig.Server? = if (config.server == null) {
@@ -428,7 +461,6 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                     val userId = instance.userId
                     val port = instance.port
 
-                    val path = "server/developmentMode/predefinedUserInstances[$idx]"
                     val ref = baseReference
 
                     if (username.isBlank()) emitError("Username cannot be blank", ref)
@@ -465,16 +497,61 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             }
         }
 
-        val database: VerifiedConfig.Server.Database = run {
-            VerifiedConfig.Server.Database(
-                config.server.database?.file ?: (config.configurationDirectory + "/ucloud.sqlite3")
+        val database: VerifiedConfig.Server.Database = if (mode == ServerMode.Server) {
+            val database = config.server.database ?: ConfigSchema.Server.Database.Embedded(
+                File(config.configurationDirectory, "pgsql").absolutePath
             )
+
+            when (database) {
+                is ConfigSchema.Server.Database.Embedded -> {
+                    val workDir = File(database.directory)
+                    workDir.mkdirs()
+                    verifyFile(workDir.absolutePath, FileType.DIRECTORY)
+                    val dataDir = File(workDir, "data")
+
+                    val embeddedPostgres = EmbeddedPostgres.builder().apply {
+                        setCleanDataDirectory(false)
+                        setDataDirectory(dataDir.also { it.mkdirs() })
+                        setOverrideWorkingDirectory(workDir)
+                        setUseUnshare(clib.getuid() == 0)
+                        setPort(database.port)
+                    }.start()
+
+                    VerifiedConfig.Server.Database(
+                        dataDir,
+                        embeddedPostgres.getJdbcUrl("postgres", "postgres"),
+                        EmbeddedPostgres.PG_SUPERUSER,
+                        embeddedPostgres.password,
+                    )
+                }
+
+                is ConfigSchema.Server.Database.External -> {
+                    VerifiedConfig.Server.Database(
+                        null,
+                        buildString {
+                            append("jdbc:postgresql://")
+                            append(database.hostname)
+                            if (database.port != null) {
+                                append(':')
+                                append(database.port)
+                            }
+                            append('/')
+                            append(database.database)
+                        },
+                        database.username,
+                        database.password,
+                    )
+                }
+            }
+        } else {
+            VerifiedConfig.Server.Database(null, "", null, null)
         }
 
         val envoy: VerifiedConfig.Server.Envoy = run {
             val executable = config.server.envoy?.executable
             val directory = config.server.envoy?.directory ?: "/var/run/ucloud/envoy"
-            VerifiedConfig.Server.Envoy(executable, directory)
+            val downstreamTls = config.server.envoy?.downstreamTls ?: false
+            VerifiedConfig.Server.Envoy(executable, directory, downstreamTls)
         }
 
         VerifiedConfig.Server(refreshToken, network, developmentMode, database, envoy)
@@ -637,7 +714,16 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         }
     }
 
-    return VerifiedConfig(config.configurationDirectory, mode, core, server, plugins, config.plugins, products, frontendProxy)
+    return VerifiedConfig(
+        config.configurationDirectory,
+        mode,
+        core,
+        server,
+        plugins,
+        config.plugins,
+        products,
+        frontendProxy
+    )
 }
 
 // Plugin loading
@@ -737,6 +823,11 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
                 "launchRealUserInstances is false but not supported for this plugin: ${plugin.pluginTitle}"
             )
         }
+
+        if (plugin.pluginTitle == "Posix" && pluginProducts.size > 1) {
+            emitError("Plugin ${plugin.pluginTitle} supports only 1 product but multiple are specified")
+        }
+
         plugin.configure(pluginConfig)
         result[id] = plugin
     }
@@ -886,11 +977,14 @@ private fun verifyFile(
     path: String,
     typeRequirement: FileType?,
     ref: ConfigurationReference? = null,
+    requireWriteAccess: Boolean = false,
 ): VerifyResult<String> {
+    val fileExists = fileExists(path)
+    val fileIsDirectory = fileExists && fileIsDirectory(path)
     val isOk = when (typeRequirement) {
-        FileType.FILE -> fileExists(path) && !fileIsDirectory(path)
-        FileType.DIRECTORY -> fileExists(path) && fileIsDirectory(path)
-        else -> fileExists(path)
+        FileType.FILE -> fileExists && !fileIsDirectory
+        FileType.DIRECTORY -> fileExists && fileIsDirectory
+        else -> fileExists
     }
 
     if (!isOk) {
@@ -902,6 +996,13 @@ private fun verifyFile(
             }
         }
     } else {
+        if (requireWriteAccess) {
+            val hasWrite = Files.isWritable(File(path).toPath())
+            if (!hasWrite) {
+                return VerifyResult.Error("Unable to write to '$path'", ref)
+            }
+        }
+
         return VerifyResult.Ok(path)
     }
 }

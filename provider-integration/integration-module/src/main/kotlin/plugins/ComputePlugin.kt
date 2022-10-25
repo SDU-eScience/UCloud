@@ -120,7 +120,6 @@ abstract class EmptyComputePlugin : ComputePlugin {
     override suspend fun RequestContext.deleteBulk(request: BulkRequest<Job>): BulkResponse<Unit?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
 
     override suspend fun RequestContext.verify(jobs: List<Job>) {}
-    override suspend fun PluginContext.runMonitoringLoop() {}
 
     override suspend fun RequestContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<ComputeSupport> {
         return BulkResponse(knownProducts.map { ComputeSupport(it) })

@@ -108,7 +108,7 @@ export const FilesBrowse: React.FunctionComponent<{
         []
     );
 
-    const navigateToPath = useCallback((history: H.History, path: string) => {
+    const navigateToPath = useCallback((history: ReturnType<typeof useHistory>, path: string) => {
         if (browseType === BrowseType.Embedded && !props.forceNavigationToPage) {
             setPathFromState(path);
         } else {
@@ -116,7 +116,7 @@ export const FilesBrowse: React.FunctionComponent<{
         }
     }, [browseType, props.forceNavigationToPage]);
 
-    const navigateToFile = useCallback((history: H.History, file: UFile): "properties" | void => {
+    const navigateToFile = useCallback((history: ReturnType<typeof useHistory>, file: UFile): "properties" | void => {
         if (file.status.type === "DIRECTORY") {
             navigateToPath(history, file.id);
         } else {

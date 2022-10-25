@@ -184,7 +184,7 @@ interface AvatarSelect<T1, T2> {
     disabled: boolean;
 }
 
-function AvatarSelect<T1 extends string, T2>({
+function AvatarSelect<T1 extends string, T2 extends Object>({
     update,
     options,
     title,

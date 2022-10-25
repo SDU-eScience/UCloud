@@ -18,7 +18,7 @@ class DebugSystemFeature : MicroFeature, DebugSystem {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
         developmentMode = ctx.developmentModeEnabled
         var logLocation = "."
-        val potentialDirectories = listOf("/var/log/ucloud", "/tmp", "./")
+        val potentialDirectories = listOf("/var/log/ucloud/structured", "/tmp", "./")
         for (loc in potentialDirectories) {
             val dir = File(loc)
             if (!dir.exists()) {
@@ -38,7 +38,11 @@ class DebugSystemFeature : MicroFeature, DebugSystem {
         }
 
         val directory = CommonFile(logLocation)
-        delegate = CommonDebugSystem(serviceDescription.name, directory, disabled = !ctx.developmentModeEnabled)
+        delegate = CommonDebugSystem(
+            serviceDescription.name,
+            directory,
+            if (ctx.developmentModeEnabled) DebugMessageTransformer.Development else DebugMessageTransformer.Disabled
+        )
 
         installCommon(ctx.client)
 

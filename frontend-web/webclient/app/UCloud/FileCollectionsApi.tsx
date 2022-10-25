@@ -11,7 +11,6 @@ import {
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Box, Button, Divider, Flex, Icon, Input} from "@/ui-components";
 import * as React from "react";
-import * as H from "history";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductStorage, UCLOUD_PROVIDER} from "@/Accounting";
@@ -25,6 +24,7 @@ import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
 import {doNothing} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {useHistory} from "react-router";
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
@@ -219,7 +219,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         ]
     }
 
-    navigateToChildren(history: H.History, resource: FileCollection) {
+    navigateToChildren(history: ReturnType<typeof useHistory>, resource: FileCollection) {
         history.push(buildQueryString("/files", {path: `/${resource.id}`}))
     }
 

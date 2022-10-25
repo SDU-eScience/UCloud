@@ -34,8 +34,8 @@ import {WebSocketConnection} from "@/Authentication/ws";
 //
 // Otherwise, look further down where the general concepts are explained.
 function resolveNotification(event: Notification): {
-    icon: IconName; 
-    color?: ThemeColor; 
+    icon: IconName;
+    color?: ThemeColor;
     color2?: ThemeColor;
     modifiedTitle?: string;
     modifiedMessage?: JSX.Element | string;
@@ -68,7 +68,7 @@ function resolveNotification(event: Notification): {
     }
 }
 
-function onNotificationAction(notification: Notification, history: H.History, dispatch: Dispatch) {
+function onNotificationAction(notification: Notification, history: ReturnType<typeof useHistory>, dispatch: Dispatch) {
     const currentProject = getStoredProject();
     switch (notification.type) {
         case "APP_COMPLETE":
@@ -112,13 +112,13 @@ function onNotificationAction(notification: Notification, history: H.History, di
 //
 // The anatomy of an notification is roughly as follows:
 //
-//    
-//  /-----------------------------------------\ 
+//
+//  /-----------------------------------------\
 // X +--+ --Title--                      Date  X
 // X |  | --Message----------------            X
 // X +--+                                      X
-//  \-----------------------------------------/ 
-//                                              
+//  \-----------------------------------------/
+//
 // Each notification has:
 //
 // - An icon, which indicates roughly the type of event which has occured.
@@ -157,7 +157,7 @@ function renderNotifications() {
     }
 }
 
-// NOTE(Dan): The frontend can generate its own notification thorugh `sendNotification()`. This is generally prefered
+// NOTE(Dan): The frontend can generate its own notification through `sendNotification()`. This is generally preferred
 // over using the `snackbar` functions, as these allow for greater flexibility.
 export function sendNotification(notification: NormalizedNotification) {
     const normalized = normalizeNotification(notification);
@@ -178,12 +178,12 @@ export function sendNotification(notification: NormalizedNotification) {
 // function is responsible for pulling information from these sources and pushing it into the `notificationStore`.
 // When UI updates are required, then this function will invoke `renderNotifications()` to trigger a UI update in all
 // relevant components.
-let wsConnection: WebSocketConnection | undefined = undefined; 
+let wsConnection: WebSocketConnection | undefined = undefined;
 let snackbarSubscription: (snack?: Snack) => void = () => {};
 let snoozeLoop: any;
 function initializeStore() {
     // NOTE(Dan): We first fetch a history of old events. These are only added to the tray and do not trigger a popup.
-    callAPI<Page<Notification>>({ 
+    callAPI<Page<Notification>>({
         context: "",
         path: buildQueryString("/api/notifications", {itemsPerPage: 250}),
     }).then(resp => {
@@ -254,7 +254,7 @@ export function markAllAsRead() {
 
 export function markAsRead(notifications: NormalizedNotification[]) {
     for (const notification of notifications) {
-        notification.read = true; 
+        notification.read = true;
     }
     renderNotifications();
 
@@ -270,14 +270,14 @@ export function markAsRead(notifications: NormalizedNotification[]) {
             context: "",
             method: "POST",
             path: "/api/notifications/read",
-            payload: {ids: idsToUpdate},
+            payload: {ids: idsToUpdate.join(",")},
         });
     }
 }
 
 // HACK(Dan): I would agree this isn't great.
-let normalizationDependencies: { 
-    history: H.History; 
+let normalizationDependencies: {
+    history: ReturnType<typeof useHistory>;
     dispatch: Dispatch;
     refresh: { current?: () => void }
 } | null = null;
@@ -285,7 +285,7 @@ let normalizationDependencies: {
 // The <Notifications> component is the main component for notifications. It is almost always mounted and visible in
 // the navigation header. Here it leaves a bell icon, which can be clicked to open the notification tray. This
 // function is responsible for initializing the notification store. It is also responsible for mounting the popup
-// component. 
+// component.
 export const Notifications: React.FunctionComponent = () => {
     const history = useHistory();
     const dispatch = useDispatch();
@@ -447,13 +447,13 @@ export interface Notification {
 }
 
 function normalizeNotification(
-    notification: Notification | NormalizedNotification, 
+    notification: Notification | NormalizedNotification,
 ): NormalizedNotification & { onSnooze?: () => void } {
     const {history, dispatch, refresh} = normalizationDependencies!;
 
     if ("isPinned" in notification) {
         const result = {
-            ...notification, 
+            ...notification,
             onSnooze: () => Snooze.snooze(notification.uniqueId),
         };
         result.onAction = () => {
@@ -517,7 +517,7 @@ function NotificationEntry(props: NotificationEntryProps): JSX.Element {
 
     return (
         <NotificationWrapper onClick={onAction} className={classes.join(" ")}>
-            <Icon name={notification.icon} size="24px" color={notification.iconColor ?? "iconColor"} 
+            <Icon name={notification.icon} size="24px" color={notification.iconColor ?? "iconColor"}
                   color2={notification.iconColor2 ?? "iconColor2"} />
             <div className="notification-content">
                 <Flex>

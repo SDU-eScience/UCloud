@@ -5,10 +5,7 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.elastic.management.services.*
 import dk.sdu.cloud.elastic.management.services.deleteIndex
 import dk.sdu.cloud.elastic.management.services.getListOfIndices
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.commandLineArguments
-import dk.sdu.cloud.micro.elasticHighLevelClient
-import dk.sdu.cloud.micro.elasticLowLevelClient
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.startServices
 import elastic.management.services.ElasticEntryCleanupService
@@ -24,6 +21,8 @@ class Server(
     override val log = logger()
 
     override fun start() {
+        if (micro.featureOrNull(ElasticFeature) == null) return
+
         val elasticHighLevelClient = micro.elasticHighLevelClient
         val elasticLowLevelClient = micro.elasticLowLevelClient
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)

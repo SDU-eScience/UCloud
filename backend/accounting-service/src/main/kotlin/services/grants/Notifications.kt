@@ -3,7 +3,7 @@ package dk.sdu.cloud.accounting.services.grants
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.grant.api.GrantRecipient
+import dk.sdu.cloud.grant.api.GrantApplication
 import dk.sdu.cloud.mail.api.*
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
@@ -39,7 +39,7 @@ data class NotificationContext(
     val projectId: String,
     val requestedBy: String,
     val grantRecipientTitle: String,
-    val grantRecipient: GrantRecipient,
+    val grantRecipient: GrantApplication.Recipient
 )
 
 class GrantNotificationService(
@@ -56,7 +56,7 @@ class GrantNotificationService(
             val title: String,
             val projectId: String,
             val grantRecipientTitle: String,
-            val grantRecipient: GrantRecipient
+            val grantRecipient: GrantApplication.Recipient
         )
 
         val rows = db.withSession(remapExceptions = true) { session ->
@@ -65,23 +65,32 @@ class GrantNotificationService(
                     setParameter("id", notification.applicationId)
                 },
                 """
+                    with max_revision as (
+                        select max(revision_number) newest, application_id
+                        from "grant".revisions 
+                        where application_id = :id
+                        group by application_id
+                    )
                     select
                         app.requested_by,
                         pm.username,
                         project.title,
                         project.id,
-                        coalesce(existing_project.title, app.grant_recipient),
-                        app.grant_recipient_type
+                        coalesce(existing_project.title, f.recipient),
+                        f.recipient_type
                     from
                         "grant".applications app join
+                        max_revision mr on app.id = mr.application_id join
+                        "grant".requested_resources rr on app.id = rr.application_id and mr.newest = rr.revision_number join
+                        "grant".forms f on app.id = f.application_id and mr.newest = f.revision_number join
                         project.projects project on
-                            app.resources_owned_by = project.id join
+                            rr.grant_giver = project.id join
                         project.project_members pm on
                             pm.project_id = project.id and
                             (pm.role = 'ADMIN' or pm.role = 'PI') left join
                         project.projects existing_project on
-                            app.grant_recipient_type = 'existing_project' and
-                            app.grant_recipient = existing_project.id
+                            f.recipient_type = 'existing_project' and
+                            f.recipient = existing_project.id
                     where
                         app.id = :id
                 """
@@ -93,14 +102,14 @@ class GrantNotificationService(
                     it.getString(3)!!,
                     it.getString(4)!!,
                     when (it.getString(5)!!) {
-                        GrantRecipient.NEW_PROJECT_TYPE -> {
-                            GrantRecipient.NewProject(it.getString(4)!!)
+                        GrantApplication.Recipient.NEW_PROJECT_TYPE -> {
+                            GrantApplication.Recipient.NewProject(it.getString(4)!!)
                         }
-                        GrantRecipient.PERSONAL_TYPE -> {
-                            GrantRecipient.PersonalProject(it.getString(4)!!)
+                        GrantApplication.Recipient.PERSONAL_TYPE -> {
+                            GrantApplication.Recipient.PersonalWorkspace(it.getString(4)!!)
                         }
-                        GrantRecipient.EXISTING_PROJECT_TYPE -> {
-                            GrantRecipient.ExistingProject(it.getString(4)!!)
+                        GrantApplication.Recipient.EXISTING_PROJECT_TYPE -> {
+                            GrantApplication.Recipient.ExistingProject(it.getString(4)!!)
                         }
                         else -> error("database consistency error")
                     }

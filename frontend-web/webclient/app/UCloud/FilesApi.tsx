@@ -53,9 +53,20 @@ import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/Meta
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import MetadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
 import { useCallback, useEffect, useState } from "react";
-import {getCookie} from "@/Login/Wayf";
 import { SyncthingConfig, SyncthingDevice, SyncthingFolder } from "@/Syncthing/api";
 import { useHistory } from "react-router";
+import { Feature, hasFeature } from "@/Features";
+import { b64EncodeUnicode } from "@/Utilities/XHRUtils";
+
+export function normalizeDownloadEndpoint(endpoint: string): string {
+    const e = endpoint.replace("integration-module:8889", "localhost:8889");
+    const queryParameter = `usernameHint=${b64EncodeUnicode(Client.activeUsername!)}`;
+    if (e.indexOf("?") !== -1) {
+        return e + "&" + queryParameter;
+    } else {
+        return e + "?" + queryParameter;
+    }
+}
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -463,7 +474,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
                     const responses = result?.responses ?? [];
                     for (const {endpoint} of responses) {
-                        downloadFile(endpoint.replace("integration-module:8889", "localhost:8889"));
+                        downloadFile(normalizeDownloadEndpoint(endpoint));
                     }
                 }
             },
@@ -661,6 +672,17 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: (selected, cb) => {
                     if (!cb.directory) return;
                     synchronizationOpOnClick([cb.directory], cb);
+                }
+            },
+            {
+                text: "Open terminal",
+                primary: true,
+                icon: "terminalSolid",
+                canAppearInLocation: loc => loc === "SIDEBAR",
+                enabled: () => hasFeature(Feature.INLINE_TERMINAL),
+                onClick: (selected, cb) => {
+                    cb.dispatch({type: "TerminalOpen"});
+                    cb.dispatch({type: "TerminalOpenTab", tab: {title: "Hippo"}});
                 }
             },
             {

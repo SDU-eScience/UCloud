@@ -68,13 +68,14 @@ class KubernetesNode(private val node: Node, val categoryToSelector: Map<String,
 class VolcanoRuntime(
     private val k8: K8DependenciesImpl,
     private val categoryToSelector: Map<String, String>,
+    private val fakeIpMount: Boolean,
 ) : ContainerRuntime {
     override fun builder(
         jobId: String,
         replicas: Int,
         block: ContainerBuilder.() -> Unit
     ): ContainerBuilder {
-        return VolcanoContainerBuilder(jobId, replicas, k8.nameAllocator, k8, categoryToSelector).also(block)
+        return VolcanoContainerBuilder(jobId, replicas, k8.nameAllocator, k8, categoryToSelector, fakeIpMount = fakeIpMount).also(block)
     }
 
     override suspend fun scheduleGroup(group: List<ContainerBuilder>) {
@@ -352,7 +353,8 @@ class VolcanoContainerBuilder(
     private val nameAllocator: NameAllocator,
     private val k8: K8DependenciesImpl,
     private val categoryToSelector: Map<String, String>,
-    override val isSidecar: Boolean = false
+    override val isSidecar: Boolean = false,
+    override val fakeIpMount: Boolean,
 ) : PodBasedBuilder() {
     override var productCategoryRequired: String?
         get() = error("read not supported")
@@ -482,7 +484,7 @@ class VolcanoContainerBuilder(
         if (!supportsSidecar()) error("Cannot call sidecar {} in a sidecar container")
         podSpec.initContainers = podSpec.initContainers ?: ArrayList()
         val initContainers = podSpec.initContainers as ArrayList
-        val sidecarContainer = VolcanoContainerBuilder(jobId, 1, nameAllocator, k8, categoryToSelector).also(builder).container
+        val sidecarContainer = VolcanoContainerBuilder(jobId, 1, nameAllocator, k8, categoryToSelector, fakeIpMount = fakeIpMount).also(builder).container
         sidecarContainer.name = name
         initContainers.add(sidecarContainer)
     }

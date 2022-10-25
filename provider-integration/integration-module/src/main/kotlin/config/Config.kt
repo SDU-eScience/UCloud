@@ -39,6 +39,8 @@ data class ConfigSchema(
         val logs: Logs? = null,
         val launchRealUserInstances: Boolean = true,
         val allowRootMode: Boolean = false,
+        val developmentMode: Boolean? = null,
+        val cors: Cors? = null,
     ) {
         @Serializable
         data class Hosts(
@@ -53,7 +55,17 @@ data class ConfigSchema(
 
         @Serializable
         data class Logs(
-            val directory: String,
+            val directory: String? = null,
+            val trace: List<Tracer>? = emptyList(),
+        ) {
+            enum class Tracer {
+                SHELL
+            }
+        }
+
+        @Serializable
+        data class Cors(
+            val allowHosts: List<String>? = null
         )
     }
 
@@ -84,14 +96,31 @@ data class ConfigSchema(
         }
 
         @Serializable
-        data class Database(
-            val file: String,
-        )
+        sealed class Database {
+            @Serializable
+            @SerialName("Embedded")
+            data class Embedded(
+                val directory: String,
+                // NOTE(Dan): Set to 0 for a random port
+                val port: Int = 5432
+            ) : Database()
+
+            @Serializable
+            @SerialName("External")
+            data class External(
+                val hostname: String,
+                val port: Int? = null,
+                val username: String,
+                val password: String,
+                val database: String
+            ) : Database()
+        }
 
         @Serializable
         data class Envoy(
             val executable: String? = null,
             val directory: String,
+            val downstreamTls: Boolean = false,
         )
     }
 
@@ -151,14 +180,17 @@ data class ConfigSchema(
             @Serializable
             @SerialName("OpenIdConnect")
             data class OpenIdConnect(
-                val certificate: String,
+                @Deprecated("Replaced with signing block")
+                val certificate: String? = null,
                 val mappingTimeToLive: Ttl,
                 val endpoints: Endpoints,
                 val client: Client,
                 val extensions: Extensions,
                 val redirectUrl: String? = null,
                 val requireSigning: Boolean = false,
+                val signing: Signing? = null,
                 override val installSshKeys: Boolean = true,
+                val experimental: Experimental = Experimental(),
             ) : Connection(), WithAutoInstallSshKey {
                 @Serializable
                 data class Ttl(
@@ -184,6 +216,32 @@ data class ConfigSchema(
                 data class Extensions(
                     val onConnectionComplete: String,
                 )
+
+                @Serializable
+                data class Signing(
+                    val algorithm: SignatureType,
+                    val key: String,
+                    val issuer: String? = null,
+                )
+
+                enum class SignatureType {
+                    // NOTE(Dan): This is incomplete
+                    RS256,
+                    ES256
+                }
+
+                @Serializable
+                data class Experimental(
+                    val tokenToUse: TokenToUse = TokenToUse.id_token
+                )
+
+                enum class TokenToUse {
+                    // NOTE(Dan): The spec says you should use this
+                    id_token,
+
+                    // NOTE(Dan): ...and not this one.
+                    access_token
+                }
             }
         }
 
@@ -258,6 +316,9 @@ data class ConfigSchema(
                 val useFakeMemoryAllocations: Boolean = false,
                 val accountMapper: AccountMapper = AccountMapper.None(),
                 val modifySlurmConf: String? = "/etc/slurm/slurm.conf",
+                val web: Web = Web.None(),
+                val udocker: UDocker = UDocker(),
+                val terminal: Terminal = Terminal.Ssh()
             ) : Jobs() {
                 @Serializable
                 sealed class AccountMapper {
@@ -270,6 +331,57 @@ data class ConfigSchema(
                     @Serializable
                     @SerialName("Extension")
                     data class Extension(val extension: String) : AccountMapper()
+                }
+
+                @Serializable
+                sealed class Web {
+                    @Serializable
+                    @SerialName("None")
+                    class None : Web()
+
+                    @Serializable
+                    @SerialName("Simple")
+                    class Simple(
+                        val domainPrefix: String,
+                        val domainSuffix: String,
+                    ) : Web()
+                }
+
+                @Serializable
+                data class UDocker(
+                    val enabled: Boolean = false,
+                    val execMode: ExecMode = ExecMode.P2
+                ) {
+                    enum class ExecMode {
+                        P1,
+                        P2,
+                        F1,
+                        F2,
+                        F3,
+                        F4,
+                        R1,
+                        R2,
+                        R3,
+                        S1
+                    }
+                }
+
+                @Serializable
+                sealed class Terminal {
+                    abstract val enabled: Boolean
+
+                    @Serializable
+                    @SerialName("SSH")
+                    data class Ssh(
+                        override val enabled: Boolean = true,
+                        val generateSshKeys: Boolean = false,
+                    ) : Terminal()
+
+                    @Serializable
+                    @SerialName("Slurm")
+                    data class Slurm(
+                        override val enabled: Boolean = true
+                    ) : Terminal()
                 }
             }
 
@@ -291,9 +403,25 @@ data class ConfigSchema(
                 val namespace: String = "app-kubernetes",
                 val scheduler: Scheduler = Scheduler.Volcano,
                 val categoryToSelector: Map<String, String> = emptyMap(),
+                val fakeIpMount: Boolean = false,
+                val ssh: Ssh? = null,
             ) : Jobs() {
                 @Serializable
                 data class TolerationKeyAndValue(val key: String, val value: String)
+
+                @Serializable
+                data class SshSubnet(
+                    val iface: String,
+                    val privateCidr: String,
+                    val publicHostname: String,
+                    val portMin: Int,
+                    val portMax: Int,
+                )
+
+                @Serializable
+                data class Ssh(
+                    val subnets: List<SshSubnet>,
+                )
 
                 enum class Scheduler {
                     Volcano,
@@ -330,18 +458,15 @@ data class ConfigSchema(
             @SerialName("Posix")
             data class Posix(
                 override val matches: String,
-                val simpleHomeMapper: List<HomeMapper> = emptyList(),
                 val extensions: Extensions = Extensions(),
+                @Deprecated("replace with extensions.accounting")
                 val accounting: String? = null,
             ) : ConfigSchema.Plugins.FileCollections() {
                 @Serializable
-                data class HomeMapper(
-                    val title: String,
-                    val prefix: String,
-                )
-
-                @Serializable
                 data class Extensions(
+                    val driveLocator: String? = null,
+                    val accounting: String? = null,
+                    @Deprecated("replace with driveLocator")
                     val additionalCollections: String? = null,
                 )
             }

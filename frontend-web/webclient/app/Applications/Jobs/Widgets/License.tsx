@@ -46,7 +46,7 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
                 tagged={props.parameter.tagged}
                 // TODO(Dan) Provider
                 additionalFilters={filters}
-                onSelectRestriction={res => res.status.boundTo.length === 0}
+                onSelectRestriction={() => true}
                 browseType={BrowseType.Embedded}
                 onSelect={onUse}
             />

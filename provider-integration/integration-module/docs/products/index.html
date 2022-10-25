@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Products - UCloud/IM Documentation</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body class="content">
+    <h1>Products</h1>
+    <div class="summary">
+        Contains information about the services that you, as a provider, expose via UCloud. Access to products are
+        regulated through 
+        <a href="https://docs.cloud.sdu.dk/dev/docs/developer-guide/accounting-and-projects/grants/grants.html" target="_blank">grant applications</a> 
+        and all usage is 
+        <a href="https://docs.cloud.sdu.dk/dev/docs/developer-guide/accounting-and-projects/accounting/wallets.html" target="_blank">accounted</a> 
+        for.
+    </div>
+
+    <table>
+        <tbody>
+            <tr>
+                <th width="120px">File</th>
+                <td><code>products.yaml</code></td>
+            </tr>
+            <tr>
+                <th>Permissions</th>
+                <td><code>rw-r--r-- (644)</code></td>
+            </tr>
+            <tr>
+                <th>Mandatory</th>
+                <td>Yes</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <section>
+        <h2>Introduction</h2>
+
+        <doc-todo></doc-todo>
+
+        <ol>
+            <li>Products define your services.</li>
+            <li>Some examples include different machine reservations, file-systems and software licenses</li>
+            <li>Any service you expose must have a backing product</li>
+            <li>Products have categories.</li>
+            <li>All products in a category must have the same payment model.</li>
+            <li>Allocations are for a category of products.</li>
+            <li>The structure of the file contains this information.</li>
+        </ol>
+
+        <doc-snippet>
+            compute:
+                foo-cpu:                        # This is the category
+                    - name: foo-cpu-1
+                      description: This is a foo-cpu type machine with 1 vCPU.
+                      cpu: 1                    # One generic vCPU core
+                      memoryInGigs: 4           # Four gigabytes of memory
+                      gpu: 0                    # No GPUs attached
+
+                      cost:                     # This is roughly 0.100 DKK/hour
+                        currency: DKK
+                        frequency: MINUTE
+                        cost: 0.001666
+
+                    - name: foo-cpu-4
+                      description: This is a foo-cpu type machine with 4 vCPU.
+                      cpu: 1                    # Four generic vCPU core
+                      memoryInGigs: 4           # 16 gigabytes of memory
+                      gpu: 0                    # No GPUs attached
+
+                      cost:                     # This is roughly 0.100 DKK/hour
+                        currency: DKK
+                        frequency: MINUTE
+                        cost: 0.006666
+
+            storage:
+                foo-cephfs:                     # This is the category
+                    - name: foo-cephfs
+                      description: This is the CephFS system at foo.
+                      cost:                     # This product is allocated with a quota on the concurrent use 
+                        quota: true             # (e.g. at most 100GB can be used at the same time).
+
+            ingress: []
+            publicIps: []
+            licenses: []
+        </doc-snippet>
+    </section>
+
+    <section>
+        <h2>Payment model</h2>
+
+        <p>
+            The payment model of UCloud is fairly flexible, unfortunately with this, it also becomes a bit complex to 
+            understand. In this section, we will attempt to guide you through choosing the right payment model for your
+            product.
+        </p>
+
+        <h3>1) Is the product allocated on a quota basis? (<code>quota</code>)</h3>
+
+        If the product is allocated on a quota basis of maximum concurrent usage, then the configuration is fairly
+        simple and is always as shown below:
+
+        <figure>
+            <doc-snippet>
+                cost:
+                    quota: true
+            </doc-snippet>
+
+            <figcaption>
+                A product which is using allocated based on maximum concurrent usage. We recommend that you only use 
+                this for products such as <code>storage</code>, <code>ingress</code>, <code>licenses</code> and
+                <code>publicIps</code>. We <i>do not</i> recommend that you use this for compute based products. For a
+                compute based product this would translate into "a maximum number of concurrently active cores".
+            </figcaption>
+        </figure>
+
+        <h3>2) Which unit do you use for allocations? (<code>currency</code>)</h3>
+
+        <p>
+            This section is only used if <code>quota: false</code>. For all other 
+            cases you must not supply this property.
+        </p>
+
+        <p>
+            In UCloud, there are three types of allocations you can give your users:
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>DKK</code></td>
+                    <td>
+                        Using regular money (e.g. DKK or EUR). <br>
+                        <b>Note (24/10/2022):</b> The only currency available is DKK at the moment. A future update 
+                        will expand this.
+                    </td>
+                </tr>
+                <tr>
+                    <td><code>UNITS</code></td>
+                    <td>A product specific unit (e.g. "<b>GB</b> days", "<b>Core</b> hours" or "<b>IP</b> minutes")</td>
+                </tr>
+                <tr>
+                    <td><code>FREE</code></td>
+                    <td>The product is always free to use and does not require further approval</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>3) How frequent are charges made and what is the lowest amount of use a user can be charged for? (<code>frequency</code>)</h3>
+
+        <p>
+            This section is only used if <code>quota: false</code>. For all other 
+            cases you must not supply this property.
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>ONE_TIME</code></td>
+                    <td>The resource is paid for only once and can be used for its entire duration/indefinitely.</td>
+                </tr>
+                <tr>
+                    <td><code>MINUTE</code></td>
+                    <td>The user pays for the amount of time the resource is used. The lowest charge is for a single minute.</td>
+                </tr>
+                <tr>
+                    <td><code>HOUR</code></td>
+                    <td>The user pays for the amount of time the resource is used. The lowest charge is for a single hour.</td>
+                </tr>
+                <tr>
+                    <td><code>DAY</code></td>
+                    <td>The user pays for the amount of time the resource is used. The lowest charge is for a single day.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>4) What is the price? (<code>price</code>)</h3>
+
+        <p>
+            This section is only used if <code>quota: false</code> and <code>currency: DKK</code>. For all other 
+            cases you must not supply this property. This property must contain a decimal value which is the price for
+            a single period (see <code>frequency</code>) of use. Note that UCloud/Core has limited precision and will 
+            reject your request if it is unable to precisely represent your price. For extremely cheap products, you may
+            need to adjust the <code>frequency</code> in order to precisely represent your price.
+        </p>
+    </section>
+
+    <section>
+        <h2>Examples</h2>
+
+        <doc-todo></doc-todo>
+
+        <h3>CPU and GPU using core hours</h3>
+        <h3>CPU and GPU using DKK/hour</h3>
+        <h3>Storage using TB hours</h3>
+        <h3>Storage using quota</h3>
+        <h3>IP addresses using DKK</h3>
+        <h3>IP using quota</h3>
+        <h3>Licenses using quota</h3>
+        <h3>Licenses using one-time payment of DKK</h3>
+    </section>
+
+    <script src="/app.js"></script>
+</body>
+
+</html>

@@ -115,8 +115,8 @@ const HoverIcon = styled(Icon)`
     }
 `;
 
-function onProjectUpdated(history: History, runThisFunction: () => void, refresh?: () => void): void {
-    const {pathname, search} = window.location;
+function onProjectUpdated(history: ReturnType<typeof useHistory>, runThisFunction: () => void, refresh?: () => void): void {
+    const {pathname} = window.location;
     runThisFunction();
     if (pathname === "/app/files") {
         history.push("/drives")

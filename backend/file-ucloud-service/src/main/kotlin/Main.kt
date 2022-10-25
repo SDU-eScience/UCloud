@@ -10,6 +10,7 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EmptyServer
 
 data class Configuration(
+    val enabled: Boolean = true,
     val providerId: String = "ucloud",
     val providerRefreshToken: String? = null,
     val ucloudCertificate: String? = null,

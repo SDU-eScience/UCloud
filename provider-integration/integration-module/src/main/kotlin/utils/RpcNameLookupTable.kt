@@ -7,6 +7,11 @@ fun doesCallRequireSignature(providerId: String, incomingCall: String): Boolean 
     return when (incomingCall) {
         // TODO(Dan): Not entirely complete but will probably cover most if not all calls
         "file.$providerId.download.download" -> false
+        "jobs.compute.$providerId.shell.open" -> false
+
+        // NOTE(Dan): We skip check because the cancel call comes much after the initial call. This is a limitation
+        // of the current system which should be improved.
+        "jobs.provider.$providerId.follow" -> false
         else -> true
     }
 }
@@ -17,8 +22,7 @@ fun doesIntentMatchCall(providerId: String, intent: IntentToCall, call: CallDesc
         // NOTE(Dan): Allow streamingSearch to also trigger normal search as these are similar to eachother and gives
         // the core a bit of flexibility.
         incomingCall == "files.provider.$providerId.streamingSearch" -> {
-            intent.call == "files.provider.$providerId.streamingSearch" ||
-                    intent.call == "files.provider.$providerId.search"
+            intent.call == "files.streamingSearch" || intent.call == "files.search"
         }
 
         // NOTE(Dan): SSH synchronization can be triggered by multiple user calls, yet they all result in the same

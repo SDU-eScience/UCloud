@@ -16,4 +16,8 @@ object IntegrationControl : CallDescriptionContainer("providers.im.control") {
     val approveConnection = call("approveConnection", IntegrationControlApproveConnectionRequest.serializer(), IntegrationControlApproveConnectionResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "approveConnection", Roles.PROVIDER)
     }
+
+    val clearConnection = call("clearConnection", IntegrationClearConnectionRequest.serializer(), IntegrationClearConnectionResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "clearConnection", roles = Roles.PROVIDER)
+    }
 }

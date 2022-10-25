@@ -9,8 +9,7 @@ import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
-import {Label, Input, Image, Box, Flex, Tooltip, NoSelect, Icon, Text, Button, ExternalLink, FtIcon, 
-         List} from "@/ui-components";
+import {Label, Input, Image, Box, Flex, Tooltip, NoSelect, Icon, Text, Button, ExternalLink, FtIcon, List} from "@/ui-components";
 import MainContainer from "@/MainContainer/MainContainer";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import styled from "styled-components";
@@ -213,7 +212,7 @@ async function onAction(_: UIState, action: UIAction, cb: ActionCallbacks): Prom
 }
 
 interface ActionCallbacks {
-    history: History;
+    history: ReturnType<typeof useHistory>;
     pureDispatch: (action: UIAction) => void;
     requestReload: () => void; // NOTE(Dan): use when it is difficult to rollback a change
     requestJobReloader: () => void;
@@ -222,7 +221,7 @@ interface ActionCallbacks {
 }
 
 interface OperationCallbacks {
-    history: History;
+    history: ReturnType<typeof useHistory>;
     dispatch: (action: UIAction) => void;
     requestReload: () => void;
     permissionProblems: string[];
@@ -299,7 +298,7 @@ export const Overview: React.FunctionComponent = () => {
     const [permissionProblems, setPermissionProblems] = useState<string[]>([]);
     React.useEffect(() => {
         if (folders.length === 0) return;
-        Promise.allSettled(folders.filter(it => it.ucloudPath != null).map(f => 
+        Promise.allSettled(folders.filter(it => it.ucloudPath != null).map(f =>
             callAPI(FilesApi.browse({path: f!.ucloudPath, itemsPerPage: 250}))
         )).then(promises => {
             const result: string[] = [];
@@ -402,7 +401,7 @@ export const Overview: React.FunctionComponent = () => {
 
     let main: JSX.Element;
     if (uiState.devices !== undefined && uiState.devices.length === 0) {
-        main = <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard}/>;
+        main = <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard} />;
     } else {
         main = <OverviewStyle>
             {uiState.showDeviceWizard !== true ? null :
@@ -413,7 +412,7 @@ export const Overview: React.FunctionComponent = () => {
                     ariaHideApp={false}
                     onRequestClose={closeWizard}
                 >
-                    <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard}/>
+                    <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard} />
                 </ReactModal>
             }
 
@@ -425,7 +424,7 @@ export const Overview: React.FunctionComponent = () => {
                     className="devices"
                     subtitle={<Flex>
                         <ExternalLink href="https://syncthing.net/downloads/" mr="8px">
-                            <Button><Icon name="open" mr="4px" size="14px"/> Download Syncthing</Button>
+                            <Button><Icon name="open" mr="4px" size="14px" /> Download Syncthing</Button>
                         </ExternalLink>
                         <Button onClick={openWizard}>Add device</Button>
                     </Flex>}
@@ -500,9 +499,9 @@ export const Overview: React.FunctionComponent = () => {
                 </Text>
 
                 {uiState.folders !== undefined && folders.length === 0 ?
-                    <EmptyFolders onAddFolder={openFileSelector}/> :
+                    <EmptyFolders onAddFolder={openFileSelector} /> :
                     <>
-                        {uiState.didAddFolder ? <EmptyFolders didAdd onAddFolder={openFileSelector}/> : null}
+                        {uiState.didAddFolder ? <EmptyFolders didAdd onAddFolder={openFileSelector} /> : null}
                         <List mt="16px">
                             {folders.map(it =>
                                 <ItemRow
@@ -524,7 +523,7 @@ export const Overview: React.FunctionComponent = () => {
         </OverviewStyle>;
     }
 
-    return <MainContainer main={main}/>;
+    return <MainContainer main={main} />;
 };
 
 // Secondary interface
@@ -544,7 +543,7 @@ const DeviceRenderer: ItemRenderer<SyncthingDevice> = {
 
         const doCopyId = useCallback((e: React.SyntheticEvent) => {
             e.stopPropagation();
-            copyToClipboard({ value: resource.deviceId, message: "Device ID copied to clipboard!" });
+            copyToClipboard({value: resource.deviceId, message: "Device ID copied to clipboard!"});
         }, [resource.deviceId]);
 
         const trigger = <DeviceBox onClick={doCopyId}><code>{resource.deviceId.split("-")[0]}</code></DeviceBox>;
@@ -558,7 +557,7 @@ const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
         icon: "id",
         enabled: selected => selected.length === 1,
         onClick: ([device]) => {
-            copyToClipboard({ value: device.deviceId, message: "Device ID copied to clipboard!" });
+            copyToClipboard({value: device.deviceId, message: "Device ID copied to clipboard!"});
         },
     },
     {
@@ -577,7 +576,7 @@ const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
 
 const FolderRenderer: ItemRenderer<SyncthingFolder> = {
     Icon: ({size}) => {
-        return <FtIcon fileIcon={{type: "DIRECTORY", ext: ""}} size={size}/>;
+        return <FtIcon fileIcon={{type: "DIRECTORY", ext: ""}} size={size} />;
     },
 
     MainTitle: ({resource, callbacks}) => {
@@ -631,7 +630,7 @@ const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
 const ServerRenderer: ItemRenderer<Job> = {
     Icon: ({resource, size}) => {
         if (!resource) return null;
-        return <AppToolLogo type="APPLICATION" name={resource.specification.application.name} size={size}/>;
+        return <AppToolLogo type="APPLICATION" name={resource.specification.application.name} size={size} />;
     },
 
     MainTitle: ({resource}) => {
@@ -650,14 +649,14 @@ const ServerRenderer: ItemRenderer<Job> = {
             case "SUSPENDED":
             case "CANCELING": {
                 return <Flex alignItems="center">
-                    <Spinner/>
+                    <Spinner />
                     <Box ml="8px">Updating...</Box>
                 </Flex>;
             }
 
             case "RUNNING": {
                 return <Flex alignItems="center">
-                    <Icon name="check" color="green"/>
+                    <Icon name="check" color="green" />
                     <Box ml="8px">Running</Box>
                 </Flex>
             }
@@ -665,7 +664,7 @@ const ServerRenderer: ItemRenderer<Job> = {
             case "SUCCESS":
             case "FAILURE": {
                 return <Flex alignItems="center">
-                    <Icon name="pauseSolid" color="purple"/>
+                    <Icon name="pauseSolid" color="purple" />
                     <Box ml="8px">Paused</Box>
                 </Flex>;
             }
@@ -731,11 +730,11 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
                         You probably only want to do this if Syncthing is not working, and/or your configuration is broken.
                     </p>
                     <p>
-                         All folders and devices will be removed from the Syncthing server.
+                        All folders and devices will be removed from the Syncthing server.
                     </p>
                     <p>
-                         The device ID will no longer be available and should be removed from your local Syncthing devices.
-                         A new device ID will be generated if you decide to set up Synchronization again.
+                        The device ID will no longer be available and should be removed from your local Syncthing devices.
+                        A new device ID will be generated if you decide to set up Synchronization again.
                     </p>
                     <Button mr="5px" onClick={() => dialogStore.success()}>Cancel</Button>
                     <Button color="red" onClick={() => {
@@ -787,7 +786,7 @@ const EmptyFolders: React.FunctionComponent<{
                         </p>
                     </Box>
                     <Box pl={40}>
-                        <Screenshot src={syncthingScreen2}/>
+                        <Screenshot src={syncthingScreen2} />
                     </Box>
                 </Flex>
             </li>
@@ -805,7 +804,7 @@ const EmptyFolders: React.FunctionComponent<{
                     </Box>
 
                     <Box pl={40}>
-                        <Screenshot src={syncthingScreen3}/>
+                        <Screenshot src={syncthingScreen3} />
                     </Box>
                 </Flex>
             </li>
@@ -923,17 +922,17 @@ const AddDeviceWizard: React.FunctionComponent<{
 
                             <Flex justifyContent="center" mt="8px">
                                 <ExternalLink href="https://syncthing.net/downloads/">
-                                    <Button><Icon name="open" mr="4px" size="14px"/> Download Syncthing</Button>
+                                    <Button><Icon name="open" mr="4px" size="14px" /> Download Syncthing</Button>
                                 </ExternalLink>
                             </Flex>
                         </li>
                         <li>
-                            <b>Open the Syncthing application</b><br/><br/>
+                            <b>Open the Syncthing application</b><br /><br />
 
-                            If you are using a desktop PC/laptop then your window should now look like this:<br/>
+                            If you are using a desktop PC/laptop then your window should now look like this:<br />
 
                             <Flex justifyContent="center" mt="8px">
-                                <Screenshot src={syncthingScreen4}/>
+                                <Screenshot src={syncthingScreen4} />
                             </Flex>
                         </li>
                     </TutorialList>
@@ -959,20 +958,20 @@ const AddDeviceWizard: React.FunctionComponent<{
                                 In the <i>Actions</i> menu in the top-right corner, click the <i>Show ID</i> button:
                             </li>
                             <li>
-                                A window containing your Device ID, as well as a QR code will appear.<br/>
+                                A window containing your Device ID, as well as a QR code will appear.<br />
                                 Copy the Device ID and paste it into the field below:
                             </li>
                         </TutorialList>
 
                         <Box ml={"auto"}>
-                            <Screenshot src={syncthingScreen1}/>
+                            <Screenshot src={syncthingScreen1} />
                         </Box>
                     </Flex>
 
                     <form onSubmit={tutorialNext}>
                         <Label>
                             Device Name
-                            <Input ref={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null}/>
+                            <Input ref={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null} />
                             {!deviceNameError ?
                                 <Text color="gray">
                                     A name to help you remember which device this is. For example: "Work phone".

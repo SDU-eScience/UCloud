@@ -2,7 +2,7 @@ import * as React from "react";
 import {ResourceBrowse} from "@/Resource/Browse";
 import {ResourceRouter} from "@/Resource/Router";
 import SharesApi, {Share} from "@/UCloud/SharesApi";
-import {useLocation} from "react-router";
+import {useHistory, useLocation} from "react-router";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import {SharedByTabs} from "@/Files/SharesOutgoing";
 import {useCallback, useMemo} from "react";
@@ -42,7 +42,7 @@ export const ShareBrowse: React.FunctionComponent<{
         avatars.updateCache(items.map(it => it.specification.sharedWith));
     }, []);
 
-    const navigateToEntry = React.useCallback((history: History, share: Share): void => {
+    const navigateToEntry = React.useCallback((history: ReturnType<typeof useHistory>, share: Share): void => {
         if (browseType === BrowseType.MainContent) {
             if (share.status.state === "APPROVED" || share.specification.sharedWith !== Client.username) {
                 history.push(buildQueryString("/files", {path: share.status.shareAvailableAt}));

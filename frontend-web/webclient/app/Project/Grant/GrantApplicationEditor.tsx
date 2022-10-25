@@ -1,82 +1,129 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {useProjectManagementStatus} from "@/Project";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
 import Button from "@/ui-components/Button";
-import ButtonGroup from "@/ui-components/ButtonGroup";
 import Card from "@/ui-components/Card";
 import ExternalLink from "@/ui-components/ExternalLink";
 import Flex from "@/ui-components/Flex";
-import Icon from "@/ui-components/Icon";
-import Input from "@/ui-components/Input";
+import Icon, {IconName} from "@/ui-components/Icon";
+import Input, {HiddenInputField} from "@/ui-components/Input";
 import Label from "@/ui-components/Label";
 import List from "@/ui-components/List";
 import Checkbox from "@/ui-components/Checkbox";
 import Text from "@/ui-components/Text";
 import TextArea from "@/ui-components/TextArea";
-import theme from "@/ui-components/theme";
+import {ThemeColor} from "@/ui-components/theme";
 import Tooltip from "@/ui-components/Tooltip";
-import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
-    ProductCategoryId,
-    ProductMetadata,
+    browseWallets,
+    explainAllocation,
+    explainUsage,
+    normalizeBalanceForBackend,
+    normalizeBalanceForFrontend,
     Product,
     productCategoryEquals,
-    usageExplainer,
-    productTypeToIcon,
+    ProductCategoryId,
+    ProductMetadata,
     ProductType,
-    productTypeToTitle,
     productTypes,
-    explainAllocation,
-    normalizeBalanceForBackend,
-    normalizeBalanceForFrontendOpts,
+    productTypeToIcon,
+    productTypeToTitle,
+    usageExplainer,
+    Wallet,
+    WalletAllocation
 } from "@/Accounting";
 import styled from "styled-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {
-    approveGrantApplication,
-    closeGrantApplication,
+    GrantsRetrieveAffiliationsResponse,
+    retrieveDescription,
+    RetrieveDescriptionResponse,
+} from "@/Project/Grant/index";
+import {useHistory, useParams} from "react-router";
+import {dateToString, getStartOfDay} from "@/Utilities/DateUtilities";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {AvatarType, defaultAvatar} from "@/UserSettings/Avataaar";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
+import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import * as UCloud from "@/UCloud";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {default as ReactModal} from "react-modal";
+import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
+import {Spacer} from "@/ui-components/Spacer";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {ButtonGroup, Divider, Link, Truncate} from "@/ui-components";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Logo} from "./ProjectBrowser";
+import {format} from "date-fns";
+import {DatePicker} from "@/ui-components/DatePicker";
+import {
+    AllocationRequest,
+    browseAffiliations,
+    browseAffiliationsByResource,
+    browseProducts,
+    closeApplication,
     Comment,
     commentOnGrantApplication,
     deleteGrantApplicationComment,
-    editGrantApplication, editReferenceId,
-    findAffiliations,
+    Document,
+    editApplicationRequest,
+    fetchGrantApplication,
+    FetchGrantApplicationRequest,
+    FetchGrantApplicationResponse,
     GrantApplication,
-    GrantApplicationStatus,
-    GrantRecipient, GrantsRetrieveAffiliationsResponse,
-    isGrantFinalized,
-    readTemplates,
-    ReadTemplatesResponse,
-    rejectGrantApplication,
-    ResourceRequest,
-    submitGrantApplication, transferApplication,
-    viewGrantApplication,
-    ViewGrantApplicationResponse
-} from "@/Project/Grant/index";
-import {useHistory, useParams} from "react-router";
+    GrantGiverApprovalState,
+    GrantProductCategory,
+    Recipient,
+    retrieveTemplates,
+    Revision,
+    State,
+    submitApplicationRequest,
+    Templates,
+    transferApplication,
+    updateState,
+} from "./GrantApplicationTypes";
+import {useAvatars} from "@/AvataaarLib/hook";
+import {membershipSearch, ProjectMember, ProjectRole, useProjectId, useProjectManagementStatus} from "..";
+import {displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {dateToString} from "@/Utilities/DateUtilities";
-import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {AvatarType, defaultAvatar} from "@/UserSettings/Avataaar";
-import {AvatarHook, useAvatars} from "@/AvataaarLib/hook";
-import Table, {TableCell, TableRow} from "@/ui-components/Table";
-import {addStandardDialog} from "@/UtilityComponents";
-import {setLoading, useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import {useDispatch} from "react-redux";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import * as UCloud from "@/UCloud";
-import grantApi = UCloud.grant.grant;
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {TextSpan} from "@/ui-components/Text";
-import {default as ReactModal} from "react-modal";
-import {defaultModalStyle} from "@/Utilities/ModalUtilities";
-import {emptyPage} from "@/DefaultObjects";
-import {Spacer} from "@/ui-components/Spacer";
-import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
+import {Accordion} from "@/ui-components/Accordion";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {useProjectStatus} from "../cache";
+
+export enum RequestTarget {
+    EXISTING_PROJECT = "existing_project",
+    NEW_PROJECT = "new_project",
+    PERSONAL_PROJECT = "personal_workspace",
+    VIEW_APPLICATION = "view"
+}
+
+/* 
+    TODO List:
+        - Find new In Progress Icon (General)
+        - Remember to update documentation
+            - New features:
+                - Select multiple grant givers.
+                - Select parent project (automatic, selects first grant giver that user selects, likely not relevant for most users.)
+                - The parent project is the one used as the template for the form.
+                - Rejections can be undone.
+                - Approvals can be undone provided that not all grant givers has approved the grant application yet.
+                - Show revisions
+                - Prompt user for a comment before transferring grant application to other project.
+                - Allow selecting allocations to draw from.
+                - Auto selects allocations if only one.
+                - Shows active project at top, others in accordion.
+                - If recipient, all grant givers are shown in alphabetical order.
+*/
+
+const THIRTY_DAYS_AGO = new Date().getTime() - 30 * 24 * 60 * 60 * 1000;
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -88,7 +135,7 @@ export const RequestForSingleResourceWrapper = styled.div`
         height: 100%;
 
         .dashboard-card-inner {
-        padding: 16px;
+            padding: 16px;
         }
     }
 
@@ -137,204 +184,36 @@ const RequestFormContainer = styled.div`
     }
 `;
 
-export enum RequestTarget {
-    EXISTING_PROJECT = "existing",
-    NEW_PROJECT = "new",
-    PERSONAL_PROJECT = "personal",
-    VIEW_APPLICATION = "view"
+function productCategoryId(pid: ProductCategoryId, projectId: string): string {
+    return `${pid.name}/${pid.provider}/${projectId}`;
 }
 
-interface GrantProductCategory {
-    metadata: ProductMetadata;
-    currentBalance?: number;
-    requestedBalance?: number;
+function productCategoryStartDate(pid: ProductCategoryId, projectId: string): string {
+    return `${productCategoryId(pid, projectId)}/start_date`;
 }
 
-interface UseRequestInformation {
-    productCategories: GrantProductCategory[];
-    targetProject?: string;
-    documentRef: React.RefObject<HTMLTextAreaElement>;
-    templates: APICallState<ReadTemplatesResponse>;
-    recipient: GrantRecipient;
-    editingApplication?: GrantApplication;
-    comments: Comment[];
-    avatars: AvatarHook;
-    reload: () => void;
-    approver: boolean;
-    loading: boolean;
+function productCategoryEndDate(pid: ProductCategoryId, projectId: string): string {
+    return `${productCategoryId(pid, projectId)}/end_date`;
 }
 
-function useRequestInformation(target: RequestTarget): UseRequestInformation {
-    let targetProject: string | undefined;
-    let recipient: GrantRecipient;
-    let editingApplication: GrantApplication | undefined;
-    let approver = false;
-    let comments: Comment[] = [];
-    const avatars = useAvatars();
-    let loading = false;
+function productCategoryAllocation(pid: ProductCategoryId, projectId: string): string {
+    return `${productCategoryId(pid, projectId)}/allocation_id`;
+}
 
-    const {appId} = useParams<{appId?: string}>();
-
-    const [grantApplication, fetchGrantApplication] = useCloudAPI<ViewGrantApplicationResponse>(
-        {noop: true},
-        {
-            application: {
-                document: "",
-                grantRecipient: {type: "personal", username: Client.username ?? ""},
-                requestedBy: Client.username ?? "",
-                requestedResources: [],
-                resourcesOwnedBy: "unknown",
-                status: GrantApplicationStatus.IN_PROGRESS,
-                grantRecipientPi: Client.username ?? "",
-                id: 0,
-                resourcesOwnedByTitle: "unknown",
-                grantRecipientTitle: "",
-                createdAt: 0,
-                updatedAt: 0
-            },
-            comments: [],
-            approver: false
-        }
-    );
-
-    const documentRef = useRef<HTMLTextAreaElement>(null);
-    const [templates, fetchTemplates] = useCloudAPI<ReadTemplatesResponse>(
-        {noop: true},
-        {existingProject: "", newProject: "", personalProject: ""}
-    );
-
-    switch (target) {
-        case RequestTarget.EXISTING_PROJECT: {
-            const {projectId, projectDetails} = useProjectManagementStatus({isRootComponent: true});
-            targetProject = projectDetails.data.parent;
-            recipient = {type: "existing_project", projectId};
-            break;
-        }
-
-        case RequestTarget.NEW_PROJECT:
-        case RequestTarget.PERSONAL_PROJECT: {
-            const {projectId} = useParams<{projectId: string}>();
-            targetProject = projectId;
-            if (target === RequestTarget.NEW_PROJECT) {
-                recipient = {type: "new_project", projectTitle: "placeholder"};
-            } else {
-                recipient = {type: "personal", username: Client.username!};
-            }
-            break;
-        }
-
-        case RequestTarget.VIEW_APPLICATION: {
-            targetProject = grantApplication.data.application.resourcesOwnedBy;
-            recipient = grantApplication.data.application.grantRecipient;
-            comments = grantApplication.data.comments;
-            approver = grantApplication.data.approver;
-            editingApplication = grantApplication.data.application;
-
-            loading = loading || grantApplication.loading;
-            break;
-        }
-    }
-
-    const [products, fetchProducts] = useCloudAPI<{availableProducts: Product[]}>(
-        {noop: true},
-        {availableProducts: []}
-    );
-
-    const reloadProducts = useCallback(() => {
-        if (targetProject && targetProject !== "unknown") {
-            fetchProducts(grantApi.retrieveProducts({
-                projectId: targetProject,
-                recipientType: recipient.type,
-                recipientId:
-                    recipient.type === "existing_project" ? recipient.projectId :
-                        recipient.type === "new_project" ? recipient.projectTitle :
-                            recipient.type === "personal" ? recipient.username : "",
-                showHidden: false
-            }));
-        }
-    }, [targetProject, recipient.type]);
-
-    const productCategories: GrantProductCategory[] = useMemo(() => {
-        const result: GrantProductCategory[] = [];
-        for (const product of products.data.availableProducts) {
-            const metadata: ProductMetadata = {
-                category: product.category,
-                freeToUse: product.freeToUse,
-                productType: product.productType,
-                chargeType: product.chargeType,
-                hiddenInGrantApplications: product.hiddenInGrantApplications,
-                unitOfPrice: product.unitOfPrice
-            };
-
-            if (result.find(it => productCategoryEquals(it.metadata.category, metadata.category)) === undefined) {
-                result.push({metadata});
-            }
-        }
-
-        if (editingApplication !== undefined) {
-            for (const request of editingApplication.requestedResources) {
-                const existing = result.find(it =>
-                    productCategoryEquals(
-                        it.metadata.category,
-                        {name: request.productCategory, provider: request.productProvider})
-                );
-
-                if (existing) {
-                    existing.requestedBalance = request.balanceRequested;
+function anyAutoAssigned(grantProductCategories: Record<string, GrantProductCategory[]>): boolean {
+    for (const grantGiver of Object.keys(grantProductCategories)) {
+        for (const wb of grantProductCategories[grantGiver]) {
+            const element = document.querySelector<HTMLInputElement>(
+                `input[data-target="${productCategoryAllocation(wb.metadata.category, grantGiver)}"]`
+            );
+            if (element) {
+                if (element.getAttribute("data-auto-assigned") === "true") {
+                    return true;
                 }
             }
         }
-        return result;
-    }, [products.data, editingApplication]);
-
-    const reload = useCallback(() => {
-        if (targetProject && targetProject !== "unknown") {
-            fetchTemplates(readTemplates({projectId: targetProject}));
-            reloadProducts();
-        }
-
-        if (appId) {
-            fetchGrantApplication(viewGrantApplication({id: parseInt(appId, 10)}));
-        }
-    }, [targetProject, appId]);
-
-    useEffect(() => {
-        reload();
-    }, [targetProject, appId]);
-
-    useEffect(() => {
-        if (documentRef.current) {
-            switch (target) {
-                case RequestTarget.PERSONAL_PROJECT:
-                    documentRef.current.value = templates.data.personalProject;
-                    break;
-                case RequestTarget.EXISTING_PROJECT:
-                    documentRef.current.value = templates.data.existingProject;
-                    break;
-                case RequestTarget.NEW_PROJECT:
-                    documentRef.current.value = templates.data.newProject;
-                    break;
-                case RequestTarget.VIEW_APPLICATION:
-                    documentRef.current.value = editingApplication?.document ?? "";
-                    break;
-            }
-        }
-    }, [templates, documentRef.current, grantApplication]);
-
-    useEffect(() => {
-        const usernames = comments.map(it => it.postedBy);
-        usernames.push(Client.username!);
-        avatars.updateCache(usernames);
-    }, [comments]);
-
-    return {
-        productCategories, targetProject, documentRef, templates, recipient, editingApplication,
-        comments, avatars, reload, approver, loading
-    };
-}
-
-function productCategoryId(pid: ProductCategoryId): string {
-    return `${pid.name}/${pid.provider}`;
+    }
+    return false;
 }
 
 function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefined {
@@ -345,27 +224,90 @@ function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefi
     return parsed;
 }
 
+const milleniumAndCenturyPrefix = "20";
+
+function parseDateFromInput(input?: HTMLInputElement | null): number | undefined {
+    if (!input) return undefined;
+    const rawValue = input.value;
+    if (!rawValue) return undefined;
+    const [day, month, year] = rawValue.split("/");
+    const d = getStartOfDay(new Date());
+    d.setDate(parseInt(day, 10));
+    d.setMonth(parseInt(month, 10) - 1);
+    d.setFullYear(parseInt(`${milleniumAndCenturyPrefix}${year}`, 10));
+    const time = d.getTime();
+    if (isNaN(time)) return undefined;
+    return time;
+}
+
+const Wrapper = styled.div`
+    & > table {
+        margin-left: -9px;
+    }
+
+    & > table > tbody > ${TableRow}:hover {
+        cursor: pointer;
+        background-color: var(--lightGray, #f00);
+        color: var(--black, #f00);
+    }
+`;
+
+function checkIsGrantRecipient(target: RequestTarget, grantApplication: GrantApplication, adminOrPi: boolean): boolean {
+    if (target !== RequestTarget.VIEW_APPLICATION) return true;
+    const {recipient} = getDocument(grantApplication);
+    switch (recipient.type) {
+        case "existingProject":
+            return recipient.id === Client.projectId && adminOrPi;
+        case "personalWorkspace":
+            return !Client.hasActiveProject && grantApplication.createdBy === Client.username;
+        case "newProject":
+            return grantApplication.createdBy === Client.username;
+    }
+}
+
 const GenericRequestCard: React.FunctionComponent<{
-    wb: GrantProductCategory,
-    state: UseRequestInformation,
-    grantFinalized: boolean,
-    isLocked: boolean
-}> = ({wb, grantFinalized, isLocked}) => {
+    wb: GrantProductCategory;
+    isApprover: boolean;
+    projectId: string;
+    grantFinalized: boolean;
+    isLocked: boolean;
+    isRecipient: boolean;
+    wallets: Wallet[];
+    allocationRequest?: AllocationRequest;
+}> = ({wb, grantFinalized, isLocked, wallets, isApprover, allocationRequest, projectId, ...props}) => {
+    const [startDate, setStartDate] = useState<Date>(getStartOfDay(new Date()));
+    const [endDate, setEndDate] = useState<Date | null>(null);
+
+    const canEdit = isApprover || props.isRecipient;
+
+    React.useEffect(() => {
+        if (allocationRequest && allocationRequest.period.start) {
+            setStartDate(getStartOfDay(new Date(allocationRequest.period.start)));
+        }
+    }, []);
+
+    React.useEffect(() => {
+        if (endDate == null) return;
+        if (endDate < startDate) {
+            setEndDate(null);
+        }
+    }, [startDate, endDate]);
+
     if (wb.metadata.freeToUse) {
         return <RequestForSingleResourceWrapper>
-            <HighlightedCard color={"blue"} isLoading={false}>
-                <Flex flexDirection={"row"} alignItems={"center"}>
+            <HighlightedCard color="blue" isLoading={false}>
+                <Flex flexDirection="row" alignItems="center">
                     <Box flexGrow={1}>
                         <Label>
                             <Checkbox
                                 size={32}
                                 defaultChecked={wb.requestedBalance !== undefined && wb.requestedBalance > 0}
-                                disabled={grantFinalized || isLocked}
-                                data-target={"checkbox-" + productCategoryId(wb.metadata.category)}
+                                disabled={grantFinalized || isLocked || !canEdit}
+                                data-target={"checkbox-" + productCategoryId(wb.metadata.category, projectId)}
                                 onChange={e => {
                                     const checkbox = e.target as HTMLInputElement;
                                     const input = document.querySelector(
-                                        `input[data-target="${productCategoryId(wb.metadata.category)}"]`
+                                        `input[data-target="${productCategoryId(wb.metadata.category, projectId)}"]`
                                     ) as HTMLInputElement;
 
                                     if (input) {
@@ -382,15 +324,19 @@ const GenericRequestCard: React.FunctionComponent<{
                 </Flex>
 
                 <Input
-                    disabled={grantFinalized || isLocked}
-                    data-target={productCategoryId(wb.metadata.category)}
+                    disabled={grantFinalized || isLocked || !isApprover}
+                    data-target={productCategoryId(wb.metadata.category, projectId)}
                     autoComplete="off"
                     type="hidden"
                     min={0}
                 />
             </HighlightedCard>
-        </RequestForSingleResourceWrapper>
+        </RequestForSingleResourceWrapper>;
     } else {
+        const defaultValue = allocationRequest?.balanceRequested;
+        var normalizedValue = defaultValue != null ?
+            normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice, 2, true) :
+            undefined;
         return <RequestForSingleResourceWrapper>
             <HighlightedCard color="blue" isLoading={false}>
                 <table>
@@ -422,9 +368,10 @@ const GenericRequestCard: React.FunctionComponent<{
                                 <Flex alignItems={"center"}>
                                     <Input
                                         placeholder={"0"}
-                                        disabled={grantFinalized || isLocked}
-                                        data-target={productCategoryId(wb.metadata.category)}
+                                        disabled={grantFinalized || isLocked || !canEdit}
+                                        data-target={productCategoryId(wb.metadata.category, projectId)}
                                         autoComplete="off"
+                                        defaultValue={normalizedValue}
                                         type="number"
                                         min={0}
                                     />
@@ -433,288 +380,857 @@ const GenericRequestCard: React.FunctionComponent<{
                                             wb.metadata.unitOfPrice)}
                                     </div>
                                 </Flex>
+                                <Flex mt="6px" width="280px">
+                                    <DatePicker
+                                        selectsStart
+                                        startDate={startDate}
+                                        endDate={endDate}
+                                        borderWidth="2px"
+                                        py="8px"
+                                        mr="3px"
+                                        backgroundColor={isLocked ? "var(--lightGray)" : undefined}
+                                        placeholderText="Start date..."
+                                        required={isApprover}
+                                        value={format(startDate, "dd/MM/yy")}
+                                        disabled={grantFinalized || isLocked || !canEdit}
+                                        onChange={(date: Date) => setStartDate(date)}
+                                        className={productCategoryStartDate(wb.metadata.category, projectId)}
+                                    />
+                                    <DatePicker
+                                        selectsEnd
+                                        startDate={startDate}
+                                        endDate={endDate}
+                                        isClearable={endDate != null}
+                                        borderWidth="2px"
+                                        py="8px"
+                                        ml="3px"
+                                        backgroundColor={isLocked ? "var(--lightGray)" : undefined}
+                                        placeholderText={isLocked ? undefined : "End date..."}
+                                        value={endDate ? format(endDate, "dd/MM/yy") : undefined}
+                                        disabled={grantFinalized || isLocked || !canEdit}
+                                        onChange={(date: Date | null) => setEndDate(date)}
+                                        className={productCategoryEndDate(wb.metadata.category, projectId)}
+                                    />
+                                </Flex>
                             </td>
                         </tr>
                     </tbody>
                 </table>
+                <AllocationSelection
+                    projectId={projectId}
+                    showAllocationSelection={isApprover}
+                    allocationRequest={allocationRequest}
+                    wallets={wallets}
+                    wb={wb}
+                    isLocked={isLocked}
+                />
             </HighlightedCard>
         </RequestForSingleResourceWrapper>;
     }
 };
 
-// Note: target is baked into the component to make sure we follow the rules of hooks.
+const AllocationBox = styled.div`
+    padding: 8px 8px 8px 8px;
+    border-radius: 6px;
+    border: 2px solid var(--borderGray); 
+`;
+
+function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllocationSelection, projectId}: {
+    wallets: Wallet[];
+    showAllocationSelection: boolean;
+    wb: GrantProductCategory;
+    isLocked: boolean;
+    projectId: string;
+    allocationRequest?: AllocationRequest;
+}): JSX.Element {
+    const [allocation, setAllocation] = useState<{wallet: Wallet; allocation: WalletAllocation; autoAssigned: boolean} | undefined>(undefined);
+    // Note(Jonas): Allocation ID can be provided by an allocation request, where wallets can be empty,
+    // so we can always look it up. That's why it's divided into two 'useState's, but any friction-less solution
+    // that removes one is very welcome.
+    const [allocationId, setAllocationId] = useState<string | undefined>(allocationRequest?.sourceAllocation ?? "");
+
+    const allocationCount = React.useMemo(() => {
+        return wallets.reduce((acc, w) => w.allocations.length + acc, 0);
+    }, [wallets]);
+
+    React.useEffect(() => {
+        if (allocationRequest != null && allocationRequest.sourceAllocation != null) {
+            if (allocation?.autoAssigned) {
+                setAllocation({...allocation, autoAssigned: false});
+            }
+        }
+    }, [allocation, allocationRequest])
+
+    const allocationText = allocation ?
+        `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name} [${allocation.allocation.id}]` : "";
+
+    React.useEffect(() => {
+        if (!allocationRequest || allocation != null || !showAllocationSelection) return;
+        if (
+            allocationRequest.sourceAllocation == null &&
+            allocationCount === 1
+        ) {
+            const [wallet] = wallets;
+            setAllocation({wallet: wallet, allocation: wallet.allocations[0], autoAssigned: true});
+            setAllocationId(wallet.allocations[0].id);
+        } else for (const w of wallets) {
+            for (const a of w.allocations) {
+                if (allocationRequest.sourceAllocation == a.id) {
+                    setAllocation({wallet: w, allocation: a, autoAssigned: false});
+                    return;
+                }
+            }
+        }
+    }, [wallets, allocationRequest, allocation]);
+
+    return <Box mb="8px" ml="6px">
+        <HiddenInputField value={allocationId} data-auto-assigned={allocation?.autoAssigned ?? "false"} onChange={() => undefined} data-target={productCategoryAllocation(wb.metadata.category, projectId)} />
+        {!showAllocationSelection ? null : !isLocked ?
+            <ClickableDropdown colorOnHover={false} width="677px" useMousePositioning trigger={
+                <AllocationBox>
+                    {!allocation ?
+                        <>No allocation selected <Icon name="chevronDownLight" size="1em" mt="4px" /></> :
+                        <>{allocationText}<Icon name="chevronDownLight" size="1em" mt="4px" /></>}
+                </AllocationBox>
+            }>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHeaderCell width="200px">Provider</TableHeaderCell>
+                            <TableHeaderCell width="200px">Name</TableHeaderCell>
+                            <TableHeaderCell width="200px">Balance</TableHeaderCell>
+                            <TableHeaderCell width="45px">ID</TableHeaderCell>
+                        </TableRow>
+                    </TableHeader>
+                    <tbody>
+                        {wallets.map(w =>
+                            <AllocationRows
+                                key={w.paysFor.provider + w.paysFor.name + w.paysFor.title}
+                                wallet={w}
+                                onClick={(wallet, allocation) => {
+                                    setAllocationId(allocation.id);
+                                    setAllocation({wallet, allocation, autoAssigned: false});
+                                }}
+                            />
+                        )}
+                    </tbody>
+                </Table>
+            </ClickableDropdown> : allocation ?
+                <Flex>{allocationText} {allocation.autoAssigned ?
+                    <Tooltip trigger={<Text ml="4px" color="gray"> (Auto-assigned)</Text>}>
+                        As only one allocation was available, it was auto-assigned.
+                    </Tooltip>
+                    : null}
+                </Flex> :
+                "No allocation selected"
+        }
+    </Box>
+}
+
+function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: WalletAllocation): void; wallet: Wallet;}) {
+    return <>
+        {wallet.allocations.map(a =>
+            <TableRow key={a.id} onClick={() => onClick(wallet, a)} cursor="pointer">
+                <TableCell width="200px">{wallet.paysFor.provider}</TableCell>
+                <TableCell width="200px">{wallet.paysFor.name}</TableCell>
+                <TableCell width="200px">
+                    {normalizeBalanceForFrontend(a.balance, wallet.productType, wallet.chargeType, wallet.unit)}
+                    {" "}
+                    {explainUsage(wallet.productType, wallet.chargeType, wallet.unit)}
+                </TableCell>
+                <TableCell width="45px">{a.id}</TableCell>
+            </TableRow>
+        )}
+    </>;
+}
+
+function titleFromTarget(target: RequestTarget): string {
+    switch (target) {
+        case RequestTarget.EXISTING_PROJECT:
+            return "Existing project";
+        case RequestTarget.NEW_PROJECT:
+            return "New project";
+        case RequestTarget.PERSONAL_PROJECT:
+            return "My workspace";
+        case RequestTarget.VIEW_APPLICATION:
+            return "Viewing application";
+    }
+}
+
+const defaultGrantApplication: GrantApplication = {
+    createdAt: 0,
+    updatedAt: 0,
+    createdBy: "unknown",
+    currentRevision: {
+        createdAt: 0,
+        updatedBy: "",
+        revisionNumber: 0,
+        document: {
+            allocationRequests: [],
+            form: {
+                type: "plain_text",
+                text: ""
+            },
+            recipient: {
+                username: "",
+                type: "personalWorkspace"
+            },
+            referenceId: "",
+            revisionComment: "",
+            parentProjectId: null,
+        }
+    },
+    id: "0",
+    status: {
+        overallState: State.IN_PROGRESS,
+        comments: [],
+        revisions: [],
+        stateBreakdown: [],
+        projectPI: ""
+    }
+};
+
+
+const FETCHED_GRANT_APPLICATION = "FETCHED_GRANT_APPLICATION";
+type FetchedGrantApplication = PayloadAction<typeof FETCHED_GRANT_APPLICATION, GrantApplication>;
+const UPDATE_PARENT_PROJECT_ID = "UPDATE_PARENT_PROJECT_ID";
+type UpdatedParentProjectID = PayloadAction<typeof UPDATE_PARENT_PROJECT_ID, {parentProjectId: string;}>;
+const POSTED_COMMENT = "POSTED_COMMENT";
+type PostedComment = PayloadAction<typeof POSTED_COMMENT, Comment>;
+const UPDATE_DOCUMENT = "UPDATE_DOCUMENT";
+type UpdateDocument = PayloadAction<typeof UPDATE_DOCUMENT, Document>;
+const UPDATE_GRANT_STATE = "UPDATE_GRANT_STATE";
+type UpdateGrantState = PayloadAction<typeof UPDATE_GRANT_STATE, {projectId: string, state: State}>;
+const SET_STATE_WITHDRAWN = "SET_STATE_WITHDRAWN";
+interface SetStateWithdrawn {type: typeof SET_STATE_WITHDRAWN};
+const UPDATE_REVISIONS = "UPDATE_REVISIONS";
+type UpdateRevisions = PayloadAction<typeof UPDATE_REVISIONS, Revision[]>;
+
+
+type GrantApplicationReducerAction = FetchedGrantApplication | UpdatedParentProjectID | PostedComment | UpdateDocument | UpdateGrantState | SetStateWithdrawn | UpdateRevisions;
+function grantApplicationReducer(state: GrantApplication, action: GrantApplicationReducerAction): GrantApplication {
+    switch (action.type) {
+        case FETCHED_GRANT_APPLICATION: {
+            return action.payload;
+        }
+        case UPDATE_PARENT_PROJECT_ID: {
+            state.currentRevision.document.parentProjectId = action.payload.parentProjectId;
+            return {...state};
+        }
+        case UPDATE_DOCUMENT: {
+            state.currentRevision.revisionNumber += 1;
+            state.currentRevision.document = action.payload
+            return {...state};
+        }
+        case UPDATE_REVISIONS: {
+            state.status.revisions = action.payload;
+            return {...state};
+        }
+        case POSTED_COMMENT: {
+            state.status.comments.push(action.payload);
+            return {...state};
+        }
+        case UPDATE_GRANT_STATE: {
+            state.status.stateBreakdown.forEach(it => {
+                if (it.projectId === action.payload.projectId) {
+                    it.state = action.payload.state;
+                }
+            });
+            state.status.overallState = findNewOverallState(state.status.stateBreakdown);
+            return {...state};
+        }
+        case SET_STATE_WITHDRAWN: {
+            state.status.overallState = State.CLOSED;
+            return {...state};
+        }
+    }
+}
+
+function findNewOverallState(approvalStates: GrantGiverApprovalState[]): State {
+    if (approvalStates.some(it => it.state === State.CLOSED)) return State.CLOSED;
+    // Note(Jonas): This is how it's currently handled in the backend.
+    if (approvalStates.some(it => it.state === State.REJECTED)) return State.REJECTED;
+    if (approvalStates.some(it => it.state === State.IN_PROGRESS)) return State.IN_PROGRESS;
+    return State.APPROVED;
+}
+
+
+// Note(Dan): target is baked into the component to make sure we follow the rules of hooks.
 //
 // We need to take wildly different paths depending on the target which causes us to use very different hooks. Baking
 // the target property ensures a remount of the component.
+
+// Note(Jonas): Maybe this can be solved using keys when upgrading to the new React-Router version.
+// Note(Jonas): It can!
 export const GrantApplicationEditor: (target: RequestTarget) =>
     React.FunctionComponent = target => function MemoizedEditor() {
-        const state = useRequestInformation(target);
-        const grantFinalized = isGrantFinalized(state.editingApplication?.status);
         const [loading, runWork] = useCloudCommand();
         const projectTitleRef = useRef<HTMLInputElement>(null);
         const projectReferenceIdRef = useRef<HTMLInputElement>(null);
+        useTitle(titleFromTarget(target));
         const history = useHistory();
+
+        const [grantGivers, fetchGrantGivers] = useCloudAPI<GrantsRetrieveAffiliationsResponse>(
+            browseAffiliations({itemsPerPage: 250}), emptyPage
+        );
+
+        const {appId} = useParams<{appId?: string;}>();
+        const projectId = useProjectId();
+        const documentRef = useRef<HTMLTextAreaElement>(null);
+
         const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
-
-        switch (target) {
-            case RequestTarget.EXISTING_PROJECT:
-                useTitle("Viewing Project");
-                break;
-            case RequestTarget.NEW_PROJECT:
-                useTitle("Create Project");
-                break;
-            case RequestTarget.PERSONAL_PROJECT:
-                useTitle("My Workspace");
-                break;
-            case RequestTarget.VIEW_APPLICATION:
-                useTitle("Viewing Application");
-                break;
-        }
-
-        useRefreshFunction(state.reload);
-        useLoading(state.loading);
-
-        const discardChanges = useCallback(async () => {
-            state.reload();
-            setIsLocked(true);
-        }, [state.reload]);
-
         const [isEditingProjectReferenceId, setIsEditingProjectReference] = useState(false);
-
+        const [grantProductCategories, setGrantProductCategories] = useState<Record<string, GrantProductCategory[]>>({});
         const [submitLoading, setSubmissionsLoading] = React.useState(false);
+        const [grantGiversInUse, setGrantGiversInUse] = React.useState<string[]>([]);
+        const [transferringApplication, setTransferringApplication] = useState(false);
 
-        const submitRequest = useCallback(async () => {
+        const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<Wallet>>({noop: true}, emptyPageV2)
+
+        const [grantApplication, dispatch] = React.useReducer(grantApplicationReducer, defaultGrantApplication, () => defaultGrantApplication);
+        const activeStateBreakDown = React.useMemo(() => grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId), [grantApplication, projectId]);
+        const isApprover = activeStateBreakDown != null;
+
+        const [templates, fetchTemplates] = useCloudAPI<Templates | undefined>({noop: true}, undefined);
+        React.useEffect(() => {
+            const {parentProjectId} = getDocument(grantApplication);
+            if (parentProjectId && target !== RequestTarget.VIEW_APPLICATION) {
+                fetchTemplates(retrieveTemplates({projectId: parentProjectId}));
+            }
+        }, [grantApplication.currentRevision.document.parentProjectId]);
+        React.useEffect(() => {
+            if (target === RequestTarget.VIEW_APPLICATION) return;
+            if (!documentRef.current) return;
+            if (templates.data != null && templates.loading === false) {
+                switch (target) {
+                    case RequestTarget.EXISTING_PROJECT:
+                        documentRef.current.value = templates.data.existingProject;
+                        return;
+                    case RequestTarget.NEW_PROJECT:
+                        documentRef.current.value = templates.data.newProject;
+                        return;
+                    case RequestTarget.PERSONAL_PROJECT:
+                        documentRef.current.value = templates.data.personalProject;
+                }
+            }
+        }, [templates.data]);
+
+        React.useEffect(() => {
+            if (documentRef.current) {
+                documentRef.current.value = formTextFromGrantApplication(grantApplication);
+            }
+        }, [grantApplication, documentRef.current]);
+
+        React.useEffect(() => {
+            if (appId) {
+                fetchGrantApplication({id: appId}).then(g =>
+                    dispatch({
+                        type: FETCHED_GRANT_APPLICATION, payload: g
+                    })
+                );
+            };
+        }, [appId]);
+
+        const projectManagement = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
+        const isRecipient = checkIsGrantRecipient(target, grantApplication, isAdminOrPI(projectManagement.projectDetails.data.whoami.role));
+
+
+        useEffect(() => {
+            // HACK(Jonas): I don't know why, but the membership search result doesn't actually
+            // propagate up to this component. Inside the hook, is seems correct, though.
+            if (Client.hasActiveProject && RequestTarget.EXISTING_PROJECT === target) {
+                projectManagement.setProjectMemberParams(
+                    membershipSearch(projectManagement.projectMemberParams.parameters)
+                );
+            }
+        }, [Client.hasActiveProject]);
+
+        React.useEffect(() => {
+            if (!projectTitleRef.current) return;
+            if (target === RequestTarget.EXISTING_PROJECT) {
+                projectTitleRef.current.value = projectManagement.projectDetails.data.title;
+            } else if (target === RequestTarget.PERSONAL_PROJECT) {
+                projectTitleRef.current.value = "My Workspace";
+            }
+        }, [projectTitleRef, grantApplication, projectManagement.projectDetails]);
+
+        const editApplication = useCallback(async (autoMessage: boolean = false) => {
             setSubmissionsLoading(true);
-            if (state.targetProject === undefined) {
-                snackbarStore.addFailure("Unknown target. Root level projects cannot apply for more resources.", false);
+
+            const requestedResourcesByAffiliate = findRequestedResources(grantProductCategories);
+
+            // Note(Jonas): Remove source allocations from modified requestedResources, 
+            // as long as user is not also approver for said resource.
+            if (isRecipient) {
+                const approverFor = Client.projectId;
+                for (const requestedResource of requestedResourcesByAffiliate) {
+                    if (approverFor === requestedResource.grantGiver) {
+                        continue;
+                    }
+                    const oldAllocation = grantApplication.currentRevision.document.allocationRequests.find(it =>
+                        it.category === requestedResource.category &&
+                        it.provider === requestedResource.provider &&
+                        it.grantGiver === requestedResource.grantGiver
+                    );
+                    if (!oldAllocation) continue;
+                    if (
+                        oldAllocation.balanceRequested !== requestedResource.balanceRequested ||
+                        oldAllocation.period.start !== requestedResource.period.start ||
+                        oldAllocation.period.end !== requestedResource.period.end
+                    ) {
+                        requestedResource.sourceAllocation = null;
+                    }
+                }
+            }
+
+            if (requestedResourcesByAffiliate.length === 0) {
+                snackbarStore.addFailure("At least one resource field must be non-zero.", false);
                 setSubmissionsLoading(false);
                 return;
             }
 
-            let grantRecipient: GrantRecipient = state.recipient;
-            if (target === RequestTarget.NEW_PROJECT) {
-                grantRecipient = {type: "new_project", projectTitle: projectTitleRef.current!.value};
-            }
-
-            const requestedResources = state.productCategories.map(wb => {
-                let creditsRequested = parseIntegerFromInput(
-                    document.querySelector<HTMLInputElement>(
-                        `input[data-target="${productCategoryId(wb.metadata.category)}"]`
-                    )
-                );
-                if (creditsRequested) {
-                    creditsRequested = normalizeBalanceForBackend(
-                        creditsRequested,
-                        wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice
-                    );
+            try {
+                const formText = documentRef.current?.value;
+                if (!formText) {
+                    snackbarStore.addFailure("Please explain why this application is being submitted.", false);
+                    setSubmissionsLoading(false);
+                    return;
                 }
 
-                if (creditsRequested === undefined) {
-                    return null;
+                const revisionComment = await (autoMessage ? "Auto inserted allocations." : promptRevisionComment());
+                if (revisionComment == null) {
+                    setSubmissionsLoading(false);
+                    return;
                 }
 
-                return {
-                    balanceRequested: creditsRequested,
-                    productCategory: wb.metadata.category.name,
-                    productProvider: wb.metadata.category.provider
-                } as ResourceRequest;
-            }).filter(it => it !== null) as ResourceRequest[];
+                const document: Document = {
+                    referenceId: grantApplication.currentRevision.document.referenceId,
+                    revisionComment,
+                    recipient: grantApplication.currentRevision.document.recipient,
+                    allocationRequests: requestedResourcesByAffiliate,
+                    form: toForm(target, grantApplication, formText),
+                    parentProjectId: grantApplication.currentRevision.document.parentProjectId,
+                };
 
-            const newDocument = state.documentRef.current!.value;
-            if (state.editingApplication === undefined) {
-                const response = await runWork<{id: number}>(submitGrantApplication({
-                    document: newDocument,
-                    resourcesOwnedBy: state.targetProject!,
-                    requestedResources,
-                    grantRecipient
-                }));
+                const toSubmit = {
+                    applicationId: appId!,
+                    document
+                };
 
-                if (response) {
-                    history.push(`/project/grants/view/${response.id}`);
-                }
-            } else {
-                await runWork(editGrantApplication({
-                    id: state.editingApplication.id!,
-                    newDocument,
-                    newResources: requestedResources
-                }));
-                state.reload();
+                await runWork<[id: string]>(editApplicationRequest(bulkRequestOf(toSubmit)));
+                dispatch({type: UPDATE_DOCUMENT, payload: document});
+                dispatch({
+                    type: UPDATE_REVISIONS, payload: [...grantApplication.status.revisions, {
+                        createdAt: new Date().getTime(),
+                        document,
+                        revisionNumber: grantApplication.currentRevision.revisionNumber + 1,
+                        updatedBy: Client.username ?? ""
+                    }]
+                });
                 setIsLocked(true);
+            } catch (error) {
+                displayErrorMessageOrDefault(error, "Failed to submit application.");
             }
             setSubmissionsLoading(false);
-        }, [state.targetProject, state.documentRef, state.recipient, state.productCategories, projectTitleRef,
-        state.editingApplication?.id, state.reload]);
+        }, [grantGiversInUse, grantProductCategories, grantApplication, isRecipient]);
+
+        const submitRequest = useCallback(async () => {
+            setSubmissionsLoading(true);
+
+            if (grantGiversInUse.length === 0) {
+                snackbarStore.addFailure("No grant giver selected. Please select at least one to submit.", false);
+                setSubmissionsLoading(false);
+                return;
+            }
+
+            const requestedResourcesByAffiliate = findRequestedResources(grantProductCategories);
+
+            if (requestedResourcesByAffiliate.length === 0) {
+                snackbarStore.addFailure("At least one resource field must be non-zero.", false);
+                setSubmissionsLoading(false);
+                return;
+            }
+
+            let recipient: Recipient;
+            switch (target) {
+                case RequestTarget.EXISTING_PROJECT: {
+                    recipient = {
+                        type: "existingProject",
+                        id: Client.projectId ?? ""
+                    };
+                } break;
+                case RequestTarget.NEW_PROJECT: {
+                    const newProjectTitle = projectTitleRef.current?.value;
+                    if (!newProjectTitle) {
+                        snackbarStore.addFailure("Project title can't be empty.", false);
+                        setSubmissionsLoading(false);
+                        return;
+                    }
+                    recipient = {
+                        type: "newProject",
+                        title: newProjectTitle
+                    };
+                } break;
+                case RequestTarget.PERSONAL_PROJECT: {
+                    recipient = {
+                        type: "personalWorkspace",
+                        username: Client.username ?? "",
+                    };
+                } break;
+                case RequestTarget.VIEW_APPLICATION: {
+                    recipient = grantApplication.currentRevision.document.recipient;
+                } break;
+            }
+
+            const formText = documentRef.current?.value;
+            if (!formText) {
+                snackbarStore.addFailure("Please explain why this application is being submitted.", false);
+                setSubmissionsLoading(false);
+                return;
+            }
+
+            const documentToSubmit: Document = {
+                referenceId: null,
+                revisionComment: null,
+                recipient: recipient,
+                allocationRequests: requestedResourcesByAffiliate,
+                form: toForm(target, grantApplication, formText),
+                parentProjectId: grantApplication.currentRevision.document.parentProjectId,
+            };
+
+            const payload = bulkRequestOf({document: documentToSubmit});
+
+            try {
+                const [{id}] = (await runWork<UCloud.BulkResponse<UCloud.FindByLongId>>(
+                    submitApplicationRequest(payload),
+                    {defaultErrorHandler: false})
+                )!.responses;
+                history.push(`/project/grants/view/${id}`);
+            } catch (error) {
+                displayErrorMessageOrDefault(error, "Failed to submit application.");
+            }
+            setSubmissionsLoading(false);
+        }, [grantGiversInUse, grantProductCategories, grantApplication]);
 
         const updateReferenceID = useCallback(async () => {
-            await runWork(editReferenceId({id: state.editingApplication!.id, newReferenceId: projectReferenceIdRef.current?.value}))
+            const value = projectReferenceIdRef.current?.value;
+            if (!value) {
+                snackbarStore.addFailure("Project Reference ID can't be empty", false);
+                return;
+            }
+
+            const {document} = grantApplication.currentRevision;
+            document.referenceId = value;
+            document.revisionComment = "Updated reference ID";
+
+            const toSubmit = {
+                applicationId: appId!,
+                document
+            };
+
+            await runWork<[id: string]>(editApplicationRequest(bulkRequestOf(toSubmit)));
+            dispatch({type: UPDATE_DOCUMENT, payload: document});
+            dispatch({
+                type: UPDATE_REVISIONS, payload: [...grantApplication.status.revisions, {
+                    createdAt: new Date().getTime(),
+                    document,
+                    revisionNumber: grantApplication.currentRevision.revisionNumber + 1,
+                    updatedBy: Client.username ?? ""
+                }]
+            });
             setIsEditingProjectReference(false);
-            state.reload();
-        }, [state.editingApplication?.id, state.editingApplication?.referenceId]);
+        }, [grantApplication]);
 
         const cancelEditOfRefId = useCallback(async () => {
             setIsEditingProjectReference(false);
-            state.reload();
-        }, [state.editingApplication?.id, state.editingApplication?.referenceId]);
+        }, []);
 
         const approveRequest = useCallback(async () => {
-            if (state.editingApplication !== undefined) {
-                addStandardDialog({
-                    title: "Approve application?",
-                    message: "Are you sure you wish to approve this application?",
-                    onConfirm: async () => {
-                        await runWork(approveGrantApplication({requestId: state.editingApplication!.id}));
-                        state.reload();
-                    }
-                });
-            }
-        }, [state.editingApplication?.id]);
+            try {
+                if (!activeStateBreakDown) return;
+                if (!canApproveApplication(grantProductCategories)) {
+                    snackbarStore.addFailure("Not all requested resources have a source allocation assigned. " +
+                        "You must select one for each resource.", false);
+                    return;
+                }
 
-        const rejectRequest = useCallback(async (notify: boolean) => {
-            if (state.editingApplication !== undefined) {
-                addStandardDialog({
-                    title: "Reject application?",
-                    message: "Are you sure you wish to reject this application?",
-                    onConfirm: async () => {
-                        await runWork(rejectGrantApplication({requestId: state.editingApplication!.id, notify: notify}));
-                        state.reload();
-                    }
-                });
+                if (anyAutoAssigned(grantProductCategories)) {
+                    await editApplication(true);
+                }
+                await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.APPROVED, notify: true})), {defaultErrorHandler: false});
+                dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.APPROVED}});
+            } catch (e) {
+                displayErrorMessageOrDefault(e, "Failed to reject application.")
+                reload();
             }
-        }, [state.editingApplication?.id]);
+        }, [grantApplication.id, activeStateBreakDown, grantProductCategories]);
 
-        const transferRequest = useCallback(async (toProjectId: string) => {
-            if (state.editingApplication !== undefined) {
-                await runWork(transferApplication({
-                    applicationId: state.editingApplication!.id,
-                    transferToProjectId: toProjectId
-                }));
-                state.reload();
+        const rejectRequest = useCallback(async () => {
+            try {
+                if (!activeStateBreakDown) return;
+                await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.REJECTED, notify: false})));
+                dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.REJECTED}});
+            } catch (e) {
+                displayErrorMessageOrDefault(e, "Failed to reject application.");
+                reload();
             }
-        }, [state.editingApplication?.id]);
+        }, [grantApplication.id, activeStateBreakDown]);
+
+
 
         const closeRequest = useCallback(async () => {
-            if (state.editingApplication !== undefined) {
+            if (!appId) return;
+            try {
+                await runWork(closeApplication(bulkRequestOf({applicationId: appId})), {defaultErrorHandler: false});
+                dispatch({type: SET_STATE_WITHDRAWN});
+            } catch (e) {
+                displayErrorMessageOrDefault(e, "Failed to withdraw application.");
+                reload();
+            }
+        }, [appId]);
+
+        const setRequestPending = useCallback(async () => {
+            if (!appId || !activeStateBreakDown) return;
+            try {
+                await runWork(updateState(bulkRequestOf({applicationId: appId, newState: State.IN_PROGRESS, notify: false})), {defaultErrorHandler: false});
+                dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.IN_PROGRESS}});
+            } catch (e) {
+                displayErrorMessageOrDefault(e, "Failed to undo.")
+            }
+        }, [appId, activeStateBreakDown]);
+
+        const trySetRequestPending = React.useCallback(() => {
+            if (grantApplication.updatedAt < THIRTY_DAYS_AGO) {
                 addStandardDialog({
-                    title: "Withdraw application?",
-                    message: "Are you sure you wish to withdraw this application?",
-                    onConfirm: async () => {
-                        await runWork(closeGrantApplication({requestId: state.editingApplication!.id}));
-                        state.reload();
-                    }
-                });
+                    title: "Set as pending",
+                    message: "The application has not been updated for over 30 days. Do you wish to update it?",
+                    onConfirm: setRequestPending
+                })
+            } else {
+                setRequestPending();
             }
-        }, [state.editingApplication?.id]);
+        }, [grantApplication, setRequestPending]);
 
-        useEffect(() => {
-            let timeout = 0;
-            if (state.editingApplication !== undefined) {
-                for (const resource of state.editingApplication.requestedResources) {
-                    const credits = resource.balanceRequested;
+        const reload = useCallback(() => {
+            fetchGrantGivers(browseAffiliations({itemsPerPage: 250}));
+            if (appId) {fetchGrantApplication({id: appId}).then(g => dispatch({type: FETCHED_GRANT_APPLICATION, payload: g}));};
+        }, [appId]);
 
-                    // TODO(Dan): The following code is a terrible idea.
-                    // This code is in here only because we did not notice the error until it was already in production
-                    // and was causing a lot of crashes. A proper solution is tracked in #1928.
-                    //
-                    // The code tends to crash because React has not yet rendered the inputs and we attempt to write to
-                    // the inputs before they are actually ready. We solve it in the code below by simply retrying
-                    // (via setTimeout) until React has rendered our input elements. This is obviously a bad idea and the
-                    // code should be refactored to avoid this. The error only manifests itself if the loading of network
-                    // resources occur in a specific order, an order which happens to occur often in production but for
-                    // some reason not in dev.
-                    let attempts = 0;
-                    const work = (): void => {
-                        let success = true;
-                        const creditsInput = document.querySelector<HTMLInputElement>(
-                            `input[data-target="${productCategoryId({
-                                provider: resource.productProvider,
-                                name: resource.productCategory
-                            })}"]`
-                        );
 
-                        const freeButRequireBalanceCheckbox = document.querySelector<HTMLInputElement>(
-                            `input[data-target="checkbox-${productCategoryId({
-                                provider: resource.productProvider,
-                                name: resource.productCategory
-                            })}"]`
-                        );
+        const discardChanges = useCallback(() => {
+            setIsLocked(true);
+            reload();
+        }, [reload]);
 
-                        if (credits !== undefined) {
-                            if (creditsInput) {
-                                const category = state.productCategories.find(it =>
-                                    productCategoryEquals(
-                                        it.metadata.category,
-                                        {name: resource.productCategory, provider: resource.productProvider}
-                                    )
-                                );
-
-                                if (category == null) {
-                                    success = false;
-                                } else {
-                                    const meta = category.metadata;
-                                    creditsInput.value = normalizeBalanceForFrontendOpts(
-                                        credits,
-                                        meta.productType, meta.chargeType, meta.unitOfPrice,
-                                        {
-                                            isPrice: false,
-                                            forceInteger: true
-                                        }
-                                    );
+        const transferRequest = useCallback(async (project: ProjectWithTitle) => {
+            if (!appId) return;
+            dialogStore.addDialog(
+                <>
+                    <div>
+                        <Heading.h3>Post comment before transferring application?</Heading.h3>
+                        <Divider />
+                        <Box mb="16px">
+                            Note: After transferring the application, the application and comments will  <br />
+                            no longer be available to members of your current active project.
+                        </Box>
+                        <Input
+                            id={"dialog-input"}
+                            as={"textarea"}
+                            rows={3}
+                            width={"100%"}
+                            style={{resize: "none"}}
+                            autoFocus
+                        />
+                    </div>
+                    <ButtonGroup mt="20px">
+                        <ConfirmationButton onAction={async () => {
+                            await runWork(transferApplication(bulkRequestOf({
+                                applicationId: parseInt(appId, 10),
+                                transferToProjectId: project.projectId,
+                                revisionComment: `-- Auto-inserted: transferred from project ${project.title}.`
+                            })));
+                            dialogStore.success();
+                            history.push("/project/grants/ingoing");
+                        }} width="150px" color="blue" actionText="Skip" />
+                        <ConfirmationButton onAction={async () => {
+                            const elem = document.querySelector("#dialog-input") as HTMLInputElement;
+                            const comment = elem.value;
+                            if (comment) {
+                                try {
+                                    await runWork<{id: string}[]>(commentOnGrantApplication({
+                                        grantId: appId,
+                                        comment
+                                    }), {defaultErrorHandler: false});
+                                } catch (e) {
+                                    errorMessageOrDefault(e, "Failed to post comment. Cancelling transfer");
                                 }
-                            } else {
-                                success = false;
                             }
-                        }
 
-                        if (credits !== undefined) {
-                            if (freeButRequireBalanceCheckbox) {
-                                freeButRequireBalanceCheckbox.checked = credits > 0;
-                            }
-                        }
+                            await runWork(transferApplication(bulkRequestOf({
+                                applicationId: parseInt(appId, 10),
+                                transferToProjectId: project.projectId,
+                                revisionComment:
+                                    `${comment ?? ""}
 
-                        if (!success) {
-                            if (attempts > 10) {
-                                return;
-                            } else {
-                                attempts++;
-                                timeout = window.setTimeout(work, 500);
-                            }
-                        }
-                    };
+-- Auto-inserted: transferred from project ${project.title}.`
+                            })));
+                            dialogStore.success();
+                            history.push("/project/grants/ingoing");
+                        }} width="150px" color="green" actionText="Post" />
+                    </ButtonGroup>
+                    <Button mt="24px" color="red" type="button" onClick={dialogStore.failure}>Cancel</Button>
+                </>, () => undefined, true
+            );
+        }, [appId]);
 
-                    timeout = window.setTimeout(work, 0);
-                }
+        React.useEffect(() => {
+            if (
+                grantApplication.currentRevision.document.parentProjectId &&
+                grantGiversInUse.includes(grantApplication.currentRevision.document.parentProjectId)
+            ) return;
+            const [firstGrantGiver] = grantGiversInUse;
+            if (firstGrantGiver != null) dispatch({type: UPDATE_PARENT_PROJECT_ID, payload: {parentProjectId: firstGrantGiver}});
+        }, [grantGiversInUse, grantApplication]);
+
+        const grantFinalized = isGrantFinalized(grantApplication.status.overallState);
+
+        React.useEffect(() => {
+            if (target === RequestTarget.PERSONAL_PROJECT && projectId != null) {
+                history.push("/");
+                return;
             }
-            return () => {
-                clearTimeout(timeout);
-            }
-        }, [state.editingApplication, state.productCategories]);
+            setGrantGiversInUse([]);
+            fetchWallets(browseWallets({itemsPerPage: 250}));
+            reload();
+        }, [projectId, appId]);
 
-        const [transferringApplication, setTransferringApplication] = useState(false);
+        const grantGiverDropdown = React.useMemo(() => {
+            const filteredGrantGivers = grantGivers.data.items.filter(grantGiver =>
+                (target === RequestTarget.NEW_PROJECT || grantGiver.projectId !== projectId) &&
+                !grantGiversInUse.includes(grantGiver.projectId)
+            );
+            return target === RequestTarget.VIEW_APPLICATION || filteredGrantGivers.length === 0 ? null :
+                <ClickableDropdown
+                    fullWidth
+                    colorOnHover={false}
+                    trigger={<Flex><Heading.h2>Select grant giver</Heading.h2> <Icon name="chevronDownLight" size="1em" mt="18px" ml=".7em" color={"darkGray"} /></Flex>}
+                >
+                    <Wrapper>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHeaderCell pl="6px">Name</TableHeaderCell>
+                                    <TableHeaderCell pl="6px">Description</TableHeaderCell>
+                                </TableRow>
+                            </TableHeader>
+                            <tbody>
+                                {filteredGrantGivers.map(grantGiver =>
+                                    <TableRow cursor="pointer" key={grantGiver.projectId} onClick={() => setGrantGiversInUse(inUse => [...inUse, grantGiver.projectId])}>
+                                        <TableCell pl="6px"><Flex><Logo projectId={grantGiver.projectId} size="32px" /><Text mt="3px" ml="8px">{grantGiver.title}</Text></Flex></TableCell>
+                                        <TableCell pl="6px"><GrantGiverDescription key={grantGiver.projectId} projectId={grantGiver.projectId} /></TableCell>
+                                    </TableRow>
+                                )}
+                            </tbody>
+                        </Table>
+                    </Wrapper>
+                </ClickableDropdown>
+        }, [grantGivers, grantGiversInUse]);
+
+        const grantGiverEntries = React.useMemo(() =>
+            grantGivers.data.items.filter(it => grantGiversInUse.includes(it.projectId)).map(it =>
+                <GrantGiver
+                    key={it.projectId}
+                    target={target}
+                    isApprover={Client.projectId === it.projectId}
+                    grantApplication={grantApplication}
+                    remove={() => setGrantGiversInUse(inUse => [...inUse.filter(entry => entry !== it.projectId)])}
+                    setGrantProductCategories={setGrantProductCategories}
+                    wallets={wallets.data.items}
+                    project={it}
+                    isParentProject={getDocument(grantApplication).parentProjectId === it.projectId}
+                    setParentProject={parentProjectId => dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})}
+                    isLocked={isLocked}
+                    isRecipient={isRecipient}
+                />
+            ), [grantGivers, isRecipient, grantGiversInUse, isLocked, wallets, grantApplication, isRecipient]);
+
+        const recipient = getDocument(grantApplication).recipient;
+        const recipientName = getRecipientName(grantApplication);
+        const isProject = recipient.type !== "personalWorkspace";
 
         return (
             <MainContainer
                 header={target === RequestTarget.EXISTING_PROJECT ?
                     <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]} /> : null
                 }
-                sidebar={null}
-                main={
+                sidebar={<>
+                    {target !== RequestTarget.VIEW_APPLICATION ? (<>
+                        <Button fullWidth disabled={grantFinalized || submitLoading} onClick={submitRequest}>
+                            Submit Application
+                        </Button>
+                        {target === RequestTarget.NEW_PROJECT ? null : (
+                            <Link to="/project/grants/new">
+                                <Button mt="8px" fullWidth>
+                                    New project
+                                </Button>
+                            </Link>
+                        )}
+                    </>) : null}
+                    {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
+                        isLocked ? (
+                            (isRecipient || isApprover ?
+                                <Button fullWidth disabled={loading} onClick={() => setIsLocked(false)}>
+                                    Edit this request
+                                </Button> :
+                                <Tooltip trigger={<Button fullWidth disabled>
+                                    Edit this request
+                                </Button>}
+                                >
+                                    {infoTextFromContext(recipient)}
+                                </Tooltip>
+                            )
+                        ) : (
+                            <>
+                                <Button
+                                    color={"green"}
+                                    fullWidth
+                                    disabled={loading}
+                                    onClick={() => editApplication()}
+                                >
+                                    Save Changes
+                                </Button>
+                                <Button my="4px" fullWidth color={"red"} onClick={discardChanges}>Discard changes</Button>
+                            </>
+                        )
+                    )}
+                    {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) ?
+                        <Button
+                            mt="4px"
+                            color="blue"
+                            fullWidth
+                            onClick={() => setTransferringApplication(true)}
+                            disabled={!isLocked}
+                        >
+                            Transfer application
+                        </Button> : null
+                    }
+                </>}
+                main={<>
                     <Flex justifyContent="center">
                         <Box maxWidth={1400} width="100%">
-                            {target !== RequestTarget.NEW_PROJECT ? null : (
+                            {target === RequestTarget.VIEW_APPLICATION ? null : (
                                 <>
+                                    <Heading.h3>Requesting for {titleFromTarget(target).toLowerCase()}</Heading.h3>
                                     <Label mb={16} mt={16}>
                                         Principal Investigator (PI)
                                         <Input
-                                            value={
-                                                `${Client.userInfo?.firstNames} ${Client.userInfo?.lastName} ` +
-                                                `(${Client.username})`
-                                            }
+                                            value={piForProject(target, projectManagement.projectMembers.data.items)}
                                             disabled
                                         />
                                     </Label>
                                     <Label mb={16} mt={16}>
                                         Project title
-                                        <Input ref={projectTitleRef} />
+                                        <Input ref={projectTitleRef} disabled={target !== RequestTarget.NEW_PROJECT} />
                                     </Label>
                                 </>
                             )}
@@ -730,326 +1246,621 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                         <Table>
                                             <tbody>
                                                 <TableRow>
-                                                    <TableCell>Application Approver</TableCell>
-                                                    <TableCell>{state.editingApplication!.resourcesOwnedByTitle}</TableCell>
+                                                    <TableCell>Application Approver(s)</TableCell>
+                                                    <TableCell>
+                                                        <Box>
+                                                            {grantApplication.status.stateBreakdown.map(state => <Flex key={state.projectId}>
+                                                                <StateIcon state={state.state} /><Text>{state.projectTitle}</Text>
+                                                            </Flex>)}
+                                                        </Box>
+                                                    </TableCell>
                                                 </TableRow>
                                                 <TableRow>
-                                                    <TableCell>Project Title</TableCell>
-                                                    <TableCell>{state.editingApplication!.grantRecipientTitle}</TableCell>
+                                                    <TableCell>{
+                                                        !isProject ? "Recipient Username" : "Project Title"}
+                                                    </TableCell>
+                                                    <TableCell>{recipientName}</TableCell>
                                                 </TableRow>
-                                                <TableRow>
+                                                {isProject ? <TableRow>
                                                     <TableCell>Principal Investigator (PI)</TableCell>
-                                                    <TableCell>{state.editingApplication!.grantRecipientPi}</TableCell>
-                                                </TableRow>
+                                                    <TableCell>{grantApplication.status.projectPI}</TableCell>
+                                                </TableRow> : null}
+
                                                 <TableRow>
                                                     <TableCell verticalAlign="top">
-                                                        Project Type
+                                                        Recipient Type
                                                     </TableCell>
                                                     <TableCell>
-                                                        <table>
-                                                            <tbody>
-                                                                <tr>
-                                                                    <td>Personal</td>
-                                                                    <td width="100%">
-                                                                        {state.recipient.type === "personal" ?
-                                                                            <Icon name={"check"} color={"green"} /> :
-                                                                            <Icon name={"close"} color={"red"} />}
-                                                                    </td>
-                                                                </tr>
-                                                                <tr>
-                                                                    <td width="100%">New Project</td>
-                                                                    <td>
-                                                                        {state.recipient.type === "new_project" ?
-                                                                            <Icon name={"check"} color={"green"} /> :
-                                                                            <Icon name={"close"} color={"red"} />}
-                                                                    </td>
-                                                                </tr>
-                                                                <tr>
-                                                                    <td width="100%">Existing Project</td>
-                                                                    <td>
-                                                                        {state.recipient.type === "existing_project" ?
-                                                                            <Icon name={"check"} color={"green"} /> :
-                                                                            <Icon name={"close"} color={"red"} />}
-                                                                    </td>
-                                                                </tr>
-                                                            </tbody>
-                                                        </table>
+                                                        {recipientTypeToText(recipient)}
                                                     </TableCell>
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell verticalAlign="top">
                                                         Reference ID
                                                     </TableCell>
-                                                    {state.approver ?
-                                                        <TableCell>
-                                                            <table>
-                                                                <tbody>
-                                                                    <tr>
-                                                                        {isEditingProjectReferenceId ? (
-                                                                            <>
-                                                                                <td>
+                                                    <TableCell>
+                                                        <table>
+                                                            <tbody>
+                                                                <tr>
+                                                                    {isEditingProjectReferenceId ? (
+                                                                        <>
+                                                                            <td>
+                                                                                <form onSubmit={e => {
+                                                                                    stopPropagationAndPreventDefault(e);
+                                                                                    updateReferenceID();
+                                                                                }}>
                                                                                     <Input
-                                                                                        placeholder={state.editingApplication?.referenceId != null ? state.editingApplication?.referenceId : "e.g. DeiC-SDU-L1-000001"}
+                                                                                        placeholder={"e.g. DeiC-SDU-L1-000001"}
                                                                                         ref={projectReferenceIdRef}
                                                                                     />
-                                                                                </td>
-                                                                                <td>
-                                                                                    <Button
-                                                                                        color="blue"
-                                                                                        onClick={updateReferenceID}
-                                                                                        mx="6px"
-                                                                                    >
-                                                                                        Update Reference ID
-                                                                                    </Button>
-                                                                                    <Button
-                                                                                        color="red"
-                                                                                        onClick={cancelEditOfRefId}
-                                                                                    >
-                                                                                        Cancel
-                                                                                    </Button>
-                                                                                </td>
-                                                                            </>) : (
-                                                                            <>
-                                                                                <td>
-                                                                                    {state.editingApplication?.referenceId ?? "No ID given"}
-                                                                                </td>
+                                                                                </form>
+                                                                            </td>
+                                                                            <td>
+                                                                                <Button
+                                                                                    color="blue"
+                                                                                    onClick={updateReferenceID}
+                                                                                    mx="6px"
+                                                                                >
+                                                                                    Update Reference ID
+                                                                                </Button>
+                                                                                <Button
+                                                                                    color="red"
+                                                                                    onClick={cancelEditOfRefId}
+                                                                                >
+                                                                                    Cancel
+                                                                                </Button>
+                                                                            </td>
+                                                                        </>) : (
+                                                                        <>
+                                                                            <td>
+                                                                                {getReferenceId(grantApplication) ?? "No ID given"}
+                                                                            </td>
+                                                                            {!isApprover || grantApplication.status.overallState !== "IN_PROGRESS" ? null :
                                                                                 <td>
                                                                                     <Button ml={"4px"} onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
                                                                                 </td>
-                                                                            </>)
-                                                                        }
-                                                                    </tr>
-                                                                </tbody>
-                                                            </table>
-                                                        </TableCell> :
-                                                        <TableCell>
-                                                            {state.editingApplication?.referenceId ?? "No ID given"}
-                                                        </TableCell>
-                                                    }
+                                                                            }
+                                                                        </>)
+                                                                    }
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </TableCell>
                                                 </TableRow>
                                                 <TableRow>
-                                                    <TableCell verticalAlign={"top"} mt={32}>Current Status</TableCell>
+                                                    <TableCell verticalAlign="top" mt={32}>Current Status</TableCell>
                                                     <TableCell>
-                                                        {
-                                                            state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
-                                                                state.editingApplication!.status === GrantApplicationStatus.APPROVED ? (state.editingApplication?.statusChangedBy === null ? "Approved" : "Approved by " + state.editingApplication?.statusChangedBy) :
-                                                                    state.editingApplication!.status === GrantApplicationStatus.REJECTED ? (state.editingApplication?.statusChangedBy === null ? "Rejected" : "Rejected  by " + state.editingApplication?.statusChangedBy) :
-                                                                        (state.editingApplication?.statusChangedBy === null ? "Closed" : "Closed by " + state.editingApplication?.statusChangedBy)
-                                                        }
-                                                        <ButtonGroup>
-                                                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
-                                                                <>
-                                                                    {state.approver && !grantFinalized ?
-                                                                        <>
-                                                                            <Button
+                                                        {overallStateText(grantApplication)}
+                                                        {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                                                            <Box mt="18px">
+                                                                {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) ?
+                                                                    <>
+                                                                        {activeStateBreakDown.state === State.IN_PROGRESS ? <>
+                                                                            <ConfirmationButton
+                                                                                mb="4px"
+                                                                                icon="check"
                                                                                 color="green"
-                                                                                onClick={approveRequest}
+                                                                                onAction={approveRequest}
                                                                                 disabled={!isLocked}
-                                                                            >
-                                                                                Approve
-                                                                            </Button>
-                                                                            <ClickableDropdown
-                                                                                top="-73px"
-                                                                                fullWidth={true}
-                                                                                trigger={(
-                                                                                    <Button
-                                                                                        color="red"
-                                                                                        disabled={!isLocked}
-                                                                                        onClick={() => undefined}
-                                                                                    >
-                                                                                        Reject
-                                                                                    </Button>
-                                                                                )}
-                                                                            >
-                                                                                <OptionItem
-                                                                                    onClick={() => rejectRequest(true)}
-                                                                                    text={"Reject"}
-                                                                                />
-                                                                                <OptionItem
-                                                                                    onClick={() => rejectRequest(false)}
-                                                                                    text={"Reject without notify"}
-                                                                                />
-                                                                            </ClickableDropdown>
-                                                                            {state.editingApplication?.grantRecipient!.type !== "existing_project" && localStorage.getItem("enableprojecttransfer") != null ?
-                                                                                <Button
-                                                                                    color="blue"
-                                                                                    onClick={() => setTransferringApplication(true)}
-                                                                                    disabled={!isLocked}
-                                                                                >
-                                                                                    Transfer to other project
-                                                                                </Button> : null
-                                                                            }
-                                                                        </> : null
-                                                                    }
-                                                                    {!state.approver && !grantFinalized ?
-                                                                        <>
-                                                                            <Button
+                                                                                fullWidth
+                                                                                actionText={`Approve for ${activeStateBreakDown?.projectTitle}`}
+                                                                            />
+                                                                            <ConfirmationButton
                                                                                 color="red"
-                                                                                onClick={closeRequest}
                                                                                 disabled={!isLocked}
-                                                                            >
-                                                                                Withdraw
-                                                                            </Button>
-                                                                        </> : null
-                                                                    }
-                                                                </>
-                                                            )}
-                                                        </ButtonGroup>
-                                                        {target !== RequestTarget.VIEW_APPLICATION || isLocked ||
-                                                            grantFinalized ? null :
-                                                            <Text>
-                                                                You must finish making changes before you can
-                                                                change the status of this application
-                                                            </Text>
-                                                        }
-
+                                                                                fullWidth
+                                                                                icon="close"
+                                                                                onAction={rejectRequest}
+                                                                                actionText={`Reject for ${activeStateBreakDown?.projectTitle}`}
+                                                                            />
+                                                                        </> : [State.APPROVED, State.REJECTED].includes(activeStateBreakDown.state) ? <>
+                                                                            <ConfirmationButton
+                                                                                fullWidth
+                                                                                icon="ellipsis"
+                                                                                onAction={trySetRequestPending}
+                                                                                actionText={`Undo ${activeStateBreakDown.state === State.APPROVED ? "approval" : "rejection"}`}
+                                                                            />
+                                                                        </> : null}
+                                                                    </> : null
+                                                                }
+                                                                {isRecipient && !grantFinalized ?
+                                                                    <ConfirmationButton
+                                                                        mt="16px"
+                                                                        icon="close"
+                                                                        color="red"
+                                                                        fullWidth
+                                                                        onAction={closeRequest}
+                                                                        disabled={!isLocked}
+                                                                        actionText={"Withdraw"}
+                                                                    /> : null
+                                                                }
+                                                            </Box>
+                                                        )}
                                                     </TableCell>
                                                 </TableRow>
                                             </tbody>
                                         </Table>
+                                        {grantApplication.status.revisions.length === 0 ? null : <>
+                                            <Divider borderColor="rgba(34,36,38,.1)" />
+                                            <Box my="-8px" />
+                                            <Accordion title="Revisions" borderColor="rgba(34,36,38,.1)">
+                                                <Table mt={"18px"}>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHeaderCell textAlign={"left"} width="200px">
+                                                                Updated at
+                                                            </TableHeaderCell>
+                                                            <TableHeaderCell textAlign={"left"} width="270px">
+                                                                Updated by
+                                                            </TableHeaderCell>
+                                                            <TableHeaderCell textAlign={"left"}>
+                                                                Revision comment
+                                                            </TableHeaderCell>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <tbody>
+                                                        {grantApplication.status.revisions.map(rev =>
+                                                            <TableRow key={rev.revisionNumber}>
+                                                                <TableCell>
+                                                                    {format(rev.createdAt, "dd/MM/yyyy HH:mm:ss")}
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <Truncate>{rev.updatedBy}</Truncate>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <pre style={{overflowX: "auto"}}>
+                                                                        {rev.document.revisionComment}
+                                                                    </pre>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )}
+                                                    </tbody>
+                                                </Table>
+                                            </Accordion>
+                                        </>}
                                     </HighlightedCard>
                                 </>
                             )}
 
-                            <Heading.h3 mt={32}>
-                                {target === RequestTarget.VIEW_APPLICATION ? "Requested Resources" : "Resources"}
-                            </Heading.h3>
+                            <Box my="32px" />
 
-                            {productTypes.map(type => (
-                                <ProductCategorySection state={state} type={type} isLocked={isLocked} key={type} />
-                            ))}
+                            {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverDropdown}
+                            {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverEntries}
+                            {/* Note(Jonas): This is for the grant givers that are part of an existing grant application */}
+                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                                grantGivers.data.items.sort(grantGiverSortFn)
+                                    .filter(it => grantApplication.status.stateBreakdown
+                                        .map(it => it.projectId).includes(it.projectId)).map(grantGiver =>
+                                            <GrantGiver
+                                                key={grantGiver.projectId}
+                                                target={target}
+                                                isLocked={isLocked}
+                                                isApprover={Client.projectId === grantGiver.projectId}
+                                                project={grantGiver}
+                                                setParentProject={parentProjectId =>
+                                                    dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})
+                                                }
+                                                isParentProject={grantGiver.projectId === getDocument(grantApplication).parentProjectId}
+                                                grantApplication={grantApplication}
+                                                setGrantProductCategories={setGrantProductCategories}
+                                                wallets={wallets.data.items}
+                                                isRecipient={isRecipient}
+                                            />))}
 
-                            <CommentApplicationWrapper>
+                            <CommentApplicationWrapper style={{display: target === RequestTarget.VIEW_APPLICATION || grantGiversInUse.length > 0 ? undefined : "none"}}>
                                 <RequestFormContainer>
                                     <Heading.h4>Application</Heading.h4>
                                     <TextArea
-                                        disabled={grantFinalized || isLocked || state.approver}
+                                        disabled={grantFinalized || isLocked}
                                         rows={25}
-                                        ref={state.documentRef}
+                                        ref={documentRef}
                                     />
                                 </RequestFormContainer>
 
-                                {state.editingApplication === undefined ? null : (
-                                    <Box width="100%">
-                                        <Heading.h4>Comments</Heading.h4>
-                                        {state.comments.length > 0 ? null : (
-                                            <Box mt={16} mb={16}>
-                                                No comments have been posted yet.
-                                            </Box>
-                                        )}
-
-                                        {state.comments.map(it => (
-                                            <CommentBox
-                                                key={it.id}
-                                                comment={it}
-                                                avatar={state.avatars.cache[it.postedBy] ?? defaultAvatar}
-                                                reload={state.reload}
-                                            />
-                                        ))}
-
-                                        <PostCommentWidget
-                                            applicationId={state.editingApplication.id!}
-                                            avatar={state.avatars.cache[Client.username!] ?? defaultAvatar}
-                                            reload={state.reload}
-                                        />
-                                    </Box>
-                                )}
+                                <Comments
+                                    target={target}
+                                    appId={appId}
+                                    dispatch={dispatch}
+                                    grantApplication={grantApplication}
+                                    reload={reload}
+                                />
                             </CommentApplicationWrapper>
-                            <Box p={32} pb={16}>
-                                {target !== RequestTarget.VIEW_APPLICATION ? (
-                                    <Button disabled={grantFinalized || submitLoading} fullWidth onClick={submitRequest}>
-                                        Submit Application
-                                    </Button>
-                                ) : null
-                                }
-                                {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
-                                    isLocked ? (
-                                        <Button fullWidth onClick={() => setIsLocked(false)} disabled={loading}>
-                                            Edit this request
-                                        </Button>
-                                    ) : (
-                                        <ButtonGroup>
-                                            <Button
-                                                color={"green"}
-                                                fullWidth
-                                                disabled={loading}
-                                                onClick={submitRequest}
-                                            >
-                                                Save Changes
-                                            </Button>
-                                            <Button color={"red"} onClick={discardChanges}>Discard changes</Button>
-                                        </ButtonGroup>
-                                    )
-                                )}
-                            </Box>
                         </Box>
                     </Flex>
-                }
+                </>}
                 additional={
-                    state.editingApplication != null && state.editingApplication.grantRecipientPi ?
-                        <TransferApplicationPrompt
-                            isActive={transferringApplication}
-                            close={() => setTransferringApplication(false)}
-                            transfer={transferRequest}
-                            grantId={state.editingApplication.id}
-                        /> : null}
+                    <TransferApplicationPrompt
+                        isActive={transferringApplication}
+                        close={() => setTransferringApplication(false)}
+                        transfer={transferRequest}
+                        grantId={appId}
+                    />}
             />
         );
     };
 
-const ProductCategorySection: React.FunctionComponent<{
-    state: UseRequestInformation;
-    type: ProductType;
-    isLocked: boolean;
-}> = ({state, type, isLocked}) => {
-    const grantFinalized = isGrantFinalized(state.editingApplication?.status);
-    const filtered = useMemo(
-        () => state.productCategories.filter(pc => pc.metadata.productType == type),
-        [state.productCategories, type]
-    );
+function infoTextFromContext(recipient: Recipient): string {
+    switch (recipient.type) {
+        case "existingProject":
+            return "You don't have the correct project active to edit this application."
+        case "personalWorkspace":
+            if (Client.hasActiveProject) {
+                return "You have an active project.\n Change to personal workspace to edit."
+            }
+            return "";
+        default: {
+            return "";
+        }
+    }
+}
 
-    if (filtered.length < 1) return null;
-    return <>
-        <Heading.h4 mt={32}><Flex>{productTypeToTitle(type)} <ProductLink /></Flex></Heading.h4>
-        <ResourceContainer>
-            {filtered.map((it, idx) => (
-                <GenericRequestCard
-                    key={idx}
-                    wb={it}
-                    state={state}
-                    grantFinalized={grantFinalized}
-                    isLocked={isLocked}
+function StateIcon({state}: {state: State;}) {
+    let icon: IconName;
+    let color: ThemeColor;
+    switch (state) {
+        case State.APPROVED:
+            icon = "check";
+            color = "green";
+            break;
+        case State.CLOSED:
+        case State.REJECTED:
+            icon = "close";
+            color = "red";
+            break;
+        case State.IN_PROGRESS:
+            icon = "ellipsis";
+            color = "blue";
+            break;
+    }
+    return <Icon mr="8px" name={icon} color={color} />;
+}
+
+interface CommentsProps {
+    grantApplication: GrantApplication;
+    dispatch: any;
+    target: RequestTarget;
+    appId?: string;
+    reload(): void;
+}
+
+function Comments(props: CommentsProps) {
+    const avatars = useAvatars();
+
+    return (
+        <Box width="100%">
+            <Heading.h4>Comments</Heading.h4>
+            {props.grantApplication.status.comments.length > 0 ? null : (
+                <Box mt={16} mb={16}>
+                    No comments have been posted yet.
+                </Box>
+            )}
+
+            {props.grantApplication.status.comments.map(it => (
+                <CommentBox
+                    key={it.id}
+                    grantId={props.appId}
+                    comment={it}
+                    avatar={avatars.cache[it.username] ?? defaultAvatar}
+                    reload={props.reload}
                 />
             ))}
-        </ResourceContainer>
-    </>
-};
+            {!props.appId ? null :
+                <PostCommentWidget
+                    grantId={props.appId}
+                    avatar={avatars.cache[Client.username!] ?? defaultAvatar}
+                    onPostedComment={comment => props.dispatch({type: "POSTED_COMMENT", payload: comment})}
+                    disabled={props.target !== RequestTarget.VIEW_APPLICATION}
+                />
+            }
+        </Box>
+    )
+}
+
+
+function grantGiverSortFn(grantGiverA: ProjectWithTitle, grantGiverB: ProjectWithTitle): number {
+    if (grantGiverA.projectId === Client.projectId) return -1;
+    if (grantGiverB.projectId === Client.projectId) return 1;
+    return grantGiverA.title.localeCompare(grantGiverB.title);
+}
+
+const projectDescriptionCache: {[projectId: string]: string | undefined;} = {};
+
+function getReferenceId(grantApplication: GrantApplication): string | null {
+    return grantApplication.currentRevision.document.referenceId;
+}
+
+function GrantGiverDescription(props: {projectId: string;}): JSX.Element {
+    const [description, fetchDescription] = useCloudAPI<RetrieveDescriptionResponse>(
+        {noop: true}, {description: projectDescriptionCache[props.projectId] ?? ""}
+    );
+
+    useEffect(() => {
+        if (projectDescriptionCache[props.projectId] == null) {
+            fetchDescription(retrieveDescription({
+                projectId: props.projectId,
+            }));
+        }
+    }, [props.projectId]);
+
+    useEffect(() => {
+        if (description.data.description != null) {
+            projectDescriptionCache[props.projectId] = description.data.description;
+        }
+    }, [description.data.description, projectDescriptionCache]);
+
+    return <div>{description.data.description}</div>;
+}
+
+function recipientTypeToText(recipient: Recipient): string {
+    switch (recipient.type) {
+        case "existingProject":
+            return "Existing Project";
+        case "newProject":
+            return "New Project";
+        case "personalWorkspace":
+            return "Personal Workspace";
+    }
+}
+
+function getRecipientName(grantApplication: GrantApplication): string {
+    switch (grantApplication.currentRevision.document.recipient.type) {
+        case "existingProject": {
+            return grantApplication.status.projectTitle ?? "";
+        }
+        case "newProject": {
+            return grantApplication.currentRevision.document.recipient.title;
+        }
+        case "personalWorkspace": {
+            return grantApplication.currentRevision.document.recipient.username;
+        }
+    }
+}
+
+function getRecipientId(recipient: Recipient): string {
+    return recipient.type === "existingProject" ? recipient.id :
+        recipient.type === "newProject" ? recipient.title :
+            recipient.type === "personalWorkspace" ? recipient.username : "";
+}
+
+function getAllocationRequests(grantApplication: GrantApplication): AllocationRequest[] {
+    return getDocument(grantApplication).allocationRequests;
+}
+
+function overallStateText(grantApplication: GrantApplication): string {
+    const {updatedBy} = grantApplication.currentRevision;
+    switch (grantApplication.status.overallState) {
+        case State.APPROVED:
+            return updatedBy === null ? "Approved" : "Approved by " + updatedBy;
+        case State.REJECTED:
+            return updatedBy === null ? "Rejected" : "Rejected by " + updatedBy;
+        case State.IN_PROGRESS:
+            return "In progress";
+        case State.CLOSED:
+            return updatedBy === null ? "Closed" : "Withdrawn by " + updatedBy;
+    }
+}
+
+function GrantGiver(props: {
+    grantApplication: GrantApplication;
+    project: ProjectWithTitle;
+    target: RequestTarget;
+    isLocked: boolean;
+    isApprover: boolean;
+    isRecipient: boolean;
+    remove?: () => void;
+    wallets: Wallet[];
+    isParentProject: boolean;
+    setParentProject(project: string): void;
+    setGrantProductCategories: React.Dispatch<React.SetStateAction<{[key: string]: GrantProductCategory[];}>>;
+}): JSX.Element {
+    const {recipient} = props.grantApplication.currentRevision.document;
+    const recipientId = getRecipientId(recipient);
+
+    const [products] = useCloudAPI<{availableProducts: Product[]}>(browseProducts({
+        projectId: props.project.projectId,
+        recipientType: recipient.type,
+        recipientId,
+        showHidden: false
+    }), {availableProducts: []});
+
+    const productCategories: GrantProductCategory[] = useMemo(() => {
+        const result: GrantProductCategory[] = [];
+        for (const product of products.data.availableProducts) {
+            const metadata: ProductMetadata = {
+                category: product.category,
+                freeToUse: product.freeToUse,
+                productType: product.productType,
+                chargeType: product.chargeType,
+                hiddenInGrantApplications: product.hiddenInGrantApplications,
+                unitOfPrice: product.unitOfPrice
+            };
+
+            if (result.find(it => productCategoryEquals(it.metadata.category, metadata.category)) === undefined) {
+                result.push({metadata});
+            }
+        }
+
+        for (const request of getAllocationRequests(props.grantApplication)) {
+            const existing = result.find(it =>
+                productCategoryEquals(
+                    it.metadata.category,
+                    {name: request.category, provider: request.provider})
+            );
+
+            if (existing) {
+                existing.requestedBalance = request.balanceRequested;
+            }
+        }
+        return result;
+    }, [products]);
+
+    React.useEffect(() => {
+        props.setGrantProductCategories(gpc => {
+            gpc[props.project.projectId] = productCategories;
+            return gpc;
+        });
+        return () => {
+            props.setGrantProductCategories(gpc => {
+                delete gpc[props.project.projectId];
+                return gpc;
+            });
+        };
+    }, [productCategories]);
+
+    return React.useMemo(() => {
+        const products = productTypes.map(type => <AsProductType
+            key={type}
+            target={props.target}
+            type={type}
+            projectId={props.project.projectId}
+            isApprover={props.isApprover}
+            grantApplication={props.grantApplication}
+            wallets={props.wallets}
+            productCategories={productCategories}
+            isLocked={props.isLocked}
+            isRecipient={props.isRecipient}
+        />);
+
+        const canEditAffiliation = canChangePrimaryAffiliation(
+            props.target,
+            props.grantApplication.currentRevision.document.recipient
+        );
+
+        const left = <Flex>
+            <Heading.h2>{props.project.title}</Heading.h2>
+            {!props.isParentProject && props.isLocked || !canEditAffiliation ? null :
+                <Tooltip trigger={
+                    <ParentProjectIcon
+                        onClick={() => props.isLocked ? null : props.setParentProject(props.project.projectId)}
+                        cursor={props.isLocked ? undefined : "pointer"}
+                        isSelected={props.isParentProject} name="check"
+                    />
+                }>
+                    {props.isParentProject ? "Selected as primary affiliation." : (
+                        !props.isLocked ? "Click to select as primary affiliation" :
+                            "Not selected as primary affiliation.")}
+                </Tooltip>
+            }
+        </Flex>;
+
+        const right = props.remove ? <Flex cursor="pointer" onClick={props.remove}>
+            <Icon name="close" color="red" mr="8px" />Remove
+        </Flex> : null
+
+        const creatingOrApproverOrRecipient = props.target !== RequestTarget.VIEW_APPLICATION || props.isApprover || props.isRecipient;
+
+        return <Box mt="12px">
+            {creatingOrApproverOrRecipient ? <Spacer
+                left={left}
+                right={right}
+            /> : null}
+            {creatingOrApproverOrRecipient ? products :
+                <Accordion noBorder title={<Flex mt="-12px">{left}</Flex>} titleContent={right} panelProps={{mx: "-8px", pl: "8px"}}>
+                    {products}
+                </Accordion>
+            }
+        </Box>
+    }, [productCategories, props.wallets, props.isRecipient, props.grantApplication, props.isParentProject, props.isLocked]);
+}
+
+function canChangePrimaryAffiliation(target: RequestTarget, recipient: Recipient): boolean {
+    switch (target) {
+        case RequestTarget.NEW_PROJECT:
+            return true;
+        case RequestTarget.EXISTING_PROJECT:
+        case RequestTarget.PERSONAL_PROJECT:
+            return false;
+        case RequestTarget.VIEW_APPLICATION: {
+            switch (recipient.type) {
+                case "existingProject":
+                case "personalWorkspace":
+                    return false;
+                case "newProject":
+                    return true;
+            }
+        }
+    }
+}
+
+function AsProductType(props: {
+    target: RequestTarget,
+    type: ProductType;
+    productCategories: GrantProductCategory[];
+    wallets: Wallet[];
+    isRecipient: boolean;
+    projectId: string;
+    isLocked: boolean;
+    isApprover: boolean;
+    grantApplication: GrantApplication;
+}): JSX.Element | null {
+    const grantFinalized = isGrantFinalized(props.grantApplication.status.overallState);
+    const filteredProductCategories = props.productCategories.filter(pc => pc.metadata.productType === props.type);
+    const noEntries = filteredProductCategories.length === 0;
+    const {allocationRequests} = props.grantApplication.currentRevision.document;
+    const filteredWallets = props.wallets.filter(it => it.productType === props.type);
+    if (props.target === RequestTarget.VIEW_APPLICATION && noEntries) return null;
+    return <>
+        <Heading.h4 mt={32}><Flex>{productTypeToTitle(props.type)} <ProductLink /></Flex></Heading.h4>
+        {noEntries ? <Heading.h4 mt="12px">No products for type available.</Heading.h4> : <ResourceContainer>
+            {filteredProductCategories.map((pc, idx) =>
+                <GenericRequestCard
+                    key={idx}
+                    wb={pc}
+                    isApprover={props.isApprover}
+                    grantFinalized={grantFinalized}
+                    isLocked={props.isLocked}
+                    allocationRequest={allocationRequests.find(it =>
+                        it.category === pc.metadata.category.name &&
+                        it.provider === pc.metadata.category.provider &&
+                        it.grantGiver === props.projectId
+                    )}
+                    projectId={props.projectId}
+                    isRecipient={props.isRecipient}
+                    wallets={filteredWallets.filter(it =>
+                        it.paysFor.name === pc.metadata.category.name &&
+                        it.paysFor.provider === pc.metadata.category.provider
+                    )}
+                />
+            )}
+        </ResourceContainer>}
+    </>;
+}
+
+const ParentProjectIcon = styled(Icon) <{isSelected: boolean;}>`
+    color: var(--${p => p.isSelected ? "blue" : "gray"});
+
+    transition: color 0.4s;
+
+    margin-top: 12px;
+    margin-left: 8px;
+
+    &:hover {
+        color: var(--blue);
+    }
+`;
 
 interface TransferApplicationPromptProps {
     isActive: boolean;
-    grantId: number;
+    grantId?: string;
 
     close(): void;
 
-    transfer(toProjectId: string): Promise<void>;
+    transfer(project: ProjectWithTitle): Promise<void>;
 }
 
 function TransferApplicationPrompt({isActive, close, transfer, grantId}: TransferApplicationPromptProps) {
-    const [projects, fetchProjects] = useCloudAPI<GrantsRetrieveAffiliationsResponse>(findAffiliations({
-        page: 0,
-        itemsPerPage: 100,
-        grantId
-    }), emptyPage);
-
-    const history = useHistory();
+    const [projects, fetchProjects] = useCloudAPI<GrantsRetrieveAffiliationsResponse>({noop: true}, emptyPageV2);
 
     React.useEffect(() => {
         if (grantId) {
-            fetchProjects(findAffiliations({page: 0, itemsPerPage: 100, grantId}))
+            fetchProjects(browseAffiliationsByResource({
+                itemsPerPage: 100,
+                applicationId: grantId
+            }));
         }
     }, [grantId]);
 
-    const dispatch = useDispatch();
+    if (!grantId) return null;
 
     return (
         <ReactModal
@@ -1057,6 +1868,7 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
             isOpen={isActive}
             onRequestClose={close}
             shouldCloseOnEsc
+            ariaHideApp={false}
             shouldCloseOnOverlayClick
         >
             <List>
@@ -1064,23 +1876,20 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
                 {projects.data.items.map(it =>
                     <Spacer
                         key={it.projectId}
-                        left={<Box key={it.projectId}>{it.title}</Box>}
+                        left={<Box my="auto" mr="24px" key={it.projectId}>{it.title}</Box>}
                         right={<>
-                            <ConfirmationButton
+                            <Button
                                 my="3px"
-                                width="115px"
+                                width="165px"
                                 height="40px"
-                                onAction={async () => {
+                                onClick={async () => {
                                     close();
-                                    // Show that we are transferring
-                                    dispatch(setLoading(true));
-                                    await transfer(it.projectId);
-                                    dispatch(setLoading(false));
-                                    history.push("/project/grants/ingoing");
+                                    transfer(it);
                                 }}
-                                icon="move"
-                                actionText="Transfer"
-                            />
+                            >
+                                <Icon name="move" mr="12px" />
+                                Transfer
+                            </Button>
                         </>}
                     />
                 )}
@@ -1089,17 +1898,12 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
     );
 }
 
-const OptionItem: React.FunctionComponent<{onClick: () => void; text: string; color?: string}> = props => (
-    <Box cursor="pointer" width="auto" onClick={props.onClick}>
-        <TextSpan color={props.color}>{props.text}</TextSpan>
-    </Box>
-);
-
 const CommentApplicationWrapper = styled.div`
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
     grid-gap: 32px;
     max-width: 1400px;
+    margin-top: 32px;
 `;
 
 const CommentBoxWrapper = styled.div`
@@ -1123,21 +1927,29 @@ const CommentBoxWrapper = styled.div`
 const CommentBox: React.FunctionComponent<{
     comment: Comment,
     avatar: AvatarType,
-    reload: () => void
-}> = ({comment, avatar, reload}) => {
+    reload: () => void;
+    grantId?: string;
+}> = ({comment, avatar, reload, grantId}) => {
     const [, runCommand] = useCloudCommand();
     const onDelete = useCallback(() => {
+        if (!grantId) return;
         addStandardDialog({
             title: "Confirm comment deletion",
             message: "Are you sure you wish to delete your comment?",
             confirmText: "Delete",
             addToFront: true,
             onConfirm: async () => {
-                await runCommand(deleteGrantApplicationComment({commentId: comment.id}));
-                reload();
+                try {
+                    await runCommand(deleteGrantApplicationComment({grantId, commentId: comment.id}));
+                    reload();
+                } catch (err) {
+                    displayErrorMessageOrDefault(err, "Failed to delete comment.")
+                }
             }
         });
     }, [comment.id]);
+
+    if (!grantId) return null;
 
     return <CommentBoxWrapper>
         <div className="avatar">
@@ -1145,12 +1957,12 @@ const CommentBox: React.FunctionComponent<{
         </div>
 
         <div className="body">
-            <p><strong>{comment.postedBy}</strong> says:</p>
+            <p><strong>{comment.username}</strong> says:</p>
             <p>{comment.comment}</p>
-            <time>{dateToString(comment.postedAt)}</time>
+            <time>{dateToString(comment.createdAt)}</time>
         </div>
 
-        {comment.postedBy === Client.username ? (
+        {comment.username === Client.username ? (
             <div>
                 <Icon cursor={"pointer"} name={"trash"} color={"red"} onClick={onDelete} />
             </div>
@@ -1159,71 +1971,202 @@ const CommentBox: React.FunctionComponent<{
 };
 
 const PostCommentWrapper = styled.form`
-  .wrapper {
-    display: flex;
-  }
+    .wrapper {
+        display: flex;
+    }
 
-  ${TextArea} {
-    flex-grow: 1;
-    margin-left: 6px;
-  }
+    ${TextArea} {
+        flex-grow: 1;
+        margin-left: 6px;
+    }
 
-  .buttons {
-    display: flex;
-    margin-top: 6px;
-    justify-content: flex-end;
-  }
+    .buttons {
+        display: flex;
+        margin-top: 6px;
+        justify-content: flex-end;
+    }
 `;
 
-const HelpText = styled.p`
-  margin: 0;
-  font-size: ${theme.fontSizes[1]}px;
-  color: var(--gray, #f00);
-`;
+function piForProject(target: RequestTarget, projectMembers: ProjectMember[]): string {
+    switch (target) {
+        case RequestTarget.NEW_PROJECT:
+        case RequestTarget.PERSONAL_PROJECT:
+            return `${Client.userInfo?.firstNames} ${Client.userInfo?.lastName} ` + `(${Client.username})`;
+        case RequestTarget.EXISTING_PROJECT:
+            return projectMembers.find(it => it.role === ProjectRole.PI)?.username ?? "";
+    }
+    return "";
+}
 
 const PostCommentWidget: React.FunctionComponent<{
-    applicationId: number,
+    grantId: string,
     avatar: AvatarType,
-    reload: () => void
-}> = ({applicationId, avatar, reload}) => {
+    onPostedComment(comment: Comment): void;
+    disabled: boolean;
+}> = ({grantId, avatar, onPostedComment, disabled}) => {
     const commentBoxRef = useRef<HTMLTextAreaElement>(null);
     const [loading, runWork] = useCloudCommand();
     const submitComment = useCallback(async (e) => {
         e.preventDefault();
+        if (disabled) return;
+        try {
+            const result = await runWork<UCloud.BulkResponse<{id: string}>>(commentOnGrantApplication({
+                grantId,
+                comment: commentBoxRef.current!.value
+            }), {defaultErrorHandler: false});
+            if (result != null) {
+                const [{id}] = result.responses;
+                onPostedComment({
+                    comment: commentBoxRef.current!.value,
+                    createdAt: new Date().getTime(),
+                    id,
+                    username: Client.activeUsername!
+                });
 
-        await runWork(commentOnGrantApplication({
-            requestId: applicationId,
-            comment: commentBoxRef.current!.value
-        }));
-        reload();
-        if (commentBoxRef.current) commentBoxRef.current!.value = "";
-    }, [runWork, applicationId, commentBoxRef.current]);
+                if (commentBoxRef.current) commentBoxRef.current!.value = "";
+            }
+        } catch (error) {
+            displayErrorMessageOrDefault(error, "Failed to post comment.");
+        }
+    }, [runWork, grantId, commentBoxRef.current]);
+
     return <PostCommentWrapper onSubmit={submitComment}>
         <div className="wrapper">
             <UserAvatar avatar={avatar} width={"48px"} />
-            <TextArea rows={3} ref={commentBoxRef} placeholder={"Your comment"} />
+            <TextArea rows={3} ref={commentBoxRef} disabled={disabled} placeholder={"Your comment"} />
         </div>
         <div className="buttons">
-            <Button disabled={loading}>Send</Button>
+            {disabled ? <Tooltip trigger={<Button disabled>Send</Button>}>Submit application to allow comments</Tooltip> :
+                <Button disabled={loading}>Send</Button>}
         </div>
     </PostCommentWrapper>;
 };
 
+function getDocument(grantApplication: GrantApplication): Document {
+    return grantApplication.currentRevision.document;
+}
+
 function ProductLink(): JSX.Element {
-    return <Tooltip
-        trigger={<ExternalLink href="/app/skus"><Box style={{
-            cursor: "pointer",
-            border: "2px var(--black) solid",
-            borderRadius: "9999px",
-            width: "35px",
-            height: "35px",
-            marginLeft: "9px",
-            paddingLeft: "10px",
-            marginTop: "-2px"
-        }}> ?</Box></ExternalLink>}
-    >
+    return <Tooltip trigger={<ExternalLink href="/app/skus"><ProductLinkBox> ?</ProductLinkBox></ExternalLink>}>
         <Box width="100px">Click to view details for resources</Box>
-    </Tooltip>
+    </Tooltip>;
+}
+
+const ProductLinkBox = styled.div`
+    cursor: pointer;
+    border: 2px var(--black) solid;
+    border-radius: 9999px;
+    width: 35px;
+    height: 35px;
+    margin-left: 9px;
+    padding-left: 10px;
+    margin-top: -2px;
+`;
+
+export function isGrantFinalized(status: State): boolean {
+    return State.IN_PROGRESS !== status;
+}
+
+async function promptRevisionComment(): Promise<string | null> {
+    try {
+        return (await addStandardInputDialog({
+            type: "textarea",
+            title: "Revision Reason",
+            validator: text => text.length !== 0,
+            placeholder: "Explain the reasoning behind the revision.",
+            width: "100%",
+            rows: 9,
+            validationFailureMessage: "Reason can't be empty."
+        })).result;
+    } catch {
+        return null;
+    }
+}
+
+function toForm(request: RequestTarget, grantApplication: GrantApplication, formText: string): {type: "plain_text", text: string;} {
+    switch (request) {
+        case RequestTarget.EXISTING_PROJECT:
+        case RequestTarget.NEW_PROJECT:
+        case RequestTarget.PERSONAL_PROJECT: {
+            return {
+                type: "plain_text",
+                text: formText,
+            };
+        }
+        case RequestTarget.VIEW_APPLICATION: {
+            switch (grantApplication.currentRevision.document.recipient.type) {
+                case "existingProject":
+                case "newProject":
+                case "personalWorkspace":
+                default:
+                    return {
+                        type: "plain_text",
+                        text: formText
+                    };
+            }
+        }
+    }
+}
+
+function formTextFromGrantApplication(grantApplication: GrantApplication): string {
+    return grantApplication.currentRevision.document.form.text;
+}
+
+function findRequestedResources(grantProductCategories: Record<string, GrantProductCategory[]>): AllocationRequest[] {
+    return Object.keys(grantProductCategories).flatMap(grantGiver =>
+        grantProductCategories[grantGiver].map(wb => {
+            let creditsRequested = parseIntegerFromInput(
+                document.querySelector<HTMLInputElement>(
+                    `input[data-target="${productCategoryId(wb.metadata.category, grantGiver)}"]`
+                )
+            );
+
+            const first = document.getElementsByClassName(
+                productCategoryStartDate(wb.metadata.category, grantGiver)
+            )?.[0] as HTMLInputElement;
+            const start = parseDateFromInput(first);
+
+            const second = document.getElementsByClassName(
+                productCategoryEndDate(wb.metadata.category, grantGiver)
+            )?.[0] as HTMLInputElement;
+            const end = parseDateFromInput(second);
+
+            const allocation = document.querySelector<HTMLInputElement>(
+                `input[data-target="${productCategoryAllocation(wb.metadata.category, grantGiver)}"]`
+            )?.value ?? null;
+            const sourceAllocation = allocation === "" ? null : allocation;
+
+            if (creditsRequested) {
+                creditsRequested = normalizeBalanceForBackend(
+                    creditsRequested,
+                    wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice
+                );
+            }
+
+            if (creditsRequested === undefined || creditsRequested <= 0) {
+                return null;
+            }
+
+            return {
+                category: wb.metadata.category.name,
+                provider: wb.metadata.category.provider,
+                balanceRequested: creditsRequested,
+                grantGiver,
+                sourceAllocation,
+                period: {
+                    start,
+                    end: end ?? null
+                }
+            } as AllocationRequest;
+        }).filter(it => it != null)
+    ) as AllocationRequest[];
+}
+
+function canApproveApplication(grantProductCategories: Record<string, GrantProductCategory[]>): boolean {
+    const projectId = Client.projectId;
+    if (!projectId) return false;
+    const resources = findRequestedResources(grantProductCategories);
+    return resources.filter(it => it.grantGiver === projectId).every(it => it.sourceAllocation != null);
 }
 
 export default GrantApplicationEditor;

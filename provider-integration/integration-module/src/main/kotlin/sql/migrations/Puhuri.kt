@@ -5,6 +5,7 @@ import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 
 fun V1__Puhuri() = MigrationScript("V1__Puhuri") { session ->
     session.prepareStatement(
+        //language=postgresql
         """
             create table puhuri_connections(
                 ucloud_identity text primary key,
@@ -14,6 +15,7 @@ fun V1__Puhuri() = MigrationScript("V1__Puhuri") { session ->
     ).useAndInvokeAndDiscard()
 
     session.prepareStatement(
+        //language=postgresql
         """
             create table puhuri_project_users(
                 ucloud_identity text not null,
@@ -27,12 +29,34 @@ fun V1__Puhuri() = MigrationScript("V1__Puhuri") { session ->
     ).useAndInvokeAndDiscard()
 
     session.prepareStatement(
+        //language=postgresql
         """
             create table puhuri_allocations(
                 allocation_id text primary key,
                 balance bigint not null,
                 product_type text not null,
                 synchronized_to_puhuri bool
+            );
+        """
+    ).useAndInvokeAndDiscard()
+}
+
+fun V2__Puhuri() = MigrationScript("V2__Puhuri") { session ->
+    session.prepareStatement(
+        """
+            drop table puhuri_project_users;
+        """
+    ).useAndInvokeAndDiscard()
+
+    session.prepareStatement(
+        """
+            create table puhuri_project_users(
+                ucloud_identity text not null,
+                ucloud_project text not null,
+                puhuri_identity text,
+                ucloud_project_role text,
+                synchronized_to_puhuri bool,
+                primary key(ucloud_identity, ucloud_project)
             );
         """
     ).useAndInvokeAndDiscard()

@@ -14,6 +14,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFile private constructor(
@@ -33,13 +34,13 @@ class NativeFile private constructor(
             readOnly: Boolean,
             createIfNeeded: Boolean = true,
             truncateIfNeeded: Boolean = false,
-            mode: Int = "640".toInt(8),
+            mode: Int? = "640".toInt(8),
         ): NativeFile {
             val file = File(path)
             val input = if (readOnly) file.inputStream() else null
             val output = if (!readOnly) FileOutputStream(file, !truncateIfNeeded) else null
 
-            if (!readOnly) {
+            if (!readOnly && mode != null) {
                 if (clib.chmod(path, mode) != 0) throw IOException("chmod failed for $path")
             }
 
@@ -110,8 +111,6 @@ fun getNativeErrorMessage(error: Int): String {
     return "Native error $error"
 }
 
-class NativeFileException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
-
 fun homeDirectory(): String {
     val unixHome = System.getenv("HOME")
     if (unixHome != null) return unixHome
@@ -137,17 +136,13 @@ fun listFiles(internalFile: String): List<String> {
 }
 
 fun renameFile(from: String, to: String) {
-    File(from).renameTo(File(to))
+    Files.move(File(from).toPath(), File(to).toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
 }
-
-// TODO(Dan): We definitely need something more roboust than assuming that /tmp is usable.
-private val temporaryFilePrefix = secureToken(16).replace("/", "-")
-private val temporaryFileAcc = AtomicInteger(0)
 
 data class TemporaryFile(val internalFile: String, val fileHandle: NativeFile)
 
 fun createTemporaryFile(prefix: String? = null, suffix: String? = null): TemporaryFile {
-    val path = "/tmp/${prefix ?: ""}${temporaryFilePrefix}${temporaryFileAcc.getAndIncrement()}${suffix ?: ""}"
+    val path = Files.createTempFile(prefix ?: "", suffix ?: "").toFile().absolutePath
     return TemporaryFile(
         path,
         NativeFile.open(

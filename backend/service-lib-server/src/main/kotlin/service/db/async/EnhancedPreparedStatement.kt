@@ -156,17 +156,12 @@ class EnhancedPreparedStatement(
         tagName: String = "Untitled query"
     ): QueryResult {
         val context = DebugContext.createWithParent(session.context.id)
+        val debugQueryParameters = JsonObject(
+            rawParameters.map { (param, value) -> param to JsonPrimitive(value.toString()) }.toMap()
+        )
 
         val start = Time.now()
-        session.debug?.sendMessage(
-            DebugMessage.DatabaseQuery(
-                context,
-                rawStatement,
-                JsonObject(
-                    rawParameters.map { (param, value) -> param to JsonPrimitive(value.toString()) }.toMap()
-                )
-            )
-        )
+        session.debug?.sendMessage(DebugMessage.DatabaseQuery(context, rawStatement, debugQueryParameters))
 
         check(boundValues.size == parameterNamesToIndex.keys.size) {
             val missingSetParameters = parameterNamesToIndex.keys.filter { it !in boundValues }
@@ -215,6 +210,8 @@ class EnhancedPreparedStatement(
             DebugMessage.DatabaseResponse(
                 DebugContext.createWithParent(context.id),
                 end - start,
+                rawStatement,
+                debugQueryParameters,
                 when {
                     end - start >= 300 ->
                         MessageImportance.THIS_IS_WRONG

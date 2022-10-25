@@ -1,6 +1,7 @@
 import * as React from "react";
 import styled from "styled-components";
 import {SpaceProps} from "styled-system";
+import * as ReactDOM from "react-dom";
 import {Flex} from "@/ui-components";
 import Box, {BoxProps} from "./Box";
 import theme from "./theme";
@@ -65,13 +66,21 @@ const Tooltip = (
         ...props
     }: Tooltip
 ): JSX.Element => {
-    const tooltipRef = useRef<HTMLDivElement>(null);
+    let portal = document.getElementById(tooltipPortalId);
+    if (!portal) {
+        const elem = document.createElement("div");
+        elem.id = tooltipPortalId;
+        document.body.appendChild(elem);
+        portal = elem;
+    }
+
+    const tooltipRef: React.MutableRefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
     const onHover = useCallback((ev: React.MouseEvent) => {
         const tooltip = tooltipRef.current;
         if (!tooltip) return;
 
         tooltip.style.left = ev.clientX + "px";
-        
+
         if (tooltipContentWidth && parseInt(tooltipContentWidth)) {
             const parsedWidth = parseInt(tooltipContentWidth);
             if (ev.clientX + parsedWidth > window.innerWidth) {
@@ -82,6 +91,7 @@ const Tooltip = (
         tooltip.style.top = ev.clientY + "px";
         tooltip.style.opacity = "1";
     }, []);
+
     const onLeave = useCallback(() => {
         const tooltip = tooltipRef.current;
         if (!tooltip) return;
@@ -90,14 +100,21 @@ const Tooltip = (
     return (
         <>
             <Flex onMouseMove={onHover} onMouseLeave={onLeave}>{props.trigger}</Flex>
-            <TooltipContent omitPositionBox={omitPositionBox} height={tooltipContentHeight}
-                            width={tooltipContentWidth} p={2} mb={3} mt={2} {...props}
-                            ref={tooltipRef}>
-                {children}
-            </TooltipContent>
+            {
+                ReactDOM.createPortal(
+                    <TooltipContent omitPositionBox={omitPositionBox} height={tooltipContentHeight}
+                                    width={tooltipContentWidth} p={2} mb={3} mt={2} {...props}
+                                    ref={tooltipRef}>
+                        {children}
+                    </TooltipContent>,
+                    portal
+                )
+            }
         </>
     );
 };
+
+const tooltipPortalId = "tooltip-portal";
 
 Tooltip.defaultProps = defaultProps;
 

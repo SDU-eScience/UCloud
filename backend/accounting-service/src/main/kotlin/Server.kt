@@ -27,7 +27,6 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.grant.rpc.GiftController
 import dk.sdu.cloud.grant.rpc.GrantController
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.project.api.ProjectEvents
 import dk.sdu.cloud.provider.api.ProviderSupport
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -48,14 +47,13 @@ class Server(
         val accountingService = AccountingService(db, simpleProviders)
         val depositNotifications = DepositNotificationService(db)
 
-        val favoriteProjects = FavoriteProjectService()
-        val eventProducer = micro.eventStreamService.createProducer(ProjectEvents.events)
-        val projectService = ProjectService(client, eventProducer, projectCache)
-        val projectGroups = ProjectGroupService(projectService, eventProducer, projectCache)
-        val projectQueryService = ProjectQueryService(projectService)
         val projectsV2 = dk.sdu.cloud.accounting.services.projects.v2.ProjectService(db, client, projectCache, micro.developmentModeEnabled)
         val projectNotifications = dk.sdu.cloud.accounting.services.projects.v2
             .ProviderNotificationService(projectsV2, db, simpleProviders, micro.backgroundScope)
+        val projectService = ProjectService(client, projectCache, projectsV2)
+        val projectGroups = ProjectGroupService(projectCache, projectsV2)
+        val projectQueryService = ProjectQueryService(projectService)
+        val favoriteProjects = FavoriteProjectService(projectsV2)
 
         val giftService = GiftService(db)
         val settings = GrantSettingsService(db)
@@ -102,13 +100,8 @@ class Server(
                 MembershipController(db, projectQueryService),
                 ProjectController(db, projectService, projectQueryService),
                 ProviderController(providerService, micro.developmentModeEnabled || micro.commandLineArguments.contains("--allow-provider-approval")),
+                ProjectsControllerV2(projectsV2, projectNotifications),
             )
-
-            if (micro.developmentModeEnabled || micro.commandLineArguments.contains("--projects-v2")) {
-                configureControllers(
-                    ProjectsControllerV2(projectsV2, projectNotifications),
-                )
-            }
         }
 
         startServices()

@@ -18,8 +18,6 @@ import {Box, Button, Icon, List, TextArea} from "@/ui-components";
 import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
 import * as Types from "@/Accounting";
 import {
-    explainPrice,
-    normalizeBalanceForFrontend,
     Product,
     productTypeToIcon, rootDeposit, WalletOwner
 } from "@/Accounting";
@@ -282,17 +280,6 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
             if (resource == null) return null;
             return <>{resource.name} / {resource.category.name}</>;
         },
-        Stats: ({resource}) => {
-            if (resource == null) return null;
-            return <>
-                <ListRowStat icon={"grant"}>
-                    {resource.freeToUse ? "Free to use" :
-                        normalizeBalanceForFrontend(resource.pricePerUnit, resource.productType, resource.chargeType, resource.unitOfPrice, true) +
-                        explainPrice(resource.productType, resource.chargeType, resource.unitOfPrice)
-                    }
-                </ListRowStat>
-            </>;
-        }
     };
 
     private productOperations: Operation<Product, ProductCallbacks>[] = [

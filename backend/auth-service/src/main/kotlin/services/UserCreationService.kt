@@ -19,7 +19,7 @@ sealed class UserException(why: String, httpStatusCode: HttpStatusCode) : RPCExc
 class UserCreationService(
     private val db: DBContext,
     private val userDao: UserAsyncDAO,
-    private val userEventProducer: UserEventProducer
+    private val userEventProducer: UserEventProducer?
 ) {
     suspend fun createUser(user: Principal) {
         createUsers(listOf(user))
@@ -38,7 +38,7 @@ class UserCreationService(
             }
 
             users.forEach { user ->
-                userEventProducer.produce(UserEvent.Created(user.id, user))
+                userEventProducer?.produce(UserEvent.Created(user.id, user))
             }
         }
     }

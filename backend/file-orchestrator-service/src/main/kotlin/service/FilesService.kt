@@ -1073,7 +1073,9 @@ class FilesService(
                     }
                 }
 
-                trashHandlers.forEach { handler -> handler(batch) }
+                if (batch.isNotEmpty()) {
+                    trashHandlers.forEach { handler -> handler(batch) }
+                }
 
                 registerTasks(
                     findTasksInBackgroundFromResponse(response)

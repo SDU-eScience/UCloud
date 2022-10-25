@@ -32,6 +32,7 @@ import java.util.*
 import kotlin.collections.ArrayList
 
 private typealias OnProjectUpdatedHandler = suspend (projects: Collection<String>) -> Unit
+
 class ProjectService(
     private val db: DBContext,
     private val serviceClient: AuthenticatedClient,
@@ -44,6 +45,55 @@ class ProjectService(
         updateHandlers.add(handler)
     }
 
+    suspend fun locateOrCreateAllUsersGroup(
+        projectId: String,
+        ctx: DBContext = db,
+    ): String {
+        return ctx.withSession { session ->
+            val groupId = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("project_id", projectId)
+                        setParameter("all_users", ALL_USERS_GROUP_TITLE)
+                    },
+                    """
+                        select g.id
+                        from project.groups g
+                        where
+                            g.project = :project_id and
+                            g.title = :all_users
+                    """
+                )
+                .rows
+                .singleOrNull()
+                ?.getString(0)
+
+            if (groupId != null) return@withSession groupId
+
+            val createdGroup = createGroup(
+                ActorAndProject(Actor.System, projectId),
+                bulkRequestOf(Group.Specification(projectId, ALL_USERS_GROUP_TITLE)),
+                ctx = session
+            ).responses.single().id
+
+            val projectWithMembers = retrieve(
+                ActorAndProject(Actor.System, projectId),
+                ProjectsRetrieveRequest(projectId, includeMembers = true),
+                ctx = session
+            )
+
+            val members = (projectWithMembers.status.members ?: emptyList())
+            createGroupMember(
+                ActorAndProject(Actor.System, null),
+                BulkRequest(members.map { GroupMember(it.username, createdGroup) }),
+                ctx = session,
+                dispatchUpdate = false
+            )
+
+            createdGroup
+        }
+    }
+
     suspend fun retrieve(
         actorAndProject: ActorAndProject,
         request: ProjectsRetrieveRequest,
@@ -51,7 +101,12 @@ class ProjectService(
     ): Project {
         val username = actorAndProject.actor.safeUsername()
         val result = ctx.withSession { session ->
-            loadProjects(username, session, request, relevantProjects(actorAndProject, request.id, includeArchived = true))
+            loadProjects(
+                username,
+                session,
+                request,
+                relevantProjects(actorAndProject, request.id, includeArchived = true)
+            )
         }.firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         return result.postProcess(username.startsWith(AuthProviders.PROVIDER_PREFIX))
     }
@@ -120,7 +175,7 @@ class ProjectService(
             null
         }
 
-        return  if (actor == Actor.System) {
+        return if (actor == Actor.System) {
             PartialQuery(
                 {
                     setParameter("id", id)
@@ -378,6 +433,7 @@ class ProjectService(
             // NOTE(Dan): We keep a map between project IDs and their titles. We initialize this with the data we
             // already have, this can in some cases lead us to fewer queries needed.
             data class ProjectTitleAndParent(val title: String, val parent: String?)
+
             val projectToTitle = HashMap<String, ProjectTitleAndParent>()
             for (project in projects) {
                 projectToTitle[project.id] = ProjectTitleAndParent(
@@ -436,7 +492,7 @@ class ProjectService(
 
                 var current = project.specification.parent
                 while (current != null) {
-                    val c = projectToTitle[project.specification.parent] ?: break
+                    val c = projectToTitle[current] ?: break
                     components.add(c.title)
                     current = c.parent
                 }
@@ -450,6 +506,25 @@ class ProjectService(
                     }
                 }
             }
+        }
+
+        // NOTE(Dan): Backwards compatibility which initializes an "All users" group the first time someone attempts
+        // to load information about their project. This code does not require any additional database code, unless,
+        // the group needs to be created. Hopefully, this means that performance won't be affected too much by this
+        // path.
+        var didNeedToInitAllUsersGroup = false
+        if (flags.includeGroups == true) {
+            for (project in projects) {
+                val allGroups = project.status.groups ?: emptyList()
+                if (allGroups.none { it.specification.title == ALL_USERS_GROUP_TITLE }) {
+                    locateOrCreateAllUsersGroup(project.id, session)
+                    didNeedToInitAllUsersGroup = true
+                }
+            }
+        }
+
+        if (didNeedToInitAllUsersGroup) {
+            return loadProjects(username, session, flags, relevantProjects, sortBy, sortDirection)
         }
 
         return projects
@@ -508,6 +583,7 @@ class ProjectService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<Project.Specification>,
         ctx: DBContext = db,
+        piOverride: String? = null,
     ): BulkResponse<FindByStringId> {
         return ctx.withSession(remapExceptions = true) { session ->
             // NOTE(Dan): First we check if the actor is allowed to create _all_ of the requested projects. The system
@@ -527,6 +603,10 @@ class ProjectService(
             var piUsername = username
 
             when {
+                piOverride != null -> {
+                    piUsername = piOverride
+                }
+
                 providerId != null -> {
                     // Providers can only create the project if it is a direct child of the owning project.
                     val parentProject = retrieveProviderProject(session, providerId)
@@ -601,6 +681,8 @@ class ProjectService(
             )
 
             projectCache.invalidate(actor.safeUsername())
+
+            ids.forEach { locateOrCreateAllUsersGroup(it, session) }
 
             // NOTE(Dan): We don't trigger an update handler here, since we expect further notifications to be
             // dispatched soon (e.g. grant notifications)
@@ -845,10 +927,12 @@ class ProjectService(
                             ProjectInviteType.INGOING -> {
                                 appendLine("and i.username = :username")
                             }
+
                             ProjectInviteType.OUTGOING -> {
                                 appendLine("and i.invited_by = :username")
                                 appendLine("and i.project_id = :project_filter")
                             }
+
                             null -> {
                                 appendLine("and (i.username = :username or i.invited_by = :username)")
                             }
@@ -1030,30 +1114,45 @@ class ProjectService(
     ) {
         val projects = request.items.map { it.project }
         ctx.withSession { session ->
-            val success = session.sendPreparedStatement(
-                {
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("projects", projects)
-                },
-                """
-                    with accepted_invites as (
-                        delete from project.invites
-                        where
-                            username = :username and
-                            project_id = some(:projects::text[])
-                        returning project_id
-                    )
-                    insert into project.project_members (created_at, modified_at, role, username, project_id) 
-                    select now(), now(), 'USER', :username, project_id
-                    from accepted_invites
-                    on conflict (username, project_id) do nothing
-                """
-            ).rowsAffected > 0
+            val userInProjects = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("projects", projects)
+                    },
+                    """
+                        with accepted_invites as (
+                            delete from project.invites
+                            where
+                                username = :username and
+                                project_id = some(:projects::text[])
+                            returning project_id
+                        )
+                        insert into project.project_members (created_at, modified_at, role, username, project_id) 
+                        select now(), now(), 'USER', :username, project_id
+                        from accepted_invites
+                        on conflict (username, project_id) do nothing
+                        returning username, project_id
+                    """
+                )
+                .rows
+                .map { it.getString(0)!! to it.getString(1)!! }
 
-            if (!success) {
+            if (userInProjects.isEmpty()) {
                 throw RPCException(
                     "Could not accept your project invite. Maybe it is no longer valid? Try refreshing your browser.",
                     HttpStatusCode.BadRequest
+                )
+            }
+
+            for ((project, usersAndProjects) in userInProjects.groupBy { it.second }) {
+                val group = locateOrCreateAllUsersGroup(project, session)
+                createGroupMember(
+                    ActorAndProject(Actor.System, null),
+                    BulkRequest(usersAndProjects.map { GroupMember(it.first, group) }),
+                    ctx = session,
+                    dispatchUpdate = false,
+                    allowNoChange = true
                 )
             }
 
@@ -1216,8 +1315,8 @@ class ProjectService(
             for (item in requestItems) {
                 if (item.username in seen) {
                     throw RPCException(
-                        "Your request contains conflicting changes for ${item.username}. " + 
-                            "Try again or contact support for assistance.", 
+                        "Your request contains conflicting changes for ${item.username}. " +
+                            "Try again or contact support for assistance.",
                         HttpStatusCode.BadRequest
                     )
                 }
@@ -1226,7 +1325,7 @@ class ProjectService(
             }
         }
 
-        // NOTE(Dan): We don't allow someone to change their own role. I don't see an obvious use-case for this and
+        // NOTE(Dan): We don't allow someone to change their own role. I don't see an obvious use-case for this, and
         // it simplifies our code a bit (see PI transfer below).
         val requestContainsSelf = requestItems.any { it.username == actor.safeUsername() }
         if (requestContainsSelf) {
@@ -1310,25 +1409,30 @@ class ProjectService(
             for (reqItem in requestItems) {
                 if (reqItem.username !in updatedUsers) continue
 
-                val notificationMessage = "${reqItem.username} has changed role to ${reqItem.role} in project: $projectTitle"
+                val notificationMessage =
+                    "${reqItem.username} has changed role to ${reqItem.role} in project: $projectTitle"
                 for ((_, admin) in titleAndAdmins) {
-                    notifications.add(CreateNotification(
-                        admin,
-                        Notification(
-                            NotificationType.PROJECT_ROLE_CHANGE.name,
-                            notificationMessage,
-                            meta = JsonObject(mapOf("projectId" to JsonPrimitive(project))),
+                    notifications.add(
+                        CreateNotification(
+                            admin,
+                            Notification(
+                                NotificationType.PROJECT_ROLE_CHANGE.name,
+                                notificationMessage,
+                                meta = JsonObject(mapOf("projectId" to JsonPrimitive(project))),
+                            )
                         )
-                    ))
+                    )
 
-                    emails.add(SendRequestItem(
-                        admin,
-                        Mail.UserRoleChangeMail(
-                            reqItem.username,
-                            reqItem.role.name,
-                            projectTitle
+                    emails.add(
+                        SendRequestItem(
+                            admin,
+                            Mail.UserRoleChangeMail(
+                                reqItem.username,
+                                reqItem.role.name,
+                                projectTitle
+                            )
                         )
-                    ))
+                    )
                 }
             }
 
@@ -1354,6 +1458,7 @@ class ProjectService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<Group.Specification>,
         ctx: DBContext = db,
+        dispatchUpdate: Boolean = true,
     ): BulkResponse<FindByStringId> {
         val (actor) = actorAndProject
         val projects = request.items.map { it.project }.toSet()
@@ -1380,14 +1485,14 @@ class ProjectService(
             val success = createdGroups.isNotEmpty()
             if (!success) {
                 throw RPCException(
-                    "Unable to create ${if (request.items.size > 1) "groups" else "group"}. " + 
-                        "Maybe a group with this name already exists in your project? " + 
+                    "Unable to create ${if (request.items.size > 1) "groups" else "group"}. " +
+                        "Maybe a group with this name already exists in your project? " +
                         "Try refreshing or contact support for assistance.",
                     HttpStatusCode.BadRequest
                 )
             }
 
-            updateHandlers.forEach { it(projects) }
+            if (dispatchUpdate) updateHandlers.forEach { it(projects) }
             BulkResponse(ids.map { FindByStringId(it) })
         }
     }
@@ -1397,6 +1502,8 @@ class ProjectService(
         groups: Collection<String>,
         session: AsyncDBConnection,
     ) {
+        if (actor == Actor.System) return
+
         val withoutDuplicates = groups.toSet()
         val numberOfGroups = session.sendPreparedStatement(
             {
@@ -1435,6 +1542,13 @@ class ProjectService(
             } catch (ex: Throwable) {
                 throw RPCException("The new title is too long! Try a shorter title.", HttpStatusCode.BadRequest)
             }
+
+            if (reqItem.newTitle == ALL_USERS_GROUP_TITLE) {
+                throw RPCException(
+                    "The group '$ALL_USERS_GROUP_TITLE' is special. You cannot rename a group to have this name.",
+                    HttpStatusCode.BadRequest
+                )
+            }
         }
 
         val (actor) = actorAndProject
@@ -1442,35 +1556,48 @@ class ProjectService(
             val groups = request.items.map { it.group }
             requireAdminOfGroups(actor, groups, session)
 
-            val affectedProjects = session.sendPreparedStatement(
-                { 
+            val affectedProjectsAndOldTitles = session.sendPreparedStatement(
+                {
                     setParameter("groups", groups)
                     setParameter("titles", request.items.map { it.newTitle })
                 },
                 """
-                    with changes as (
-                        select
-                            unnest(:groups::text[]) group_id, 
-                            unnest(:titles::text[]) new_title
-                    )
-                    update project.groups g
-                    set title = new_title
-                    from changes
-                    where g.id = group_id
-                    returning g.project
+                    with
+                        changes as (
+                            select
+                                unnest(:groups::text[]) group_id, 
+                                unnest(:titles::text[]) new_title
+                        ),
+                        updated as (
+                            update project.groups g
+                            set title = new_title
+                            from changes
+                            where g.id = group_id    
+                        )
+                    select g.project, g.title
+                    from 
+                        changes c join 
+                        project.groups g on c.group_id = g.id
                 """
-            ).rows.map { it.getString(0)!! }
-            val success = affectedProjects.isNotEmpty()
+            ).rows.map { it.getString(0)!! to it.getString(1)!! }
+            val success = affectedProjectsAndOldTitles.isNotEmpty()
 
             if (!success) {
                 throw RPCException(
-                    "Unable to rename groups. Maybe the group no longer exists? " + 
+                    "Unable to rename groups. Maybe the group no longer exists? " +
                         "Try refreshing or contact support for assistance.",
                     HttpStatusCode.BadRequest
                 )
             }
 
-            updateHandlers.forEach { it(affectedProjects) }
+            if (affectedProjectsAndOldTitles.any { it.second == ALL_USERS_GROUP_TITLE }) {
+                throw RPCException(
+                    "The group '$ALL_USERS_GROUP_TITLE' is special. You cannot rename a group with this name.",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            updateHandlers.forEach { it(affectedProjectsAndOldTitles.map { it.first }) }
         }
     }
 
@@ -1497,25 +1624,32 @@ class ProjectService(
                 "delete from project.group_members where group_id = some(:groups::text[])"
             )
 
-            val affectedProjects = session.sendPreparedStatement(
+            val affectedProjectsAndTitles = session.sendPreparedStatement(
                 { setParameter("groups", groups) },
                 """
                     delete from project.groups g
                     where id = some(:groups::text[])
-                    returning g.project
+                    returning g.project, g.title
                 """
-            ).rows.map { it.getString(0)!! }
+            ).rows.map { it.getString(0)!! to it.getString(1)!! }
 
-            val success = affectedProjects.isNotEmpty()
+            val success = affectedProjectsAndTitles.isNotEmpty()
             if (!success) {
                 throw RPCException(
-                    "Unable to delete groups. Maybe the group no longer exists? " + 
+                    "Unable to delete groups. Maybe the group no longer exists? " +
                         "Try refreshing or contact support for assistance.",
                     HttpStatusCode.BadRequest
                 )
             }
 
-            updateHandlers.forEach { it(affectedProjects) }
+            if (affectedProjectsAndTitles.any { it.second == ALL_USERS_GROUP_TITLE }) {
+                throw RPCException(
+                    "The group '$ALL_USERS_GROUP_TITLE' is special. You cannot delete a group with this name.",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            updateHandlers.forEach { it(affectedProjectsAndTitles.map { it.first }) }
         }
     }
 
@@ -1523,6 +1657,8 @@ class ProjectService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<GroupMember>,
         ctx: DBContext = db,
+        dispatchUpdate: Boolean = true,
+        allowNoChange: Boolean = false
     ) {
         val (actor) = actorAndProject
         ctx.withSession { session ->
@@ -1557,9 +1693,9 @@ class ProjectService(
                 """
             ).rowsAffected > 0
 
-            if (!success) {
+            if (!success && !allowNoChange) {
                 throw RPCException(
-                    "Unable to add member to group. Maybe they are no longer in the project? " + 
+                    "Unable to add member to group. Maybe they are no longer in the project? " +
                         "Try refreshing or contact support for assistance.",
                     HttpStatusCode.BadRequest
                 )
@@ -1576,7 +1712,7 @@ class ProjectService(
                 """
             ).rows.map { it.getString(0)!! }
 
-            updateHandlers.forEach { it(affectedProjects) }
+            if (dispatchUpdate) updateHandlers.forEach { it(affectedProjects) }
         }
     }
 
@@ -1611,24 +1747,31 @@ class ProjectService(
 
             if (!success) {
                 throw RPCException(
-                    "Unable to remove member of group. Maybe they are no longer in the group? " + 
+                    "Unable to remove member of group. Maybe they are no longer in the group? " +
                         "Try refreshing or contact support for assistance.",
                     HttpStatusCode.BadRequest
                 )
             }
 
-            val affectedProjects = session.sendPreparedStatement(
+            val affectedProjectsAndGroupTitles = session.sendPreparedStatement(
                 {
                     setParameter("groups", request.items.map { it.group })
                 },
                 """
-                    select g.project
+                    select g.project, g.title
                     from project.groups g
                     where id = some(:groups)
                 """
-            ).rows.map { it.getString(0)!! }
+            ).rows.map { it.getString(0)!! to it.getString(1)!! }
 
-            updateHandlers.forEach { it(affectedProjects) }
+            if (affectedProjectsAndGroupTitles.any { it.second == ALL_USERS_GROUP_TITLE }) {
+                 throw RPCException(
+                    "The group '$ALL_USERS_GROUP_TITLE' is special. You cannot remove a member from this group.",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            updateHandlers.forEach { it(affectedProjectsAndGroupTitles.map { it.first }) }
         }
     }
 
@@ -1675,5 +1818,7 @@ class ProjectService(
 
     companion object : Loggable {
         override val log = logger()
+
+        const val ALL_USERS_GROUP_TITLE = "All users"
     }
 }

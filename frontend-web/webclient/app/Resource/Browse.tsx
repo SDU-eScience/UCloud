@@ -16,7 +16,7 @@ import {bulkRequestOf} from "@/DefaultObjects";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {PageRenderer} from "@/Pagination/PaginationV2";
-import {Box, Checkbox, Flex, Icon, Label, List, Truncate} from "@/ui-components";
+import {Box, Checkbox, Flex, Icon, Label, List, Tooltip, Truncate} from "@/ui-components";
 import {Spacer} from "@/ui-components/Spacer";
 import {ListRowStat} from "@/ui-components/List";
 import {Operations} from "@/ui-components/Operation";
@@ -46,6 +46,9 @@ import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {FixedSizeList} from "react-window";
 import {default as AutoSizer} from "react-virtualized-auto-sizer";
 import {useGlobal} from "@/Utilities/ReduxHooks";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {Feature, hasFeature} from "@/Features";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -66,7 +69,7 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     onRename?: (text: string, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
 
     // Properties and navigation
-    navigateToChildren?: (history: H.History, resource: Res) => "properties" | void;
+    navigateToChildren?: (history: ReturnType<typeof useHistory>, resource: Res) => "properties" | void;
     propsForInlineResources?: Record<string, any>;
     viewPropertiesInline?: (res: Res) => boolean;
 
@@ -117,6 +120,25 @@ function setStoredSortDirection(title: string, order: "ascending" | "descending"
     localStorage.setItem(`${title}:sortDirection`, order);
 }
 
+function getStoredFilters(title: string): Record<string, string> | null {
+    const data = localStorage.getItem(`${title}:filters`);
+    if (!data) return null;
+    try {
+        const parsed = JSON.parse(data);
+        if (typeof parsed === "object") {
+            return parsed as Record<string, string>;
+        } else {
+            return null;
+        }
+    }  catch (e) {
+        return null;
+    }
+}
+
+function setStoredFilters(title: string, filters: Record<string, string>) {
+    localStorage.setItem(`${title}:filters`, JSON.stringify(filters));
+}
+
 export function ResourceBrowse<Res extends Resource, CB = undefined>({
     onSelect, api, ...props
 }: PropsWithChildren<ResourceBrowseProps<Res, CB>> & {/* HACK(Jonas) */disableSearch?: boolean/* HACK(Jonas): End */}): ReactElement | null {
@@ -131,7 +153,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(props.inlineProduct ?? null);
     const [renamingValue, setRenamingValue] = useState("");
     const [commandLoading, invokeCommand] = useCloudCommand();
-    const [filters, setFilters] = useState<Record<string, string>>({});
+    const [filters, setFilters] = useState<Record<string, string>>(getStoredFilters(api.title) ?? {});
     const [sortDirection, setSortDirection] = useState<"ascending" | "descending">(getStoredSortDirection(api.title) ?? api.defaultSortDirection);
     const [sortColumn, setSortColumn] = useState<string | undefined>(getStoredSortColumn(api.title) ?? undefined);
     const history = useHistory();
@@ -153,6 +175,9 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const isWorkspaceAdmin = projectId === undefined ? true : isAdminOrPI(projectManagement.projectRole);
 
     useEffect(() => toggleSet.uncheckAll(), [props.additionalFilters]);
+    useEffectSkipMount(() => {
+        setStoredFilters(api.title, filters);
+    }, [filters]);
 
     const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
@@ -337,6 +362,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         const renderer: ItemRenderer<Res> = {...api.renderer};
         const RemainingStats = renderer.Stats;
         const NormalMainTitle = renderer.MainTitle;
+        const RemainingImportantStats = renderer.ImportantStats;
         renderer.MainTitle = function mainTitle({resource}) {
             if (resource === undefined) {
                 return !selectedProduct ?
@@ -397,6 +423,26 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             </>}
             {RemainingStats ? <RemainingStats browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null}
         </>) : renderer.Stats;
+        renderer.ImportantStats = ({resource, callbacks, browseType}) => {
+            return <>
+                {RemainingImportantStats ?
+                    <RemainingImportantStats resource={resource} callbacks={callbacks} browseType={browseType} /> :
+                    null
+                }
+
+                {
+                    hasFeature(Feature.PROVIDER_CONNECTION) ?
+                        <Tooltip
+                            trigger={
+                                <ProviderLogo providerId={resource?.specification?.product?.provider ?? "?"} size={40}/>
+                            }
+                        >
+                            This resource is provided by{" "}
+                            <ProviderTitle providerId={resource?.specification?.product?.provider ?? "?"} />
+                        </Tooltip> : null
+                }
+            </>;
+        };
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
         onInlineCreate, inlineInputRef, selectedProductWithSupport, props.showCreatedAt, props.showCreatedBy,
@@ -512,11 +558,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     - 48px corresponds to the top nav-header
                     - 45px to deal with header of the browse component
                     - 48px to deal with load more button
+                    - 6px from padding between header and content
                     - the rest depends entirely on the headerSize of the <MainContainer /> which we load from a
                       global value.
                 */}
                 <div style={props.browseType == BrowseType.MainContent ?
-                    {height: `calc(100vh - 48px - 45px - ${opts.hasNext ? 48 : 0}px - ${headerSize}px)`} :
+                    {height: `calc(100vh - 48px - 45px - ${opts.hasNext ? 48 : 0}px - ${headerSize}px - var(--termsize, 0px) - 6px)`} :
                     {height: `${sizeAllocationForEmbeddedAndCard}px`}}
                 >
                     <AutoSizer children={({width, height}) => (
