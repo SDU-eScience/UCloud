@@ -203,6 +203,9 @@ function jobStateToIconAndColor(state: JobState): [IconName, string] {
             icon = "chrono";
             color = "orange";
             break;
+        case "SUSPENDED":
+            icon = "pauseSolid";
+            break;
         default:
             icon = "ellipsis";
             break;
@@ -270,6 +273,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
                 {title: "Success", value: "SUCCESS", icon: "check"},
                 {title: "Failure", value: "FAILURE", icon: "close"},
                 {title: "Expired", value: "EXPIRED", icon: "chrono"},
+                {title: "Suspended", value: "SUSPENDED", icon: "pauseSolid"},
             ]
         ));
     }
