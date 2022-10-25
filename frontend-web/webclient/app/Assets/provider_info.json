@@ -13,7 +13,7 @@
                     "image": "/Images/ucloud-1.png"
                 },
                 {
-                    "description": "### Nodes\n- Dell PowerEdge C6420, 384/768 GB DDR 4-2666, 2x Intel Xeon Gold 6130 16-Core @ 2.10GHz",
+                    "description": "### Nodes\n- Dell PowerEdge C6420, 384/768 GB DDR 4-2666, 2x Intel Xeon Gold 6130 16-Core @ 2.10GHz\n- Virtual 64-core machine 256 GBs of RAM\n- Virtual 40-core machine with 160 GBs of RAM and 4 NVIDIA T4 GPUs\n- Virtual 40-core machine with 160 GBs of RAM and 4 NVIDIA A10 GPUs",
                     "image": "/Images/ucloud-9.svg"
                 }
             ]
