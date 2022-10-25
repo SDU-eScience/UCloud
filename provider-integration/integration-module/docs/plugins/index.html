@@ -17,11 +17,13 @@
 </head>
 
 <body class="content">
-    <h1>Plugins</h1>
-    <div class="summary">
-        Defines how UCloud/IM should handle requests and actions. From here, you will define the integration
-        with your services.
-    </div>
+    <section>
+        <h1>Plugins</h1>
+        <div class="summary">
+            Defines how UCloud/IM should handle requests and actions. From here, you will define the integration
+            with your services.
+        </div>
+    </section>
 
     <table>
         <tbody>
@@ -53,29 +55,31 @@
         </p>
 
         <figure>
-            <pre><code>connection:                         # What happens when a user clicks "Connect"?
-    type: ---
+            <doc-snippet>
+                connection:                         # What happens when a user clicks "Connect"?
+                    type: ---
 
-projects:                           # How should the provider deal with project management?
-    type: ---
+                projects:                           # How should the provider deal with project management?
+                    type: ---
 
-jobs:                               # What should happen when a computational job is started?
-    normalQueue:
-        type: ---
-        matches: ---
-    fancyQueue:
-        type: ---
-        matches: ---
+                jobs:                               # What should happen when a computational job is started?
+                    normalQueue:
+                        type: ---
+                        matches: ---
+                    fancyQueue:
+                        type: ---
+                        matches: ---
 
-files:                              # How should UCloud/IM connect to your file system?  
-    default:
-        type: ---
-        matches: ---
+                files:                              # How should UCloud/IM connect to your file system?  
+                    default:
+                        type: ---
+                        matches: ---
 
-fileCollections:                    # ...and which files are relevant to the end-user?
-    default:
-        type: ---
-        matches: ---</code></pre>
+                fileCollections:                    # ...and which files are relevant to the end-user?
+                    default:
+                        type: ---
+                        matches: ---
+            </doc-snippet>
             <figcaption>The general outline for the plugins configuration file</figcaption>
         </figure>
 
@@ -98,9 +102,12 @@ fileCollections:                    # ...and which files are relevant to the end
         </p>
 
         <figure>
-            <pre><code>connection:                         # Plugin type
-    type: OpenIdConnect             # Plugin implementation 
-    endpoints: { ... }              # Implementation-dependent configuration</code></pre>
+            <doc-snippet>
+                connection:                         # Plugin type
+                    type: OpenIdConnect             # Plugin implementation 
+                    endpoints: { ... }              # Implementation-dependent configuration
+            </doc-snippet>
+
             <figcaption>An example of a singleton based plugin</figcaption>
         </figure>
 
@@ -116,20 +123,21 @@ fileCollections:                    # ...and which files are relevant to the end
         </p>
 
         <figure>
-            <pre><code>jobs:                               # Plugin type
+            <doc-snippet>
+                jobs:                               # Plugin type
 
-    normalQueue:                    # Instantiation name 
-        type: Slurm                 # Plugin implementation
-        matches: "normal-machines"  # Product matcher (matches products in "normal-machines")
-        partition: normal           # Implementation-dependent configuration
+                    normalQueue:                    # Instantiation name 
+                        type: Slurm                 # Plugin implementation
+                        matches: "normal-machines"  # Product matcher (matches products in "normal-machines")
+                        partition: normal           # Implementation-dependent configuration
 
-    fancyQueue:
-        type: Slurm
-        matches: "*"                # Matches any product which is not matched by any other 
-                                    # matcher. In this case, it means any product not in 
-                                    # "normal-machines"
-        partition: fancy
-                </code></pre>
+                    fancyQueue:
+                        type: Slurm
+                        matches: "*"                # Matches any product which is not matched by any other 
+                                                    # matcher. In this case, it means any product not in 
+                                                    # "normal-machines"
+                        partition: fancy
+            </doc-snippet>
             <figcaption>An example of a product based plugin</figcaption>
         </figure>
     </section>
@@ -264,6 +272,7 @@ fileCollections:                    # ...and which files are relevant to the end
         </p>
     </section>
 
+    <script src="/app.js"></script>
 </body>
 
 </html>
