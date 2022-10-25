@@ -4,7 +4,7 @@ import styled from "styled-components";
 
 export const ProviderLogo: React.FunctionComponent<{providerId: string; size: number;}> = ({providerId, size}) => {
     return <LogoWrapper size={size}>
-        {!providerId ? (providerId[0] ?? "?").toUpperCase() : <Image src={`/Providers/${providerId}.png`} />}
+        {!providerId ? (providerId[0] ?? "?").toUpperCase() : <Image src={`/Images/${providerId}.png`} />}
     </LogoWrapper>
 };
 
