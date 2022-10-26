@@ -2,6 +2,7 @@ import * as React from "react";
 import styled, {keyframes} from "styled-components";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {
+    ProductSupport,
     Resource,
     ResourceApi,
     ResourceBrowseCallbacks,
@@ -30,6 +31,7 @@ import {useResourceSearch} from "@/Resource/Search";
 import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 
 const enterAnimation = keyframes`
   from {
@@ -271,6 +273,8 @@ export function ResourceProperties<Res extends Resource>(
     }
 
     const renderer = api.renderer;
+    const support = ownResource?.data?.status.resolvedSupport?.support;
+    const editPermissionsAllowed = canEditPermission(support);
 
     const main = resource ? <>
         <Container className={"RUNNING active"}>
@@ -337,7 +341,7 @@ export function ResourceProperties<Res extends Resource>(
                 </InfoWrapper>
 
                 <ContentWrapper>
-                    {props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
+                    {!editPermissionsAllowed || props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
                         <HighlightedCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
                             <ResourcePermissionEditor reload={reload} entity={resource} api={api}
                                 noPermissionsWarning={props.noPermissionsWarning} />
@@ -382,3 +386,7 @@ const Messages: React.FunctionComponent<{resource: Resource}> = ({resource}) => 
 
     return <Box height={"200px"} ref={termRef} />
 };
+
+function canEditPermission(support: ProductSupport): boolean {
+    return !!(support?.["collection"]?.["aclModifiable"]);
+}
