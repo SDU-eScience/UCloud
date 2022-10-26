@@ -1,0 +1,220 @@
+html {
+    font-family: 'IBM Plex Sans', sans-serif;
+}
+
+body {
+    margin: 0;
+}
+
+code {
+    font-family: 'JetBrains Mono', monospace;
+    background-color: #e1e3e5;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+:root {
+    --header-size: 64px;
+}
+
+header {
+    background: rgb(0, 106, 255);
+    color: #ffffff;
+    height: var(--header-size);
+    width: 100vw;
+    display: flex;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    /*box-shadow: rgb(0 0 0 / 20%) 0px 3px 3px -2px, rgb(0 0 0 / 14%) 0px 3px 4px 0px, rgb(0 0 0 / 12%) 0px 1px 8px 0px;*/
+}
+
+header a {
+    color: white;
+    text-decoration: none;
+    font-size: 120%;
+}
+
+header .logo {
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    gap: 15px;
+    margin-left: 15px;
+}
+
+header .logo img {
+    width: 38px;
+}
+
+header .logo span {
+    font-size: 150%;
+}
+
+header .middle, header .right {
+    flex-grow: 1;
+    display: flex;
+    gap: 15px;
+    margin: 0 15px;
+}
+
+header .middle {
+    position: absolute;
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 64px;
+}
+
+header .right {
+    justify-content: end;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+.slide-1 {
+    height: calc(100vh - var(--header-size));
+    color: #ffffff;
+    background: rgb(0, 106, 255);
+    padding-top: 64px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.slide-1 h1 {
+    margin: 0;
+    text-align: center;
+    font-size: 64px;
+}
+
+.slide-1 h2 {
+    text-align: center;
+    font-size: 48px;
+    margin: 0;
+}
+
+.slide-1 p {
+    text-align: center;
+    font-size: 32px;
+}
+
+.slide-1 img {
+    width: 60vw;
+    position: relative;
+    bottom: -100px;
+    left: 20vw;
+}
+
+.slide-1 .action {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+}
+
+.slide-1 .spacer {
+    flex-grow: 1;
+}
+
+.slide-1 .btn {
+    font-size: 32px;
+    width: 450px;
+}
+
+.btn {
+    display: block;
+    text-decoration: none;
+    user-select: none;
+    background-color: black;
+    border-radius: 15px;
+    font-size: 120%;
+    padding: 16px;
+    color: white;
+    align-items: center;
+    justify-content: center;
+    display: flex;
+    flex-direction: column;
+}
+
+.btn.secondary {
+    color: black;
+    background: white;
+}
+
+.slide-1 .version {
+    color: rgb(150, 150, 150);
+    font-size: 24px;
+}
+
+.slide {
+    width: 100vw;
+    height: 80vh;
+    display: flex;
+    flex-direction: row;
+    gap: 64px;
+    padding: 0 64px;
+    overflow: auto;
+}
+
+.slide .text {
+    display: flex;
+    justify-content: center;
+    height: 100%;
+    flex-direction: column;
+}
+
+.slide .headings {
+    margin: 16px 0;
+}
+
+.slide .headings h1 {
+    font-size: 64px;
+}
+
+.slide .headings h2 {
+    font-size: 48px;
+}
+
+.slide .text p {
+    font-size: 24px;
+}
+
+.slide img {
+    width: 25vw;
+    object-fit: contain;
+}
+
+.slide.odd {
+    background: white;
+    color: black;
+}
+
+.slide.even {
+    background: black;
+    color: white;
+}
+
+.slide.even img {
+    order: 0;
+}
+
+.slide.even .text {
+    order: 1;
+}
+
+.slide.odd .text {
+    order: 1;
+}
+
+.slide.odd img {
+    order: 2;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 500;
+    margin: 0;
+}

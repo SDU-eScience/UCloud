@@ -10,11 +10,11 @@
             "texts": [
                 {
                     "description": "# Interactive HPC\nThe interactive HPC cluster consists of 90 nodes, with a total of 2896 cores and 37 TB of memory.\nThere are also a few Nvidia V100 and A100 graphical processing units for accelerating certain workloads.\n The theoretical peak performance is around 118 teraflops.",
-                    "image": "/app/assets/Providers/ucloud-1.png"
+                    "image": "/Images/ucloud-1.png"
                 },
                 {
-                    "description": "### Nodes\n- Dell PowerEdge C6420\n- 384/768 GB DDR 4-2666\n- 2x Intel Xeon Gold 6130 16-Core @ 2.10GHz",
-                    "image": "/app/assets/Providers/ucloud-9.svg"
+                    "description": "### Nodes\n- Dell PowerEdge C6420, 384/768 GB DDR 4-2666, 2x Intel Xeon Gold 6130 16-Core @ 2.10GHz\n- 64-core virtual machine 256 GBs of RAM\n- 40-core virtual machine with 160 GBs of RAM and 4 NVIDIA T4 GPUs\n- 40-core virtual machine with 160 GBs of RAM and 4 NVIDIA A10 GPUs",
+                    "image": "/Images/ucloud-9.svg"
                 }
             ]
         },
@@ -28,11 +28,11 @@
             "texts": [
                 {
                     "description": "# Large Memory HPC\nThe large memory HPC system is a small and specialised four-node system where each node is equipped with 4 TB of memory and 128 cores.\nThe system is used for workloads that cannot easily be parallelised and distributed across multiple nodes.",
-                    "image": "/app/assets/Providers/ucloud-1.png"
+                    "image": "/Images/ucloud-1.png"
                 },
                 {
                     "description": "### Nodes\n- Lenovo ThinkSystem SR645\n- 4096 GB DDR4-2400 LRDIMM\n- 2x AMD EPYC 7742 64-Core @ 2.25 GHz",
-                    "image": "/app/assets/Providers/ucloud-9.svg"
+                    "image": "/Images/ucloud-9.svg"
                 }
             ]
         },
@@ -46,15 +46,15 @@
             "texts": [
                 {
                     "description": "# Compute nodes\nThe Sophia HPC cluster consists of 516 computational nodes of which 484 are 128 GB RAM nodes and 32 are 256 GB RAM nodes. Each node is a powerful x86-64 computer, equipped with 32 physical cores (2 x sixteen-core AMD EPYC 7351).",
-                    "image": "/app/assets/Providers/ucloud-1.png"
+                    "image": "/Images/ucloud-1.png"
                 },
                 {
                     "description": "# Specs\n- Primary purpose: High Performance Computing\n- Architecture of compute nodes: x86-64\n- Operating system: CentOS 7 Linux\n- Compute nodes in total: 516\n- Processor: 2 x AMD EPYC 7351, 2.9 GHz, 16 cores\n- RAM (484 nodes): 128 GB, 4 GB per core, DDR4@2666 MHz\n- RAM (32 nodes): 256 GB, 8 GB per core, DDR4@2666 MHz\n- Local disk drive: no\n- Compute network / Topology: InfiniBand EDR / Fat tree\n # In total\n- Total theoretical peak performance (Rpeak): ~384 TFLOPS (516 nodes x 32 cores x 2.9GHz x 8 FLOP/cycle)\n- Total amount of RAM: 69 TB",
-                    "image": "/app/assets/Providers/ucloud-9.svg"
+                    "image": "/Images/ucloud-9.svg"
                 },
                 {
                     "description": "# High-speed interconnect\nThe nodes are interlinked by InfiniBand and 10 Gbps Ethernet networks.\nSophia's high-speed, low-latency interconnect is Mellanox EDR (100Gbps) Infiniband. Frontend-, compute-, and burst buffer nodes each have Mellanox' ConnectX-5 adapter card installed.",
-                    "image": "/app/assets/Providers/ucloud-1.png"
+                    "image": "/Images/ucloud-1.png"
                 }
             ]
         },
@@ -67,16 +67,16 @@
             "url": "",
             "texts": [
                 {
-                    "description": "LUMI is one of the three European pre-exascale supercomputers. It's an HPE Cray EX supercomputer consisting of several hardware partitions targeted different use cases.\n All of the hardware partitions are connected via a HPE Slingshot 11 high-speed interconnect.\n As of 06/2022, LUMI ranks third on the top500.org list.",
-                    "image": "/app/assets/Providers/ucloud-9.svg"
+                    "description": "### Overview\n\nLUMI is the fastest supercomputer in Europe and third fastest globally (the [Top500 list published in June 2022](https://top500.org/lists/top500/2022/06/)). LUMI is also the third greenest supercomputer on the planet (the Green500 list published in June 2022).\n\nLUMI has a sustained computing power of 375 petaflops (HPL, High-Performance Linpack) which equals a theoretical computing power of more than 550 petaflops which means 550 quintillion calculations per second. LUMI is also one of the world’s leading platforms for artificial intelligence.",
+                    "image": "/Images/lumi-desc1.png"
                 },
                 {
-                    "description": "The LUMI-C hardware partition consists of 1536 CPU based compute nodes with an aggregated LINPACK performance of 5.63 petaflops. Some of these nodes contain more memory than others as specified in the table below.",
-                    "image": "/app/assets/Providers/ucloud-1.png"
-                }, 
+                    "description": "### Compute Nodes\n\nLUMI-C: 1536 CPU based compute nodes, each with 2x AMD EPYC 7763 (128 cores), 256/512/1024GiB ram, 200Gp/s slingshot network\n\nLUMI-G: 2560 GPU based nodes, each one AMD EPYC 7A53 CPU (64 cores) and 4x GPUs AMD Instinct MI250X 128GB HBM2e, 4x 200Gp/s slingshot network",
+                    "image": "/Images/milan-overview.svg"
+                },
                 {
-                    "description": "The LUMI-P hardware partition provides 4 independent Lustre file systems. Each of these provides a storage capacity of 20 PB with an aggregate bandwidth of 240 GB/s. Each Lustre file system is composed of 1 MDS (metadata server) and 32 Object Storage Targets (OSTs). Hard disk drives (spinning disks) are used in LUMI-P. For an overview of options for using LUMI-P, see the [data storage options](https://docs.lumi-supercomputer.eu/runjobs/lumi_env/storing-data/) page.",
-                    "image": "/app/assets/Providers/ucloud-9.svg"
+                    "description": "### Storage\n\nLUMI-P: 4x Lustre filesystems based on HDD, each with a capacity of 20 PB. Aggregate bandwidth of 240 GB/s.\n\nLUMI-F: fast flash-based Lustre filesystem with a storage capacity of 7 PB and an aggregate bandwidth of 1740 GB/s.",
+                    "image": "/Images/lustre-overview.svg"
                 }
             ]
         }
