@@ -72,6 +72,6 @@
         "redux-devtools-extension": "2.13.9",
         "ts-loader": "9.4.1",
         "typescript": "4.8.4",
-        "vite": "3.1.4"
+        "vite": "3.1.8"
     }
 }

@@ -34,20 +34,19 @@ export const FileCollectionBrowse: React.FunctionComponent<{
         header={props.isSearch !== true ? undefined : <FilesSearchTabs active={"COLLECTIONS"} />}
         headerSize={48}
         browseType={props.browseType ?? BrowseType.MainContent}
-        onInlineCreation={((text, product, cb) => ({
-                product: {id: product.name, category: product.category.name, provider: product.category.provider},
-                title: text
-            })
-        )}
+        onInlineCreation={((text, product) => ({
+            product: {id: product.name, category: product.category.name, provider: product.category.provider},
+            title: text
+        }))}
         productFilterForCreate={productFilterForCreate}
         navigateToChildren={FileCollectionsApi.navigateToChildren}
         isSearch={props.isSearch}
-        showGroups = {true}
+        showGroups={true}
     />;
 };
 
 const Router: React.FunctionComponent = () => {
-    return <ResourceRouter api={FileCollectionsApi} Browser={FileCollectionBrowse}/>;
+    return <ResourceRouter api={FileCollectionsApi} Browser={FileCollectionBrowse} />;
 };
 
 export default Router;
