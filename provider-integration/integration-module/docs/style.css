@@ -3,6 +3,12 @@ html {
     margin: 0;
 }
 
+body {
+    margin: 0;
+    width: 100vw;
+    overflow-x: hidden;
+}
+
 .content {
     max-width: 1200px;
     margin: 0 auto;
@@ -50,18 +56,6 @@ th, td {
     padding: 8px;
 }
 
-pre > code {
-    background-color: unset;
-}
-
-pre {
-    background-color: #282c35;
-    color: #ffffff;
-    border-radius: 8px;
-    padding: 16px;
-    overflow: auto;
-}
-
 figcaption::before {
     content: "Figure: ";
     font-weight: bold;
@@ -75,51 +69,9 @@ a {
     color: #006aff;
 }
 
-doc-prop {
-    display: block;
-    margin: 32px 0;
-}
-
-doc-prop .top-line {
-    border-top: 1px solid rgb(100, 100, 100);
-    padding-top: 32px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-doc-prop .is-required {
-    color: red;
-}
-
-doc-prop .default-value::before {
-    content: "(Default: ";
-}
-
-doc-prop .default-value::after {
-    content: ")";
-}
-
-doc-prop section, doc-prop doc-sealed-container {
-    margin-left: 40px;
-}
-
 input[type=checkbox] {
     height: 24px;
     width: 24px;
-}
-
-doc-sealed-container {
-    display: block;
-}
-
-
-doc-sealed-container doc-prop-container div.collapsible > doc-prop {
-    margin-left: 40px;
-}
-
-doc-prop-container[collapsed] .detailed {
-    display: none;
 }
 
 * {
