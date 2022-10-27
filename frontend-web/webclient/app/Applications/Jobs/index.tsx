@@ -24,10 +24,8 @@ export const stateToTitle = (state: JobState): string => {
             return "Canceling";
         case "EXPIRED":
             return "Expired";
-        /*
-        case JobState.READY:
-        return "Ready";
-        */
+        case "SUSPENDED":
+            return "Suspended";
         default:
             return "Unknown";
     }
