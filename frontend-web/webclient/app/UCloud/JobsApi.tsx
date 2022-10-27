@@ -252,7 +252,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
             const job = resource as Job;
             const [icon, color] = jobStateToIconAndColor(job.status.state);
-            return <Flex width={"120px"} mt="4px" height={"27px"}><Icon name={icon} color={color} mr={"8px"} />
+            return <Flex width={"140px"} mt="4px" height={"27px"}><Icon name={icon} color={color} mr={"8px"} />
                 <Box mt={"-2px"}>{stateToTitle(job.status.state)}</Box>
             </Flex>
         }
