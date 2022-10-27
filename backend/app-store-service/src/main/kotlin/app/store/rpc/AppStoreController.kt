@@ -61,6 +61,10 @@ class AppStoreController(
             ok(appStore.listAll(ctx.securityPrincipal, ctx.project, request.normalize()))
         }
 
+        implement(AppStore.overview) {
+            ok(appStore.overview(ctx.securityPrincipal, ctx.project))
+        }
+
         implement(AppStore.create) {
             val length = (ctx as HttpCall).call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
                 ?: throw RPCException("Content-Length required", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
