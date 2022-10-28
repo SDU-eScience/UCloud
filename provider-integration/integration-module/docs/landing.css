@@ -116,8 +116,8 @@ header .right {
 }
 
 .slide-1 img {
-    width: 90vw;
-    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
 
 }
@@ -140,9 +140,16 @@ header .right {
 
 .slide-1 .slide-content, .slide-1 .slide-image {
     flex-grow: 1;
+    min-height: calc((100vh - var(--header-size)) / 2);
     display: flex;
     flex-direction: column;
     justify-content: center;
+}
+
+@media screen and (max-width: 599px) {
+    .slide-1 .slide-image {
+        display: none;
+    }
 }
 
 .slide-1 .slide-image {

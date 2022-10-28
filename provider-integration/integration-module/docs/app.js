@@ -112,8 +112,6 @@ class DocPropContainer extends HTMLElement {
                 container.appendChild(child);
             }
 
-            console.log(childProps.length, childProps);
-
             if (childProps.length > 1) {
                 const collapseToggle = document.createElement("a");
                 collapseToggle.ariaRoleDescription = "button";
@@ -234,6 +232,90 @@ class DocTodo extends HTMLElement {
 
 customElements.define("doc-todo", DocTodo);
 
+class DocTable extends HTMLElement {
+    constructor() {
+        super();
+
+        const shadow = this.attachShadow({ mode: "open" });
+
+        shadow.innerHTML = this.innerHTML
+        shadow.append(style(`
+            :host {
+                display: block;
+                border: var(--border);
+                border-radius: var(--radius);
+                margin-top: 16px;
+                margin-bottom: 16px;
+
+                --radius: 8px;
+                --border: 1px solid #c1c7d4;
+                --header-color: #f0f4ff;
+                --cell-padding: 16px;
+            }
+
+            table {
+                text-align: left;
+                border-collapse: collapse;
+                width: 100%;
+            }
+
+            tr {
+                border-top: var(--border);
+                border-bottom: var(--border);
+                vertical-align: top;
+            }
+
+            th, td {
+                border-left: var(--border);
+                border-right: var(--border);
+                padding: var(--cell-padding);
+            }
+
+            th:first-child, td:first-child {
+                border-left: 0;
+            }
+
+            th:last-child, td:last-child {
+                border-right: 0;
+            }
+
+            tr:first-child {
+                border-top: 0;
+            }
+
+            thead tr:first-child > td:first-child, thead tr:first-child > th:first-child {
+                border-top-left-radius: var(--radius);
+            }
+
+            thead tr:first-child > td:last-child, thead tr:first-child > th:last-child {
+                border-top-right-radius: var(--radius);
+            }
+
+            tbody tr:last-child {
+                border-bottom: 0;
+            }
+
+            thead tr {
+                background: var(--header-color);
+            }
+
+            code {
+                font-family: 'JetBrains Mono', monospace;
+                background-color: #e1e3e5;
+                padding: 4px;
+                border-radius: 4px;
+            }
+
+            input[type=checkbox] {
+                width: 24px;
+                height: 24px;
+            }
+        `));
+    }
+}
+
+customElements.define("doc-table", DocTable);
+
 class DocHeader extends HTMLElement {
     constructor() {
         super();
@@ -249,9 +331,6 @@ class DocHeader extends HTMLElement {
                 width: 100vw;
                 display: flex;
                 align-items: center;
-                position: fixed;
-                top: 0;
-                z-index: 100;
                 box-shadow: rgb(0 0 0 / 20%) 0px 3px 3px -2px, rgb(0 0 0 / 14%) 0px 3px 4px 0px, rgb(0 0 0 / 12%) 0px 1px 8px 0px;
             }
 
@@ -333,17 +412,17 @@ class DocRecipes extends HTMLElement {
         },
         { 
             title: "Kubernetes compute with storage",
-            description: "Show-cases a collection of plugins which together form the basis of an integration with Puhuri",
+            description: "A complete Kubernetes based setup which exposes storage from any compatible distributed file-system",
             href: "/recipes/kubernetes"
         },
         { 
             title: "Slurm + distributed file system",
-            description: "Show-cases a collection of plugins which together form the basis of an integration with Puhuri",
+            description: "A traditional HPC system consisting of Slurm and a distributed POSIX file system",
             href: "/recipes/slurm"
         },
         { 
             title: "Keycloak",
-            description: "Show-cases a collection of plugins which together form the basis of an integration with Puhuri",
+            description: "Connection procedure using Keycloak",
             href: "/recipes/keycloak"
         }
     ];
@@ -391,12 +470,16 @@ class DocTableOfContents extends HTMLElement {
             :host {
                 display: block;
                 height: 100vh;
-                width: 300px;
+                width: 100%;
                 background: #F5F7F9;
                 padding-top: 8px;
                 padding-left: 8px;
                 border-right: 1px #ddd solid;
                 overflow-y: auto;
+            }
+
+            :host(.force) {
+                background: unset;
             }
 
             :host > ul {
@@ -432,7 +515,7 @@ class DocTableOfContents extends HTMLElement {
             }
 
             @media screen and (max-width: 900px) {
-                :host {
+                :host(:not(.force)) {
                     height: 48px;
                     display: flex;
                     align-items: center;
@@ -440,11 +523,11 @@ class DocTableOfContents extends HTMLElement {
                     padding: 0;
                 }
 
-                ul {
+                :host(:not(.force)) ul {
                     display: none;
                 }
 
-                .link-to-toc {
+                :host(:not(.force)) .link-to-toc {
                     display: block;
                     text-align: center;
                 }
@@ -635,21 +718,20 @@ function init() {
     const header = document.createElement("doc-header");
     document.body.prepend(header);
 
-    const belowHeader = document.createElement("div");
-    belowHeader.classList.add("below-header");
-
     const content = document.querySelector("div.content");
     const navigationButtons = document.createElement("doc-nav-buttons");
     content.append(navigationButtons);
 
-    document.body.append(belowHeader);
-    const toc = document.createElement("doc-toc");
+    if (document.location.pathname !== "/toc.html") {
+        const toc = document.createElement("doc-toc");
+        document.body.append(toc);
+    }
 
     const contentWrapper = document.createElement("div");
     contentWrapper.classList.add("content-wrapper");
     contentWrapper.append(content);
 
-    belowHeader.append(toc, contentWrapper);
+    document.body.append(contentWrapper);
 
     document.body.classList.add("ready");
 }

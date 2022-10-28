@@ -12,6 +12,25 @@ body {
 
 body.ready {
     opacity: 1;
+    display: grid;
+    grid-template-areas:
+        'header header header header header header'
+        'menu main main main main main';
+    grid-template-columns: 300px auto auto auto auto auto;
+    overflow: hidden;
+}
+
+doc-header {
+    grid-area: header;
+    z-index: 100;
+}
+
+doc-toc {
+    grid-area: menu;
+}
+
+.content-wrapper {
+    grid-area: main;
 }
 
 code {
@@ -84,14 +103,13 @@ doc-todo {
     color: white;
 }
 
-.below-header {
-    display: flex;
-    margin-top: 64px;
-}
-
 @media screen and (max-width: 900px) {
-    .below-header {
-        flex-direction: column;
+    body.ready {
+        grid-template-areas:
+            'header'
+            'menu'
+            'main';
+        grid-template-columns: auto;
     }
 
     doc-toc {
@@ -117,4 +135,16 @@ doc-todo {
     margin-left: 32px;
     margin-right: 32px;
     margin-bottom: 32px;
+}
+
+h1 {
+    font-size: 2rem;
+}
+
+h2 {
+    font-size: 1.5rem;
+}
+
+h3 {
+    font-size: 1.3rem;
 }
