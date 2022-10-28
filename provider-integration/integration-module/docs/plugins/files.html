@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Files - UCloud/IM Documentation</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body class="content">
+    <section>
+        <h1>Plugins / Files</h1>
+        <div class="summary">
+            Storage plugins define how to access your data. This data is typically consumed by a compute plugin.
+        </div>
+
+        <table>
+            <tbody>
+                <tr>
+                    <th width="120px">File</th>
+                    <td><code>plugins.yaml</code></td>
+                </tr>
+                <tr>
+                    <th>Mandatory</th>
+                    <td>No</td>
+                </tr>
+                <tr>
+                    <th>Section</th>
+                    <td><code>files</code></td>
+                </tr>
+                <tr>
+                    <th>Plugin type</th>
+                    <td>Product based</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h2>Implementations</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th width="160px">Name</th>
+                    <th>Description</th>
+                    <th width="80px">Service users?</th>
+                    <th width="80px">Local users?</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><a href="#posix">POSIX</a></td>
+                    <td>
+                        Integrates with any compatible POSIX based distributed file-system. This integration uses
+                        local users. 
+                    </td>
+                    <td><input type="checkbox" disabled /></td>
+                    <td><input type="checkbox" checked disabled /></td>
+                </tr>
+                <tr>
+                    <td><a href="#ucloud">UCloud</a></td>
+                    <td>
+
+                        Integrates with any compatible POSIX based distributed file-system. This integration uses
+                        a single service user for all files. ACLs are only managed through UCloud. This makes it
+                        suitable, for example, with container-like job orchestrators.
+                    </td>
+                    <td><input type="checkbox" checked disabled /></td>
+                    <td><input type="checkbox" disabled /></td>
+                </tr>
+                <tr>
+                    <td><a href="#puhuri">Puhuri</a></td>
+                    <td>Integrates with storage resources accessible through <a href="https://puhuri.neic.no/"
+                            target="_blank">Puhuri</a>.</td>
+                    <td><input type="checkbox" checked disabled /></td>
+                    <td><input type="checkbox" disabled /></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section id="posix">
+        <h3>POSIX</h3>
+
+        <p>This plugin requires a matching <a href="/plugins/fileCollections.html">file collection plugin.</a> These two plugins must have the same name and match the same set of products.</p>
+
+        <p>See <a href="/plugins/fileCollections.html#posix">Plugins/File Collections/POSIX</a> for more details.</p>
+
+        <doc-prop-container>
+            <doc-prop name="type" type='"Posix"' required></doc-prop>
+            <doc-prop name="matches" type="string" required></doc-prop>
+            </doc-prop-container>
+    </section>
+
+    <section id="ucloud">
+        <h3>UCloud</h3>
+
+        <p>This plugin requires a matching <a href="/plugins/fileCollections.html">file collection plugin.</a> These two plugins must have the same name and match the same set of products.</p>
+
+        <doc-prop-container>
+            <doc-prop name="type" type='"UCloud"' required></doc-prop>
+            <doc-prop name="matches" type="string" required></doc-prop>
+        </doc-prop-container>
+    </section>
+
+    <section id="puhuri">
+        <h3>Puhuri</h3>
+
+        <p>This plugin requires a matching <a href="/plugins/fileCollections.html">file collection plugin.</a> These two plugins must have the same name and match the same set of products.</p>
+
+        <doc-prop-container>
+            <doc-prop name="type" type='"Puhuri"' required></doc-prop>
+            <doc-prop name="matches" type="string" required></doc-prop>
+        </doc-prop-container>
+    </section>
+
+    <script src="/app.js"></script>
+</body>
+
+</html>

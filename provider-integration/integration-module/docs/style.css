@@ -3,12 +3,15 @@ html {
     margin: 0;
 }
 
-.content {
-    max-width: 1200px;
-    margin: 0 auto;
-    font-size: 19px;
-    line-height: 1.5;
-    margin-bottom: 64px;
+body {
+    margin: 0;
+    width: 100vw;
+    overflow-x: hidden;
+    opacity: 0;
+}
+
+body.ready {
+    opacity: 1;
 }
 
 code {
@@ -50,58 +53,17 @@ th, td {
     padding: 8px;
 }
 
-pre > code {
-    background-color: unset;
-}
-
-pre {
-    background-color: #282c35;
-    color: #ffffff;
-    border-radius: 8px;
-    padding: 16px;
-    overflow: auto;
-}
-
 figcaption::before {
     content: "Figure: ";
     font-weight: bold;
 }
 
 figcaption {
-    text-align: center;
+    text-align: left;
 }
 
 a {
     color: #006aff;
-}
-
-doc-prop {
-    display: block;
-    margin: 32px 0;
-}
-
-doc-prop .top-line {
-    border-top: 1px solid rgb(100, 100, 100);
-    padding-top: 32px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-doc-prop .is-required {
-    color: red;
-}
-
-doc-prop .default-value::before {
-    content: "(Default: ";
-}
-
-doc-prop .default-value::after {
-    content: ")";
-}
-
-doc-prop section, doc-prop doc-sealed-container {
-    margin-left: 40px;
 }
 
 input[type=checkbox] {
@@ -109,15 +71,50 @@ input[type=checkbox] {
     width: 24px;
 }
 
-doc-sealed-container {
+* {
+    box-sizing: border-box;
+}
+
+doc-todo {
+    padding: 16px;
     display: block;
+    text-align: center;
+    width: 100%;
+    background: red;
+    color: white;
 }
 
-
-doc-sealed-container doc-prop-container div.collapsible > doc-prop {
-    margin-left: 40px;
+.below-header {
+    display: flex;
+    margin-top: 64px;
 }
 
-doc-prop-container[collapsed] .detailed {
-    display: none;
+@media screen and (max-width: 900px) {
+    .below-header {
+        flex-direction: column;
+    }
+
+    doc-toc {
+        width: 100%;
+    }
+
+    .content-wrapper {
+        height: calc(100vh - 64px - 48px) !important;
+    }
+}
+
+.content-wrapper {
+    width: 100%;
+    height: calc(100vh - 64px);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.content {
+    max-width: 1200px;
+    font-size: 19px;
+    line-height: 1.5;
+    margin-left: 32px;
+    margin-right: 32px;
+    margin-bottom: 32px;
 }

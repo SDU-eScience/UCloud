@@ -28,5 +28,9 @@ class AppTagController (
             )
             ok(Unit)
         }
+
+        implement(AppStore.listTags) {
+            ok(tagsService.listTags())
+        }
     }
 }

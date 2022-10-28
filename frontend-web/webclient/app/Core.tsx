@@ -82,6 +82,7 @@ import {store} from "@/Utilities/ReduxUtilities";
 import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
 import {injectFonts} from "@/ui-components/GlobalStyle";
 import {SharesOutgoing} from "@/Files/SharesOutgoing";
+import ApplicationsOverview2 from "./Applications/Overview2";
 import {TerminalContainer} from "@/Terminal/Container";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
@@ -111,9 +112,10 @@ const Core = (): JSX.Element => (
 
                         <Route exact path={"/syncthing"} component={requireAuth(SyncthingOverview)} />
 
-                        <Route exact path="/applications" component={requireAuth(Applications)} />
-                        <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />
-                        <Route exact path="/applications/search" component={requireAuth(Search)} />
+                        <Route exact path="/applications" component={requireAuth(Applications)}/>
+                        <Route exact path="/applications/overview_old" component={requireAuth(ApplicationsOverview)}/>
+                        <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview2)}/>
+                        <Route exact path="/applications/search" component={requireAuth(Search)}/>
 
                         {!inDevEnvironment() ? null :
                             <Route exact path="/MANUAL-TESTING-OVERVIEW" component={ManualTestingOverview} />

@@ -1,7 +1,7 @@
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {Feature, hasFeature} from "@/Features";
 import * as React from "react";
-import Providers from "@/Assets/Providers/info.json";
+import Providers from "@/Assets/provider_info.json";
 import {useParams} from "react-router";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import {Box, Button, ExternalLink, Flex, Markdown, Text} from "@/ui-components";

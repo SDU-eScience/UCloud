@@ -9,7 +9,7 @@ import { NonAuthenticatedHeader } from "@/Navigation/Header";
 import { Client } from "@/Authentication/HttpClientInstance";
 import { ProviderLogo } from "@/Providers/ProviderLogo";
 import { ProviderTitle } from "@/Providers/ProviderTitle";
-import Providers from "@/Assets/Providers/info.json";
+import Providers from "@/Assets/provider_info.json";
 import * as Heading from "@/ui-components/Heading";
 import { Feature, hasFeature } from "@/Features";
 

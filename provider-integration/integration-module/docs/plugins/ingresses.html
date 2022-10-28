@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Public Links - UCloud/IM Documentation</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body class="content">
+    <section>
+        <h1>Plugins / Public Links</h1>
+        <div class="summary">
+            Public link plugins give your computational jobs a way to attach a public link (typically exposed as
+            either an HTTP virtual host or a DNS name). Public links plugins typically require you to use a
+            specific computational plugin.
+        </div>
+
+        <table>
+            <tbody>
+                <tr>
+                    <th width="120px">File</th>
+                    <td><code>plugins.yaml</code></td>
+                </tr>
+                <tr>
+                    <th>Mandatory</th>
+                    <td>No</td>
+                </tr>
+                <tr>
+                    <th>Section</th>
+                    <td><code>ingresses</code></td>
+                </tr>
+                <tr>
+                    <th>Plugin type</th>
+                    <td>Product based</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h2>Implementations</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th width="160px">Name</th>
+                    <th>Description</th>
+                    <th width="80px">Service users?</th>
+                    <th width="80px">Local users?</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><a href="#ucloud">UCloud</a></td>
+                    <td>Integrates with <a href="/plugins/jobs.html#ucloud">UCloud compute plugin</a></td>
+                    <td><input type="checkbox" checked disabled /></td>
+                    <td><input type="checkbox" disabled /></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section id="ucloud">
+        <h3>UCloud</h3>
+
+        <doc-prop-container>
+            <doc-prop name="type" type='"UCloud"' required></doc-prop>
+            <doc-prop name="matches" type="string" required></doc-prop>
+            <doc-prop name="domainPrefix" type="string" required>
+                <p>
+                    The prefix for the domain which all public links must have. <b>For example: </b> <code>app-</code>.
+                </p>
+            </doc-prop>
+            <doc-prop name="domainSuffix" type="string" required>
+                <p>
+                    The prefix for the domain which all public links must have. <b>For example: </b>
+                    <code>.usercontent.example.com</code>.
+                </p>
+            </doc-prop>
+        </doc-prop-container>
+    </section>
+
+    <script src="/app.js"></script>
+</body>
+
+</html>

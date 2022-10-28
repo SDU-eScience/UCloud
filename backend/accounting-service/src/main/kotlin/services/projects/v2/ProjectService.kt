@@ -1376,6 +1376,7 @@ class ProjectService(
             // the username of the successful changes, such that we can send the correct notifications.
             val updatedUsers = session.sendPreparedStatement(
                 {
+                    setParameter("project", project)
                     requestItems.split {
                         into("users") { it.username }
                         into("roles") { it.role.name }
@@ -1390,7 +1391,9 @@ class ProjectService(
                     update project.project_members
                     set role = new_role
                     from changes
-                    where username = user_to_update
+                    where
+                        username = user_to_update and
+                        project_id = :project
                     returning username
                 """
             ).rows.map { it.getString(0)!! }
