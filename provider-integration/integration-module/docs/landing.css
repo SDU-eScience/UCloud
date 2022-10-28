@@ -68,6 +68,18 @@ header .middle {
     gap: 64px;
 }
 
+@media screen and (max-width: 1100px) {
+    header .middle {
+        display: none;
+    }
+}
+
+@media screen and (max-width: 500px) {
+    header .right {
+        display: none;
+    }
+}
+
 header .right {
     justify-content: end;
 }
@@ -80,34 +92,34 @@ header .right {
     height: calc(100vh - var(--header-size));
     color: #ffffff;
     background: rgb(0, 106, 255);
-    padding-top: 64px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    padding: 0 16px;
 }
 
 .slide-1 h1 {
     margin: 0;
     text-align: center;
-    font-size: 64px;
+    font-size: 3rem;
 }
 
 .slide-1 h2 {
     text-align: center;
-    font-size: 48px;
+    font-size: 2rem;
     margin: 0;
 }
 
 .slide-1 p {
     text-align: center;
-    font-size: 32px;
+    font-size: 1.5rem;
 }
 
 .slide-1 img {
-    width: 60vw;
-    position: relative;
-    bottom: -100px;
-    left: 20vw;
+    width: 90vw;
+    height: 100%;
+    object-fit: contain;
+
 }
 
 .slide-1 .action {
@@ -116,13 +128,36 @@ header .right {
     gap: 16px;
 }
 
-.slide-1 .spacer {
+@media screen and (max-width: 600px) {
+    .slide-1 .action {
+        flex-direction: column;
+    }
+
+    .slide-1 .action .btn {
+        width: 100%;
+    }
+}
+
+.slide-1 .slide-content, .slide-1 .slide-image {
     flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.slide-1 .slide-image {
+    align-items: center;
 }
 
 .slide-1 .btn {
-    font-size: 32px;
-    width: 450px;
+    font-size: 2rem;
+    width: 35%;
+}
+
+@media screen and (max-width: 800px) {
+    .hide-small {
+        display: none;
+    }
 }
 
 .btn {
@@ -172,20 +207,26 @@ header .right {
 }
 
 .slide .headings h1 {
-    font-size: 64px;
+    font-size: 3rem;
 }
 
 .slide .headings h2 {
-    font-size: 48px;
+    font-size: 2rem;
 }
 
 .slide .text p {
-    font-size: 24px;
+    font-size: 1rem;
 }
 
 .slide img {
     width: 25vw;
     object-fit: contain;
+}
+
+@media screen and (max-width: 600px) {
+    .slide img {
+        display: none;
+    }
 }
 
 .slide.odd {

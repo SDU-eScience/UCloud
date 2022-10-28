@@ -249,7 +249,7 @@ class DocHeader extends HTMLElement {
                 width: 100vw;
                 display: flex;
                 align-items: center;
-                position: sticky;
+                position: fixed;
                 top: 0;
                 z-index: 100;
                 box-shadow: rgb(0 0 0 / 20%) 0px 3px 3px -2px, rgb(0 0 0 / 14%) 0px 3px 4px 0px, rgb(0 0 0 / 12%) 0px 1px 8px 0px;
@@ -304,7 +304,7 @@ class DocHeader extends HTMLElement {
             <header>
                 <div class="logo">
                     <img src="/images/logo_esc.svg" alt="UCloud Logo">
-                    <span>UCloud</span>
+                    <span>UCloud/IM</span>
                 </div>
 
                 <div class="middle">
@@ -390,12 +390,11 @@ class DocTableOfContents extends HTMLElement {
         shadow.append(style(`
             :host {
                 display: block;
-                position: fixed;
-                top: 64px;
                 height: 100vh;
                 width: 300px;
                 background: #F5F7F9;
                 padding-top: 8px;
+                padding-left: 8px;
                 border-right: 1px #ddd solid;
                 overflow-y: auto;
             }
@@ -422,10 +421,33 @@ class DocTableOfContents extends HTMLElement {
                 padding-left: 32px;
             }
 
-            a {
+            ul a {
                 text-decoration: none;
                 color: black;
                 font-size: 18px;
+            }
+
+            .link-to-toc {
+                display: none;
+            }
+
+            @media screen and (max-width: 900px) {
+                :host {
+                    height: 48px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0;
+                }
+
+                ul {
+                    display: none;
+                }
+
+                .link-to-toc {
+                    display: block;
+                    text-align: center;
+                }
             }
         `));
 
@@ -434,7 +456,12 @@ class DocTableOfContents extends HTMLElement {
             this.renderNode(rootList, section, selfEntry);
         }
 
-        shadow.append(rootList);
+        const linkToToc = document.createElement("a");
+        linkToToc.classList.add("link-to-toc");
+        linkToToc.href = "/toc.html";
+        linkToToc.textContent = "Table of contents";
+
+        shadow.append(rootList, linkToToc);
     }
 
     renderNode(domNode, sectionNode, selfNode) {
@@ -546,12 +573,24 @@ class DocNavigationButtons extends HTMLElement {
                 flex-direction: column;
                 border: 2px solid black;
                 min-width: 200px;
+                box-sizing: border-box;
             }
 
             a span {
                 color: rgb(150, 150, 150);
                 font-size: 80%;
                 display: block;
+            }
+
+            @media screen and (max-width: 700px) {
+                a {
+                    width: 100%;
+                }
+
+                :host {
+                    flex-direction: column;
+                    gap: 16px;
+                }
             }
         `));
 
@@ -596,12 +635,23 @@ function init() {
     const header = document.createElement("doc-header");
     document.body.prepend(header);
 
-    const toc = document.createElement("doc-toc");
-    document.body.prepend(toc);
+    const belowHeader = document.createElement("div");
+    belowHeader.classList.add("below-header");
 
     const content = document.querySelector("div.content");
     const navigationButtons = document.createElement("doc-nav-buttons");
     content.append(navigationButtons);
+
+    document.body.append(belowHeader);
+    const toc = document.createElement("doc-toc");
+
+    const contentWrapper = document.createElement("div");
+    contentWrapper.classList.add("content-wrapper");
+    contentWrapper.append(content);
+
+    belowHeader.append(toc, contentWrapper);
+
+    document.body.classList.add("ready");
 }
 
 init();
