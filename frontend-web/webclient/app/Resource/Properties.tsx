@@ -274,7 +274,7 @@ export function ResourceProperties<Res extends Resource>(
 
     const renderer = api.renderer;
     const support = ownResource?.data?.status.resolvedSupport?.support;
-    const editPermissionsAllowed = canEditPermission(support);
+    const editPermissionsAllowed = canEditPermission(support, props.api.getNamespace());
 
     const main = resource ? <>
         <Container className={"RUNNING active"}>
@@ -387,6 +387,12 @@ const Messages: React.FunctionComponent<{resource: Resource}> = ({resource}) => 
     return <Box height={"200px"} ref={termRef} />
 };
 
-function canEditPermission(support: ProductSupport): boolean {
-    return !!(support?.["collection"]?.["aclModifiable"]);
+function canEditPermission(support: ProductSupport | undefined, namespace: string): boolean {
+    switch (namespace) {
+        case "files.collections":
+            return !!(support?.["collection"]?.["aclModifiable"]);
+        case "files":
+            return !!(support?.["files"]?.["aclModifiable"]);
+        default: return false;
+    }
 }
