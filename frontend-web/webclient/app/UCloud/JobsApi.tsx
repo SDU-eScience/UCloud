@@ -205,6 +205,9 @@ function jobStateToIconAndColor(state: JobState): [IconName, string] {
             icon = "chrono";
             color = "orange";
             break;
+        case "SUSPENDED":
+            icon = "pauseSolid";
+            break;
         default:
             icon = "ellipsis";
             break;
@@ -251,7 +254,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
             const job = resource as Job;
             const [icon, color] = jobStateToIconAndColor(job.status.state);
-            return <Flex width={"120px"} mt="4px" height={"27px"}><Icon name={icon} color={color} mr={"8px"} />
+            return <Flex width={"140px"} mt="4px" height={"27px"}><Icon name={icon} color={color} mr={"8px"} />
                 <Box mt={"-2px"}>{stateToTitle(job.status.state)}</Box>
             </Flex>
         }
@@ -272,6 +275,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
                 {title: "Success", value: "SUCCESS", icon: "check"},
                 {title: "Failure", value: "FAILURE", icon: "close"},
                 {title: "Expired", value: "EXPIRED", icon: "chrono"},
+                {title: "Suspended", value: "SUSPENDED", icon: "pauseSolid"},
             ]
         ));
     }

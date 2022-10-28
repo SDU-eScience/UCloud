@@ -1209,6 +1209,8 @@ function jobStateToText(state: JobState) {
             return "failed"
         case "SUCCESS":
             return "completed";
+        case "SUSPENDED":
+            return "been suspended";
         default:
             return "";
     }
@@ -1361,6 +1363,9 @@ const ProviderUpdates: React.FunctionComponent<{
                     break;
                 case "SUCCESS":
                     message = "Your job has been processed successfully";
+                    break;
+                case "SUSPENDED":
+                    message = "Your job has been suspended";
                     break;
                 case "RUNNING":
                     message = "Your job is now running";

@@ -81,6 +81,18 @@ class Server {
                     }
                 }
 
+                static("/images") {
+                    if (staticContent != null) {
+                        files(File(staticContent, "Images"))
+                    }
+                }
+
+                static("/Images") {
+                    if (staticContent != null) {
+                        files(File(staticContent, "Images"))
+                    }
+                }
+
                 file("/favicon.ico", File(staticContent, "favicon.ico"))
 
                 /*

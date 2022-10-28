@@ -7,14 +7,11 @@ body {
     margin: 0;
     width: 100vw;
     overflow-x: hidden;
+    opacity: 0;
 }
 
-.content {
-    max-width: 1200px;
-    margin: 0 auto;
-    font-size: 19px;
-    line-height: 1.5;
-    margin-bottom: 64px;
+body.ready {
+    opacity: 1;
 }
 
 code {
@@ -85,4 +82,39 @@ doc-todo {
     width: 100%;
     background: red;
     color: white;
+}
+
+.below-header {
+    display: flex;
+    margin-top: 64px;
+}
+
+@media screen and (max-width: 900px) {
+    .below-header {
+        flex-direction: column;
+    }
+
+    doc-toc {
+        width: 100%;
+    }
+
+    .content-wrapper {
+        height: calc(100vh - 64px - 48px) !important;
+    }
+}
+
+.content-wrapper {
+    width: 100%;
+    height: calc(100vh - 64px);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.content {
+    max-width: 1200px;
+    font-size: 19px;
+    line-height: 1.5;
+    margin-left: 32px;
+    margin-right: 32px;
+    margin-bottom: 32px;
 }

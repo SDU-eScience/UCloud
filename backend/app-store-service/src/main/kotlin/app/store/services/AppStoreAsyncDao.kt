@@ -18,6 +18,7 @@ import kotlinx.serialization.encodeToString
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.util.*
+import kotlin.collections.ArrayList
 
 @Suppress("TooManyFunctions") // Does not make sense to split
 class AppStoreAsyncDao(
@@ -47,35 +48,35 @@ class AppStoreAsyncDao(
                         setParameter("exclude", excludeTools?.map { it.toLowerCase() } ?: emptyList())
                     },
                     """
-                    SELECT T.application_name, T.tag, T.id FROM application_tags AS T, applications AS A
-                    WHERE T.application_name = A.name AND T.tag IN (select unnest(:tags::text[])) AND (
-                        (
-                            A.is_public = TRUE
-                        ) OR (
-                            cast(:project as text) is null AND :user IN (
-                                SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
+                        select distinct at.application_name as app_name
+                        from application_tags as at, applications as a
+                        where at.application_name = a.name and at.tag_id in (
+                            select id from tags where lower(tag) in (select lower(unnest(:tags::text[])))
+                        ) and (
+                            (
+                                a.is_public = true
+                            ) or (
+                                cast(:project as text) is null and :user in (
+                                    select p1.username from permissions as p1 where p1.application_name = a.name
+                                )
+                            ) or (
+                                cast(:project as text) is not null and exists (
+                                    select p2.project_group from permissions as p2 where
+                                        p2.application_name = a.name and
+                                        p2.project = cast(:project as text) and
+                                        p2.project_group in (select unnest(:groups::text[]))
+                                )
+                            ) or (
+                                :isAdmin
                             )
-                        ) OR (
-                            cast(:project as text) IS not null AND exists (
-                                SELECT P2.project_group FROM permissions AS P2 WHERE
-                                    P2.application_name = A.name AND
-                                    P2.project = cast(:project as text) AND
-                                    P2.project_group IN (select unnest (:groups::text[]))
-                            )
-                        ) or (
-                            :isAdmin
-                        )
-                    ) AND (A.tool_name NOT IN (select unnest(:exclude::text[])))
-                    ORDER BY A.name
+                        ) and (a.tool_name not in (select unnest(:exclude::text[])))
+                        order by at.application_name;
                     """
                 )
                 .rows
                 .toList()
-                .distinctBy {
-                    it.getField(TagTable.applicationName)
-                }
-                .map {
-                    it.getField(TagTable.applicationName)
+                .mapNotNull {
+                    it.getString("app_name")
                 }
         }
     }
@@ -272,8 +273,8 @@ class AppStoreAsyncDao(
                                                 order by created_at desc
                                             ) as rno
                                         from
-                                            app_store.applications a left join
-                                            app_store.permissions p on a.name = p.application_name left join
+                                            applications a left join
+                                            permissions p on a.name = p.application_name left join
                                             project_info pinfo
                                                 on p.project = pinfo.current_project and p.project_group = pinfo.project_group
                                         where
@@ -464,37 +465,148 @@ class AppStoreAsyncDao(
             if (isProvider) {
                 // TODO(Dan): Need to rework how this app-store works. There isn't even a unique constraint on
                 //  (application, tag)
-                val tagExists = session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("name", description.metadata.name)
-                            setParameter("provider_tag", providerName)
-                        },
-                        """
-                            select 1
-                            from
-                                app_store.application_tags tag
-                            where
-                                tag.application_name = :name and
-                                tag.tag = :provider_tag
-                        """
-                    )
-                    .rows.isNotEmpty()
+                // UPDATE(Brian): There is now
+                val tagId = session.sendPreparedStatement(
+                    {
+                        setParameter("provider_tag", providerName)
+                    },
+                    """
+                        insert into tags (tag) values (:providerTag) returning id
+                    """
+                ).rows.first().getInt(0)
 
-                if (!tagExists) {
-                    session.sendPreparedStatement(
-                        {
-                            setParameter("name", description.metadata.name)
-                            setParameter("provider_tag", providerName)
-                        },
-                        """
-                            insert into app_store.application_tags (id, application_name, tag) 
-                            values (nextval('app_store.hibernate_sequence'), :name, :provider_tag)
-                        """
-                    )
+                session.sendPreparedStatement(
+                    {
+                        setParameter("name", description.metadata.name)
+                        setParameter("tag_id", tagId)
+                    },
+                    """
+                        insert into application_tags (application_name, tag_id)
+                        values (:name, :tag_id)
+                    """
+                )
+            }
+        }
+    }
+
+    suspend fun overview(
+        ctx: DBContext,
+        user: SecurityPrincipal,
+        project: String?,
+        memberGroups: List<String>
+    ): List<AppStoreSection> {
+        val groups = if (memberGroups.isEmpty()) {
+            listOf("")
+        } else {
+            memberGroups
+        }
+
+        val sections = ArrayList<AppStoreSection>()
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("user", user.username)
+                    setParameter("is_admin", Roles.PRIVILEGED.contains(user.role))
+                    setParameter("project", project)
+                    setParameter("groups", groups)
+                },
+                """
+                    select reference_id,
+                        (select tag from tags where reference_type = 'TAG' and id = cast(reference_id as int) limit 1) tag_name,
+                        a.name, a.version, a.authors, a.title, a.description, a.website, a.is_public,
+                        reference_type,
+                        exists(select * from favorited_by where the_user = :user and application_name = a.name) favorite,
+                        (select json_agg(tag) from tags where id in (select tag_id from application_tags where application_name = a.name)) tags,
+                        columns,
+                        rows 
+                    from
+                        overview,
+                        (select * from applications a1 where created_at in (
+                            select max(created_at)
+                            from applications a2 where a1.name = a2.name and (
+                                :is_admin or (
+                                    a2.is_public or (
+                                        cast(:project as text) is null and :user in (
+                                            select p.username from app_store.permissions p where p.application_name = a1.name
+                                        )
+                                    ) or (
+                                        cast(:project as text) is not null and exists (
+                                            select p.project_group from app_store.permissions p where 
+                                                p.application_name = a1.name and 
+                                                p.project = cast(:project as text) and 
+                                                p.project_group in (select unnest(:groups::text[]))
+                                         )
+                                    )
+                                )
+                            )
+                        ) order by name) a
+                    join tools t on
+                        a.tool_name = t.name and a.tool_version = t.version
+                    where (reference_type = 'TOOL' and lower(tool_name) = lower(reference_id))
+                        or (
+                            reference_type = 'TAG' and
+                            lower(a.name) in (select lower(application_name)
+                                from application_tags
+                                where tag_id in (select id from tags where id = cast(reference_id as int))
+                            )
+                        )
+                    order by order_id, a.title
+                """
+            ).rows.forEach { row ->
+                val refId = row.getString("reference_id")!!
+                val tagName = row.getString("tag_name")
+                val type = AppStoreSectionType.valueOf(row.getString("reference_type")!!)
+                val applicationMetadata = ApplicationMetadata(
+                    row.getString("name")!!,
+                    row.getString("version")!!,
+                    defaultMapper.decodeFromString(row.getString("authors") ?: "[]"),
+                    row.getString("title")!!,
+                    row.getString("description")!!,
+                    row.getString("website"),
+                    row.getBoolean("is_public")!!
+                )
+                val favorite = row.getBoolean("favorite")!!
+                val columns = row.getInt("columns")!!
+                val rows = row.getInt("rows")!!
+                val tags = defaultMapper.decodeFromString<List<String>>(row.getString("tags") ?: "[]")
+                val appWithFavorite = ApplicationSummaryWithFavorite(applicationMetadata, favorite, tags)
+
+                val section = sections.find { it.name == tagName || it.name == refId }
+                if (section != null) {
+                    when (section) {
+                        is AppStoreSection.Tag -> {
+                            section.applications.add(appWithFavorite)
+                        }
+                        is AppStoreSection.Tool -> {
+                            section.applications.add(appWithFavorite)
+                        }
+                    }
+                } else {
+                    val newSection = when (type) {
+                        AppStoreSectionType.TAG -> {
+                            AppStoreSection.Tag(
+                                tagName ?: "",
+                                arrayListOf(appWithFavorite),
+                                columns,
+                                rows
+                            )
+                        }
+                        AppStoreSectionType.TOOL -> {
+                            AppStoreSection.Tool(
+                                refId,
+                                arrayListOf(appWithFavorite),
+                                columns,
+                                rows
+                            )
+                        }
+                    }
+
+                    sections.add(newSection)
                 }
             }
         }
+
+        return sections
     }
 
     suspend fun delete(
@@ -591,9 +703,9 @@ class AppStoreAsyncDao(
                             setParameter("allapps", allApplicationsOnPage.toList())
                         },
                         """
-                            SELECT *
-                            FROM application_tags
-                            WHERE application_name IN (select unnest(:allapps::text[]))
+                            select application_name, tag
+                            from application_tags, tags
+                            where application_name in (select unnest(:allapps::text[])) and tag_id = tags.id
                         """
                     )
                     .rows
@@ -605,8 +717,8 @@ class AppStoreAsyncDao(
                 }
 
                 val allTagsForApplication = allTagsForApplicationsOnPage
-                    .filter { item.metadata.name == it.getField(TagTable.applicationName) }
-                    .map { it.getField(TagTable.tag) }
+                    .filter { item.metadata.name == it.getString("application_name") }
+                    .mapNotNull { it.getString("tag") }
                     .toSet()
                     .toList()
 
@@ -623,17 +735,15 @@ class AppStoreAsyncDao(
                                 setParameter("appname", item.metadata.name)
                             },
                             """
-                                SELECT * 
-                                FROM application_tags
-                                WHERE application_name = :appname
+                                select distinct tag
+                                from application_tags, tags
+                                where application_name = :appname and tag_id = tags.id
                             """
                         )
                         .rows
-                        .map {
-                            it.getField(TagTable.tag)
+                        .mapNotNull {
+                            it.getString("tag")
                         }
-                        .toSet()
-                        .toList()
                 }
 
                 ApplicationWithFavoriteAndTags(item.metadata, item.invocation, false, allTagsForApplication)
@@ -727,7 +837,7 @@ class AppStoreAsyncDao(
                     },
                     """
                         SELECT *
-                        FROM app_store.applications
+                        FROM applications
                         WHERE (name, version) IN (select unnest(:names::text[]), unnest(:versions::text[]))
                     """
                 )
