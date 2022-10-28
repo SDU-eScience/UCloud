@@ -19,23 +19,34 @@ class ApplicationTagsAsyncDao() {
         tags: List<String>
     ) {
         ctx.withSession { session ->
-            val owner = findOwnerOfApplication(session, applicationName) ?: throw RPCException.fromStatusCode(
+            findOwnerOfApplication(session, applicationName) ?: throw RPCException.fromStatusCode(
                 HttpStatusCode.NotFound
             )
 
-            tags.forEach { tag ->
-                val existing = ctx.withSession { session -> findTag(session, applicationName, tag) }
+            session.sendPreparedStatement(
+                {
+                    setParameter("tags", tags)
+                },
+                """
+                    insert into tags (tag)
+                        select unnest(:tags::text[])
+                        on conflict do nothing
+                """
+            )
 
-                if (existing != null) {
-                    return@forEach
-                }
-                val id = session.allocateId()
-                session.insert(TagTable) {
-                    set(TagTable.id, id)
-                    set(TagTable.applicationName, applicationName)
-                    set(TagTable.tag, tag)
-                }
-            }
+            session.sendPreparedStatement(
+                {
+                    setParameter("application_name", applicationName)
+                    setParameter("tags", tags)
+                },
+                """
+                    insert into application_tags (application_name, tag_id)
+                        select :application_name, id
+                        from tags where
+                            lower(tag) in (select lower(unnest(:tags::text[])))
+                        on conflict do nothing 
+                """
+            )
         }
     }
 
@@ -46,72 +57,59 @@ class ApplicationTagsAsyncDao() {
         tags: List<String>
     ) {
         ctx.withSession { session ->
-            val owner = findOwnerOfApplication(session, applicationName) ?: throw RPCException.fromStatusCode(
+            findOwnerOfApplication(session, applicationName) ?: throw RPCException.fromStatusCode(
                 HttpStatusCode.NotFound
             )
 
-            tags.forEach { tag ->
-                val existing = findTag(
-                    session,
-                    applicationName,
-                    tag
-                ) ?: return@forEach
-
-                val id = existing.getField(TagTable.id)
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("id", id)
-                        },
-                        """
-                            DELETE FROM application_tags
-                            WHERE id = ?id
-                        """.trimIndent()
-                    )
-            }
-        }
-    }
-
-    suspend fun findTag(
-        ctx: DBContext,
-        appName: String,
-        tag: String
-    ): RowData? {
-        return ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("tag", tag)
-                        setParameter("appname", appName)
-                    },
-                    """
-                        SELECT * 
-                        FROM application_tags
-                        WHERE (tag = ?tag) AND (application_name = ?appname)
-                    """.trimIndent()
-                )
-                .rows
-                .singleOrNull()
+            session.sendPreparedStatement(
+                {
+                    setParameter("app_name", applicationName)
+                    setParameter("tags", tags)
+                },
+                """
+                    delete from application_tags
+                        where application_name = :app_name and
+                        tag_id in (
+                            select id from tags where lower(tag) in (select lower(unnest(:tags::text[])))
+                        )
+                """
+            )
         }
     }
 
     suspend fun findTagsForApp(
         ctx: DBContext,
         applicationName: String
-    ): List<RowData> {
+    ): List<String> {
         return ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("appname", applicationName)
-                    },
-                    """
-                        SELECT * 
-                        FROM application_tags
-                        WHERE application_name = ?appname
-                    """.trimIndent()
-                )
-                .rows
+            session.sendPreparedStatement(
+                {
+                    setParameter("app_name", applicationName)
+                },
+                """
+                    select t.tag
+                    from application_tags
+                    inner join tags t on t.id = application_tags.tag_id
+                    where application_name = :app_name and tag_id 
+                    
+                """
+            ).rows.mapNotNull {
+                it.getString(0)
+            }
+        }
+    }
+
+    suspend fun listTags(
+        ctx: DBContext
+    ): List<String> {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                """
+                    select tag from tags
+                """
+            ).rows.mapNotNull {
+                it.getString(0)
+            }
         }
     }
 }

@@ -320,7 +320,7 @@ data class SyncthingFolder(
     val disableTempIndexes: Boolean = false,
     val filesystemType: String = "basic",
     val fsWatcherDelayS: Int = 10,
-    val fsWatcherEnabled: Boolean = true,
+    val fsWatcherEnabled: Boolean = false,
     val hashers: Int = 0,
     val id: String = "",
     val ignoreDelete: Boolean = false,

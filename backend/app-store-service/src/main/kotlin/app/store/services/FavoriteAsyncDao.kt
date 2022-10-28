@@ -189,7 +189,6 @@ class FavoriteAsyncDao(
                         it.toApplicationSummary()
                     }
 
-
             val apps = itemsWithoutTags.map { it.metadata.name }
             val allTags =
                 session
@@ -198,9 +197,9 @@ class FavoriteAsyncDao(
                             setParameter("names", apps)
                         },
                         """
-                        SELECT *
-                        FROM application_tags
-                        WHERE application_name IN (select unnest(:names::text[]))
+                        SELECT application_name, tag
+                        FROM application_tags, tags
+                        WHERE application_name IN (select unnest(:names::text[])) and tag_id = tags.id
                     """
                     )
                     .rows
@@ -208,8 +207,8 @@ class FavoriteAsyncDao(
 
             val items = itemsWithoutTags.map { appSummary ->
                 val allTagsForApplication =
-                    allTags.filter { it.getField(TagTable.applicationName) == appSummary.metadata.name }
-                        .map { it.getField(TagTable.tag) }
+                    allTags.filter { it.getString(0) == appSummary.metadata.name }
+                        .mapNotNull { it.getString(1) }
                 ApplicationSummaryWithFavorite(appSummary.metadata, true, allTagsForApplication)
             }
 
