@@ -1,17 +1,17 @@
-import { AbsoluteNoPointerEvents } from "@/Applications/Card";
+import {AbsoluteNoPointerEvents} from "@/Applications/Card";
 import MainContainer from "@/MainContainer/MainContainer";
-import { useTitle } from "@/Navigation/Redux/StatusActions";
-import { Box, Link, theme } from "@/ui-components";
-import { GridCardGroup } from "@/ui-components/Grid";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {Box, Link, theme} from "@/ui-components";
+import {GridCardGroup} from "@/ui-components/Grid";
 import * as React from "react";
 import styled from "styled-components";
-import { NonAuthenticatedHeader } from "@/Navigation/Header";
-import { Client } from "@/Authentication/HttpClientInstance";
-import { ProviderLogo } from "@/Providers/ProviderLogo";
-import { ProviderTitle } from "@/Providers/ProviderTitle";
-import Providers from "@/assets/provider_info.json";
+import {NonAuthenticatedHeader} from "@/Navigation/Header";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
+import Providers from "@/Assets/provider_info.json";
 import * as Heading from "@/ui-components/Heading";
-import { Feature, hasFeature } from "@/Features";
+import {Feature, hasFeature} from "@/Features";
 
 interface ProviderType {
     id: string;
@@ -21,22 +21,22 @@ interface ProviderType {
     description: string;
 }
 
-export function ProviderEntry(props: { provider: ProviderType }): React.ReactElement {
+export function ProviderEntry(props: {provider: ProviderType}): React.ReactElement {
     return (
         <Link to={`/providers/detailed/${props.provider.id}`}>
             <ProviderCard>
                 <AbsoluteNoPointerEvents left={0} top={0}
-                                         cursor="inherit"
-                                         height="10px"
-                                         width="100%"
-                                         background={theme.colors.headerBg}/>
+                    cursor="inherit"
+                    height="10px"
+                    width="100%"
+                    background={theme.colors.headerBg} />
 
                 <div className={"provider-logo"}>
-                    <ProviderLogo providerId={props.provider.id} size={150}/>
+                    <ProviderLogo providerId={props.provider.id} size={150} />
                 </div>
 
                 <Heading.h3>
-                    <ProviderTitle providerId={props.provider.id}/>
+                    <ProviderTitle providerId={props.provider.id} />
                 </Heading.h3>
 
                 <div className={"provider-content"}>
@@ -54,19 +54,19 @@ export default function ProviderOverview() {
 
     const main = <GridCardGroup minmax={250}>
         {Providers.providers.map(provider =>
-            <ProviderEntry key={provider.title} provider={provider}/>
+            <ProviderEntry key={provider.title} provider={provider} />
         )}
     </GridCardGroup>
 
     if (!Client.isLoggedIn) return (<>
-        <NonAuthenticatedHeader/>
-        <Box mb="72px"/>
+        <NonAuthenticatedHeader />
+        <Box mb="72px" />
         <Box m={[0, 0, "15px"]}>
             {main}
         </Box>
     </>);
 
-    return (<MainContainer main={main}/>);
+    return (<MainContainer main={main} />);
 }
 
 const ProviderCard = styled.div`

@@ -8,7 +8,7 @@ import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import styled, {keyframes} from "styled-components";
 import {Box, Button, ExternalLink, Flex, Icon, Link, Text, Truncate} from "@/ui-components";
@@ -24,7 +24,17 @@ import {margin, MarginProps} from "styled-system";
 import {useProjectStatus} from "@/Project/cache";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {bulkRequestOf} from "@/DefaultObjects";
-import {api as JobsApi, Job, JobUpdate, JobStatus, ComputeSupport, JobSpecification} from "@/UCloud/JobsApi";
+import {
+    api as JobsApi,
+    Job,
+    JobUpdate,
+    JobStatus,
+    ComputeSupport,
+    JobSpecification,
+    DockerSupport,
+    NativeSupport,
+    VirtualMachineSupport
+} from "@/UCloud/JobsApi";
 import {compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -213,6 +223,10 @@ interface JobUpdateListener {
     handler: (e: JobsFollowResponse) => void;
 }
 
+function getBackend(job?: Job): string {
+    return job?.status.resolvedApplication?.invocation.tool.tool?.description.backend ?? "";
+}
+
 export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     const {id} = props.id ? {id: props.id} : useParams<{id: string}>();
     const history = useHistory();
@@ -221,7 +235,6 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     const appNameHint = getQueryParamOrElse(history.location.search, "app", "");
     const action = getQueryParamOrElse(history.location.search, "action", "view");
     const delayInitialAnim = action === "start";
-
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
     // const [balanceFetcher, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
@@ -356,98 +369,96 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     }
 
     const main = (
-        <>
-            <Container className={status?.state ?? "state-loading"}>
-                <div className={`logo-wrapper ${logoAnimationAllowed && status ? "active" : ""}`}>
-                    <div className="logo-scale">
-                        <div className={"logo"}>
-                            <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
-                                type={"APPLICATION"}
-                                size={"200px"} />
-                        </div>
+        <Container className={status?.state ?? "state-loading"}>
+            <div className={`logo-wrapper ${logoAnimationAllowed && status ? "active" : ""}`}>
+                <div className="logo-scale">
+                    <div className="logo">
+                        <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
+                            type={"APPLICATION"}
+                            size={"200px"} />
                     </div>
                 </div>
-                {!job || !status ? null : (
-                    <CSSTransition
-                        in={(status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && dataAnimationAllowed}
-                        timeout={{
-                            enter: 1000,
-                            exit: 0,
-                        }}
-                        classNames={"data"}
-                        unmountOnExit
-                    >
-                        <div className={"data"}>
-                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"} />
-                                <div className={"header-text"}>
-                                    {status?.state === "IN_QUEUE" ? <InQueueText job={job!} /> : null}
-                                </div>
-                            </Flex>
+            </div>
+            {!job || !status ? null : (
+                <CSSTransition
+                    in={(status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && dataAnimationAllowed}
+                    timeout={{
+                        enter: 1000,
+                        exit: 0,
+                    }}
+                    classNames={"data"}
+                    unmountOnExit
+                >
+                    <div className={"data"}>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                            <div className={"fake-logo"} />
+                            <div className={"header-text"}>
+                                {status?.state === "IN_QUEUE" ? <InQueueText job={job!} /> : null}
+                            </div>
+                        </Flex>
 
-                            <Content>
-                                <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
-                                    <HighlightedCard color={"purple"}>
-                                        <Box py={"16px"}>
-                                            <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
-                                        </Box>
-                                    </HighlightedCard>
-                                </Box>
-                                <InfoCards job={job} status={status} />
-                            </Content>
-                        </div>
-                    </CSSTransition>
-                )}
+                        <Content>
+                            <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
+                                <HighlightedCard color={"purple"}>
+                                    <Box py={"16px"}>
+                                        <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
+                                    </Box>
+                                </HighlightedCard>
+                            </Box>
+                            <InfoCards job={job} status={status} />
+                        </Content>
+                    </div>
+                </CSSTransition>
+            )}
 
-                {!job || !status ? null : (
-                    <CSSTransition
-                        in={status?.state === "RUNNING" && dataAnimationAllowed}
-                        timeout={{enter: 1000, exit: 0}}
-                        classNames={"data"}
-                        unmountOnExit
-                    >
-                        <div className={"data"}>
-                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"} />
-                                <div className={"header-text"}>
-                                    <RunningText job={job} />
-                                </div>
-                            </Flex>
+            {!job || !status ? null : (
+                <CSSTransition
+                    in={status?.state === "RUNNING" && dataAnimationAllowed}
+                    timeout={{enter: 1000, exit: 0}}
+                    classNames={"data"}
+                    unmountOnExit
+                >
+                    <div className={"data"}>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                            <div className={"fake-logo"} />
+                            <div className={"header-text"}>
+                                <RunningText job={job} />
+                            </div>
+                        </Flex>
 
-                            <RunningContent
-                                job={job}
-                                updateListeners={jobUpdateCallbackHandlers}
-                                status={status}
-                            />
-                        </div>
-                    </CSSTransition>
-                )}
+                        <RunningContent
+                            job={job}
+                            updateListeners={jobUpdateCallbackHandlers}
+                            status={status}
+                        />
+                    </div>
+                </CSSTransition>
+            )}
 
 
-                {!job || !status ? null : (
-                    <CSSTransition
-                        in={isJobStateTerminal(status.state) && dataAnimationAllowed}
-                        timeout={{enter: 1000, exit: 0}}
-                        classNames={"data"}
-                        unmountOnExit
-                    >
-                        <div className={"data"}>
-                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"} />
-                                <div className={"header-text"}>
-                                    <CompletedText job={job} state={status.state} />
-                                </div>
-                            </Flex>
+            {!job || !status ? null : (
+                <CSSTransition
+                    in={isJobStateTerminal(status.state) && dataAnimationAllowed}
+                    timeout={{enter: 1000, exit: 0}}
+                    classNames={"data"}
+                    unmountOnExit
+                >
+                    <div className={"data"}>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                            <div className={"fake-logo"} />
+                            <div className={"header-text"}>
+                                <CompletedText job={job} state={status.state} />
+                            </div>
+                        </Flex>
 
-                            <Content>
-                                <OutputFiles job={job} />
-                                <InfoCards job={job} status={status} />
-                            </Content>
-                        </div>
-                    </CSSTransition>
-                )}
-            </Container>
-        </>
+                        <Content>
+                            <OutputFiles job={job} />
+                            <InfoCards job={job} status={status} />
+                        </Content>
+                    </div>
+                </CSSTransition>
+            )}
+        </Container>
     );
 
     if (props.embedded) {
@@ -467,7 +478,7 @@ const Content = styled.div`
 function IngressEntry({id}: {id: string}): JSX.Element {
     const [ingress] = useCloudAPI<Ingress | null>(IngressApi.retrieve({id}), null);
     if (ingress.data == null) return <div />
-    const {domain} =  ingress.data.specification;
+    const {domain} = ingress.data.specification;
     return <Truncate width={1}>
         <ExternalLink title={domain} href={domain}>{domain}</ExternalLink>
     </Truncate>
@@ -481,12 +492,17 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
 
     useEffect(() => {
         const support = job.status.resolvedSupport?.support as ComputeSupport;
-        if (support.docker.utilization === true || support.virtualMachine.utilization === true) {
+        const appType = getAppType(job);
+        if (
+            (appType === "DOCKER" && support.docker.utilization === true) ||
+            (appType === "VIRTUAL_MACHINE" && support.virtualMachine.utilization === true)
+        ) {
             setUtilization(compute.jobs.retrieveUtilization({jobId: job.id}))
         }
     }, [job]);
 
     return <>
+        {/* Note(Jonas): Line below is outdated, right? */}
         <Heading.h2>{CONF.PRODUCT_NAME} is preparing your job</Heading.h2>
         <Heading.h3>
             {job.specification.name ?
@@ -564,6 +580,21 @@ const InfoCardsContainer = styled.div`
   grid-gap: 16px;
   justify-content: center;
 `;
+
+function isSupported(jobBackend: string | undefined, support: ComputeSupport | undefined, flag: keyof DockerSupport | keyof NativeSupport | keyof VirtualMachineSupport): boolean {
+    switch (jobBackend) {
+        case "DOCKER":
+            return support?.docker[flag] === true;
+        case "VIRTUAL_MACHINE":
+            return support?.virtualMachine[flag] === true;
+        case "NATIVE":
+            return support?.native[flag] === true;
+        default: {
+            console.log(`Unhandled job backend: ${jobBackend}`)
+            return false;
+        }
+    }
+}
 
 const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job, status}) => {
     const fileInfo = useJobFiles(job.specification);
@@ -840,7 +871,9 @@ const RunningContent: React.FunctionComponent<{
     const fileInfo = useJobFiles(job.specification);
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
+    const backendType = getBackend(job);
     const projects = useProjectStatus();
+    const [suspended, setSuspended] = useState(job.status.state === "SUSPENDED");
     const workspaceTitle = projects.fetch().membership.find(it => it.projectId === job.owner.project)?.title ?? "My Workspace";
     const extendJob: React.EventHandler<SyntheticEvent<HTMLElement>> = useCallback(async e => {
         const duration = parseInt(e.currentTarget.dataset["duration"]!, 10);
@@ -861,7 +894,7 @@ const RunningContent: React.FunctionComponent<{
         setExpiresAt(status.expiresAt);
     }, [status.expiresAt]);
 
-    const calculateTimeLeft = (expiresAt: number | undefined) => {
+    const calculateTimeLeft = useCallback((expiresAt: number | undefined) => {
         if (!expiresAt) return {hours: 0, minutes: 0, seconds: 0};
 
         const now = new Date().getTime();
@@ -874,25 +907,38 @@ const RunningContent: React.FunctionComponent<{
             minutes: Math.floor((difference / 1000 / 60) % 60),
             seconds: Math.floor((difference / 1000) % 60)
         }
-    }
+    }, []);
+
+    const suspendJob = React.useCallback(() => {
+        try {
+            setSuspended(true);
+            invokeCommand(JobsApi.suspend(bulkRequestOf({id: job.id})));
+        } catch (e) {
+            setSuspended(false);
+            displayErrorMessageOrDefault(e, "Failed to suspend virtual machine.");
+        }
+    }, []);
+
+    const unsuspendJob = React.useCallback(() => {
+        try {
+            setSuspended(false);
+            invokeCommand(JobsApi.unsuspend(bulkRequestOf({id: job.id})));
+        } catch (e) {
+            setSuspended(true);
+            displayErrorMessageOrDefault(e, "Failed to resume virtual machine.");
+        }
+    }, []);
 
     const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(expiresAt));
 
-    const appInvocation = job.status.resolvedApplication!.invocation;
-    const backendType = appInvocation.tool.tool!.description.backend;
+
     const support = job.status.resolvedSupport ?
-        (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : null;
-    const supportsExtension =
-        (backendType === "NATIVE" && support?.native.timeExtension) ||
-        (backendType === "DOCKER" && support?.docker.timeExtension) ||
-        (backendType === "VIRTUAL_MACHINE" && support?.virtualMachine.timeExtension);
-    const supportsLogs =
-        (backendType === "NATIVE" && support?.native.logs) ||
-        (backendType === "DOCKER" && support?.docker.logs) ||
-        (backendType === "VIRTUAL_MACHINE" && support?.virtualMachine.logs);
+        (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
+    const supportsExtension = isSupported(backendType, support, "timeExtension");
+    const supportsLogs = isSupported(backendType, support, "logs");
+    const supportsSuspend = isSupported(backendType, support, "suspension");
 
     const sshAccess = useMemo(() => {
-        console.log("Parsing", job.updates);
         return parseUpdatesForAccess(job.updates);
     }, [job.updates.length]);
 
@@ -921,56 +967,56 @@ const RunningContent: React.FunctionComponent<{
                     </Box>
                 </Flex>
             </HighlightedCard>
-            {job.status.resolvedApplication?.invocation?.tool?.tool?.description?.backend === "VIRTUAL_MACHINE"
-                ? null :
-                <HighlightedCard color={"purple"} isLoading={false} title={"Time allocation"} icon={"hourglass"}>
-                    <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
-                        <Box>
-                            <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
-                        </Box>
-                        {!expiresAt ? null :
-                            <>
-                                <Box>
-                                    <b>Job expiry: </b> {dateToString(expiresAt)}
-                                </Box>
-                                <Box>
-                                    <b>Time remaining: </b>{timeLeft.hours < 10 ? "0" + timeLeft.hours : timeLeft.hours}
-                                    :{timeLeft.minutes < 10 ? "0" + timeLeft.minutes : timeLeft.minutes}
-                                    :{timeLeft.seconds < 10 ? "0" + timeLeft.seconds : timeLeft.seconds}
-                                </Box>
-                            </>
-                        }
-                        <Box>
-                            <b>Estimated price per hour: </b>{job.status.resolvedSupport?.product.freeToUse ? "Free" :
-                                job.status.resolvedProduct ?
-                                    usageExplainer(
-                                        costOfDuration(60, job.specification.replicas, resolvedProduct),
-                                        "COMPUTE",
-                                        resolvedProduct.chargeType,
-                                        resolvedProduct.unitOfPrice
-                                    )
-                                    : "Unknown"
-                            }
-                        </Box>
-
-
-                        <Box flexGrow={1} />
-
-                        {!expiresAt || !supportsExtension ? null :
+            <HighlightedCard color={"purple"} isLoading={false} title={"Time allocation"} icon={"hourglass"}>
+                <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
+                    <Box>
+                        <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
+                    </Box>
+                    {!expiresAt ? null :
+                        <>
                             <Box>
-                                Extend allocation (hours):
-                                <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
-                                    <Button data-duration={"1"} onClick={extendJob}>+1</Button>
-                                    <Button data-duration={"6"} onClick={extendJob}>+6</Button>
-                                    <Button data-duration={"12"} onClick={extendJob}>+12</Button>
-                                    <Button data-duration={"24"} onClick={extendJob}>+24</Button>
-                                    <Button data-duration={"48"} onClick={extendJob}>+48</Button>
-                                </AltButtonGroup>
+                                <b>Job expiry: </b> {dateToString(expiresAt)}
                             </Box>
+                            <Box>
+                                <b>Time remaining: </b>{timeLeft.hours < 10 ? "0" + timeLeft.hours : timeLeft.hours}
+                                :{timeLeft.minutes < 10 ? "0" + timeLeft.minutes : timeLeft.minutes}
+                                :{timeLeft.seconds < 10 ? "0" + timeLeft.seconds : timeLeft.seconds}
+                            </Box>
+                        </>
+                    }
+                    <Box>
+                        <b>Estimated price per hour: </b>{job.status.resolvedSupport?.product.freeToUse ? "Free" :
+                            job.status.resolvedProduct ?
+                                usageExplainer(
+                                    costOfDuration(60, job.specification.replicas, resolvedProduct),
+                                    "COMPUTE",
+                                    resolvedProduct.chargeType,
+                                    resolvedProduct.unitOfPrice
+                                )
+                                : "Unknown"
                         }
-                    </Flex>
-                </HighlightedCard>
-            }
+                    </Box>
+                    <Box flexGrow={1} />
+                    <Box>
+                        {!expiresAt || !supportsExtension ? null : <>
+                            Extend allocation (hours):
+                            <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
+                                <Button data-duration={"1"} onClick={extendJob}>+1</Button>
+                                <Button data-duration={"6"} onClick={extendJob}>+6</Button>
+                                <Button data-duration={"12"} onClick={extendJob}>+12</Button>
+                                <Button data-duration={"24"} onClick={extendJob}>+24</Button>
+                                <Button data-duration={"48"} onClick={extendJob}>+48</Button>
+                            </AltButtonGroup>
+                        </>}
+                        {!supportsSuspend ? null :
+                            suspended ?
+                                <ConfirmationButton actionText="Unsuspend" fullWidth mt="8px" mb="4px" onAction={unsuspendJob} /> :
+                                <ConfirmationButton actionText="Suspend" fullWidth mt="8px" mb="4px" onAction={suspendJob} />
+
+                        }
+                    </Box>
+                </Flex>
+            </HighlightedCard>
             <HighlightedCard color="purple" isLoading={false} title="Messages" icon="chat">
                 <ProviderUpdates job={job} updateListeners={updateListeners} />
             </HighlightedCard>
@@ -978,7 +1024,7 @@ const RunningContent: React.FunctionComponent<{
             {ingresses.length === 0 ? null :
                 <HighlightedCard color="purple" isLoading={false} title="Public links" icon="globeEuropeSolid">
                     <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
-                        {ingresses.map(ingress => <IngressEntry id={ingress.id}/>)}
+                        {ingresses.map(ingress => <IngressEntry id={ingress.id} />)}
                     </Text>
                 </HighlightedCard>
             }
@@ -1206,28 +1252,25 @@ const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
     </OutputFilesWrapper>;
 };
 
+function getAppType(job: Job): string {
+    return job.status.resolvedApplication!.invocation.applicationType;
+}
+
 const RunningButtonGroup: React.FunctionComponent<{
     job: Job,
     rank: number,
     expanded?: boolean | false,
     toggleExpand?: () => void | undefined
 }> = ({job, rank, expanded, toggleExpand}) => {
-    const appInvocation = job.status.resolvedApplication!.invocation;
-    const backendType = appInvocation.tool.tool!.description.backend;
+    const backendType = getBackend(job);
     const support = job.status.resolvedSupport ?
-        (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : null;
-    const supportTerminal =
-        (backendType === "VIRTUAL_MACHINE" && support?.virtualMachine?.terminal) ||
-        (backendType === "DOCKER" && support?.docker?.terminal) ||
-        (backendType === "NATIVE" && support?.native?.terminal);
-
-    const appType = appInvocation.applicationType;
+        (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
+    const supportTerminal = isSupported(backendType, support, "terminal");
+    const appType = getAppType(job);
     const supportsInterface =
-        (appType === "WEB" && backendType === "NATIVE" && support?.native.web) ||
-        (appType === "VNC" && backendType === "NATIVE" && support?.native.vnc) ||
-        (appType === "WEB" && backendType === "DOCKER" && support?.docker.web) ||
-        (appType === "VNC" && backendType === "DOCKER" && support?.docker.vnc) ||
-        (appType === "VNC" && backendType === "VIRTUAL_MACHINE" && support?.virtualMachine.vnc);
+        (appType === "WEB" && isSupported(backendType, support, "web")) ||
+        (appType === "VNC" && isSupported(backendType, support, "vnc"));
+
 
     return <div className={job.specification.replicas > 1 ? "buttons" : "top-buttons"}>
         {!supportTerminal ? null : (
