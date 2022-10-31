@@ -816,6 +816,75 @@ class DocLink extends HTMLElement {
 
 customElements.define("doc-link", DocLink);
 
+class DocArticleToc extends HTMLElement {
+    static idGenerator = 0;
+
+    constructor() {
+        super();
+
+        const shadow = this.attachShadow({ mode: "open" });
+        const listNode = document.createElement("ul");
+        const headings = document.body.querySelectorAll(".content h2");
+        console.log("headings", headings);
+        headings.forEach(heading => {
+            if (heading.classList.contains("summary")) return;
+            let id = heading.id;
+            if (!id) {
+                id = heading.id = `section-${DocArticleToc.idGenerator}`;
+            }
+
+            const itemNode = document.createElement("li");
+            const sectionLink = document.createElement("a");
+            sectionLink.href = `#${id}`;
+            sectionLink.textContent = heading.textContent;
+            itemNode.append(sectionLink);
+            listNode.append(itemNode);
+
+            DocArticleToc.idGenerator++;
+        });
+
+        if (headings.length > 0) {
+            const heading = document.createElement("h1");
+            heading.textContent = "In this article";
+
+            shadow.append(heading, listNode, style(`
+                :host {
+                    margin: 0 16px;
+                }
+
+                h1 {
+                    font-size: 1.5rem;
+                    font-weight: 500;
+                    margin-top: 26px;
+                }
+
+                a {
+                    color: black;
+                    text-decoration: none;
+                }
+
+                a:hover {
+                    color: blue;
+                }
+
+                ul {
+                    padding: 0;
+                }
+
+                li {
+                    list-style: none;
+                    padding: 0;
+                    padding-left: 8px;
+                    border-left: 2px solid black;
+                    line-height: 2;
+                }
+            `));
+        }
+    }
+}
+
+customElements.define("doc-article-toc", DocArticleToc);
+
 function init() {
     document.body.classList.remove("content");
     document.body.innerHTML = `<div class="content">${document.body.innerHTML}</div>`;
@@ -835,8 +904,10 @@ function init() {
     const contentWrapper = document.createElement("div");
     contentWrapper.classList.add("content-wrapper");
     contentWrapper.append(content);
-
     document.body.append(contentWrapper);
+
+    const articleToc = document.createElement("doc-article-toc");
+    document.body.append(articleToc);
 
     document.body.classList.add("ready");
 }

@@ -15,8 +15,8 @@ body.ready {
     display: grid;
     grid-template-areas:
         'header header header header header header'
-        'menu main main main main main';
-    grid-template-columns: 300px auto auto auto auto auto;
+        'menu main main main main article-toc';
+    grid-template-columns: 300px auto auto auto auto 300px;
     overflow: hidden;
 }
 
@@ -27,6 +27,10 @@ doc-header {
 
 doc-toc {
     grid-area: menu;
+}
+
+doc-article-toc {
+    grid-area: article-toc;
 }
 
 .content-wrapper {
@@ -116,8 +120,25 @@ doc-todo {
         width: 100%;
     }
 
+    doc-article-toc {
+        display: none;
+    }
+
     .content-wrapper {
         height: calc(100vh - 64px - 48px) !important;
+    }
+}
+
+@media screen and (min-width: 901px) and (max-width: 1100px) {
+    body.ready {
+        grid-template-areas:
+            'header header'
+            'menu main';
+        grid-template-columns: 300px auto;
+    }
+
+    doc-article-toc {
+        display: none;
     }
 }
 

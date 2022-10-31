@@ -206,6 +206,153 @@
         <doc-snippet>
             systemctl enable --now ucloud-im.service
         </doc-snippet>
+
+        <h2>Registering as a provider</h2>
+
+        <p>
+            Before you can continue, you must first register as a UCloud provider. How you do this depends entirely on
+            what you are trying to achieve. If you wish to integrate with the production instance of UCloud, then you
+            must <a href="https://escience.sdu.dk" target="_blank">contact us</a> directly. On the other hand, if you
+            are trying to evaluate UCloud or you are developing code for UCloud, then you 
+            can look at <a href="/getting-started/">this guide</a> which covers both cases.
+        </p>
+
+        <h2>Basic configuration</h2>
+
+        <p>
+            In this section, we will cover the basic configuration which is needed to get started. Throughout the
+            section we will be referencing a lot of scripts which are specialized to your system. We will go through any
+            details in the next section.
+        </p>
+
+        <h3><code>/etc/ucloud/core.yaml</code></h3>
+
+        <doc-snippet>
+            providerId: my-provider                     # Must be updated
+            developmentMode: false
+            hosts:
+                self:                                   # Must be updated
+                    host: my-provider.example.com
+                    scheme: https
+                    port: 443
+                ucloud:                                 # Could be updated
+                    host: cloud.sdu.dk
+                    scheme: https
+                    port: 443
+        </doc-snippet>
+
+        <h3><code>/etc/ucloud/server.yaml</code></h3>
+
+        <doc-snippet>
+            refreshToken: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx  # Must be updated
+            envoy:
+                executable: /opt/ucloud/envoy/func-e            # Could be updated
+                directory: /etc/ucloud/envoy                    # Could be updated
+        </doc-snippet>
+
+        <h3><code>/etc/ucloud/products.yaml</code></h3>
+
+        <doc-snippet>
+            # Should be updated (entire file)
+
+            compute:
+                fat:
+                - name: fat-1
+                  description: Allocation on a fat node with 1 CPU allocated
+                  cpu: 1
+                  gpu: 0
+                  memoryInGigs: 32
+                  cost:
+                      currency: UNITS
+                      frequency: MINUTE
+                - name: fat-128
+                  description: Allocation on a fat node with 128 CPUs allocated
+                  cpu: 128
+                  gpu: 0
+                  memoryInGigs: 4096
+                  cost:
+                      currency: UNITS
+                      frequency: MINUTE
+            
+            storage:
+                exotic:
+                - name: exotic
+                    description: File-system using the exotic FS by Foobar enterprises.
+                    cost:
+                        currency: UNITS
+                        quota: true
+        </doc-snippet>
+
+        <h3><code>/etc/ucloud/plugins.yaml</code></h3>
+
+        <doc-todo></doc-todo>
+
+        <doc-snippet>
+          connection:
+            type: UCloud
+            installSshKeys: true
+            redirectTo: https://dev.cloud.sdu.dk
+            extensions:
+              onConnectionComplete: /opt/ucloud/hippo/connection-complete
+          
+          projects:
+            type: Simple
+            unixGroupNamespace: 739300000
+            extensions:
+              all: /opt/ucloud/hippo/project-extension
+          
+          allocations:
+            STORAGE:
+              type: Extension
+              extensions:
+                onAllocation: /opt/ucloud/hippo/on-storage-allocation
+                onSynchronization: /opt/ucloud/hippo/on-storage-allocation
+            COMPUTE:
+              type: Extension
+              extensions:
+                onAllocation: /opt/ucloud/hippo/on-compute-allocation
+                onSynchronization: /opt/ucloud/hippo/on-compute-allocation
+          
+          fileCollections:
+            default:
+              type: Posix
+              matches: "*"
+              accounting: /opt/ucloud/hippo/storage-accounting
+              extensions:
+                driveLocator: /opt/ucloud/hippo/drive-locator
+          
+          files:
+            default:
+              type: Posix
+              matches: "*"
+          
+          jobs:
+            default:
+              type: Slurm
+              matches: "*"
+              partition: fat
+              modifySlurmConf: null
+              accountMapper:
+                type: Extension
+                extension: /opt/ucloud/hippo/account-mapper
+              web:
+                type: Simple
+                domainPrefix: hippo-
+                domainSuffix: .dev.cloud.sdu.dk
+              udocker:
+                enabled: true
+                execMode: P2
+              terminal:
+                type: Slurm
+                enabled: true
+          
+        </doc-snippet>
+
+        <h2>Extensions</h2>
+
+        <doc-todo></doc-todo>
+        <p></p>
+
     </article>
     <script src="/app.js"></script>
 </body>
