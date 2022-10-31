@@ -291,35 +291,35 @@
           connection:                                                       # Could change this
             type: UCloud
             installSshKeys: true
-            redirectTo: https://cloud.sdu.dk
+            redirectTo: https://cloud.sdu.dk                                # Could change this
             extensions:
-              onConnectionComplete: /opt/ucloud/hippo/connection-complete
+              onConnectionComplete: /opt/ucloud/extensions/connection-complete
           
           projects:
             type: Simple
-            unixGroupNamespace: 739300000
+            unixGroupNamespace: 739300000                                   # Should change this
             extensions:
-              all: /opt/ucloud/hippo/project-extension
+              all: /opt/ucloud/extensions/project-extension
           
           allocations:
             STORAGE:
               type: Extension
               extensions:
-                onAllocation: /opt/ucloud/hippo/on-storage-allocation
-                onSynchronization: /opt/ucloud/hippo/on-storage-allocation
+                onAllocation: /opt/ucloud/extensions/on-storage-allocation
+                onSynchronization: /opt/ucloud/extensions/on-storage-allocation
             COMPUTE:
               type: Extension
               extensions:
-                onAllocation: /opt/ucloud/hippo/on-compute-allocation
-                onSynchronization: /opt/ucloud/hippo/on-compute-allocation
+                onAllocation: /opt/ucloud/extensions/on-compute-allocation
+                onSynchronization: /opt/ucloud/extensions/on-compute-allocation
           
           fileCollections:
             default:
               type: Posix
               matches: "*"
-              accounting: /opt/ucloud/hippo/storage-accounting
+              accounting: /opt/ucloud/extensions/storage-accounting
               extensions:
-                driveLocator: /opt/ucloud/hippo/drive-locator
+                driveLocator: /opt/ucloud/extensions/drive-locator
           
           files:
             default:
@@ -330,28 +330,37 @@
             default:
               type: Slurm
               matches: "*"
-              partition: fat
-              modifySlurmConf: null
+              partition: slurm-partition-to-use                             # Must change this
+              modifySlurmConf: null                                         # Could change this
               accountMapper:
                 type: Extension
-                extension: /opt/ucloud/hippo/account-mapper
-              web:
+                extension: /opt/ucloud/extensions/account-mapper
+              web:                                                          # Must change this
                 type: Simple
-                domainPrefix: hippo-
-                domainSuffix: .dev.cloud.sdu.dk
-              udocker:
+                domainPrefix: app-
+                domainSuffix: .usercontent.my-provider.example.com
+              udocker:                                                      # Could change this
                 enabled: true
                 execMode: P2
-              terminal:
+              terminal:                                                     # Could change this
                 type: Slurm
                 enabled: true
-          
         </doc-snippet>
 
         <h2>Extensions</h2>
 
         <doc-todo></doc-todo>
-        <p></p>
+
+        <p>
+            In this section, we will try to provider you guidance with the extension scripts that you need to write.
+            For each script, we will tell you about the types of input you receive, what type of output you should
+            produce and which side-effects your scripts should have. We will exemplify this by showing how this works
+            in a real production system.
+        </p>
+
+        <h3>Our setup</h3>
+
+        <doc-image src="/images/hippo.png" alt="A diagram of a system running UCloud/IM"></doc-image>
 
     </article>
     <script src="/app.js"></script>

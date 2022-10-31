@@ -885,6 +885,34 @@ class DocArticleToc extends HTMLElement {
 
 customElements.define("doc-article-toc", DocArticleToc);
 
+class DocImage extends HTMLElement {
+    constructor() {
+        super();
+
+        const shadow = this.attachShadow({ mode: "open" });
+        const src = this.getAttribute("src");
+        const alt = this.getAttribute("alt");
+
+        const linkNode = document.createElement("a");
+        linkNode.href = src;
+        linkNode.target = "_blank";
+
+        const imageNode = document.createElement("img");
+        imageNode.src = src;
+        if (alt) imageNode.alt = alt;
+
+        linkNode.append(imageNode);
+        shadow.append(linkNode, style(`
+            img {
+                width: 100%;
+                object-fit: contain;
+            }
+        `));
+    }
+}
+
+customElements.define("doc-image", DocImage);
+
 function init() {
     document.body.classList.remove("content");
     document.body.innerHTML = `<div class="content">${document.body.innerHTML}</div>`;
