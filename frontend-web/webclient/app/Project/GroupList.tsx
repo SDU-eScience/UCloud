@@ -30,7 +30,7 @@ const baseContext = "/projects/groups";
 // UNUSED
 const GroupList: React.FunctionComponent = () => {
     const history = useHistory();
-    const {project, reload} = useProjectFromParams();
+    const {project, reload} = useProjectFromParams("");
     const [groupId, membersPage] = useGroupIdAndMemberId();
 
     const allowManagement = isAdminOrPI(project?.status.myRole);

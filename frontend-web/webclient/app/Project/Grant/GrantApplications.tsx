@@ -27,7 +27,7 @@ import {browseGrantApplications, GrantApplication, State} from "@/Project/Grant/
 import {PageV2} from "@/UCloud";
 import {useProjectId} from "../Api";
 
-export const GrantApplications: React.FunctionComponent<{ ingoing: boolean }> = (props) => {
+export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (props) => {
     const projectId = useProjectId();
     const [scrollGeneration, setScrollGeneration] = useState(0);
     const [applications, fetchApplications] = useCloudAPI<PageV2<GrantApplication>>(
@@ -57,7 +57,8 @@ export const GrantApplications: React.FunctionComponent<{ ingoing: boolean }> = 
         fetchApplications(browseGrantApplications({
             includeIngoingApplications: props.ingoing,
             includeOutgoingApplications: !props.ingoing,
-            itemsPerPage: 50, filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.ACTIVE
+            itemsPerPage: 50,
+            filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.ACTIVE
         }));
     }, [projectId, filters]);
 

@@ -19,7 +19,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
     // Input "parameters"
     const history = useHistory();
 
-    const {project, projectId, reload} = useProjectFromParams();
+    const {project, projectId, reload, isPersonalWorkspace} = useProjectFromParams("");
 
     // Aliases and computed data
     const isAdmin = !project ? false : isAdminOrPI(project.status.myRole!);
@@ -30,7 +30,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
     useTitle("Project Dashboard");
     useSidebarPage(SidebarPages.Projects);
 
-    if (!project) return null;
+    if (!project && !isPersonalWorkspace) return null;
 
     return (
         <MainContainer
@@ -38,9 +38,9 @@ const ProjectDashboard: React.FunctionComponent = () => {
                 <ProjectBreadcrumbsWrapper mb="12px" embedded={false}>
                     <span><Link to="/projects">My Projects</Link></span>
                     <span>
-                        <Link to={`/projects/${projectId}`}>
-                            {shorten(20, project.specification.title)}
-                        </Link>
+                        {isPersonalWorkspace ? "My Workspace" :
+                            shorten(20, project?.specification.title ?? "")
+                        }
                     </span>
                     <span>Dashboard</span>
                 </ProjectBreadcrumbsWrapper>
@@ -49,7 +49,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
             main={(
                 <>
                     <ProjectDashboardGrid minmax={330}>
-                        <HighlightedCard
+                        {isPersonalWorkspace ? null : <HighlightedCard
                             subtitle={<RightArrow />}
                             onClick={() => history.push(`/projects/${projectId}/members`)}
                             title="Members"
@@ -61,15 +61,15 @@ const ProjectDashboard: React.FunctionComponent = () => {
                                     <tbody>
                                         <TableRow cursor="pointer">
                                             <TableCell>Members</TableCell>
-                                            <TableCell textAlign="right">{project.status.members!.length}</TableCell>
+                                            <TableCell textAlign="right">{project?.status.members!.length}</TableCell>
                                         </TableRow>
                                         <TableRow cursor="pointer">
                                             <TableCell>Groups</TableCell>
-                                            <TableCell textAlign="right">{project.status.groups!.length}</TableCell>
+                                            <TableCell textAlign="right">{project?.status.groups!.length}</TableCell>
                                         </TableRow>
                                     </tbody>) : null}
                             </Table>
-                        </HighlightedCard>
+                        </HighlightedCard>}
 
                         <HighlightedCard
                             title={"Resources and Usage"}
@@ -90,45 +90,47 @@ const ProjectDashboard: React.FunctionComponent = () => {
                         >
                         </HighlightedCard>
 
-                        <HighlightedCard
-                            subtitle={<RightArrow />}
-                            onClick={() => history.push("/project/grants/ingoing")}
-                            title="Grant Applications"
-                            icon="mail"
-                            color="red"
-                        >
-                            <Table>
-                                <tbody>
-                                    <TableRow cursor="pointer">
-                                        <TableCell>In Progress</TableCell>
-                                        <TableCell textAlign="right">
-                                            <Text color="red">Not yet implemented</Text>
-                                        </TableCell>
-                                    </TableRow>
-                                </tbody>
-                            </Table>
-                        </HighlightedCard>
-
-                        {!isAdmin ? null : (
+                        {isPersonalWorkspace ? null : <>
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => history.push(`/project/settings/${projectId}`)}
-                                title="Settings"
-                                icon="properties"
-                                color="orange"
+                                onClick={() => history.push("/project/grants/ingoing")}
+                                title="Grant Applications"
+                                icon="mail"
+                                color="red"
                             >
                                 <Table>
                                     <tbody>
                                         <TableRow cursor="pointer">
-                                            <TableCell>Archived</TableCell>
+                                            <TableCell>In Progress</TableCell>
                                             <TableCell textAlign="right">
-                                                {project.status.archived ? "Yes" : "No"}
+                                                <Text color="red">Not yet implemented</Text>
                                             </TableCell>
                                         </TableRow>
                                     </tbody>
                                 </Table>
                             </HighlightedCard>
-                        )}
+
+                            {!isAdmin ? null : (
+                                <HighlightedCard
+                                    subtitle={<RightArrow />}
+                                    onClick={() => history.push(`/project/settings/${projectId}`)}
+                                    title="Settings"
+                                    icon="properties"
+                                    color="orange"
+                                >
+                                    <Table>
+                                        <tbody>
+                                            <TableRow cursor="pointer">
+                                                <TableCell>Archived</TableCell>
+                                                <TableCell textAlign="right">
+                                                    {project?.status.archived ? "Yes" : "No"}
+                                                </TableCell>
+                                            </TableRow>
+                                        </tbody>
+                                    </Table>
+                                </HighlightedCard>
+                            )}
+                        </>}
 
                         {!isAdmin ? null :
                             <HighlightedCard

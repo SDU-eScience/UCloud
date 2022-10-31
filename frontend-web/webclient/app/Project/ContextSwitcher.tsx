@@ -51,7 +51,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                         <HoverIcon
                             onClick={e => {
                                 stopPropagationAndPreventDefault(e);
-                                history.push(`/projects/${project.fetch().id}`);
+                                history.push(`/projects/${projectId ?? "My Workspace"}`);
                             }}
                             name="projects"
                             color2="midGray"
@@ -85,8 +85,8 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                     )}
                     {props.activeProject || response.data.items.length > 0 ? <Divider /> : null}
                     <Text onClick={() => history.push("/projects")}>Manage projects</Text>
-                    <Text onClick={() => history.push("/project/dashboard")}>
-                        {props.activeProject ? "Manage active project" : "Manage my workspace"}
+                    <Text onClick={() => history.push("/projects")}>
+                        {projectId ? "Manage active project" : "Manage my workspace"}
                     </Text>
                 </BoxForPadding>
             </ClickableDropdown>

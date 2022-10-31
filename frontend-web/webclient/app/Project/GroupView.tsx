@@ -33,7 +33,7 @@ const GroupView: React.FunctionComponent = () => {
     }
 
     // TODO(Jonas): Is this always correct?
-    const {project, projectId, reload} = useProjectFromParams();
+    const {project, projectId, reload} = useProjectFromParams("");
     const allowManagement = isAdminOrPI(project?.status.myRole);
 
     const group = project?.status.groups?.find(it => it.id === groupId);

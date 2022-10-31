@@ -84,7 +84,7 @@ const PageTab: React.FunctionComponent<{
 };
 
 export const ProjectSettings: React.FunctionComponent = () => {
-    const {project, projectId, reload} = useProjectFromParams();
+    const {project, projectId, reload, breadcrumbs} = useProjectFromParams("Settings");
 
     const params = useParams<{page?: SettingsPage;}>();
     const page = params.page ?? SettingsPage.AVAILABILITY;
@@ -107,11 +107,9 @@ export const ProjectSettings: React.FunctionComponent = () => {
 
     const {status} = project;
 
-    const crumbs = [{title: project?.specification.title ?? ""}].concat([{title: "Settings"}]);
-
     return (
         <MainContainer
-            header={<ProjectBreadcrumbs omitActiveProject crumbs={crumbs} />}
+            header={<ProjectBreadcrumbs omitActiveProject crumbs={breadcrumbs} />}
             main={
                 <ActionContainer>
                     <SelectableTextWrapper>

@@ -54,7 +54,7 @@ export function searchSubAllocations(request: {query: string} & PaginationReques
 const FORMAT = "dd/MM/yyyy";
 
 function Allocations(): JSX.Element {
-    const {project, projectId, loading} = useProjectFromParams();
+    const {project, projectId, loading, isPersonalWorkspace, breadcrumbs} = useProjectFromParams("Allocations");
 
     useTitle("Allocations");
 
@@ -75,16 +75,15 @@ function Allocations(): JSX.Element {
         setFilters(prev => ({
             ...prev,
             "filterWorkspace": workspaceId,
-            "filterWorkspaceProject": workspaceIsProject.toString()
+            "filterWorkspaceProject": isPersonalWorkspace ? "" : workspaceIsProject.toString()
         }));
     }, [setFilters]);
 
     const reloadPage = useCallback(() => {
-        if (projectId) {
-            fetchWallets({...browseWallets({itemsPerPage: 50, ...filters}), projectOverride: projectId});
-            fetchAllocations({...browseSubAllocations({itemsPerPage: 250, ...filters}), projectOverride: projectId});
-            setAllocationGeneration(prev => prev + 1);
-        }
+        const projectOverride = isPersonalWorkspace ? undefined : projectId;
+        fetchWallets({...browseWallets({itemsPerPage: 50, ...filters}), projectOverride});
+        fetchAllocations({...browseSubAllocations({itemsPerPage: 250, ...filters}), projectOverride});
+        setAllocationGeneration(prev => prev + 1);
     }, [filters, projectId]);
 
     React.useEffect(() => {
@@ -97,8 +96,6 @@ function Allocations(): JSX.Element {
         fetchAllocations({...searchSubAllocations({query, itemsPerPage: 250}), projectOverride: projectId});
         setAllocationGeneration(prev => prev + 1);
     }, [projectId]);
-
-    const breadcrumbs = [{title: projectId ? project?.specification.title ?? "" : "My workspace"}, {title: "Allocations"}];
 
     return <MainContainer
         header={<Spacer

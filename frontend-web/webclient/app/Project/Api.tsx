@@ -285,15 +285,24 @@ export function useSubprojectFromURL(request: ProjectFlags): {project: Project; 
     return {project: project.data, projectId: subprojectFromQuery, reload};
 }
 
+interface UseProjectFromParams {
+    project: Project | null;
+    reload: () => void;
+    projectId: string;
+    loading: boolean;
+    isPersonalWorkspace: boolean;
+    breadcrumbs: {title: string, link?: string}[];
+}
 
-export function useProjectFromParams(): {project: Project | null; reload: () => void; projectId: string; loading: boolean;} {
+export function useProjectFromParams(pageTitle: string): UseProjectFromParams {
     const params = useParams<{project: string}>();
     const projectId = params.project;
 
     const [projectFromApi, fetchProject] = useCloudAPI<Project | null>({noop: true}, null);
+    const isPersonalWorkspace = projectId === "My Workspace"
 
     const reload = useCallback(() => {
-        if (projectId) {
+        if (!isPersonalWorkspace && projectId) {
             fetchProject(api.retrieve({
                 id: projectId,
                 includePath: true,
@@ -309,7 +318,12 @@ export function useProjectFromParams(): {project: Project | null; reload: () => 
         reload();
     }, [projectId]);
 
-    return {project: projectFromApi.data, projectId, reload, loading: projectFromApi.loading}
+    const breadcrumbs = [
+        {title: isPersonalWorkspace ? projectId : projectFromApi.data?.specification.title ?? "", link: `/projects/${projectId}`},
+        {title: pageTitle}
+    ];
+
+    return {project: projectFromApi.data, projectId, reload, loading: projectFromApi.loading, isPersonalWorkspace, breadcrumbs};
 }
 
 

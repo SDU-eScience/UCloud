@@ -96,9 +96,7 @@ const Resources: React.FunctionComponent = () => {
     const [breakdowns, fetchBreakdowns] = useCloudAPI<{charts: BreakdownChart[]}>({noop: true}, {charts: []});
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
 
-    const {projectId, project} = useProjectFromParams();
-
-    const isMyWorkspace = projectId == null;
+    const {projectId, isPersonalWorkspace, breadcrumbs} = useProjectFromParams("Resource Usage");
 
     const [maximizedUsage, setMaximizedUsage] = useState<number | null>(null);
 
@@ -108,9 +106,10 @@ const Resources: React.FunctionComponent = () => {
     }, [maximizedUsage]);
 
     const reloadPage = useCallback(() => {
-        fetchUsage({...retrieveUsage({...filters}), projectOverride: projectId});
-        fetchBreakdowns({...retrieveBreakdown({...filters}), projectOverride: projectId});
-        fetchWallets({...browseWallets({itemsPerPage: 50, ...filters}), projectOverride: projectId});
+        const projectOverride = isPersonalWorkspace ? undefined : projectId;
+        fetchUsage({...retrieveUsage({...filters}), projectOverride});
+        fetchBreakdowns({...retrieveBreakdown({...filters}), projectOverride});
+        fetchWallets({...browseWallets({itemsPerPage: 50, ...filters}), projectOverride});
         setMaximizedUsage(null);
     }, [filters]);
 
@@ -138,13 +137,12 @@ const Resources: React.FunctionComponent = () => {
         };
     }, [filters]);
 
-    const crumbs = [{title: isMyWorkspace ? "My workspace" : project?.specification.title ?? ""}, {title: "Resource Usage"}];
 
     return (
         <MainContainer
             header={<Spacer
                 width={"calc(100% - var(--sidebarWidth))"}
-                left={<ProjectBreadcrumbs omitActiveProject crumbs={crumbs} />}
+                left={<ProjectBreadcrumbs omitActiveProject crumbs={breadcrumbs} />}
                 right={<Box ml="12px" width="512px">Viewing usage from {filterStart} to {filterEnd}</Box>}
             />}
             sidebar={<ResourceFilter

@@ -82,7 +82,7 @@ import {store} from "@/Utilities/ReduxUtilities";
 import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
 import {injectFonts} from "@/ui-components/GlobalStyle";
 import {SharesOutgoing} from "@/Files/SharesOutgoing";
-import ApplicationsOverview2 from "./Applications/Overview2";
+import {ApplicationsOverview2} from "./Applications/Overview2";
 import {TerminalContainer} from "@/Terminal/Container";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
