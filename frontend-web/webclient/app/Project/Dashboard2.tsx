@@ -6,12 +6,17 @@ import {default as Api, isAdminOrPI, Project, useProjectFromParams} from "./Api"
 import {GridCardGroup} from "@/ui-components/Grid";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import styled from "styled-components";
-import {useHistory, useParams} from "react-router";
+import {useHistory} from "react-router";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "@/ui-components/Sidebar";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {shorten} from "@/Utilities/TextUtilities";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {PageV2} from "@/UCloud";
+import {browseGrantApplications} from "./Grant/GrantApplicationTypes";
+import {emptyPageV2} from "@/DefaultObjects";
+import {GrantApplicationFilter} from "./Grant";
 
 // Primary user interface
 // ================================================================================
@@ -29,6 +34,24 @@ const ProjectDashboard: React.FunctionComponent = () => {
 
     useTitle("Project Dashboard");
     useSidebarPage(SidebarPages.Projects);
+
+    const [grants, fetchGrants] = useCloudAPI<PageV2>({noop: true}, emptyPageV2);
+    React.useEffect(() => {
+        if (projectId && !isPersonalWorkspace) {
+            fetchGrants({
+                ...browseGrantApplications({
+                    includeIngoingApplications: true,
+                    includeOutgoingApplications: false,
+                    filter: GrantApplicationFilter.ACTIVE,
+                    itemsPerPage: 25,
+                }),
+                projectOverride: projectId
+            });
+        }
+    }, [projectId]);
+    console.log(grants.data);
+
+    const over25 = grants.data.next != null;
 
     if (!project && !isPersonalWorkspace) return null;
 
@@ -103,7 +126,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                                         <TableRow cursor="pointer">
                                             <TableCell>In Progress</TableCell>
                                             <TableCell textAlign="right">
-                                                <Text color="red">Not yet implemented</Text>
+                                                {grants.data.items.length}{over25 ? "+" : null}
                                             </TableCell>
                                         </TableRow>
                                     </tbody>

@@ -13,7 +13,7 @@ import {SidebarPages} from "@/ui-components/Sidebar";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {DashboardOperations, DashboardProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
-import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiBrowse, APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {Spacer} from "@/ui-components/Spacer";
@@ -48,30 +48,7 @@ import {ItemRow} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
-
-// TODO(Jonas): Move
-// 29/8 2022
-interface BrowseApplicationsRequest {
-    filter: "SHOW_ALL" | "ACTIVE" | "INACTIVE";
-
-    includeIngoingApplications: boolean;
-    includeOutgoingApplications: boolean;
-
-    itemsPerPage?: number;
-    next?: string;
-    consistency?: "PREFER" | "REQUIRE";
-    itemsToSkip?: number;
-}
-
-function browseGrantsApplications(request: BrowseApplicationsRequest): APICallParameters<BrowseApplicationsRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/grant/browse", request),
-        parameters: request,
-        payload: request
-    }
-}
+import {browseGrantApplications, GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 import {Connect} from "@/Providers/Connect";
 import {NotificationDashboardCard} from "@/Notifications";
 import {grantsLink} from "@/UtilityFunctions";
@@ -121,13 +98,13 @@ function Dashboard(props: DashboardProps): JSX.Element {
             filterUsable: true,
             includeBalance: true
         }));
-        fetchOutgoingApps(browseGrantsApplications({
+        fetchOutgoingApps(browseGrantApplications({
             itemsPerPage: 10,
             includeIngoingApplications: false,
             includeOutgoingApplications: true,
             filter: GrantApplicationFilter.ACTIVE
         }));
-        fetchIngoingApps(browseGrantsApplications({
+        fetchIngoingApps(browseGrantApplications({
             itemsPerPage: 10,
             includeIngoingApplications: true,
             includeOutgoingApplications: false,
