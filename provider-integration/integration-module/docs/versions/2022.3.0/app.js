@@ -343,6 +343,7 @@ class DocHeader extends HTMLElement {
             header .logo {
                 display: flex;
                 align-items: center;
+                flex-grow: 1;
                 gap: 15px;
                 margin-left: 15px;
             }
@@ -351,7 +352,7 @@ class DocHeader extends HTMLElement {
                 width: 38px;
             }
 
-            header .logo {
+            header .logo span {
                 font-size: 150%;
             }
 
@@ -364,68 +365,15 @@ class DocHeader extends HTMLElement {
 
             header .middle {
                 position: absolute;
-                width: 500px;
+                width: 100vw;
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 gap: 64px;
-                left: calc((100% - 500px) / 2);
             }
 
             header .right {
                 justify-content: end;
-            }
-
-            @media screen and (max-width: 1200px) {
-                header .middle {
-                    position: relative;
-                    left: unset;
-                    width: unset;
-                    gap: 16px;
-                    justify-content: unset;
-                }
-            }
-
-            @media screen and (max-width: 950px) {
-                header .right {
-                    display: none;
-                }
-            }
-
-            @media screen and (max-width: 600px) {
-                header .middle {
-                    display: none;
-                }
-            }
-
-            .btn {
-                display: block;
-                text-decoration: none;
-                user-select: none;
-                background-color: black;
-                border-radius: 15px;
-                font-size: 120%;
-                padding: 16px;
-                color: white;
-                align-items: center;
-                justify-content: center;
-                display: flex;
-                flex-direction: column;
-            }
-
-            .btn.secondary {
-                color: black;
-                background: white;
-            }
-
-            .btn.github {
-                display: flex;
-                gap: 8px;
-                flex-direction: row;
-            }
-
-            .btn.github img {
-                width: 28px;
             }
         `;
 
@@ -433,23 +381,20 @@ class DocHeader extends HTMLElement {
 
         shadow.innerHTML += `
             <header>
-                <a href="/" class="logo">
+                <div class="logo">
                     <img src="/images/logo_esc.svg" alt="UCloud Logo">
-                    UCloud/IM
-                </a>
+                    <span>UCloud/IM</span>
+                </div>
 
                 <div class="middle">
-                    <a href="/versions">Version history</a>
-                    <a href="/getting-started">Documentation</a>
-                    <a href="https://escience.sdu.dk" target="_blank">Support</a>
+                    <a href="#">Version history</a>
+                    <a href="#">Documentation</a>
+                    <a href="#">Support</a>
                 </div>
 
                 <div class="right">
-                    <a href="https://github.com/SDU-eScience/UCloud" target="_blank" class="btn secondary github">
-                        <img src="/images/github-dark.png">
-                        Source code
-                    </a>
-                    <a href="https://github.com/SDU-eScience/UCloud/releases" target="_blank" class="btn primary">Download</a>
+                    <a href="https://github.com/SDU-eScience/UCloud" class="btn secondary">Source Code</a>
+                    <a href="https://github.com/SDU-eScience/UCloud" class="btn primary">Download</a>
                 </div>
             </header>
         `;
@@ -524,7 +469,7 @@ class DocTableOfContents extends HTMLElement {
         shadow.append(style(`
             :host {
                 display: block;
-                height: calc(100vh - 64px);
+                height: 100vh;
                 width: 100%;
                 background: #F5F7F9;
                 padding-top: 8px;
@@ -542,7 +487,7 @@ class DocTableOfContents extends HTMLElement {
                 padding: 0;
             }
 
-            li.active > doc-link::part(link) {
+            li.active > a {
                 font-weight: 800;
             }
 
@@ -559,7 +504,7 @@ class DocTableOfContents extends HTMLElement {
                 padding-left: 32px;
             }
 
-            ul doc-link::part(link) {
+            ul a {
                 text-decoration: none;
                 color: black;
                 font-size: 18px;
@@ -594,9 +539,9 @@ class DocTableOfContents extends HTMLElement {
             this.renderNode(rootList, section, selfEntry);
         }
 
-        const linkToToc = document.createElement("doc-link");
+        const linkToToc = document.createElement("a");
         linkToToc.classList.add("link-to-toc");
-        linkToToc.setAttribute("href", "/toc.html");
+        linkToToc.href = "/toc.html";
         linkToToc.textContent = "Table of contents";
 
         shadow.append(rootList, linkToToc);
@@ -609,8 +554,8 @@ class DocTableOfContents extends HTMLElement {
             itemNode.classList.add("active");
         }
 
-        const linkNode = document.createElement("doc-link");
-        linkNode.setAttribute("href", sectionNode.href);
+        const linkNode = document.createElement("a");
+        linkNode.href = sectionNode.href;
         linkNode.textContent = sectionNode.title;
 
         itemNode.append(linkNode);
@@ -631,11 +576,6 @@ class DocTableOfContents extends HTMLElement {
     static findSelf(children, startIdx) {
         const idxWrapper = startIdx ?? { idx: 0 };
         let selfUrl = window.location.pathname.replace("/index.html", "");
-        if (selfUrl.startsWith("/versions/")) {
-            const components = selfUrl.split("/").filter(it => it.length > 0);
-            components.splice(0, 2);
-            selfUrl = "/" + components.join("/");
-        }
         if (selfUrl.length && selfUrl[selfUrl.length - 1] === '/') {
             selfUrl = selfUrl.substring(0, selfUrl.length - 1);
         }
@@ -745,7 +685,7 @@ class DocNavigationButtons extends HTMLElement {
 
         if (previousEntry) {
             const link = document.createElement("a");
-            link.href = DocLink.createLinkHref(previousEntry.href);
+            link.href = previousEntry.href;
             link.textContent = "⬅️ Previous";
 
             const span = document.createElement("span");
@@ -757,7 +697,7 @@ class DocNavigationButtons extends HTMLElement {
 
         if (nextEntry) {
             const link = document.createElement("a");
-            link.href = DocLink.createLinkHref(nextEntry.href);
+            link.href = nextEntry.href;
             link.textContent = "Next ➡️";
 
             const span = document.createElement("span");
@@ -775,42 +715,31 @@ class DocLink extends HTMLElement {
     constructor() {
         super();
 
-        const shadow = this.attachShadow({ mode: "open" });
-        const render = () => {
-            shadow.innerHTML = "";
-
-            const hrefAttribute = this.getAttribute("href");
-            const targetAttribute = this.getAttribute("target");
-
-            const linkTag = document.createElement("a");
-            linkTag.href = DocLink.createLinkHref(hrefAttribute);
-            linkTag.part = "link";
-            if(targetAttribute) linkTag.target = targetAttribute;
-            linkTag.innerHTML = this.innerHTML;
-            shadow.append(linkTag)
-        };
-        render();
-
-
-        new MutationObserver(render).observe(this, { attributes: true, childList: true, subtree: true });
-    }
-
-    static createLinkHref(href) {
         let prefix;
         {
             const pathName = window.location.pathname;
             if (!pathName.startsWith("/versions/")) {
                 prefix = "";
             } else {
-                const components = pathName.split("/").filter(it => it.length > 0);
+                const components = pathname.split("/").filter(it => it.length > 0);
                 if (components.length <= 1) {
                     prefix = "";
                 } else {
-                    prefix = `/versions/${components[1]}`;
+                    prefix = `/versions/${components[1]}/`;
                 }
             }
         }
-        return prefix + href;
+
+        const shadow = this.attachShadow({ mode: "open" });
+
+        const hrefAttribute = this.getAttribute("href");
+        const targetAttribute = this.getAttribute("target");
+
+        const linkTag = document.createElement("a");
+        linkTag.href = prefix + hrefAttribute;
+        linkTag.target = targetAttribute;
+        linkTag.innerHTML = this.innerHTML;
+        shadow.append(linkTag);
     }
 }
 

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Public IPs - UCloud/IM Documentation</title>
+    <title>Licenses - UCloud/IM Documentation</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,10 +18,9 @@
 
 <body class="content">
     <section>
-        <h1>Plugins / Public IPs</h1>
+        <h1>Plugins / Licenses</h1>
         <div class="summary">
-            Public IP plugins allow you to expose IPs as a resource. These IP addresses are are often consumed by
-            a jobs plugin.
+            License plugins are used in tandem with jobs plugins to grant access to licensed software.
         </div>
 
         <doc-table>
@@ -37,7 +36,7 @@
                 </tr>
                 <tr>
                     <th>Section</th>
-                    <td><code>publicIps</code></td>
+                    <td><code>shares</code></td>
                 </tr>
                 <tr>
                     <th>Plugin type</th>
@@ -63,33 +62,28 @@
             </thead>
             <tbody>
                 <tr>
-                    <td><a href="#ucloud">UCloud</a></td>
-                    <td>Integrates with <doc-link href="/plugins/jobs.html#ucloud">UCloud compute plugin</doc-link></td>
+                    <td><a href="#generic">Generic</a></td>
+                    <td>Integrates with a vareity of compute plugins.</td>
                     <td><input type="checkbox" checked disabled /></td>
-                    <td><input type="checkbox" disabled /></td>
+                    <td><input type="checkbox" checked disabled /></td>
                 </tr>
             </tbody>
         </table>
         </doc-table>
     </section>
 
-    <section id="ucloud">
-        <h3>UCloud</h3>
+    <section id="generic">
+        <h3>Generic</h3>
+
+        <p>
+            The generic license plugin supports a vareity of compute plugins. As an operator, you may add licenses by
+            first defining a product in <code>products.yaml</code>. Following this, you can manage license information
+            through the <code>ucloud license</code> CLI.
+        </p>
 
         <doc-prop-container>
-            <doc-prop name="type" type='"UCloud"' required></doc-prop>
+            <doc-prop name="type" type='"Generic"' required></doc-prop>
             <doc-prop name="matches" type="string" required></doc-prop>
-
-            <doc-prop name="iface" type="string" required>
-                <p>The network interface to bind the IP addresses to.</p>
-            </doc-prop>
-            <doc-prop name="gatewayCidr" type="string">
-                <p>
-                    Sub-net for the gateway. This sub-net will automatically be added to the allow list of the 
-                    internal firewall.
-                </p>
-            </doc-prop>
-            
         </doc-prop-container>
     </section>
 

@@ -60,14 +60,6 @@ header .middle, header .right {
 }
 
 header .middle {
-    z-index: 900;
-}
-
-header .logo, header .right {
-    z-index: 1000;
-}
-
-header .middle {
     position: absolute;
     width: 100vw;
     display: flex;
@@ -273,14 +265,4 @@ header .right {
 h1, h2, h3, h4, h5, h6 {
     font-weight: 500;
     margin: 0;
-}
-
-.btn.github {
-    display: flex;
-    gap: 8px;
-    flex-direction: row;
-}
-
-.btn.github img {
-    width: 28px;
 }
