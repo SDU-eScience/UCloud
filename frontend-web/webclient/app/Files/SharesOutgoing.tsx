@@ -34,8 +34,6 @@ import {useAvatars} from "@/AvataaarLib/hook";
 import {Spacer} from "@/ui-components/Spacer";
 import {BrowseType} from "@/Resource/BrowseType";
 import {api as FilesApi} from "@/UCloud/FilesApi";
-import {isAdminOrPI, useProjectId} from "@/Project/Api";
-import {useProject} from "@/Project/cache";
 
 function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
     return {
@@ -73,10 +71,6 @@ export const SharesOutgoing: React.FunctionComponent = () => {
     const reloadRef = useRef<() => void>(doNothing);
     const avatars = useAvatars();
 
-    const projectId = useProjectId();
-    const project = useProject();
-    const isWorkspaceAdmin = projectId === undefined ? true : isAdminOrPI(project.fetch().status.myRole);
-
     const callbacks: ResourceBrowseCallbacks<Share> = useMemo(() => ({
         commandLoading,
         invokeCommand,
@@ -87,7 +81,7 @@ export const SharesOutgoing: React.FunctionComponent = () => {
         dispatch,
         history,
         supportByProvider: {productsByProvider: {}},
-        isWorkspaceAdmin
+        isWorkspaceAdmin: true
     }), [history, dispatch, commandLoading, invokeCommand]);
 
     const generateFetch = useCallback((next?: string) => {
