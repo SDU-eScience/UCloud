@@ -1,6 +1,6 @@
 import * as React from "react";
 import {ResourceBrowse} from "@/Resource/Browse";
-import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
+import ProvidersApi from "@/UCloud/ProvidersApi";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useHistory} from "react-router";
 

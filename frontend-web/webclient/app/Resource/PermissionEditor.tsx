@@ -25,7 +25,6 @@ interface ResourcePermissionEditorProps<T extends Resource> {
     noPermissionsWarning?: string;
 }
 
-// TODO(Jonas): Test this!!!!
 export function ResourcePermissionEditor<T extends Resource>(
     props: ResourcePermissionEditorProps<T>
 ): React.ReactElement | null {
