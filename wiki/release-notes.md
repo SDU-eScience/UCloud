@@ -7,6 +7,12 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 28-10-22
+
+```
+✅  Deployment(accounting, 2022.2.20-accounting12) (UP-TO-DATE)
+```
+
 ## 07-10-22
 
 ```

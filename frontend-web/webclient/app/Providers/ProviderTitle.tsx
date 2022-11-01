@@ -1,5 +1,5 @@
 import * as React from "react";
-import ProviderInfo from "@/assets/provider_info.json";
+import ProviderInfo from "@/Assets/provider_info.json";
 import {capitalized} from "@/UtilityFunctions";
 
 interface ProviderInfo {

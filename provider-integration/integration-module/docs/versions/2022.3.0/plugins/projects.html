@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Projects - UCloud/IM Documentation</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body class="content">
+    <section>
+        <h1>Plugins / Projects</h1>
+        <div class="summary">
+            A project plugin is responsible for synchronizing UCloud projects into your system. For a traditional
+            HPC system, this might create corresponding UNIX groups and synchronize members into these groups as
+            they are added and removed from the project.
+        </div>
+
+        <doc-table>
+        <table>
+            <tbody>
+                <tr>
+                    <th width="120px">File</th>
+                    <td><code>plugins.yaml</code></td>
+                </tr>
+                <tr>
+                    <th>Mandatory</th>
+                    <td>No</td>
+                </tr>
+                <tr>
+                    <th>Section</th>
+                    <td><code>projects</code></td>
+                </tr>
+                <tr>
+                    <th>Plugin type</th>
+                    <td>Singleton</td>
+                </tr>
+            </tbody>
+        </table>
+        </doc-table>
+    </section>
+
+    <section>
+        <h2>Implementations</h2>
+
+        <doc-table>
+        <table>
+            <thead>
+                <tr>
+                    <th width="160px">Name</th>
+                    <th>Description</th>
+                    <th width="80px">Service users?</th>
+                    <th width="80px">Local users?</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><a href="#simple">Simple</a></td>
+                    <td>Runs an extension whenever a relevant UCloud project is updated.</td>
+                    <td><input type="checkbox" disabled /></td>
+                    <td><input type="checkbox" checked disabled /></td>
+                </tr>
+                <tr>
+                    <td><a href="#puhuri">Puhuri</a></td>
+                    <td>Integrates with the Puhuri system.</td>
+                    <td><input type="checkbox" checked disabled /></td>
+                    <td><input type="checkbox" disabled /></td>
+                </tr>
+            </tbody>
+        </table>
+        </doc-table>
+    </section>
+
+    <section id="simple">
+        <h3>Simple</h3>
+
+        <doc-prop-container>
+            <doc-prop name="type" type='"Simple"' required></doc-prop>
+
+            <doc-prop name="unixGroupNamespace" type="int">
+                <p>
+                    An integer in which the auto-generated GIDs are based of. Automaticially generated GIDs are always
+                    sequentially allocated and starts at the number specified in this property. You should pick a 
+                    sufficiently large number in which you believe that no other GIDs will be allocated. Most plugins
+                    which have local users will depend on this plugin being configured.
+                </p>
+                <p>
+                    <b>
+                        It is highly recommended that you do not change this property on a production system. Doing so 
+                        will likely break your system. If you absolutely must change this property, then we recommend 
+                        that you contact support before doing so.
+                    </b>
+                </p>
+            </doc-prop>
+
+            <doc-prop name="extensions" type="section" required>
+                <p>
+                    The extension scripts which will be invoked when a project event occurs. The request types of 
+                    these scripts will contain information taken directly from the UCloud API. We recommend that you
+                    look into the <a href="https://github.com/SDU-eScience/UCloud/blob/0f769d013c4353aca0c1ab7496db70de24df2c04/backend/accounting-service/api/src/main/kotlin/projects/v2/Projects.kt#L20" target="_blank"><code>Project</code></a> 
+                    and <a href="https://github.com/SDU-eScience/UCloud/blob/0f769d013c4353aca0c1ab7496db70de24df2c04/backend/accounting-service/api/src/main/kotlin/projects/v2/Projects.kt#L103" target="_blank"><code>Group</code></a> 
+                    abstractions before you write any extension scripts.
+                </p>
+
+                <section>
+                    <doc-prop name="all" type="string">
+                        Invoked when any project event occurs. You can view the different event types below. You can
+                        use the <code>type</code> property to determine which type of event has occured. 
+                        The script is run in the context of the UCloud/IM service user.
+                    </doc-prop>
+
+                    <doc-prop name="projectRenamed" type="string">
+                        <p>
+                            Invoked when a project is created or when a project is renamed. The <code>oldProject</code>
+                            is null when the event represents a project creation. The script is run in the context of
+                            the UCloud/IM service user.
+                        </p>
+
+                        <b>Example request:</b>
+                        <doc-snippet>
+                            {
+                                "type": "project_renamed",
+                                "oldProject": null,
+                                "newProject": {
+                                    // See above for project details
+                                },
+                                "newTitle": "NEW UCLOUD PROJECT TITLE"
+                            }
+                        </doc-snippet>
+
+                        <b>Example response:</b>
+                        <doc-snippet>{}</doc-snippet>
+                    </doc-prop>
+                    <doc-prop name="membersAddedToProject" type="string">
+                        <p>
+                            Invoked when a member is added to a project. 
+                            The script is run in the context of the UCloud/IM service user.
+                        </p>
+
+                        <b>Example request:</b>
+                        <doc-snippet>
+                            {
+                                "type": "members_added_to_project",
+                                "oldProject": { /* see above for details */ },
+                                "newProject": { /* see above for details */ },
+                                "newMembers": [
+                                    {
+                                        // NOTE: The UID is null if the member has not yet connected to the provider.
+                                        // This is an extremely common case which you _must_ handle in your script.
+                                        "uid": 41231,
+                                        "projectMember": {
+                                            "role": "USER",
+                                            "username": "UCLOUD USERNAME"
+                                        }
+                                    }
+                                ]
+                            }
+                        </doc-snippet>
+
+                        <b>Example response:</b>
+                        <doc-snippet>{}</doc-snippet>
+                    </doc-prop>
+
+                    <doc-prop name="membersRemovedFromProject" type="string">
+                        <p>
+                            Invoked when a member is removed from a project. 
+                            The script is run in the context of the UCloud/IM service user.
+                        </p>
+
+                        <b>Example request:</b>
+                        <doc-snippet>
+                            {
+                                "type": "members_removed_to_project",
+                                "oldProject": { /* see above for details */ },
+                                "newProject": { /* see above for details */ },
+                                "removedMembers": [
+                                    {
+                                        // NOTE: The UID is null if the member has not yet connected to the provider.
+                                        // This is an extremely common case which you _must_ handle in your script.
+                                        "uid": 41231,
+                                        "projectMember": {
+                                            "role": "USER",
+                                            "username": "UCLOUD USERNAME"
+                                        }
+                                    }
+                                ]
+                            }
+                        </doc-snippet>
+
+                        <b>Example response:</b>
+                        <doc-snippet>{}</doc-snippet>
+                    </doc-prop>
+
+                    <doc-prop name="membersAddedToGroup" type="string">
+                        <p>
+                            Invoked when a member is added to a UCloud project group.
+                            The script is run in the context of the UCloud/IM service user.
+                        </p>
+
+                        <b>Example request:</b>
+                        <doc-snippet>
+                            {
+                                "type": "members_added_to_group",
+                                "oldProject": { /* see above for details */ },
+                                "newProject": { /* see above for details */ },
+                                "group": {
+                                    "localId": 56431,
+                                    "group": { /* see above for details */ }
+                                },
+                                "newMembers": [
+                                    {
+                                        // NOTE: The UID is null if the member has not yet connected to the provider.
+                                        // This is an extremely common case which you _must_ handle in your script.
+                                        "uid": 41231,
+                                        "ucloudUsername": "UCLOUD USERNAME"
+                                    }
+                                ]
+                            }
+                        </doc-snippet>
+
+                        <b>Example response:</b>
+                        <doc-snippet>{}</doc-snippet>
+                    </doc-prop>
+
+                    <doc-prop name="membersRemovedFromGroup" type="string">
+                        <p>
+                            Invoked when a member removed from a UCloud project group.
+                            The script is run in the context of the UCloud/IM service user.
+                        </p>
+
+                        <b>Example request:</b>
+                        <doc-snippet>
+                            {
+                                "type": "members_removed_from_group",
+                                "oldProject": { /* see above for details */ },
+                                "newProject": { /* see above for details */ },
+                                "group": {
+                                    "localId": 56431,
+                                    "group": { /* see above for details */ }
+                                },
+                                "removedMembers": [
+                                    {
+                                        // NOTE: The UID is null if the member has not yet connected to the provider.
+                                        // This is an extremely common case which you _must_ handle in your script.
+                                        "uid": 41231,
+                                        "ucloudUsername": "UCLOUD USERNAME"
+                                    }
+                                ]
+                            }
+                        </doc-snippet>
+
+                        <b>Example response:</b>
+                        <doc-snippet>{}</doc-snippet>
+                    </doc-prop>
+
+                    <doc-prop name="projectArchived" type="string">
+                        <p>
+                            Invoked when a project is archived in UCloud. <b>NOTE: </b> project archival is separate
+                            from a resource allocation expiring. A project can be archived with active resource
+                            allocations. Generally we recommend that you ignore this event.
+                            The script is run in the context of the UCloud/IM service user.
+                        </p>
+
+                        <b>Example request:</b>
+                        <doc-snippet>
+                            {
+                                "type": "project_archived",
+                                "oldProject": { /* see above for details */ },
+                                "newProject": { /* see above for details */ }
+                            }
+                        </doc-snippet>
+
+                        <b>Example response:</b>
+                        <doc-snippet>{}</doc-snippet>
+                    </doc-prop>
+
+                    <doc-prop name="projectUnarchived" type="string">
+                        <p>
+                            Invoked when a project is unarchived in UCloud. <b>NOTE: </b> project archival is separate
+                            from a resource allocation expiring. A project can be archived with active resource
+                            allocations. Generally we recommend that you ignore this event.
+                            The script is run in the context of the UCloud/IM service user.
+                        </p>
+
+                        <b>Example request:</b>
+                        <doc-snippet>
+                            {
+                                "type": "project_unarchived",
+                                "oldProject": { /* see above for details */ },
+                                "newProject": { /* see above for details */ }
+                            }
+                        </doc-snippet>
+
+                        <b>Example response:</b>
+                        <doc-snippet>{}</doc-snippet>
+                    </doc-prop>
+
+                    <doc-prop name="roleChanged" type="string">
+                        <p>
+                            Invoked when a project member has their role updated in UCloud.
+                            The script is run in the context of the UCloud/IM service user.
+                        </p>
+
+                        <b>Example request:</b>
+                        <doc-snippet>
+                            {
+                                "type": "role_changed",
+                                "oldProject": { /* see above for details */ },
+                                "newProject": { /* see above for details */ },
+                                "member": {
+                                    // NOTE: The UID is null if the member has not yet connected to the provider.
+                                    // This is an extremely common case which you _must_ handle in your script.
+                                    "uid": 41231,
+                                    "projectMember": {
+                                        "role": "USER",
+                                        "username": "UCLOUD USERNAME"
+                                    }
+                                },
+                                "oldRole": "MEMBER",
+                                "newRole": "ADMIN"
+                            }
+                        </doc-snippet>
+
+                        <b>Example response:</b>
+                        <doc-snippet>{}</doc-snippet>
+                    </doc-prop>
+
+                    <doc-prop name="groupCreated" type="string">
+                        <p>
+                            Invoked when a project group is created in UCloud.
+                            The script is run in the context of the UCloud/IM service user.
+                        </p>
+
+                        <b>Example request:</b>
+                        <doc-snippet>
+                            {
+                                "type": "group_created",
+                                "oldProject": { /* see above for details */ },
+                                "newProject": { /* see above for details */ },
+                                "groups": [
+                                    {
+                                        "localId": 56431,
+                                        "group": { /* see above for details */ }
+                                    }
+                                ]
+                            }
+                        </doc-snippet>
+
+                        <b>Example response:</b>
+                        <doc-snippet>{}</doc-snippet>
+                    </doc-prop>
+
+                    <doc-prop name="groupRenamed" type="string">
+                        <p>
+                            Invoked when a project group is renamed in UCloud.
+                            The script is run in the context of the UCloud/IM service user.
+                        </p>
+
+                        <b>Example request:</b>
+                        <doc-snippet>
+                            {
+                                "type": "group_renamed",
+                                "oldProject": { /* see above for details */ },
+                                "newProject": { /* see above for details */ },
+                                "group": {
+                                    "localId": 56431,
+                                    "group": { /* see above for details */ }
+                                }
+                            }
+                        </doc-snippet>
+
+                        <b>Example response:</b>
+                        <doc-snippet>{}</doc-snippet>
+                    </doc-prop>
+
+                    <doc-prop name="groupDeleted" type="string">
+                        <p>
+                            Invoked when a project group is deleted in UCloud.
+                            The script is run in the context of the UCloud/IM service user.
+                        </p>
+
+                        <b>Example request:</b>
+                        <doc-snippet>
+                            {
+                                "type": "group_renamed",
+                                "oldProject": { /* see above for details */ },
+                                "newProject": { /* see above for details */ },
+                                "groups": [
+                                    {
+                                        "localId": 56431,
+                                        "group": { /* see above for details */ }
+                                    }
+                                ]
+                            }
+                        </doc-snippet>
+
+                        <b>Example response:</b>
+                        <doc-snippet>{}</doc-snippet>
+                    </doc-prop>
+                </section>
+            </doc-prop>
+        </doc-prop-container>
+    </section>
+
+    <section id="puhuri">
+        <h3>Puhuri</h3>
+
+        <doc-prop-container>
+            <doc-prop name="type" type='"Puhuri"' required></doc-prop>
+            <doc-prop name="endpoint" type="string" required></doc-prop>
+            <doc-prop name="apiToken" type="string" required></doc-prop>
+            <doc-prop name="customerId" type="string" required></doc-prop>
+            <doc-prop name="offeringId" type="string" required></doc-prop>
+            <doc-prop name="planId" type="string" required></doc-prop>
+        </doc-prop-container>
+    </section>
+
+
+    <script src="/app.js"></script>
+</body>
+
+</html>

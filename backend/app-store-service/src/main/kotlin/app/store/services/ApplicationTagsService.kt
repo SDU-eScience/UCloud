@@ -24,4 +24,10 @@ class ApplicationTagsService (
         elasticDao?.removeTagFromElastic(applicationName, tags)
     }
 
+    suspend fun listTags(): List<String> {
+        return db.withTransaction { session ->
+            tagDao.listTags(session)
+        }
+    }
+
 }
