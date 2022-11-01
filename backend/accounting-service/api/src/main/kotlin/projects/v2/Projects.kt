@@ -187,7 +187,6 @@ object Projects : CallDescriptionContainer("projects.v2") {
         httpUpdate(baseContext, "retrieveAllUsersGroup", roles = Roles.SERVICE)
     }
 
-    // TODO Rename
     val renameProject = call("renameProject", BulkRequest.serializer(RenameProjectRequest.serializer()), RenameProjectResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "renameProject")
     }
