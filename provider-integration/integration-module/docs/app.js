@@ -112,8 +112,6 @@ class DocPropContainer extends HTMLElement {
                 container.appendChild(child);
             }
 
-            console.log(childProps.length, childProps);
-
             if (childProps.length > 1) {
                 const collapseToggle = document.createElement("a");
                 collapseToggle.ariaRoleDescription = "button";
@@ -234,6 +232,90 @@ class DocTodo extends HTMLElement {
 
 customElements.define("doc-todo", DocTodo);
 
+class DocTable extends HTMLElement {
+    constructor() {
+        super();
+
+        const shadow = this.attachShadow({ mode: "open" });
+
+        shadow.innerHTML = this.innerHTML
+        shadow.append(style(`
+            :host {
+                display: block;
+                border: var(--border);
+                border-radius: var(--radius);
+                margin-top: 16px;
+                margin-bottom: 16px;
+
+                --radius: 8px;
+                --border: 1px solid #c1c7d4;
+                --header-color: #f0f4ff;
+                --cell-padding: 16px;
+            }
+
+            table {
+                text-align: left;
+                border-collapse: collapse;
+                width: 100%;
+            }
+
+            tr {
+                border-top: var(--border);
+                border-bottom: var(--border);
+                vertical-align: top;
+            }
+
+            th, td {
+                border-left: var(--border);
+                border-right: var(--border);
+                padding: var(--cell-padding);
+            }
+
+            th:first-child, td:first-child {
+                border-left: 0;
+            }
+
+            th:last-child, td:last-child {
+                border-right: 0;
+            }
+
+            tr:first-child {
+                border-top: 0;
+            }
+
+            thead tr:first-child > td:first-child, thead tr:first-child > th:first-child {
+                border-top-left-radius: var(--radius);
+            }
+
+            thead tr:first-child > td:last-child, thead tr:first-child > th:last-child {
+                border-top-right-radius: var(--radius);
+            }
+
+            tbody tr:last-child {
+                border-bottom: 0;
+            }
+
+            thead tr {
+                background: var(--header-color);
+            }
+
+            code {
+                font-family: 'JetBrains Mono', monospace;
+                background-color: #e1e3e5;
+                padding: 4px;
+                border-radius: 4px;
+            }
+
+            input[type=checkbox] {
+                width: 24px;
+                height: 24px;
+            }
+        `));
+    }
+}
+
+customElements.define("doc-table", DocTable);
+
 class DocHeader extends HTMLElement {
     constructor() {
         super();
@@ -249,9 +331,6 @@ class DocHeader extends HTMLElement {
                 width: 100vw;
                 display: flex;
                 align-items: center;
-                position: fixed;
-                top: 0;
-                z-index: 100;
                 box-shadow: rgb(0 0 0 / 20%) 0px 3px 3px -2px, rgb(0 0 0 / 14%) 0px 3px 4px 0px, rgb(0 0 0 / 12%) 0px 1px 8px 0px;
             }
 
@@ -264,7 +343,6 @@ class DocHeader extends HTMLElement {
             header .logo {
                 display: flex;
                 align-items: center;
-                flex-grow: 1;
                 gap: 15px;
                 margin-left: 15px;
             }
@@ -273,7 +351,7 @@ class DocHeader extends HTMLElement {
                 width: 38px;
             }
 
-            header .logo span {
+            header .logo {
                 font-size: 150%;
             }
 
@@ -286,15 +364,68 @@ class DocHeader extends HTMLElement {
 
             header .middle {
                 position: absolute;
-                width: 100vw;
+                width: 500px;
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 gap: 64px;
+                left: calc((100% - 500px) / 2);
             }
 
             header .right {
                 justify-content: end;
+            }
+
+            @media screen and (max-width: 1200px) {
+                header .middle {
+                    position: relative;
+                    left: unset;
+                    width: unset;
+                    gap: 16px;
+                    justify-content: unset;
+                }
+            }
+
+            @media screen and (max-width: 950px) {
+                header .right {
+                    display: none;
+                }
+            }
+
+            @media screen and (max-width: 600px) {
+                header .middle {
+                    display: none;
+                }
+            }
+
+            .btn {
+                display: block;
+                text-decoration: none;
+                user-select: none;
+                background-color: black;
+                border-radius: 15px;
+                font-size: 120%;
+                padding: 16px;
+                color: white;
+                align-items: center;
+                justify-content: center;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .btn.secondary {
+                color: black;
+                background: white;
+            }
+
+            .btn.github {
+                display: flex;
+                gap: 8px;
+                flex-direction: row;
+            }
+
+            .btn.github img {
+                width: 28px;
             }
         `;
 
@@ -302,20 +433,23 @@ class DocHeader extends HTMLElement {
 
         shadow.innerHTML += `
             <header>
-                <div class="logo">
+                <a href="/" class="logo">
                     <img src="/images/logo_esc.svg" alt="UCloud Logo">
-                    <span>UCloud/IM</span>
-                </div>
+                    UCloud/IM
+                </a>
 
                 <div class="middle">
-                    <a href="#">Version history</a>
-                    <a href="#">Documentation</a>
-                    <a href="#">Support</a>
+                    <a href="/versions">Version history</a>
+                    <a href="/getting-started">Documentation</a>
+                    <a href="https://escience.sdu.dk" target="_blank">Support</a>
                 </div>
 
                 <div class="right">
-                    <a href="https://github.com/SDU-eScience/UCloud" class="btn secondary">Source Code</a>
-                    <a href="https://github.com/SDU-eScience/UCloud" class="btn primary">Download</a>
+                    <a href="https://github.com/SDU-eScience/UCloud" target="_blank" class="btn secondary github">
+                        <img src="/images/github-dark.png">
+                        Source code
+                    </a>
+                    <a href="https://github.com/SDU-eScience/UCloud/releases" target="_blank" class="btn primary">Download</a>
                 </div>
             </header>
         `;
@@ -333,17 +467,17 @@ class DocRecipes extends HTMLElement {
         },
         { 
             title: "Kubernetes compute with storage",
-            description: "Show-cases a collection of plugins which together form the basis of an integration with Puhuri",
+            description: "A complete Kubernetes based setup which exposes storage from any compatible distributed file-system",
             href: "/recipes/kubernetes"
         },
         { 
             title: "Slurm + distributed file system",
-            description: "Show-cases a collection of plugins which together form the basis of an integration with Puhuri",
+            description: "A traditional HPC system consisting of Slurm and a distributed POSIX file system",
             href: "/recipes/slurm"
         },
         { 
             title: "Keycloak",
-            description: "Show-cases a collection of plugins which together form the basis of an integration with Puhuri",
+            description: "Connection procedure using Keycloak",
             href: "/recipes/keycloak"
         }
     ];
@@ -390,8 +524,8 @@ class DocTableOfContents extends HTMLElement {
         shadow.append(style(`
             :host {
                 display: block;
-                height: 100vh;
-                width: 300px;
+                height: calc(100vh - 64px);
+                width: 100%;
                 background: #F5F7F9;
                 padding-top: 8px;
                 padding-left: 8px;
@@ -399,12 +533,16 @@ class DocTableOfContents extends HTMLElement {
                 overflow-y: auto;
             }
 
+            :host(.force) {
+                background: unset;
+            }
+
             :host > ul {
                 margin: 0;
                 padding: 0;
             }
 
-            li.active > a {
+            li.active > doc-link::part(link) {
                 font-weight: 800;
             }
 
@@ -421,7 +559,7 @@ class DocTableOfContents extends HTMLElement {
                 padding-left: 32px;
             }
 
-            ul a {
+            ul doc-link::part(link) {
                 text-decoration: none;
                 color: black;
                 font-size: 18px;
@@ -432,7 +570,7 @@ class DocTableOfContents extends HTMLElement {
             }
 
             @media screen and (max-width: 900px) {
-                :host {
+                :host(:not(.force)) {
                     height: 48px;
                     display: flex;
                     align-items: center;
@@ -440,11 +578,11 @@ class DocTableOfContents extends HTMLElement {
                     padding: 0;
                 }
 
-                ul {
+                :host(:not(.force)) ul {
                     display: none;
                 }
 
-                .link-to-toc {
+                :host(:not(.force)) .link-to-toc {
                     display: block;
                     text-align: center;
                 }
@@ -456,9 +594,9 @@ class DocTableOfContents extends HTMLElement {
             this.renderNode(rootList, section, selfEntry);
         }
 
-        const linkToToc = document.createElement("a");
+        const linkToToc = document.createElement("doc-link");
         linkToToc.classList.add("link-to-toc");
-        linkToToc.href = "/toc.html";
+        linkToToc.setAttribute("href", "/toc.html");
         linkToToc.textContent = "Table of contents";
 
         shadow.append(rootList, linkToToc);
@@ -471,8 +609,8 @@ class DocTableOfContents extends HTMLElement {
             itemNode.classList.add("active");
         }
 
-        const linkNode = document.createElement("a");
-        linkNode.href = sectionNode.href;
+        const linkNode = document.createElement("doc-link");
+        linkNode.setAttribute("href", sectionNode.href);
         linkNode.textContent = sectionNode.title;
 
         itemNode.append(linkNode);
@@ -493,6 +631,11 @@ class DocTableOfContents extends HTMLElement {
     static findSelf(children, startIdx) {
         const idxWrapper = startIdx ?? { idx: 0 };
         let selfUrl = window.location.pathname.replace("/index.html", "");
+        if (selfUrl.startsWith("/versions/")) {
+            const components = selfUrl.split("/").filter(it => it.length > 0);
+            components.splice(0, 2);
+            selfUrl = "/" + components.join("/");
+        }
         if (selfUrl.length && selfUrl[selfUrl.length - 1] === '/') {
             selfUrl = selfUrl.substring(0, selfUrl.length - 1);
         }
@@ -602,7 +745,7 @@ class DocNavigationButtons extends HTMLElement {
 
         if (previousEntry) {
             const link = document.createElement("a");
-            link.href = previousEntry.href;
+            link.href = DocLink.createLinkHref(previousEntry.href);
             link.textContent = "⬅️ Previous";
 
             const span = document.createElement("span");
@@ -614,7 +757,7 @@ class DocNavigationButtons extends HTMLElement {
 
         if (nextEntry) {
             const link = document.createElement("a");
-            link.href = nextEntry.href;
+            link.href = DocLink.createLinkHref(nextEntry.href);
             link.textContent = "Next ➡️";
 
             const span = document.createElement("span");
@@ -628,6 +771,148 @@ class DocNavigationButtons extends HTMLElement {
 
 customElements.define("doc-nav-buttons", DocNavigationButtons);
 
+class DocLink extends HTMLElement {
+    constructor() {
+        super();
+
+        const shadow = this.attachShadow({ mode: "open" });
+        const render = () => {
+            shadow.innerHTML = "";
+
+            const hrefAttribute = this.getAttribute("href");
+            const targetAttribute = this.getAttribute("target");
+
+            const linkTag = document.createElement("a");
+            linkTag.href = DocLink.createLinkHref(hrefAttribute);
+            linkTag.part = "link";
+            if(targetAttribute) linkTag.target = targetAttribute;
+            linkTag.innerHTML = this.innerHTML;
+            shadow.append(linkTag)
+        };
+        render();
+
+
+        new MutationObserver(render).observe(this, { attributes: true, childList: true, subtree: true });
+    }
+
+    static createLinkHref(href) {
+        let prefix;
+        {
+            const pathName = window.location.pathname;
+            if (!pathName.startsWith("/versions/")) {
+                prefix = "";
+            } else {
+                const components = pathName.split("/").filter(it => it.length > 0);
+                if (components.length <= 1) {
+                    prefix = "";
+                } else {
+                    prefix = `/versions/${components[1]}`;
+                }
+            }
+        }
+        return prefix + href;
+    }
+}
+
+customElements.define("doc-link", DocLink);
+
+class DocArticleToc extends HTMLElement {
+    static idGenerator = 0;
+
+    constructor() {
+        super();
+
+        const shadow = this.attachShadow({ mode: "open" });
+        const listNode = document.createElement("ul");
+        const headings = document.body.querySelectorAll(".content h2");
+        console.log("headings", headings);
+        headings.forEach(heading => {
+            if (heading.classList.contains("summary")) return;
+            let id = heading.id;
+            if (!id) {
+                id = heading.id = `section-${DocArticleToc.idGenerator}`;
+            }
+
+            const itemNode = document.createElement("li");
+            const sectionLink = document.createElement("a");
+            sectionLink.href = `#${id}`;
+            sectionLink.textContent = heading.textContent;
+            itemNode.append(sectionLink);
+            listNode.append(itemNode);
+
+            DocArticleToc.idGenerator++;
+        });
+
+        if (headings.length > 0) {
+            const heading = document.createElement("h1");
+            heading.textContent = "In this article";
+
+            shadow.append(heading, listNode, style(`
+                :host {
+                    margin: 0 16px;
+                }
+
+                h1 {
+                    font-size: 1.5rem;
+                    font-weight: 500;
+                    margin-top: 26px;
+                }
+
+                a {
+                    color: black;
+                    text-decoration: none;
+                }
+
+                a:hover {
+                    color: blue;
+                }
+
+                ul {
+                    padding: 0;
+                }
+
+                li {
+                    list-style: none;
+                    padding: 0;
+                    padding-left: 8px;
+                    border-left: 2px solid black;
+                    line-height: 2;
+                }
+            `));
+        }
+    }
+}
+
+customElements.define("doc-article-toc", DocArticleToc);
+
+class DocImage extends HTMLElement {
+    constructor() {
+        super();
+
+        const shadow = this.attachShadow({ mode: "open" });
+        const src = this.getAttribute("src");
+        const alt = this.getAttribute("alt");
+
+        const linkNode = document.createElement("a");
+        linkNode.href = src;
+        linkNode.target = "_blank";
+
+        const imageNode = document.createElement("img");
+        imageNode.src = src;
+        if (alt) imageNode.alt = alt;
+
+        linkNode.append(imageNode);
+        shadow.append(linkNode, style(`
+            img {
+                width: 100%;
+                object-fit: contain;
+            }
+        `));
+    }
+}
+
+customElements.define("doc-image", DocImage);
+
 function init() {
     document.body.classList.remove("content");
     document.body.innerHTML = `<div class="content">${document.body.innerHTML}</div>`;
@@ -635,21 +920,22 @@ function init() {
     const header = document.createElement("doc-header");
     document.body.prepend(header);
 
-    const belowHeader = document.createElement("div");
-    belowHeader.classList.add("below-header");
-
     const content = document.querySelector("div.content");
     const navigationButtons = document.createElement("doc-nav-buttons");
     content.append(navigationButtons);
 
-    document.body.append(belowHeader);
-    const toc = document.createElement("doc-toc");
+    if (document.location.pathname !== "/toc.html") {
+        const toc = document.createElement("doc-toc");
+        document.body.append(toc);
+    }
 
     const contentWrapper = document.createElement("div");
     contentWrapper.classList.add("content-wrapper");
     contentWrapper.append(content);
+    document.body.append(contentWrapper);
 
-    belowHeader.append(toc, contentWrapper);
+    const articleToc = document.createElement("doc-article-toc");
+    document.body.append(articleToc);
 
     document.body.classList.add("ready");
 }
