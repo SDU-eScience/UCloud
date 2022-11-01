@@ -70,7 +70,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                 <BoxForPadding>
                     {props.activeProject ?
                         (
-                            <Text onClick={() => onProjectUpdated(history, () => props.setProject(), props.refresh)}>
+                            <Text onClick={() => onProjectUpdated(history, () => props.setProject(), props.refresh, "My Workspace")}>
                                 My Workspace
                             </Text>
                         ) : null
@@ -78,7 +78,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                     {response.data.items.filter(it => !(it.id === props.activeProject)).map(project =>
                         <Text
                             key={project.id}
-                            onClick={() => onProjectUpdated(history, () => props.setProject(project.id), props.refresh)}
+                            onClick={() => onProjectUpdated(history, () => props.setProject(project.id), props.refresh, project.id)}
                         >
                             <Truncate width="215px">{project.specification.title}</Truncate>
                         </Text>
@@ -118,11 +118,16 @@ const HoverIcon = styled(Icon)`
     }
 `;
 
-function onProjectUpdated(history: ReturnType<typeof useHistory>, runThisFunction: () => void, refresh?: () => void): void {
+function onProjectUpdated(history: ReturnType<typeof useHistory>, runThisFunction: () => void, refresh: (() => void) | undefined, projectId: string): void {
     const {pathname} = window.location;
     runThisFunction();
+    const splitPath = pathname.split("/").filter(it => it);
     if (pathname === "/app/files") {
         history.push("/drives")
+    } else if (splitPath.length === 3) {
+        if (splitPath[0] === "app" && splitPath[1] === "projects") {
+            history.push(`/projects/${projectId}`);
+        }
     }
     initializeResources();
     refresh?.();

@@ -8,7 +8,7 @@ import {useProjectId} from "./Api";
 
 export interface ProjectBreadcrumbsProps {
     crumbs: {title: string, link?: string}[];
-    allowPersonalProject?: true;
+    allowPersonalProject?: boolean;
     omitActiveProject?: boolean;
 }
 

@@ -49,7 +49,6 @@ const ProjectDashboard: React.FunctionComponent = () => {
             });
         }
     }, [projectId]);
-    console.log(grants.data);
 
     const over25 = grants.data.next != null;
 
@@ -116,7 +115,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                         {isPersonalWorkspace ? null : <>
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => history.push("/project/grants/ingoing")}
+                                onClick={() => history.push(`/project/grants/ingoing/${projectId ?? ""}`)}
                                 title="Grant Applications"
                                 icon="mail"
                                 color="red"

@@ -199,8 +199,8 @@ const Core = (): JSX.Element => (
                             path="/project/grants/view/:appId"
                             component={requireAuth(GrantApplicationEditor(RequestTarget.VIEW_APPLICATION))}
                         />
-                        <Route exact path="/project/grants/ingoing" component={requireAuth(IngoingApplications)} />
-                        <Route exact path="/project/grants/outgoing" component={requireAuth(OutgoingApplications)} />
+                        <Route exact path="/project/grants/ingoing/:project?" component={requireAuth(IngoingApplications)} />
+                        <Route exact path="/project/grants/outgoing/:project?" component={requireAuth(OutgoingApplications)} />
 
                         <Route
                             exact
