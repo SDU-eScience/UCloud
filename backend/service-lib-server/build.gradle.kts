@@ -69,7 +69,7 @@ dependencies {
     api("org.postgresql:postgresql:42.2.5")
     api("org.flywaydb:flyway-core:5.2.4")
 
-    val jasyncVersion = "1.1.3"
+    val jasyncVersion = "2.1.7"
     api("com.github.jasync-sql:jasync-common:$jasyncVersion")
     api("com.github.jasync-sql:jasync-postgresql:$jasyncVersion")
     api("io.lettuce:lettuce-core:5.1.6.RELEASE")

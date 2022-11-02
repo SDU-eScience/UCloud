@@ -17,8 +17,7 @@ import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
+import java.time.LocalDateTime
 import java.util.*
 
 class ToolAsyncDao {
@@ -136,8 +135,8 @@ class ToolAsyncDao {
         ctx.withSession { session ->
             session.insert(ToolTable) {
                 set(ToolTable.owner, username)
-                set(ToolTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
-                set(ToolTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                set(ToolTable.createdAt, LocalDateTime.now())
+                set(ToolTable.modifiedAt, LocalDateTime.now())
                 set(ToolTable.tool, defaultMapper.encodeToString(description))
                 set(ToolTable.originalDocument, originalDocument)
                 set(ToolTable.idName, description.info.name)
@@ -250,8 +249,8 @@ internal fun RowData.toTool(): Tool {
 
     return Tool(
         getField(ToolTable.owner),
-        getField(ToolTable.createdAt).toDateTime(DateTimeZone.UTC).millis,
-        getField(ToolTable.modifiedAt).toDateTime(DateTimeZone.UTC).millis,
+        getField(ToolTable.createdAt).toTimestamp(),
+        getField(ToolTable.modifiedAt).toTimestamp(),
         normalizedToolDesc
     )
 }

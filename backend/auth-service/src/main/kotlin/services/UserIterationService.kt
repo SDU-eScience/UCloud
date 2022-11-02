@@ -25,11 +25,11 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.timestampToLocalDateTime
+import dk.sdu.cloud.service.toTimestamp
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
 import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -221,7 +221,7 @@ class CursorStateAsyncDao {
                 set(CursorStateTable.id, state.id)
                 set(CursorStateTable.hostname, state.hostname)
                 set(CursorStateTable.port, state.port)
-                set(CursorStateTable.expiresAt, LocalDateTime(state.expiresAt / 1000, DateTimeZone.UTC))
+                set(CursorStateTable.expiresAt, timestampToLocalDateTime(state.expiresAt))
             }
         }
     }
@@ -265,7 +265,7 @@ class CursorStateAsyncDao {
             getField(CursorStateTable.id),
             getField(CursorStateTable.hostname),
             getField(CursorStateTable.port),
-            getField(CursorStateTable.expiresAt).toDateTime().millis
+            getField(CursorStateTable.expiresAt).toTimestamp()
         )
     }
 }

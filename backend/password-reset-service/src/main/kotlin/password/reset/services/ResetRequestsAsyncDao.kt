@@ -11,8 +11,9 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
+import dk.sdu.cloud.service.toTimestamp
+import java.time.LocalDateTime
+import java.util.*
 
 object PasswordResetRequestTable : SQLTable("password_reset_requests") {
     val token = text("token", notNull = true)
@@ -22,7 +23,7 @@ object PasswordResetRequestTable : SQLTable("password_reset_requests") {
 
 class ResetRequestsAsyncDao {
     suspend fun create(db: DBContext, token: String, userId: String) {
-        val timeSource = LocalDateTime(Time.now(), DateTimeZone.UTC)
+        val timeSource = LocalDateTime.now()
 
         // Set to expire in 30 minutes
         val expiry = timeSource.plusMinutes(30)
@@ -31,7 +32,7 @@ class ResetRequestsAsyncDao {
             session.insert(PasswordResetRequestTable) {
                 set(PasswordResetRequestTable.token, token)
                 set(PasswordResetRequestTable.userId, userId)
-                set(PasswordResetRequestTable.expiresAt, LocalDateTime(expiry, DateTimeZone.UTC))
+                set(PasswordResetRequestTable.expiresAt, expiry)
             }
         }
     }
@@ -57,7 +58,7 @@ class ResetRequestsAsyncDao {
         return ResetRequest(
             getField(PasswordResetRequestTable.token),
             getField(PasswordResetRequestTable.userId),
-            LocalDateTime(getField(PasswordResetRequestTable.expiresAt), DateTimeZone.UTC).toDate()
+            Date(getField(PasswordResetRequestTable.expiresAt).toTimestamp())
         )
     }
 }
