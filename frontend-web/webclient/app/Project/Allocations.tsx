@@ -175,7 +175,7 @@ function ProductTypeProgressBars(props: {walletsByProductTypes: Wallet[]}) {
     </>
 }
 
-function allocationText(unit: ProductPriceUnit, productType: ProductType, chargeType: ChargeType, doTruncate: boolean): string {
+export function allocationText(unit: ProductPriceUnit, productType: ProductType, chargeType: ChargeType, doTruncate: boolean): string {
     if (unit === "PER_UNIT" && productType === "STORAGE") {
         if (doTruncate) {
             return "TB";

@@ -44,7 +44,7 @@ export function initTerminalState(): TerminalState {
 }
 
 export function terminalReducer(state: TerminalState = initTerminalState(), action: TerminalAction): TerminalState {
-    console.log(action, state);
+    //console.log(action, state);
     switch (action.type) {
         case "TerminalOpen": {
             return {...state, open: true};
