@@ -9,8 +9,8 @@ import dk.sdu.cloud.service.findValidHostname
 import dk.sdu.cloud.service.k8.*
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.cio.*
 import io.ktor.server.engine.*
-import io.ktor.server.netty.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -79,7 +79,7 @@ fun runInstaller(configDir: File) {
         return success
     }
 
-    embeddedServer(Netty, port = 8080) {
+    embeddedServer(CIO, port = 8080) {
         File(configDir, installerFile).writeText("installing: true")
         File(configDir, "common.yaml").writeText(
             """
