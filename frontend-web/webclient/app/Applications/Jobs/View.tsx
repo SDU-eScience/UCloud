@@ -45,6 +45,7 @@ import {prettyFilePath} from "@/Files/FilePath";
 import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 
 const enterAnimation = keyframes`
     from {
@@ -474,6 +475,12 @@ const Content = styled.div`
     align-items: center;
     flex-direction: column;
 `;
+
+function PeerEntry(props: {peer: AppParameterValueNS.Peer}): JSX.Element {
+    return <Flex width={1}>
+        <Truncate width={0.5}>{props.peer.hostname}</Truncate><Truncate width={0.5}></Truncate>
+    </Flex>
+}
 
 function IngressEntry({id}: {id: string}): JSX.Element {
     const [ingress] = useCloudAPI<Ingress | null>(IngressApi.retrieve({id}), null);
@@ -937,6 +944,7 @@ const RunningContent: React.FunctionComponent<{
     const supportsExtension = isSupported(backendType, support, "timeExtension");
     const supportsLogs = isSupported(backendType, support, "logs");
     const supportsSuspend = isSupported(backendType, support, "suspension");
+    const supportsPeers = isSupported(backendType, support, "peers");
 
     const sshAccess = useMemo(() => {
         return parseUpdatesForAccess(job.updates);
@@ -950,7 +958,9 @@ const RunningContent: React.FunctionComponent<{
 
     const resolvedProduct = job.status.resolvedProduct as unknown as ProductCompute;
 
+
     const ingresses = job.specification.resources.filter(it => it.type === "ingress") as AppParameterValueNS.Ingress[];
+    const peers = job.specification.resources.filter(it => it.type === "peer") as AppParameterValueNS.Peer[];
 
     return <>
         <RunningInfoWrapper>
@@ -1025,6 +1035,39 @@ const RunningContent: React.FunctionComponent<{
                 <HighlightedCard color="purple" isLoading={false} title="Public links" icon="globeEuropeSolid">
                     <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
                         {ingresses.map(ingress => <IngressEntry id={ingress.id} />)}
+                    </Text>
+                </HighlightedCard>
+            }
+
+            {!supportsPeers || peers.length === 0 ? null :
+                <HighlightedCard color="purple" isLoading={false} title="Connected jobs">
+                    <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHeaderCell textAlign="left">
+                                        Hostname
+                                    </TableHeaderCell>
+                                    <TableHeaderCell textAlign="left">
+                                        Job ID
+                                    </TableHeaderCell>
+                                </TableRow>
+                            </TableHeader>
+                            <tbody>
+                                {peers.map(it =>
+                                    <TableRow key={it.jobId}>
+                                        <TableCell textAlign="left">
+                                            <Truncate width={1}>{it.hostname}</Truncate>
+                                        </TableCell>
+                                        <TableCell textAlign="left">
+                                            <Link to={`/jobs/properties/${it.jobId}?app=`}>
+                                                <Truncate width={1}>{it.jobId}</Truncate>
+                                            </Link>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </tbody>
+                        </Table>
                     </Text>
                 </HighlightedCard>
             }
