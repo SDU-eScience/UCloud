@@ -335,7 +335,7 @@ const GenericRequestCard: React.FunctionComponent<{
     } else {
         const defaultValue = allocationRequest?.balanceRequested;
         var normalizedValue = defaultValue != null ?
-            normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice, 2, true) :
+            normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.unitOfPrice, 2, true) :
             undefined;
         return <RequestForSingleResourceWrapper>
             <HighlightedCard color="blue" isLoading={false}>
@@ -376,8 +376,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                         min={0}
                                     />
                                     <div className={"unit"}>
-                                        {explainAllocation(wb.metadata.productType, wb.metadata.chargeType,
-                                            wb.metadata.unitOfPrice)}
+                                        {explainAllocation(wb.metadata.productType, wb.metadata.unitOfPrice)}
                                     </div>
                                 </Flex>
                                 <Flex mt="6px" width="280px">
@@ -534,7 +533,7 @@ function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: 
                 <TableCell width="200px">{wallet.paysFor.provider}</TableCell>
                 <TableCell width="200px">{wallet.paysFor.name}</TableCell>
                 <TableCell width="200px">
-                    {normalizeBalanceForFrontend(a.balance, wallet.productType, wallet.chargeType, wallet.unit)}
+                    {normalizeBalanceForFrontend(a.balance, wallet.productType, wallet.unit)}
                     {" "}
                     {explainUsage(wallet.productType, wallet.chargeType, wallet.unit)}
                 </TableCell>

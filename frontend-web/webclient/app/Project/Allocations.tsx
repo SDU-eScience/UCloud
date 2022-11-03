@@ -11,7 +11,7 @@ import * as React from "react";
 import {useCallback, useState} from "react";
 import {browseSubAllocations, searchSubAllocations, SubAllocation, useProjectManagementStatus} from ".";
 import * as Heading from "@/ui-components/Heading";
-import {SubAllocationViewer} from "./SubAllocations";
+import {mapToBalancesWithExplanation, SubAllocationViewer} from "./SubAllocations";
 import format from "date-fns/format";
 import {Accordion} from "@/ui-components/Accordion";
 import {prettierString, timestampUnixMs} from "@/UtilityFunctions";
@@ -175,13 +175,13 @@ function ProductTypeProgressBars(props: {walletsByProductTypes: Wallet[]}) {
     </>
 }
 
-export function allocationText(unit: ProductPriceUnit, productType: ProductType, chargeType: ChargeType, doTruncate: boolean): string {
+export function allocationText(unit: ProductPriceUnit, productType: ProductType, doTruncate: boolean): string {
     if (unit === "PER_UNIT" && productType === "STORAGE") {
         if (doTruncate) {
             return "TB";
         }
     }
-    return (doTruncate ? "k" : "") + explainAllocation(productType, chargeType, unit);
+    return (doTruncate ? "k" : "") + explainAllocation(productType, unit);
 }
 
 function ResourceBarsByChargeType(props: {chargeType: ChargeType; wallets: Record<ChargeType, Record<ProductPriceUnit, Wallet[]>>;}) {
@@ -201,17 +201,10 @@ function ResourceBarsByChargeType(props: {chargeType: ChargeType; wallets: Recor
     return <>{nonEmptyWallets.map(it => {
         if (wallets[it].length === 0) return null;
         const total = totalUsageFromMultipleWallets(wallets[it]);
-        const {unit, productType, chargeType} = wallets[it][0];
-        const asPercent = resultAsPercent(total);
-        const doTruncate = total.initialBalance > 1_000_000;
-        const usedBalance = doTruncate ? (total.initialBalance - total.balance) / 1_000 : (total.initialBalance - total.balance);
-        const initialBalance = doTruncate ? (total.initialBalance) / 1_000 : total.initialBalance;
-        const used = normalizeBalanceForFrontend(Math.floor(usedBalance), productType, chargeType, unit);
-        const initial = normalizeBalanceForFrontend(Math.floor(initialBalance), productType, chargeType, unit);
-        const allocationExplanation = allocationText(unit, productType, props.chargeType, doTruncate);
-        const resourceProgress = `${used} / ${initial} ${allocationExplanation} (${Math.round(asPercent)}%)`;
+        const {unit, productType} = wallets[it][0];
+        const mapped = mapToBalancesWithExplanation({initialBalance: total.initialBalance, remaining: Math.min(total.initialBalance, total.balance)}, productType, unit)
         return <ResourceProgressWrapper key={unit + productType}>
-            <ResourceProgress width={resourceProgress.length * 7.3 + "px"} value={Math.round(asPercent)} text={resourceProgress} />
+            <ResourceProgress width={mapped.resourceText.length * 7.3 + "px"} value={mapped.asPercent} text={mapped.resourceText} />
         </ResourceProgressWrapper>
     })}</>
 }
@@ -233,13 +226,10 @@ function SimpleWalletView(props: {wallets: Wallet[];}): JSX.Element {
     return <SimpleWalletRowWrapper>
         {props.wallets.map(wallet => {
             const total = totalUsageFromWallet(wallet);
-            const asPercent = resultAsPercent(total);
+            const mapped = mapToBalancesWithExplanation({initialBalance: total.initialBalance, remaining: Math.min(total.initialBalance, total.balance)}, wallet.productType, wallet.unit)
             const expiration = wallet.allocations.reduce((lowest, wallet) =>
                 wallet.endDate && wallet.endDate < lowest ? wallet.endDate! : lowest, VERY_HIGH_DATE_VALUE
             );
-            const used = normalizeBalanceForFrontend(total.initialBalance - total.balance, wallet.productType, wallet.chargeType, wallet.unit);
-            const initial = normalizeBalanceForFrontend(total.initialBalance, wallet.productType, wallet.chargeType, wallet.unit);
-            const resourceProgress = `${used} / ${initial} ${explainAllocation(wallet.productType, wallet.chargeType, wallet.unit)} (${Math.round(asPercent)}%)`;
             const expirationText = expiration === VERY_HIGH_DATE_VALUE ? "" : `Earliest expiration: ${format(expiration, FORMAT)}`;
             return (
                 <Accordion
@@ -247,7 +237,7 @@ function SimpleWalletView(props: {wallets: Wallet[];}): JSX.Element {
                     title={<Text color="text">{wallet.paysFor.name} @ {wallet.paysFor.provider}</Text>}
                     titleContent={<>
                         <Text color="text" mt="-2px" mr="12px">{expirationText}</Text>
-                        <ResourceProgress width={resourceProgress.length * 7.3 + "px"} value={Math.round(asPercent)} text={resourceProgress} />
+                        <ResourceProgress width={mapped.resourceText.length * 7.3 + "px"} value={mapped.asPercent} text={mapped.resourceText} />
                     </>}
                 >
                     <VisualizationSection><WalletViewer wallet={wallet} /></VisualizationSection>

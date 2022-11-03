@@ -547,7 +547,7 @@ interface SuballocationCreationRow {
     allocationId: string;
 }
 
-interface InitialAndRemainingBalance {
+interface InitialAndRemainingBalanceWithExplanation {
     initialBalance: number;
     remaining: number;
     asPercent: number;
@@ -555,8 +555,41 @@ interface InitialAndRemainingBalance {
 }
 
 interface EntriesByUnitAndChargeType {
-    ABSOLUTE: InitialAndRemainingBalance[];
-    DIFFERENTIAL_QUOTA: InitialAndRemainingBalance[];
+    ABSOLUTE: InitialAndRemainingBalanceWithExplanation[];
+    DIFFERENTIAL_QUOTA: InitialAndRemainingBalanceWithExplanation[];
+}
+
+export function mapToBalancesWithExplanation(
+    entry: {remaining: number; initialBalance: number;},
+    productType: ProductType,
+    unit: ProductPriceUnit
+): InitialAndRemainingBalanceWithExplanation {
+    const doTruncate = shouldTruncate(entry.initialBalance);
+    const initialBalance = Math.floor(doTruncate ? entry.initialBalance / 1_000 : entry.initialBalance);
+    const remaining = Math.floor(doTruncate ? entry.remaining / 1_000 : entry.remaining);
+    const used = initialBalance - Math.min(initialBalance, remaining);
+    return {
+        initialBalance,
+        remaining,
+        asPercent: resultAsPercent({
+            balance: remaining,
+            initialBalance
+        }),
+        resourceText: normalizeBalanceForFrontend(
+            used,
+            productType,
+            unit,
+            2
+        ) + " / " + normalizeBalanceForFrontend(
+            initialBalance,
+            productType,
+            unit,
+            2
+        ) + " " + allocationText(unit, productType, doTruncate) + " (" + Math.round(resultAsPercent({
+            balance: remaining,
+            initialBalance
+        })) + "%)"
+    };
 }
 
 function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType: ProductType): EntriesByUnitAndChargeType {
@@ -576,67 +609,11 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
     }
 
     const absolute = Object.keys(byUnitAndChargeType.ABSOLUTE).map((it: ProductPriceUnit) => {
-        const entry = byUnitAndChargeType.ABSOLUTE[it];
-        const doTruncate = entry.initialBalance > 1_000_000;
-        const initialBalance = Math.floor(doTruncate ? entry.initialBalance / 1_000 : entry.initialBalance);
-        const remaining = Math.floor(doTruncate ? entry.remaining / 1_000 : entry.remaining);
-        const used = initialBalance - Math.min(initialBalance, remaining);
-        return ({
-            initialBalance,
-            remaining,
-            asPercent: resultAsPercent({
-                balance: remaining,
-                initialBalance
-            }),
-            resourceText: normalizeBalanceForFrontend(
-                used,
-                productType,
-                "ABSOLUTE",
-                it,
-                2
-            ) + " / " + normalizeBalanceForFrontend(
-                initialBalance,
-                productType,
-                "ABSOLUTE",
-                it,
-                2
-            ) + " " + allocationText(it, productType, "ABSOLUTE", doTruncate) + " (" + Math.round(resultAsPercent({
-                balance: remaining,
-                initialBalance
-            })) + "%)"
-        })
+        return mapToBalancesWithExplanation(byUnitAndChargeType.ABSOLUTE[it], productType, it);
     });
 
     const differential = Object.keys(byUnitAndChargeType.DIFFERENTIAL_QUOTA).map((it: ProductPriceUnit) => {
-        const entry = byUnitAndChargeType.DIFFERENTIAL_QUOTA[it]
-        const doTruncate = entry.initialBalance > 1_000_000;
-        const initialBalance = doTruncate ? entry.initialBalance / 1_000 : entry.initialBalance;
-        const remaining = doTruncate ? entry.remaining / 1_000 : entry.remaining;
-        const used = initialBalance - Math.min(initialBalance, remaining);
-        return ({
-            initialBalance,
-            remaining,
-            asPercent: resultAsPercent({
-                balance: remaining,
-                initialBalance
-            }),
-            resourceText: normalizeBalanceForFrontend(
-                used,
-                productType,
-                "DIFFERENTIAL_QUOTA",
-                it,
-                2
-            ) + " / " + normalizeBalanceForFrontend(
-                initialBalance,
-                productType,
-                "DIFFERENTIAL_QUOTA",
-                it,
-                2
-            ) + " " + allocationText(it, productType, "DIFFERENTIAL_QUOTA", doTruncate) + " (" + Math.round(resultAsPercent({
-                balance: remaining,
-                initialBalance
-            })) + "%)"
-        })
+        return mapToBalancesWithExplanation(byUnitAndChargeType.DIFFERENTIAL_QUOTA[it], productType, it);
     });
 
     return {
@@ -1034,25 +1011,21 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
 }
 
 function UsageBar(props: {suballocation: SubAllocation}) {
-    const {unit, productType, chargeType} = props.suballocation;
-    const {suballocation} = props;
-    const remaining = Math.min(suballocation.remaining, suballocation.initialBalance);
-    const asPercent = resultAsPercent({initialBalance: suballocation.initialBalance, balance: remaining});
-    const doTruncate = suballocation.initialBalance > 1_000_000;
-    const usedBalance = doTruncate ? (suballocation.initialBalance - remaining) / 1_000 : (suballocation.initialBalance - remaining);
-    const initialBalance = doTruncate ? (suballocation.initialBalance) / 1_000 : (suballocation.initialBalance);
-    const used = normalizeBalanceForFrontend(Math.floor(usedBalance), productType, chargeType, unit);
-    const initial = normalizeBalanceForFrontend(Math.floor(initialBalance), productType, chargeType, unit);
-    const resourceProgress = `${used} / ${initial} ${allocationText(unit, productType, chargeType, doTruncate)} (${Math.round(asPercent)}%)`;
-    return <ResourceProgress value={Math.round(asPercent)} text={resourceProgress} />;
+    const {unit, productType} = props.suballocation;
+    const mapped = mapToBalancesWithExplanation(props.suballocation, productType, unit);
+    return <ResourceProgress value={Math.round(mapped.asPercent)} text={mapped.resourceText} />;
 }
 
 function explainSubAllocation(suballocation: {productType: ProductType; chargeType: ChargeType; unit: ProductPriceUnit}): string {
-    return explainAllocation(suballocation.productType, suballocation.chargeType, suballocation.unit);
+    return explainAllocation(suballocation.productType, suballocation.unit);
 }
 
 function normalizeSuballocationBalanceForFrontend(suballocation: SubAllocation, balance: number): string {
     return normalizeBalanceForFrontend(
-        balance, suballocation.productType, suballocation.chargeType, suballocation.unit, 2
+        balance, suballocation.productType, suballocation.unit, 2
     );
+}
+
+export function shouldTruncate(value: number): boolean {
+    return value > 1_000_000;
 }
