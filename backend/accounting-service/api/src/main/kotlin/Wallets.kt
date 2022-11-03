@@ -304,6 +304,8 @@ data class WalletsRetrieveRecipientResponse(
     val numberOfMembers: Int,
 )
 
+typealias TestResetCaches = Unit
+
 @Serializable
 data class WalletsRetrieveProviderSummaryRequest(
     override val itemsPerPage: Int? = null,
@@ -395,6 +397,15 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
 
         documentation {
             summary = "Pushes a Wallet to the catalog"
+        }
+    }
+
+    val testResetCaches = call("resetCache", TestResetCaches.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve("resetCache")
+
+        auth {
+            roles = Roles.SERVICE
+            access = AccessRight.READ_WRITE
         }
     }
 

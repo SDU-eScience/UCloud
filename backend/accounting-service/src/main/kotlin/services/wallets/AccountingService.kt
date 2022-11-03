@@ -45,6 +45,10 @@ class AccountingService(
         )).allocations
     }
 
+    suspend fun resetCache() {
+        processor.clearCache()
+    }
+
     suspend fun retrieveWalletsInternal(actorAndProject: ActorAndProject, walletOwner: WalletOwner): List<Wallet> {
         return processor.retrieveWalletsInternal((AccountingRequest.RetrieveWalletsInternal(
             actorAndProject.actor,

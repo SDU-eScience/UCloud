@@ -369,6 +369,8 @@ class AccountingProcessor(
 
     private val processorLock = Mutex()
     private var isActiveProcessor = false
+
+    private var isSyncing = false
     // Primary interface
     // =================================================================================================================
     // The accounting processors is fairly simple to use. It must first be started by call start(). After this you can
@@ -423,6 +425,9 @@ class AccountingProcessor(
                     requests.onReceive { request ->
                         // NOTE(Dan): We attempt a synchronization here in case we receive so many requests that the
                         // timeout is never triggered.
+                        while (isSyncing) {
+                            delay(5000)
+                        }
                         attemptSynchronize()
 
                         val response = handleRequest(request)
@@ -479,6 +484,17 @@ class AccountingProcessor(
         } else {
            AccountingResponse.Error("System is locked. Syncing to DB before process shutdown", 423)
         }
+    }
+
+    /**
+     * Only for testing
+     */
+    suspend fun clearCache() {
+        dirtyTransactions.clear()
+        wallets.clear()
+        allocations.clear()
+        walletsIdGenerator = 0
+        allocationIdGenerator = 0
     }
 
     private suspend fun handleRequest(request: AccountingRequest): AccountingResponse {
@@ -1487,7 +1503,8 @@ class AccountingProcessor(
     private suspend fun attemptSynchronize(forced: Boolean = false) {
         val now = System.currentTimeMillis()
         if (now < nextSynchronization && !forced) return
-
+        if (isSyncing) {return}
+        isSyncing = true
         debug.enterContext("Synchronizing accounting data") {
             debug.detailD("Filling products", Unit.serializer(), Unit)
             products.fillCache()
@@ -1758,6 +1775,7 @@ class AccountingProcessor(
             dirtyTransactions.clear()
             logExit("Done!")
             nextSynchronization = now + 30_000
+            isSyncing = false
         }
     }
 

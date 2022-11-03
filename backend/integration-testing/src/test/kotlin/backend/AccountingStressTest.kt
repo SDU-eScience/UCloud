@@ -14,7 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class AccountingStressTest: IntegrationTest() {
+class AccountingStressTest : IntegrationTest() {
     override fun defineTests() {
         val timings = ArrayList<Pair<String, Long>>()
         run {
@@ -42,9 +42,9 @@ class AccountingStressTest: IntegrationTest() {
                     val projectAllocations = prepareProjectChain(
                         input.depositcredits,
                         listOf(
-                            Allocation(true, input.depositcredits/2),
-                            Allocation(true, input.depositcredits/5),
-                            Allocation(true, input.depositcredits/10)
+                            Allocation(true, input.depositcredits / 2),
+                            Allocation(true, input.depositcredits / 5),
+                            Allocation(true, input.depositcredits / 10)
                         ),
                         productCategoryId,
                         serviceClient = serviceClient
@@ -86,7 +86,7 @@ class AccountingStressTest: IntegrationTest() {
                         )
                     }
                     val end = System.currentTimeMillis()
-                    timings.add(Pair(input.test, (end-start)))
+                    timings.add(Pair(input.test, (end - start)))
 
                     val results = mutableListOf<List<WalletAllocation>>()
 
@@ -98,44 +98,50 @@ class AccountingStressTest: IntegrationTest() {
                     results.add(midAllocations)
                     results.add(leafAllocations)
 
+                    Wallets.testResetCaches.call(
+                        Unit,
+                        serviceClient
+                    )
+
                     Out(
                         successes = responses,
                         wallets = results
                     )
                 }
 
-                 fun doCheck(
-                     output: Out,
-                     input: In,
-                     allSucceed: Boolean = true,
-                     expectedBalance: Long? = null
-                 ) {
-                     val allocations = output.wallets[input.project - 1]
-                     val deposit = when (input.project) {
-                         1 -> input.depositcredits/2
-                         2 -> input.depositcredits/5
-                         3 -> input.depositcredits/10
-                         else -> {
-                             throw IllegalArgumentException(
-                                 "Wrong argument for projectpicker. Should be 1-3 but ${input.project} was given"
-                             )
-                         }
-                     }
-                     //All success
-                     if (allSucceed) {
-                         assertFalse(output.successes.contains(false))
-                     } else {
-                         assertTrue { output.successes.contains(false) }
-                     }
-                     val expect = expectedBalance ?: (deposit - (input.numberOfCalls * sampleCompute.pricePerUnit * input.units))
+                fun doCheck(
+                    output: Out,
+                    input: In,
+                    allSucceed: Boolean = true,
+                    expectedBalance: Long? = null
+                ) {
+                    val allocations = output.wallets[input.project - 1]
+                    val deposit = when (input.project) {
+                        1 -> input.depositcredits / 2
+                        2 -> input.depositcredits / 5
+                        3 -> input.depositcredits / 10
+                        else -> {
+                            throw IllegalArgumentException(
+                                "Wrong argument for projectpicker. Should be 1-3 but ${input.project} was given"
+                            )
+                        }
+                    }
+                    //All success
+                    if (allSucceed) {
+                        assertFalse(output.successes.contains(false))
+                    } else {
+                        assertTrue { output.successes.contains(false) }
+                    }
+                    val expect =
+                        expectedBalance ?: (deposit - (input.numberOfCalls * sampleCompute.pricePerUnit * input.units))
 
-                     assertEquals(
-                         expect,
-                         allocations.first().balance
-                     )
+                    assertEquals(
+                        expect,
+                        allocations.first().balance
+                    )
 
-                     println(timings)
-                 }
+                    println(timings)
+                }
 
                 case("10 charges valid root") {
                     input(
@@ -264,19 +270,20 @@ class AccountingStressTest: IntegrationTest() {
                     val responses = mutableListOf<Boolean>()
                     val start = System.currentTimeMillis()
                     coroutineScope {
-                        val charges = bulk.map { chargeRequests ->
-                            launch(Dispatchers.IO) {
-                                //println("Charing: ${chargeRequests.description}")
-                                responses.addAll(
-                                    Accounting.charge.call(
-                                        bulkRequestOf(chargeRequests),
-                                        serviceClient
-                                    ).orThrow().responses
-                                )
-
+                        bulk.chunked(32).map { chunk ->
+                            val charges = chunk.map { chargeRequests ->
+                                async(Dispatchers.IO) {
+                                    //println("Charing: ${chargeRequests.description}")
+                                    responses.addAll(
+                                        Accounting.charge.call(
+                                            bulkRequestOf(chargeRequests),
+                                            serviceClient
+                                        ).orThrow().responses
+                                    )
+                                }
                             }
+                            charges.awaitAll()
                         }
-                        charges.forEach { joinAll(it) }
                     }
                     println("ALL DONE")
                     val end = System.currentTimeMillis()
@@ -293,6 +300,11 @@ class AccountingStressTest: IntegrationTest() {
                     results.add(midAllocations)
                     results.add(leafAllocations)
 
+                    Wallets.testResetCaches.call(
+                        Unit,
+                        serviceClient
+                    )
+
                     Out(
                         successes = responses,
                         wallets = results
@@ -307,9 +319,9 @@ class AccountingStressTest: IntegrationTest() {
                 ) {
                     val allocations = output.wallets[input.project - 1]
                     val deposit = when (input.project) {
-                        1 -> input.depositcredits/2
-                        2 -> input.depositcredits/5
-                        3 -> input.depositcredits/10
+                        1 -> input.depositcredits / 2
+                        2 -> input.depositcredits / 5
+                        3 -> input.depositcredits / 10
                         else -> {
                             throw IllegalArgumentException(
                                 "Wrong argument for projectpicker. Should be 1-3 but ${input.project} was given"
@@ -322,7 +334,8 @@ class AccountingStressTest: IntegrationTest() {
                     } else {
                         assertTrue { output.successes.contains(false) }
                     }
-                    val expect = expectedBalance ?: (deposit - (input.numberOfCalls * sampleCompute.pricePerUnit * input.units))
+                    val expect = expectedBalance
+                        ?: (deposit - (input.numberOfCalls * sampleCompute.pricePerUnit * input.units))
 
                     assertEquals(
                         expect,
@@ -336,6 +349,22 @@ class AccountingStressTest: IntegrationTest() {
                     input(
                         In(
                             numberOfCalls = 10,
+                            project = 1,
+                            productRef = sampleCompute.toReference(),
+                            units = 10L,
+                            test = this.subtitle
+                        )
+                    )
+
+                    check {
+                        doCheck(output, input)
+                    }
+                }
+
+                case("100 charges valid root para") {
+                    input(
+                        In(
+                            numberOfCalls = 100,
                             project = 1,
                             productRef = sampleCompute.toReference(),
                             units = 10L,
@@ -364,7 +393,7 @@ class AccountingStressTest: IntegrationTest() {
                     }
                 }
 
-                /*case("5000 charges valid root para") {
+                case("5000 charges valid root para") {
                     input(
                         In(
                             numberOfCalls = 5000,
@@ -380,10 +409,10 @@ class AccountingStressTest: IntegrationTest() {
                     }
                 }
 
-                case("100000 charges valid root") {
+                case("10000 charges valid root para") {
                     input(
                         In(
-                            numberOfCalls = 100000,
+                            numberOfCalls = 10000,
                             project = 1,
                             productRef = sampleCompute.toReference(),
                             units = 10L,
@@ -394,7 +423,8 @@ class AccountingStressTest: IntegrationTest() {
                     check {
                         doCheck(output, input, false, 0)
                     }
-                }*/
+                }
+
             }
         }
     }

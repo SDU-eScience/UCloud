@@ -97,6 +97,10 @@ class AccountingController(
             )
         }
 
+        implementOrDispatch(Wallets.testResetCaches) {
+            ok(accounting.resetCache())
+        }
+
         implement(Wallets.searchSubAllocations) {
             ok(accounting.browseSubAllocations(actorAndProject, request, request.query))
         }

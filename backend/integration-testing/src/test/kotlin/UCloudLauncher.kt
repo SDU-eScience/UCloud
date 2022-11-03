@@ -35,6 +35,7 @@ import java.nio.file.Files
 import java.security.KeyPairGenerator
 import java.security.SecureRandom
 import java.util.*
+import kotlin.collections.ArrayList
 
 val disableBuiltInDatabases: Boolean
     get() = System.getenv("UCLOUD_INTEGRATION_DB") == "false"
@@ -343,6 +344,28 @@ object UCloudLauncher : Loggable {
 
         db.withTransaction { session ->
             session.sendQuery("select public.truncate_tables()")
+        }
+
+        val sequenceNames = ArrayList<String>()
+
+        db.withTransaction { session ->
+            session.sendPreparedStatement("""
+                SELECT sequence_schema, sequence_name 
+                FROM information_schema.sequences 
+                ORDER BY sequence_name
+            """.trimIndent())
+        }.rows.forEach {
+            sequenceNames.add(""" "${it.getString(0)}".${it.getString(1)}""")
+        }
+
+        db.withTransaction { session ->
+            sequenceNames.forEach {
+                session.sendPreparedStatement(
+                    """
+                        ALTER SEQUENCE $it RESTART WITH 1
+                    """.trimIndent()
+                )
+            }
         }
 
         SimpleCache.allCachesOnlyForTestingPlease.forEach {
