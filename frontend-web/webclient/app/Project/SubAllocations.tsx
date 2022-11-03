@@ -1026,6 +1026,7 @@ function normalizeSuballocationBalanceForFrontend(suballocation: SubAllocation, 
     );
 }
 
+const TRUNCATATION_LIMIT = 1_000_000;
 export function shouldTruncate(value: number): boolean {
-    return value > 1_000_000;
+    return value >= TRUNCATATION_LIMIT;
 }
