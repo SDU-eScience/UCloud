@@ -3,8 +3,8 @@ package dk.sdu.cloud.micro
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.Loggable
+import io.ktor.server.cio.*
 import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
 
 private const val DEFAULT_PORT = 8080
 
@@ -13,11 +13,10 @@ class KtorServerProviderFeature : MicroFeature {
         val port = ctx.configuration.requestChunkAtOrNull("servicePort") ?: DEFAULT_PORT
         ctx.serverProvider = { module ->
             embeddedServer(
-                Netty,
+                CIO,
                 port = port,
                 module = module,
                 configure = {
-                    responseWriteTimeoutSeconds = 0
                 }
             )
         }

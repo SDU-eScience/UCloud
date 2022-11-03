@@ -148,6 +148,7 @@ class ProviderService(
         private val random = SecureRandom()
 
         val whitelistedProviders = listOf(
+            "_ucloud",
             "_app-orchestrator",
             "_file-orchestrator",
             "_storage",

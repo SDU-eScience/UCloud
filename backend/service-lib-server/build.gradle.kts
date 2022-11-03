@@ -48,7 +48,7 @@ dependencies {
         ktor("client-core")
 
         ktor("server-core")
-        ktor("server-netty")
+        ktor("server-cio")
         ktor("server-websockets")
         ktor("server-cors")
         ktor("server-host-common")
