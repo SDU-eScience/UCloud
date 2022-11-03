@@ -34,4 +34,10 @@ drop function if exists accounting.deposit(
 
 drop function if exists accounting.update_allocations(
     request accounting.allocation_update_request[]
-)
+);
+
+alter table "grant".applications add column synchronized boolean default false;
+
+update "grant".applications
+set synchronized = true
+where status = 'APPROVED'

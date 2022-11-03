@@ -1753,6 +1753,15 @@ class AccountingProcessor(
                             """
                         )
                     }
+
+                session.sendPreparedStatement(
+                    //language=postgresql
+                    """
+                        UPDATE "grant".applications
+                        SET synchronized = true
+                        WHERE status = 'APPROVED' AND synchronized = false
+                    """
+                )
             }
 
             val depositForProviders = dirtyTransactions.asSequence()
