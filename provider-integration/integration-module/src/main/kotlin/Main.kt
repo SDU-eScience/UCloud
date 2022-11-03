@@ -12,10 +12,7 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.cli.registerAlwaysOnCommandLines
-import dk.sdu.cloud.config.ConfigSchema
-import dk.sdu.cloud.config.ProductReferenceWithoutProvider
-import dk.sdu.cloud.config.loadConfiguration
-import dk.sdu.cloud.config.verifyConfiguration
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.ControllerContext
 import dk.sdu.cloud.controllers.EnvoyConfigurationService
 import dk.sdu.cloud.controllers.IpcController
@@ -39,11 +36,15 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
+import dk.sdu.cloud.plugins.storage.posix.posixFilePermissionsFromInt
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
+import dk.sdu.cloud.config.ConfigSchema.Core.Logs.Tracer as TracerFeature
+import io.ktor.util.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.builtins.ListSerializer
 import org.slf4j.LoggerFactory
+import java.sql.DriverManager
 
 fun main(args: Array<String>) {
     if (true) {
@@ -141,10 +142,10 @@ fun main(args: Array<String>) {
             val config = run {
                 val runInstaller = with(configSchema) {
                     core == null &&
-                        server == null &&
-                        plugins == null &&
-                        products == null &&
-                        frontendProxy == null
+                            server == null &&
+                            plugins == null &&
+                            products == null &&
+                            frontendProxy == null
                 }
 
                 if (runInstaller) {
@@ -217,11 +218,17 @@ fun main(args: Array<String>) {
             // modes have access to all services.
             // =======================================================================================================
 
+            // Feature traces
+            // -------------------------------------------------------------------------------------------------------
+            run {
+                val trace = config.core.logs.trace
+                shellTracer = createFeatureTracer(TracerFeature.SHELL in trace, "Shell")
+            }
+
             // Database services
             // -------------------------------------------------------------------------------------------------------
             if (config.serverOrNull != null && serverMode == ServerMode.Server) {
-                databaseFile.getAndSet(config.server.database.file)
-
+                dbConfig.set(config.server.database)
                 // NOTE(Dan): It is important that migrations run _before_ plugins are loaded
                 val handler = MigrationHandler(dbConnection)
                 loadMigrations(handler)
@@ -230,7 +237,12 @@ fun main(args: Array<String>) {
 
             // Command Line Interface (CLI)
             // -------------------------------------------------------------------------------------------------------
-            val cli = if (serverMode !is ServerMode.Plugin) null else CommandLineInterface(args.drop(1))
+            val cli = if (serverMode !is ServerMode.Plugin) {
+                null
+            } else {
+                val isParsable = args.contains("--parsable")
+                CommandLineInterface(isParsable, args.drop(1).filter { it != "--parsable" })
+            }
 
             // Inter Process Communication Client (IPC)
             // -------------------------------------------------------------------------------------------------------
@@ -249,7 +261,39 @@ fun main(args: Array<String>) {
             // UCloud/Core. This service is constructed fairly early, since both the RPC client and RPC server
             // requires this.
             val validation = if (serverMode == ServerMode.Server || serverMode == ServerMode.User) {
-                InternalTokenValidationJWT.withPublicCertificate(config.core.certificate)
+                try {
+                    InternalTokenValidationJWT.withPublicCertificate(config.core.certificate)
+                } catch (ex: Throwable) {
+                    sendTerminalMessage {
+                        bold { red { line("Error while parsing certificate of UCloud/Core") } }
+
+                        line()
+                        line("We read the following certificate:")
+                        code { line(config.core.certificate) }
+
+                        line()
+                        line("Formatted version:")
+                        code { line(InternalTokenValidationJWT.formatCert(config.core.certificate, true)) }
+
+                        line()
+                        inline("Certificate hash (SHA1):")
+                        code { line(hex(sha1(config.core.certificate.encodeToByteArray()))) }
+                        line("Note: The hash might be different from the file since we trim new-lines.")
+
+                        line()
+                        line("Please double check that this matches the certificate you received during the connection procedure with UCloud/Core.")
+
+                        line()
+                        line("The error was:")
+                        val stack = ex.toReadableStacktrace()
+                        line("${stack.type}: ${stack.message}")
+                        for (frame in stack.frames) {
+                            line(frame.prependIndent("    "))
+                        }
+                    }
+
+                    exitProcess(0)
+                }
             } else {
                 null
             }
@@ -271,8 +315,14 @@ fun main(args: Array<String>) {
             if (rpcServer != null) {
                 ClientInfoInterceptor().register(rpcServer)
                 AuthInterceptor(validation ?: error("No validation")).register(rpcServer)
+                IdleGarbageCollector().register(rpcServer)
 
-                val engine = embeddedServer(CIO, port = rpcServerPort ?: error("Missing rpcServerPort")) {}
+                val engine = embeddedServer(
+                    CIO,
+                    host = "127.0.0.1",
+                    port = rpcServerPort ?: error("Missing rpcServerPort"),
+                    module = {}
+                )
                 ktorEngine = engine
                 engine.application.install(CORS) {
                     // We run with permissive CORS settings in dev mode. This allows us to test frontend directly
@@ -281,6 +331,18 @@ fun main(args: Array<String>) {
                     allowHost("localhost:9000")
                     val ucloudHost = config.core.hosts.ucloud.toStringOmitDefaultPort()
                     allowHost(ucloudHost.substringAfter("://"), listOf(ucloudHost.substringBefore("://")))
+
+                    val selfHost = config.core.hosts.self?.toStringOmitDefaultPort()
+                    if (selfHost != null) {
+                        allowHost(selfHost.substringAfter("://"), listOf(selfHost.substringBefore("://")))
+                    }
+
+                    println(config.core.cors.allowHosts.toString())
+                    config.core.cors.allowHosts.forEach {
+                        println("Setting $it")
+                        allowHost(it.removePrefix("https://").removePrefix("http://"), listOf("https", "http"))
+                    }
+
                     allowMethod(HttpMethod.Get)
                     allowMethod(HttpMethod.Post)
                     allowMethod(HttpMethod.Put)
@@ -295,6 +357,7 @@ fun main(args: Array<String>) {
                     allowHeader("refreshToken")
                     allowHeader("chunked-upload-offset")
                     allowHeader("chunked-upload-token")
+                    allowHeader("ucloud-username")
                     allowHeader("upload-name")
                 }
 
@@ -302,67 +365,60 @@ fun main(args: Array<String>) {
                 rpcServer.attachRequestInterceptor(IngoingHttpInterceptor(engine, rpcServer))
             }
 
-            val rpcClient: AuthenticatedClient? = run {
-                when (serverMode) {
-                    ServerMode.Server -> {
-                        val client = RpcClient().also { client ->
-                            OutgoingHttpRequestInterceptor()
-                                .install(
-                                    client,
-                                    FixedOutgoingHostResolver(
-                                        HostInfo(
-                                            config.core.hosts.ucloud.host,
-                                            config.core.hosts.ucloud.scheme,
-                                            config.core.hosts.ucloud.port
-                                        )
+            val rpcClient: AuthenticatedClient? = when (serverMode) {
+                ServerMode.Server -> {
+                    val client = RpcClient().also { client ->
+                        OutgoingHttpRequestInterceptor()
+                            .install(
+                                client,
+                                FixedOutgoingHostResolver(
+                                    HostInfo(
+                                        config.core.hosts.ucloud.host,
+                                        config.core.hosts.ucloud.scheme,
+                                        config.core.hosts.ucloud.port
                                     )
                                 )
-                        }
-
-                        client.attachFilter(OutgoingProject())
-
-                        val authenticator = RefreshingJWTAuthenticator(
-                            client,
-                            JwtRefresher.Provider(config.server.refreshToken, OutgoingHttpCall),
-                            becomesInvalidSoon = { accessToken ->
-                                val expiresAt = validation!!.validateOrNull(accessToken)?.expiresAt?.time
-                                (expiresAt ?: return@RefreshingJWTAuthenticator true) +
-                                    (1000 * 120) >= Time.now()
-                            }
-                        )
-
-                        authenticator.authenticateClient(OutgoingHttpCall)
+                            )
                     }
 
-                    ServerMode.User -> {
-                        val client = RpcClient()
-                        client.attachRequestInterceptor(IpcProxyRequestInterceptor(ipcClient!!))
-                        AuthenticatedClient(client, IpcProxyCall, afterHook = null, authenticator = {})
-                    }
+                    client.attachFilter(OutgoingProject())
 
-                    ServerMode.FrontendProxy -> {
-                        val cfg = config.frontendProxy
-                        val client = RpcClient().also { client ->
-                            OutgoingHttpRequestInterceptor()
-                                .install(
-                                    client,
-                                    FixedOutgoingHostResolver(
-                                        HostInfo(
-                                            cfg.remote.host,
-                                            cfg.remote.scheme,
-                                            cfg.remote.port
-                                        )
-                                    )
-                                )
-                        }
+                    val authenticator = RefreshingJWTAuthenticator(
+                        client,
+                        JwtRefresher.Provider(config.server.refreshToken, OutgoingHttpCall),
+                    )
 
-                        AuthenticatedClient(client, OutgoingHttpCall) {
-                            it.attributes.outgoingAuthToken = cfg.sharedSecret
-                        }
-                    }
-
-                    is ServerMode.Plugin -> null
+                    authenticator.authenticateClient(OutgoingHttpCall)
                 }
+
+                ServerMode.User -> {
+                    val client = RpcClient()
+                    client.attachRequestInterceptor(IpcProxyRequestInterceptor(ipcClient!!))
+                    AuthenticatedClient(client, IpcProxyCall, afterHook = null, authenticator = {})
+                }
+
+                ServerMode.FrontendProxy -> {
+                    val cfg = config.frontendProxy
+                    val client = RpcClient().also { client ->
+                        OutgoingHttpRequestInterceptor()
+                            .install(
+                                client,
+                                FixedOutgoingHostResolver(
+                                    HostInfo(
+                                        cfg.remote.host,
+                                        cfg.remote.scheme,
+                                        cfg.remote.port
+                                    )
+                                )
+                            )
+                    }
+
+                    AuthenticatedClient(client, OutgoingHttpCall) {
+                        it.attributes.outgoingAuthToken = cfg.sharedSecret
+                    }
+                }
+
+                is ServerMode.Plugin -> null
             }
 
             // IPC Server
@@ -374,6 +430,7 @@ fun main(args: Array<String>) {
                     rpcClient!!,
                     rpcServer
                 )
+
                 else -> null
             }
 
@@ -389,7 +446,7 @@ fun main(args: Array<String>) {
 
             // Process Watcher
             // -------------------------------------------------------------------------------------------------------
-            val processWatcher = when(serverMode) {
+            val processWatcher = when (serverMode) {
                 ServerMode.Server, ServerMode.User -> ProcessWatcher
                 else -> null
             }
@@ -423,12 +480,7 @@ fun main(args: Array<String>) {
                 val unknownProducts = HashSet<Product>()
 
                 for (plugin in allResourcePlugins) {
-                    val allConfiguredProducts: List<Product> =
-                        (config.products.compute ?: emptyMap()).values.flatten() +
-                            (config.products.storage ?: emptyMap()).values.flatten() +
-                                (config.products.ingress ?: emptyMap()).values.flatten() +
-                                (config.products.publicIp ?: emptyMap()).values.flatten() +
-                                (config.products.license ?: emptyMap()).values.flatten()
+                    val allConfiguredProducts: List<Product> = config.products.allProducts
 
                     val resolvedProducts = ArrayList<Product>()
                     for (product in plugin.productAllocation) {
@@ -455,8 +507,9 @@ fun main(args: Array<String>) {
                                 val areInternalEqual = when (a) {
                                     is Product.Compute -> {
                                         b is Product.Compute && a.cpu == b.cpu && a.gpu == b.gpu
-                                            && a.memoryInGigs == b.memoryInGigs
+                                                && a.memoryInGigs == b.memoryInGigs
                                     }
+
                                     is Product.Ingress -> b is Product.Ingress
                                     is Product.License -> b is Product.License
                                     is Product.NetworkIP -> b is Product.NetworkIP
@@ -506,9 +559,33 @@ fun main(args: Array<String>) {
 
             // Debug services
             // -------------------------------------------------------------------------------------------------------
+            val debugTransformer = if (config.core.developmentMode) {
+                DebugMessageTransformer.Development
+            } else {
+                DebugMessageTransformer.Production
+            }
+            val structuredLogs = File(config.core.logs.directory, "structured").also {
+                it.mkdirs()
+                runCatching {
+                    java.nio.file.Files.setPosixFilePermissions(
+                        it.toPath(),
+                        posixFilePermissionsFromInt("777".toInt(8))
+                    )
+                }
+            }.absolutePath
             val debugSystem = when (serverMode) {
-                ServerMode.Server -> CommonDebugSystem("IM/Server", CommonFile(config.core.logs.directory))
-                ServerMode.User -> CommonDebugSystem("IM/User/${clib.getuid()}", CommonFile(config.core.logs.directory))
+                ServerMode.Server -> CommonDebugSystem(
+                    "IM/Server",
+                    CommonFile(structuredLogs),
+                    debugTransformer
+                )
+
+                ServerMode.User -> CommonDebugSystem(
+                    "IM/User/${clib.getuid()}",
+                    CommonFile(structuredLogs),
+                    debugTransformer
+                )
+
                 else -> null
             }
             debugSystemAtomic.getAndSet(debugSystem)
@@ -519,17 +596,21 @@ fun main(args: Array<String>) {
 
             // Configuration debug (before initializing any plugins, which might crash because of config)
             // -------------------------------------------------------------------------------------------------------
-            debugSystem.normalD("Configuration has been loaded!", ConfigSchema.serializer(), configSchema)
-            debugSystem.detailD(
-                "Compute products loaded",
-                ListSerializer(Product.serializer()),
-                config.products.compute?.values?.flatten() ?: emptyList()
-            )
-            debugSystem.detailD(
-                "Storage products loaded",
-                ListSerializer(Product.serializer()),
-                config.products.storage?.values?.flatten() ?: emptyList()
-            )
+            if (config.core.developmentMode) {
+                // NOTE(Dan): Do NOT remove the check as this will cause refresh tokens to be logged which we
+                // shouldn't do.
+                debugSystem.normalD("Configuration has been loaded!", ConfigSchema.serializer(), configSchema)
+                debugSystem.detailD(
+                    "Compute products loaded",
+                    ListSerializer(Product.serializer()),
+                    config.products.compute?.values?.flatten() ?: emptyList()
+                )
+                debugSystem.detailD(
+                    "Storage products loaded",
+                    ListSerializer(Product.serializer()),
+                    config.products.storage?.values?.flatten() ?: emptyList()
+                )
+            }
 
             // Initialization of plugins (Final initialization step)
             // -------------------------------------------------------------------------------------------------------
@@ -561,7 +642,7 @@ fun main(args: Array<String>) {
             // linear when not counting the null checks.
 
             if (ipcServer != null && rpcClient != null) {
-                IpcToUCloudProxyServer().init(ipcServer, rpcClient)
+                IpcToUCloudProxyServer(rpcClient).init(ipcServer, rpcClient)
                 ProcessingScope.launch { ipcServer.runServer() }
             }
             envoyConfig?.start(config.serverOrNull?.network?.listenPort)
@@ -570,17 +651,36 @@ fun main(args: Array<String>) {
 
             if (config.pluginsOrNull != null) {
                 for (plugin in allResourcePlugins) {
-                    ProcessingScope.launch {
-                        with(pluginContext) {
-                            with(plugin) {
-                                // Delay execution of monitoring loop until rpcServer is reporting ready
-                                while (isActive) {
-                                    val isReady = rpcServer?.isRunning ?: true
-                                    if (isReady) break
-                                    delay(50)
-                                }
+                    if (config.shouldRunServerCode()) {
+                        ProcessingScope.launch {
+                            with(pluginContext) {
+                                with(plugin) {
+                                    // Delay execution of monitoring loop until rpcServer is reporting ready
+                                    while (isActive) {
+                                        val isReady = rpcServer?.isRunning ?: true
+                                        if (isReady) break
+                                        delay(50)
+                                    }
 
-                                runMonitoringLoop()
+                                    runMonitoringLoopInServerMode()
+                                }
+                            }
+                        }
+                    }
+
+                    if (config.shouldRunUserCode()) {
+                        ProcessingScope.launch {
+                            with(pluginContext) {
+                                with(plugin) {
+                                    // Delay execution of monitoring loop until rpcServer is reporting ready
+                                    while (isActive) {
+                                        val isReady = rpcServer?.isRunning ?: true
+                                        if (isReady) break
+                                        delay(50)
+                                    }
+
+                                    runMonitoringLoopInUserMode()
+                                }
                             }
                         }
                     }
@@ -606,7 +706,7 @@ fun main(args: Array<String>) {
                     LicenseController(controllerContext),
                     ShareController(controllerContext),
                     ConnectionController(controllerContext, envoyConfig),
-                    NotificationController(controllerContext),
+                    EventController(controllerContext),
                 )
             }
 
@@ -628,19 +728,34 @@ fun main(args: Array<String>) {
                 stats.add(empty)
                 stats.add("All logs" to config.core.logs.directory)
                 stats.add("My logs" to "${config.core.logs.directory}/$logModule-ucloud.log")
+                if (serverMode == ServerMode.Server) {
+                    val embeddedConfig = config.server.database.embeddedDataDirectory
+                    if (embeddedConfig != null) {
+                        stats.add("Database" to "Embedded: ${embeddedConfig}")
+                    } else {
+                        stats.add("Database" to config.server.database.jdbcUrl)
+                    }
+                }
                 if (config.core.hosts.ucloud.host == "backend") {
                     stats.add("Debugger" to "http://localhost:42999")
                 }
                 stats.add(empty)
                 if (config.pluginsOrNull != null) {
-                    val jobs = config.plugins.jobs.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
+                    val jobs = config.plugins.jobs.values.map { it.pluginTitle }.toSet().joinToString(", ")
+                        .takeIf { it.isNotEmpty() }
                     val projects = config.plugins.projects?.pluginTitle
                     val connection = config.plugins.connection?.pluginTitle
-                    val files = config.plugins.files.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
-                    val fileCollections = config.plugins.fileCollections.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
-                    val ingresses = config.plugins.ingresses.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
-                    val publicIps = config.plugins.publicIps.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
-                    val licenses = config.plugins.licenses.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
+                    val files = config.plugins.files.values.map { it.pluginTitle }.toSet().joinToString(", ")
+                        .takeIf { it.isNotEmpty() }
+                    val fileCollections =
+                        config.plugins.fileCollections.values.map { it.pluginTitle }.toSet().joinToString(", ")
+                            .takeIf { it.isNotEmpty() }
+                    val ingresses = config.plugins.ingresses.values.map { it.pluginTitle }.toSet().joinToString(", ")
+                        .takeIf { it.isNotEmpty() }
+                    val publicIps = config.plugins.publicIps.values.map { it.pluginTitle }.toSet().joinToString(", ")
+                        .takeIf { it.isNotEmpty() }
+                    val licenses = config.plugins.licenses.values.map { it.pluginTitle }.toSet().joinToString(", ")
+                        .takeIf { it.isNotEmpty() }
 
                     stats.add("Files" to (files ?: "No plugins"))
                     stats.add("Drives" to (fileCollections ?: "No plugins"))
@@ -705,16 +820,38 @@ fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.callBlocking(
 private val debugSystemAtomic = AtomicReference<DebugSystem?>(null)
 val debugSystem: DebugSystem?
     get() = debugSystemAtomic.get()
-private val databaseFile = AtomicReference("")
+
+private val dbConfig = AtomicReference<VerifiedConfig.Server.Database>()
 
 val dbConnection: DBContext by lazy {
-    val file = databaseFile.get().takeIf { it.isNotBlank() }
-    if (file == null) {
-        error("This plugin does not have access to a database")
+    val config = dbConfig.get().takeIf { it != null }
+    if (config == null) {
+        error("Config not found for DB")
     } else {
-        JdbcDriver(file)
+        val connection = createDBConnection(config)
+        runBlocking { testDB(connection) }
+        connection
     }
 }
+
+private suspend fun testDB(db: DBContext) {
+    db.withSession { session ->
+        session.prepareStatement("select 1").invokeAndDiscard()
+    }
+}
+
+private fun createDBConnection(database: VerifiedConfig.Server.Database): DBContext {
+    return object : JdbcDriver() {
+        override val pool: SimpleConnectionPool = SimpleConnectionPool(DB_CONNECTION_POOL_SIZE) { pool ->
+            JdbcConnection(
+                DriverManager.getConnection(database.jdbcUrl, database.username, database.password),
+                pool
+            )
+        }
+    }
+}
+
+const val DB_CONNECTION_POOL_SIZE = 8
 
 private fun readSelfExecutablePath(): String {
     return File("/proc/self/exe").toPath().readSymbolicLink().toFile().absolutePath

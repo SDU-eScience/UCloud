@@ -11,11 +11,10 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.intellij.lang.annotations.Language
-import org.joda.time.LocalDateTime
 import java.io.File
+import java.time.LocalDateTime
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.stream.Collectors
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.collections.HashSet
@@ -156,17 +155,12 @@ class EnhancedPreparedStatement(
         tagName: String = "Untitled query"
     ): QueryResult {
         val context = DebugContext.createWithParent(session.context.id)
+        val debugQueryParameters = JsonObject(
+            rawParameters.map { (param, value) -> param to JsonPrimitive(value.toString()) }.toMap()
+        )
 
         val start = Time.now()
-        session.debug?.sendMessage(
-            DebugMessage.DatabaseQuery(
-                context,
-                rawStatement,
-                JsonObject(
-                    rawParameters.map { (param, value) -> param to JsonPrimitive(value.toString()) }.toMap()
-                )
-            )
-        )
+        session.debug?.sendMessage(DebugMessage.DatabaseQuery(context, rawStatement, debugQueryParameters))
 
         check(boundValues.size == parameterNamesToIndex.keys.size) {
             val missingSetParameters = parameterNamesToIndex.keys.filter { it !in boundValues }
@@ -215,6 +209,8 @@ class EnhancedPreparedStatement(
             DebugMessage.DatabaseResponse(
                 DebugContext.createWithParent(context.id),
                 end - start,
+                rawStatement,
+                debugQueryParameters,
                 when {
                     end - start >= 300 ->
                         MessageImportance.THIS_IS_WRONG

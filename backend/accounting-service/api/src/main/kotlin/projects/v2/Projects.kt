@@ -12,6 +12,7 @@ typealias ProjectRole = dk.sdu.cloud.project.api.ProjectRole
 data class ProjectMember(
     val username: String,
     val role: ProjectRole,
+    var email: String? = null,
 )
 
 @Serializable
@@ -166,6 +167,12 @@ object Projects : CallDescriptionContainer("projects.v2") {
 
     val updateSettings = call("updateSettings", ProjectsUpdateSettingsRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "updateSettings")
+    }
+
+    // Internal API
+    @UCloudApiInternal(InternalLevel.BETA)
+    val retrieveAllUsersGroup = call("retrieveAllUsersGroup", BulkRequest.serializer(FindByProjectId.serializer()), BulkResponse.serializer(FindByStringId.serializer()), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "retrieveAllUsersGroup", roles = Roles.SERVICE)
     }
 
     // TODO Rename

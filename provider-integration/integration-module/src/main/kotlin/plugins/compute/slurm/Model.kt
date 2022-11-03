@@ -9,7 +9,7 @@ data class SlurmJob(
     val slurmId: String,
     val partition: String = "normal",
     val lastKnown: String = "init",
-    val status: Int = 1,
+    val status: Boolean = true,
     val elapsed: Long = 0L,
 )
 

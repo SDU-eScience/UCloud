@@ -13,6 +13,8 @@ import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.file.orchestrator.api.*
 import io.ktor.utils.io.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
 
 interface PathLike<T> {
     val path: String
@@ -66,12 +68,15 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, ConfigS
     suspend fun RequestContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<LongRunningTask?>
     suspend fun RequestContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): List<LongRunningTask?>
     suspend fun RequestContext.copy(req: BulkRequest<FilesProviderCopyRequestItem>): List<LongRunningTask?>
+    suspend fun RequestContext.streamingSearch(
+        req: FilesProviderStreamingSearchRequest
+    ): ReceiveChannel<FilesProviderStreamingSearchResult.Result> {
+        throw RPCException("Streaming search is not supported by this provider", HttpStatusCode.BadRequest)
+    }
 
     override suspend fun RequestContext.create(resource: UFile): FindByStringId? {
         error("Not supported by this plugin")
     }
-
-    override suspend fun PluginContext.runMonitoringLoop() {}
 }
 
 abstract class EmptyFilePlugin : FilePlugin {

@@ -8,6 +8,7 @@ import {composeWithDevTools} from "redux-devtools-extension";
 import {createResponsiveStateReducer, responsiveStoreEnhancer} from "redux-responsive";
 import {responsiveBP} from "@/ui-components/theme";
 import avatar from "@/UserSettings/Redux/AvataaarReducer";
+import {terminalReducer} from "@/Terminal/State";
 import hookStore from "@/Utilities/ReduxHooks";
 
 export function configureStore(
@@ -36,6 +37,7 @@ export const store = configureStore(initObject(), {
     status,
     hookStore,
     avatar,
+    terminal: terminalReducer,
     loading,
     project: ProjectRedux.reducer,
     responsive: createResponsiveStateReducer(

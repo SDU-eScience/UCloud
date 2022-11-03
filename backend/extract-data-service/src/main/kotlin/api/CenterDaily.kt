@@ -39,7 +39,7 @@ data class CenterDaily(
     /*
      * Each access type is defined as a constand.
      */
-    val AccessType: Int,
+    val accessType: Int,
     /*
      * Max CPU core time in hours
      */

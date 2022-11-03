@@ -1,10 +1,12 @@
 package dk.sdu.cloud.plugins
 
+import dk.sdu.cloud.app.orchestrator.api.SSHKey
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.controllers.RequestContext
+import dk.sdu.cloud.plugins.connection.installSshKeyWithDefaults
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -79,4 +81,8 @@ interface ConnectionPlugin : Plugin<ConfigSchema.Plugins.Connection> {
     }
 
     suspend fun PluginContext.requireMessageSigning(): Boolean
+
+    suspend fun PluginContext.onSshKeySynchronized(username: String, keys: List<SSHKey>) {
+        installSshKeyWithDefaults(keys)
+    }
 }

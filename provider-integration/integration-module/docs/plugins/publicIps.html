@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Public IPs - UCloud/IM Documentation</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body class="content">
+    <section>
+        <h1>Plugins / Public IPs</h1>
+        <div class="summary">
+            Public IP plugins allow you to expose IPs as a resource. These IP addresses are are often consumed by
+            a jobs plugin.
+        </div>
+
+        <doc-table>
+        <table>
+            <tbody>
+                <tr>
+                    <th width="120px">File</th>
+                    <td><code>plugins.yaml</code></td>
+                </tr>
+                <tr>
+                    <th>Mandatory</th>
+                    <td>No</td>
+                </tr>
+                <tr>
+                    <th>Section</th>
+                    <td><code>publicIps</code></td>
+                </tr>
+                <tr>
+                    <th>Plugin type</th>
+                    <td>Product based</td>
+                </tr>
+            </tbody>
+        </table>
+        </doc-table>
+    </section>
+
+    <section>
+        <h2>Implementations</h2>
+
+        <doc-table>
+        <table>
+            <thead>
+                <tr>
+                    <th width="160px">Name</th>
+                    <th>Description</th>
+                    <th width="80px">Service users?</th>
+                    <th width="80px">Local users?</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><a href="#ucloud">UCloud</a></td>
+                    <td>Integrates with <doc-link href="/plugins/jobs.html#ucloud">UCloud compute plugin</doc-link></td>
+                    <td><input type="checkbox" checked disabled /></td>
+                    <td><input type="checkbox" disabled /></td>
+                </tr>
+            </tbody>
+        </table>
+        </doc-table>
+    </section>
+
+    <section id="ucloud">
+        <h2>UCloud</h2>
+
+        <doc-prop-container>
+            <doc-prop name="type" type='"UCloud"' required></doc-prop>
+            <doc-prop name="matches" type="string" required></doc-prop>
+
+            <doc-prop name="iface" type="string" required>
+                <p>The network interface to bind the IP addresses to.</p>
+            </doc-prop>
+            <doc-prop name="gatewayCidr" type="string">
+                <p>
+                    Sub-net for the gateway. This sub-net will automatically be added to the allow list of the 
+                    internal firewall.
+                </p>
+            </doc-prop>
+            
+        </doc-prop-container>
+    </section>
+
+    <script src="/app.js"></script>
+</body>
+
+</html>

@@ -13,8 +13,8 @@ sealed class OpenSession {
     abstract val rank: Int
 
     class Shell : OpenSession()
-    class Web : OpenSession()
     class Vnc : OpenSession()
+    class Web : OpenSession()
 }
 ```
 

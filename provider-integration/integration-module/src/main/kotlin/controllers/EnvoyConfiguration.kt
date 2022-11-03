@@ -11,6 +11,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
+import java.io.File
 import kotlin.random.*
 
 class EnvoyConfigurationService(
@@ -19,6 +20,7 @@ class EnvoyConfigurationService(
     private val useUCloudUsernameHeader: Boolean,
     private val logDirectory: String,
     private val providerId: String? = null,
+    private val downstreamTls: Boolean
 ) {
     constructor(config: VerifiedConfig) : this(
         config.server.envoy.executable,
@@ -26,30 +28,49 @@ class EnvoyConfigurationService(
         config.core.launchRealUserInstances,
         config.core.logs.directory,
         config.core.providerId,
+        config.server.envoy.downstreamTls,
     )
 
     private sealed class ConfigurationMessage {
-        data class NewCluster(
-            val route: EnvoyRoute,
-            val cluster: EnvoyCluster?
-        ) : ConfigurationMessage() {
-            init {
-                require(cluster == null || route.cluster == cluster.name)
-            }
-        }
+        data class ClusterUp(
+            val cluster: EnvoyCluster
+        ) : ConfigurationMessage()
+
+        data class ClusterDown(
+            val cluster: EnvoyCluster
+        ) : ConfigurationMessage()
+
+        data class RouteUp(
+            val route: EnvoyRoute
+        ) : ConfigurationMessage()
+
+        data class RouteDown(
+            val route: EnvoyRoute
+        ) : ConfigurationMessage()
     }
 
     private val channel = Channel<ConfigurationMessage>(Channel.BUFFERED)
 
     init {
-        if (!fileExists("$configDir/$rdsFile") || !fileExists("$configDir/$clustersFile")) {
-            NativeFile.open("$configDir/$rdsFile", readOnly = false).writeText("{}")
-            NativeFile.open("$configDir/$clustersFile", readOnly = false).writeText("{}")
+        val cfg = File(configDir)
+        val rds = File(cfg, rdsFile)
+        val clusters = File(cfg, clustersFile)
+
+        if (!cfg.exists()) cfg.mkdirs()
+        if (!rds.exists() || !clusters.exists()) {
+            rds.writeText("{}")
+            clusters.writeText("{}")
             configure(emptyList(), emptyList())
         }
     }
 
-    fun start(port: Int?) {
+    fun start(
+        port: Int?,
+        initClusters: Collection<EnvoyCluster>? = null,
+        initRoutes: Collection<EnvoyRoute>? = null,
+    ) {
+        require((initClusters == null && initRoutes == null) || (initClusters != null && initRoutes != null))
+
         writeConfigurationFile(port ?: 8889)
 
         val logFile = "/${logDirectory}/envoy.log"
@@ -69,50 +90,43 @@ class EnvoyConfigurationService(
             attachStdin = false,
         )
 
+        val routes = hashSetOf<EnvoyRoute>()
+        val clusters = hashMapOf<String, EnvoyCluster>()
+
         val job = ProcessingScope.launch {
-            val entries = hashMapOf<String, Pair<EnvoyRoute, EnvoyCluster?>>()
-            val wsRoutes = ArrayList<EnvoyRoute.ShellSession>()
-
-            run {
-                entries[IM_SERVER_CLUSTER] = Pair(
-                    EnvoyRoute.Standard(null, IM_SERVER_CLUSTER),
-                    EnvoyCluster.create(IM_SERVER_CLUSTER, "127.0.0.1", UCLOUD_IM_PORT)
-                )
-
-                if (providerId != null) {
-                    entries["_AUTHORIZE"] = Pair(
-                        EnvoyRoute.WebAuthorizeSession(
-                            providerId,
-                            IM_SERVER_CLUSTER
-                        ),
-                        null
-                    )
-                }
-
-                val routes = entries.values.map { it.first }
-                val clusters = entries.values.mapNotNull { it.second }
-                configure(routes, clusters)
+            if (initClusters != null && initRoutes != null) {
+                routes.addAll(initRoutes)
+                for (cluster in initClusters) clusters[cluster.name] = cluster
+            } else {
+                routes.add(EnvoyRoute.Standard(null, IM_SERVER_CLUSTER))
+                clusters[IM_SERVER_CLUSTER] = EnvoyCluster.create(IM_SERVER_CLUSTER, "127.0.0.1", UCLOUD_IM_PORT)
+                if (providerId != null) routes.add(EnvoyRoute.WebAuthorizeSession(providerId, IM_SERVER_CLUSTER))
             }
+
+            configure(routes, clusters.values)
 
             while (isActive) {
                 val nextMessage = channel.receiveCatching().getOrNull() ?: break
                 when (nextMessage) {
-                    is ConfigurationMessage.NewCluster -> {
-                        val keySuffix = nextMessage.route::class.simpleName
-                        entries[nextMessage.route.cluster + keySuffix] = Pair(nextMessage.route, nextMessage.cluster)
+                    is ConfigurationMessage.ClusterDown -> {
+                        clusters.remove(nextMessage.cluster.name)
+                        routes.removeIf { it.cluster == nextMessage.cluster.name }
+                    }
+
+                    is ConfigurationMessage.ClusterUp -> {
+                        clusters[nextMessage.cluster.name] = nextMessage.cluster
+                    }
+
+                    is ConfigurationMessage.RouteDown -> {
+                        routes.remove(nextMessage.route)
+                    }
+
+                    is ConfigurationMessage.RouteUp -> {
+                        routes.add(nextMessage.route)
                     }
                 }
 
-                val routes = entries.values.map { it.first }
-                val clusters = entries.values.mapNotNull { it.second }
-
-                // TODO(Roman): refactor later, also handle wsRoutes lifecycle
-                wsRoutes.addAll(routes.filterIsInstance<EnvoyRoute.ShellSession>())
-                val allRoutes: MutableList<EnvoyRoute> = mutableListOf()
-                allRoutes.addAll(routes)
-                allRoutes.addAll(wsRoutes)
-
-                configure(allRoutes, clusters)
+                configure(routes, clusters.values)
             }
         }
 
@@ -121,12 +135,116 @@ class EnvoyConfigurationService(
             log.warn("You might be able to read additional information from: $logFile")
             log.warn("We will attempt to restart Envoy now!")
             job.cancel()
-            start(port)
+            while (job.isActive) delay(50)
+            start(port, clusters.values, routes)
         }
     }
 
+    suspend fun requestConfiguration(route: EnvoyRoute, cluster: EnvoyCluster? = null) {
+        channel.send(ConfigurationMessage.RouteUp(route))
+        if (cluster != null) channel.send(ConfigurationMessage.ClusterUp(cluster))
+    }
+
+    suspend fun requestClusterUp(cluster: EnvoyCluster) {
+        channel.send(ConfigurationMessage.ClusterUp(cluster))
+    }
+
+    suspend fun requestClusterDown(cluster: EnvoyCluster) {
+        channel.send(ConfigurationMessage.ClusterDown(cluster))
+    }
+
+    suspend fun requestRouteUp(route: EnvoyRoute) {
+        channel.send(ConfigurationMessage.RouteUp(route))
+    }
+
+    suspend fun requestRouteDown(route: EnvoyRoute) {
+        channel.send(ConfigurationMessage.RouteDown(route))
+    }
+
+    private fun configure(routes: Collection<EnvoyRoute>, clusters: Collection<EnvoyCluster>) {
+        val tempRouteFile = "$configDir/$tempPrefix$rdsFile"
+        NativeFile.open(tempRouteFile, readOnly = false).writeText(
+            defaultMapper.encodeToString(
+                EnvoyResources.serializer(EnvoyRouteConfiguration.serializer()),
+                EnvoyResources(listOf(EnvoyRouteConfiguration.create(routes, useUCloudUsernameHeader)))
+            )
+        )
+
+        val tempClusterFile = "$configDir/$tempPrefix$clustersFile"
+        NativeFile.open(tempClusterFile, readOnly = false).writeText(
+            defaultMapper.encodeToString(
+                EnvoyResources.serializer(EnvoyCluster.serializer()),
+                EnvoyResources(clusters)
+            )
+        )
+
+        renameFile(tempRouteFile, "$configDir/$rdsFile")
+        renameFile(tempClusterFile, "$configDir/$clustersFile")
+    }
+
     private fun writeConfigurationFile(port: Int) {
-        NativeFile.open("$configDir/$configFile", readOnly = false).writeText(
+        val tlsDefaultDownstream = if (!downstreamTls) "" else """
+          transport_socket:
+            name: envoy.transport_sockets.tls
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+              common_tls_context:
+                tls_params:
+                  tls_minimum_protocol_version: "TLSv1_2"
+                  tls_maximum_protocol_version: "TLSv1_3"
+                  cipher_suites: "ECDHE-ECDSA-AES256-GCM-SHA384"
+                  # curve X25519 available in openssl builds
+                  ecdh_curves: "P-256"
+                tls_certificates:
+                - certificate_chain:
+                    filename: $configDir/certs/public.crt
+                  private_key:
+                    filename: $configDir/certs/private.key
+
+"""
+
+        if (downstreamTls) {
+            File(configDir, "certs").mkdir()
+
+            // NOTE(Roman): Generate private key and generate X509 cert
+            startProcess(
+                args = listOf(
+                    "/bin/openssl",
+                    "ecparam",
+                    "-name",
+                    "prime256v1",
+                    "-genkey",
+                    "-noout",
+                    "-out",
+                    "$configDir/certs/private.key"
+                ),
+                attachStdout = false,
+                attachStderr = false,
+                attachStdin = false,
+            )
+
+            startProcess(
+                args = listOf(
+                    "/bin/openssl",
+                    "req",
+                    "-new",
+                    "-x509",
+                    "-key",
+                    "$configDir/certs/private.key",
+                    "-out",
+                    "$configDir/certs/public.crt",
+                    "-days",
+                    "360",
+                    "-subj",
+                    "/CN=integration-module/O=integration-module"
+                ),
+                attachStdout = false,
+                attachStderr = false,
+                attachStdin = false,
+            )
+        }
+
+        NativeFile.open("$configDir/$configFile", readOnly = false, truncateIfNeeded = true).writeText(
             //language=YAML
             """
 dynamic_resources:
@@ -193,6 +311,10 @@ static_resources:
                   route_config_name: local_route
                   config_source:
                     path: $configDir/$rdsFile
+
+$tlsDefaultDownstream
+
+
   clusters:
   - name: ext-authz
     connect_timeout: 0.25s
@@ -213,33 +335,6 @@ static_resources:
         )
     }
 
-    fun requestConfiguration(route: EnvoyRoute, cluster: EnvoyCluster? = null) {
-        runBlocking {
-            channel.send(ConfigurationMessage.NewCluster(route, cluster))
-        }
-    }
-
-    private fun configure(routes: List<EnvoyRoute>, clusters: List<EnvoyCluster>) {
-        val tempRouteFile = "$configDir/$tempPrefix$rdsFile"
-        NativeFile.open(tempRouteFile, readOnly = false).writeText(
-            defaultMapper.encodeToString(
-                EnvoyResources.serializer(EnvoyRouteConfiguration.serializer()),
-                EnvoyResources(listOf(EnvoyRouteConfiguration.create(routes, useUCloudUsernameHeader)))
-            )
-        )
-
-        val tempClusterFile = "$configDir/$tempPrefix$clustersFile"
-        NativeFile.open(tempClusterFile, readOnly = false).writeText(
-            defaultMapper.encodeToString(
-                EnvoyResources.serializer(EnvoyCluster.serializer()),
-                EnvoyResources(clusters)
-            )
-        )
-
-        renameFile(tempRouteFile, "$configDir/$rdsFile")
-        renameFile(tempClusterFile, "$configDir/$clustersFile")
-    }
-
     companion object : Loggable {
         override val log = logger()
         private const val tempPrefix = "temp-"
@@ -253,7 +348,7 @@ static_resources:
 
 @Serializable
 data class EnvoyResources<T>(
-    val resources: List<T>,
+    val resources: Collection<T>,
 
     @SerialName("version_info")
     val version: String = buildString {
@@ -269,24 +364,6 @@ sealed class EnvoyRoute {
 
     data class Standard(
         val ucloudIdentity: String?,
-        override val cluster: String
-    ) : EnvoyRoute()
-
-    data class ShellSession(
-        val identifier: String,
-        val providerId: String,
-        override val cluster: String
-    ) : EnvoyRoute()
-
-    data class DownloadSession(
-        val identifier: String,
-        val providerId: String,
-        override val cluster: String
-    ) : EnvoyRoute()
-
-    data class UploadSession(
-        val identifier: String,
-        val providerId: String,
         override val cluster: String
     ) : EnvoyRoute()
 
@@ -321,20 +398,20 @@ class EnvoyRouteConfiguration(
     val virtualHosts: List<JsonObject>,
 ) {
     companion object {
-        fun create(routes: List<EnvoyRoute>, useUCloudUsernameHeader: Boolean): EnvoyRouteConfiguration {
+        fun create(routes: Collection<EnvoyRoute>, useUCloudUsernameHeader: Boolean): EnvoyRouteConfiguration {
             val sortedRoutes = routes.sortedBy {
                 // NOTE(Dan): We must ensure that the sessions are routed with a higher priority, otherwise the
                 // traffic will always go to the wrong route.
                 when (it) {
-                    is EnvoyRoute.DownloadSession -> 5
-                    is EnvoyRoute.ShellSession -> 5
-                    is EnvoyRoute.UploadSession -> 5
                     is EnvoyRoute.VncSession -> 5
 
                     is EnvoyRoute.WebAuthorizeSession -> 5
                     is EnvoyRoute.WebIngressSession -> 6
 
-                    is EnvoyRoute.Standard -> 10
+                    is EnvoyRoute.Standard -> {
+                        if (it.ucloudIdentity == null) 11
+                        else 10
+                    }
                 }
             }
 
@@ -353,7 +430,7 @@ class EnvoyRouteConfiguration(
                         "name" to JsonPrimitive("local_route"),
                         "domains" to JsonArray(JsonPrimitive("*")),
                         "routes" to JsonArray(
-                            sortedRoutes.map { route ->
+                            sortedRoutes.flatMap { route ->
                                 val standardRouteConfig = JsonObject(
                                     "cluster" to JsonPrimitive(route.cluster),
                                     "timeout" to JsonObject(
@@ -370,140 +447,138 @@ class EnvoyRouteConfiguration(
                                 when (route) {
                                     is EnvoyRoute.Standard -> {
                                         val ucloudIdentity = route.ucloudIdentity
-                                        JsonObject(
-                                            "match" to JsonObject(
-                                                buildMap {
-                                                    put("prefix", JsonPrimitive("/"))
-                                                    if (useUCloudUsernameHeader) {
-                                                        put("headers", JsonArray(
-                                                            JsonObject(
-                                                                buildMap {
-                                                                    put("name", JsonPrimitive("UCloud-Username"))
-                                                                    if (ucloudIdentity == null) {
-                                                                        put("invert_match", JsonPrimitive(true))
-                                                                        put("present_match", JsonPrimitive(true))
-                                                                    } else {
-                                                                        put(
-                                                                            "exact_match", JsonPrimitive(
-                                                                                base64Encode(ucloudIdentity.encodeToByteArray())
+                                        buildList {
+                                            add(
+                                                JsonObject(
+                                                    "match" to JsonObject(
+                                                        buildMap {
+                                                            put("prefix", JsonPrimitive("/"))
+                                                            if (useUCloudUsernameHeader) {
+                                                                put("headers", JsonArray(
+                                                                    JsonObject(
+                                                                        buildMap {
+                                                                            put(
+                                                                                "name",
+                                                                                JsonPrimitive("UCloud-Username")
+                                                                            )
+                                                                            if (ucloudIdentity == null) {
+                                                                                put(
+                                                                                    "invert_match",
+                                                                                    JsonPrimitive(true)
+                                                                                )
+                                                                                put(
+                                                                                    "present_match",
+                                                                                    JsonPrimitive(true)
+                                                                                )
+                                                                            } else {
+                                                                                put(
+                                                                                    "exact_match", JsonPrimitive(
+                                                                                        base64Encode(ucloudIdentity.encodeToByteArray())
+                                                                                    )
+                                                                                )
+                                                                            }
+                                                                        }
+                                                                    )
+                                                                ))
+                                                            }
+                                                        }
+                                                    ),
+                                                    "route" to standardRouteConfig,
+                                                    disableAppAuthorization
+                                                )
+                                            )
+
+                                            if (useUCloudUsernameHeader && ucloudIdentity != null) {
+                                                add(
+                                                    JsonObject(
+                                                        "match" to JsonObject(
+                                                            buildMap {
+                                                                put("prefix", JsonPrimitive("/"))
+                                                                put(
+                                                                    "query_parameters", JsonArray(
+                                                                        JsonObject(
+                                                                            mapOf(
+                                                                                "name" to JsonPrimitive("usernameHint"),
+                                                                                "string_match" to JsonObject(
+                                                                                    mapOf(
+                                                                                        "exact" to JsonPrimitive(
+                                                                                            base64Encode(ucloudIdentity.encodeToByteArray())
+                                                                                        )
+                                                                                    )
+                                                                                )
                                                                             )
                                                                         )
-                                                                    }
-                                                                }
-                                                            )
-                                                        ))
-                                                    }
-                                                }
-                                            ),
-                                            "route" to standardRouteConfig,
-                                            disableAppAuthorization
-                                        )
-                                    }
-
-                                    is EnvoyRoute.ShellSession -> {
-                                        JsonObject(
-                                            "match" to JsonObject(
-                                                "path" to JsonPrimitive("/ucloud/${route.providerId}/websocket"),
-                                                "query_parameters" to JsonArray(
-                                                    JsonObject(
-                                                        "name" to JsonPrimitive("session"),
-                                                        "string_match" to JsonObject(
-                                                            "exact" to JsonPrimitive(route.identifier)
-                                                        )
+                                                                    )
+                                                                )
+                                                            }
+                                                        ),
+                                                        "route" to standardRouteConfig,
+                                                        disableAppAuthorization
                                                     )
                                                 )
-                                            ),
-                                            "route" to standardRouteConfig,
-                                            disableAppAuthorization
-                                        )
+                                            }
+                                        }
                                     }
 
                                     is EnvoyRoute.VncSession -> {
-                                        JsonObject(
-                                            "match" to JsonObject(
-                                                "path" to JsonPrimitive("/ucloud/${route.providerId}/vnc"),
-                                                "query_parameters" to JsonArray(
-                                                    JsonObject(
-                                                        "name" to JsonPrimitive("token"),
-                                                        "string_match" to JsonObject(
-                                                            "exact" to JsonPrimitive(route.identifier)
+                                        listOf(
+                                            JsonObject(
+                                                "match" to JsonObject(
+                                                    "path" to JsonPrimitive("/ucloud/${route.providerId}/vnc"),
+                                                    "query_parameters" to JsonArray(
+                                                        JsonObject(
+                                                            "name" to JsonPrimitive("token"),
+                                                            "string_match" to JsonObject(
+                                                                "exact" to JsonPrimitive(route.identifier)
+                                                            )
                                                         )
                                                     )
-                                                )
-                                            ),
-                                            "route" to standardRouteConfig,
-                                            disableAppAuthorization
+                                                ),
+                                                "route" to standardRouteConfig,
+                                                disableAppAuthorization
+                                            )
                                         )
                                     }
 
                                     is EnvoyRoute.WebAuthorizeSession -> {
-                                        JsonObject(
-                                            "match" to JsonObject(
-                                                "prefix" to JsonPrimitive("/ucloud/${route.providerId}/authorize-app"),
-                                            ),
-                                            "route" to standardRouteConfig,
-                                            disableAppAuthorization
+                                        listOf(
+                                            JsonObject(
+                                                "match" to JsonObject(
+                                                    "prefix" to JsonPrimitive("/ucloud/${route.providerId}/authorize-app"),
+                                                ),
+                                                "route" to standardRouteConfig,
+                                                disableAppAuthorization
+                                            )
                                         )
                                     }
 
                                     is EnvoyRoute.WebIngressSession -> {
-                                        JsonObject(
-                                            buildMap {
-                                                put(
-                                                    "match", JsonObject(
-                                                        "prefix" to JsonPrimitive("/"),
-                                                        "headers" to JsonArray(
-                                                            JsonObject(
-                                                                "name" to JsonPrimitive(":authority"),
-                                                                "exact_match" to JsonPrimitive(route.domain)
+                                        listOf(
+                                            JsonObject(
+                                                buildMap {
+                                                    put(
+                                                        "match", JsonObject(
+                                                            "prefix" to JsonPrimitive("/"),
+                                                            "headers" to JsonArray(
+                                                                JsonObject(
+                                                                    "name" to JsonPrimitive(":authority"),
+                                                                    "exact_match" to JsonPrimitive(route.domain)
+                                                                )
                                                             )
                                                         )
                                                     )
-                                                )
-                                                put("route", standardRouteConfig)
+                                                    put("route", standardRouteConfig)
 
-                                                if (!route.isAuthorizationEnabled) {
-                                                    put(disableAppAuthorization.first, disableAppAuthorization.second)
-                                                } else {
-                                                    // app authorization enabled by not disabling it
+                                                    if (!route.isAuthorizationEnabled) {
+                                                        put(
+                                                            disableAppAuthorization.first,
+                                                            disableAppAuthorization.second
+                                                        )
+                                                    } else {
+                                                        // app authorization enabled by not disabling it
+                                                    }
                                                 }
-                                            }
-                                        )
-                                    }
-
-                                    is EnvoyRoute.DownloadSession -> {
-                                        JsonObject(
-                                            "match" to JsonObject(
-                                                "path" to JsonPrimitive(FileController.downloadPath(route.providerId)),
-                                                "query_parameters" to JsonArray(
-                                                    JsonObject(
-                                                        "name" to JsonPrimitive("token"),
-                                                        "string_match" to JsonObject(
-                                                            "exact" to JsonPrimitive(route.identifier)
-                                                        )
-                                                    )
-                                                )
-                                            ),
-                                            "route" to standardRouteConfig,
-                                            disableAppAuthorization
-                                        )
-                                    }
-
-                                    is EnvoyRoute.UploadSession -> {
-                                        JsonObject(
-                                            "match" to JsonObject(
-                                                "path" to JsonPrimitive(FileController.uploadPath(route.providerId)),
-                                                "headers" to JsonArray(
-                                                    JsonObject(
-                                                        "name" to JsonPrimitive("Chunked-Upload-Token"),
-                                                        "string_match" to JsonObject(
-                                                            "exact" to JsonPrimitive(route.identifier)
-                                                        )
-                                                    )
-                                                )
-                                            ),
-                                            "route" to standardRouteConfig,
-                                            disableAppAuthorization
+                                            )
                                         )
                                     }
                                 }
@@ -555,9 +630,11 @@ data class EnvoyCluster(
             name: String,
             address: String,
             port: Int,
+            useDns: Boolean = false,
         ): EnvoyCluster {
             return EnvoyCluster(
                 name,
+                type = if (useDns) "LOGICAL_DNS" else "STATIC",
                 loadAssignment = JsonObject(
                     "cluster_name" to JsonPrimitive(name),
                     "endpoints" to JsonArray(

@@ -1,9 +1,6 @@
 package dk.sdu.cloud.app.orchestrator
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.util.ProjectCache
 import dk.sdu.cloud.accounting.util.ProviderSupport
 import dk.sdu.cloud.accounting.util.asController
@@ -14,7 +11,6 @@ import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
-import dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateSupport
 import dk.sdu.cloud.file.orchestrator.api.FilesProvider
 import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
 import dk.sdu.cloud.file.orchestrator.service.StorageCommunication
@@ -23,8 +19,6 @@ import dk.sdu.cloud.file.orchestrator.service.StorageProviders
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.runBlocking
 
 class Server(override val micro: Micro) : CommonServer {
@@ -33,7 +27,7 @@ class Server(override val micro: Micro) : CommonServer {
     override fun start() {
         val db = AsyncDBSessionFactory(micro)
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val streams = micro.eventStreamService
+        val streams = micro.eventStreamServiceOrNull
         val distributedLocks = DistributedLockFactory(micro)
         val appStoreCache = AppStoreCache(serviceClient)
 
@@ -86,7 +80,8 @@ class Server(override val micro: Micro) : CommonServer {
             }
         )
 
-        val ingressService = IngressService(projectCache, db, altProviders, ingressSupport, serviceClient, jobOrchestrator)
+        val ingressService =
+            IngressService(projectCache, db, altProviders, ingressSupport, serviceClient, jobOrchestrator)
 
         val exporter = ParameterExportService(db, ingressService)
         jobOrchestrator.exporter = exporter // TODO(Dan): Cyclic-dependency hack
@@ -99,7 +94,8 @@ class Server(override val micro: Micro) : CommonServer {
             }
         )
 
-        val licenseService = LicenseService(projectCache, db, altProviders, licenseSupport, serviceClient, jobOrchestrator)
+        val licenseService =
+            LicenseService(projectCache, db, altProviders, licenseSupport, serviceClient, jobOrchestrator)
 
         val networkIpSupport = ProviderSupport<ComputeCommunication, Product.NetworkIP, NetworkIPSupport>(
             altProviders,
@@ -108,7 +104,8 @@ class Server(override val micro: Micro) : CommonServer {
                 comms.networkApi.retrieveProducts.call(Unit, comms.client).orThrow().responses.map { it }
             }
         )
-        val networkService = NetworkIPService(projectCache, db, altProviders, networkIpSupport, serviceClient, jobOrchestrator)
+        val networkService =
+            NetworkIPService(projectCache, db, altProviders, networkIpSupport, serviceClient, jobOrchestrator)
 
         val providerSupport = StorageProviderSupport(storageProviders, serviceClient) { comms ->
             comms.fileCollectionsApi.retrieveProducts.call(Unit, comms.client).orThrow().responses
@@ -118,6 +115,7 @@ class Server(override val micro: Micro) : CommonServer {
 
         val syncthingService = SyncthingService(storageProviders, serviceClient, fileCollections)
 
+        val sshService = SshKeyService(db, jobOrchestrator, altProviders)
 
         val jobMonitoring = JobMonitoringService(
             micro.backgroundScope,
@@ -133,25 +131,16 @@ class Server(override val micro: Micro) : CommonServer {
 
         runBlocking { jobMonitoring.initialize(!micro.developmentModeEnabled) }
 
-        AppProcessor(
-            streams,
-            jobOrchestrator,
-            appStoreCache
-        ).init()
+        if (streams != null) AppProcessor(streams, jobOrchestrator, appStoreCache).init()
 
-        with(micro.server) {
-            configureControllers(
-                JobController(jobOrchestrator),
-
-                ingressService.asController(),
-
-                licenseService.asController(),
-
-                NetworkIPController(networkService),
-
-                SyncthingController(syncthingService)
-            )
-        }
+        configureControllers(
+            JobController(jobOrchestrator),
+            ingressService.asController(),
+            licenseService.asController(),
+            NetworkIPController(networkService),
+            SyncthingController(syncthingService),
+            SshKeyController(sshService),
+        )
 
         startServices()
     }

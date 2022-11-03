@@ -25,6 +25,7 @@ interface PreparedStatement {
     suspend fun bindString(param: String, value: String)
     suspend fun bindBoolean(param: String, value: Boolean)
     suspend fun bindDouble(param: String, value: Double)
+    suspend fun bindList(param: String, value: List<Any?>)
     suspend fun execute(isUpdateHint: Boolean? = null): ResultCursor
     suspend fun reset()
     suspend fun close()

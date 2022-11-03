@@ -68,7 +68,7 @@ function resolveNotification(event: Notification): {
     }
 }
 
-function onNotificationAction(notification: Notification, history: H.History, dispatch: Dispatch) {
+function onNotificationAction(notification: Notification, history: ReturnType<typeof useHistory>, dispatch: Dispatch) {
     const currentProject = getStoredProject();
     switch (notification.type) {
         case "APP_COMPLETE":
@@ -157,7 +157,7 @@ function renderNotifications() {
     }
 }
 
-// NOTE(Dan): The frontend can generate its own notification thorugh `sendNotification()`. This is generally prefered
+// NOTE(Dan): The frontend can generate its own notification through `sendNotification()`. This is generally preferred
 // over using the `snackbar` functions, as these allow for greater flexibility.
 export function sendNotification(notification: NormalizedNotification) {
     const normalized = normalizeNotification(notification);
@@ -277,7 +277,7 @@ export function markAsRead(notifications: NormalizedNotification[]) {
 
 // HACK(Dan): I would agree this isn't great.
 let normalizationDependencies: {
-    history: H.History;
+    history: ReturnType<typeof useHistory>;
     dispatch: Dispatch;
     refresh: { current?: () => void }
 } | null = null;

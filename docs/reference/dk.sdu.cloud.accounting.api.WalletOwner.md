@@ -9,8 +9,8 @@
 
 ```kotlin
 sealed class WalletOwner {
-    class User : WalletOwner()
     class Project : WalletOwner()
+    class User : WalletOwner()
 }
 ```
 

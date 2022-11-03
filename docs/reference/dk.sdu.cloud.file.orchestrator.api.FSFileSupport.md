@@ -13,6 +13,8 @@ data class FSFileSupport(
     val aclModifiable: Boolean?,
     val trashSupported: Boolean?,
     val isReadOnly: Boolean?,
+    val searchSupported: Boolean?,
+    val streamingSearchSupported: Boolean?,
 )
 ```
 
@@ -46,6 +48,30 @@ data class FSFileSupport(
 <details>
 <summary>
 <code>isReadOnly</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>searchSupported</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Declares support for the normal search endpoint
+</summary>
+
+
+
+NOTE(Dan, 01/09/2022): For backwards compatibility, this is true by default, however, this will likely change 
+to false in a later release. Providers should explicltly declare support for this endpoint for the time being.
+
+
+</details>
+
+<details>
+<summary>
+<code>streamingSearchSupported</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Declares support for the streamingSearch endpoint
 </summary>
 
 

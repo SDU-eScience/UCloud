@@ -91,6 +91,7 @@ ApplicationWithFavoriteAndTags(
         )), 
         shouldAllowAdditionalMounts = false, 
         shouldAllowAdditionalPeers = true, 
+        ssh = null, 
         tool = ToolReference(
             name = "acme-batch", 
             tool = Tool(
@@ -274,6 +275,7 @@ await callAPI(HpcAppsApi.findByNameAndVersion(
         "applicationType": "BATCH",
         "vnc": null,
         "web": null,
+        "ssh": null,
         "container": null,
         "environment": null,
         "allowAdditionalMounts": null,
@@ -426,6 +428,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "applicationType": "BATCH",
 #         "vnc": null,
 #         "web": null,
+#         "ssh": null,
 #         "container": null,
 #         "environment": null,
 #         "allowAdditionalMounts": null,

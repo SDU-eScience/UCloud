@@ -11,6 +11,7 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.service.toTimestamp
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -1200,22 +1201,6 @@ class ProjectQueryService(
                     ).dropLast(1).joinToString("/") { it.title }
                 )
             }
-        }
-    }
-
-    suspend fun listAllGroupIdsAndTitles(ctx: DBContext, user: SecurityPrincipal): Map<String, String> {
-        return ctx.withSession { session ->
-            val map = mutableMapOf<String, String>()
-            session.sendPreparedStatement(
-                { setParameter("username", user.username) },
-                """
-                    SELECT g.id, g.title
-                    FROM project.groups g
-                    INNER JOIN group_members gm on g.id = gm.group_id
-                    WHERE gm.username = :username
-                """
-            ).rows.forEach { row -> map[row.getField(GroupTable.id)] = row.getField(GroupTable.title) }
-            map
         }
     }
 

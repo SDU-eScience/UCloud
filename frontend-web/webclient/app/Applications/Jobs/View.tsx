@@ -33,6 +33,8 @@ import {FilesBrowse} from "@/Files/Files";
 import {BrowseType} from "@/Resource/BrowseType";
 import {prettyFilePath} from "@/Files/FilePath";
 import IngressApi, {Ingress} from "@/UCloud/IngressApi";
+import {SillyParser} from "@/Utilities/SillyParser";
+import Warning from "@/ui-components/Warning";
 
 const enterAnimation = keyframes`
     from {
@@ -489,11 +491,11 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
         <Heading.h3>
             {job.specification.name ?
                 (<>
-                    Starting <i>{job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}</i>
+                    Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
                     {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
                 </>) :
                 (<>
-                    Starting <i>{job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}</i>
+                    Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
                     {" "}(ID: {shortUUID(job.id)})
                 </>)
             }
@@ -694,10 +696,8 @@ const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
                     {!job.specification.name ? "Your job" : (<><i>{job.specification.name}</i></>)} is now running
                 </Heading.h2>
                 <Heading.h3>
-                    <i>
-                        {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
-                        {" "}{job.specification.application.version}
-                    </i>
+                    {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                    {" "}{job.specification.application.version}
                 </Heading.h3>
             </Box>
             {job.specification.replicas > 1 ? null : (
@@ -774,6 +774,64 @@ function useJobFiles(spec: JobSpecification): string {
     return fileInfo;
 }
 
+interface ParsedSshAccess {
+    success: boolean;
+    command: string | null;
+    message: string | null;
+}
+
+function parseUpdatesForAccess(updates: JobUpdate[]): ParsedSshAccess | null {
+    for (let i = updates.length - 1; i >= 0; i--) {
+        const status = updates[i].status;
+        if (!status) continue;
+
+        // NOTE(Dan): we need to split on the lines to deal with AAU OpenStack provider.
+        const messages = status.split("\n");
+        for (const message of messages) {
+            const aauPrefix = "SSH Access: ";
+            if (message.startsWith(aauPrefix)) {
+                // Legacy SSH access message from AAU OpenStack provider
+                return {
+                    success: true,
+                    command: message.substring(aauPrefix.length),
+                    message: null
+                };
+            } else if (message.startsWith("SSH:")) {
+                // Standardized SSH access update
+                const parser = new SillyParser(message);
+                parser.consumeToken("SSH:");
+
+                let peek: string;
+                let success = false;
+                let command: string | null = null;
+                let sshMessage: string | null = null;
+
+                const status = parser.consumeWord();
+                if (status === "Connected!") {
+                    success = true;
+                } else if (status === "Failure!") {
+                    success = false;
+                } else {
+                    continue;
+                }
+
+                if (success) {
+                    peek = parser.peekWord();
+                    if (peek === "Available") {
+                        parser.consumeToken("Available");
+                        parser.consumeToken("at:");
+                        parser.consumeWhitespace();
+                        command = parser.remaining();
+                    }
+                }
+
+                return {success, command, message: sshMessage};
+            }
+        }
+    }
+    return null;
+}
+
 const RunningContent: React.FunctionComponent<{
     job: Job;
     updateListeners: React.RefObject<JobUpdateListener[]>;
@@ -822,14 +880,21 @@ const RunningContent: React.FunctionComponent<{
 
     const appInvocation = job.status.resolvedApplication!.invocation;
     const backendType = appInvocation.tool.tool!.description.backend;
-    const support = job.status.resolvedSupport ? 
+    const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : null;
     const supportsExtension =
+        (backendType === "NATIVE" && support?.native.timeExtension) ||
         (backendType === "DOCKER" && support?.docker.timeExtension) ||
         (backendType === "VIRTUAL_MACHINE" && support?.virtualMachine.timeExtension);
     const supportsLogs =
+        (backendType === "NATIVE" && support?.native.logs) ||
         (backendType === "DOCKER" && support?.docker.logs) ||
         (backendType === "VIRTUAL_MACHINE" && support?.virtualMachine.logs);
+
+    const sshAccess = useMemo(() => {
+        console.log("Parsing", job.updates);
+        return parseUpdatesForAccess(job.updates);
+    }, [job.updates.length]);
 
     useEffect(() => {
         setTimeout(() => {
@@ -910,11 +975,28 @@ const RunningContent: React.FunctionComponent<{
                 <ProviderUpdates job={job} updateListeners={updateListeners} />
             </HighlightedCard>
 
-            <HighlightedCard color="purple" isLoading={false} title="Public Links" icon="globeEuropeSolid">
-                <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
-                    {ingresses.map(ingress => <IngressEntry id={ingress.id} />)}
-                </Text>
-            </HighlightedCard>
+            {ingresses.length === 0 ? null :
+                <HighlightedCard color="purple" isLoading={false} title="Public links" icon="globeEuropeSolid">
+                    <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
+                        {ingresses.map(ingress => <IngressEntry id={ingress.id}/>)}
+                    </Text>
+                </HighlightedCard>
+            }
+
+            {!sshAccess ? null :
+                <HighlightedCard color="purple" isLoading={false} title="SSH access" icon="key">
+                    <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
+                        {sshAccess.success ? null : <Warning>
+                            SSH was not configured successfully!
+                        </Warning>}
+                        {!sshAccess.command ? null : <>
+                            Access the SSH server associated with this job using:
+                            <pre><code>{sshAccess.command}</code></pre>
+                        </>}
+                        {!sshAccess.message ? null : <>{sshAccess.message}</>}
+                    </Text>
+                </HighlightedCard>
+            }
         </RunningInfoWrapper>
 
         {!supportsLogs ? null :
@@ -1081,6 +1163,8 @@ function jobStateToText(state: JobState) {
             return "failed"
         case "SUCCESS":
             return "completed";
+        case "SUSPENDED":
+            return "been suspended";
         default:
             return "";
     }
@@ -1091,10 +1175,8 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
     return <CompletedTextWrapper>
         <Heading.h2>Your job has {jobStateToText(state)}</Heading.h2>
         <Heading.h3>
-            <i>
-                {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
-                {" "}{job.specification.application.version}
-            </i>
+            {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+            {" "}{job.specification.application.version}{" "}
             {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
@@ -1137,11 +1219,14 @@ const RunningButtonGroup: React.FunctionComponent<{
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : null;
     const supportTerminal =
-        backendType === "VIRTUAL_MACHINE" ? support?.virtualMachine.terminal :
-            backendType === "DOCKER" ? support?.docker.terminal : false;
+        (backendType === "VIRTUAL_MACHINE" && support?.virtualMachine?.terminal) ||
+        (backendType === "DOCKER" && support?.docker?.terminal) ||
+        (backendType === "NATIVE" && support?.native?.terminal);
 
     const appType = appInvocation.applicationType;
     const supportsInterface =
+        (appType === "WEB" && backendType === "NATIVE" && support?.native.web) ||
+        (appType === "VNC" && backendType === "NATIVE" && support?.native.vnc) ||
         (appType === "WEB" && backendType === "DOCKER" && support?.docker.web) ||
         (appType === "VNC" && backendType === "DOCKER" && support?.docker.vnc) ||
         (appType === "VNC" && backendType === "VIRTUAL_MACHINE" && support?.virtualMachine.vnc);
@@ -1214,6 +1299,8 @@ const ProviderUpdates: React.FunctionComponent<{
     const {termRef, terminal} = useXTerm({autofit: true});
 
     const appendUpdate = useCallback((update: JobUpdate) => {
+        if (update.status && update.status.startsWith("SSH:")) return;
+
         if (update.status) {
             appendToXterm(
                 terminal,
@@ -1233,6 +1320,9 @@ const ProviderUpdates: React.FunctionComponent<{
                     break;
                 case "SUCCESS":
                     message = "Your job has been processed successfully";
+                    break;
+                case "SUSPENDED":
+                    message = "Your job has been suspended";
                     break;
                 case "RUNNING":
                     message = "Your job is now running";

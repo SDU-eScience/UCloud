@@ -147,7 +147,7 @@ class TerminalMessageDsl {
 
     fun print() {
         reset() // NOTE(Dan): Make sure we reset back to normal style after printing.
-        println(builder)
+        print(builder)
     }
 }
 

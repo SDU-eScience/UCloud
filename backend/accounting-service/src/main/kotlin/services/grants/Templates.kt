@@ -2,10 +2,12 @@ package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.Configuration
+import dk.sdu.cloud.accounting.api.grants.RetrieveTemplatesResponse
+import dk.sdu.cloud.accounting.api.grants.Templates
+import dk.sdu.cloud.accounting.api.grants.UploadTemplatesRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.grant.api.ReadTemplatesResponse
-import dk.sdu.cloud.grant.api.UploadTemplatesRequest
+import dk.sdu.cloud.grant.api.GrantApplication
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
 
@@ -15,16 +17,29 @@ class GrantTemplateService(
 ) {
     suspend fun uploadTemplates(
         actorAndProject: ActorAndProject,
-        templates: UploadTemplatesRequest
+        template: UploadTemplatesRequest
     ) {
         db.withSession(remapExceptions = true) { session ->
+            println(template)
+            println(actorAndProject.actor.safeUsername())
+            println(actorAndProject.project)
             val success = session.sendPreparedStatement(
                 {
                     setParameter("username", actorAndProject.actor.safeUsername())
                     setParameter("projectId", actorAndProject.project)
-                    setParameter("personalProject", templates.personalProject)
-                    setParameter("existingProject", templates.existingProject)
-                    setParameter("newProject", templates.newProject)
+                    when (template) {
+                        is Templates.PlainText -> {
+                            setParameter("personalProject", template.personalProject)
+                            setParameter("existingProject", template.existingProject)
+                            setParameter("newProject", template.newProject)
+                        }
+                        else -> {
+                            throw RPCException.fromStatusCode(
+                                HttpStatusCode.BadRequest,
+                                "Missing expected form format"
+                            )
+                        }
+                    }
                 },
 
                 """
@@ -43,16 +58,19 @@ class GrantTemplateService(
             ).rowsAffected > 0
 
             if (!success) {
-                throw RPCException("Unable to upload templates. Do you have the correct permissions?",
-                    HttpStatusCode.BadRequest)
+                throw RPCException(
+                    "Unable to upload templates. Do you have the correct permissions?",
+                    HttpStatusCode.BadRequest
+                )
             }
         }
+
     }
 
     suspend fun fetchTemplates(
        actorAndProject: ActorAndProject,
        projectId: String
-    ): ReadTemplatesResponse {
+    ): RetrieveTemplatesResponse {
         return db.withSession(remapExceptions = true) { session ->
             session.sendPreparedStatement(
                 {
@@ -89,8 +107,11 @@ class GrantTemplateService(
                             )
                         )
                 """
-            ).rows.map { ReadTemplatesResponse(it.getString(0)!!, it.getString(1)!!, it.getString(2)!!) }.singleOrNull()
-                ?:  ReadTemplatesResponse(config.defaultTemplate, config.defaultTemplate, config.defaultTemplate)
+            ).rows.map {
+                Templates.PlainText(it.getString(0)!!, it.getString(1)!!, it.getString(2)!!)
+            }.singleOrNull()
+                ?:
+                    Templates.PlainText(config.defaultTemplate, config.defaultTemplate, config.defaultTemplate)
         }
     }
 }

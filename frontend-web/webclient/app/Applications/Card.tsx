@@ -81,7 +81,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
             <Box mr={16}>
                 <AppToolLogo name={metadata.name} type={"APPLICATION"} size={"32px"} />
             </Box>
-            <strong>{metadata.title} v{metadata.version}</strong>
+            <strong>{metadata.title} {metadata.version}</strong>
             <EllipsedText>
                 <Markdown
                     disallowedElements={[
@@ -279,7 +279,7 @@ export function appColor(hash: number): number {
     return (hash >>> 22) % (nColors - 1); // last color not used
 }
 
-const AbsoluteNoPointerEvents = styled(Absolute)`
+export const AbsoluteNoPointerEvents = styled(Absolute)`
     pointer-events: none;
 `;
 
@@ -314,7 +314,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                 <AppToolLogo name={app.metadata.name} type="APPLICATION" size="60px" />
                 <Flex flexDirection="column" ml="10px">
                     <EllipsedText fontSize="20px" maxWidth="220px" data-component={"app-title"}>{metadata.title}</EllipsedText>
-                    <Text data-component={"app-version"}>v{metadata.version}</Text>
+                    <Text data-component={"app-version"}>{metadata.version}</Text>
 
                 </Flex>
             </Flex>

@@ -48,6 +48,26 @@ export const admin = (props: any) => (
     />
   </svg>
 );
+export const anglesDownSolid = (props: any) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 448 512"
+    fill="currentcolor"
+    {...props}
+  >
+    <path d="M246.6 470.6c-12.5 12.5-32.8 12.5-45.3 0l-160-160c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L224 402.7l137.4-137.3c12.5-12.5 32.8-12.5 45.3 0s12.5 32.8 0 45.3l-160 160zm160-352l-160 160c-12.5 12.5-32.8 12.5-45.3 0l-160-160c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L224 210.7 361.4 73.4c12.5-12.5 32.8-12.5 45.3 0s12.5 32.8 0 45.3z" />
+  </svg>
+);
+export const anglesUpSolid = (props: any) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 448 512"
+    fill="currentcolor"
+    {...props}
+  >
+    <path d="M246.6 41.4c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L224 109.3l137.4 137.3c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-160-160zm160 352l-160-160c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L224 301.3l137.4 137.3c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3z" />
+  </svg>
+);
 export const appFav = (props: any) => (
   <svg
     viewBox="0 0 355 709"
@@ -2754,6 +2774,16 @@ export const tags = (props: any) => (
       fill={undefined}
       fillRule="nonzero"
     />
+  </svg>
+);
+export const terminalSolid = (props: any) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 640 512"
+    fill="currentcolor"
+    {...props}
+  >
+    <path d="M41.4 86.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l192 192c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 41.4 86.6zM288 416h288c17.7 0 32 14.3 32 32s-14.3 32-32 32H288c-17.7 0-32-14.3-32-32s14.3-32 32-32z" />
   </svg>
 );
 export const trash = (props: any) => (

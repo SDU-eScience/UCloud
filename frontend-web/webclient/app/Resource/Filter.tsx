@@ -349,7 +349,7 @@ export const DateRangeFilterWidget: React.FunctionComponent<{
             const [start, end] = dates;
             const newCreatedAfter = start.getTime();
             const newCreatedBefore = end?.getTime();
-            const newProps: Record<string, string> = {};
+            const newProps: Record<string, string | undefined> = {};
             newProps[props.afterProperty] = newCreatedAfter.toString();
             newProps[props.beforeProperty] = newCreatedBefore?.toString() ?? undefined;
             props.onPropertiesUpdated(newProps);

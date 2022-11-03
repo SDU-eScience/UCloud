@@ -18,7 +18,7 @@ import {
     setReservation,
     validateReservation
 } from "@/Applications/Jobs/Widgets/Reservation";
-import {displayErrorMessageOrDefault, extractErrorCode} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing, extractErrorCode} from "@/UtilityFunctions";
 import {addStandardDialog, WalletWarning} from "@/UtilityComponents";
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
@@ -32,6 +32,7 @@ import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
 import {Product, usageExplainer} from "@/Accounting";
 import styled from "styled-components";
+import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 
 interface InsufficientFunds {
     why?: string;
@@ -64,6 +65,9 @@ export const Create: React.FunctionComponent = () => {
     });
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [initialSshEnabled, setInitialSshEnabled] = useState<boolean | undefined>(undefined);
+    const [sshEnabled, setSshEnabled] = useState(false);
+    const [sshValid, setSshValid] = useState(true);
 
     const provider = getProviderField();
 
@@ -137,6 +141,12 @@ export const Create: React.FunctionComponent = () => {
             }
         }
 
+        // Load SSH
+        const sshEnabled = importedJob.sshEnabled;
+        if (sshEnabled != undefined) {
+            setInitialSshEnabled(sshEnabled);
+        }
+
         // Load resources
         // Note(Jonas): An older version could have run with one of these resources while a newer might not allow them.
         // Therefore, check to see if allowed!
@@ -187,6 +197,7 @@ export const Create: React.FunctionComponent = () => {
                     .concat(Object.values(peersValidation.values))
                     .concat(Object.values(ingressValidation.values))
                     .concat(Object.values(networkValidation.values)),
+                sshEnabled,
                 allowDuplicateJob
             };
 
@@ -234,7 +245,7 @@ export const Create: React.FunctionComponent = () => {
     if (application == null) {
         return (
             <MainContainer
-                main={<Heading.h3>Unable to find application &apos;{appName} v{appVersion}&apos;</Heading.h3>}
+                main={<Heading.h3>Unable to find application &apos;{appName} {appVersion}&apos;</Heading.h3>}
             />
         );
     }
@@ -266,7 +277,7 @@ export const Create: React.FunctionComponent = () => {
                 <Button
                     type={"button"}
                     color={"blue"}
-                    disabled={isLoading}
+                    disabled={isLoading || !sshValid}
                     onClick={() => submitJob(false)}
                 >
                     Submit
@@ -362,6 +373,10 @@ export const Create: React.FunctionComponent = () => {
                                 )} />
                             </GrayBox>
                         )}
+
+                        {/* SSH */}
+                        <SshWidget application={application} onSshStatusChanged={setSshEnabled}
+                                   onSshKeysValid={setSshValid} initialEnabledStatus={initialSshEnabled} />
 
                         {/* Resources */}
 

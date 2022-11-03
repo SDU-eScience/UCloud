@@ -17,13 +17,13 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.toTimestamp
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
+import java.time.LocalDateTime
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -135,8 +135,7 @@ class TaskSystem(
                                             it.getString("requirements")?.let { defaultMapper.decodeFromString(it) },
                                             it.getString("request")!!.let { defaultMapper.decodeFromString(it) },
                                             it.getString("progress")?.let { defaultMapper.decodeFromString(it) },
-                                            it.getAs<LocalDateTime?>("last_update")
-                                                ?.toDateTime(DateTimeZone.UTC)?.millis ?: 0L,
+                                            it.getAs<LocalDateTime?>("last_update")?.toTimestamp() ?: 0L,
                                         )
                                     )
                                 }

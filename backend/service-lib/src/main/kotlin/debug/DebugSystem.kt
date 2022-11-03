@@ -71,6 +71,7 @@ sealed class DebugMessage {
         override val principal: SecurityPrincipal?,
         override val importance: MessageImportance,
         val call: String?,
+        val payload: JsonElement?,
         val response: JsonElement?,
         val responseCode: Int,
         val responseTime: Long,
@@ -160,6 +161,8 @@ sealed class DebugMessage {
     data class DatabaseResponse(
         override val context: DebugContext,
         val responseTime: Long,
+        val query: String,
+        val parameters: JsonObject,
         override val importance: MessageImportance = MessageImportance.IMPLEMENTATION_DETAIL,
         override val timestamp: Long = Time.now(),
         override val principal: SecurityPrincipal? = null,
@@ -284,7 +287,7 @@ suspend fun DebugSystem.dangerous(message: String, structured: JsonObject? = nul
     log(message, structured, MessageImportance.THIS_IS_DANGEROUS)
 }
 
-suspend inline fun <reified R> DebugSystem?.logD(
+suspend fun <R> DebugSystem?.logD(
     message: String,
     serializer: KSerializer<R>,
     structured: R,
@@ -292,56 +295,45 @@ suspend inline fun <reified R> DebugSystem?.logD(
     context: DebugContext? = null
 ) {
     if (this == null) return
-    val encoded = when (R::class) {
-        kotlin.Array::class,
-        kotlin.collections.List::class,
-        kotlin.collections.Set::class,
-        kotlin.collections.Collection::class -> {
-            defaultMapper.encodeToJsonElement(
-                MapSerializer(String.serializer(), serializer),
-                mapOf("wrapper" to structured)
-            ) as JsonObject
-        }
 
-        else -> {
-            defaultMapper.encodeToJsonElement(
-                serializer,
-                structured
-            ) as JsonObject
-        }
+    val encoded = defaultMapper.encodeToJsonElement(serializer, structured)
+    val wrapped = if (encoded !is JsonObject) {
+        JsonObject(mapOf("wrapper" to encoded))
+    } else {
+        encoded
     }
 
     sendMessage(
         DebugMessage.Log(
             context ?: DebugContext.create(),
             message,
-            encoded,
+            wrapped,
             level
         )
     )
 }
 
-suspend inline fun <reified R> DebugSystem?.everythingD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+suspend fun <R> DebugSystem?.everythingD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
     logD(message, serializer, structured, MessageImportance.TELL_ME_EVERYTHING, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.detailD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+suspend fun <R> DebugSystem?.detailD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
     logD(message, serializer, structured, MessageImportance.IMPLEMENTATION_DETAIL, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.normalD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+suspend fun <R> DebugSystem?.normalD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
     logD(message, serializer, structured, MessageImportance.THIS_IS_NORMAL, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.oddD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+suspend fun <R> DebugSystem?.oddD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
     logD(message, serializer, structured, MessageImportance.THIS_IS_ODD, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.dangerousD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+suspend fun <R> DebugSystem?.dangerousD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
     logD(message, serializer, structured, MessageImportance.THIS_IS_DANGEROUS, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.wrongD(message: String, serializer: KSerializer<R>, structured: R) {
+suspend fun <R> DebugSystem?.wrongD(message: String, serializer: KSerializer<R>, structured: R) {
     logD(message, serializer, structured, MessageImportance.THIS_IS_WRONG)
 }
 
@@ -367,9 +359,9 @@ class DebugSystemLogContext(
     }
 }
 
-suspend inline fun <R> DebugSystem?.enterContext(
+suspend fun <R> DebugSystem?.enterContext(
     name: String,
-    crossinline block: suspend DebugSystemLogContext.() -> R
+    block: suspend DebugSystemLogContext.() -> R
 ): R {
     val debug = this
 
@@ -390,12 +382,20 @@ suspend inline fun <R> DebugSystem?.enterContext(
     }
 }
 
+// TODO(Dan): Remove the indirection, there is no need for this to be an interface. CommonDebugSystem is going to be
+//  the only implementation we have.
 interface DebugSystem {
+    suspend fun <T> transformPayload(serializer: KSerializer<T>, payload: T?): JsonElement {
+        return if (payload == null) JsonNull
+        else defaultMapper.encodeToJsonElement(serializer, payload)
+    }
+
     suspend fun sendMessage(message: DebugMessage)
 }
 
 fun DebugSystem.installCommon(client: RpcClient) {
     val key = AttributeKey<String>("debug-id")
+    val payloadKey = AttributeKey<JsonElement>("debug-payload")
     client.attachFilter(object : OutgoingCallFilter.BeforeCall() {
         override fun canUseContext(ctx: OutgoingCall): Boolean = true
 
@@ -403,7 +403,11 @@ fun DebugSystem.installCommon(client: RpcClient) {
             @Suppress("UNCHECKED_CAST") val call = callDescription as CallDescription<Any, Any, Any>
             val debugContext = DebugContext.create()
             val id = debugContext.id
+            val debugPayload = transformPayload(call.requestType, request)
+
             context.attributes[key] = id
+            context.attributes[payloadKey] = debugPayload
+
             sendMessage(
                 DebugMessage.ClientRequest(
                     debugContext,
@@ -411,8 +415,7 @@ fun DebugSystem.installCommon(client: RpcClient) {
                     null,
                     MessageImportance.IMPLEMENTATION_DETAIL,
                     callDescription.fullName,
-                    if (request == null) JsonNull
-                    else defaultMapper.encodeToJsonElement(call.requestType, request),
+                    debugPayload,
                     context.attributes.outgoingTargetHostOrNull.toString(),
                 )
             )
@@ -458,6 +461,7 @@ fun DebugSystem.installCommon(client: RpcClient) {
                             defaultMapper.encodeToJsonElement(call.successType, response.result)
                         }
                     },
+                    context.attributes.getOrNull(payloadKey) ?: JsonNull,
                     response.statusCode.value,
                     responseTimeMs,
                 )

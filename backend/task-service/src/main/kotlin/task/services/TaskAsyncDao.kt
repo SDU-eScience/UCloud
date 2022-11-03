@@ -18,8 +18,7 @@ import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.task.api.Task
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
+import java.time.LocalDateTime
 import java.util.*
 
 object TaskTable : SQLTable("tasks") {
@@ -61,8 +60,8 @@ class TaskAsyncDao {
             status = getField(TaskTable.statusMessage),
             title = getField(TaskTable.title),
             complete = getField(TaskTable.complete),
-            startedAt = getField(TaskTable.createdAt).toDate().time,
-            modifiedAt = getField(TaskTable.modifiedAt).toDate().time
+            startedAt = getField(TaskTable.createdAt).toTimestamp(),
+            modifiedAt = getField(TaskTable.modifiedAt).toTimestamp(),
         )
     }
 
@@ -90,19 +89,17 @@ class TaskAsyncDao {
     }
 
     suspend fun updateStatus(db: DBContext, jobId: String, status: String, user: String): Boolean {
-        val now = LocalDateTime(Time.now(), DateTimeZone.UTC).toDate().time
         return db.withSession { session ->
             session
                 .sendPreparedStatement(
                     {
                         setParameter("message", status)
-                        setParameter("modified", now / 1000)
                         setParameter("jid", jobId)
                         setParameter("user", user)
                     },
                     """
                         UPDATE tasks
-                        SET status_message = :message, modified_at = to_timestamp(:modified)
+                        SET status_message = :message, modified_at = now()
                         WHERE (job_id = :jid) AND (owner = :user)
                     """
                 ).rowsAffected > 0L
@@ -111,17 +108,15 @@ class TaskAsyncDao {
 
     suspend fun updateLastPing(db: DBContext, jobId: String, processor: SecurityPrincipal) {
         db.withSession { session ->
-            val now = LocalDateTime(Time.now(), DateTimeZone.UTC).toDate().time
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("modified", now / 1000)
                         setParameter("jid", jobId)
                         setParameter("processor", processor.username)
                     },
                     """
                         UPDATE tasks
-                        SET modified_at = to_timestamp(:modified)
+                        SET modified_at = now()
                         WHERE (job_id = :jid) AND (processor = :processor) 
                     """
                 )
@@ -139,7 +134,7 @@ class TaskAsyncDao {
 
         val jobId = UUID.randomUUID().toString()
         db.withSession { session ->
-            val now = LocalDateTime(Time.now(), DateTimeZone.UTC)
+            val now = LocalDateTime.now()
             session.insert(TaskTable) {
                 set(TaskTable.jobId, jobId)
                 set(TaskTable.owner, owner)
@@ -148,7 +143,7 @@ class TaskAsyncDao {
                 set(TaskTable.title, title)
                 set(TaskTable.statusMessage, initialStatus)
                 set(TaskTable.createdAt, now)
-                set(TaskTable.modifiedAt,now)
+                set(TaskTable.modifiedAt, now)
             }
         }
         return jobId
@@ -177,21 +172,19 @@ class TaskAsyncDao {
         pagination: NormalizedPaginationRequest,
         user: SecurityPrincipal
     ): Page<Task> {
-        val timeLimit = LocalDateTime(Time.now(), DateTimeZone.UTC).toDate().time - (1000L * 60 * 60 * 15)
         return db.withSession { session ->
             session
                 .sendPreparedStatement(
                     {
                         setParameter("owner", user.username)
                         setParameter("complete", false)
-                        setParameter("modified", timeLimit / 1000)
                     },
                     """
                         SELECT *
                         FROM tasks
                         WHERE (owner = :owner) AND 
                             (complete = :complete) AND 
-                            (modified_at > to_timestamp(:modified))
+                            (modified_at > now() - '15 hours'::interval)
                     """
                 )
         }.rows.paginate(pagination)

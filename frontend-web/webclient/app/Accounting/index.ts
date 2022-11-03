@@ -511,6 +511,8 @@ export function normalizeBalanceForFrontendOpts(
 export function normalizeBalanceForFrontend(
     balance: number,
     type: ProductType,
+    // TODO(Jonas): Unused, please remove
+    // 29/8 2022
     chargeType: ChargeType,
     unit: ProductPriceUnit,
     precisionOverride?: number,

@@ -3,11 +3,14 @@ import * as React from "react";
 
 import {SelectableText, SelectableTextWrapper} from "@/ui-components";
 import {useHistory} from "react-router";
+import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
+import {Feature, hasFeature} from "@/Features";
 
 export enum ResourceTabOptions {
     PUBLIC_IP = "Public IPs",
     PUBLIC_LINKS = "Public Links",
     LICENSES = "Licenses",
+    SSH_KEYS = "SSH Keys",
 }
 
 export function ResourceTab(props: {active: ResourceTabOptions;}): JSX.Element | null {
@@ -25,20 +28,33 @@ export function ResourceTab(props: {active: ResourceTabOptions;}): JSX.Element |
             case ResourceTabOptions.LICENSES:
                 history.push("/licenses");
                 break;
+            case ResourceTabOptions.SSH_KEYS:
+                history.push("/ssh-keys");
+                break;
         }
     }, []);
 
     return (
         <SelectableTextWrapper>
             {Object.keys(ResourceTabOptions).map(rt =>
-                <SelectableText
-                    key={rt}
-                    onClick={() => onSelect(ResourceTabOptions[rt])}
-                    selected={ResourceTabOptions[rt] === props.active}
-                >
-                    {ResourceTabOptions[rt]}                    
-                </SelectableText>
+                !isEnabled(ResourceTabOptions[rt]) ? null :
+                    <SelectableText
+                        key={rt}
+                        onClick={() => onSelect(ResourceTabOptions[rt])}
+                        selected={ResourceTabOptions[rt] === props.active}
+                    >
+                        {ResourceTabOptions[rt]}
+                    </SelectableText>
             )}
         </SelectableTextWrapper>
     );
+}
+
+function isEnabled(tab: ResourceTabOptions): boolean {
+    switch (tab) {
+        case ResourceTabOptions.SSH_KEYS:
+            return hasFeature(Feature.SSH);
+        default:
+            return true;
+    }
 }

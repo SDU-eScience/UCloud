@@ -570,6 +570,8 @@ data class ProviderWalletSummary(
     val unitOfPrice: ProductPriceUnit,
     val maxUsableBalance: Long,
     val maxPromisedBalance: Long,
+    val notBefore: Long,
+    val notAfter: Long?,
 )
 ```
 
@@ -670,6 +672,28 @@ in the tree.
 
 </details>
 
+<details>
+<summary>
+<code>notBefore</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The earliest timestamp which allows for the balance to be consumed
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>notAfter</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> The earliest timestamp at which the reported balance is no longer fully usable
+</summary>
+
+
+
+
+
+</details>
+
 
 
 </details>
@@ -698,7 +722,9 @@ data class SubAllocation(
     val workspaceId: String,
     val workspaceTitle: String,
     val workspaceIsProject: Boolean,
+    val projectPI: String?,
     val remaining: Long,
+    val initialBalance: Long,
 )
 ```
 
@@ -830,7 +856,29 @@ data class SubAllocation(
 
 <details>
 <summary>
+<code>projectPI</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>remaining</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>initialBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 
@@ -855,8 +903,8 @@ data class SubAllocation(
 
 ```kotlin
 sealed class WalletOwner {
-    class User : WalletOwner()
     class Project : WalletOwner()
+    class User : WalletOwner()
 }
 ```
 

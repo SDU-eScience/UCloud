@@ -1,6 +1,5 @@
 package dk.sdu.cloud.cli
 
-import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.ChargeType
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductPriceUnit
@@ -13,7 +12,6 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.controllers.ControllerContext
 import dk.sdu.cloud.ipc.IpcContainer
-import dk.sdu.cloud.ipc.TypedIpcHandler
 import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.ipcClient
@@ -21,7 +19,6 @@ import dk.sdu.cloud.plugins.ipcServer
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.utils.sendTerminalMessage
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import java.util.Scanner
 
@@ -164,7 +161,7 @@ fun ProductsCli(controllerContext: ControllerContext) {
                                             line("GB")
 
                                             bold { inline("GPU: ") }
-                                            line((p.gpu ?: 1).toString())
+                                            line((p.gpu ?: 0).toString())
                                         }
                                         is Product.Ingress -> {}
                                         is Product.License -> {}

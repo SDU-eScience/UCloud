@@ -63,6 +63,15 @@ SupportByProvider(
                 vnc = null, 
                 web = null, 
             ), 
+            native = ComputeSupport.Native(
+                enabled = null, 
+                logs = null, 
+                terminal = null, 
+                timeExtension = null, 
+                utilization = null, 
+                vnc = null, 
+                web = null, 
+            ), 
             product = ProductReference(
                 category = "compute-example", 
                 id = "compute-example", 
@@ -219,6 +228,15 @@ await callAPI(JobsApi.retrieveProducts(
                         "timeExtension": null,
                         "suspension": null,
                         "utilization": null
+                    },
+                    "native": {
+                        "enabled": null,
+                        "logs": null,
+                        "vnc": null,
+                        "terminal": null,
+                        "timeExtension": null,
+                        "utilization": null,
+                        "web": null
                     }
                 }
             }
@@ -327,6 +345,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProdu
 #                         "timeExtension": null,
 #                         "suspension": null,
 #                         "utilization": null
+#                     },
+#                     "native": {
+#                         "enabled": null,
+#                         "logs": null,
+#                         "vnc": null,
+#                         "terminal": null,
+#                         "timeExtension": null,
+#                         "utilization": null,
+#                         "web": null
 #                     }
 #                 }
 #             }

@@ -42,6 +42,7 @@ Jobs.create.call(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -116,6 +117,7 @@ Job(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -234,6 +236,7 @@ Job(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -347,6 +350,7 @@ Job(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -437,7 +441,8 @@ await callAPI(JobsApi.create(
                     "seconds": 0
                 },
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             }
         ]
     }
@@ -534,7 +539,8 @@ await callAPI(JobsApi.retrieve(
             "seconds": 0
         },
         "openedFile": null,
-        "restartOnExit": null
+        "restartOnExit": null,
+        "sshEnabled": null
     },
     "status": {
         "state": "RUNNING",
@@ -659,7 +665,8 @@ await callAPI(JobsApi.retrieve(
             "seconds": 0
         },
         "openedFile": null,
-        "restartOnExit": null
+        "restartOnExit": null,
+        "sshEnabled": null
     },
     "status": {
         "state": "RUNNING",
@@ -790,7 +797,8 @@ await callAPI(JobsApi.retrieve(
             "seconds": 0
         },
         "openedFile": null,
-        "restartOnExit": null
+        "restartOnExit": null,
+        "sshEnabled": null
     },
     "status": {
         "state": "SUCCESS",
@@ -850,7 +858,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "seconds": 0
             },
             "openedFile": null,
-            "restartOnExit": null
+            "restartOnExit": null,
+            "sshEnabled": null
         }
     ]
 }'
@@ -919,7 +928,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "seconds": 0
 #         },
 #         "openedFile": null,
-#         "restartOnExit": null
+#         "restartOnExit": null,
+#         "sshEnabled": null
 #     },
 #     "status": {
 #         "state": "RUNNING",
@@ -1014,7 +1024,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "seconds": 0
 #         },
 #         "openedFile": null,
-#         "restartOnExit": null
+#         "restartOnExit": null,
+#         "sshEnabled": null
 #     },
 #     "status": {
 #         "state": "RUNNING",
@@ -1115,7 +1126,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "seconds": 0
 #         },
 #         "openedFile": null,
-#         "restartOnExit": null
+#         "restartOnExit": null,
+#         "sshEnabled": null
 #     },
 #     "status": {
 #         "state": "SUCCESS",

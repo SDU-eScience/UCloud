@@ -3,8 +3,6 @@ import kotlin.system.exitProcess
 
 repositories {
     mavenCentral()
-    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/kotlinx-coroutines/maven/") }
-    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
 }
 
 buildscript {
@@ -42,10 +40,7 @@ subprojects {
     val isService = project.name.endsWith("-service")
 
     repositories {
-        jcenter()
         mavenCentral()
-        maven { setUrl("https://maven.pkg.jetbrains.space/public/p/kotlinx-coroutines/maven/") }
-        maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
     }
 
     if (isService) {

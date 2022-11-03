@@ -2,8 +2,6 @@ package dk.sdu.cloud.app.store.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import dk.sdu.cloud.app.store.api.*
 import kotlin.reflect.KProperty0
 
 @JsonTypeInfo(
@@ -31,6 +29,7 @@ sealed class ApplicationDescription(val application: String) {
         applicationType: String? = null,
         val vnc: VncDescription? = null,
         val web: WebDescription? = null,
+        val ssh: SshDescription? = null,
         val container: ContainerDescription? = null,
         environment: Map<String, Any>? = null,
         val allowAdditionalMounts: Boolean? = null,
@@ -240,6 +239,7 @@ sealed class ApplicationDescription(val application: String) {
                 applicationType,
                 vnc = vnc,
                 web = web,
+                ssh = ssh,
                 container = container,
                 environment = environment,
                 allowAdditionalMounts = allowAdditionalMounts,

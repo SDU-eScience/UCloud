@@ -8,6 +8,8 @@ import styled from "styled-components";
 import Box from "../ui-components/Box";
 import {useEffect, useState} from "react";
 import {priceExplainer, Product, ProductPriceUnit} from "@/Accounting";
+import {grantsLink} from "@/UtilityFunctions";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 export const ProductSelector: React.FunctionComponent<{
     initialSelection?: Product;
@@ -74,7 +76,7 @@ export const ProductSelector: React.FunctionComponent<{
                             You do not currently have credits for any product which you are able to use here.
                         </SmallText>
 
-                        <Link to={"/project/grants-landing"}>
+                        <Link to={grantsLink(Client)}>
                             <Button fullWidth mb={"4px"}>Apply for resources</Button>
                         </Link>
                     </NoResultsCardBody>

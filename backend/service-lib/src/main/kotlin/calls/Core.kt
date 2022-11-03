@@ -27,7 +27,7 @@ class AttributeContainer {
     }
 
     operator fun <V : Any> get(key: AttributeKey<V>): V {
-        val result = internalContainer[key] ?: throw IllegalArgumentException("No such key!")
+        val result = internalContainer[key] ?: throw IllegalArgumentException("No such key '${key.key}'!")
         @Suppress("UNCHECKED_CAST")
         return result as V
     }

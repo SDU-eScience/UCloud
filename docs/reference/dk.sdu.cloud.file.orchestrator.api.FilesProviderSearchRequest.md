@@ -13,6 +13,7 @@ data class FilesProviderSearchRequest(
     val query: String,
     val owner: ResourceOwner,
     val flags: UFileIncludeFlags,
+    val category: ProductCategoryId?,
     val itemsPerPage: Int?,
     val next: String?,
     val consistency: PaginationRequestV2Consistency?,
@@ -79,6 +80,17 @@ paginate through the results.
 <details>
 <summary>
 <code>flags</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFileIncludeFlags.md'>UFileIncludeFlags</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>category</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategoryId.md'>ProductCategoryId</a>?</code></code>
 </summary>
 
 

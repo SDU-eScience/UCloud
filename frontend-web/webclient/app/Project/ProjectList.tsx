@@ -334,7 +334,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             sidebar={(<>
                 <VerticalButtonGroup>
                     <Box height={58} />
-                    <Link to={`/projects/browser/new`}><Button>New project application</Button></Link>
+                    <Link to="/project/grants/new"><Button>New project application</Button></Link>
                     <ResourceFilter
                         browseType={BrowseType.MainContent}
                         pills={filterPills}

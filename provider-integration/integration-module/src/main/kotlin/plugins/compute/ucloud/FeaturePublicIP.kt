@@ -53,6 +53,7 @@ class FeaturePublicIP(
             for (network in networks.items) {
                 val ipAddress: Address = findAddressFromPool(session)
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into ucloud_compute_network_ips (id, external_ip_address, internal_ip_address, owner) 
                         values (:id, :external, :internal, :owner)
@@ -107,6 +108,7 @@ class FeaturePublicIP(
             ownersAndResources.forEachGraal { owner, resourceId ->
                 val rows = ArrayList<Long>()
                 session.prepareStatement(
+                    //language=postgresql
                     "select count(*)::bigint from ucloud_compute_network_ips where owner = :owner"
                 ).useAndInvoke(
                     prepare = { bindString("owner", owner)},
@@ -135,12 +137,14 @@ class FeaturePublicIP(
         db.withSession { session ->
             networks.items.forEach { ingress ->
                 session.prepareStatement(
+                    //language=postgresql
                     "delete from ucloud_compute_bound_network_ips where network_ip_id = :id"
                 ).useAndInvokeAndDiscard(
                     prepare = { bindString("id", ingress.id)}
                 )
 
                 session.prepareStatement(
+                    //language=postgresql
                     "delete from ucloud_compute_network_ips where id = :id"
                 ).useAndInvokeAndDiscard(
                     prepare = { bindString("id", ingress.id) }
@@ -168,6 +172,7 @@ class FeaturePublicIP(
         val idsAndIps = db.withSession { session ->
             for (network in networks) {
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into ucloud_compute_bound_network_ips (network_ip_id, job_id) 
                         values (:id, :jobId) 
@@ -184,13 +189,14 @@ class FeaturePublicIP(
             val rows = ArrayList<RetrievedIpAddress>()
             for (network in networks) {
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         select id, internal_ip_address, external_ip_address
                         from ucloud_compute_network_ips 
                         where id = :network_id
                     """
                 ).useAndInvoke(
-                    prepare = { bindString("id", network.id) },
+                    prepare = { bindString("network_id", network.id) },
                     readRow = { row -> RetrievedIpAddress(row.getString(0)!!, row.getString(1)!!, row.getString(2)!!) }
                 )
             }
@@ -225,6 +231,7 @@ class FeaturePublicIP(
     override suspend fun JobManagement.onCleanup(jobId: String) {
         db.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 "delete from ucloud_compute_bound_network_ips where job_id = :jobId"
             ).useAndInvokeAndDiscard(
                 prepare = { bindString("jobId", jobId)}
@@ -243,6 +250,7 @@ class FeaturePublicIP(
             validateCidr(externalCidr)
             validateCidr(internalCidr)
             session.prepareStatement(
+                //language=postgresql
                 """
                     insert into ucloud_compute_network_ip_pool (external_cidr, internal_cidr)
                     values (:external_cidr, :internal_cidr)
@@ -264,6 +272,7 @@ class FeaturePublicIP(
         val rows = ArrayList<K8Subnet>()
         db.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     select external_cidr, internal_cidr from ucloud_compute_network_ip_pool
                 """
@@ -276,15 +285,17 @@ class FeaturePublicIP(
 
     private suspend fun retrieveStatus(ctx: DBContext): K8NetworkStatus {
         return ctx.withSession { session ->
-            val subnets = ArrayList<IntRange>()
-            session.prepareStatement("select external_cidr from ucloud_compute_network_ip_pool")
-                .useAndInvoke {
+            val subnets = ArrayList<UIntRange>()
+            session.prepareStatement(
+                //language=postgresql
+                "select external_cidr from ucloud_compute_network_ip_pool"
+            ).useAndInvoke {
                     val external = it.getString(0)!!
                     val validated = runCatching { validateCidr(external) }.getOrNull() ?: return@useAndInvoke
                     subnets.add(validated)
                 }
 
-            val capacity = subnets.sumOf { it.last - it.first + 1 }
+            val capacity = subnets.sumOf { it.last - it.first + 1u }
 
             var used = 0L
             session.prepareStatement("select count(external_ip_address) from ucloud_compute_network_ips")
@@ -300,16 +311,17 @@ class FeaturePublicIP(
     }
 
     private data class Address(
-        val externalAddress: Int,
-        val externalSubnet: IntRange,
-        val internalSubnet: IntRange,
+        val externalAddress: UInt,
+        val externalSubnet: UIntRange,
+        val internalSubnet: UIntRange,
     )
 
     private suspend fun findAddressFromPool(ctx: DBContext): Address {
         return ctx.withSession { session ->
-            val subnets = ArrayList<Pair<IntRange, IntRange>>()
+            val subnets = ArrayList<Pair<UIntRange, UIntRange>>()
             session
                 .prepareStatement(
+                    //language=postgresql
                     "select external_cidr, internal_cidr from network_ip_pool"
                 )
                 .useAndInvoke {
@@ -338,6 +350,7 @@ class FeaturePublicIP(
                 var exists = false
                 session
                     .prepareStatement(
+                        //language=postgresql
                         """
                             select exists(
                                 select 1
@@ -370,7 +383,7 @@ class FeaturePublicIP(
 object IpUtils {
     private val cidrRegex = Regex("""\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?/\d\d?""")
 
-    fun validateCidr(cidr: String): IntRange {
+    fun validateCidr(cidr: String): UIntRange {
         if (!cidrRegex.matches(cidr)) {
             throw RPCException("cidr '$cidr' is not valid", HttpStatusCode.BadRequest)
         }
@@ -391,36 +404,36 @@ object IpUtils {
         }
 
         val min =
-            ((a shl 24) or (b shl 16) or (c shl 8) or d) and ((1L shl (32 - subnetSize)) - 1).inv().toInt()
-        val max = ((a shl 24) or (b shl 16) or (c shl 8) or d) or ((1L shl (32 - subnetSize)) - 1).toInt()
+            (((a shl 24) or (b shl 16) or (c shl 8) or d) and ((1L shl (32 - subnetSize)) - 1).inv().toInt()).toUInt()
+        val max = (((a shl 24) or (b shl 16) or (c shl 8) or d) or ((1L shl (32 - subnetSize)) - 1).toInt()).toUInt()
 
         return (min..max)
     }
 
-    fun remapAddress(address: Int, sourceSubnet: IntRange, destinationSubnet: IntRange): Int {
-        val sourceSize = sourceSubnet.last - sourceSubnet.first + 1
-        val destSize = destinationSubnet.last - destinationSubnet.first + 1
+    fun remapAddress(address: UInt, sourceSubnet: UIntRange, destinationSubnet: UIntRange): UInt {
+        val sourceSize = sourceSubnet.last - sourceSubnet.first + 1u
+        val destSize = destinationSubnet.last - destinationSubnet.first + 1u
         require(sourceSize == destSize) { "Source subnet must be the same size as the destination subnet" }
 
         val subnetSizeInBits = log2(sourceSize.toDouble()).toInt()
-        val mask = (1 shl subnetSizeInBits) - 1
+        val mask = (1u shl subnetSizeInBits) - 1u
 
         return (destinationSubnet.first and mask.inv()) or (address and mask)
     }
 
-    fun formatIpAddress(addr: Int): String {
+    fun formatIpAddress(addr: UInt): String {
         return buildString {
-            append((addr shr 24) and 0xFF)
+            append((addr shr 24) and 0xFFu)
             append('.')
-            append((addr shr 16) and 0xFF)
+            append((addr shr 16) and 0xFFu)
             append('.')
-            append((addr shr 8) and 0xFF)
+            append((addr shr 8) and 0xFFu)
             append('.')
-            append(addr and 0xFF)
+            append(addr and 0xFFu)
         }
     }
 
-    fun isSafeToUse(addr: Int): Boolean {
-        return (addr and 0xFFFF) != 1 && (addr and 0xFFFF) != 255
+    fun isSafeToUse(addr: UInt): Boolean {
+        return (addr and 0xFFFFu) != 1u && (addr and 0xFFFFu) != 255u
     }
 }

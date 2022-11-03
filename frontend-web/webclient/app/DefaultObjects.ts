@@ -21,15 +21,16 @@ import {useEffect} from "react";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {UCLOUD_CORE} from "@/UCloud/ResourceApi";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {History} from "history";
+import {useHistory} from "react-router";
+import {initTerminalState, TerminalState} from "@/Terminal/State";
 
 export enum KeyCode {
     ENTER = 13,
     ESC = 27
 }
 
-export function placeholderProduct(): { "id": "", "category": "", "provider": string } {
-    return { "id": "", "category": "", "provider": UCLOUD_CORE };
+export function placeholderProduct(): {"id": "", "category": "", "provider": string} {
+    return {"id": "", "category": "", "provider": UCLOUD_CORE};
 }
 
 export function bulkRequestOf<T>(...items: T[]): BulkRequest<T> {
@@ -120,7 +121,7 @@ export interface HookStore {
     uploadPath?: string;
 
     searchPlaceholder?: string;
-    onSearch?: (query: string, history: History) => void;
+    onSearch?: (query: string, history: ReturnType<typeof useHistory>) => void;
 
     projectCache?: ProjectCache;
     projectManagementDetails?: APICallStateWithParams<UserInProject>;
@@ -132,7 +133,9 @@ export interface HookStore {
     computeProducts?: APICallStateWithParams<Page<Product>>;
     storageProducts?: APICallStateWithParams<Page<Product>>;
     frameHidden?: boolean;
-    cloudApiCache?: Record<string, { expiresAt: number, cached: any }>;
+    cloudApiCache?: Record<string, {expiresAt: number, cached: any}>;
+
+    mainContainerHeaderSize?: number;
 }
 
 interface LegacyReduxObject {
@@ -143,6 +146,7 @@ interface LegacyReduxObject {
     avatar: AvatarReduxObject;
     responsive?: ResponsiveReduxObject;
     project: ProjectRedux.State;
+    terminal: TerminalState;
     loading?: boolean;
 }
 
@@ -174,19 +178,20 @@ export function initObject(): ReduxObject {
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         responsive: undefined,
+        terminal: initTerminalState(),
     };
 }
 
-export type AvatarReduxObject = typeof defaultAvatar & { error?: string };
+export type AvatarReduxObject = typeof defaultAvatar & {error?: string};
 export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: undefined});
 
 export const defaultSearchPlaceholder = "Search files and applications..."
 
-export function defaultSearch(query: string, history: History) {
+export function defaultSearch(query: string, history: ReturnType<typeof useHistory>) {
     history.push(buildQueryString("/files/search", {q: query}));
 }
 
-export function useSearch(onSearch: (query: string, history: History) => void): void {
+export function useSearch(onSearch: (query: string, history: ReturnType<typeof useHistory>) => void): void {
     const [, setOnSearch] = useGlobal("onSearch", defaultSearch);
     useEffect(() => {
         setOnSearch(() => onSearch);

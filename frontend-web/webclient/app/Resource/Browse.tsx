@@ -5,10 +5,10 @@ import {
     Resource,
     ResourceApi,
     ResourceBrowseCallbacks,
+    ResourceSpecification,
     ResourceStatus,
     ResourceUpdate,
     SupportByProvider,
-    ResourceSpecification,
     UCLOUD_CORE
 } from "@/UCloud/ResourceApi";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -16,7 +16,7 @@ import {bulkRequestOf} from "@/DefaultObjects";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {PageRenderer} from "@/Pagination/PaginationV2";
-import {Box, Checkbox, Flex, Icon, Label, List, Truncate} from "@/ui-components";
+import {Box, Checkbox, Flex, Icon, Label, List, Tooltip, Truncate} from "@/ui-components";
 import {Spacer} from "@/ui-components/Spacer";
 import {ListRowStat} from "@/ui-components/List";
 import {Operations} from "@/ui-components/Operation";
@@ -29,25 +29,31 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {useSidebarPage} from "@/ui-components/Sidebar";
 import * as Heading from "@/ui-components/Heading";
 import {useHistory, useLocation} from "react-router";
-import {EnumOption, ResourceFilter, StaticPill} from "@/Resource/Filter";
+import {EnumFilterWidget, EnumOption, ResourceFilter, StaticPill} from "@/Resource/Filter";
 import {useResourceSearch} from "@/Resource/Search";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
 import * as H from "history";
-import {ItemRenderer, ItemRow, StandardBrowse, useRenamingState} from "@/ui-components/Browse";
+import {ItemRenderer, ItemRow, ItemRowMemo, StandardBrowse, useRenamingState} from "@/ui-components/Browse";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {Avatar} from "@/AvataaarLib";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {Product, ProductType, productTypeToIcon} from "@/Accounting";
-import {EnumFilterWidget} from "@/Resource/Filter";
 import {BrowseType} from "./BrowseType";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {FixedSizeList} from "react-window";
+import {default as AutoSizer} from "react-virtualized-auto-sizer";
+import {useGlobal} from "@/Utilities/ReduxHooks";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {Feature, hasFeature} from "@/Features";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
 
+    // Inline creation
     onInlineCreation?: (text: string, product: Product, cb: ResourceBrowseCallbacks<Res> & CB) => Res["specification"] | APICallParameters;
     inlinePrefix?: (productWithSupport: ResolvedSupport) => string;
     inlineSuffix?: (productWithSupport: ResolvedSupport) => string;
@@ -55,27 +61,39 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     inlineProduct?: Product;
     productFilterForCreate?: (product: ResolvedSupport) => boolean;
 
-    additionalFilters?: Record<string, string>;
+    // Headers
     header?: JSX.Element;
     headerSize?: number;
+
+    // Rename
     onRename?: (text: string, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
 
-    navigateToChildren?: (history: H.History, resource: Res) => "properties" | void;
-    emptyPage?: JSX.Element;
+    // Properties and navigation
+    navigateToChildren?: (history: ReturnType<typeof useHistory>, resource: Res) => "properties" | void;
     propsForInlineResources?: Record<string, any>;
-    extraCallbacks?: any;
-
     viewPropertiesInline?: (res: Res) => boolean;
 
+    // Empty page
+    emptyPage?: JSX.Element;
+
+    // Tweaks to row information
+    // TODO(Dan): This should probably live inside of ResourceApi?
     withDefaultStats?: boolean;
     showCreatedAt?: boolean;
     showCreatedBy?: boolean;
     showProduct?: boolean;
     showGroups?: boolean;
 
+    // Callback information which needs to be passed to the operations
+    extraCallbacks?: any;
+
+    // Hooks and tweaks to how resources are loaded
     onResourcesLoaded?: (newItems: Res[]) => void;
     shouldFetch?: () => boolean;
+    resources?: Res[]; // NOTE(Dan): if resources != null then no normal fetches will occur
 
+    // Sidebar and filters
+    additionalFilters?: Record<string, string>;
     extraSidebar?: JSX.Element;
 }
 
@@ -102,6 +120,25 @@ function setStoredSortDirection(title: string, order: "ascending" | "descending"
     localStorage.setItem(`${title}:sortDirection`, order);
 }
 
+function getStoredFilters(title: string): Record<string, string> | null {
+    const data = localStorage.getItem(`${title}:filters`);
+    if (!data) return null;
+    try {
+        const parsed = JSON.parse(data);
+        if (typeof parsed === "object") {
+            return parsed as Record<string, string>;
+        } else {
+            return null;
+        }
+    }  catch (e) {
+        return null;
+    }
+}
+
+function setStoredFilters(title: string, filters: Record<string, string>) {
+    localStorage.setItem(`${title}:filters`, JSON.stringify(filters));
+}
+
 export function ResourceBrowse<Res extends Resource, CB = undefined>({
     onSelect, api, ...props
 }: PropsWithChildren<ResourceBrowseProps<Res, CB>> & {/* HACK(Jonas) */disableSearch?: boolean/* HACK(Jonas): End */}): ReactElement | null {
@@ -110,12 +147,13 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         {productsByProvider: {}}
     );
 
+    const [headerSize] = useGlobal("mainContainerHeaderSize", 0);
     const isEmbedded = props.browseType === BrowseType.Embedded;
     const includeOthers = props.browseType !== BrowseType.Embedded;
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(props.inlineProduct ?? null);
     const [renamingValue, setRenamingValue] = useState("");
     const [commandLoading, invokeCommand] = useCloudCommand();
-    const [filters, setFilters] = useState<Record<string, string>>({});
+    const [filters, setFilters] = useState<Record<string, string>>(getStoredFilters(api.title) ?? {});
     const [sortDirection, setSortDirection] = useState<"ascending" | "descending">(getStoredSortDirection(api.title) ?? api.defaultSortDirection);
     const [sortColumn, setSortColumn] = useState<string | undefined>(getStoredSortColumn(api.title) ?? undefined);
     const history = useHistory();
@@ -137,6 +175,9 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const isWorkspaceAdmin = projectId === undefined ? true : isAdminOrPI(projectManagement.projectRole);
 
     useEffect(() => toggleSet.uncheckAll(), [props.additionalFilters]);
+    useEffectSkipMount(() => {
+        setStoredFilters(api.title, filters);
+    }, [filters]);
 
     const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
@@ -194,7 +235,9 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     }, [selectedProduct, productsWithSupport]);
 
     const generateFetch = useCallback((next?: string): APICallParameters => {
-        if (props.shouldFetch && !props.shouldFetch()) {
+        if (props.resources != null) {
+            return {noop: true};
+        } else if (props.shouldFetch && !props.shouldFetch()) {
             return {noop: true};
         }
 
@@ -209,7 +252,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 ...filters, sortBy: sortColumn, sortDirection, ...props.additionalFilters
             });
         }
-    }, [filters, query, props.isSearch, sortColumn, sortDirection, props.additionalFilters, props.shouldFetch]);
+    }, [filters, query, props.isSearch, sortColumn, sortDirection, props.additionalFilters, props.shouldFetch, props.resources]);
 
     useEffectSkipMount(() => {
         setSelectedProduct(props.inlineProduct ?? null);
@@ -319,6 +362,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         const renderer: ItemRenderer<Res> = {...api.renderer};
         const RemainingStats = renderer.Stats;
         const NormalMainTitle = renderer.MainTitle;
+        const RemainingImportantStats = renderer.ImportantStats;
         renderer.MainTitle = function mainTitle({resource}) {
             if (resource === undefined) {
                 return !selectedProduct ?
@@ -379,6 +423,26 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             </>}
             {RemainingStats ? <RemainingStats browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null}
         </>) : renderer.Stats;
+        renderer.ImportantStats = ({resource, callbacks, browseType}) => {
+            return <>
+                {RemainingImportantStats ?
+                    <RemainingImportantStats resource={resource} callbacks={callbacks} browseType={browseType} /> :
+                    null
+                }
+
+                {
+                    hasFeature(Feature.PROVIDER_CONNECTION) ?
+                        <Tooltip
+                            trigger={
+                                <ProviderLogo providerId={resource?.specification?.product?.provider ?? "?"} size={40}/>
+                            }
+                        >
+                            This resource is provided by{" "}
+                            <ProviderTitle providerId={resource?.specification?.product?.provider ?? "?"} />
+                        </Tooltip> : null
+                }
+            </>;
+        };
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
         onInlineCreate, inlineInputRef, selectedProductWithSupport, props.showCreatedAt, props.showCreatedBy,
@@ -396,10 +460,39 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 
     const pageSize = useRef(0);
 
-    const pageRenderer = useCallback<PageRenderer<Res>>(items => {
+    const navigateCallback = useCallback((item: Res) => {
+        if (props.navigateToChildren) {
+            const result = props.navigateToChildren?.(history, item)
+            if (result === "properties") {
+                viewProperties(item);
+            }
+        } else {
+            viewProperties(item);
+        }
+    }, [props.navigateToChildren, viewProperties]);
+
+    const listItem = useCallback<(p: { style, index, data: Res[], isScrolling?: boolean }) => JSX.Element>(
+        ({ style, index, data }) => {
+            const it = data[index];
+            return <div style={style} className={"list-item"}>
+                <ItemRowMemo
+                    key={it.id}
+                    browseType={props.browseType}
+                    navigate={navigateCallback}
+                    renderer={modifiedRenderer} callbacks={callbacks} operations={operations}
+                    item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural}
+                    toggleSet={toggleSet} renaming={renaming}
+                />
+            </div>
+        },
+        [navigateCallback, modifiedRenderer, callbacks, operations, api.title, api.titlePlural, toggleSet, renaming]
+    );
+
+    const pageRenderer = useCallback<PageRenderer<Res>>((items, opts) => {
         /* HACK(Jonas): to ensure the toggleSet knows of the page contents when checking all. */
         toggleSet.allItems.current = items;
         const allChecked = toggleSet.checked.items.length === items.length && items.length > 0;
+        const sizeAllocationForEmbeddedAndCard = Math.min(500, items.length * 56);
         return <>
             {pageSize.current > 0 ? (
                 <Spacer mr="8px" left={
@@ -457,29 +550,34 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         Click &quot;Create {api.title.toLowerCase()}&quot; to create a new one.
                     </>
                 }
-                {items.map(it =>
-                    <ItemRow
-                        key={it.id}
-                        browseType={props.browseType}
-                        navigate={() => {
-                            /* 
-                                Can we use callback here? I think it should improve performance so it doesn't create
-                                a new lambda on each iteration                            
-                            */
-                            if (props.navigateToChildren) {
-                                const result = props.navigateToChildren?.(history, it)
-                                if (result === "properties") {
-                                    viewProperties(it);
-                                }
-                            } else {
-                                viewProperties(it);
-                            }
-                        }}
-                        renderer={modifiedRenderer} callbacks={callbacks} operations={operations}
-                        item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
-                        renaming={renaming}
-                    />
-                )}
+
+                {/*
+                    TODO(Dan): This height is extremely fragile!
+
+                    NOTE(Dan):
+                    - 48px corresponds to the top nav-header
+                    - 45px to deal with header of the browse component
+                    - 48px to deal with load more button
+                    - 6px from padding between header and content
+                    - the rest depends entirely on the headerSize of the <MainContainer /> which we load from a
+                      global value.
+                */}
+                <div style={props.browseType == BrowseType.MainContent ?
+                    {height: `calc(100vh - 48px - 45px - ${opts.hasNext ? 48 : 0}px - ${headerSize}px - var(--termsize, 0px) - 6px)`} :
+                    {height: `${sizeAllocationForEmbeddedAndCard}px`}}
+                >
+                    <AutoSizer children={({width, height}) => (
+                        <FixedSizeList
+                            itemData={items}
+                            itemCount={items.length}
+                            itemSize={56}
+                            width={width}
+                            height={height}
+                            children={listItem}
+                            overscanCount={32}
+                        />
+                    )}/>
+                </div>
             </List>
         </>
     }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport, renaming,
@@ -495,7 +593,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const main = !inlineInspecting ? <>
         <StandardBrowse isSearch={props.isSearch} browseType={props.browseType} pageSizeRef={pageSize}
             generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
-            setRefreshFunction={isEmbedded != true} onLoad={props.onResourcesLoaded} />
+            setRefreshFunction={isEmbedded != true} onLoad={props.onResourcesLoaded}
+            preloadedResources={props.resources} />
     </> : <>
         <api.Properties api={api} resource={inlineInspecting} reload={reloadRef.current} embedded={true}
             closeProperties={closeProperties} {...props.propsForInlineResources} />

@@ -124,6 +124,7 @@ sealed class Product : DocVisualizable {
     abstract val priority: Int
 
     @UCloudApiDoc("A version number for this Product, managed by UCloud")
+    @Deprecated("No longer used")
     abstract val version: Int
 
     @UCloudApiDoc(

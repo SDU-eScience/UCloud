@@ -17,6 +17,7 @@ import {Dispatch} from "redux";
 import {ResourceProperties} from "@/Resource/Properties";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {Product, ProductType} from "@/Accounting";
+import {useHistory} from "react-router";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -110,7 +111,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     embedded: boolean;
     dispatch: Dispatch;
     startRenaming?: (resource: Res, defaultValue: string) => void;
-    history: H.History;
+    history: ReturnType<typeof useHistory>;
     supportByProvider: SupportByProvider;
     isWorkspaceAdmin: boolean;
 }

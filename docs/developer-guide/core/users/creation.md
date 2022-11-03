@@ -465,8 +465,8 @@ sealed class Person {
     abstract val role: Role
     abstract val uid: Long
 
-    class ByWAYF : Person()
     class ByPassword : Person()
+    class ByWAYF : Person()
 }
 ```
 
@@ -1050,8 +1050,8 @@ sealed class Principal {
     abstract val uid: Long
 
     class Person : Principal()
-    class ServicePrincipal : Principal()
     class ProviderPrincipal : Principal()
+    class ServicePrincipal : Principal()
 }
 ```
 

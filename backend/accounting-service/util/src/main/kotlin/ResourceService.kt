@@ -11,6 +11,8 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.project.api.v2.FindByProjectId
+import dk.sdu.cloud.project.api.v2.Projects
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
@@ -947,6 +949,63 @@ abstract class ResourceService<
 
             check(generatedIds.size == request.items.size, lazyMessage = { "Might be missing product $request" })
 
+            // NOTE(Dan): Registering projectAllRead and projectAllWrite is a bit more complex. As a result, we don't
+            // attempt to put it into the query above. The code starts by finding all the relevant "All users" groups
+            // and turns these into appropriate ACL changes.
+            val resourcesWhichRequireAllUsersGroup = request.items.filter { it.projectAllRead || it.projectAllWrite }
+            if (resourcesWhichRequireAllUsersGroup.isNotEmpty()) {
+                val projectIds = resourcesWhichRequireAllUsersGroup.mapNotNull {
+                    if (it.project == null) null
+                    else FindByProjectId(it.project!!)
+                }.toSet().toList()
+
+                val allUserGroups = Projects.retrieveAllUsersGroup.call(
+                    BulkRequest(projectIds),
+                    serviceClient
+                ).orThrow()
+
+                data class AclEntry(val resourceId: Long, val groupId: String, val perm: Permission)
+                val aclEntries = ArrayList<AclEntry>()
+
+                for (resource in resourcesWhichRequireAllUsersGroup) {
+                    val originalIndex = request.items.indexOf(resource)
+                    val resourceId = generatedIds[originalIndex]
+                    val groupId = allUserGroups.responses[projectIds.indexOf(FindByProjectId(resource.project!!))].id
+
+                    val perms = buildList {
+                        if (resource.projectAllRead) add(Permission.READ)
+                        if (resource.projectAllWrite) add(Permission.EDIT)
+                    }
+
+                    perms.forEach { perm ->
+                        aclEntries.add(AclEntry(resourceId, groupId, perm))
+                    }
+                }
+
+                check(aclEntries.isNotEmpty())
+
+                session.sendPreparedStatement(
+                    {
+                        aclEntries.split {
+                            into("resource_ids") { it.resourceId }
+                            into("group_ids") { it.groupId }
+                            into("permissions") { it.perm }
+                        }
+                    },
+                    """
+                        with entries as (
+                            select
+                                unnest(:resource_ids::bigint[]) as resource_id,
+                                unnest(:group_ids::text[]) as group_id,
+                                unnest(:permissions::text[]) as permission
+                        )
+                        insert into provider.resource_acl_entry (group_id, username, permission, resource_id) 
+                        select group_id, null, permission, resource_id
+                        from entries
+                    """
+                )
+            }
+
             createSpecifications(
                 actorAndProject,
                 generatedIds.zip(request.items.map { it.spec }),
@@ -1000,14 +1059,19 @@ abstract class ResourceService<
         return SupportByProvider(support.retrieveProducts(relevantProviders))
     }
 
-    private suspend fun findRelevantProviders(actorAndProject: ActorAndProject): List<String> {
-        val relevantProviders = db.withSession { session ->
+    suspend fun findRelevantProviders(
+        actorAndProject: ActorAndProject,
+        useProject: Boolean = true,
+        ctx: DBContext? = null,
+    ): List<String> {
+        val relevantProviders = (ctx ?: db).withSession { session ->
             session
                 .sendPreparedStatement(
                     {
                         setParameter("area", productArea.name)
                         setParameter("project", actorAndProject.project)
                         setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("use_project", useProject)
                     },
                     """
                             select distinct pc.provider
@@ -1017,9 +1081,17 @@ abstract class ResourceService<
                                 accounting.wallets w on pc.id = w.category left join
                                 accounting.wallet_owner wo on wo.id = w.owned_by left join
                                 project.project_members pm on
-                                    wo.project_id = pm.project_id and
-                                    pm.project_id = :project::text and
-                                    pm.username = :username
+                                    pm.username = :username and
+                                    (
+                                        (
+                                            :use_project and
+                                            wo.project_id = pm.project_id and
+                                            pm.project_id = :project::text
+                                        ) or 
+                                        (
+                                            not :use_project
+                                        )
+                                    )
                             where
                                 pc.product_type = :area::accounting.product_type and
                                 (

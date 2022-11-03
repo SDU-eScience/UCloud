@@ -54,7 +54,25 @@ data class ProviderRegisteredResource<Spec : ResourceSpecification>(
     val providerGeneratedId: String? = null,
     val createdBy: String? = null,
     val project: String? = null,
-)
+
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    @UCloudApiDoc("Grants full read access to all project members. The project property must be non-null.")
+    val projectAllRead: Boolean = false,
+
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    @UCloudApiDoc("Grants full write access to all project members. The project property must be non-null.")
+    val projectAllWrite: Boolean = false,
+) {
+    init {
+        if (projectAllRead && project == null) {
+            throw RPCException("project must be specified when projectAllRead = true", HttpStatusCode.BadRequest)
+        }
+
+        if (projectAllWrite && project == null) {
+            throw RPCException("project must be specified when projectAllWrite = true", HttpStatusCode.BadRequest)
+        }
+    }
+}
 
 @OptIn(ExperimentalStdlibApi::class)
 @TSSkipCodegen

@@ -87,12 +87,12 @@ export function useToggleSet<T>(items: T[]): ToggleSetHook<T> {
             checked.set.activateAll(allItems.current);
         }
         setChecked({...checked});
-    }, [setChecked, items, allChecked]);
+    }, [setChecked, allChecked]);
 
     const uncheckAll = useCallback(() => {
         checked.set.clear();
         setChecked({...checked});
-    }, [setChecked, items, allChecked]);
+    }, [setChecked, allChecked]);
 
 
     return useMemo(() => {

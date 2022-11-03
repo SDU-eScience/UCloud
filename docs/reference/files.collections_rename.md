@@ -60,6 +60,8 @@ SupportByProvider(
             files = FSFileSupport(
                 aclModifiable = false, 
                 isReadOnly = false, 
+                searchSupported = true, 
+                streamingSearchSupported = false, 
                 trashSupported = false, 
             ), 
             product = ProductReference(
@@ -295,7 +297,9 @@ await callAPI(FilesCollectionsApi.retrieveProducts(
                     "files": {
                         "aclModifiable": false,
                         "trashSupported": false,
-                        "isReadOnly": false
+                        "isReadOnly": false,
+                        "searchSupported": true,
+                        "streamingSearchSupported": false
                     }
                 }
             }
@@ -530,7 +534,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/
 #                     "files": {
 #                         "aclModifiable": false,
 #                         "trashSupported": false,
-#                         "isReadOnly": false
+#                         "isReadOnly": false,
+#                         "searchSupported": true,
+#                         "streamingSearchSupported": false
 #                     }
 #                 }
 #             }

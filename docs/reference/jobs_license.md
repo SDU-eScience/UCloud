@@ -67,6 +67,7 @@ Jobs.create.call(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     )),
     user
@@ -148,7 +149,8 @@ await callAPI(JobsApi.create(
                 "resources": null,
                 "timeAllocation": null,
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             }
         ]
     }
@@ -231,7 +233,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "resources": null,
             "timeAllocation": null,
             "openedFile": null,
-            "restartOnExit": null
+            "restartOnExit": null,
+            "sshEnabled": null
         }
     ]
 }'
