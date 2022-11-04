@@ -20,6 +20,7 @@ import dk.sdu.cloud.provider.api.Permission
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
 import java.util.*
+import dk.sdu.cloud.file.orchestrator.api.joinPath
 
 class SyncthingService(
     private val providerId: String,

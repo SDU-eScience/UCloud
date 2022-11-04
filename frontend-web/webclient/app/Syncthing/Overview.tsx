@@ -32,7 +32,8 @@ import {api as FilesApi, findSensitivity} from "@/UCloud/FilesApi";
 import {randomUUID, doNothing, removeTrailingSlash, useEffectSkipMount, copyToClipboard} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
-import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
+import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
+import * as UCloud from "@/UCloud";
 
 import syncthingScreen1 from "@/Assets/Images/syncthing/syncthing-1.png";
 import syncthingScreen2 from "@/Assets/Images/syncthing/syncthing-2.png";
@@ -250,6 +251,11 @@ export const Overview: React.FunctionComponent = () => {
     const provider = getQueryParam(location.search, "provider");
     const productCategory = getQueryParam(location.search, "category");
 
+    const [products, fetchProducts] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
+        {noop: true},
+        {productsByProvider: {}}
+    );
+
     if (!provider || !productCategory) {
         history.push("/drives");
         return null;
@@ -268,6 +274,11 @@ export const Overview: React.FunctionComponent = () => {
             if (didUnmount.current) return;
             pureDispatch({type: "ReloadServers", servers});
         });
+
+        fetchProducts(UCloud.compute.jobs.retrieveProducts({
+            providers: "development" // TODO(Brian)
+        }));
+
     }, [pureDispatch]);
 
     const requestJobReloader = useCallback((awaitUpdatingAttemptsRemaining: number = 40) => {

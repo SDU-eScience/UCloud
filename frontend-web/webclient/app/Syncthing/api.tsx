@@ -46,7 +46,7 @@ export function fetchConfigFake(): Promise<SyncthingConfig> {
 }
 
 export async function fetchConfig(): Promise<SyncthingConfig> {
-    const resp = await callAPI<SyncthingConfigResponse>(api.retrieveConfiguration("development", "u1-storage"));
+    const resp = await callAPI<SyncthingConfigResponse>(api.retrieveConfiguration("development", "syncthing"));
     return resp.config;
 }
 

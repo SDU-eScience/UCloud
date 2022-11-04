@@ -92,7 +92,7 @@ interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, C
 }
 
 interface SyncthingPlugin {
-    suspend fun RequestContext.retrieveSyncthingConfiguration()
+    suspend fun RequestContext.retrieveSyncthingConfiguration(): SyncthingConfig
     suspend fun RequestContext.updateSyncthingConfiguration()
     suspend fun RequestContext.resetSyncthingConfiguration()
     suspend fun RequestContext.restartSyncthing()

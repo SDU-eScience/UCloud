@@ -15,6 +15,7 @@ import dk.sdu.cloud.app.orchestrator.api.JobsProviderUtilizationResponse
 import dk.sdu.cloud.app.orchestrator.api.NetworkIP
 import dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport
 import dk.sdu.cloud.app.orchestrator.api.ShellRequest
+import dk.sdu.cloud.app.orchestrator.api.SyncthingConfig
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -26,6 +27,7 @@ import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.ucloud.UCloudFilePlugin
+import io.ktor.http.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -38,6 +40,7 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
     override var productAllocationResolved: List<Product> = emptyList()
     private lateinit var pluginConfig: ConfigSchema.Plugins.Jobs.UCloud
     private lateinit var files: UCloudFilePlugin
+    private var syncthingService: SyncthingService? = null
 
     override fun supportsRealUserMode(): Boolean = false
     override fun supportsServiceUserMode(): Boolean = true
@@ -101,6 +104,17 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
         logService = K8LogService(k8, runtime)
         utilization = UtilizationService(k8, runtime)
         shell = K8Shell(runtime)
+
+        if (config.products.compute.keys.contains("syncthing")) {
+            syncthingService = SyncthingService(
+                config.core.providerId,
+                jobManagement,
+                files.pathConverter,
+                files.memberFiles,
+                files.fs,
+                k8.serviceClient
+            )
+        }
 
         with(jobManagement) {
             register(
@@ -288,20 +302,36 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
         )
     }
 
-    override suspend fun RequestContext.retrieveSyncthingConfiguration() {
-        println("Not yet implemented")
+    override suspend fun RequestContext.retrieveSyncthingConfiguration(): SyncthingConfig {
+        if (syncthingService == null) {
+            throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
+        }
+
+        return syncthingService!!.retrieveConfiguration()
     }
 
     override suspend fun RequestContext.updateSyncthingConfiguration() {
-        println("Not yet implemented")
+        if (syncthingService == null) {
+            throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
+        }
+
+        syncthingService!!.updateConfiguration()
     }
 
     override suspend fun RequestContext.resetSyncthingConfiguration() {
-        println("Not yet implemented")
+        if (syncthingService == null) {
+            throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
+        }
+
+        syncthingService!!.resetConfiguration()
     }
 
     override suspend fun RequestContext.restartSyncthing() {
-        println("Not yet implemented")
+        if (syncthingService == null) {
+            throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
+        }
+
+        syncthingService!!.restart()
     }
 }
 
