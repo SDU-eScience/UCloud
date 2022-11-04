@@ -33,7 +33,6 @@ import {EnumFilterWidget, EnumOption, ResourceFilter, StaticPill} from "@/Resour
 import {useResourceSearch} from "@/Resource/Search";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
-import * as H from "history";
 import {ItemRenderer, ItemRow, ItemRowMemo, StandardBrowse, useRenamingState} from "@/ui-components/Browse";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {Avatar} from "@/AvataaarLib";
@@ -41,14 +40,14 @@ import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {Product, ProductType, productTypeToIcon} from "@/Accounting";
 import {BrowseType} from "./BrowseType";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {useProjectId, useProjectManagementStatus} from "@/Project";
-import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {FixedSizeList} from "react-window";
 import {default as AutoSizer} from "react-virtualized-auto-sizer";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {Feature, hasFeature} from "@/Features";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {isAdminOrPI, useProjectId} from "@/Project/Api";
+import {useProject} from "@/Project/cache";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -168,11 +167,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const [isCreating, setIsCreating] = useState(false);
     const dispatch = useDispatch();
     const projectId = useProjectId();
-    const projectManagement = useProjectManagementStatus({
-        isRootComponent: props.browseType == BrowseType.MainContent,
-        allowPersonalProject: true
-    });
-    const isWorkspaceAdmin = projectId === undefined ? true : isAdminOrPI(projectManagement.projectRole);
+    const project = useProject();
+    const isWorkspaceAdmin = projectId === undefined ? true : !project.loading && isAdminOrPI(project.fetch().status.myRole);
 
     useEffect(() => toggleSet.uncheckAll(), [props.additionalFilters]);
     useEffectSkipMount(() => {

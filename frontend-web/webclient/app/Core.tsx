@@ -23,15 +23,12 @@ const NewsList = React.lazy(() => import("@/NewsPost/NewsList"));
 const NewsManagement = React.lazy(() => import("@/Admin/NewsManagement"));
 const Playground = React.lazy(() => import("@/Playground/Playground"));
 const Products = React.lazy(() => import("@/Products/Products"));
-const ProjectDashboard = React.lazy(() => import("@/Project/ProjectDashboard"));
-const ProjectList = React.lazy(() => import("@/Project/ProjectList"));
-const ProjectMembers = React.lazy(() => import("@/Project/Members"));
 const ProjectSettings = React.lazy(() => import("@/Project/ProjectSettings"));
 const ProjectResources = React.lazy(() => import("@/Project/Resources"));
 const ProjectAllocations = React.lazy(() => import("@/Project/Allocations"));
-const ProjectList2 = React.lazy(() => import("@/Project/ProjectList2"));
-const ProjectDashboard2 = React.lazy(() => import("@/Project/Dashboard2"));
-const ProjectMembers2 = React.lazy(() => import("@/Project/Members2"));
+const ProjectList = React.lazy(() => import("@/Project/ProjectList2"));
+const ProjectDashboard = React.lazy(() => import("@/Project/Dashboard2"));
+const ProjectMembers = React.lazy(() => import("@/Project/Members2"));
 const Search = React.lazy(() => import("@/Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("@/ServiceLicenseAgreement"));
 const Studio = React.lazy(() => import("@/Applications/Studio/Page"));
@@ -78,42 +75,42 @@ import {CONTEXT_SWITCH, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
 import {Provider} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
 import {createGlobalStyle, ThemeProvider} from "styled-components";
-import {Box, theme, UIGlobalStyle} from "@/ui-components";
+import {theme, UIGlobalStyle} from "@/ui-components";
 import {invertedColors} from "@/ui-components/theme";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
 import {store} from "@/Utilities/ReduxUtilities";
 import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
 import {injectFonts} from "@/ui-components/GlobalStyle";
 import {SharesOutgoing} from "@/Files/SharesOutgoing";
-import ApplicationsOverview2 from "./Applications/Overview2";
+import {ApplicationsOverview2} from "./Applications/Overview2";
 import {TerminalContainer} from "@/Terminal/Container";
 
-const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>}/>);
+const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
 const Core = (): JSX.Element => (
     <>
-        <Dialog/>
-        <Snackbars/>
-        <Uploader/>
-        <Sidebar/>
-        <div style={{ height: "calc(100vh - var(--termsize, 0px))", overflowX: "auto", overflowY: "auto" }}>
+        <Dialog />
+        <Snackbars />
+        <Uploader />
+        <Sidebar />
+        <div style={{height: "calc(100vh - var(--termsize, 0px))", overflowX: "auto", overflowY: "auto"}}>
             <ErrorBoundary>
-                <React.Suspense fallback={<MainContainer main={<div>Loading...</div>}/>}>
+                <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>
                     <Switch>
-                        <Route exact path="/login" component={LoginPage}/>
-                        <Route exact path="/loginSuccess" component={LoginSuccess}/>
-                        <Route exact path="/login/wayf" component={Wayf}/>
-                        <Route exact path="/" component={requireAuth(Dashboard)}/>
-                        <Route exact path="/dashboard" component={requireAuth(Dashboard)}/>
-                        <Route exact path={"/debugger"} component={Debugger}/>
+                        <Route exact path="/login" component={LoginPage} />
+                        <Route exact path="/loginSuccess" component={LoginSuccess} />
+                        <Route exact path="/login/wayf" component={Wayf} />
+                        <Route exact path="/" component={requireAuth(Dashboard)} />
+                        <Route exact path="/dashboard" component={requireAuth(Dashboard)} />
+                        <Route exact path={"/debugger"} component={Debugger} />
 
-                        <Route path={"/drives"} component={requireAuth(FileCollectionsRouter)}/>
-                        <Route path={"/files"} component={requireAuth(FilesRouter)}/>
-                        <Route path={"/metadata"} component={requireAuth(MetadataNamespacesRouter)}/>
-                        <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)}/>
-                        <Route path={"/shares"} component={requireAuth(ShareRouter)}/>
+                        <Route path={"/drives"} component={requireAuth(FileCollectionsRouter)} />
+                        <Route path={"/files"} component={requireAuth(FilesRouter)} />
+                        <Route path={"/metadata"} component={requireAuth(MetadataNamespacesRouter)} />
+                        <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)} />
+                        <Route path={"/shares"} component={requireAuth(ShareRouter)} />
 
-                        <Route exact path={"/syncthing"} component={requireAuth(SyncthingOverview)}/>
+                        <Route exact path={"/syncthing"} component={requireAuth(SyncthingOverview)} />
 
                         <Route exact path="/applications" component={requireAuth(Applications)}/>
                         <Route exact path="/applications/overview_old" component={requireAuth(ApplicationsOverview)}/>
@@ -121,40 +118,40 @@ const Core = (): JSX.Element => (
                         <Route exact path="/applications/search" component={requireAuth(Search)}/>
 
                         {!inDevEnvironment() ? null :
-                            <Route exact path="/MANUAL-TESTING-OVERVIEW" component={ManualTestingOverview}/>
+                            <Route exact path="/MANUAL-TESTING-OVERVIEW" component={ManualTestingOverview} />
                         }
 
-                        <Route exact path="/applications/shell/:jobId/:rank" component={requireAuth(JobShell)}/>
-                        <Route exact path="/applications/web/:jobId/:rank" component={requireAuth(JobWeb)}/>
-                        <Route exact path="/applications/vnc/:jobId/:rank" component={requireAuth(JobVnc)}/>
-                        <Route path="/public-links" component={requireAuth(IngressRouter)}/>
-                        <Route path="/jobs" component={requireAuth(JobRouter)}/>
-                        <Route path="/licenses" component={requireAuth(LicenseRouter)}/>
-                        <Route path="/public-ips" component={requireAuth(NetworkIPsRouter)}/>
-                        <Route path={"/ssh-keys"} exact component={requireAuth(SshKeyBrowse)}/>
-                        <Route path={"/ssh-keys/create"} exact component={requireAuth(SshKeyCreate)}/>
+                        <Route exact path="/applications/shell/:jobId/:rank" component={requireAuth(JobShell)} />
+                        <Route exact path="/applications/web/:jobId/:rank" component={requireAuth(JobWeb)} />
+                        <Route exact path="/applications/vnc/:jobId/:rank" component={requireAuth(JobVnc)} />
+                        <Route path="/public-links" component={requireAuth(IngressRouter)} />
+                        <Route path="/jobs" component={requireAuth(JobRouter)} />
+                        <Route path="/licenses" component={requireAuth(LicenseRouter)} />
+                        <Route path="/public-ips" component={requireAuth(NetworkIPsRouter)} />
+                        <Route path={"/ssh-keys"} exact component={requireAuth(SshKeyBrowse)} />
+                        <Route path={"/ssh-keys/create"} exact component={requireAuth(SshKeyCreate)} />
 
-                        <Route exact path="/applications/studio" component={requireAuth(Studio)}/>
-                        <Route exact path="/applications/studio/t/:name" component={requireAuth(Tool)}/>
-                        <Route exact path="/applications/studio/a/:name" component={requireAuth(App)}/>
+                        <Route exact path="/applications/studio" component={requireAuth(Studio)} />
+                        <Route exact path="/applications/studio/t/:name" component={requireAuth(Tool)} />
+                        <Route exact path="/applications/studio/a/:name" component={requireAuth(App)} />
 
-                        {!inDevEnvironment() ? null : <Route exact path={"/playground"} component={Playground}/>}
-                        {!inDevEnvironment() ? null : <Route exact path={"/playground/demo"} component={Demo}/>}
-                        {!inDevEnvironment() ? null : <Route exact path={"/playground/lag"} component={LagTest}/>}
+                        {!inDevEnvironment() ? null : <Route exact path={"/playground"} component={Playground} />}
+                        {!inDevEnvironment() ? null : <Route exact path={"/playground/demo"} component={Demo} />}
+                        {!inDevEnvironment() ? null : <Route exact path={"/playground/lag"} component={LagTest} />}
 
-                        <Route exact path="/admin" component={requireAuth(AdminOverview)}/>
-                        <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)}/>
-                        <Route exact path="/admin/licenseServers" component={requireAuth(LicenseServers)}/>
-                        <Route exact path="/admin/news" component={requireAuth(NewsManagement)}/>
-                        <Route exact path="/admin/appk8" component={requireAuth(AppK8Admin)}/>
-                        <Route exact path="/admin/scripts" component={requireAuth(Scripts)}/>
+                        <Route exact path="/admin" component={requireAuth(AdminOverview)} />
+                        <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)} />
+                        <Route exact path="/admin/licenseServers" component={requireAuth(LicenseServers)} />
+                        <Route exact path="/admin/news" component={requireAuth(NewsManagement)} />
+                        <Route exact path="/admin/appk8" component={requireAuth(AppK8Admin)} />
+                        <Route exact path="/admin/scripts" component={requireAuth(Scripts)} />
 
-                        <Route exact path="/admin/providers" component={requireAuth(Providers)}/>
-                        <Route exact path="/admin/providers/create" component={requireAuth(CreateProvider)}/>
-                        <Route exact path="/admin/providers/edit/:id" component={requireAuth(EditProvider)}/>
-                        <Route exact path="/admin/providers/register" component={requireAuth(RegisterProvider)}/>
+                        <Route exact path="/admin/providers" component={requireAuth(Providers)} />
+                        <Route exact path="/admin/providers/create" component={requireAuth(CreateProvider)} />
+                        <Route exact path="/admin/providers/edit/:id" component={requireAuth(EditProvider)} />
+                        <Route exact path="/admin/providers/register" component={requireAuth(RegisterProvider)} />
 
-                        <Route exact path={"/providers/connect"} component={requireAuth(ProviderConnection)} />
+                        <Route exact path="/providers/connect" component={requireAuth(ProviderConnection)} />
                         <Route exact path="/providers/create" component={requireAuth(CreateProvider)} />
                         <Route exact path="/providers/edit/:id" component={requireAuth(EditProvider)} />
                         <Route exact path="/providers/register" component={requireAuth(RegisterProvider)} />
@@ -162,28 +159,26 @@ const Core = (): JSX.Element => (
                         <Route exact path="/providers/detailed/:id" component={ProviderDetailed} />
                         <Route path={"/providers"} component={requireAuth(ProviderRouter)} />
 
-                        <Route exact path="/news/detailed/:id" component={DetailedNews}/>
-                        <Route exact path="/news/list/:filter?" component={NewsList}/>
+                        <Route exact path="/news/detailed/:id" component={DetailedNews} />
+                        <Route exact path="/news/list/:filter?" component={NewsList} />
 
                         <Route
                             exact
                             path="/users/settings"
                             component={requireAuth(UserSettings, {requireTwoFactor: false})}
                         />
-                        <Route exact path="/users/avatar" component={requireAuth(AvataaarModification)}/>
+                        <Route exact path="/users/avatar" component={requireAuth(AvataaarModification)} />
 
-                        <Route exact path="/skus" component={Products}/>
+                        <Route exact path="/skus" component={Products} />
 
-                        <Route exact path="/projects2/" component={requireAuth(ProjectList2)}/>
-                        <Route exact path="/projects2/:project" component={requireAuth(ProjectDashboard2)}/>
-                        <Route exact path="/projects2/:project/members" component={requireAuth(ProjectMembers2)}/>
+                        <Route exact path="/projects/" component={requireAuth(ProjectList)} />
+                        <Route exact path="/projects/:project" component={requireAuth(ProjectDashboard)} />
+                        <Route exact path="/projects/:project/members" component={requireAuth(ProjectMembers)} />
 
-                        <Route exact path="/projects/" component={requireAuth(ProjectList)}/>
-                        <Route exact path="/subprojects" component={requireAuth(SubprojectList)}/>
-                        <Route exact path="/project/dashboard" component={requireAuth(ProjectDashboard)}/>
-                        <Route exact path="/project/settings/:page?" component={requireAuth(ProjectSettings)}/>
-                        <Route exact path="/project/resources" component={requireAuth(ProjectResources)}/>
-                        <Route exact path="/project/allocations" component={requireAuth(ProjectAllocations)}/>
+                        <Route exact path="/subprojects" component={requireAuth(SubprojectList)} />
+                        <Route exact path="/project/settings/:project/:page?" component={requireAuth(ProjectSettings)} />
+                        <Route exact path="/project/resources/:project?" component={requireAuth(ProjectResources)} />
+                        <Route exact path="/project/allocations/:project?" component={requireAuth(ProjectAllocations)} />
                         <Route
                             exact
                             path="/project/grants/existing"
@@ -204,9 +199,8 @@ const Core = (): JSX.Element => (
                             path="/project/grants/view/:appId"
                             component={requireAuth(GrantApplicationEditor(RequestTarget.VIEW_APPLICATION))}
                         />
-                        <Route exact path="/project/members/:group?/:member?" component={requireAuth(ProjectMembers)}/>
-                        <Route exact path="/project/grants/ingoing" component={requireAuth(IngoingApplications)}/>
-                        <Route exact path="/project/grants/outgoing" component={requireAuth(OutgoingApplications)}/>
+                        <Route exact path="/project/grants/ingoing/:project?" component={requireAuth(IngoingApplications)} />
+                        <Route exact path="/project/grants/outgoing/:project?" component={requireAuth(OutgoingApplications)} />
 
                         <Route
                             exact
@@ -216,13 +210,13 @@ const Core = (): JSX.Element => (
                                 requireSla: false
                             })}
                         />
-                        <Route component={NotFound}/>
+                        <Route component={NotFound} />
                     </Switch>
                 </React.Suspense>
             </ErrorBoundary>
         </div>
 
-        <TerminalContainer/>
+        <TerminalContainer />
     </>
 );
 
@@ -258,7 +252,7 @@ function requireAuth<T>(Delegate: React.FunctionComponent<T>, opts?: RequireAuth
     };
 }
 
-const LoginSuccess = (props: { history: History }): null => {
+const LoginSuccess = (props: {history: History}): null => {
     React.useEffect(() => {
         dispatchUserAction(USER_LOGIN);
         onLogin();
@@ -283,7 +277,7 @@ const GlobalStyle = createGlobalStyle`
 Client.initializeStore(store);
 removeExpiredFileUploads();
 
-function MainApp({children}: { children?: React.ReactNode }): JSX.Element {
+function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
     const [isLightTheme, setTheme] = React.useState(() => {
         const isLight = isLightThemeStored();
         toggleCssColors(isLight);
@@ -298,9 +292,9 @@ function MainApp({children}: { children?: React.ReactNode }): JSX.Element {
 
     return (
         <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
-            <GlobalStyle/>
+            <GlobalStyle />
             <BrowserRouter basename="app">
-                <Header toggleTheme={toggle}/>
+                <Header toggleTheme={toggle} />
                 {children}
             </BrowserRouter>
         </ThemeProvider>
@@ -313,7 +307,7 @@ export default function UCloudApp(): JSX.Element {
     return (
         <Provider store={store}>
             <MainApp>
-                <Core/>
+                <Core />
             </MainApp>
         </Provider>
     );

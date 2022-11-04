@@ -4,8 +4,8 @@ import {Box, Icon, Text, Flex} from "@/ui-components";
 import {addTrailingSlash, removeTrailingSlash} from "@/UtilityFunctions";
 import {HttpClient} from "../Authentication/lib";
 import {pathComponents} from "@/Utilities/FileUtilities";
-import {ProjectStatus, useProjectStatus} from "@/Project/cache";
 import {Center} from "@/UtilityComponents";
+import {useProject} from "@/Project/cache";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
 export const BreadCrumbsBase = styled(Flex) <{embedded: boolean}>`
@@ -55,16 +55,17 @@ export interface BreadCrumbMapping {
     local: string;
 }
 
-export const BreadCrumbs = ({
+// Unused
+const BreadCrumbs = ({
     currentPath,
     navigate,
     client,
     embedded
 }: BreadcrumbsList): JSX.Element | null => {
+    const project = useProject().fetch();
     if (!currentPath) return null;
-    const projectStatus = useProjectStatus();
 
-    const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, projectStatus);
+    const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, project.specification.title);
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
     // NOTE(Jonas): Can't we just say `const activePathsMapping = pathsMapping.pop()`?
     pathsMapping.pop();
@@ -108,7 +109,7 @@ export const BreadCrumbs = ({
 function buildBreadCrumbs(
     path: string,
     homeFolder: string,
-    projectStatus: ProjectStatus
+    projectTitle: string,
 ): BreadCrumbMapping[] {
     const paths = pathComponents(path);
     if (paths.length === 0) return [{actualPath: "/", local: "/"}];
@@ -134,11 +135,7 @@ function buildBreadCrumbs(
     if (addTrailingSlash(path).startsWith("/projects/")) {
         const [, project] = pathComponents(path);
 
-        let localName = project;
-        const membership = projectStatus.fetch().membership.find(it => it.projectId === project);
-        if (membership) {
-            localName = membership.title;
-        }
+        const localName = projectTitle;
 
         return [
             {actualPath: `/projects/${project}/`, local: localName}

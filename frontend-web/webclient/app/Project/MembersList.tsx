@@ -1,5 +1,4 @@
-import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole} from "@/Project";
-import {useAsyncCommand} from "@/Authentication/DataHook";
+import {useCloudCommand} from "@/Authentication/DataHook";
 import {useAvatars} from "@/AvataaarLib/hook";
 import * as React from "react";
 import {useEffect} from "react";
@@ -11,22 +10,24 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {addStandardDialog} from "@/UtilityComponents";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {Client} from "@/Authentication/HttpClientInstance";
+import ProjectAPI, {isAdminOrPI, OldProjectRole, ProjectGroup, ProjectMember, projectStringToRole} from "./Api";
+import {bulkRequestOf} from "@/DefaultObjects";
 
 export function MembersList(props: Readonly<{
     members: ProjectMember[];
+    groups: ProjectGroup[];
     onAddToGroup?: (member: string) => void;
     onRemoveMember(member: string): void;
     allowRoleManagement: boolean;
-    projectRole: ProjectRole;
+    projectRole: OldProjectRole;
     reload?: () => void;
     isOutgoingInvites?: boolean;
     showRole?: boolean;
     projectId: string;
 }>): JSX.Element {
-    const [, runCommand] = useAsyncCommand();
+    const [, runCommand] = useCloudCommand();
     const avatars = useAvatars();
     const allowManagement = isAdminOrPI(props.projectRole);
 
@@ -35,13 +36,13 @@ export function MembersList(props: Readonly<{
         avatars.updateCache(usernames);
     }, [props.members]);
 
-    const options: {text: string; icon: IconName; value: ProjectRole}[] = [
-        {text: "User", icon: "user", value: ProjectRole.USER},
-        {text: "Admin", icon: "userAdmin", value: ProjectRole.ADMIN}
+    const options: {text: string; icon: IconName; value: OldProjectRole}[] = [
+        {text: "User", icon: "user", value: OldProjectRole.USER},
+        {text: "Admin", icon: "userAdmin", value: OldProjectRole.ADMIN}
     ];
 
-    if (props.projectRole === ProjectRole.PI) {
-        options.push({text: "PI", icon: "userPi", value: ProjectRole.PI});
+    if (props.projectRole === OldProjectRole.PI) {
+        options.push({text: "PI", icon: "userPi", value: OldProjectRole.PI});
     }
 
     return (<>
@@ -52,7 +53,7 @@ export function MembersList(props: Readonly<{
                     {!props.isOutgoingInvites ?
                         <div>
                             <Text bold>{member.username}</Text>
-                            {member.memberOfAnyGroup !== false ? null : (
+                            {memberOfAnyGroup(member.username, props.groups) ? null : (
                                 <Text color="red">
                                     <Icon name="warning" size={20} mr="6px" />
                                     Not a member of any group
@@ -68,7 +69,7 @@ export function MembersList(props: Readonly<{
                     <Box flexGrow={1} />
 
                     {props.showRole === false ? null :
-                        !props.allowRoleManagement || member.role === ProjectRole.PI ?
+                        !props.allowRoleManagement || member.role === OldProjectRole.PI ?
                             <RadioTilesContainer height="48px">
                                 <RadioTile
                                     name={member.username}
@@ -81,57 +82,61 @@ export function MembersList(props: Readonly<{
                                     onChange={() => undefined}
                                 />
                             </RadioTilesContainer> :
-                            <>
-                                <RadioTilesContainer height="48px">
-                                    {options.map(role =>
-                                        <RadioTile
-                                            key={role.text}
-                                            name={member.username}
-                                            icon={role.icon}
-                                            height={40}
-                                            labeled
-                                            label={role.text}
-                                            fontSize={"0.5em"}
-                                            checked={role.value === member.role}
-                                            onChange={async event => {
-                                                try {
-                                                    if (event.currentTarget.value === "PI") {
-                                                        addStandardDialog({
-                                                            title: "Transfer PI Role",
-                                                            message: "Are you sure you wish to transfer the PI role? " +
-                                                                "A project can only have one PI. " +
-                                                                "Your own user will be demoted to admin.",
-                                                            onConfirm: async () => {
-                                                                await runCommand(
-                                                                    transferPiRole({newPrincipalInvestigator: member.username})
-                                                                );
+                            <RadioTilesContainer height="48px">
+                                {options.map(role =>
+                                    <RadioTile
+                                        key={role.text}
+                                        name={member.username}
+                                        icon={role.icon}
+                                        height={40}
+                                        labeled
+                                        label={role.text}
+                                        fontSize={"0.5em"}
+                                        checked={role.value === member.role}
+                                        onChange={async event => {
+                                            try {
+                                                if (event.currentTarget.value === "PI") {
+                                                    addStandardDialog({
+                                                        title: "Transfer PI Role",
+                                                        message: "Are you sure you wish to transfer the PI role? " +
+                                                            "A project can only have one PI. " +
+                                                            "Your own user will be demoted to admin.",
+                                                        onConfirm: async () => {
+                                                            await runCommand({
+                                                                ...ProjectAPI.changeRole(bulkRequestOf({
+                                                                    username: member.username,
+                                                                    role: OldProjectRole.PI
+                                                                })),
+                                                                projectOverride: props.projectId
+                                                            });
 
-                                                                if (props.reload) props.reload();
-                                                            },
-                                                            confirmText: "Transfer PI role"
-                                                        });
-                                                    } else {
-                                                        await runCommand(changeRoleInProject({
-                                                            projectId: props.projectId,
-                                                            member: member.username,
-                                                            newRole: projectStringToRole(event.currentTarget.value)
-                                                        }));
-                                                        if (props.reload) props.reload();
-                                                    }
-                                                } catch (err) {
-                                                    snackbarStore.addFailure(
-                                                        errorMessageOrDefault(err, "Failed to update role."), false
-                                                    );
+                                                            if (props.reload) props.reload();
+                                                        },
+                                                        confirmText: "Transfer PI role"
+                                                    });
+                                                } else {
+                                                    await runCommand({
+                                                        ...ProjectAPI.changeRole(bulkRequestOf({
+                                                            username: member.username,
+                                                            role: projectStringToRole(event.currentTarget.value)
+                                                        })),
+                                                        projectOverride: props.projectId
+                                                    });
+                                                    if (props.reload) props.reload();
                                                 }
-                                            }}
-                                        />
-                                    )}
-                                </RadioTilesContainer>
-                            </>
+                                            } catch (err) {
+                                                snackbarStore.addFailure(
+                                                    errorMessageOrDefault(err, "Failed to update role."), false
+                                                );
+                                            }
+                                        }}
+                                    />
+                                )}
+                            </RadioTilesContainer>
                     }
 
                     <Flex alignItems={"center"}>
-                        {!props.onAddToGroup ? !allowManagement || member.role === ProjectRole.PI ? null :
+                        {!props.onAddToGroup ? !allowManagement || member.role === OldProjectRole.PI ? null :
                             <ConfirmationButtonStyling>
                                 {member.username == Client.username ? null : <ConfirmationButton
                                     icon={"close"}
@@ -156,13 +161,13 @@ export function MembersList(props: Readonly<{
     </>);
 }
 
-function roleToIcon(role: ProjectRole): "user" | "userAdmin" | "userPi" {
+function roleToIcon(role: OldProjectRole): "user" | "userAdmin" | "userPi" {
     switch (role) {
-        case ProjectRole.ADMIN:
+        case OldProjectRole.ADMIN:
             return "userAdmin";
-        case ProjectRole.PI:
+        case OldProjectRole.PI:
             return "userPi";
-        case ProjectRole.USER:
+        case OldProjectRole.USER:
             return "user";
     }
 }
@@ -179,3 +184,7 @@ const ConfirmationButtonStyling = styled(Box)`
         width: 12px;
     }
 `;
+
+function memberOfAnyGroup(username: string, groups: ProjectGroup[]): boolean {
+    return groups.some(it => it.status.members?.includes(username));
+}

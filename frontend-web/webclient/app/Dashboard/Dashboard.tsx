@@ -13,7 +13,7 @@ import {SidebarPages} from "@/ui-components/Sidebar";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {DashboardOperations, DashboardProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
-import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiBrowse, APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {Spacer} from "@/ui-components/Spacer";
@@ -47,36 +47,13 @@ import {Job, api as JobsApi} from "@/UCloud/JobsApi";
 import {ItemRow} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
-import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
-
-// TODO(Jonas): Move
-// 29/8 2022
-interface BrowseApplicationsRequest {
-    filter: "SHOW_ALL" | "ACTIVE" | "INACTIVE";
-
-    includeIngoingApplications: boolean;
-    includeOutgoingApplications: boolean;
-
-    itemsPerPage?: number;
-    next?: string;
-    consistency?: "PREFER" | "REQUIRE";
-    itemsToSkip?: number;
-}
-
-function browseGrantsApplications(request: BrowseApplicationsRequest): APICallParameters<BrowseApplicationsRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/grant/browse", request),
-        parameters: request,
-        payload: request
-    }
-}
+import {browseGrantApplications, GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 import {Connect} from "@/Providers/Connect";
 import {NotificationDashboardCard} from "@/Notifications";
 import {grantsLink} from "@/UtilityFunctions";
-import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {isAdminOrPI, useProjectId} from "@/Project/Api";
+import {useProject} from "@/Project/cache";
 
 function Dashboard(props: DashboardProps): JSX.Element {
     useSearch(defaultSearch);
@@ -121,13 +98,13 @@ function Dashboard(props: DashboardProps): JSX.Element {
             filterUsable: true,
             includeBalance: true
         }));
-        fetchOutgoingApps(browseGrantsApplications({
+        fetchOutgoingApps(browseGrantApplications({
             itemsPerPage: 10,
             includeIngoingApplications: false,
             includeOutgoingApplications: true,
             filter: GrantApplicationFilter.ACTIVE
         }));
-        fetchIngoingApps(browseGrantsApplications({
+        fetchIngoingApps(browseGrantApplications({
             itemsPerPage: 10,
             includeIngoingApplications: true,
             includeOutgoingApplications: false,
@@ -385,8 +362,11 @@ function DashboardResources({products}: {
         return wallets;
     }, [products.data.items]);
 
-    const projectId = useProjectId()
+    const projectId = useProjectId();
 
+
+    const project = useProject();
+    const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
     const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"}>
@@ -403,10 +383,10 @@ function DashboardResources({products}: {
         >
             {wallets.length === 0 ? (
                 <NoResultsCardBody title={"No available resources"}>
-                    <Text>
+                    {!canApply ? null : <Text>
                         Apply for resources to use storage and compute on UCloud.
                         {applyLinkButton}
-                    </Text>
+                    </Text>}
                 </NoResultsCardBody>
             ) :
                 <>
@@ -450,8 +430,8 @@ const DashboardGrantApplications: React.FunctionComponent<{
     );
 
 
-    const project = useProjectManagementStatus({isRootComponent: false, allowPersonalProject: true});
-    const canApply = !Client.hasActiveProject || isAdminOrPI(project.projectDetails.data.whoami.role);
+    const project = useProject();
+    const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
     if (!canApply) return null;
 

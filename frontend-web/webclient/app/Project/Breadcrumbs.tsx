@@ -3,11 +3,12 @@ import styled from "styled-components";
 import Spinner, {HexSpinWrapper} from "@/LoadingIcon/LoadingIcon";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import {Link} from "@/ui-components";
-import {useProjectManagementStatus} from "@/Project/index";
+import {useProject} from "./cache";
+import {useProjectId} from "./Api";
 
 export interface ProjectBreadcrumbsProps {
     crumbs: {title: string, link?: string}[];
-    allowPersonalProject?: true;
+    allowPersonalProject?: boolean;
     omitActiveProject?: boolean;
 }
 
@@ -23,20 +24,18 @@ const ProjectBreadcrumbsWrapper = styled(BreadCrumbsBase)`
 `;
 
 export const ProjectBreadcrumbs: React.FunctionComponent<ProjectBreadcrumbsProps> = props => {
-    const {projectDetails, projectId} = useProjectManagementStatus({
-        isRootComponent: false,
-        allowPersonalProject: props.allowPersonalProject
-    });
+    const projectId = useProjectId();
+    const project = useProject();
     let projectNameComponent = <Spinner />;
-    if (!projectDetails.loading) {
-        const title = projectDetails.data.title;
+    if (project.fetch().id !== "") {
+        const title = project.fetch().specification.title;
         projectNameComponent = <>{title.slice(0, 20).trim()}{title.length > 20 ? "..." : ""}</>;
     }
 
     return <ProjectBreadcrumbsWrapper mb="12px" embedded={false}>
         <span><Link to="/projects">My Projects</Link></span>
         {projectId && !props.omitActiveProject ? (
-            <span><Link to="/project/dashboard">{projectNameComponent}</Link></span>
+            <span><Link to={`/projects/${projectId}`}>{projectNameComponent}</Link></span>
         ) : props.allowPersonalProject ? <span><Link to="/project/dashboard">My Workspace</Link></span> : null}
         {props.crumbs.map((crumb, idx) => {
             if (crumb.link) {

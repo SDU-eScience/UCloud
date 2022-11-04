@@ -23,11 +23,10 @@ import {PageV2} from "@/UCloud";
 import {MutableRefObject, useCallback, useMemo, useRef, useState} from "react";
 import {displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/DefaultObjects";
-import {createProject, SubAllocation, useProjectId} from "@/Project/index";
 import {Accordion} from "@/ui-components/Accordion";
 import {Spacer} from "@/ui-components/Spacer";
 import format from "date-fns/format";
-import {ListRow, ListRowStat} from "@/ui-components/List";
+import {ListRow} from "@/ui-components/List";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {DatePicker} from "@/ui-components/DatePicker";
 import {InputLabel} from "@/ui-components/Input";
@@ -35,10 +34,11 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListV2} from "@/Pagination";
-import {allocationText, AllocationViewer, resultAsPercent} from "./Allocations";
+import {AllocationViewer, resultAsPercent, SubAllocation, allocationText} from "./Allocations";
 import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
+import ProjectAPI, {useProjectId} from "@/Project/Api";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider) + ` [${getParentAllocationFromSuballocation(alloc)}]`;
@@ -276,10 +276,10 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
 
         try {
             if (recipient.asNewProject) {
-                const result = await invokeCommand(createProject({
+                const [result] = (await invokeCommand(ProjectAPI.create(bulkRequestOf({
                     title: recipientId,
                     parent: projectId
-                }), {defaultErrorHandler: false});
+                })), {defaultErrorHandler: false})).responses;
                 recipientTitle = result.id;
             } else {
                 const result = await invokeCommand<RetrieveRecipientResponse>(retrieveRecipient({query: recipientId}), {defaultErrorHandler: false});
