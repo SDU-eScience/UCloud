@@ -93,7 +93,7 @@ class AuditToEventStream(
                 responseTimeMs: Long
             ) {
                 val auditDescription = call.auditOrNull
-                val auditData = context.audit
+                val auditData = context.auditOrNull ?: return
                 if (auditData.skipAuditing) return
 
                 val eventProducer = httpEventProducer(call)

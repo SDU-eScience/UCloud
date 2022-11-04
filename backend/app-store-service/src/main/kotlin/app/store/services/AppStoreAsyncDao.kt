@@ -15,8 +15,7 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
+import java.time.LocalDateTime
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -448,8 +447,8 @@ class AppStoreAsyncDao(
         ctx.withSession { session ->
             session.insert(ApplicationTable) {
                 set(ApplicationTable.owner, username)
-                set(ApplicationTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
-                set(ApplicationTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                set(ApplicationTable.createdAt, LocalDateTime.now())
+                set(ApplicationTable.modifiedAt, LocalDateTime.now())
                 set(ApplicationTable.authors, defaultMapper.encodeToString(description.metadata.authors))
                 set(ApplicationTable.title, description.metadata.title)
                 set(ApplicationTable.description, description.metadata.description)

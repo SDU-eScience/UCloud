@@ -1,13 +1,11 @@
 package dk.sdu.cloud.extract.data.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.accounting.api.WalletOwner
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.extract.data.api.*
-import org.joda.time.Days
-import org.joda.time.LocalDateTime
 import java.io.File
 import java.security.MessageDigest
+import java.time.Duration
+import java.time.LocalDateTime
 import kotlin.math.min
 
 class DeicReportService(val postgresDataService: PostgresDataService) {
@@ -17,7 +15,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
     }
 
     fun reportCenter(startDate: LocalDateTime, endDate: LocalDateTime, aau:Boolean) {
-        val daysInPeriod = Days.daysBetween(startDate, endDate).days
+        val daysInPeriod = Duration.between(startDate, endDate).toDays()
         val hoursInPeriod = daysInPeriod * 24L
         val usedCPUInPeriod = postgresDataService.calculateProductUsage(startDate, endDate, ProductType.CPU, aau)
         val numberOfGPUCores = if (aau) TYPE_1_GPU_CORES * hoursInPeriod else 0L
@@ -46,7 +44,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
     }
 
     fun reportCenterDaily(startDate: LocalDateTime, endDate: LocalDateTime) {
-        val daysInPeriod = Days.daysBetween(startDate, endDate).days
+        val daysInPeriod = Duration.between(startDate, endDate).toDays()
         println("[")
         for (day in 0..daysInPeriod) {
             val start = startDate.plusDays(day)
@@ -90,7 +88,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
         //TODO() NOT correct format - currently a center report for each day. Should perhaps be user specific
         val fileName = "/tmp/CenterDaily.json"
         val file = File(fileName)
-        val daysInPeriod = Days.daysBetween(startDate, endDate).days
+        val daysInPeriod = Duration.between(startDate, endDate).toDays()
         file.writeText("[\n")
         for (day in 0..daysInPeriod) {
             println("days to go: ${daysInPeriod-day}")
@@ -252,14 +250,14 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
 
         val cpuUsed = makeMappingOfUsage(
             postgresDataService.retrieveUsageSDU(
-                LocalDateTime("2022-01-01"),
+                LocalDateTime.parse("2022-01-01"),
                 LocalDateTime.now(),
                 ProductType.CPU
             )
         )
         val gpuUsed = makeMappingOfUsage(
             postgresDataService.retrieveUsageSDU(
-                LocalDateTime("2022-01-01"),
+                LocalDateTime.parse("2022-01-01"),
                 LocalDateTime.now(),
                 ProductType.GPU
             )
@@ -267,14 +265,14 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
         val storageSDU = postgresDataService.getSDUStorage()
         val computeAAU = makeMappingOfUsage(
             postgresDataService.retrieveUsageAAU(
-                LocalDateTime("2022-01-01"),
+                LocalDateTime.parse("2022-01-01"),
                 LocalDateTime.now(),
                 ProductType.CPU
             )
         )
         val gpuAAU = makeMappingOfUsage(
             postgresDataService.retrieveUsageAAU(
-                LocalDateTime("2022-01-01"),
+                LocalDateTime.parse("2022-01-01"),
                 LocalDateTime.now(),
                 ProductType.GPU
             )

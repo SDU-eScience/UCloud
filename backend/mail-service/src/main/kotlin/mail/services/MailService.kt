@@ -4,6 +4,7 @@ import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+//import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -22,12 +23,11 @@ import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import dk.sdu.cloud.mail.utils.*
 import dk.sdu.cloud.service.escapeHtml
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
+import java.time.LocalDateTime
 import javax.mail.Message
 import javax.mail.Session
 import javax.mail.Transport
@@ -363,11 +363,10 @@ class MailService(
                     {
                         setParameter("count", 1L)
                         setParameter("username", username)
-                        setParameter("time", LocalDateTime.now(DateTimeZone.UTC))
                     },
                     """
                         INSERT INTO mail_counting 
-                        VALUES (:count, :username, :time)
+                        VALUES (:count, :username, now())
                         ON CONFLICT (username) 
                         DO 
                             UPDATE SET mail_count = mail_counting.mail_count + 1
@@ -382,13 +381,12 @@ class MailService(
                 .sendPreparedStatement(
                     {
                         setParameter("username", username)
-                        setParameter("time", LocalDateTime.now(DateTimeZone.UTC))
                         setParameter("count", 1L)
                         setParameter("alertedFor", false)
                     },
                     """
                         UPDATE mail_counting
-                        SET period_start = :time,
+                        SET period_start = now(),
                             mail_count = :count,
                             alerted_for = :alertedFor
                         WHERE username = :username
@@ -417,7 +415,7 @@ class MailService(
                     HttpStatusCode.InternalServerError,
                     "Mail count does not exist. Should just have been initialized or updated")
         }
-        if(LocalDateTime.now(DateTimeZone.UTC).isAfter(countInfoForUser.timestamp.plusMinutes(30))) {
+        if(LocalDateTime.now().isAfter(countInfoForUser.timestamp.plusMinutes(30))) {
             resetMailCount(recipient)
             return true
         } else {

@@ -1,9 +1,8 @@
 package dk.sdu.cloud.extract.data.services
 
-import org.joda.time.LocalDateTime
+import java.time.LocalDateTime
 
 class UserActivityReport(val elasticDataService: ElasticDataService, val postgresDataService: PostgresDataService) {
-
     fun maxSimultaneousUsers(startDate: LocalDateTime, endDate: LocalDateTime) {
         elasticDataService.maxSimultaneousUsers(startDate, endDate)
     }
@@ -16,5 +15,4 @@ class UserActivityReport(val elasticDataService: ElasticDataService, val postgre
         val users = postgresDataService.getUsernames()
         elasticDataService.activityPeriod(users)
     }
-
 }

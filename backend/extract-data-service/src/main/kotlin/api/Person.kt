@@ -1,7 +1,6 @@
 package dk.sdu.cloud.extract.data.api
 
 import kotlinx.serialization.Serializable
-import org.joda.time.LocalDateTime
 
 @Serializable
 data class Person (

@@ -21,8 +21,7 @@ import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
+import java.time.LocalDateTime
 
 val FIRST_PAGE = NormalizedPaginationRequest(null, null)
 
@@ -121,8 +120,8 @@ class NotificationDao {
                 set(NotificationTable.message, notification.message)
                 set(NotificationTable.meta, defaultMapper.encodeToString(notification.meta))
                 set(NotificationTable.read, notification.read)
-                set(NotificationTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
-                set(NotificationTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                set(NotificationTable.createdAt, LocalDateTime.now())
+                set(NotificationTable.modifiedAt, LocalDateTime.now())
                 set(NotificationTable.type, notification.type)
                 set(NotificationTable.id, id)
             }
@@ -196,7 +195,7 @@ class NotificationDao {
             getField(NotificationTable.message),
             getField(NotificationTable.id),
             meta,
-            getField(NotificationTable.createdAt).toDateTime(DateTimeZone.UTC).millis,
+            getField(NotificationTable.createdAt).toTimestamp(),
             getField(NotificationTable.read)
         )
     }

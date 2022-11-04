@@ -15,9 +15,9 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.timestampToLocalDateTime
+import dk.sdu.cloud.service.toTimestamp
 import kotlinx.coroutines.runBlocking
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
 import java.util.*
 
 class TwoFactorAsyncDAO {
@@ -58,12 +58,11 @@ class TwoFactorAsyncDAO {
                 .sendPreparedStatement(
                     {
                         setParameter("id", challengeId)
-                        setParameter("time", LocalDateTime(Time.now(), DateTimeZone.UTC).toDateTime().millis / 1000)
                     },
                     """
                         SELECT *
                         FROM two_factor_challenges
-                        WHERE challenge_id = :id AND expires_at > to_timestamp(:time)
+                        WHERE challenge_id = :id AND expires_at > now()
                     """
                 )
                 .rows
@@ -120,7 +119,7 @@ class TwoFactorAsyncDAO {
             session.insert(TwoFactorChallengeTable) {
                 set(TwoFactorChallengeTable.type, challenge.type)
                 set(TwoFactorChallengeTable.challengeId, challenge.challengeId)
-                set(TwoFactorChallengeTable.expiresAt, LocalDateTime(challenge.expiresAt, DateTimeZone.UTC))
+                set(TwoFactorChallengeTable.expiresAt, timestampToLocalDateTime(challenge.expiresAt))
                 set(TwoFactorChallengeTable.service, challenge.service)
                 set(TwoFactorChallengeTable.credentials, challenge.credentials.id)
             }
@@ -211,7 +210,7 @@ fun RowData.toTwoFactorChallenge(db: DBContext): TwoFactorChallenge {
     return TwoFactorChallenge(
         getField(TwoFactorChallengeTable.type),
         getField(TwoFactorChallengeTable.challengeId),
-        getField(TwoFactorChallengeTable.expiresAt).toDateTime().millis,
+        getField(TwoFactorChallengeTable.expiresAt).toTimestamp(),
         twoFactorCredentials,
         getField(TwoFactorChallengeTable.service)
     )

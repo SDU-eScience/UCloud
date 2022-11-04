@@ -331,7 +331,7 @@ export function productTypeToIcon(type: ProductType): IconName {
     }
 }
 
-export function explainAllocation(type: ProductType, chargeType: ChargeType, unit: ProductPriceUnit): string {
+export function explainAllocation(type: ProductType, unit: ProductPriceUnit): string {
     switch (unit) {
         case "PER_UNIT": {
             switch (type) {
@@ -379,23 +379,23 @@ export function explainAllocation(type: ProductType, chargeType: ChargeType, uni
 export function explainUsage(type: ProductType, chargeType: ChargeType, unit: ProductPriceUnit): string {
     // NOTE(Dan): I think this is generally the case, but I am leaving a separate function just in case we need to
     // change it.
-    return explainAllocation(type, chargeType, unit);
+    return explainAllocation(type, unit);
 }
 
-function explainPrice(type: ProductType, chargeType: ChargeType, unit: ProductPriceUnit): { readableUnit: string, durationInMinutes: number } {
+function explainPrice(type: ProductType, unit: ProductPriceUnit): {readableUnit: string, durationInMinutes: number} {
     switch (unit) {
         case "PER_UNIT": {
             switch (type) {
                 case "INGRESS":
-                    return { readableUnit: "Public link(s)", durationInMinutes: 1 };
+                    return {readableUnit: "Public link(s)", durationInMinutes: 1};
                 case "NETWORK_IP":
-                    return { readableUnit: "Public IP(s)", durationInMinutes: 1 };
+                    return {readableUnit: "Public IP(s)", durationInMinutes: 1};
                 case "LICENSE":
-                    return { readableUnit: "License(s)", durationInMinutes: 1 };
+                    return {readableUnit: "License(s)", durationInMinutes: 1};
                 case "STORAGE":
-                    return { readableUnit: "GB", durationInMinutes: 1 };
+                    return {readableUnit: "GB", durationInMinutes: 1};
                 case "COMPUTE":
-                    return { readableUnit: "Job(s)", durationInMinutes: 1 };
+                    return {readableUnit: "Job(s)", durationInMinutes: 1};
             }
         }
 
@@ -405,15 +405,15 @@ function explainPrice(type: ProductType, chargeType: ChargeType, unit: ProductPr
         case "CREDITS_PER_DAY": {
             switch (type) {
                 case "INGRESS":
-                    return { readableUnit: "DKK/day", durationInMinutes: DAY };
+                    return {readableUnit: "DKK/day", durationInMinutes: DAY};
                 case "NETWORK_IP":
-                    return { readableUnit: "DKK/day", durationInMinutes: DAY };
+                    return {readableUnit: "DKK/day", durationInMinutes: DAY};
                 case "LICENSE":
-                    return { readableUnit: "DKK/day", durationInMinutes: DAY };
+                    return {readableUnit: "DKK/day", durationInMinutes: DAY};
                 case "STORAGE":
-                    return { readableUnit: "DKK/GB-day", durationInMinutes: DAY };
+                    return {readableUnit: "DKK/GB-day", durationInMinutes: DAY};
                 case "COMPUTE":
-                    return { readableUnit: "DKK/hour", durationInMinutes: HOUR };
+                    return {readableUnit: "DKK/hour", durationInMinutes: HOUR};
             }
         }
 
@@ -423,17 +423,17 @@ function explainPrice(type: ProductType, chargeType: ChargeType, unit: ProductPr
         case "UNITS_PER_DAY": {
             switch (type) {
                 case "INGRESS":
-                    return { readableUnit: "Days of public link", durationInMinutes: DAY };
+                    return {readableUnit: "Days of public link", durationInMinutes: DAY};
                 case "NETWORK_IP":
-                    return { readableUnit: "Days of public IP", durationInMinutes: DAY };
+                    return {readableUnit: "Days of public IP", durationInMinutes: DAY};
                 case "LICENSE":
-                    return { readableUnit: "Days of license", durationInMinutes: DAY };
+                    return {readableUnit: "Days of license", durationInMinutes: DAY};
                 case "STORAGE":
                     // TODO Someone should come up with a better name for this. I don't see _why_ you would want to
                     //  bill like this, but I also don't know what to call it.
-                    return { readableUnit: "Days of GB", durationInMinutes: DAY };
+                    return {readableUnit: "Days of GB", durationInMinutes: DAY};
                 case "COMPUTE":
-                    return { readableUnit: "Core hour(s)", durationInMinutes: HOUR };
+                    return {readableUnit: "Core hour(s)", durationInMinutes: HOUR};
             }
         }
     }
@@ -495,23 +495,19 @@ export function normalizeBalanceForBackend(
 export function normalizeBalanceForFrontendOpts(
     balance: number,
     type: ProductType,
-    chargeType: ChargeType,
     unit: ProductPriceUnit,
     opts: {
         precisionOverride?: number,
         forceInteger?: boolean
     }
 ): string {
-    return normalizeBalanceForFrontend(balance, type, chargeType, unit,
+    return normalizeBalanceForFrontend(balance, type, unit,
         opts.precisionOverride, opts.forceInteger);
 }
 
 export function normalizeBalanceForFrontend(
     balance: number,
     type: ProductType,
-    // TODO(Jonas): Unused, please remove
-    // 29/8 2022
-    chargeType: ChargeType,
     unit: ProductPriceUnit,
     precisionOverride?: number,
     forceInteger?: boolean
@@ -635,13 +631,11 @@ function addThousandSeparators(numberOrString: string | number): string {
 
 // TODO(Dan): This interface is completely insane. Re-do this at some point.
 export function priceExplainer(product: Product): string {
-    const { readableUnit, durationInMinutes } = explainPrice(product.productType, product.chargeType,
-        product.unitOfPrice);
+    const {readableUnit, durationInMinutes} = explainPrice(product.productType, product.unitOfPrice);
 
     const amount = normalizeBalanceForFrontend(
         costOfDuration(durationInMinutes, 1, product),
         product.productType,
-        product.chargeType,
         product.unitOfPrice,
     );
     return `${amount} ${readableUnit}`
@@ -677,7 +671,7 @@ export function usageExplainer(
     chargeType: ChargeType,
     unitOfPrice: ProductPriceUnit
 ): string {
-    const amount = normalizeBalanceForFrontend(usage, productType, chargeType, unitOfPrice);
+    const amount = normalizeBalanceForFrontend(usage, productType, unitOfPrice);
     const suffix = explainUsage(productType, chargeType, unitOfPrice);
     return `${amount} ${suffix}`;
 }
