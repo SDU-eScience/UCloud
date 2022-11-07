@@ -510,7 +510,7 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
 
     return <>
         {/* Note(Jonas): Line below is outdated, right? */}
-        <Heading.h2>{CONF.PRODUCT_NAME} is preparing your job</Heading.h2>
+        <Heading.h2>Your job is being prepared</Heading.h2>
         <Heading.h3>
             {job.specification.name ?
                 (<>
