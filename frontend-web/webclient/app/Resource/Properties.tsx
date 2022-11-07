@@ -393,6 +393,6 @@ function canEditPermission(support: ProductSupport | undefined, namespace: strin
             return !!(support?.["collection"]?.["aclModifiable"]);
         case "files":
             return !!(support?.["files"]?.["aclModifiable"]);
-        default: return false;
+        default: return true;
     }
 }

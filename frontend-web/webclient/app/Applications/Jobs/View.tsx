@@ -1,6 +1,5 @@
 import * as React from "react";
 import {SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import CONF from "../../../site.config.json";
 import {useHistory, useParams} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -509,7 +508,6 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
     }, [job]);
 
     return <>
-        {/* Note(Jonas): Line below is outdated, right? */}
         <Heading.h2>Your job is being prepared</Heading.h2>
         <Heading.h3>
             {job.specification.name ?
