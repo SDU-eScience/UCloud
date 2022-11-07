@@ -1,15 +1,14 @@
-import {browseWallets, ChargeType, explainAllocation, normalizeBalanceForFrontend, ProductPriceUnit, ProductType, productTypes, productTypeToIcon, usageExplainer, Wallet, WalletAllocation} from "@/Accounting";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {browseWallets, ChargeType, explainAllocation, normalizeBalanceForFrontend, ProductCategoryId, ProductPriceUnit, ProductType, productTypes, productTypeToIcon, usageExplainer, Wallet, WalletAllocation} from "@/Accounting";
+import {apiBrowse, apiSearch, useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {PageV2} from "@/UCloud";
+import {PageV2, PaginationRequestV2} from "@/UCloud";
 import {Box, Flex, Grid, Icon, Link, Text} from "@/ui-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import * as React from "react";
 import {useCallback, useState} from "react";
-import {browseSubAllocations, searchSubAllocations, SubAllocation, useProjectManagementStatus} from ".";
 import * as Heading from "@/ui-components/Heading";
 import {mapToBalancesWithExplanation, SubAllocationViewer} from "./SubAllocations";
 import format from "date-fns/format";
@@ -21,11 +20,41 @@ import {VisualizationSection} from "./Resources";
 import formatDistance from "date-fns/formatDistance";
 import {Spacer} from "@/ui-components/Spacer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
+import {isAdminOrPI, useProjectFromParams} from "./Api";
+
+export interface SubAllocation {
+    id: string;
+    path: string;
+    startDate: number;
+    endDate?: number | null;
+
+    productCategoryId: ProductCategoryId;
+    productType: ProductType;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
+
+    workspaceId: string;
+    workspaceTitle: string;
+    workspaceIsProject: boolean;
+    projectPI?: string;
+
+    remaining: number;
+    initialBalance: number;
+}
+
+export function browseSubAllocations(request: PaginationRequestV2): APICallParameters {
+    return apiBrowse(request, "/api/accounting/wallets", "subAllocation");
+}
+
+export function searchSubAllocations(request: {query: string} & PaginationRequestV2): APICallParameters {
+    return apiSearch(request, "/api/accounting/wallets", "subAllocation");
+}
+
 
 const FORMAT = "dd/MM/yyyy";
 
 function Allocations(): JSX.Element {
-    const managementStatus = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
+    const {project, projectId, loading, isPersonalWorkspace, breadcrumbs} = useProjectFromParams("Allocations");
 
     useTitle("Allocations");
 
@@ -35,7 +64,7 @@ function Allocations(): JSX.Element {
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
 
     const loadMoreAllocations = useCallback(() => {
-        fetchAllocations(browseSubAllocations({itemsPerPage: 250, next: allocations.data.next}));
+        fetchAllocations({...browseSubAllocations({itemsPerPage: 250, next: allocations.data.next}), projectOverride: projectId});
     }, [allocations.data]);
 
     const filterByAllocation = useCallback((allocationId: string) => {
@@ -46,39 +75,41 @@ function Allocations(): JSX.Element {
         setFilters(prev => ({
             ...prev,
             "filterWorkspace": workspaceId,
-            "filterWorkspaceProject": workspaceIsProject.toString()
+            "filterWorkspaceProject": isPersonalWorkspace ? "" : workspaceIsProject.toString()
         }));
     }, [setFilters]);
 
     const reloadPage = useCallback(() => {
-        fetchWallets(browseWallets({itemsPerPage: 50, ...filters}));
-        fetchAllocations(browseSubAllocations({itemsPerPage: 250, ...filters}));
+        const projectOverride = isPersonalWorkspace ? undefined : projectId;
+        fetchWallets({...browseWallets({itemsPerPage: 50, ...filters}), projectOverride});
+        fetchAllocations({...browseSubAllocations({itemsPerPage: 250, ...filters}), projectOverride});
         setAllocationGeneration(prev => prev + 1);
-    }, [filters]);
+    }, [filters, projectId]);
 
     React.useEffect(() => {
         reloadPage();
-    }, [managementStatus.projectId])
+    }, [projectId]);
 
     useRefreshFunction(reloadPage);
 
     const onSubAllocationQuery = useCallback((query: string) => {
-        fetchAllocations(searchSubAllocations({query, itemsPerPage: 250}));
+        fetchAllocations({...searchSubAllocations({query, itemsPerPage: 250}), projectOverride: projectId});
         setAllocationGeneration(prev => prev + 1);
-    }, []);
+    }, [projectId]);
 
     return <MainContainer
         header={<Spacer
             width={"calc(100% - var(--sidebarWidth))"}
-            left={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Allocations"}]} />}
+            left={<ProjectBreadcrumbs omitActiveProject crumbs={breadcrumbs} />}
             right={<Box ml="12px" width="512px"></Box>}
         />}
         main={<>
             <Grid gridGap="0px">
                 <Wallets wallets={wallets.data.items} />
             </Grid>
-            {managementStatus.allowManagement ?
+            {!loading && isAdminOrPI(project?.status.myRole) ?
                 <SubAllocationViewer
+                    key={projectId}
                     allocations={allocations}
                     generation={allocationGeneration}
                     loadMore={loadMoreAllocations}

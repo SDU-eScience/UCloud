@@ -9,25 +9,28 @@ import {Flex, Truncate, Text, Icon, Divider} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import styled from "styled-components";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {UserInProject, ListProjectsRequest, listProjects} from "@/Project";
 import {useHistory} from "react-router";
-import {History} from "history";
-import {useProjectStatus} from "@/Project/cache";
 import {initializeResources} from "@/Services/ResourceInit";
+import {useProject} from "./cache";
+import ProjectAPI, {Project, useProjectId} from "@/Project/Api";
 
 // eslint-disable-next-line no-underscore-dangle
 function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX.Element | null {
-    const projectStatus = useProjectStatus();
-    const [response, setFetchParams, params] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
-        listProjects({page: 0, itemsPerPage: 10, archived: false}),
+    const project = useProject();
+    const projectId = useProjectId();
+    const [response, setFetchParams, params] = useCloudAPI<Page<Project>>(
+        ProjectAPI.browse({
+            itemsPerPage: 10,
+            includeFavorite: true,
+        }),
         emptyPage
     );
 
     let activeContext = "My Workspace";
     if (props.activeProject) {
-        const membership = projectStatus.fetch().membership.find(it => it.projectId === props.activeProject);
-        if (membership) {
-            activeContext = membership.title;
+        const title = projectId === project.fetch().id ? project.fetch().specification.title : response.data.items.find(it => it.id === projectId)?.specification.title ?? "";
+        if (title) {
+            activeContext = title;
         } else {
             activeContext = shortUUID(props.activeProject);
         }
@@ -48,7 +51,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                         <HoverIcon
                             onClick={e => {
                                 stopPropagationAndPreventDefault(e);
-                                history.push("/project/dashboard");
+                                history.push(`/projects/${projectId ?? "My Workspace"}`);
                             }}
                             name="projects"
                             color2="midGray"
@@ -60,30 +63,30 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                 }
                 colorOnHover={false}
                 paddingControlledByContent
-                onTriggerClick={() => (setFetchParams({...params}), projectStatus.reload())}
+                onTriggerClick={() => (setFetchParams({...params}), project.reload())}
                 left="0px"
                 width="250px"
             >
                 <BoxForPadding>
                     {props.activeProject ?
                         (
-                            <Text onClick={() => onProjectUpdated(history, () => props.setProject(), props.refresh)}>
+                            <Text onClick={() => onProjectUpdated(history, () => props.setProject(), props.refresh, "My Workspace")}>
                                 My Workspace
                             </Text>
                         ) : null
                     }
-                    {response.data.items.filter(it => !(it.projectId === props.activeProject)).map(project =>
+                    {response.data.items.filter(it => !(it.id === props.activeProject)).map(project =>
                         <Text
-                            key={project.projectId}
-                            onClick={() => onProjectUpdated(history, () => props.setProject(project.projectId), props.refresh)}
+                            key={project.id}
+                            onClick={() => onProjectUpdated(history, () => props.setProject(project.id), props.refresh, project.id)}
                         >
-                            <Truncate width="215px">{project.title}</Truncate>
+                            <Truncate width="215px">{project.specification.title}</Truncate>
                         </Text>
                     )}
                     {props.activeProject || response.data.items.length > 0 ? <Divider /> : null}
                     <Text onClick={() => history.push("/projects")}>Manage projects</Text>
-                    <Text onClick={() => history.push("/project/dashboard")}>
-                        {props.activeProject ? "Manage active project" : "Manage my workspace"}
+                    <Text onClick={() => history.push("/projects")}>
+                        {projectId ? "Manage active project" : "Manage my workspace"}
                     </Text>
                 </BoxForPadding>
             </ClickableDropdown>
@@ -115,11 +118,16 @@ const HoverIcon = styled(Icon)`
     }
 `;
 
-function onProjectUpdated(history: ReturnType<typeof useHistory>, runThisFunction: () => void, refresh?: () => void): void {
+function onProjectUpdated(history: ReturnType<typeof useHistory>, runThisFunction: () => void, refresh: (() => void) | undefined, projectId: string): void {
     const {pathname} = window.location;
     runThisFunction();
+    const splitPath = pathname.split("/").filter(it => it);
     if (pathname === "/app/files") {
         history.push("/drives")
+    } else if (splitPath.length === 3) {
+        if (splitPath[0] === "app" && splitPath[1] === "projects") {
+            history.push(`/projects/${projectId}`);
+        }
     }
     initializeResources();
     refresh?.();

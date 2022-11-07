@@ -763,6 +763,31 @@ class ProjectService(
         }
     }
 
+    suspend fun renameProject(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<RenameProjectRequest>,
+        ctx: DBContext = db,
+    ) {
+        request.items.forEach {
+            if (it.newTitle.trim().length != it.newTitle.length) {
+                throw RPCException("Project names cannot start or end with whitespace.", HttpStatusCode.BadRequest)
+            }
+        }
+
+        ctx.withSession(remapExceptions = true) { session ->
+            requireAdmin(actorAndProject.actor, request.items.map {it.id}, session)
+            request.items.forEach {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("projectId", it.id)
+                        setParameter("newTitle", it.newTitle)
+                    },
+                    """update project.projects set title = :newTitle where id = :projectId"""
+                )
+            }
+        }
+    }
+
     suspend fun unarchive(
         actorAndProject: ActorAndProject,
         request: BulkRequest<FindByStringId>,

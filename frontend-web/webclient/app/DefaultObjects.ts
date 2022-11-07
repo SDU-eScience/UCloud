@@ -6,14 +6,6 @@ import {Upload} from "@/Files/Upload";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {ProjectCache} from "@/Project/cache";
 import {APICallStateWithParams} from "@/Authentication/DataHook";
-import {
-    ListGroupMembersRequestProps,
-    ListOutgoingInvitesRequest,
-    OutgoingInvite,
-    ProjectMember,
-    UserInProject
-} from "@/Project";
-import {GroupWithSummary} from "@/Project/GroupList";
 import {Product} from "@/Accounting";
 import * as UCloud from "@/UCloud";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud";
@@ -124,12 +116,6 @@ export interface HookStore {
     onSearch?: (query: string, history: ReturnType<typeof useHistory>) => void;
 
     projectCache?: ProjectCache;
-    projectManagementDetails?: APICallStateWithParams<UserInProject>;
-    projectManagement?: APICallStateWithParams<Page<ProjectMember>>;
-    projectManagementGroupMembers?: APICallStateWithParams<Page<string>, ListGroupMembersRequestProps>;
-    projectManagementGroupSummary?: APICallStateWithParams<Page<GroupWithSummary>, PaginationRequest>;
-    projectManagementQuery?: string;
-    projectManagementOutgoingInvites?: APICallStateWithParams<Page<OutgoingInvite>, ListOutgoingInvitesRequest>;
     computeProducts?: APICallStateWithParams<Page<Product>>;
     storageProducts?: APICallStateWithParams<Page<Product>>;
     frameHidden?: boolean;
