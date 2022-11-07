@@ -136,7 +136,7 @@ class Server(
             }
         }
 
-        if (!micro.developmentModeEnabled) {
+        if (config.enableKubernetesMonitoring && !micro.developmentModeEnabled) {
             GlobalScope.launch {
                 try {
                     log.info("Alert on nodes - starting up")

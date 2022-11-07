@@ -11,11 +11,10 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.intellij.lang.annotations.Language
-import org.joda.time.LocalDateTime
 import java.io.File
+import java.time.LocalDateTime
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.stream.Collectors
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.collections.HashSet
@@ -266,7 +265,7 @@ suspend inline fun AsyncDBConnection.sendPreparedStatement(
 ): QueryResult {
     val statement = EnhancedPreparedStatement(query)
     statement.block()
-    if (debug) EnhancedPreparedStatement.log.debug(statement.toString())
+    if (debug) EnhancedPreparedStatement.log.info(statement.toString())
     return statement.sendPreparedStatement(this, release, tagName)
 }
 

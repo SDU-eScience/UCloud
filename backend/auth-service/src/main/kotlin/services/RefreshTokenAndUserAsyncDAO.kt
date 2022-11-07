@@ -9,8 +9,9 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.*
 
 data class RefreshTokenAndUser(
@@ -103,7 +104,7 @@ class RefreshTokenAsyncDAO {
                 .sendPreparedStatement(
                     {
                         setParameter("token", token)
-                        setParameter("time", LocalDateTime(Time.now(), DateTimeZone.UTC).toDateTime().millis)
+                        setParameter("time", Time.now())
                     },
                     """
                         SELECT *
@@ -156,7 +157,7 @@ class RefreshTokenAsyncDAO {
                 set(RefreshTokenTable.extendedByChain, defaultMapper.encodeToString(tokenAndUser.extendedByChain))
                 set(RefreshTokenTable.userAgent, tokenAndUser.userAgent)
                 set(RefreshTokenTable.ip, tokenAndUser.ip)
-                set(RefreshTokenTable.createdAt, LocalDateTime(tokenAndUser.createdAt, DateTimeZone.UTC))
+                set(RefreshTokenTable.createdAt, LocalDateTime.ofInstant(Date(tokenAndUser.createdAt).toInstant(), ZoneId.from(ZoneOffset.UTC)))
             }
         }
     }
@@ -286,6 +287,6 @@ fun RowData.toRefreshTokenAndUser(): RefreshTokenAndUser {
         extendedByChain = extendedByChain,
         ip = getField(RefreshTokenTable.ip),
         userAgent = getField(RefreshTokenTable.userAgent),
-        createdAt = getField(RefreshTokenTable.createdAt).toDateTime(DateTimeZone.UTC).millis
+        createdAt = getField(RefreshTokenTable.createdAt).toInstant(ZoneOffset.UTC).toEpochMilli()
     )
 }

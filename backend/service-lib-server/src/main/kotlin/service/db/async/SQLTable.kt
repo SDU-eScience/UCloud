@@ -1,7 +1,6 @@
 package dk.sdu.cloud.service.db.async
 
-import org.joda.time.LocalDateTime
-import java.sql.SQLType
+import java.time.LocalDateTime
 
 @Deprecated("Should be replaced with more efficient queries")
 /**

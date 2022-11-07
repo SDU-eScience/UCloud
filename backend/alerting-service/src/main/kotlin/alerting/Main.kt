@@ -8,7 +8,8 @@ import dk.sdu.cloud.service.CommonServer
 
 data class Configuration(
     val limits: Limits? = null,
-    val omissions: Omission? = null
+    val omissions: Omission? = null,
+    val enableKubernetesMonitoring: Boolean = true,
 )
 
 data class Limits(

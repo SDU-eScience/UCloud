@@ -74,8 +74,6 @@ import {
     Document,
     editApplicationRequest,
     fetchGrantApplication,
-    FetchGrantApplicationRequest,
-    FetchGrantApplicationResponse,
     GrantApplication,
     GrantGiverApprovalState,
     GrantProductCategory,
@@ -89,14 +87,13 @@ import {
     updateState,
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {membershipSearch, ProjectMember, ProjectRole, useProjectId, useProjectManagementStatus} from "..";
 import {displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 import {Accordion} from "@/ui-components/Accordion";
-import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {useProjectStatus} from "../cache";
+import {isAdminOrPI, OldProjectRole, useProjectId} from "../Api";
+import {useProject} from "../cache";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing_project",
@@ -106,7 +103,6 @@ export enum RequestTarget {
 }
 
 /* 
-    TODO List:
         - Find new In Progress Icon (General)
         - Remember to update documentation
             - New features:
@@ -335,7 +331,7 @@ const GenericRequestCard: React.FunctionComponent<{
     } else {
         const defaultValue = allocationRequest?.balanceRequested;
         var normalizedValue = defaultValue != null ?
-            normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice, 2, true) :
+            normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.unitOfPrice, 2, true) :
             undefined;
         return <RequestForSingleResourceWrapper>
             <HighlightedCard color="blue" isLoading={false}>
@@ -376,8 +372,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                         min={0}
                                     />
                                     <div className={"unit"}>
-                                        {explainAllocation(wb.metadata.productType, wb.metadata.chargeType,
-                                            wb.metadata.unitOfPrice)}
+                                        {explainAllocation(wb.metadata.productType, wb.metadata.unitOfPrice)}
                                     </div>
                                 </Flex>
                                 <Flex mt="6px" width="280px">
@@ -534,7 +529,7 @@ function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: 
                 <TableCell width="200px">{wallet.paysFor.provider}</TableCell>
                 <TableCell width="200px">{wallet.paysFor.name}</TableCell>
                 <TableCell width="200px">
-                    {normalizeBalanceForFrontend(a.balance, wallet.productType, wallet.chargeType, wallet.unit)}
+                    {normalizeBalanceForFrontend(a.balance, wallet.productType, wallet.unit)}
                     {" "}
                     {explainUsage(wallet.productType, wallet.chargeType, wallet.unit)}
                 </TableCell>
@@ -731,28 +726,17 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             };
         }, [appId]);
 
-        const projectManagement = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
-        const isRecipient = checkIsGrantRecipient(target, grantApplication, isAdminOrPI(projectManagement.projectDetails.data.whoami.role));
-
-
-        useEffect(() => {
-            // HACK(Jonas): I don't know why, but the membership search result doesn't actually
-            // propagate up to this component. Inside the hook, is seems correct, though.
-            if (Client.hasActiveProject && RequestTarget.EXISTING_PROJECT === target) {
-                projectManagement.setProjectMemberParams(
-                    membershipSearch(projectManagement.projectMemberParams.parameters)
-                );
-            }
-        }, [Client.hasActiveProject]);
+        const project = useProject();
+        const isRecipient = checkIsGrantRecipient(target, grantApplication, isAdminOrPI(project.fetch().status.myRole));
 
         React.useEffect(() => {
             if (!projectTitleRef.current) return;
             if (target === RequestTarget.EXISTING_PROJECT) {
-                projectTitleRef.current.value = projectManagement.projectDetails.data.title;
+                projectTitleRef.current.value = project.fetch().specification.title;
             } else if (target === RequestTarget.PERSONAL_PROJECT) {
                 projectTitleRef.current.value = "My Workspace";
             }
-        }, [projectTitleRef, grantApplication, projectManagement.projectDetails]);
+        }, [projectTitleRef, grantApplication, project.fetch()]);
 
         const editApplication = useCallback(async (autoMessage: boolean = false) => {
             setSubmissionsLoading(true);
@@ -1224,7 +1208,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     <Label mb={16} mt={16}>
                                         Principal Investigator (PI)
                                         <Input
-                                            value={piForProject(target, projectManagement.projectMembers.data.items)}
+                                            value={piForProject(target, project.fetch().status.members?.find(it => it.role === OldProjectRole.PI)?.username)}
                                             disabled
                                         />
                                     </Label>
@@ -1987,13 +1971,13 @@ const PostCommentWrapper = styled.form`
     }
 `;
 
-function piForProject(target: RequestTarget, projectMembers: ProjectMember[]): string {
+function piForProject(target: RequestTarget, projectPi?: string): string {
     switch (target) {
         case RequestTarget.NEW_PROJECT:
         case RequestTarget.PERSONAL_PROJECT:
             return `${Client.userInfo?.firstNames} ${Client.userInfo?.lastName} ` + `(${Client.username})`;
         case RequestTarget.EXISTING_PROJECT:
-            return projectMembers.find(it => it.role === ProjectRole.PI)?.username ?? "";
+            return projectPi ?? "";
     }
     return "";
 }

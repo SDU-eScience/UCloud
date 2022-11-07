@@ -17,10 +17,10 @@ import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {CSSTransition} from "react-transition-group";
 import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
-import {WSFactory} from "@/Authentication/HttpClientInstance";
+import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import {margin, MarginProps} from "styled-system";
-import {useProjectStatus} from "@/Project/cache";
+import {useProject} from "@/Project/cache";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {
@@ -484,7 +484,7 @@ function PeerEntry(props: {peer: AppParameterValueNS.Peer}): JSX.Element {
 function IngressEntry({id}: {id: string}): JSX.Element {
     const [ingress] = useCloudAPI<Ingress | null>(IngressApi.retrieve({id}), null);
     if (ingress.data == null) return <div />
-    const {domain} = ingress.data.specification;
+    const {domain} =  ingress.data.specification;
     return <Truncate width={1}>
         <ExternalLink title={domain} href={domain}>{domain}</ExternalLink>
     </Truncate>
@@ -633,9 +633,9 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
         }
     }
 
-    const projects = useProjectStatus();
-    const workspaceTitle = projects.fetch().membership.find(it => it.projectId === job.owner.project)?.title ??
-        "My Workspace";
+    const project = useProject();
+    const workspaceTitle = Client.hasActiveProject ? project.fetch().id === job.owner.project ? project.fetch().specification.title :
+        "My Workspace" : "My Workspace";
 
     const machine = job.status.resolvedProduct! as unknown as ProductCompute;
     const pricePerUnit = machine?.pricePerUnit ?? 0;
@@ -877,9 +877,9 @@ const RunningContent: React.FunctionComponent<{
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
     const backendType = getBackend(job);
-    const projects = useProjectStatus();
+    const project = useProject().fetch();
     const [suspended, setSuspended] = useState(job.status.state === "SUSPENDED");
-    const workspaceTitle = projects.fetch().membership.find(it => it.projectId === job.owner.project)?.title ?? "My Workspace";
+    const workspaceTitle = Client.hasActiveProject ? project.specification.title : "My workspace";
     const extendJob: React.EventHandler<SyntheticEvent<HTMLElement>> = useCallback(async e => {
         const duration = parseInt(e.currentTarget.dataset["duration"]!, 10);
         if (!commandLoading && expiresAt) {

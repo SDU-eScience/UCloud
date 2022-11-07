@@ -23,11 +23,10 @@ import {PageV2} from "@/UCloud";
 import {MutableRefObject, useCallback, useMemo, useRef, useState} from "react";
 import {displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/DefaultObjects";
-import {createProject, SubAllocation, useProjectId} from "@/Project/index";
 import {Accordion} from "@/ui-components/Accordion";
 import {Spacer} from "@/ui-components/Spacer";
 import format from "date-fns/format";
-import {ListRow, ListRowStat} from "@/ui-components/List";
+import {ListRow} from "@/ui-components/List";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {DatePicker} from "@/ui-components/DatePicker";
 import {InputLabel} from "@/ui-components/Input";
@@ -35,10 +34,11 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListV2} from "@/Pagination";
-import {AllocationViewer, resultAsPercent} from "./Allocations";
+import {AllocationViewer, resultAsPercent, SubAllocation, allocationText} from "./Allocations";
 import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
+import ProjectAPI, {useProjectId} from "@/Project/Api";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider) + ` [${getParentAllocationFromSuballocation(alloc)}]`;
@@ -276,10 +276,10 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
 
         try {
             if (recipient.asNewProject) {
-                const result = await invokeCommand(createProject({
+                const [result] = (await invokeCommand(ProjectAPI.create(bulkRequestOf({
                     title: recipientId,
                     parent: projectId
-                }), {defaultErrorHandler: false});
+                })), {defaultErrorHandler: false})).responses;
                 recipientTitle = result.id;
             } else {
                 const result = await invokeCommand<RetrieveRecipientResponse>(retrieveRecipient({query: recipientId}), {defaultErrorHandler: false});
@@ -547,16 +547,49 @@ interface SuballocationCreationRow {
     allocationId: string;
 }
 
-interface InitialAndRemainingBalance {
-    initialBalance: string;
-    remaining: string;
+interface InitialAndRemainingBalanceWithExplanation {
+    initialBalance: number;
+    remaining: number;
     asPercent: number;
     resourceText: string;
 }
 
 interface EntriesByUnitAndChargeType {
-    ABSOLUTE: InitialAndRemainingBalance[];
-    DIFFERENTIAL_QUOTA: InitialAndRemainingBalance[];
+    ABSOLUTE: InitialAndRemainingBalanceWithExplanation[];
+    DIFFERENTIAL_QUOTA: InitialAndRemainingBalanceWithExplanation[];
+}
+
+export function mapToBalancesWithExplanation(
+    entry: {remaining: number; initialBalance: number;},
+    productType: ProductType,
+    unit: ProductPriceUnit
+): InitialAndRemainingBalanceWithExplanation {
+    const doTruncate = shouldTruncate(entry.initialBalance);
+    const initialBalance = Math.floor(doTruncate ? entry.initialBalance / 1_000 : entry.initialBalance);
+    const remaining = Math.floor(doTruncate ? entry.remaining / 1_000 : entry.remaining);
+    const used = initialBalance - Math.min(initialBalance, remaining);
+    return {
+        initialBalance,
+        remaining,
+        asPercent: resultAsPercent({
+            balance: remaining,
+            initialBalance
+        }),
+        resourceText: normalizeBalanceForFrontend(
+            used,
+            productType,
+            unit,
+            2
+        ) + " / " + normalizeBalanceForFrontend(
+            initialBalance,
+            productType,
+            unit,
+            2
+        ) + " " + allocationText(unit, productType, doTruncate) + " (" + Math.round(resultAsPercent({
+            balance: remaining,
+            initialBalance
+        })) + "%)"
+    };
 }
 
 function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType: ProductType): EntriesByUnitAndChargeType {
@@ -564,66 +597,24 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
     for (const entry of suballocations) {
         const remaining = entry.remaining;
         const initialBalance = entry.initialBalance;
-        if (byUnitAndChargeType[entry.chargeType][entry.unit] == null) byUnitAndChargeType[entry.chargeType][entry.unit] = {
-            remaining,
-            initialBalance
-        };
-        else {
+        if (byUnitAndChargeType[entry.chargeType][entry.unit] == null) {
+            byUnitAndChargeType[entry.chargeType][entry.unit] = {
+                remaining,
+                initialBalance
+            };
+        } else {
             byUnitAndChargeType[entry.chargeType][entry.unit].initialBalance += initialBalance;
             byUnitAndChargeType[entry.chargeType][entry.unit].remaining += remaining;
         }
     }
 
-    const absolute =
-        Object.keys(byUnitAndChargeType.ABSOLUTE).map((it: ProductPriceUnit) => ({
-            initialBalance: byUnitAndChargeType.ABSOLUTE[it].initialBalance,
-            remaining: byUnitAndChargeType.ABSOLUTE[it].remaining,
-            asPercent: resultAsPercent({
-                balance: byUnitAndChargeType.ABSOLUTE[it].remaining,
-                initialBalance: byUnitAndChargeType.ABSOLUTE[it].initialBalance
-            }),
-            resourceText: normalizeBalanceForFrontend(
-                byUnitAndChargeType.ABSOLUTE[it].initialBalance - Math.min(byUnitAndChargeType.ABSOLUTE[it].initialBalance, byUnitAndChargeType.ABSOLUTE[it].remaining),
-                productType,
-                "ABSOLUTE",
-                it,
-                2
-            ) + " / " + normalizeBalanceForFrontend(
-                byUnitAndChargeType.ABSOLUTE[it].initialBalance,
-                productType,
-                "ABSOLUTE",
-                it,
-                2
-            ) + " " + explainAllocation(productType, "ABSOLUTE", it) + " (" + Math.round(resultAsPercent({
-                balance: byUnitAndChargeType.ABSOLUTE[it].remaining,
-                initialBalance: byUnitAndChargeType.ABSOLUTE[it].initialBalance
-            })) + "%)"
-        }));
+    const absolute = Object.keys(byUnitAndChargeType.ABSOLUTE).map((it: ProductPriceUnit) => {
+        return mapToBalancesWithExplanation(byUnitAndChargeType.ABSOLUTE[it], productType, it);
+    });
 
-    const differential = Object.keys(byUnitAndChargeType.DIFFERENTIAL_QUOTA).map((it: ProductPriceUnit) => ({
-        initialBalance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance,
-        remaining: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining,
-        asPercent: resultAsPercent({
-            balance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining,
-            initialBalance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance
-        }),
-        resourceText: normalizeBalanceForFrontend(
-            byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance - Math.min(byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance, byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining),
-            productType,
-            "DIFFERENTIAL_QUOTA",
-            it,
-            2
-        ) + " / " + normalizeBalanceForFrontend(
-            byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance,
-            productType,
-            "DIFFERENTIAL_QUOTA",
-            it,
-            2
-        ) + " " + explainAllocation(productType, "DIFFERENTIAL_QUOTA", it) + " (" + Math.round(resultAsPercent({
-            balance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining,
-            initialBalance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance
-        })) + "%)"
-    }));
+    const differential = Object.keys(byUnitAndChargeType.DIFFERENTIAL_QUOTA).map((it: ProductPriceUnit) => {
+        return mapToBalancesWithExplanation(byUnitAndChargeType.DIFFERENTIAL_QUOTA[it], productType, it);
+    });
 
     return {
         ABSOLUTE: absolute,
@@ -1020,22 +1011,22 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
 }
 
 function UsageBar(props: {suballocation: SubAllocation}) {
-    const {unit, productType, chargeType} = props.suballocation;
-    const {suballocation} = props;
-    const asPercent = resultAsPercent({initialBalance: suballocation.initialBalance, balance: suballocation.remaining});
-    const remaining = Math.min(suballocation.remaining, suballocation.initialBalance);
-    const used = normalizeBalanceForFrontend(suballocation.initialBalance - remaining, productType, chargeType, unit);
-    const initial = normalizeBalanceForFrontend(suballocation.initialBalance, productType, chargeType, unit);
-    const resourceProgress = `${used} / ${initial} ${explainAllocation(productType, chargeType, unit)} (${Math.round(asPercent)}%)`;
-    return <ResourceProgress value={Math.round(asPercent)} text={resourceProgress} />;
+    const {unit, productType} = props.suballocation;
+    const mapped = mapToBalancesWithExplanation(props.suballocation, productType, unit);
+    return <ResourceProgress value={Math.round(mapped.asPercent)} text={mapped.resourceText} />;
 }
 
 function explainSubAllocation(suballocation: {productType: ProductType; chargeType: ChargeType; unit: ProductPriceUnit}): string {
-    return explainAllocation(suballocation.productType, suballocation.chargeType, suballocation.unit);
+    return explainAllocation(suballocation.productType, suballocation.unit);
 }
 
 function normalizeSuballocationBalanceForFrontend(suballocation: SubAllocation, balance: number): string {
     return normalizeBalanceForFrontend(
-        balance, suballocation.productType, suballocation.chargeType, suballocation.unit, 2
+        balance, suballocation.productType, suballocation.unit, 2
     );
+}
+
+const TRUNCATATION_LIMIT = 1_000_000;
+export function shouldTruncate(value: number): boolean {
+    return value >= TRUNCATATION_LIMIT;
 }

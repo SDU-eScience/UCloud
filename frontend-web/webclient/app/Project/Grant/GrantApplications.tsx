@@ -7,10 +7,9 @@ import {
     grantApplicationFilterPrettify,
 } from "@/Project/Grant/index";
 import {emptyPage} from "@/DefaultObjects";
-import {useProjectId, useProjectManagementStatus} from "@/Project";
 import * as Pagination from "@/Pagination";
 import {ListRow, ListRowStat} from "@/ui-components/List";
-import {Flex, List, Text, Truncate, VerticalButtonGroup} from "@/ui-components";
+import {Flex, List, VerticalButtonGroup} from "@/ui-components";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
@@ -26,14 +25,16 @@ import {EnumFilter, ResourceFilter} from "@/Resource/Filter";
 import {BrowseType} from "@/Resource/BrowseType";
 import {browseGrantApplications, GrantApplication, State} from "@/Project/Grant/GrantApplicationTypes";
 import {PageV2} from "@/UCloud";
+import {useProjectFromParams, useProjectId} from "../Api";
 
-export const GrantApplications: React.FunctionComponent<{ ingoing: boolean }> = (props) => {
+export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (props) => {
     const projectId = useProjectId();
     const [scrollGeneration, setScrollGeneration] = useState(0);
     const [applications, fetchApplications] = useCloudAPI<PageV2<GrantApplication>>(
         {noop: true},
         emptyPage
     );
+
 
     const [filters, setFilters] = useState<Record<string, string>>({});
     const baseName = props.ingoing ? "Ingoing" : "Outgoing";
@@ -52,14 +53,21 @@ export const GrantApplications: React.FunctionComponent<{ ingoing: boolean }> = 
 
     useTitle(`${baseName} Applications`);
 
+    const paramProject = useProjectFromParams(`${baseName} Applications`);
+    const useFromParams = !!paramProject.projectId;
+    const projectIdToUse = paramProject.projectId ?? projectId;
+
     useEffect(() => {
         setScrollGeneration(prev => prev + 1);
-        fetchApplications(browseGrantApplications({
-            includeIngoingApplications: props.ingoing,
-            includeOutgoingApplications: !props.ingoing,
-            itemsPerPage: 50, filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.ACTIVE
-        }));
-    }, [projectId, filters]);
+        fetchApplications({
+            ...browseGrantApplications({
+                includeIngoingApplications: props.ingoing,
+                includeOutgoingApplications: !props.ingoing,
+                itemsPerPage: 50,
+                filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.ACTIVE
+            }), projectOverride: projectIdToUse
+        });
+    }, [projectIdToUse, filters]);
 
     const loadMore = useCallback(() => {
         fetchApplications(browseGrantApplications({
@@ -85,7 +93,11 @@ export const GrantApplications: React.FunctionComponent<{ ingoing: boolean }> = 
     );
 
     return <MainContainer
-        header={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: `${baseName} Applications`}]} />}
+        header={<ProjectBreadcrumbs
+            allowPersonalProject={!useFromParams}
+            omitActiveProject={useFromParams}
+            crumbs={useFromParams ? paramProject.breadcrumbs : [{title: `${baseName} Applications`}]}
+        />}
         sidebar={<VerticalButtonGroup>
             <ResourceFilter
                 browseType={BrowseType.MainContent}

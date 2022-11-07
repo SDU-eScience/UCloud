@@ -14,7 +14,6 @@ import {PropsWithChildren, ReactElement, useCallback, useEffect, useLayoutEffect
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useSidebarPage} from "@/ui-components/Sidebar";
-import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
@@ -30,8 +29,8 @@ import {useHistory, useParams} from "react-router";
 import {useResourceSearch} from "@/Resource/Search";
 import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";
-import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
-import {FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
+import {isAdminOrPI, useProjectId} from "@/Project/Api";
+import {useProject} from "@/Project/cache";
 
 const enterAnimation = keyframes`
   from {
@@ -192,11 +191,8 @@ export function ResourceProperties<Res extends Resource>(
     const {id} = useParams<{id?: string}>();
     const dispatch = useDispatch();
     const history = useHistory();
-    const projectManagement = useProjectManagementStatus({
-        isRootComponent: false,
-        allowPersonalProject: true
-    });
-    const isWorkspaceAdmin = projectId === undefined ? true : isAdminOrPI(projectManagement.projectRole);
+    const project = useProject();
+    const isWorkspaceAdmin = projectId === undefined ? true : !project.loading && isAdminOrPI(project.fetch().status.myRole);
 
     const requestedId = props.resource === undefined ?
         (id === undefined ? undefined : (api.idIsUriEncoded ? decodeURIComponent(id) : id)) :

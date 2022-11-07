@@ -1,16 +1,16 @@
 package dk.sdu.cloud.extract.data 
 
 import dk.sdu.cloud.auth.api.authenticator
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.extract.data.services.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
-import org.joda.time.LocalDate
-import org.joda.time.LocalDateTime
 import java.io.File
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import kotlin.system.exitProcess
 
 class Server(override val micro: Micro) : CommonServer {
@@ -127,9 +127,8 @@ class Server(override val micro: Micro) : CommonServer {
                         var startDate = LocalDate.parse("2021-12-01")
                         var endDate = startDate.plusMonths(4)
                         while (startDate != currentMonth) {
-
-                            val start = startDate.toDate().time
-                            val end = endDate.toDate().time
+                            val start = startDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+                            val end = endDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
                             println(
                                 "${startDate}->${endDate}: Users Active = ${
                                     userActivityReport.elasticDataService.activeUsers(

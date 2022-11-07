@@ -16,10 +16,10 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
+import dk.sdu.cloud.service.timestampToLocalDateTime
 import org.slf4j.Logger
 import java.security.SecureRandom
+import java.time.LocalDateTime
 import java.util.*
 
 data class ResetRequest(
@@ -77,7 +77,7 @@ class PasswordResetService(
         val resetRequest = resetRequestsDao.get(db, token)
             ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Unable to reset password")
 
-        if (LocalDateTime(resetRequest.expiresAt.time) < LocalDateTime(Time.now(), DateTimeZone.UTC)) {
+        if (timestampToLocalDateTime(resetRequest.expiresAt.time) < LocalDateTime.now()) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Unable to reset password (token expired)")
         }
 

@@ -1,6 +1,5 @@
 package dk.sdu.cloud.extract.data.services
 
-import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.extract.data.api.*
@@ -8,7 +7,7 @@ import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.db.withTransaction
 import kotlinx.coroutines.runBlocking
-import org.joda.time.LocalDateTime
+import java.time.LocalDateTime
 
 class PostgresDataService(val db: AsyncDBSessionFactory) {
 

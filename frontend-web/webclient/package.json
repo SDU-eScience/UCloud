@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "2022.2.32",
+    "version": "2022.2.67",
     "description": "UCloud",
     "author": "IMADA - eScience Center, SDU",
     "scripts": {
@@ -72,6 +72,6 @@
         "redux-devtools-extension": "2.13.9",
         "ts-loader": "9.4.1",
         "typescript": "4.8.4",
-        "vite": "3.2.0"
+        "vite": "3.2.2"
     }
 }
