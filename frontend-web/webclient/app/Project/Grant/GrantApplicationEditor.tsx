@@ -290,44 +290,8 @@ const GenericRequestCard: React.FunctionComponent<{
     }, [startDate, endDate]);
 
     if (wb.metadata.freeToUse) {
-        return <RequestForSingleResourceWrapper>
-            <HighlightedCard color="blue" isLoading={false}>
-                <Flex flexDirection="row" alignItems="center">
-                    <Box flexGrow={1}>
-                        <Label>
-                            <Checkbox
-                                size={32}
-                                defaultChecked={wb.requestedBalance !== undefined && wb.requestedBalance > 0}
-                                disabled={grantFinalized || isLocked || !canEdit}
-                                data-target={"checkbox-" + productCategoryId(wb.metadata.category, projectId)}
-                                onChange={e => {
-                                    const checkbox = e.target as HTMLInputElement;
-                                    const input = document.querySelector(
-                                        `input[data-target="${productCategoryId(wb.metadata.category, projectId)}"]`
-                                    ) as HTMLInputElement;
-
-                                    if (input) {
-                                        const wasChecked = input.value === "1";
-                                        input.value = wasChecked ? "0" : "1";
-                                        checkbox.checked = !wasChecked;
-                                    }
-                                }}
-                            />
-                            {wb.metadata.category.provider} / {wb.metadata.category.name}
-                        </Label>
-                    </Box>
-                    <Icon name={productTypeToIcon(wb.metadata.productType)} size={40} />
-                </Flex>
-
-                <Input
-                    disabled={grantFinalized || isLocked || !isApprover}
-                    data-target={productCategoryId(wb.metadata.category, projectId)}
-                    autoComplete="off"
-                    type="hidden"
-                    min={0}
-                />
-            </HighlightedCard>
-        </RequestForSingleResourceWrapper>;
+        // Note(Jonas): freeToUse should be sorted out at this point. See `AsProductType`-component.
+        return null;
     } else {
         const defaultValue = allocationRequest?.balanceRequested;
         var normalizedValue = defaultValue != null ?
@@ -1779,7 +1743,7 @@ function AsProductType(props: {
 }): JSX.Element | null {
     const grantFinalized = isGrantFinalized(props.grantApplication.status.overallState);
     const filteredProductCategories = props.productCategories.filter(pc => pc.metadata.productType === props.type);
-    const noEntries = filteredProductCategories.length === 0;
+    const noEntries = filteredProductCategories.length === 0 || filteredProductCategories.every(fpg => fpg.metadata.freeToUse);
     const {allocationRequests} = props.grantApplication.currentRevision.document;
     const filteredWallets = props.wallets.filter(it => it.productType === props.type);
     if (props.target === RequestTarget.VIEW_APPLICATION && noEntries) return null;
