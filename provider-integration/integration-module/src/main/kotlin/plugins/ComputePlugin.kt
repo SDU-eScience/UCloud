@@ -92,10 +92,10 @@ interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, C
 }
 
 interface SyncthingPlugin {
-    suspend fun RequestContext.retrieveSyncthingConfiguration(): SyncthingConfig
-    suspend fun RequestContext.updateSyncthingConfiguration()
-    suspend fun RequestContext.resetSyncthingConfiguration()
-    suspend fun RequestContext.restartSyncthing()
+    suspend fun RequestContext.retrieveSyncthingConfiguration(request: IAppsProviderRetrieveConfigRequest<SyncthingConfig>): SyncthingConfig
+    suspend fun RequestContext.updateSyncthingConfiguration(request: IAppsProviderUpdateConfigRequest<SyncthingConfig>)
+    suspend fun RequestContext.resetSyncthingConfiguration(request: IAppsProviderResetConfigRequest<SyncthingConfig>)
+    suspend fun RequestContext.restartSyncthing(request: IAppsProviderRestartRequest<SyncthingConfig>)
 }
 
 abstract class EmptyComputePlugin : ComputePlugin {

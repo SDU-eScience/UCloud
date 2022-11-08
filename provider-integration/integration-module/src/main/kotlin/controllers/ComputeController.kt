@@ -347,7 +347,7 @@ class ComputeController(
 
             with(requestContext(controllerContext)) {
                 with(plugin) {
-                    retrieveSyncthingConfiguration()
+                    retrieveSyncthingConfiguration(request)
                 }
             }
         }
@@ -360,7 +360,7 @@ class ComputeController(
 
             with(requestContext(controllerContext)) {
                 with(plugin) {
-                    updateSyncthingConfiguration()
+                    updateSyncthingConfiguration(request)
                 }
             }
         }
@@ -373,7 +373,7 @@ class ComputeController(
 
             with(requestContext(controllerContext)) {
                 with(plugin) {
-                    resetSyncthingConfiguration()
+                    resetSyncthingConfiguration(request)
                 }
             }
         }
@@ -386,7 +386,7 @@ class ComputeController(
 
             with(requestContext(controllerContext)) {
                 with(plugin) {
-                    restartSyncthing()
+                    restartSyncthing(request)
                 }
             }
         }
