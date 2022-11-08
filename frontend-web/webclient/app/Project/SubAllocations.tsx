@@ -26,7 +26,7 @@ import {bulkRequestOf} from "@/DefaultObjects";
 import {Accordion} from "@/ui-components/Accordion";
 import {Spacer} from "@/ui-components/Spacer";
 import format from "date-fns/format";
-import {ListRow} from "@/ui-components/List";
+import {ListRow, ListRowStat} from "@/ui-components/List";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {DatePicker} from "@/ui-components/DatePicker";
 import {InputLabel} from "@/ui-components/Input";

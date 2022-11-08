@@ -189,12 +189,12 @@ export const sideBarMenuElements: {
     },
     general: {
         items: [
-            {icon: "files", label: "Files", to: "/drives"},
-            {icon: "projects", label: "Projects", to: "/projects", show: () => Client.hasActiveProject},
+            {icon: "files", label: "Files", to: "/drives/"},
+            {icon: "projects", label: "Projects", to: "/projects/", show: () => Client.hasActiveProject},
             {icon: "shareMenu", label: "Shares", to: "/shares/", show: () => !Client.hasActiveProject},
-            {icon: "dashboard", label: "Resources", to: "/public-ips"},
-            {icon: "appStore", label: "Apps", to: "/applications/overview"},
-            {icon: "results", label: "Runs", to: "/jobs"}
+            {icon: "dashboard", label: "Resources", to: "/public-ips/"},
+            {icon: "appStore", label: "Apps", to: "/applications/overview/"},
+            {icon: "results", label: "Runs", to: "/jobs/"}
         ], predicate: () => Client.isLoggedIn
     },
     auditing: {items: [], predicate: () => Client.isLoggedIn},

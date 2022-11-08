@@ -13,7 +13,7 @@ import {useEffect} from "react";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {UCLOUD_CORE} from "@/UCloud/ResourceApi";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {useHistory} from "react-router";
+import {NavigateFunction, useNavigate} from "react-router";
 import {initTerminalState, TerminalState} from "@/Terminal/State";
 
 export enum KeyCode {
@@ -113,7 +113,7 @@ export interface HookStore {
     uploadPath?: string;
 
     searchPlaceholder?: string;
-    onSearch?: (query: string, history: ReturnType<typeof useHistory>) => void;
+    onSearch?: (query: string, navigate: NavigateFunction) => void;
 
     projectCache?: ProjectCache;
     computeProducts?: APICallStateWithParams<Page<Product>>;
@@ -173,11 +173,11 @@ export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: un
 
 export const defaultSearchPlaceholder = "Search files and applications..."
 
-export function defaultSearch(query: string, history: ReturnType<typeof useHistory>) {
-    history.push(buildQueryString("/files/search", {q: query}));
+export function defaultSearch(query: string, navigate: NavigateFunction) {
+    navigate(buildQueryString("/files/search", {q: query}));
 }
 
-export function useSearch(onSearch: (query: string, history: ReturnType<typeof useHistory>) => void): void {
+export function useSearch(onSearch: (query: string, navigate: NavigateFunction) => void): void {
     const [, setOnSearch] = useGlobal("onSearch", defaultSearch);
     useEffect(() => {
         setOnSearch(() => onSearch);

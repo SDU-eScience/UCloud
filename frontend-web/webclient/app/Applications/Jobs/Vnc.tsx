@@ -21,7 +21,9 @@ interface ConnectionDetails {
 }
 
 export const Vnc: React.FunctionComponent = () => {
-    const {jobId, rank} = useParams<{ jobId: string, rank: string }>();
+    const params = useParams<{jobId: string, rank: string}>();
+    const jobId = params.jobId!;
+    const rank = params.rank!
     const [isConnected, setConnected] = React.useState(false);
     const [sessionResp] = useCloudAPI<JobsOpenInteractiveSessionResponse | null>(
         jobs.openInteractiveSession(bulkRequestOf({sessionType: "VNC", id: jobId, rank: parseInt(rank, 10)})),
@@ -59,9 +61,9 @@ export const Vnc: React.FunctionComponent = () => {
             const rfb = new RFB(
                 document.getElementsByClassName("contents")[0],
                 connectionDetails.url, {
-                    credentials: {password: connectionDetails.password},
-                    wsProtocols: ["binary"]
-                }
+                credentials: {password: connectionDetails.password},
+                wsProtocols: ["binary"]
+            }
             );
 
             rfb.scaleViewport = true;
@@ -88,7 +90,7 @@ export const Vnc: React.FunctionComponent = () => {
             </Box>
         )}
 
-        <div className={"contents"}/>
+        <div className={"contents"} />
     </TermAndShellWrapper>;
 };
 

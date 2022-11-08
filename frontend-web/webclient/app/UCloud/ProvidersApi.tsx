@@ -120,7 +120,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                 icon: "edit",
                 enabled: (selected, cb) =>
                     selected.length === 1 && (selected[0].permissions.myself.some(it => it === "EDIT") || Client.userIsAdmin),
-                onClick: (selected, cb) => cb.history.push("/providers/edit/" + selected[0].id)
+                onClick: (selected, cb) => cb.navigate("/providers/edit/" + selected[0].id)
             },
             {
                 text: "Permissions",

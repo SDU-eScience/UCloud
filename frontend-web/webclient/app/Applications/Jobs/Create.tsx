@@ -2,7 +2,7 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import * as UCloud from "@/UCloud";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {useHistory} from "react-router";
+import {useLocation, useNavigate} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {AppHeader, Information} from "@/Applications/View";
 import {Box, Button, ContainerForText, ExternalLink, Grid, Icon, Markdown, VerticalButtonGroup} from "@/ui-components";
@@ -40,12 +40,13 @@ interface InsufficientFunds {
 }
 
 export const Create: React.FunctionComponent = () => {
-    const history = useHistory();
-    const appName = getQueryParam(history.location.search, "app");
-    const appVersion = getQueryParam(history.location.search, "version");
+    const navigate = useNavigate();
+    const location = useLocation();
+    const appName = getQueryParam(location.search, "app");
+    const appVersion = getQueryParam(location.search, "version");
 
     if (!appName || !appVersion) {
-        history.push("/");
+        navigate("/");
         return null;
     }
 
@@ -88,7 +89,7 @@ export const Create: React.FunctionComponent = () => {
 
     useEffect(() => {
         if (appName === "syncthing") {
-            history.push("/syncthing");
+            navigate("/syncthing");
         }
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
         fetchPrevious(UCloud.compute.apps.findByName({appName}));
@@ -213,7 +214,7 @@ export const Create: React.FunctionComponent = () => {
                     return;
                 }
 
-                history.push(`/jobs/properties/${ids[0]?.id}?app=${application.metadata.name}`);
+                navigate(`/jobs/properties/${ids[0]?.id}?app=${application.metadata.name}`);
             } catch (e) {
                 const code = extractErrorCode(e);
                 if (code === 409) {

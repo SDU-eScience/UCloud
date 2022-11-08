@@ -24,7 +24,7 @@ import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
 import {doNothing} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {useHistory} from "react-router";
+import {NavigateFunction, useNavigate} from "react-router";
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
@@ -219,8 +219,8 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         ]
     }
 
-    navigateToChildren(history: ReturnType<typeof useHistory>, resource: FileCollection) {
-        history.push(buildQueryString("/files", {path: `/${resource.id}`}))
+    navigateToChildren(navigate: NavigateFunction, resource: FileCollection) {
+        navigate(buildQueryString("/files", {path: `/${resource.id}`}))
     }
 
     rename(request: BulkRequest<{id: string; newTitle: string;}>): APICallParameters {

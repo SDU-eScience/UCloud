@@ -1,7 +1,7 @@
 import * as React from "react";
 import {SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import CONF from "../../../site.config.json";
-import {useHistory, useParams} from "react-router";
+import { useLocation, useNavigate, useParams} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
@@ -214,12 +214,13 @@ interface JobUpdateListener {
 }
 
 export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
-    const {id} = props.id ? {id: props.id} : useParams<{id: string}>();
-    const history = useHistory();
+    const id = props.id ?? useParams<{id: string}>().id!;
 
     // Note: This might not match the real app name
-    const appNameHint = getQueryParamOrElse(history.location.search, "app", "");
-    const action = getQueryParamOrElse(history.location.search, "action", "view");
+    const location = useLocation();
+    const navigate = useNavigate();
+    const appNameHint = getQueryParamOrElse(location.search, "app", "");
+    const action = getQueryParamOrElse(location.search, "action", "view");
     const delayInitialAnim = action === "start";
 
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
@@ -287,7 +288,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
 
                 // NOTE(Dan): Remove action to avoid getting delay if the user refreshes their browser
                 if (!props.embedded) {
-                    history.replace(buildQueryString(history.location.pathname, {app: appNameHint}));
+                    navigate(buildQueryString(location.pathname, {app: appNameHint}));
                 }
             }, delayInitialAnim ? 3000 : 400);
 

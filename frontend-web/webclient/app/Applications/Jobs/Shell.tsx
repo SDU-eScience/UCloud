@@ -14,7 +14,9 @@ import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 
 export const Shell: React.FunctionComponent = () => {
     const {termRef, terminal, fitAddon} = useXTerm();
-    const {jobId, rank} = useParams<{jobId: string, rank: string}>();
+    const params = useParams<{jobId: string, rank: string}>();
+    const jobId = params.jobId!;
+    const rank = params.rank!;
     const [sessionResp, openSession] = useCloudAPI(
         JobsApi.openInteractiveSession(
             bulkRequestOf({id: jobId, rank: parseInt(rank, 10), sessionType: "SHELL"})

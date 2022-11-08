@@ -28,7 +28,7 @@ import {doNothing, preventDefault, timestampUnixMs, useEffectSkipMount} from "@/
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useSidebarPage} from "@/ui-components/Sidebar";
 import * as Heading from "@/ui-components/Heading";
-import {useHistory, useLocation} from "react-router";
+import { NavigateFunction, useLocation, useNavigate} from "react-router";
 import {EnumFilterWidget, EnumOption, ResourceFilter, StaticPill} from "@/Resource/Filter";
 import {useResourceSearch} from "@/Resource/Search";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
@@ -68,7 +68,7 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     onRename?: (text: string, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
 
     // Properties and navigation
-    navigateToChildren?: (history: ReturnType<typeof useHistory>, resource: Res) => "properties" | void;
+    navigateToChildren?: (navigate: NavigateFunction, resource: Res) => "properties" | void;
     propsForInlineResources?: Record<string, any>;
     viewPropertiesInline?: (res: Res) => boolean;
 
@@ -155,7 +155,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const [filters, setFilters] = useState<Record<string, string>>(getStoredFilters(api.title) ?? {});
     const [sortDirection, setSortDirection] = useState<"ascending" | "descending">(getStoredSortDirection(api.title) ?? api.defaultSortDirection);
     const [sortColumn, setSortColumn] = useState<string | undefined>(getStoredSortColumn(api.title) ?? undefined);
-    const history = useHistory();
+    const navigate = useNavigate();
     const location = useLocation();
     const query = getQueryParamOrElse(location.search, "q", "");
 
@@ -258,7 +258,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         if (isEmbedded && (props.viewPropertiesInline === undefined || props.viewPropertiesInline(res))) {
             setInlineInspecting(res);
         } else {
-            history.push(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
+            navigate(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
         }
     }, [setInlineInspecting, isEmbedded, history, api, props.viewPropertiesInline]);
 
@@ -458,7 +458,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 
     const navigateCallback = useCallback((item: Res) => {
         if (props.navigateToChildren) {
-            const result = props.navigateToChildren?.(history, item)
+            const result = props.navigateToChildren?.(navigate, item)
             if (result === "properties") {
                 viewProperties(item);
             }

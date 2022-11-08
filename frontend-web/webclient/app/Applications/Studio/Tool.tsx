@@ -12,7 +12,6 @@ import {useLoading} from "@/Navigation/Redux/StatusActions";
 import * as Pagination from "@/Pagination";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {RouteComponentProps} from "react-router";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Flex, VerticalButtonGroup} from "@/ui-components";
 import Box from "@/ui-components/Box";
@@ -21,9 +20,10 @@ import {HiddenInputField} from "@/ui-components/Input";
 import Truncate from "@/ui-components/Truncate";
 import {AppToolLogo} from "../AppToolLogo";
 import * as UCloud from "@/UCloud";
+import {useParams} from "react-router";
 
-export const Tool: React.FunctionComponent<RouteComponentProps<{name: string}>> = props => {
-    const name = props.match.params.name;
+export const Tool: React.FunctionComponent = () => {
+    const name = useParams<{name: string}>().name!;
     if (Client.userRole !== "ADMIN") return null;
 
     const [commandLoading, invokeCommand] = useCloudCommand();

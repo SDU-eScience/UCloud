@@ -24,7 +24,7 @@ import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/MainContainer/MainContainer";
 import {Operations} from "@/ui-components/Operation";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
-import {useHistory, useParams} from "react-router";
+import { useNavigate, useParams} from "react-router";
 import {useResourceSearch} from "@/Resource/Search";
 import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";
@@ -189,7 +189,7 @@ export function ResourceProperties<Res extends Resource>(
     const [commandLoading, invokeCommand] = useCloudCommand();
     const {id} = useParams<{id?: string}>();
     const dispatch = useDispatch();
-    const history = useHistory();
+    const navigate = useNavigate();
     const project = useProject();
     const isWorkspaceAdmin = projectId === undefined ? true : !project.loading && isAdminOrPI(project.fetch().status.myRole);
 
@@ -246,6 +246,7 @@ export function ResourceProperties<Res extends Resource>(
     const callbacks: ResourceBrowseCallbacks<Res> = useMemo(() => ({
         api,
         isCreating: false,
+        navigate,
         invokeCommand,
         commandLoading,
         reload,

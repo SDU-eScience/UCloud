@@ -1,7 +1,7 @@
 import * as React from "react";
 import {Resource, ResourceApi} from "@/UCloud/ResourceApi";
 import {PropsWithChildren, ReactElement} from "react";
-import {Route, Switch} from "react-router-dom";
+import {Route, Routes} from "react-router-dom";
 import {BrowseType} from "./BrowseType";
 
 interface RouterProps<T extends Resource> {
@@ -12,13 +12,10 @@ interface RouterProps<T extends Resource> {
 
 export function ResourceRouter<T extends Resource>(props: PropsWithChildren<RouterProps<T>>): ReactElement | null {
     const Properties = props.api.Properties;
-    const basePath = "/" + props.api.routingNamespace;
-    return <Switch>
-        <Route exact path={basePath} component={props.Browser} />
-        <Route exact path={`${basePath}/properties/:id`} component={Properties} />
-        {props.Create ? <Route exact path={`${basePath}/create`} component={props.Create} /> : null}
-        <Route exact path={`${basePath}/search`}>
-            <props.Browser isSearch />
-        </Route>
-    </Switch>;
+    return <Routes>
+        <Route path={"/"} element={<props.Browser />} />
+        <Route path={`/properties/:id`} element={<Properties api={props.api} />} />
+        {props.Create ? <Route path="/create" element={<props.Create />} /> : null}
+        <Route path={`/search`} element={<props.Browser isSearch />} />
+    </Routes>;
 }

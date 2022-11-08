@@ -8,7 +8,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {capitalized} from "@/UtilityFunctions";
 import {Tag} from "./Card";
 import * as Pages from "./Pages";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import * as UCloud from "@/UCloud";
 import {FavoriteToggle} from "@/Applications/FavoriteToggle";
 import {compute} from "@/UCloud";
@@ -24,7 +24,7 @@ export const AppHeader: React.FunctionComponent<{
     const size = isSlim ? "64px" : "128px";
     /* Results of `findByName` are ordered by apps `createdAt` field in descending order, so this should be correct. */
     const newest: UCloud.compute.ApplicationSummaryWithFavorite | undefined = props.allVersions[0];
-    const history = useHistory();
+    const navigate = useNavigate();
 
     return (
         <Flex flexDirection={"row"} ml={["0px", "0px", "0px", "0px", "0px", "50px"]}  >
@@ -41,13 +41,13 @@ export const AppHeader: React.FunctionComponent<{
                                 trigger={<TextSpan>{props.application.metadata.version}</TextSpan>}
                                 chevron
                             >
-                                {props.allVersions.map(it => <div key={it.metadata.version} onClick={() => history.push(Pages.runApplication(it.metadata))}>{it.metadata.version}</div>)}
+                                {props.allVersions.map(it => <div key={it.metadata.version} onClick={() => navigate(Pages.runApplication(it.metadata))}>{it.metadata.version}</div>)}
                             </ClickableDropdown>
                             {newest && newest.metadata.version !== props.application.metadata.version ?
                                 <Tooltip trigger={
                                     <TriggerDiv onClick={e => {
                                         e.preventDefault();
-                                        history.push(Pages.runApplication(newest.metadata));
+                                        navigate(Pages.runApplication(newest.metadata));
                                     }}>
                                         New version available.
                                     </TriggerDiv>

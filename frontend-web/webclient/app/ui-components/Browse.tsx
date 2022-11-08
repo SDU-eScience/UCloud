@@ -14,7 +14,7 @@ import {displayErrorMessageOrDefault, doNothing, EmptyObject} from "@/UtilityFun
 import {Dispatch} from "redux";
 import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {useDispatch} from "react-redux";
-import {useHistory} from "react-router";
+import {NavigateFunction, useNavigate} from "react-router";
 import {Box, List} from "@/ui-components/index";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
@@ -254,7 +254,7 @@ export interface StandardCallbacks<T = any> {
     onSelect?: (resource: T) => void;
     embedded: boolean;
     dispatch: Dispatch;
-    history: ReturnType<typeof useHistory>;
+    navigate: NavigateFunction;
 }
 
 interface StandardListBrowse<T, CB> {
@@ -283,7 +283,7 @@ export function StandardList<T, CB = EmptyObject>(
     const toggleSet = useToggleSet<T>([]);
     const scrollStatus = useScrollStatus(scrollingContainerRef, true);
     const dispatch = useDispatch();
-    const history = useHistory();
+    const navigate = useNavigate();
     const loadingRef = useRef<boolean>(false);
     const reloadRef = useRef<() => void>(doNothing);
     const [commandLoading, invokeCommand] = useCloudCommand();
@@ -294,7 +294,7 @@ export function StandardList<T, CB = EmptyObject>(
     const extraCallbacks = useMemo(() => (props.extraCallbacks ?? {}) as CB, [props.extraCallbacks]);
     const callbacks = useMemo((): StandardCallbacks<T> & CB => ({
         dispatch,
-        history,
+        navigate,
         reload: () => reloadRef.current(),
         onSelect: props.onSelect,
         onSelectRestriction: props.onSelectRestriction,

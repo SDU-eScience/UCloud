@@ -9,7 +9,7 @@ import {dispatchSetProjectAction} from "@/Project/Redux";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import styled from "styled-components";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "@/ui-components/Sidebar";
 import HighlightedCard from "@/ui-components/HighlightedCard";
@@ -30,7 +30,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     useTitle("Project Dashboard");
     useSidebarPage(SidebarPages.Projects);
 
-    const history = useHistory();
+    const navigate = useNavigate();
 
     return (
         <MainContainer
@@ -44,7 +44,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         {projectId !== undefined && projectId !== "" ? (
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => history.push("/project/members")}
+                                onClick={() => navigate("/project/members")}
                                 title="Members"
                                 icon="user"
                                 color="blue"
@@ -64,7 +64,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             icon="grant"
                             color="green"
                             isLoading={false}
-                            onClick={() => history.push("/project/resources")}
+                            onClick={() => navigate("/project/resources")}
                             subtitle={<RightArrow />}
                         >
                             Track how many resources you have consumed.
@@ -74,7 +74,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             icon="grant"
                             color="darkGreen"
                             isLoading={false}
-                            onClick={() => history.push("/project/allocations")}
+                            onClick={() => navigate("/project/allocations")}
                             subtitle={<RightArrow />}
                         >
                             Manage your allocations and grant allocations to sub-projects.
@@ -83,7 +83,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null :
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => history.push("/project/grants/ingoing")}
+                                onClick={() => navigate("/project/grants/ingoing")}
                                 title="Grant Applications"
                                 icon="mail"
                                 color="red"
@@ -94,7 +94,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null : (
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => history.push("/project/settings")}
+                                onClick={() => navigate("/project/settings")}
                                 title="Settings"
                                 icon="properties"
                                 color="orange"
@@ -106,7 +106,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null :
                             <HighlightedCard
                                 subtitle={<RightArrow/>}
-                                onClick={() => history.push(`/subprojects?subproject=${projectId}`)}
+                                onClick={() => navigate(`/subprojects?subproject=${projectId}`)}
                                 title="Subprojects"
                                 icon="projects"
                                 color="purple"

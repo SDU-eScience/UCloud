@@ -26,7 +26,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import {useDispatch} from "react-redux";
 import Icon from "../ui-components/Icon";
 import {buildQueryString} from "@/Utilities/URIUtilities";
@@ -65,7 +65,7 @@ export const SharesOutgoing: React.FunctionComponent = () => {
     // HACK(Jonas): DISABLE UNTIL ALL SHARES CAN BE SEARCHED
     // useResourceSearch(SharesApi);
 
-    const history = useHistory();
+    const navigate = useNavigate();
     const dispatch = useDispatch();
     const [commandLoading, invokeCommand] = useCloudCommand();
     const reloadRef = useRef<() => void>(doNothing);
@@ -76,6 +76,7 @@ export const SharesOutgoing: React.FunctionComponent = () => {
         invokeCommand,
         reload: () => reloadRef.current(),
         api: SharesApi,
+        navigate,
         isCreating: false,
         embedded: false,
         dispatch,
@@ -289,12 +290,12 @@ const Tab: React.FunctionComponent<{selected: boolean, onClick: () => void;}> = 
     </SelectableText>
 };
 export const SharedByTabs: React.FunctionComponent<{sharedByMe: boolean}> = ({sharedByMe}) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const goToSharedByMe = useCallback(() => {
-        history.push("/shares/outgoing");
+        navigate("/shares/outgoing");
     }, [history]);
     const goToSharedWithMe = useCallback(() => {
-        history.push("/shares");
+        navigate("/shares");
     }, [history]);
 
     return <SelectableTextWrapper mb={"16px"}>

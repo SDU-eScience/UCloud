@@ -2,7 +2,7 @@ import * as React from "react";
 import {ResourceBrowse} from "@/Resource/Browse";
 import {ResourceRouter} from "@/Resource/Router";
 import SharesApi, {Share} from "@/UCloud/SharesApi";
-import {useHistory, useLocation} from "react-router";
+import { NavigateFunction, useLocation} from "react-router";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import {SharedByTabs} from "@/Files/SharesOutgoing";
 import {useCallback, useMemo} from "react";
@@ -42,16 +42,16 @@ export const ShareBrowse: React.FunctionComponent<{
         avatars.updateCache(items.map(it => it.specification.sharedWith));
     }, []);
 
-    const navigateToEntry = React.useCallback((history: ReturnType<typeof useHistory>, share: Share): void => {
+    const navigateToEntry = React.useCallback((navigate: NavigateFunction, share: Share): void => {
         if (browseType === BrowseType.MainContent) {
             if (share.status.state === "APPROVED" || share.specification.sharedWith !== Client.username) {
-                history.push(buildQueryString("/files", {path: share.status.shareAvailableAt}));
+                navigate(buildQueryString("/files", {path: share.status.shareAvailableAt}));
             } else {
                 snackbarStore.addFailure("Share must be accepted to access.", false);
             }
         } else {
             // Should we handle this differently for other browseTypes?
-            history.push(buildQueryString("/files", {path: share.status.shareAvailableAt}));
+            navigate(buildQueryString("/files", {path: share.status.shareAvailableAt}));
         }
     }, []);
 

@@ -20,8 +20,10 @@ import {
     readableUnixMode,
     sizeToString
 } from "@/Utilities/FileUtilities";
-import { onDevSite, inDevEnvironment, displayErrorMessageOrDefault, doNothing, extensionFromPath, isLikelySafari, 
-        prettierString, removeTrailingSlash } from "@/UtilityFunctions";
+import {
+    displayErrorMessageOrDefault, doNothing, extensionFromPath, isLikelySafari,
+    prettierString, removeTrailingSlash
+} from "@/UtilityFunctions";
 import {Operation} from "@/ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
 import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
@@ -52,11 +54,11 @@ import {Spacer} from "@/ui-components/Spacer";
 import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import MetadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
-import { useCallback, useEffect, useState } from "react";
-import { SyncthingConfig, SyncthingDevice, SyncthingFolder } from "@/Syncthing/api";
-import { useHistory } from "react-router";
-import { Feature, hasFeature } from "@/Features";
-import { b64EncodeUnicode } from "@/Utilities/XHRUtils";
+import {useCallback, useEffect, useState} from "react";
+import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
+import {useNavigate} from "react-router";
+import {Feature, hasFeature} from "@/Features";
+import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -257,9 +259,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             const synchronizedFolders: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
             const isSynchronized = synchronizedFolders.some(it => it.ucloudPath === resource.id);
 
-            const history = useHistory();
+            const navigate = useNavigate();
             const openSync = useCallback(() => {
-                history.push("/syncthing");
+                navigate("/syncthing");
             }, []);
 
             return <Flex>
@@ -267,7 +269,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     <div style={{cursor: "pointer"}} onClick={openSync}>
                         <Icon size={24} name="refresh" color="midGray" mt={7} mr={10} />
                     </div>
-                : null}
+                    : null}
                 <div style={{cursor: "pointer"}} onClick={() => addFileSensitivityDialog(resource, callbacks.invokeCommand, callbacks.reload)}>
                     <Sensitivity sensitivity={sensitivity ?? "PRIVATE"} />
                 </div>
@@ -599,7 +601,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         )
                     ).then(it => {
                         if (it?.responses) {
-                            cb.history.push(`/shares/outgoing`);
+                            cb.navigate(`/shares/outgoing`);
                         }
                     });
                 }
@@ -649,7 +651,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             await cb.invokeCommand(
                                 this.emptyTrash(bulkRequestOf({id: cb.directory?.id ?? ""}))
                             );
-                            cb.history.push("/drives")
+                            cb.navigate("/drives")
                         },
                         onCancel: doNothing,
                     });
@@ -892,7 +894,7 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
 
     const devices: SyncthingDevice[] = cb.syncthingConfig?.devices ?? [];
     if (devices.length === 0) {
-        cb.history.push("/syncthing");
+        cb.navigate("/syncthing");
         return;
     }
 

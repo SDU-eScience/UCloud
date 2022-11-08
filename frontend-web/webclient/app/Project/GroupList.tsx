@@ -1,8 +1,7 @@
 import * as React from "react";
-import * as Pagination from "@/Pagination";
 import {Button, List, Icon, Flex} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {useHistory, useParams} from "react-router";
+import {useNavigate} from "react-router";
 import GroupView from "./GroupView";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
@@ -29,7 +28,7 @@ const baseContext = "/projects/groups";
 
 // UNUSED
 const GroupList: React.FunctionComponent = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const {project, reload} = useProjectFromParams("");
     const [groupId, membersPage] = useGroupIdAndMemberId();
 
@@ -107,7 +106,7 @@ const GroupList: React.FunctionComponent = () => {
                         }
                         navigate={() => {
                             if (renamingGroup !== g.id) {
-                                history.push(`/project/members/${encodeURIComponent(g.id)}/${membersPage ?? ""}`);
+                                navigate(`/project/members/${encodeURIComponent(g.id)}/${membersPage ?? ""}`);
                             }
                         }}
                         leftSub={<div />}
