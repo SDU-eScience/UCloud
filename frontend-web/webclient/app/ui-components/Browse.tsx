@@ -302,7 +302,7 @@ export function StandardList<T, CB = EmptyObject>(
         commandLoading,
         invokeCommand,
         ...extraCallbacks
-    }), [props.onSelect, dispatch, history, props.embedded, commandLoading, invokeCommand, extraCallbacks]);
+    }), [props.onSelect, dispatch, navigate, props.embedded, commandLoading, invokeCommand, extraCallbacks]);
 
     const allOperations = useMemo(() => {
         const ops: Operation<T, StandardCallbacks<T> & CB>[] = [...props.operations];

@@ -255,9 +255,8 @@ export function ResourceProperties<Res extends Resource>(
         embedded: props.embedded == true,
         closeProperties: props.closeProperties,
         dispatch,
-        history,
         supportByProvider
-    }), [api, invokeCommand, commandLoading, reload, props.closeProperties, dispatch, history, supportByProvider]);
+    }), [api, invokeCommand, commandLoading, navigate, reload, props.closeProperties, dispatch, supportByProvider]);
 
     const operations = useMemo(() => api.retrieveOperations(), [api]);
 

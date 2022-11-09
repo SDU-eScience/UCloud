@@ -2,7 +2,7 @@ import * as React from "react";
 import {useRef, useCallback, useEffect, useMemo, useReducer, useState} from "react";
 import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole} from "./Api";
 import styled from "styled-components";
-import { NavigateFunction, useLocation, useNavigate, useParams} from "react-router";
+import {NavigateFunction, useLocation, useNavigate, useParams} from "react-router";
 import MainContainer from "@/MainContainer/MainContainer";
 import {callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
@@ -436,11 +436,10 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     }, [projectId]);
 
     const actionCb: ActionCallbacks = useMemo(() => ({
-        history,
         navigate,
         pureDispatch,
         requestReload: reload
-    }), [history, pureDispatch, reload]);
+    }), [pureDispatch, reload]);
 
     const dispatch = useCallback((action: ProjectAction) => {
         onAction(uiState, action, actionCb);

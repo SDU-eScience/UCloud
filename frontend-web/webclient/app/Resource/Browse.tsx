@@ -260,11 +260,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         } else {
             navigate(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
         }
-    }, [setInlineInspecting, isEmbedded, history, api, props.viewPropertiesInline]);
+    }, [setInlineInspecting, isEmbedded, navigate, api, props.viewPropertiesInline]);
 
     const callbacks: ResourceBrowseCallbacks<Res> & CB = useMemo(() => ({
         api,
         isCreating,
+        navigate,
         invokeCommand,
         commandLoading,
         reload: () => {
@@ -275,7 +276,6 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         onSelect,
         onSelectRestriction: props.onSelectRestriction,
         dispatch,
-        history,
         isWorkspaceAdmin,
         startRenaming(res: Res, value: string) {
             renaming.setRenaming(res);
@@ -293,7 +293,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         viewProperties,
         ...props.extraCallbacks,
         supportByProvider: productsWithSupport.data
-    }), [api, invokeCommand, commandLoading, reloadRef, isCreating, props.onInlineCreation, history, dispatch,
+    }), [api, invokeCommand, commandLoading, reloadRef, isCreating, navigate, props.onInlineCreation, dispatch,
         viewProperties, props.inlineProduct, props.extraCallbacks, toggleSet, productsWithSupport.data]);
 
     const onProductSelected = useCallback(async (product: Product) => {

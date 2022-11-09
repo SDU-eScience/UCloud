@@ -80,10 +80,9 @@ export const SharesOutgoing: React.FunctionComponent = () => {
         isCreating: false,
         embedded: false,
         dispatch,
-        history,
         supportByProvider: {productsByProvider: {}},
         isWorkspaceAdmin: true
-    }), [history, dispatch, commandLoading, invokeCommand]);
+    }), [dispatch, commandLoading, invokeCommand]);
 
     const generateFetch = useCallback((next?: string) => {
         return SharesApi.browseOutgoing({next, itemsPerPage: 50});
