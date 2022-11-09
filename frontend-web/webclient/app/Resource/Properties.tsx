@@ -2,6 +2,7 @@ import * as React from "react";
 import styled, {keyframes} from "styled-components";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {
+    ProductSupport,
     Resource,
     ResourceApi,
     ResourceBrowseCallbacks,
@@ -268,6 +269,8 @@ export function ResourceProperties<Res extends Resource>(
     }
 
     const renderer = api.renderer;
+    const support = ownResource?.data?.status.resolvedSupport?.support;
+    const editPermissionsAllowed = canEditPermission(support, props.api.getNamespace());
 
     const main = resource ? <>
         <Container className={"RUNNING active"}>
@@ -334,7 +337,7 @@ export function ResourceProperties<Res extends Resource>(
                 </InfoWrapper>
 
                 <ContentWrapper>
-                    {props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
+                    {!editPermissionsAllowed || props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
                         <HighlightedCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
                             <ResourcePermissionEditor reload={reload} entity={resource} api={api}
                                 noPermissionsWarning={props.noPermissionsWarning} />
@@ -379,3 +382,13 @@ const Messages: React.FunctionComponent<{resource: Resource}> = ({resource}) => 
 
     return <Box height={"200px"} ref={termRef} />
 };
+
+function canEditPermission(support: ProductSupport | undefined, namespace: string): boolean {
+    switch (namespace) {
+        case "files.collections":
+            return !!(support?.["collection"]?.["aclModifiable"]);
+        case "files":
+            return !!(support?.["files"]?.["aclModifiable"]);
+        default: return true;
+    }
+}

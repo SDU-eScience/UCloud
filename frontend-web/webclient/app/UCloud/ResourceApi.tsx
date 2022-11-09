@@ -12,7 +12,6 @@ import {doNothing} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {DateRangeFilter, FilterWidgetProps, PillProps, TextFilter} from "@/Resource/Filter";
 import {IconName} from "@/ui-components/Icon";
-import * as H from "history";
 import {Dispatch} from "redux";
 import {ResourceProperties} from "@/Resource/Properties";
 import {ItemRenderer} from "@/ui-components/Browse";
@@ -167,6 +166,10 @@ export abstract class ResourceApi<Res extends Resource,
     }
 
     public idIsUriEncoded = false;
+
+    public getNamespace(): string {
+        return this.namespace;
+    }
 
     public abstract renderer: ItemRenderer<Res>;
     /*
