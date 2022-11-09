@@ -7,7 +7,7 @@
         "start": "vite",
         "start:local": "vite --mode local-dev",
         "start:compose": "vite --mode compose",
-        "watch": "./node_modules/typescript/bin/tsc --watch --noEmit",
+        "watch": "tsc --watch --noEmit",
         "build": "node scripts/update-version-file.js && vite build",
         "serve": "vite preview",
         "icons-clean": "cd app/ui-components/icons; rm -rf components index.ts",

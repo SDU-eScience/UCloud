@@ -202,7 +202,7 @@ const Core = (): JSX.Element => (
                                 requireSla: false
                             }))}
                         />
-                        <Route element={<NotFound />} />
+                        <Route path="*" element={<NotFound />} />
                     </Routes>
                 </React.Suspense>
             </ErrorBoundary>
