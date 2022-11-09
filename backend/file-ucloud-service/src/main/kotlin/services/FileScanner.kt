@@ -28,8 +28,10 @@ import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.index.reindex.DeleteByQueryRequest
 import org.elasticsearch.xcontent.XContentType
-import org.joda.time.LocalDateTime
 import java.net.SocketTimeoutException
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.*
 import kotlin.collections.ArrayDeque
 
@@ -43,7 +45,7 @@ class FileScanner(
 ) {
 
     private fun rctimeToApproxLocalDateTime(rctime: String): LocalDateTime {
-        return LocalDateTime(Date(rctime.split(".").first().toLong() * 1000))
+        return LocalDateTime.ofInstant(Date(rctime.split(".").first().toLong() * 1000).toInstant(), ZoneId.from(ZoneOffset.UTC))
     }
 
     suspend fun runFastScan() {
@@ -60,7 +62,7 @@ class FileScanner(
             ).rows
                 .singleOrNull()
                 ?.getDate(0)
-                ?: LocalDateTime(System.currentTimeMillis() - (1000L * 60 * 60 * 24))
+                ?: LocalDateTime.ofInstant(Date(System.currentTimeMillis() - (1000L * 60 * 60 * 24)).toInstant(), ZoneId.from(ZoneOffset.UTC))
         }
 
         val activeRoots = roots.mapNotNull {
@@ -114,7 +116,7 @@ class FileScanner(
                     stat = fs.stat(nextItem.file)
                     val afterStat = System.currentTimeMillis()
                     bulkRunner.timespentOnStat += afterStat - beforestat
-                    if (LocalDateTime(stat.modifiedAt) > lastScan) {
+                    if (LocalDateTime.ofInstant(Date(stat.modifiedAt).toInstant(), ZoneId.from(ZoneOffset.UTC)) > lastScan) {
                         val writeValueAsBytes =
                             defaultMapper.encodeToString(
                                 stat.toElasticIndexedFile(nextItem.file, nextItem.collection, scanTime)

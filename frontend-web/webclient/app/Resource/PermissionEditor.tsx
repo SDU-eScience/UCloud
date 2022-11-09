@@ -1,13 +1,9 @@
-import * as UCloud from "@/UCloud";
 import * as React from "react";
 import {ShakingBox} from "@/UtilityComponents";
 import {Button, Flex, RadioTile, RadioTilesContainer, Text, Truncate} from "@/ui-components/index";
-import {groupSummaryRequest, useProjectId} from "@/Project";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {GroupWithSummary} from "@/Project/GroupList";
-import {bulkRequestOf, emptyPage} from "@/DefaultObjects";
+import {useCloudCommand} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/DefaultObjects";
 import {useCallback, useEffect, useState} from "react";
-import * as Pagination from "@/Pagination";
 import {TextSpan} from "@/ui-components/Text";
 import {Link} from "react-router-dom";
 import {
@@ -17,6 +13,9 @@ import {
     ResourceAclEntry,
     ResourceApi,
 } from "@/UCloud/ResourceApi";
+import {useProjectId} from "@/Project/Api";
+import {useProject} from "@/Project/cache";
+import Spinner from "@/LoadingIcon/LoadingIcon";
 
 interface ResourcePermissionEditorProps<T extends Resource> {
     reload: () => void;
@@ -31,16 +30,11 @@ export function ResourcePermissionEditor<T extends Resource>(
 ): React.ReactElement | null {
     const {entity, reload, api} = props;
     const projectId = useProjectId();
-    const [projectGroups, fetchProjectGroups, groupParams] =
-        useCloudAPI<Page<GroupWithSummary>>({noop: true}, emptyPage);
+    const project = useProject();
 
     const [commandLoading, invokeCommand] = useCloudCommand();
 
     const [acl, setAcl] = useState<ResourceAclEntry[]>(entity.permissions?.others ?? []);
-
-    useEffect(() => {
-        fetchProjectGroups(UCloud.project.group.listGroupsWithSummary({itemsPerPage: 50, page: 0}));
-    }, [projectId]);
 
     useEffect(() => {
         setAcl(entity.permissions?.others ?? []);
@@ -96,16 +90,16 @@ export function ResourcePermissionEditor<T extends Resource>(
     const anyGroupHasPermission = acl.some(it => it.permissions.length !== 0);
     const warning = props.noPermissionsWarning ?? `This ${api.title.toLowerCase()} can only be used by project admins!`;
 
-    return <Pagination.List
-        loading={projectGroups.loading}
-        page={projectGroups.data}
-        onPageChanged={(page) => fetchProjectGroups(groupSummaryRequest({
-            ...groupParams.parameters,
-            page
-        }))}
-        customEmptyPage={(
+    if (project.loading) {
+        return <Spinner />;
+    }
+
+    const groups = project.fetch().status.groups ?? [];
+
+    return <>
+        {groups.length !== 0 ? null : (
             <Flex width={"100%"} alignItems={"center"} justifyContent={"center"}
-                  flexDirection={"column"}>
+                flexDirection={"column"}>
                 <ShakingBox shaking mb={"10px"}>
                     No groups exist for this project.{" "}
                     <TextSpan bold>{warning}</TextSpan>
@@ -114,66 +108,66 @@ export function ResourcePermissionEditor<T extends Resource>(
                 <Link to={"/project/members"} target={"_blank"}><Button fullWidth>Create group</Button></Link>
             </Flex>
         )}
-        pageRenderer={() => (
-            <>
-                {anyGroupHasPermission || !(props.showMissingPermissionHelp ?? true) ? null :
-                    <ShakingBox shaking mb={16}>
-                        <Text bold>{warning}</Text>
-                        <Text>
-                            You must assign permissions to one or more group, if your collaborators need to use this
-                            {" "}{api.title.toLowerCase()}.
-                        </Text>
-                    </ShakingBox>
-                }
-                {projectGroups.data.items.map(summary => {
-                    const g = summary.groupId;
-                    const permissions = acl.find(it =>
-                        "projectId" in it.entity &&
-                        it.entity.group === g &&
-                        it.entity.projectId === projectId
-                    )?.permissions ?? [];
+        <>
+            {anyGroupHasPermission || !(props.showMissingPermissionHelp ?? true) ? null :
+                <ShakingBox shaking mb={16}>
+                    <Text bold>{warning}</Text>
+                    <Text>
+                        You must assign permissions to one or more group, if your collaborators need to use this
+                        {" "}{api.title.toLowerCase()}.
+                    </Text>
+                </ShakingBox>
+            }
+            {groups.map(summary => {
+                const g = summary.id;
+                const permissions = acl.find(it =>
+                    "projectId" in it.entity &&
+                    it.entity.group === g &&
+                    it.entity.projectId === projectId
+                )?.permissions ?? [];
 
-                    return (
-                        <Flex key={g} alignItems={"center"} mb={16} data-component={"permission-row"}
-                              data-group={summary.groupTitle} data-group-id={summary.groupId}>
-                            <Truncate width={"300px"} mr={16} title={summary.groupTitle}>
-                                {summary.groupTitle}
-                            </Truncate>
+                const title = summary.specification.title;
 
-                            <RadioTilesContainer data-component={"permission-container"}>
-                                <RadioTile
-                                    label={"None"}
-                                    onChange={() => updateAcl(g, null)}
-                                    icon={"close"}
-                                    name={summary.groupId}
-                                    checked={permissions.length === 0}
-                                    height={40}
-                                    fontSize={"0.5em"}
-                                />
-                                <RadioTile
-                                    label={"Read"}
-                                    onChange={() => updateAcl(g, "READ")}
-                                    icon={"search"}
-                                    name={summary.groupId}
-                                    checked={permissions.indexOf("READ") !== -1 && permissions.length === 1}
-                                    height={40}
-                                    fontSize={"0.5em"}
-                                />
-                                <RadioTile
-                                    label={"Write"}
-                                    onChange={() => updateAcl(g, "EDIT")}
-                                    icon={"edit"}
-                                    name={summary.groupId}
-                                    checked={permissions.indexOf("EDIT") !== -1}
-                                    height={40}
-                                    fontSize={"0.5em"}
-                                />
+                return (
+                    <Flex key={g} alignItems={"center"} mb={16} data-component={"permission-row"}
+                        data-group={title} data-group-id={summary.id}>
+                        <Truncate width={"300px"} mr={16} title={title}>
+                            {title}
+                        </Truncate>
 
-                            </RadioTilesContainer>
-                        </Flex>
-                    );
-                })}
-            </>
-        )}
-    />;
+                        <RadioTilesContainer data-component={"permission-container"}>
+                            <RadioTile
+                                label={"None"}
+                                onChange={() => updateAcl(g, null)}
+                                icon={"close"}
+                                name={summary.id}
+                                checked={permissions.length === 0}
+                                height={40}
+                                fontSize={"0.5em"}
+                            />
+                            <RadioTile
+                                label={"Read"}
+                                onChange={() => updateAcl(g, "READ")}
+                                icon={"search"}
+                                name={summary.id}
+                                checked={permissions.indexOf("READ") !== -1 && permissions.length === 1}
+                                height={40}
+                                fontSize={"0.5em"}
+                            />
+                            <RadioTile
+                                label={"Write"}
+                                onChange={() => updateAcl(g, "EDIT")}
+                                icon={"edit"}
+                                name={summary.id}
+                                checked={permissions.indexOf("EDIT") !== -1}
+                                height={40}
+                                fontSize={"0.5em"}
+                            />
+
+                        </RadioTilesContainer>
+                    </Flex>
+                );
+            })}
+        </>
+    </>;
 }

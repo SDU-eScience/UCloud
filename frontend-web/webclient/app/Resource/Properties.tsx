@@ -2,6 +2,7 @@ import * as React from "react";
 import styled, {keyframes} from "styled-components";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {
+    ProductSupport,
     Resource,
     ResourceApi,
     ResourceBrowseCallbacks,
@@ -13,7 +14,6 @@ import {PropsWithChildren, ReactElement, useCallback, useEffect, useLayoutEffect
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useSidebarPage} from "@/ui-components/Sidebar";
-import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
@@ -29,7 +29,8 @@ import {useHistory, useParams} from "react-router";
 import {useResourceSearch} from "@/Resource/Search";
 import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";
-import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {isAdminOrPI, useProjectId} from "@/Project/Api";
+import {useProject} from "@/Project/cache";
 
 const enterAnimation = keyframes`
   from {
@@ -190,11 +191,8 @@ export function ResourceProperties<Res extends Resource>(
     const {id} = useParams<{id?: string}>();
     const dispatch = useDispatch();
     const history = useHistory();
-    const projectManagement = useProjectManagementStatus({
-        isRootComponent: false,
-        allowPersonalProject: true
-    });
-    const isWorkspaceAdmin = projectId === undefined ? true : isAdminOrPI(projectManagement.projectRole);
+    const project = useProject();
+    const isWorkspaceAdmin = projectId === undefined ? true : !project.loading && isAdminOrPI(project.fetch().status.myRole);
 
     const requestedId = props.resource === undefined ?
         (id === undefined ? undefined : (api.idIsUriEncoded ? decodeURIComponent(id) : id)) :
@@ -271,6 +269,8 @@ export function ResourceProperties<Res extends Resource>(
     }
 
     const renderer = api.renderer;
+    const support = ownResource?.data?.status.resolvedSupport?.support;
+    const editPermissionsAllowed = canEditPermission(support, props.api.getNamespace());
 
     const main = resource ? <>
         <Container className={"RUNNING active"}>
@@ -337,7 +337,7 @@ export function ResourceProperties<Res extends Resource>(
                 </InfoWrapper>
 
                 <ContentWrapper>
-                    {props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
+                    {!editPermissionsAllowed || props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
                         <HighlightedCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
                             <ResourcePermissionEditor reload={reload} entity={resource} api={api}
                                 noPermissionsWarning={props.noPermissionsWarning} />
@@ -382,3 +382,13 @@ const Messages: React.FunctionComponent<{resource: Resource}> = ({resource}) => 
 
     return <Box height={"200px"} ref={termRef} />
 };
+
+function canEditPermission(support: ProductSupport | undefined, namespace: string): boolean {
+    switch (namespace) {
+        case "files.collections":
+            return !!(support?.["collection"]?.["aclModifiable"]);
+        case "files":
+            return !!(support?.["files"]?.["aclModifiable"]);
+        default: return true;
+    }
+}

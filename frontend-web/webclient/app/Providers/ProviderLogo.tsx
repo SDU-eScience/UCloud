@@ -1,10 +1,12 @@
 import * as React from "react";
 import {Image} from "@/ui-components";
 import styled from "styled-components";
+import ProviderInfo from "@/Assets/provider_info.json";
 
 export const ProviderLogo: React.FunctionComponent<{providerId: string; size: number;}> = ({providerId, size}) => {
+    const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
     return <LogoWrapper size={size}>
-        {!providerId ? (providerId[0] ?? "?").toUpperCase() : <Image src={`/Images/${providerId}.png`} />}
+        {!myInfo ? (providerId[0] ?? "?").toUpperCase() : <Image src={`/Images/${myInfo.logo}`} />}
     </LogoWrapper>
 };
 

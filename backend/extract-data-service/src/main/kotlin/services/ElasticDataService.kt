@@ -1,17 +1,11 @@
 package dk.sdu.cloud.extract.data.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.extract.data.api.UCloudUser
-import dk.sdu.cloud.grant.api.CreateApplication
-import dk.sdu.cloud.isFrozen
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -24,14 +18,15 @@ import org.elasticsearch.search.aggregations.AggregationBuilders
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramInterval
 import org.elasticsearch.search.aggregations.metrics.Cardinality
 import org.elasticsearch.search.builder.SearchSourceBuilder
-import org.joda.time.LocalDateTime
-import org.joda.time.Minutes
 import java.io.File
-import java.sql.Timestamp
+import java.time.Duration
+import java.time.LocalDateTime
 
-
-class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val elasticLowLevelClient: RestClient, val db: DBContext) {
-
+class ElasticDataService(
+    val elasticHighLevelClient: RestHighLevelClient,
+    val elasticLowLevelClient: RestClient,
+    val db: DBContext
+) {
     fun maxSimultaneousUsers(startDate: LocalDateTime, endDate: LocalDateTime) {
         val searchRequest = SearchRequest("http_logs*")
         searchRequest.source(
@@ -123,11 +118,11 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
             val result = searchResponse.hits.hits.firstOrNull() ?: return@forEach
             val tree = jacksonObjectMapper().readTree(result.toString())
             val lastRequestTime = LocalDateTime.parse(tree["_source"]["@timestamp"].textValue().substringBefore("Z"))
-            val timeBetween = Minutes.minutesBetween(user.createdAt, lastRequestTime).minutes
+            val timeBetween = Duration.between(user.createdAt, lastRequestTime).toMinutes()
             timeBetweenStartAndNewest += timeBetween
         }
         println("average time:")
-        println(timeBetweenStartAndNewest/numberOfUsers)
+        println(timeBetweenStartAndNewest / numberOfUsers)
     }
 
     @Serializable
@@ -135,10 +130,12 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
         val username: String,
         val role: String
     )
+
     @Serializable
     data class Token(
         val principal: Principal
     )
+
     @Serializable
     data class DownloadRequest(
         val path: String
@@ -148,6 +145,7 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
     data class CreateDownloadRequest(
         val id: String
     )
+
     @Serializable
     data class RequestJsonDownload(
         val request: DownloadRequest
@@ -168,10 +166,12 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
         val resources: List<Resources?>,
         val openedFile: String? = null
     )
+
     @Serializable
     data class RequestJsonJobCreate(
         val items: List<CreateJobRequest>
     )
+
     @Serializable
     data class Download(
         @SerialName("@timestamp")
@@ -189,6 +189,7 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
         val requestName: String,
         val requestJson: RequestJsonCreateDownload
     )
+
     @Serializable
     data class JobCreate(
         @SerialName("@timestamp")
@@ -200,11 +201,12 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
 
     fun downloadsForProject(projectIds: List<String>) {
         data class FileCollection(
-            val id : Long,
+            val id: Long,
             val providerGenId: String?,
             val projectId: String,
             val title: String
         )
+
         val fileCollections = emptyList<FileCollection>()//TODO() GET RELEVANT FILECOLLECTIONS MANUALLY
 
         val searchRequest1 = SearchRequest("http_logs_files.download*")
@@ -213,16 +215,26 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
                 .query(
                     QueryBuilders
                         .boolQuery()
-                            .should(
-                                QueryBuilders.boolQuery().apply {
-                                    projectIds.forEach {
-                                        should().add(QueryBuilders.matchPhraseQuery("requestJson.request.path", "/projects/${it}*"))
-                                    }
-                                    fileCollections.forEach {
-                                        should().add(QueryBuilders.matchPhraseQuery("requestJson.request.path", "/${it.id}*"))
-                                    }
+                        .should(
+                            QueryBuilders.boolQuery().apply {
+                                projectIds.forEach {
+                                    should().add(
+                                        QueryBuilders.matchPhraseQuery(
+                                            "requestJson.request.path",
+                                            "/projects/${it}*"
+                                        )
+                                    )
                                 }
-                            ).minimumShouldMatch(1)
+                                fileCollections.forEach {
+                                    should().add(
+                                        QueryBuilders.matchPhraseQuery(
+                                            "requestJson.request.path",
+                                            "/${it.id}*"
+                                        )
+                                    )
+                                }
+                            }
+                        ).minimumShouldMatch(1)
                 ).size(10000)
         )
 
@@ -314,7 +326,7 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
             Data(
                 it.token!!.principal.username,
                 it.requestName,
-                listOf( replacePath(it.requestJson.request.path)!! ),
+                listOf(replacePath(it.requestJson.request.path)!!),
                 it.timestamp
             )
         }
@@ -343,12 +355,12 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
     }
 
 
-    private fun replacePath(path: String?): String?{
-        if (path == null ) {
+    private fun replacePath(path: String?): String? {
+        if (path == null) {
             return null
         }
         val splittedPath = path.split("/")
-        if (splittedPath[1] == "projects"){
+        if (splittedPath[1] == "projects") {
             val realtitle = when (splittedPath[2]) {
                 //TODO rename projectIDs to project title
                 "ProjectID" -> "Project Title"
@@ -357,8 +369,7 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
             val realpath = splittedPath.toMutableList()
             realpath[2] = realtitle
             return realpath.joinToString("/")
-        }
-        else {
+        } else {
             val realtitle = when (splittedPath[1]) {
                 //TODO()Rename all collection IDs to readable path
                 "FilecollectionID" -> "projects/projectTitle/FilecollectionTitle"
@@ -372,6 +383,7 @@ class ElasticDataService(val elasticHighLevelClient: RestHighLevelClient, val el
             return realpath.joinToString("/")
         }
     }
+
     private fun joinResources(list: List<List<Resources?>>): List<String> {
         val returnList = ArrayList<String>()
         list.forEach { resources ->

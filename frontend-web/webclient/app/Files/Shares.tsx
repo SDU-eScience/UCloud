@@ -8,7 +8,6 @@ import {SharedByTabs} from "@/Files/SharesOutgoing";
 import {useCallback, useMemo} from "react";
 import * as Heading from "@/ui-components/Heading";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {History} from "history";
 import {BrowseType} from "@/Resource/BrowseType";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Client} from "@/Authentication/HttpClientInstance";

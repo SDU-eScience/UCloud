@@ -24,7 +24,6 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
 
     const fetchData = React.useCallback(async () => {
         const size = file.status.sizeInBytes;
-        console.log(size);
         if (file.status.type !== "FILE") return;
         if (!loading && isValidExtension && size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0) {
             try {

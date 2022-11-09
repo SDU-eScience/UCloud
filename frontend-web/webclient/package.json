@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "2022.2.32",
+    "version": "2022.2.67",
     "description": "UCloud",
     "author": "IMADA - eScience Center, SDU",
     "scripts": {
@@ -45,8 +45,8 @@
         "styled-components": "5.3.6",
         "styled-system": "5.1.5",
         "svgi": "1.1.1",
-        "ua-parser-js": "1.0.2",
-        "vfile": "5.3.4",
+        "ua-parser-js": "1.0.32",
+        "vfile": "5.3.5",
         "xterm": "4.19.0",
         "xterm-addon-fit": "0.5.0"
     },
@@ -72,6 +72,6 @@
         "redux-devtools-extension": "2.13.9",
         "ts-loader": "9.4.1",
         "typescript": "4.8.4",
-        "vite": "3.1.4"
+        "vite": "3.2.2"
     }
 }

@@ -1,46 +1,32 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
-import { useCallback, useEffect } from "react";
-import { Text, Flex, Card, Icon, Link } from "@/ui-components";
-import { default as Api, Project } from "./Api";
+import {useEffect} from "react";
+import {Text, Flex, Card, Icon, Link} from "@/ui-components";
+import {default as Api, isAdminOrPI, Project, useProjectFromParams} from "./Api";
 import {GridCardGroup} from "@/ui-components/Grid";
-import {useCloudAPI} from "@/Authentication/DataHook";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import styled from "styled-components";
-import { useHistory, useParams } from "react-router";
-import { useTitle } from "@/Navigation/Redux/StatusActions";
-import { useSidebarPage, SidebarPages } from "@/ui-components/Sidebar";
-import { isAdminOrPI } from "@/Utilities/ProjectUtilities";
-import { BreadCrumbsBase } from "@/ui-components/Breadcrumbs";
+import {useHistory} from "react-router";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "@/ui-components/Sidebar";
+import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import HighlightedCard from "@/ui-components/HighlightedCard";
-import { shorten } from "@/Utilities/TextUtilities";
+import {shorten} from "@/Utilities/TextUtilities";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {PageV2} from "@/UCloud";
+import {browseGrantApplications} from "./Grant/GrantApplicationTypes";
+import {emptyPageV2} from "@/DefaultObjects";
+import {GrantApplicationFilter} from "./Grant";
 
 // Primary user interface
 // ================================================================================
 const ProjectDashboard: React.FunctionComponent = () => {
     // Input "parameters"
     const history = useHistory();
-    const params = useParams<{ project: string }>();
-    const projectId = params.project;
 
-    // Remote data
-    const [projectFromApi, fetchProject] = useCloudAPI<Project | null>({noop: true}, null);
-
-    // UI state
-
-    // UI callbacks and state manipulation
-    const reload = useCallback(() => {
-        fetchProject(Api.retrieve({
-            id: projectId,
-            includePath: true,
-            includeMembers: true,
-            includeArchived: true,
-            includeGroups: true,
-        }));
-    }, [projectId]);
+    const {project, projectId, reload, isPersonalWorkspace} = useProjectFromParams("");
 
     // Aliases and computed data
-    const project = projectFromApi.data;
     const isAdmin = !project ? false : isAdminOrPI(project.status.myRole!);
 
     // Effects
@@ -49,17 +35,34 @@ const ProjectDashboard: React.FunctionComponent = () => {
     useTitle("Project Dashboard");
     useSidebarPage(SidebarPages.Projects);
 
-    if (!project) return null;
+    const [grants, fetchGrants] = useCloudAPI<PageV2>({noop: true}, emptyPageV2);
+    React.useEffect(() => {
+        if (projectId && !isPersonalWorkspace) {
+            fetchGrants({
+                ...browseGrantApplications({
+                    includeIngoingApplications: true,
+                    includeOutgoingApplications: false,
+                    filter: GrantApplicationFilter.ACTIVE,
+                    itemsPerPage: 25,
+                }),
+                projectOverride: projectId
+            });
+        }
+    }, [projectId]);
+
+    const over25 = grants.data.next != null;
+
+    if (!project && !isPersonalWorkspace) return null;
 
     return (
         <MainContainer
             header={<Flex>
                 <ProjectBreadcrumbsWrapper mb="12px" embedded={false}>
-                    <span><Link to="/projects2">My Projects</Link></span>
+                    <span><Link to="/projects">My Projects</Link></span>
                     <span>
-                        <Link to={`/projects2/${projectId}`}>
-                            {shorten(20, project.specification.title)}
-                        </Link>
+                        {isPersonalWorkspace ? "My Workspace" :
+                            shorten(20, project?.specification.title ?? "")
+                        }
                     </span>
                     <span>Dashboard</span>
                 </ProjectBreadcrumbsWrapper>
@@ -68,9 +71,9 @@ const ProjectDashboard: React.FunctionComponent = () => {
             main={(
                 <>
                     <ProjectDashboardGrid minmax={330}>
-                        <HighlightedCard
+                        {isPersonalWorkspace ? null : <HighlightedCard
                             subtitle={<RightArrow />}
-                            onClick={() => history.push(`/projects2/${projectId}/members`)}
+                            onClick={() => history.push(`/projects/${projectId}/members`)}
                             title="Members"
                             icon="user"
                             color="blue"
@@ -80,68 +83,80 @@ const ProjectDashboard: React.FunctionComponent = () => {
                                     <tbody>
                                         <TableRow cursor="pointer">
                                             <TableCell>Members</TableCell>
-                                            <TableCell textAlign="right">{project.status.members!.length}</TableCell>
+                                            <TableCell textAlign="right">{project?.status.members!.length}</TableCell>
                                         </TableRow>
                                         <TableRow cursor="pointer">
                                             <TableCell>Groups</TableCell>
-                                            <TableCell textAlign="right">{project.status.groups!.length}</TableCell>
+                                            <TableCell textAlign="right">{project?.status.groups!.length}</TableCell>
                                         </TableRow>
                                     </tbody>) : null}
                             </Table>
-                        </HighlightedCard>
+                        </HighlightedCard>}
 
                         <HighlightedCard
                             title={"Resources and Usage"}
                             icon="grant"
                             color="purple"
-                            onClick={() => history.push("/project/resources")}
+                            onClick={() => history.push(`/project/resources/${projectId ?? ""}`)}
                             subtitle={<RightArrow />}
                         >
                         </HighlightedCard>
 
                         <HighlightedCard
+                            title={"Resource Allocations"}
+                            icon="grant"
+                            color="darkGreen"
+                            isLoading={false}
+                            onClick={() => history.push(`/project/allocations/${projectId ?? ""}`)}
                             subtitle={<RightArrow />}
-                            onClick={() => history.push("/project/grants/ingoing")}
-                            title="Grant Applications"
-                            icon="mail"
-                            color="red"
                         >
-                            <Table>
-                                <tbody>
-                                    <TableRow cursor="pointer">
-                                        <TableCell>In Progress</TableCell>
-                                        <TableCell textAlign="right">
-                                            <Text color="red">Not yet implemented</Text>
-                                        </TableCell>
-                                    </TableRow>
-                                </tbody>
-                            </Table>
                         </HighlightedCard>
 
-                        {!isAdmin ? null : (
+                        {isPersonalWorkspace ? null : <>
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => history.push("/project/settings")}
-                                title="Settings"
-                                icon="properties"
-                                color="orange"
+                                onClick={() => history.push(`/project/grants/ingoing/${projectId ?? ""}`)}
+                                title="Grant Applications"
+                                icon="mail"
+                                color="red"
                             >
                                 <Table>
                                     <tbody>
                                         <TableRow cursor="pointer">
-                                            <TableCell>Archived</TableCell>
+                                            <TableCell>In Progress</TableCell>
                                             <TableCell textAlign="right">
-                                                {project.status.archived ? "Yes" : "No"}
+                                                {grants.data.items.length}{over25 ? "+" : null}
                                             </TableCell>
                                         </TableRow>
                                     </tbody>
                                 </Table>
                             </HighlightedCard>
-                        )}
+
+                            {!isAdmin ? null : (
+                                <HighlightedCard
+                                    subtitle={<RightArrow />}
+                                    onClick={() => history.push(`/project/settings/${projectId}`)}
+                                    title="Settings"
+                                    icon="properties"
+                                    color="orange"
+                                >
+                                    <Table>
+                                        <tbody>
+                                            <TableRow cursor="pointer">
+                                                <TableCell>Archived</TableCell>
+                                                <TableCell textAlign="right">
+                                                    {project?.status.archived ? "Yes" : "No"}
+                                                </TableCell>
+                                            </TableRow>
+                                        </tbody>
+                                    </Table>
+                                </HighlightedCard>
+                            )}
+                        </>}
 
                         {!isAdmin ? null :
                             <HighlightedCard
-                                subtitle={<RightArrow/>}
+                                subtitle={<RightArrow />}
                                 onClick={() => history.push(`/subprojects?subproject=${projectId}`)}
                                 title="Subprojects"
                                 icon="projects"

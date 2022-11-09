@@ -31,15 +31,14 @@ export const ProductCreationForm: React.FunctionComponent<{provider: Provider, o
         typeHolder.current = type
     }, [type]);
 
-    const priceDependencies = useMemo(() => ["unitOfPrice", "chargeType", "type"], []);
+    const priceDependencies = useMemo(() => ["unitOfPrice", /* Remove?  */ "chargeType" /* END */, "type"], []);
     const unitEvaluator = useCallback((t: DataType) => {
         const productType = typeHolder.current;
         const unitOfPrice = t.fields["unitOfPrice"];
         const chargeType = t.fields["chargeType"];
 
         if (!unitOfPrice || !chargeType) return "DKK";
-        const res = explainAllocation(productType, chargeType, unitOfPrice);
-        return res;
+        return explainAllocation(productType, unitOfPrice);
     }, [type]);
 
     return <Box maxWidth={"800px"} margin={"0 auto"}>

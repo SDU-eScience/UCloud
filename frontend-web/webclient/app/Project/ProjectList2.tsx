@@ -1,5 +1,5 @@
 import MainContainer from "@/MainContainer/MainContainer";
-import {Project, default as Api, ProjectInvite} from "./Api";
+import {Project, default as Api, ProjectInvite, useProjectId, isAdminOrPI, projectRoleToStringIcon, projectRoleToString} from "./Api";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ItemRenderer, ItemRow, StandardBrowse} from "@/ui-components/Browse";
@@ -9,12 +9,9 @@ import {useHistory} from "react-router";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {History} from "history";
 import {Box, Icon, Tooltip, Text, Flex, Link, Card, Button, List} from "@/ui-components";
-import {projectRoleToString, projectRoleToStringIcon, useProjectId} from ".";
 import {Toggle} from "@/ui-components/Toggle";
 import {CheckboxFilter, FilterWidgetProps, ResourceFilter} from "@/Resource/Filter";
 import {doNothing} from "@/UtilityFunctions";
@@ -35,11 +32,11 @@ import {ListRowStat, ListStatContainer} from "@/ui-components/List";
 
 const title = "Project";
 
-export const ProjectList2: React.FunctionComponent = props => {
+export const ProjectList2: React.FunctionComponent = () => {
     const projectId = useProjectId();
     const history = useHistory();
     const toggleSet = useToggleSet<Project>([]);
-    const [commandLoading, invokeCommand] = useCloudCommand();
+    const [, invokeCommand] = useCloudCommand();
     const [filters, setFilters] = useState<Record<string, string>>({});
     const avatars = useAvatars();
     const projectReloadRef = useRef<() => void>(doNothing);
@@ -188,7 +185,7 @@ const operations: Operation<Project, Callbacks>[] = [
         enabled: projects => {
             return projects.length >= 1 &&
                 projects.every(it => !it.status.archived) &&
-                projects.every(it => isAdminOrPI(it.status.myRole!));
+                projects.every(it => isAdminOrPI(it.status.myRole));
         },
         onClick: (projects, cb) => {
             projects.forEach(it => {
@@ -209,7 +206,7 @@ const operations: Operation<Project, Callbacks>[] = [
         enabled: projects => {
             return projects.length >= 1 &&
                 projects.every(it => it.status.archived) &&
-                projects.every(it => isAdminOrPI(it.status.myRole!));
+                projects.every(it => isAdminOrPI(it.status.myRole));
         },
         onClick: (projects, cb) => {
             projects.forEach(it => {
@@ -245,7 +242,7 @@ const operations: Operation<Project, Callbacks>[] = [
         icon: "properties",
         enabled: projects => projects.length === 1,
         onClick: ([project], cb) => {
-            cb.history.push(`/projects2/${project.id}`);
+            cb.history.push(`/projects/${project.id}`);
         }
     }
 ];
@@ -282,7 +279,7 @@ const ProjectRenderer: ItemRenderer<Project> = {
 
     MainTitle: ({resource}) => {
         if (!resource) return null;
-        return <Link to={`/projects2/${resource.id}`} color={resource.status.archived ? "darkGray" : "text"}>
+        return <Link to={`/projects/${resource.id}`} color={resource.status.archived ? "darkGray" : "text"}>
             {resource.specification.title}
         </Link>;
     },

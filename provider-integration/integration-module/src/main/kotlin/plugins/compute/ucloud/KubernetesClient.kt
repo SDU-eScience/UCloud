@@ -276,7 +276,12 @@ sealed class KubernetesAuthenticationMethod {
 
             httpRequestBuilder.url(
                 URLBuilder(httpRequestBuilder.url.fixedClone()).apply {
-                    protocol = URLProtocol.HTTP
+                    protocol = when (protocol) {
+                        URLProtocol.HTTP, URLProtocol.HTTPS -> URLProtocol.HTTP
+                        URLProtocol.WS, URLProtocol.WSS -> URLProtocol.WS
+                        else -> URLProtocol.HTTP
+                    }
+
                     host = "localhost"
                     port = 42010
                 }.build()

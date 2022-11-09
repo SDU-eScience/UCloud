@@ -11,9 +11,8 @@ import {
     UserCriteria
 } from "@/Project/Grant/index";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {useProjectManagementStatus} from "@/Project";
 import * as Heading from "@/ui-components/Heading";
-import {Box, Button, DataList, Flex, Grid, Icon, Input, Label, Text, TextArea} from "@/ui-components";
+import {Box, Button, DataList, Flex, Grid, Icon, Input, TextArea} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import WAYF from "./wayf-idps.json";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -28,6 +27,7 @@ import {inSuccessRange} from "@/UtilityFunctions";
 import {Logo} from "@/Project/Grant/ProjectBrowser";
 import Divider from "@/ui-components/Divider";
 import {bulkRequestOf} from "@/DefaultObjects";
+import {useProjectId} from "../Api";
 
 export interface UploadLogoProps {
     file: File;
@@ -70,7 +70,7 @@ export async function uploadProjectLogo(props: UploadLogoProps): Promise<boolean
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
 export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
-    const {projectId} = useProjectManagementStatus({isRootComponent: false});
+    const projectId = useProjectId();
     const [, runWork] = useCloudCommand();
     const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
         {noop: true},
@@ -83,6 +83,7 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
     const descriptionField = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
+        if (!projectId) return;
         fetchEnabled((externalApplicationsEnabled({projectId})));
         fetchDescription(retrieveDescription({projectId}));
     }, [projectId]);
@@ -94,6 +95,7 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
     }, [descriptionField, description]);
 
     const onUploadDescription = useCallback(async () => {
+        if (!projectId) return;
         await runWork(uploadDescription(bulkRequestOf({
             description: descriptionField.current!.value,
             projectId
@@ -105,7 +107,7 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
 
     const [, setLogoCacheBust] = useState("" + Date.now());
 
-    if (!enabled.data.enabled) return null;
+    if (!enabled.data.enabled || !projectId) return null;
     return <Box>
         <Heading.h4>Logo for Project</Heading.h4>
         Current Logo: <Logo projectId={projectId} size={"40px"}/> <br/>
@@ -121,7 +123,7 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
                         if (file.size > 1024 * 512) {
                             snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
                         } else {
-                            if (await uploadProjectLogo({file, projectId: projectId})) {
+                            if (await uploadProjectLogo({file, projectId})) {
                                 setLogoCacheBust("" + Date.now());
                                 snackbarStore.addSuccess("Logo changed, refresh to see changes", false);
                             }
@@ -138,7 +140,7 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
 }
 
 export const GrantProjectSettings: React.FunctionComponent = () => {
-    const {projectId} = useProjectManagementStatus({isRootComponent: false});
+    const projectId = useProjectId() ?? "";
     const [, runWork] = useCloudCommand();
     const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
         {noop: true},

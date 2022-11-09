@@ -13,13 +13,21 @@ import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.controllers.ComputeSessionIpc
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.dbConnection
-import dk.sdu.cloud.plugins.*
+import dk.sdu.cloud.logThrowable
+import dk.sdu.cloud.plugins.ComputePlugin
+import dk.sdu.cloud.plugins.ComputeSession
+import dk.sdu.cloud.plugins.IngressPlugin
+import dk.sdu.cloud.plugins.PluginContext
+import dk.sdu.cloud.plugins.PublicIPPlugin
+import dk.sdu.cloud.plugins.SyncthingPlugin
+import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.plugins.storage.ucloud.UCloudFilePlugin
-import io.ktor.http.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.selects.select
+import kotlin.coroutines.coroutineContext
 
 class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
     override val pluginTitle: String = "UCloud"
@@ -154,7 +162,13 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
     }
 
     override suspend fun PluginContext.runMonitoringLoopInServerMode() {
-        jobManagement.runMonitoring()
+        while (coroutineContext.isActive) {
+            try {
+                jobManagement.runMonitoring()
+            } catch (ex: Throwable) {
+                debugSystem.logThrowable("Caught exception while monitoring K8 jobs", ex)
+            }
+        }
     }
 
     override suspend fun RequestContext.create(resource: Job): FindByStringId? {

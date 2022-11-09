@@ -1,8 +1,4 @@
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Notification} from "@/Notifications";
-import {History} from "history";
-import {ProjectName} from "@/Project";
-import {getStoredProject} from "@/Project/Redux";
 import {JWT} from "@/Authentication/lib";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useEffect, useState} from "react";

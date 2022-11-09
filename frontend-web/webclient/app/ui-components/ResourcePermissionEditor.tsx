@@ -1,44 +1,40 @@
-import * as UCloud from "@/UCloud";
 import * as React from "react";
 import {ShakingBox} from "@/UtilityComponents";
 import {Button, Flex, RadioTile, RadioTilesContainer, Text, Truncate} from "@/ui-components/index";
-import {groupSummaryRequest, useProjectId} from "@/Project";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {GroupWithSummary} from "@/Project/GroupList";
-import {bulkRequestOf, emptyPage} from "@/DefaultObjects";
+import {useCloudCommand} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/DefaultObjects";
 import {useCallback, useEffect, useState} from "react";
-import * as Pagination from "@/Pagination";
 import {TextSpan} from "@/ui-components/Text";
 import {Link} from "react-router-dom";
 import {BulkRequest, provider} from "@/UCloud";
 import ResourceAclEntry = provider.ResourceAclEntry;
 import ResourceDoc = provider.ResourceDoc;
 import {IconName} from "@/ui-components/Icon";
+import {useProjectId} from "@/Project/Api";
+import {useProject} from "@/Project/cache";
+import Spinner from "@/LoadingIcon/LoadingIcon";
+
 
 interface ResourcePermissionEditorProps<T extends ResourceDoc> {
     entityName: string;
     options: {icon: IconName; name: string, title?: string}[];
     reload: () => void;
     entity: T;
-    updateAclEndpoint: (request: BulkRequest<{id: string; acl: unknown[] }>) => APICallParameters;
+    updateAclEndpoint: (request: BulkRequest<{id: string; acl: unknown[]}>) => APICallParameters;
     showMissingPermissionHelp?: boolean;
 }
 
-export function ResourcePermissionEditor<T extends ResourceDoc>(
+function ResourcePermissionEditor<T extends ResourceDoc>(
     props: ResourcePermissionEditorProps<T>
 ): React.ReactElement | null {
     const {entityName, entity, options, reload, updateAclEndpoint} = props;
     const projectId = useProjectId();
-    const [projectGroups, fetchProjectGroups, groupParams] =
-        useCloudAPI<Page<GroupWithSummary>>({noop: true}, emptyPage);
 
     const [commandLoading, invokeCommand] = useCloudCommand();
 
-    const [acl, setAcl] = useState<ResourceAclEntry[]>(entity.acl ?? []);
+    const project = useProject();
 
-    useEffect(() => {
-        fetchProjectGroups(UCloud.project.group.listGroupsWithSummary({itemsPerPage: 50, page: 0}));
-    }, [projectId]);
+    const [acl, setAcl] = useState<ResourceAclEntry[]>(entity.acl ?? []);
 
     useEffect(() => {
         setAcl(entity.acl ?? []);
@@ -63,77 +59,75 @@ export function ResourcePermissionEditor<T extends ResourceDoc>(
 
     const anyGroupHasPermission = acl.some(it => it.permissions.length !== 0);
 
-    return <Pagination.List
-        loading={projectGroups.loading}
-        page={projectGroups.data}
-        onPageChanged={(page) => fetchProjectGroups(groupSummaryRequest({
-            ...groupParams.parameters,
-            page
-        }))}
-        customEmptyPage={(
+    if (project.loading) {
+        return <Spinner />
+    }
+
+    const groups = project.fetch().status.groups ?? [];
+
+    return (<>
+        {groups.length !== 0 ? null :
+
             <Flex width={"100%"} height={"100%"} alignItems={"center"} justifyContent={"center"}
-                  flexDirection={"column"}>
+                flexDirection={"column"}>
                 <ShakingBox shaking mb={"10px"}>
                     No groups exist for this project.{" "}
                     <TextSpan bold>As a result, this {entityName.toLowerCase()} can only be used by project admins!</TextSpan>
                 </ShakingBox>
 
                 <Link to={"/project/members"} target={"_blank"}><Button fullWidth>Create group</Button></Link>
-            </Flex>
-        )}
-        pageRenderer={() => (
-            <>
-                {anyGroupHasPermission || !(props.showMissingPermissionHelp ?? true) ? null :
-                    <ShakingBox shaking mb={16}>
-                        <Text bold>This {entityName.toLowerCase()} can only be used by project admins</Text>
-                        <Text>
-                            You must assign permissions to one or more group, if your collaborators need to use this
-                            {" "}{entityName.toLowerCase()}.
-                        </Text>
-                    </ShakingBox>
-                }
-                {projectGroups.data.items.map(summary => {
-                    const g = summary.groupId;
-                    const permissions = acl.find(it =>
-                        "projectId" in it.entity &&
-                        it.entity.group === g &&
-                        it.entity.projectId === projectId
-                    )?.permissions ?? [];
+            </Flex>}
+        <>
+            {anyGroupHasPermission || !(props.showMissingPermissionHelp ?? true) ? null :
+                <ShakingBox shaking mb={16}>
+                    <Text bold>This {entityName.toLowerCase()} can only be used by project admins</Text>
+                    <Text>
+                        You must assign permissions to one or more group, if your collaborators need to use this
+                        {" "}{entityName.toLowerCase()}.
+                    </Text>
+                </ShakingBox>
+            }
+            {groups.map(group => {
+                const g = group.id;
+                const permissions = acl.find(it =>
+                    "projectId" in it.entity &&
+                    it.entity.group === g &&
+                    it.entity.projectId === projectId
+                )?.permissions ?? [];
 
-                    return (
-                        <Flex key={g} alignItems={"center"} mb={16}>
-                            <Truncate width={"300px"} mr={16} title={summary.groupTitle}>
-                                {summary.groupTitle}
-                            </Truncate>
+                return (
+                    <Flex key={g} alignItems={"center"} mb={16}>
+                        <Truncate width={"300px"} mr={16} title={group.specification.title}>
+                            {group.specification.title}
+                        </Truncate>
 
-                            <RadioTilesContainer>
+                        <RadioTilesContainer>
+                            <RadioTile
+                                label={"None"}
+                                onChange={() => updateAcl(g, [])}
+                                icon={"close"}
+                                name={group.id}
+                                checked={permissions.length === 0}
+                                height={40}
+                                fontSize={"0.5em"}
+                            />
+                            {options.map(opt =>
                                 <RadioTile
-                                    label={"None"}
-                                    onChange={() => updateAcl(g, [])}
-                                    icon={"close"}
-                                    name={summary.groupId}
-                                    checked={permissions.length === 0}
+                                    key={opt.name}
+                                    label={opt.title ?? opt.name}
+                                    onChange={() => updateAcl(g, [opt.name])}
+                                    icon={opt.icon}
+                                    name={group.id}
+                                    checked={permissions.indexOf(opt.name) !== -1 && permissions.length === 1}
                                     height={40}
                                     fontSize={"0.5em"}
                                 />
-                                {options.map(opt =>
-                                    <RadioTile
-                                        key={opt.name}
-                                        label={opt.title ?? opt.name}
-                                        onChange={() => updateAcl(g, [opt.name])}
-                                        icon={opt.icon}
-                                        name={summary.groupId}
-                                        checked={permissions.indexOf(opt.name) !== -1 && permissions.length === 1}
-                                        height={40}
-                                        fontSize={"0.5em"}
-                                    />
-                                )}
+                            )}
 
-                            </RadioTilesContainer>
-                        </Flex>
-                    );
-                })}
-            </>
-        )}
-    />;
+                        </RadioTilesContainer>
+                    </Flex>
+                );
+            })}
+        </>
+    </>)
 }

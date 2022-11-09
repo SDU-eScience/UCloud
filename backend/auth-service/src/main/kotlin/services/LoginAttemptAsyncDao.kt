@@ -16,9 +16,8 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
-import java.util.*
+import dk.sdu.cloud.service.timestampToLocalDateTime
+import dk.sdu.cloud.service.toTimestamp
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -48,8 +47,8 @@ data class LoginCooldown(
 fun RowData.toLoginCoolDown(): LoginCooldown {
     return LoginCooldown(
         getField(LoginCooldownTable.username),
-        getField(LoginCooldownTable.expiresAt).toDateTime(DateTimeZone.UTC).millis,
-        getField(LoginCooldownTable.allowLoginsAfter).toDateTime(DateTimeZone.UTC).millis,
+        getField(LoginCooldownTable.expiresAt).toTimestamp(),
+        getField(LoginCooldownTable.allowLoginsAfter).toTimestamp(),
         getField(LoginCooldownTable.severity),
         getField(LoginCooldownTable.id)
     )
@@ -69,7 +68,7 @@ class LoginAttemptAsyncDao(
             session.insert(LoginAttemptTable) {
                 set(LoginAttemptTable.id, id)
                 set(LoginAttemptTable.username, username)
-                set(LoginAttemptTable.createdAt, LocalDateTime(timeSource(), DateTimeZone.UTC))
+                set(LoginAttemptTable.createdAt, timestampToLocalDateTime(timeSource()))
             }
         }
 
@@ -89,14 +88,14 @@ class LoginAttemptAsyncDao(
 
         val recentLoginAttempts = db.withSession { session ->
             val time = max(
-                LocalDateTime(timeSource() - OBSERVATION_WINDOW).toDateTime().millis,
+                timeSource() - OBSERVATION_WINDOW,
                 currentCooldown?.allowLoginsAfter ?: -1
             )
             session
                 .sendPreparedStatement(
                     {
                         setParameter("username", username)
-                        setParameter("time", LocalDateTime(time).toDateTime().millis / 1000)
+                        setParameter("time", time / 1000)
                     },
                     """
                         SELECT COUNT(*)
@@ -120,9 +119,9 @@ class LoginAttemptAsyncDao(
                     set(LoginCooldownTable.severity, newSeverity)
                     set(
                         LoginCooldownTable.expiresAt,
-                        LocalDateTime(allowLoginsAfter + COOLDOWN_EXPIRY, DateTimeZone.UTC)
+                        timestampToLocalDateTime(allowLoginsAfter + COOLDOWN_EXPIRY)
                     )
-                    set(LoginCooldownTable.allowLoginsAfter, LocalDateTime(allowLoginsAfter, DateTimeZone.UTC))
+                    set(LoginCooldownTable.allowLoginsAfter, timestampToLocalDateTime(allowLoginsAfter))
                 }
             }
             return LOCKOUT_DURATION_BASE_SECONDS.toDouble().pow(newSeverity).toLong() * 1000L

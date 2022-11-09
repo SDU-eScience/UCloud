@@ -14,11 +14,11 @@ import KubernetesLicense = compute.ucloud.KubernetesLicense;
 import licenseApi = compute.ucloud.licenses.maintenance;
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {useProjectStatus} from "@/Project/cache";
+import {useProject} from "@/Project/cache";
 import Wallet = accounting.Wallet;
-import {useProjectId} from "@/Project";
 import {TextSpan} from "@/ui-components/Text";
 import MainContainer from "@/MainContainer/MainContainer";
+import {useProjectId} from "@/Project/Api";
 
 const LeftAlignedTableHeader = styled(TableHeader)`
   text-align: left;
@@ -26,9 +26,9 @@ const LeftAlignedTableHeader = styled(TableHeader)`
 
 const GrantCopies: React.FunctionComponent<{licenseServer: KubernetesLicense, onGrant: () => void}> = props => {
     const [loading, invokeCommand] = useCloudCommand();
-    const project = useProjectStatus();
+    const project = useProject();
     const projectId = useProjectId();
-    const projectName = project.fetch().membership.find(it => it.projectId === projectId)?.title
+    const projectName = project.fetch().specification.title;
 
     const grantCopies = useCallback(async () => {
         if (loading || !projectId) return;
