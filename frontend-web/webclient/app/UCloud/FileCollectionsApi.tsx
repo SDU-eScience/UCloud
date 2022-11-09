@@ -14,7 +14,7 @@ import * as React from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductStorage, UCLOUD_PROVIDER} from "@/Accounting";
-import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud/index";
+import {accounting, BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud/index";
 import {apiUpdate} from "@/Authentication/DataHook";
 import {Operation} from "@/ui-components/Operation";
 import {CheckboxFilter, ConditionalFilter} from "@/Resource/Filter";
@@ -25,6 +25,7 @@ import Warning from "@/ui-components/Warning";
 import {doNothing} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useHistory} from "react-router";
+import ResolvedSupport = accounting.providers.ResolvedSupport;
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
@@ -146,11 +147,13 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                 // Note(Jonas): Creation can be done as long as user is ADMIN and at least one provider allows it,
                 // so this should be correct, unless I'm missing something.
                 let anySupported = false;
-                Object.keys(cb.supportByProvider).forEach(it => {
-                    const support: FileCollectionSupport = cb.supportByProvider[it];
-                    if (support && support.collection) {
-                        anySupported = anySupported || !!(support?.collection?.usersCanCreate);
-                    }
+                Object.keys(cb.supportByProvider.productsByProvider).forEach(it => {
+                    cb.supportByProvider.productsByProvider[it].forEach(({support}) => {
+                        const fsSupport = support as FileCollectionSupport;
+                        if (fsSupport && fsSupport.collection) {
+                            anySupported = anySupported || !!(fsSupport?.collection?.usersCanCreate);
+                        }
+                    });
                 });
                 if (!anySupported) return false;
 
