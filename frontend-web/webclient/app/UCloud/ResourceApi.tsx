@@ -167,6 +167,10 @@ export abstract class ResourceApi<Res extends Resource,
 
     public idIsUriEncoded = false;
 
+    public getNamespace(): string {
+        return this.namespace;
+    }
+
     public abstract renderer: ItemRenderer<Res>;
     /*
     public InlineTitleRenderer?: React.FunctionComponent<{ resource: Res }>;
