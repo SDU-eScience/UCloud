@@ -1,6 +1,5 @@
 import * as React from "react";
 import {SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import CONF from "../../../site.config.json";
 import {useLocation, useNavigate, useParams} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
