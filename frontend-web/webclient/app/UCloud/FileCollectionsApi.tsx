@@ -25,7 +25,6 @@ import Warning from "@/ui-components/Warning";
 import {doNothing} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useHistory} from "react-router";
-import ResolvedSupport = accounting.providers.ResolvedSupport;
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
