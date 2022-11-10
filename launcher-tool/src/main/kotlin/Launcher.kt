@@ -10,19 +10,68 @@ import de.codeshelf.consoleui.prompt.builder.ListPromptBuilder
 import jline.TerminalFactory
 import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole
+import java.awt.Desktop
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.PrintStream
+import java.net.URI
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.system.exitProcess
+
+// NOTE(Dan): These are all directories which used to live in `.compose`. Don't allow anyone to pick from this list.
+val blacklistedEnvNames = setOf(
+    "postgres",
+    "passwd",
+    "home",
+    "cluster-home",
+    "im-config"
+)
+
+fun selectOrCreateEnvironment(baseDir: File): String {
+    val alternativeEnvironments = (baseDir.listFiles() ?: emptyArray()).filter {
+        it.isDirectory && it.name !in blacklistedEnvNames
+    }
+    if (alternativeEnvironments.isNotEmpty()) {
+        val menu = object : Menu("Select an environment") {
+            init {
+                for (env in alternativeEnvironments) {
+                    item(env.absolutePath, env.name)
+                }
+            }
+
+            val createNew = item("new", "Create new environment")
+        }
+
+        val selected = menu.display(prompt)
+        if (selected != menu.createNew) {
+            return selected.name.substringAfterLast('/')
+        }
+    }
+
+    val builder = prompt.promptBuilder
+    builder
+        .createInputPrompt()
+        .name("selector")
+        .message("Select a name for your environment")
+        .defaultValue("default")
+        .addPrompt()
+
+    val newEnvironment = (prompt.prompt(builder.build()).values.single() as InputResult).input!!
+    if (newEnvironment in blacklistedEnvNames) {
+        println("Illegal name. Try a different one.")
+        exitProcess(1)
+    }
+
+    return newEnvironment.substringAfterLast('/')
+}
+
+val prompt = ConsolePrompt()
 
 fun main(args: Array<String>) {
     try {
+        val postExecPath = args.getOrNull(0) ?: error("Bad invocation")
+
         AnsiConsole.systemInstall()
-        val version = (runCatching { File("./backend/version.txt").readText() }.getOrNull()
-            ?: runCatching { File("../backend/version.txt").readText() }.getOrNull() ?: "").trim()
-
-        println("UCloud $version - Launcher tool")
-        println(CharArray(TerminalFactory.get().width) { '-' }.concatToString())
-
-        val prompt = ConsolePrompt()
 
         val repoRoot = run {
             when {
@@ -31,6 +80,11 @@ fun main(args: Array<String>) {
                 else -> error("Unable to determine repository root. Please run this script from the root of the repository.")
             }
         }.absoluteFile.normalize()
+
+        val version = runCatching { File(repoRoot, "./backend/version.txt").readText() }.getOrNull()?.trim() ?: ""
+
+        println("UCloud $version - Launcher tool")
+        println(CharArray(TerminalFactory.get().width) { '-' }.concatToString())
 
         val baseDir = File(repoRoot, ".compose").also { it.mkdirs() }
         val currentEnvironmentName = runCatching { File(baseDir, "current.txt").readText() }.getOrNull()
@@ -42,81 +96,95 @@ fun main(args: Array<String>) {
 
         if (currentEnvironment == null) {
             println("No active environment detected!")
-            val alternativeEnvironments = (baseDir.listFiles() ?: emptyArray()).filter { it.isDirectory }
-            if (alternativeEnvironments.isNotEmpty()) {
-                val menu = object : Menu("Select an environment") {
-                    init {
-                        for (env in alternativeEnvironments) {
-                            item(env.absolutePath, env.name)
-                        }
-                    }
-
-                    val createNew = item("new", "Create new environment")
-                }
-
-                val selected = menu.display(prompt)
-                if (selected != menu.createNew) {
-                    currentEnvironment = File(selected.name)
-                }
-            }
+            currentEnvironment = File(baseDir, selectOrCreateEnvironment(baseDir)).also { it.mkdirs() }
         } else {
             println(ansi().render("Active environment: ").bold().render(currentEnvironment.name).boldOff())
             println()
-        }
-
-        if (currentEnvironment == null) {
-            val builder = prompt.promptBuilder
-            builder
-                .createInputPrompt()
-                .name("selector")
-                .message("Select a name for your environment")
-                .defaultValue("default")
-                .addPrompt()
-
-            val newEnvironment = (prompt.prompt(builder.build()).values.single() as InputResult).input!!
-            currentEnvironment = File(baseDir, newEnvironment).also { it.mkdirs() }
         }
 
         val isNewEnvironment = currentEnvironmentName == null
         File(baseDir, "current.txt").writeText(currentEnvironment.name)
 
         val compose = findCompose()
-        var psText = compose.ps(currentEnvironment).executeToText()
+        val psText = compose.ps(currentEnvironment).executeToText()
         if (psText == null) {
-            File(currentEnvironment, "docker-compose.yaml")
-            psText = ""
+            println("${currentEnvironment.absolutePath} appears to be corrupt. Try deleting this directory!")
+            exitProcess(1)
         }
-        if (isNewEnvironment || psText.lines().any { !it.startsWith("NAME") }) {
-            val builder = prompt.promptBuilder
-            builder
-                .createConfirmPromp()
-                .name("start")
-                .message("The environment '${currentEnvironment.name}' is not running. Do you want to start it?")
-                .defaultValue(ConfirmChoice.ConfirmationValue.YES)
-                .addPrompt()
 
-            val shouldStart = (prompt.prompt(builder.build()).values.single() as ConfirmResult).confirmed == ConfirmChoice.ConfirmationValue.YES
+        val psLines =
+            psText.lines().filter { !it.trim().startsWith("name", ignoreCase = true) && !it.trim().startsWith("---") }
+
+        Environment(currentEnvironment.name, PortAllocator.Direct)
+            .createComposeFile(
+                listOf(
+                    ComposeService.UCloudBackend,
+                    ComposeService.UCloudFrontend,
+                    ComposeService.Gateway,
+                )
+            )
+
+        if (isNewEnvironment || psLines.size <= 1) {
+            val shouldStart = confirm(
+                prompt,
+                "The environment '${currentEnvironment.name}' is not running. Do you want to start it?",
+                default = true
+            )
+
             if (!shouldStart) return
-
-            LoadingIndicator("Generating virtual cluster...").use {
-                Environment(currentEnvironment.name, PortAllocator.Direct)
-                    .createComposeFile(
-                        listOf(
-                            Service.UCloudBackend,
-                            Service.UCloudFrontend,
-                            Service.Gateway,
-                        )
-                    )
-            }
 
             LoadingIndicator("Starting virtual cluster...").use {
                 compose.up(currentEnvironment).executeToText()
             }
+
+            LoadingIndicator("Starting UCloud...").use {
+                startService(serviceByName("backend"), compose, currentEnvironment).executeToText()
+            }
+
+            LoadingIndicator("Waiting for UCloud to be ready...").use {
+                val cmd = compose.exec(currentEnvironment, "backend", listOf("curl", "http://localhost:8080"), tty = false)
+                cmd.allowFailure = true
+
+                for (i in 0 until 100) {
+                    if (cmd.executeToText() != null) break
+                    Thread.sleep(1000)
+                }
+            }
         }
 
         when (TopLevelMenu.display(prompt)) {
+            TopLevelMenu.openUserInterface -> {
+                val address = serviceByName(ServiceMenu(requireAddress = true).display(prompt).name).address!!
+                if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                    println("Unable to open web-browser. Open this URL in your own browser:")
+                    println(address)
+                    return
+                } else {
+                    Desktop.getDesktop().browse(URI(address))
+                }
+            }
+
             TopLevelMenu.openLogs -> {
-                println("Logs!")
+                val item = ServiceMenu(requireExec = true).display(prompt)
+                val service = serviceByName(item.name)
+                if (service.useServiceConvention) {
+                    File(postExecPath).writeText(
+                        compose.exec(
+                            currentEnvironment,
+                            item.name,
+                            listOf("tail", "-f", "/tmp/service.log")
+                        ).toBashScript()
+                    )
+                } else {
+                    File(postExecPath).writeText(compose.logs(currentEnvironment, item.name).toBashScript())
+                }
+            }
+
+            TopLevelMenu.openShell -> {
+                val item = ServiceMenu(requireExec = true).display(prompt)
+                File(postExecPath).writeText(
+                    compose.exec(currentEnvironment, item.name, listOf("/bin/bash")).toBashScript()
+                )
             }
 
             TopLevelMenu.createProvider -> {
@@ -148,10 +216,147 @@ fun main(args: Array<String>) {
                     }
                 }
             }
+
+            TopLevelMenu.services -> {
+                val service = serviceByName(ServiceMenu().display(prompt).name)
+
+                when (ServiceActionMenu.display(prompt)) {
+                    ServiceActionMenu.start -> {
+                        File(postExecPath).writeText(
+                            startService(service, compose, currentEnvironment).toBashScript()
+                        )
+                    }
+
+                    ServiceActionMenu.stop -> {
+                        if (service.useServiceConvention) {
+                            File(postExecPath).writeText(
+                                compose.exec(
+                                    currentEnvironment,
+                                    service.containerName,
+                                    listOf("/opt/ucloud/service.sh", "stop")
+                                ).toBashScript()
+                            )
+                        } else {
+                            File(postExecPath).writeText(
+                                compose.stop(currentEnvironment, service.containerName).toBashScript()
+                            )
+                        }
+                    }
+
+                    ServiceActionMenu.restart -> {
+                        if (service.useServiceConvention) {
+                            File(postExecPath).writeText(
+                                buildString {
+                                    appendLine(
+                                        compose.exec(
+                                            currentEnvironment,
+                                            service.containerName,
+                                            listOf("/opt/ucloud/service.sh", "stop")
+                                        ).toBashScript()
+                                    )
+
+                                    appendLine(
+                                        compose.exec(
+                                            currentEnvironment,
+                                            service.containerName,
+                                            listOf("/opt/ucloud/service.sh", "start")
+                                        ).toBashScript()
+                                    )
+                                }
+                            )
+                        } else {
+                            File(postExecPath).writeText(
+                                buildString {
+                                    appendLine(compose.stop(currentEnvironment, service.containerName).toBashScript())
+                                    appendLine(compose.start(currentEnvironment, service.containerName).toBashScript())
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            TopLevelMenu.environment -> {
+                when (EnvironmentMenu.display(prompt)) {
+                    EnvironmentMenu.stop -> {
+                        LoadingIndicator("Shutting down virtual cluster...").use {
+                            compose.down(currentEnvironment).executeToText()
+                        }
+                    }
+
+                    EnvironmentMenu.restart -> {
+                        LoadingIndicator("Shutting down virtual cluster...").use {
+                            compose.down(currentEnvironment).executeToText()
+                        }
+                        LoadingIndicator("Starting virtual cluster...").use {
+                            compose.up(currentEnvironment).executeToText()
+                        }
+                    }
+
+                    EnvironmentMenu.delete -> {
+                        val shouldDelete = confirm(
+                            prompt,
+                            "Are you sure you want to permanently delete the environment and all the data?"
+                        )
+
+                        if (shouldDelete) {
+                            LoadingIndicator("Shutting down virtual cluster...").use {
+                                compose.down(currentEnvironment).executeToText()
+                            }
+
+                            LoadingIndicator("Delete files associated with virtual cluster...").use {
+                                // NOTE(Dan): Running this in a docker container to make sure we have permissions to
+                                // delete the files. This is basically a convoluted way of asking for root permissions
+                                // without actually asking for root permissions (we are just asking for the equivalent
+                                // through docker)
+                                startProcessAndCollectToString(
+                                    listOf(
+                                        findDocker(),
+                                        "run",
+                                        "--rm",
+                                        "-v",
+                                        "${currentEnvironment.parentFile.absolutePath}:/data",
+                                        "alpine:3",
+                                        "/bin/sh",
+                                        "-c",
+                                        "rm -rf /data/${currentEnvironment.name}"
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    EnvironmentMenu.switch -> {
+                        LoadingIndicator("Shutting down virtual cluster...").use {
+                            compose.down(currentEnvironment).executeToText()
+                        }
+
+                        val env = selectOrCreateEnvironment(baseDir)
+                        File(baseDir, env).mkdirs()
+                        File(baseDir, "current.txt").writeText(env)
+                    }
+                }
+            }
         }
-        println("Done!")
     } finally {
         TerminalFactory.get().restore()
+    }
+}
+
+private fun startService(
+    service: Service,
+    compose: DockerCompose,
+    currentEnvironment: File,
+): ExecutableCommand {
+    if (service.useServiceConvention) {
+        return compose.exec(
+            currentEnvironment,
+            service.containerName,
+            listOf("/opt/ucloud/service.sh", "start"),
+            tty = false
+        )
+    } else {
+        return compose.start(currentEnvironment, service.containerName)
     }
 }
 
@@ -183,10 +388,25 @@ abstract class Menu(val prompt: String) {
 }
 
 object TopLevelMenu : Menu("Select an item from the menu") {
-    val openUserInterface = item("ui", "Open user-interface")
+    val openUserInterface = item("ui", "Open user-interface...")
     val openShell = item("shell", "Open shell to...")
     val openLogs = item("logs", "Open logs...")
     val createProvider = item("providers", "Create provider...")
+    val services = item("services", "Manage services...")
+    val environment = item("environment", "Manage environment...")
+}
+
+object EnvironmentMenu : Menu("Select an action") {
+    val stop = item("stop", "Stop environment")
+    val restart = item("restart", "Restart environment")
+    val delete = item("delete", "Delete environment")
+    val switch = item("switch", "Switch environment or create a new one")
+}
+
+object ServiceActionMenu : Menu("Select an action") {
+    val start = item("start", "Start service")
+    val stop = item("stop", "Stop service")
+    val restart = item("restart", "Restart service")
 }
 
 data class CheckboxItem(
@@ -292,4 +512,19 @@ class LoadingIndicator(var prompt: String) {
     fun join() {
         thread.join()
     }
+}
+
+fun confirm(prompt: ConsolePrompt, question: String, default: Boolean? = null): Boolean {
+    val builder = prompt.promptBuilder
+    val f = builder.createConfirmPromp()
+        .name("question")
+        .message(question)
+
+    if (default != null) {
+        f.defaultValue(if (default) ConfirmChoice.ConfirmationValue.YES else ConfirmChoice.ConfirmationValue.NO)
+    }
+
+    f.addPrompt()
+
+    return (prompt.prompt(builder.build()).values.single() as ConfirmResult).confirmed == ConfirmChoice.ConfirmationValue.YES
 }

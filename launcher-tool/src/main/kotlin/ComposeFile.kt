@@ -1,6 +1,7 @@
 package dk.sdu.cloud
 
 import java.io.File
+import java.util.Base64
 
 @JvmInline
 value class Json(val encoded: String)
@@ -33,7 +34,7 @@ data class Environment(
 
     val dataDirectory = File(repoRoot, ".compose/$name").also { it.mkdirs() }
 
-    fun createComposeFile(services: List<Service>): File {
+    fun createComposeFile(services: List<ComposeService>): File {
         val builder = ComposeBuilder(this)
         with(builder) {
             for (service in services) {
@@ -68,129 +69,197 @@ class ComposeBuilder(val environment: Environment) {
     }
 }
 
-sealed class Service {
+sealed class ComposeService {
     abstract fun ComposeBuilder.build()
 
-    object UCloudBackend : Service() {
+    fun ComposeBuilder.service(
+        name: String,
+        title: String,
+        compose: Json,
+        logsSupported: Boolean = true,
+        execSupported: Boolean = true,
+        serviceConvention: Boolean = true,
+        address: String? = null
+    ) {
+        services[name] = compose
+        allServices.add(Service(name, title, logsSupported, execSupported, serviceConvention, address))
+    }
+
+    object UCloudBackend : ComposeService() {
         override fun ComposeBuilder.build() {
             val logs = File(environment.dataDirectory, "logs").also { it.mkdirs() }
             val homeDir = File(environment.dataDirectory, "backend-home").also { it.mkdirs() }
+            val configDir = File(environment.dataDirectory, "backend-config").also { it.mkdirs() }
+            val gradleDir = File(environment.dataDirectory, "backend-gradle").also { it.mkdirs() }
 
-            services["backend"] = Json(
-                //language=json
-                """
-                  {
-                    "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2021.3.0-alpha14",
-                    "command": ["sleep", "inf"],
-                    "restart": "always",
-                    "hostname": "backend",
-                    "ports": [
-                      "${environment.portAllocator.allocate(8080)}:8080",
-                      "${environment.portAllocator.allocate(42999)}:42999"
-                    ],
-                    "volumes": [
-                      "${environment.repoRoot}/backend:/opt/ucloud",
-                      "${environment.repoRoot}/debugger:/opt/debugger",
-                      "${environment.repoRoot}/frontend-web/webclient:/opt/frontend",
-                      "${logs.absolutePath}:/var/log/ucloud",
-                      "${homeDir.absolutePath}:/home"
-                    ]
-                  }
-                """.trimIndent()
+            service(
+                "backend",
+                "UCloud/Core: Backend",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2021.3.0-alpha14",
+                        "command": ["sleep", "inf"],
+                        "restart": "always",
+                        "hostname": "backend",
+                        "ports": [
+                          "${environment.portAllocator.allocate(8080)}:8080",
+                          "${environment.portAllocator.allocate(42999)}:42999"
+                        ],
+                        "volumes": [
+                          "${environment.repoRoot}/backend:/opt/ucloud",
+                          "${environment.repoRoot}/debugger:/opt/debugger",
+                          "${environment.repoRoot}/frontend-web/webclient:/opt/frontend",
+                          "${logs.absolutePath}:/var/log/ucloud",
+                          "${configDir.absolutePath}:/etc/ucloud",
+                          "${homeDir.absolutePath}:/home",
+                          "${gradleDir.absolutePath}:/root/.gradle"
+                        ]
+                      }
+                    """.trimIndent(),
+                ),
             )
 
             val postgresDataDir = File(environment.dataDirectory, "pg-data").also { it.mkdirs() }
-            startProcessAndCollectToString(
-                listOf(findDocker(), "run", "--rm", "-v", "$postgresDataDir:/data", "alpine:3", "chown", "999:999", "/data")
-            ).also {
-                repeat(10) { println() }
-                println("exit: ${it.statusCode}")
-                println("stdout: ${it.stdout}")
-                println("stderr: ${it.stderr}")
-                repeat(10) { println() }
-            }
 
-            services["postgres"] = Json(
-                //language=json
-                """
-                  {
-                    "image": "postgres:15.0",
-                    "hostname": "postgres",
-                    "environment": {
-                      "POSTGRES_PASSWORD": "postgrespassword"
-                    },
-                    "volumes": [
-                      "${postgresDataDir.absolutePath}:/var/lib/postgresql/data",
-                      "${environment.repoRoot}/backend:/opt/ucloud"
-                    ],
-                    "ports": [
-                      "${environment.portAllocator.allocate(35432)}:5432"
-                    ]
-                  }
-                """.trimIndent()
+            service(
+                "postgres",
+                "UCloud/Core: Postgres",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "postgres:15.0",
+                        "hostname": "postgres",
+                        "environment": {
+                          "POSTGRES_PASSWORD": "postgrespassword"
+                        },
+                        "volumes": [
+                          "${postgresDataDir.absolutePath}:/var/lib/postgresql/data",
+                          "${environment.repoRoot}/backend:/opt/ucloud"
+                        ],
+                        "ports": [
+                          "${environment.portAllocator.allocate(35432)}:5432"
+                        ]
+                      }
+                    """.trimIndent()
+                ),
+
+                serviceConvention = false,
+            )
+
+            service(
+                "pgweb",
+                "UCloud/Core: Postgres UI",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "sosedoff/pgweb",
+                        "hostname": "pgweb",
+                        "environment": {
+                          "DATABASE_URL": "postgres://postgres:postgrespassword@postgres:5432/postgres?sslmode=disable"
+                        }
+                      }
+                    """.trimIndent()
+                ),
+                serviceConvention = false,
+                address = "https://postgres.localhost.direct"
             )
 
             val redisDataDir = File(environment.dataDirectory, "redis-data").also { it.mkdirs() }
-            services["redis"] = Json(
-                //language=json
-                """
-                  {
-                    "image": "redis:5.0.9",
-                    "hostname": "redis",
-                    "volumes": [
-                      "${redisDataDir.absolutePath}:/data"
-                    ]
-                  }
-                """.trimIndent()
+            service(
+                "redis",
+                "UCloud/Core: Redis",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "redis:5.0.9",
+                        "hostname": "redis",
+                        "volumes": [
+                          "${redisDataDir.absolutePath}:/data"
+                        ]
+                      }
+                    """.trimIndent()
+                ),
+
+                serviceConvention = false
             )
         }
     }
 
-    object UCloudFrontend : Service() {
+    object UCloudFrontend : ComposeService() {
         override fun ComposeBuilder.build() {
-            services["frontend"] = Json(
-                //language=json
-                """
-                  {
-                    "image": "node",
-                    "command": ["sleep", "inf"],
-                    "restart": "always",
-                    "hostname": "frontend",
-                    "working_dir": "/opt/ucloud",
-                    "ports": [
-                      "${environment.portAllocator.allocate(9000)}:9000"
-                    ],
-                    "volumes": [
-                      "${environment.repoRoot}/frontend-web/webclient:/opt/ucloud"
-                    ]
-                  }
-                """.trimIndent()
+            service(
+                "frontend",
+                "UCloud/Core: Frontend",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "node",
+                        "command": ["sh", "-c", "npm install ; npm run start:compose"],
+                        "restart": "always",
+                        "hostname": "frontend",
+                        "working_dir": "/opt/ucloud",
+                        "ports": [
+                          "${environment.portAllocator.allocate(9000)}:9000"
+                        ],
+                        "volumes": [
+                          "${environment.repoRoot}/frontend-web/webclient:/opt/ucloud"
+                        ]
+                      }
+                    """.trimIndent()
+                ),
+
+                address = "https://ucloud.localhost.direct",
+                serviceConvention = false
             )
         }
     }
 
-    object Kubernetes : Service() {
+    object Kubernetes : ComposeService() {
         override fun ComposeBuilder.build() {
 
         }
     }
 
-    object Slurm : Service() {
+    object Slurm : ComposeService() {
         override fun ComposeBuilder.build() {
 
         }
     }
 
-    object Puhuri : Service() {
+    object Puhuri : ComposeService() {
         override fun ComposeBuilder.build() {
 
         }
     }
 
-    object Gateway : Service() {
+    object Gateway : ComposeService() {
         override fun ComposeBuilder.build() {
-            val gatewayDir = File(environment.dataDirectory, "gateway").also { it.mkdir() }
-            val gatewayData = File(gatewayDir, "data").also { it.mkdir() }
+            val gatewayDir = File(environment.dataDirectory, "gateway").also { it.mkdirs() }
+            val gatewayData = File(gatewayDir, "data").also { it.mkdirs() }
+            val certificates = File(gatewayDir, "certs").also { it.mkdirs() }
+
+            // See https://get.localhost.direct for details about this. Base64 just to avoid showing up in search
+            // results.
+            File(certificates, "tls.crt").writeBytes(
+                Base64.getDecoder().decode(
+                    Gateway::class.java.getResourceAsStream("/tlsc.txt")!!.readAllBytes()
+                        .decodeToString().replace("\r", "").replace("\n", "")
+                )
+            )
+
+            File(certificates, "tls.key").writeBytes(
+                Base64.getDecoder().decode(
+                    Gateway::class.java.getResourceAsStream("/tlsk.txt")!!.readAllBytes()
+                        .decodeToString().replace("\r", "").replace("\n", "")
+                )
+            )
+
             val gatewayConfig = File(gatewayDir, "Caddyfile")
             gatewayConfig.writeText(
                 """
@@ -205,48 +274,59 @@ sealed class Service {
                         reverse_proxy /Images/* frontend:9000
                         reverse_proxy /app frontend:9000
                         reverse_proxy /app/* frontend:9000
+                        reverse_proxy /@* frontend:9000
+                        reverse_proxy /node_modules/* frontend:9000
+                        reverse_proxy /site.config.json frontend:9000
                         reverse_proxy /api/* backend:8080
                         reverse_proxy /auth/* backend:8080
                         redir / /app/dashboard
-                        
-                        tls internal
+                    }
+                    
+                    https://postgres.localhost.direct {
+                        reverse_proxy pgweb:8081
                     }
                    
                     https://debugger.localhost.direct {
-                        reverse_proxy / backend:42999
-                        
-                        tls internal
+                        reverse_proxy backend:42999
                     }
                     
                     https://k8.localhost.direct {
-                        reverse_proxy / k8-provider:8889
-                        
-                        tls internal
+                        reverse_proxy k8-provider:8889
                     }
                     
                     https://slurm.localhost.direct {
-                        reverse_proxy / slurm-provider:8889
-                        
-                        tls internal
+                        reverse_proxy slurm-provider:8889
+                    }
+                    
+                    *.localhost.direct {
+                        tls /certs/tls.crt /certs/tls.key
                     }
                 """.trimIndent()
             )
 
-            services["gateway"] = Json(
-                // language=json
-                """
-                  {
-                    "image": "caddy",
-                    "volumes": [
-                      "${gatewayData.absolutePath}:/data",
-                      "${gatewayConfig.absolutePath}:/etc/caddy/Caddyfile"
-                    ],
-                    "ports": [
-                      "${environment.portAllocator.allocate(80)}:80" 
-                    ],
-                    "hostname": "gateway"
-                  }
-                """.trimIndent()
+            service(
+                "gateway",
+                "Gateway",
+                Json(
+                    // language=json
+                    """
+                      {
+                        "image": "caddy",
+                        "volumes": [
+                          "${gatewayData.absolutePath}:/data",
+                          "${gatewayConfig.absolutePath}:/etc/caddy/Caddyfile",
+                          "${certificates.absolutePath}:/certs"
+                        ],
+                        "ports": [
+                          "${environment.portAllocator.allocate(80)}:80",
+                          "${environment.portAllocator.allocate(443)}:443" 
+                        ],
+                        "hostname": "gateway"
+                      }
+                    """.trimIndent()
+                ),
+
+                serviceConvention = false
             )
         }
     }
