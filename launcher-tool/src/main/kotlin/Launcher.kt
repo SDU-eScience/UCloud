@@ -133,23 +133,7 @@ fun main(args: Array<String>) {
 
             if (!shouldStart) return
 
-            LoadingIndicator("Starting virtual cluster...").use {
-                compose.up(currentEnvironment).executeToText()
-            }
-
-            LoadingIndicator("Starting UCloud...").use {
-                startService(serviceByName("backend"), compose, currentEnvironment).executeToText()
-            }
-
-            LoadingIndicator("Waiting for UCloud to be ready...").use {
-                val cmd = compose.exec(currentEnvironment, "backend", listOf("curl", "http://localhost:8080"), tty = false)
-                cmd.allowFailure = true
-
-                for (i in 0 until 100) {
-                    if (cmd.executeToText() != null) break
-                    Thread.sleep(1000)
-                }
-            }
+            startCluster(compose, currentEnvironment)
         }
 
         when (TopLevelMenu.display(prompt)) {
@@ -288,9 +272,7 @@ fun main(args: Array<String>) {
                         LoadingIndicator("Shutting down virtual cluster...").use {
                             compose.down(currentEnvironment).executeToText()
                         }
-                        LoadingIndicator("Starting virtual cluster...").use {
-                            compose.up(currentEnvironment).executeToText()
-                        }
+                        startCluster(compose, currentEnvironment)
                     }
 
                     EnvironmentMenu.delete -> {
@@ -340,6 +322,26 @@ fun main(args: Array<String>) {
         }
     } finally {
         TerminalFactory.get().restore()
+    }
+}
+
+private fun startCluster(compose: DockerCompose, currentEnvironment: File) {
+    LoadingIndicator("Starting virtual cluster...").use {
+        compose.up(currentEnvironment).executeToText()
+    }
+
+    LoadingIndicator("Starting UCloud...").use {
+        startService(serviceByName("backend"), compose, currentEnvironment).executeToText()
+    }
+
+    LoadingIndicator("Waiting for UCloud to be ready...").use {
+        val cmd = compose.exec(currentEnvironment, "backend", listOf("curl", "http://localhost:8080"), tty = false)
+        cmd.allowFailure = true
+
+        for (i in 0 until 100) {
+            if (cmd.executeToText() != null) break
+            Thread.sleep(1000)
+        }
     }
 }
 

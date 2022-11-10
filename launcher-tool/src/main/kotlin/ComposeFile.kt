@@ -280,6 +280,7 @@ sealed class ComposeService {
                         reverse_proxy /api/* backend:8080
                         reverse_proxy /auth/* backend:8080
                         redir / /app/dashboard
+                        reverse_proxy / frontend:9000
                     }
                     
                     https://postgres.localhost.direct {
