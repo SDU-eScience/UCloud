@@ -100,6 +100,16 @@ sealed class Service {
             )
 
             val postgresDataDir = File(environment.dataDirectory, "pg-data").also { it.mkdirs() }
+            startProcessAndCollectToString(
+                listOf(findDocker(), "run", "--rm", "-v", "$postgresDataDir:/data", "alpine:3", "chown", "999:999", "/data")
+            ).also {
+                repeat(10) { println() }
+                println("exit: ${it.statusCode}")
+                println("stdout: ${it.stdout}")
+                println("stderr: ${it.stderr}")
+                repeat(10) { println() }
+            }
+
             services["postgres"] = Json(
                 //language=json
                 """

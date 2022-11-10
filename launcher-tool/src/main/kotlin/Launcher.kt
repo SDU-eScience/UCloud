@@ -24,7 +24,15 @@ fun main(args: Array<String>) {
 
         val prompt = ConsolePrompt()
 
-        val baseDir = File(".compose").also { it.mkdirs() }
+        val repoRoot = run {
+            when {
+                File(".git").exists() -> File(".")
+                File("../.git").exists() -> File("..")
+                else -> error("Unable to determine repository root. Please run this script from the root of the repository.")
+            }
+        }.absoluteFile.normalize()
+
+        val baseDir = File(repoRoot, ".compose").also { it.mkdirs() }
         val currentEnvironmentName = runCatching { File(baseDir, "current.txt").readText() }.getOrNull()
         var currentEnvironment = if (currentEnvironmentName == null) {
             null
@@ -73,7 +81,12 @@ fun main(args: Array<String>) {
         File(baseDir, "current.txt").writeText(currentEnvironment.name)
 
         val compose = findCompose()
-        if (isNewEnvironment || compose.ps(currentEnvironment).executeToText().lines().any { !it.startsWith("NAME") }) {
+        var psText = compose.ps(currentEnvironment).executeToText()
+        if (psText == null) {
+            File(currentEnvironment, "docker-compose.yaml")
+            psText = ""
+        }
+        if (isNewEnvironment || psText.lines().any { !it.startsWith("NAME") }) {
             val builder = prompt.promptBuilder
             builder
                 .createConfirmPromp()
