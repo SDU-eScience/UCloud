@@ -24,7 +24,7 @@ import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
 import {doNothing} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {NavigateFunction, useNavigate} from "react-router";
+import {NavigateFunction} from "react-router";
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
