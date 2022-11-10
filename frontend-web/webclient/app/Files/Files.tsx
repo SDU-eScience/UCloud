@@ -250,7 +250,7 @@ export const FilesBrowse: React.FunctionComponent<{
     useEffect(() => {
         if (!props.isSearch) return;
         if (!searchContext && uploadPath) {
-            navigate(`${location.pathname}${location.search}&searchContext=${encodeURIComponent(uploadPath)}`);
+            navigate(`${location.pathname}${location.search}&searchContext=${encodeURIComponent(uploadPath)}`, {replace: true});
         }
     }, [props.isSearch, location.search, location.pathname]);
 

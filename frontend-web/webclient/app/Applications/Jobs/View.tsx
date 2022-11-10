@@ -301,7 +301,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
 
                 // NOTE(Dan): Remove action to avoid getting delay if the user refreshes their browser
                 if (!props.embedded) {
-                    navigate(buildQueryString(location.pathname, {app: appNameHint}));
+                    navigate(buildQueryString(location.pathname, {app: appNameHint}), {replace: true});
                 }
             }, delayInitialAnim ? 3000 : 400);
 

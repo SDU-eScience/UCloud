@@ -13,7 +13,7 @@ import {useEffect} from "react";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {UCLOUD_CORE} from "@/UCloud/ResourceApi";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {NavigateFunction, useNavigate} from "react-router";
+import {NavigateFunction} from "react-router";
 import {initTerminalState, TerminalState} from "@/Terminal/State";
 
 export enum KeyCode {
