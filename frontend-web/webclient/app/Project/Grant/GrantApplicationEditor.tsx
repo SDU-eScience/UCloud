@@ -621,10 +621,6 @@ function findNewOverallState(approvalStates: GrantGiverApprovalState[]): State {
 
 export function GrantApplicationEditor(props: {target: RequestTarget}) {
     const [loading, runWork] = useCloudCommand();
-    React.useEffect(() => {
-        console.log("Mounting!")
-        return () => console.log("Unmounting!");
-    }, []);
     const projectTitleRef = useRef<HTMLInputElement>(null);
     const projectReferenceIdRef = useRef<HTMLInputElement>(null);
     const {target} = props;
