@@ -11,7 +11,7 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import { FileSearch } from "./FileSearch";
+import {FileSearch} from "./FileSearch";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (

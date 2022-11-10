@@ -11,35 +11,33 @@ import Button from "./Button";
 import ClickableDropdown from "./ClickableDropdown";
 import ExternalLink from "./ExternalLink";
 import Flex from "./Flex";
-import Icon from "./Icon";
+import Icon, {IconName} from "./Icon";
 import Label from "./Label";
 import Radio from "./Radio";
 import Text from "./Text";
 import {Spacer} from "./Spacer";
 import {TextDiv, TextSpan} from "./Text";
 import TextArea from "./TextArea";
+import {apiUpdate, useCloudCommand} from "@/Authentication/DataHook";
+import Error from "./Error";
 
 const enum SupportType {
     SUGGESTION = "SUGGESTION",
     BUG = "BUG"
 }
 
+type SystemStatus = "Decomissioned\n" | "Operational\n" | "Degraded\n" | "Down\n";
+
+function submitTicket(request: {subject: string, message: string}): APICallParameters {
+    return apiUpdate(request, "/api/support", "ticket")
+}
+
 export default function Support(): JSX.Element {
     const textArea = useRef<HTMLTextAreaElement>(null);
     const titleArea = useRef<HTMLTextAreaElement>(null);
-    const supportBox = useRef<HTMLTextAreaElement>(null);
-    const [loading, setLoading] = useState(false);
-    const [visible, setVisible] = useState(false);
     const [type, setType] = useState(SupportType.SUGGESTION);
-
-    function handleESC(e: KeyboardEvent): void {
-        if (e.keyCode === KeyCode.ESC) setVisible(false);
-    }
-
-    function handleClickOutside(event): void {
-        if (supportBox.current && !supportBox.current.contains(event.target) && visible)
-            setVisible(false);
-    }
+    const [loading, invokeCommand] = useCloudCommand();
+    const [statusUCloud, setUCloudStatus] = useState<SystemStatus | "">("");
 
     async function onSubmit(event: React.FormEvent): Promise<void> {
         event.preventDefault();
@@ -47,12 +45,9 @@ export default function Support(): JSX.Element {
         const title = titleArea.current?.value ?? "";
         if (text.trim()) {
             try {
-                setLoading(true);
-                await Client.post("/support/ticket", {subject: title, message: `${type}: ${text}`});
+                await invokeCommand(submitTicket({subject: title, message: `${type}: ${text}`}));
                 textArea.current!.value = "";
                 titleArea.current!.value = "";
-                setVisible(false);
-                setLoading(false);
                 snackbarStore.addSuccess("Support ticket submitted!", false);
             } catch (e) {
                 snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred submitting the message"), false);
@@ -62,19 +57,26 @@ export default function Support(): JSX.Element {
         }
     }
 
-    useEffect(() => {
-        document.addEventListener("keydown", handleESC);
-        document.addEventListener("mousedown", handleClickOutside);
+    const fetchStatus = React.useCallback(() => {
+        const controller = new AbortController();
+        fetch("https://status.cloud.sdu.dk/health/", {signal: controller.signal}).then(it =>
+            it.text().then(it => setUCloudStatus(it as SystemStatus)).catch(e => console.warn(e))
+        ).catch(e => console.warn(e));
+        return controller;
+    }, []);
+
+    React.useEffect(() => {
+        const controller = fetchStatus();
         return () => {
-            document.removeEventListener("keydown", handleESC);
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
+            controller.abort();
+        }
     }, []);
 
     return (
         <ClickableDropdown
             colorOnHover={false}
             keepOpenOnClick
+            onTriggerClick={fetchStatus}
             trigger={(
                 <Flex width="48px" justifyContent="center">
                     <Icon name={"chat"} size="24px" color="headerIconColor" color2="headerBg" />
@@ -104,6 +106,11 @@ export default function Support(): JSX.Element {
                             )}
                         </>}
                     />
+
+                    {statusUCloud === "Operational\n" ? null : (<Box my="6px">
+                        <Error error={<>One or more systems are experiencing issues. Go to <ExternalLink style={{color: "var(--textHighlight)"}} href="https://status.cloud.sdu.dk">status.cloud.sdu.dk</ExternalLink> for more info.</>} />
+                    </Box>)}
+
                     <Flex mt="8px">
                         <Label>
                             <Radio
@@ -111,16 +118,16 @@ export default function Support(): JSX.Element {
                                 onChange={setSuggestion}
                             />
                             <Icon name="chat" color2="white" size="1.5em" mr=".5em" />
-                        Suggestion
-                    </Label>
+                            Suggestion
+                        </Label>
                         <Label>
                             <Radio
                                 checked={type === SupportType.BUG}
                                 onChange={setBug}
                             />
                             <Icon name="bug" size="1.5em" mr=".5em" />
-                        Bug
-                    </Label>
+                            Bug
+                        </Label>
                     </Flex>
 
                     <form onSubmit={onSubmit}>
