@@ -279,7 +279,6 @@ sealed class ComposeService {
                         reverse_proxy /site.config.json frontend:9000
                         reverse_proxy /api/* backend:8080
                         reverse_proxy /auth/* backend:8080
-                        redir / /app/dashboard
                         reverse_proxy / frontend:9000
                     }
                     
