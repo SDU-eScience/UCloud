@@ -132,6 +132,7 @@ sealed class ComposeService {
                       {
                         "image": "postgres:15.0",
                         "hostname": "postgres",
+                        "restart": "always",
                         "environment": {
                           "POSTGRES_PASSWORD": "postgrespassword"
                         },
@@ -158,6 +159,7 @@ sealed class ComposeService {
                       {
                         "image": "sosedoff/pgweb",
                         "hostname": "pgweb",
+                        "restart": "always",
                         "environment": {
                           "DATABASE_URL": "postgres://postgres:postgrespassword@postgres:5432/postgres?sslmode=disable"
                         }
@@ -178,6 +180,7 @@ sealed class ComposeService {
                       {
                         "image": "redis:5.0.9",
                         "hostname": "redis",
+                        "restart": "always",
                         "volumes": [
                           "${redisDataDir.absolutePath}:/data"
                         ]
@@ -312,6 +315,7 @@ sealed class ComposeService {
                     """
                       {
                         "image": "caddy",
+                        "restart": "always",
                         "volumes": [
                           "${gatewayData.absolutePath}:/data",
                           "${gatewayConfig.absolutePath}:/etc/caddy/Caddyfile",

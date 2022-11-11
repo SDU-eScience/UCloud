@@ -308,6 +308,10 @@ fun main(args: Array<String>) {
                         }
                     }
 
+                    EnvironmentMenu.status -> {
+                        File(postExecPath).writeText(compose.ps(currentEnvironment).toBashScript())
+                    }
+
                     EnvironmentMenu.switch -> {
                         LoadingIndicator("Shutting down virtual cluster...").use {
                             compose.down(currentEnvironment).executeToText()
@@ -399,10 +403,11 @@ object TopLevelMenu : Menu("Select an item from the menu") {
 }
 
 object EnvironmentMenu : Menu("Select an action") {
-    val stop = item("stop", "Stop environment")
-    val restart = item("restart", "Restart environment")
-    val delete = item("delete", "Delete environment")
-    val switch = item("switch", "Switch environment or create a new one")
+    val status = item("status", "Display current environment status")
+    val stop = item("stop", "Stop current environment")
+    val restart = item("restart", "Restart current environment")
+    val delete = item("delete", "Delete current environment")
+    val switch = item("switch", "Switch current environment or create a new one")
 }
 
 object ServiceActionMenu : Menu("Select an action") {
@@ -501,13 +506,18 @@ class LoadingIndicator(var prompt: String) {
                     LoadingState.WARNING -> "⚠️"
                     else -> ""
                 }
-                println(ansi().cursorUp(if (iteration == 0) 0 else 1).eraseLine().render("[$symbol] $prompt"))
+
+                val message = "[$symbol] $prompt"
+                if (iteration == 0) {
+                    println(ansi().render(message))
+                } else {
+                    println(ansi().cursorUp(1).eraseLine().render(message))
+                }
 
                 if (current != LoadingState.IN_PROGRESS) break
                 Thread.sleep(50)
                 iteration += 1
             }
-            println()
         }.also { it.start() }
     }
 
