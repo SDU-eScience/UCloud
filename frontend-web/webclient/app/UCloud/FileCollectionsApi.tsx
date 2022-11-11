@@ -1,7 +1,7 @@
 import {
     CREATE_TAG,
     DELETE_TAG, findSupport, PERMISSIONS_TAG,
-    ProductSupport, Resource,
+    ProductSupport, ResolvedSupport, Resource,
     ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,
     ResourceSpecification,
@@ -146,11 +146,13 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                 // Note(Jonas): Creation can be done as long as user is ADMIN and at least one provider allows it,
                 // so this should be correct, unless I'm missing something.
                 let anySupported = false;
-                Object.keys(cb.supportByProvider).forEach(it => {
-                    const support: FileCollectionSupport = cb.supportByProvider[it];
-                    if (support && support.collection) {
-                        anySupported = anySupported || !!(support?.collection?.usersCanCreate);
-                    }
+                Object.keys(cb.supportByProvider.productsByProvider).forEach(it => {
+                    cb.supportByProvider.productsByProvider[it].forEach(({support}) => {
+                        const fsSupport = support as FileCollectionSupport;
+                        if (fsSupport && fsSupport.collection) {
+                            anySupported = anySupported || !!(fsSupport?.collection?.usersCanCreate);
+                        }
+                    });
                 });
                 if (!anySupported) return false;
 
