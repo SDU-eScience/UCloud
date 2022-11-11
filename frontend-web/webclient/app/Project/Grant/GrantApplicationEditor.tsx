@@ -43,7 +43,7 @@ import {
     retrieveDescription,
     RetrieveDescriptionResponse,
 } from "@/Project/Grant/index";
-import {useHistory, useParams} from "react-router";
+import {useNavigate, useParams} from "react-router";
 import {dateToString, getStartOfDay} from "@/Utilities/DateUtilities";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {AvatarType, defaultAvatar} from "@/UserSettings/Avataaar";
@@ -619,217 +619,123 @@ function findNewOverallState(approvalStates: GrantGiverApprovalState[]): State {
 // We need to take wildly different paths depending on the target which causes us to use very different hooks. Baking
 // the target property ensures a remount of the component.
 
-// Note(Jonas): Maybe this can be solved using keys when upgrading to the new React-Router version.
-// Note(Jonas): It can!
-export const GrantApplicationEditor: (target: RequestTarget) =>
-    React.FunctionComponent = target => function MemoizedEditor() {
-        const [loading, runWork] = useCloudCommand();
-        const projectTitleRef = useRef<HTMLInputElement>(null);
-        const projectReferenceIdRef = useRef<HTMLInputElement>(null);
-        useTitle(titleFromTarget(target));
-        const history = useHistory();
+export function GrantApplicationEditor(props: {target: RequestTarget}) {
+    const [loading, runWork] = useCloudCommand();
+    const projectTitleRef = useRef<HTMLInputElement>(null);
+    const projectReferenceIdRef = useRef<HTMLInputElement>(null);
+    const {target} = props;
+    useTitle(titleFromTarget(target));
+    const navigate = useNavigate();
 
-        const [grantGivers, fetchGrantGivers] = useCloudAPI<GrantsRetrieveAffiliationsResponse>(
-            browseAffiliations({itemsPerPage: 250}), emptyPage
-        );
+    const [grantGivers, fetchGrantGivers] = useCloudAPI<GrantsRetrieveAffiliationsResponse>(
+        browseAffiliations({itemsPerPage: 250}), emptyPage
+    );
 
-        const {appId} = useParams<{appId?: string;}>();
-        const projectId = useProjectId();
-        const documentRef = useRef<HTMLTextAreaElement>(null);
+    const {appId} = useParams<{appId?: string;}>();
+    const projectId = useProjectId();
+    const documentRef = useRef<HTMLTextAreaElement>(null);
 
-        const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
-        const [isEditingProjectReferenceId, setIsEditingProjectReference] = useState(false);
-        const [grantProductCategories, setGrantProductCategories] = useState<Record<string, GrantProductCategory[]>>({});
-        const [submitLoading, setSubmissionsLoading] = React.useState(false);
-        const [grantGiversInUse, setGrantGiversInUse] = React.useState<string[]>([]);
-        const [transferringApplication, setTransferringApplication] = useState(false);
+    const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
+    const [isEditingProjectReferenceId, setIsEditingProjectReference] = useState(false);
+    const [grantProductCategories, setGrantProductCategories] = useState<Record<string, GrantProductCategory[]>>({});
+    const [submitLoading, setSubmissionsLoading] = React.useState(false);
+    const [grantGiversInUse, setGrantGiversInUse] = React.useState<string[]>([]);
+    const [transferringApplication, setTransferringApplication] = useState(false);
 
-        const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<Wallet>>({noop: true}, emptyPageV2)
+    const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<Wallet>>({noop: true}, emptyPageV2)
 
-        const [grantApplication, dispatch] = React.useReducer(grantApplicationReducer, defaultGrantApplication, () => defaultGrantApplication);
-        const activeStateBreakDown = React.useMemo(() => grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId), [grantApplication, projectId]);
-        const isApprover = activeStateBreakDown != null;
+    const [grantApplication, dispatch] = React.useReducer(grantApplicationReducer, defaultGrantApplication, () => defaultGrantApplication);
+    const activeStateBreakDown = React.useMemo(() => grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId), [grantApplication, projectId]);
+    const isApprover = activeStateBreakDown != null;
 
-        const [templates, fetchTemplates] = useCloudAPI<Templates | undefined>({noop: true}, undefined);
-        React.useEffect(() => {
-            const {parentProjectId} = getDocument(grantApplication);
-            if (parentProjectId && target !== RequestTarget.VIEW_APPLICATION) {
-                fetchTemplates(retrieveTemplates({projectId: parentProjectId}));
-            }
-        }, [grantApplication.currentRevision.document.parentProjectId]);
-        React.useEffect(() => {
-            if (target === RequestTarget.VIEW_APPLICATION) return;
-            if (!documentRef.current) return;
-            if (templates.data != null && templates.loading === false) {
-                switch (target) {
-                    case RequestTarget.EXISTING_PROJECT:
-                        documentRef.current.value = templates.data.existingProject;
-                        return;
-                    case RequestTarget.NEW_PROJECT:
-                        documentRef.current.value = templates.data.newProject;
-                        return;
-                    case RequestTarget.PERSONAL_PROJECT:
-                        documentRef.current.value = templates.data.personalProject;
-                }
-            }
-        }, [templates.data]);
-
-        React.useEffect(() => {
-            if (documentRef.current) {
-                documentRef.current.value = formTextFromGrantApplication(grantApplication);
-            }
-        }, [grantApplication, documentRef.current]);
-
-        React.useEffect(() => {
-            if (appId) {
-                fetchGrantApplication({id: appId}).then(g =>
-                    dispatch({
-                        type: FETCHED_GRANT_APPLICATION, payload: g
-                    })
-                );
-            };
-        }, [appId]);
-
-        const project = useProject();
-        const isRecipient = checkIsGrantRecipient(target, grantApplication, isAdminOrPI(project.fetch().status.myRole));
-
-        React.useEffect(() => {
-            if (!projectTitleRef.current) return;
-            if (target === RequestTarget.EXISTING_PROJECT) {
-                projectTitleRef.current.value = project.fetch().specification.title;
-            } else if (target === RequestTarget.PERSONAL_PROJECT) {
-                projectTitleRef.current.value = "My Workspace";
-            }
-        }, [projectTitleRef, grantApplication, project.fetch()]);
-
-        const editApplication = useCallback(async (autoMessage: boolean = false) => {
-            setSubmissionsLoading(true);
-
-            const requestedResourcesByAffiliate = findRequestedResources(grantProductCategories);
-
-            // Note(Jonas): Remove source allocations from modified requestedResources, 
-            // as long as user is not also approver for said resource.
-            if (isRecipient) {
-                const approverFor = Client.projectId;
-                for (const requestedResource of requestedResourcesByAffiliate) {
-                    if (approverFor === requestedResource.grantGiver) {
-                        continue;
-                    }
-                    const oldAllocation = grantApplication.currentRevision.document.allocationRequests.find(it =>
-                        it.category === requestedResource.category &&
-                        it.provider === requestedResource.provider &&
-                        it.grantGiver === requestedResource.grantGiver
-                    );
-                    if (!oldAllocation) continue;
-                    if (
-                        oldAllocation.balanceRequested !== requestedResource.balanceRequested ||
-                        oldAllocation.period.start !== requestedResource.period.start ||
-                        oldAllocation.period.end !== requestedResource.period.end
-                    ) {
-                        requestedResource.sourceAllocation = null;
-                    }
-                }
-            }
-
-            if (requestedResourcesByAffiliate.length === 0) {
-                snackbarStore.addFailure("At least one resource field must be non-zero.", false);
-                setSubmissionsLoading(false);
-                return;
-            }
-
-            try {
-                const formText = documentRef.current?.value;
-                if (!formText) {
-                    snackbarStore.addFailure("Please explain why this application is being submitted.", false);
-                    setSubmissionsLoading(false);
-                    return;
-                }
-
-                const revisionComment = await (autoMessage ? "Auto inserted allocations." : promptRevisionComment());
-                if (revisionComment == null) {
-                    setSubmissionsLoading(false);
-                    return;
-                }
-
-                const document: Document = {
-                    referenceId: grantApplication.currentRevision.document.referenceId,
-                    revisionComment,
-                    recipient: grantApplication.currentRevision.document.recipient,
-                    allocationRequests: requestedResourcesByAffiliate,
-                    form: toForm(target, grantApplication, formText),
-                    parentProjectId: grantApplication.currentRevision.document.parentProjectId,
-                };
-
-                const toSubmit = {
-                    applicationId: appId!,
-                    document
-                };
-
-                await runWork<[id: string]>(editApplicationRequest(bulkRequestOf(toSubmit)));
-                dispatch({type: UPDATE_DOCUMENT, payload: document});
-                dispatch({
-                    type: UPDATE_REVISIONS, payload: [...grantApplication.status.revisions, {
-                        createdAt: new Date().getTime(),
-                        document,
-                        revisionNumber: grantApplication.currentRevision.revisionNumber + 1,
-                        updatedBy: Client.username ?? ""
-                    }]
-                });
-                setIsLocked(true);
-            } catch (error) {
-                displayErrorMessageOrDefault(error, "Failed to submit application.");
-            }
-            setSubmissionsLoading(false);
-        }, [grantGiversInUse, grantProductCategories, grantApplication, isRecipient]);
-
-        const submitRequest = useCallback(async () => {
-            setSubmissionsLoading(true);
-
-            if (grantGiversInUse.length === 0) {
-                snackbarStore.addFailure("No grant giver selected. Please select at least one to submit.", false);
-                setSubmissionsLoading(false);
-                return;
-            }
-
-            const requestedResourcesByAffiliate = findRequestedResources(grantProductCategories);
-
-            if (requestedResourcesByAffiliate.length === 0) {
-                snackbarStore.addFailure("At least one resource field must be non-zero.", false);
-                setSubmissionsLoading(false);
-                return;
-            }
-
-            let recipient: Recipient;
+    const [templates, fetchTemplates] = useCloudAPI<Templates | undefined>({noop: true}, undefined);
+    React.useEffect(() => {
+        const {parentProjectId} = getDocument(grantApplication);
+        if (parentProjectId && target !== RequestTarget.VIEW_APPLICATION) {
+            fetchTemplates(retrieveTemplates({projectId: parentProjectId}));
+        }
+    }, [grantApplication.currentRevision.document.parentProjectId]);
+    React.useEffect(() => {
+        if (target === RequestTarget.VIEW_APPLICATION) return;
+        if (!documentRef.current) return;
+        if (templates.data != null && templates.loading === false) {
             switch (target) {
-                case RequestTarget.EXISTING_PROJECT: {
-                    recipient = {
-                        type: "existingProject",
-                        id: Client.projectId ?? ""
-                    };
-                } break;
-                case RequestTarget.NEW_PROJECT: {
-                    const newProjectTitle = projectTitleRef.current?.value;
-                    if (!newProjectTitle) {
-                        snackbarStore.addFailure("Project title can't be empty.", false);
-                        setSubmissionsLoading(false);
-                        return;
-                    }
-                    recipient = {
-                        type: "newProject",
-                        title: newProjectTitle
-                    };
-                } break;
-                case RequestTarget.PERSONAL_PROJECT: {
-                    recipient = {
-                        type: "personalWorkspace",
-                        username: Client.username ?? "",
-                    };
-                } break;
-                case RequestTarget.VIEW_APPLICATION: {
-                    recipient = grantApplication.currentRevision.document.recipient;
-                } break;
+                case RequestTarget.EXISTING_PROJECT:
+                    documentRef.current.value = templates.data.existingProject;
+                    return;
+                case RequestTarget.NEW_PROJECT:
+                    documentRef.current.value = templates.data.newProject;
+                    return;
+                case RequestTarget.PERSONAL_PROJECT:
+                    documentRef.current.value = templates.data.personalProject;
             }
+        }
+    }, [templates.data]);
 
+    React.useEffect(() => {
+        if (documentRef.current) {
+            documentRef.current.value = formTextFromGrantApplication(grantApplication);
+        }
+    }, [grantApplication, documentRef.current]);
+
+    React.useEffect(() => {
+        if (appId) {
+            fetchGrantApplication({id: appId}).then(g =>
+                dispatch({
+                    type: FETCHED_GRANT_APPLICATION, payload: g
+                })
+            );
+        };
+    }, [appId]);
+
+    const project = useProject();
+    const isRecipient = checkIsGrantRecipient(target, grantApplication, isAdminOrPI(project.fetch().status.myRole));
+
+    React.useEffect(() => {
+        if (!projectTitleRef.current) return;
+        if (target === RequestTarget.EXISTING_PROJECT) {
+            projectTitleRef.current.value = project.fetch().specification.title;
+        } else if (target === RequestTarget.PERSONAL_PROJECT) {
+            projectTitleRef.current.value = "My Workspace";
+        }
+    }, [projectTitleRef, grantApplication, project.fetch()]);
+
+    const editApplication = useCallback(async (autoMessage: boolean = false) => {
+        setSubmissionsLoading(true);
+
+        const requestedResourcesByAffiliate = findRequestedResources(grantProductCategories);
+
+        // Note(Jonas): Remove source allocations from modified requestedResources, 
+        // as long as user is not also approver for said resource.
+        if (isRecipient) {
+            const approverFor = Client.projectId;
+            for (const requestedResource of requestedResourcesByAffiliate) {
+                if (approverFor === requestedResource.grantGiver) {
+                    continue;
+                }
+                const oldAllocation = grantApplication.currentRevision.document.allocationRequests.find(it =>
+                    it.category === requestedResource.category &&
+                    it.provider === requestedResource.provider &&
+                    it.grantGiver === requestedResource.grantGiver
+                );
+                if (!oldAllocation) continue;
+                if (
+                    oldAllocation.balanceRequested !== requestedResource.balanceRequested ||
+                    oldAllocation.period.start !== requestedResource.period.start ||
+                    oldAllocation.period.end !== requestedResource.period.end
+                ) {
+                    requestedResource.sourceAllocation = null;
+                }
+            }
+        }
+
+        if (requestedResourcesByAffiliate.length === 0) {
+            snackbarStore.addFailure("At least one resource field must be non-zero.", false);
+            setSubmissionsLoading(false);
+            return;
+        }
+
+        try {
             const formText = documentRef.current?.value;
             if (!formText) {
                 snackbarStore.addFailure("Please explain why this application is being submitted.", false);
@@ -837,39 +743,20 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 return;
             }
 
-            const documentToSubmit: Document = {
-                referenceId: null,
-                revisionComment: null,
-                recipient: recipient,
+            const revisionComment = await (autoMessage ? "Auto inserted allocations." : promptRevisionComment());
+            if (revisionComment == null) {
+                setSubmissionsLoading(false);
+                return;
+            }
+
+            const document: Document = {
+                referenceId: grantApplication.currentRevision.document.referenceId,
+                revisionComment,
+                recipient: grantApplication.currentRevision.document.recipient,
                 allocationRequests: requestedResourcesByAffiliate,
                 form: toForm(target, grantApplication, formText),
                 parentProjectId: grantApplication.currentRevision.document.parentProjectId,
             };
-
-            const payload = bulkRequestOf({document: documentToSubmit});
-
-            try {
-                const [{id}] = (await runWork<UCloud.BulkResponse<UCloud.FindByLongId>>(
-                    submitApplicationRequest(payload),
-                    {defaultErrorHandler: false})
-                )!.responses;
-                history.push(`/project/grants/view/${id}`);
-            } catch (error) {
-                displayErrorMessageOrDefault(error, "Failed to submit application.");
-            }
-            setSubmissionsLoading(false);
-        }, [grantGiversInUse, grantProductCategories, grantApplication]);
-
-        const updateReferenceID = useCallback(async () => {
-            const value = projectReferenceIdRef.current?.value;
-            if (!value) {
-                snackbarStore.addFailure("Project Reference ID can't be empty", false);
-                return;
-            }
-
-            const {document} = grantApplication.currentRevision;
-            document.referenceId = value;
-            document.revisionComment = "Updated reference ID";
 
             const toSubmit = {
                 applicationId: appId!,
@@ -886,546 +773,657 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     updatedBy: Client.username ?? ""
                 }]
             });
-            setIsEditingProjectReference(false);
-        }, [grantApplication]);
+            setIsLocked(true);
+        } catch (error) {
+            displayErrorMessageOrDefault(error, "Failed to submit application.");
+        }
+        setSubmissionsLoading(false);
+    }, [grantGiversInUse, grantProductCategories, grantApplication, isRecipient]);
 
-        const cancelEditOfRefId = useCallback(async () => {
-            setIsEditingProjectReference(false);
-        }, []);
+    const submitRequest = useCallback(async () => {
+        setSubmissionsLoading(true);
 
-        const approveRequest = useCallback(async () => {
-            try {
-                if (!activeStateBreakDown) return;
-                if (!canApproveApplication(grantProductCategories)) {
-                    snackbarStore.addFailure("Not all requested resources have a source allocation assigned. " +
-                        "You must select one for each resource.", false);
+        if (grantGiversInUse.length === 0) {
+            snackbarStore.addFailure("No grant giver selected. Please select at least one to submit.", false);
+            setSubmissionsLoading(false);
+            return;
+        }
+
+        const requestedResourcesByAffiliate = findRequestedResources(grantProductCategories);
+
+        if (requestedResourcesByAffiliate.length === 0) {
+            snackbarStore.addFailure("At least one resource field must be non-zero.", false);
+            setSubmissionsLoading(false);
+            return;
+        }
+
+        let recipient: Recipient;
+        switch (target) {
+            case RequestTarget.EXISTING_PROJECT: {
+                recipient = {
+                    type: "existingProject",
+                    id: Client.projectId ?? ""
+                };
+            } break;
+            case RequestTarget.NEW_PROJECT: {
+                const newProjectTitle = projectTitleRef.current?.value;
+                if (!newProjectTitle) {
+                    snackbarStore.addFailure("Project title can't be empty.", false);
+                    setSubmissionsLoading(false);
                     return;
                 }
+                recipient = {
+                    type: "newProject",
+                    title: newProjectTitle
+                };
+            } break;
+            case RequestTarget.PERSONAL_PROJECT: {
+                recipient = {
+                    type: "personalWorkspace",
+                    username: Client.username ?? "",
+                };
+            } break;
+            case RequestTarget.VIEW_APPLICATION: {
+                recipient = grantApplication.currentRevision.document.recipient;
+            } break;
+        }
 
-                if (anyAutoAssigned(grantProductCategories)) {
-                    await editApplication(true);
-                }
-                await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.APPROVED, notify: true})), {defaultErrorHandler: false});
-                dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.APPROVED}});
-            } catch (e) {
-                displayErrorMessageOrDefault(e, "Failed to reject application.")
-                reload();
-            }
-        }, [grantApplication.id, activeStateBreakDown, grantProductCategories]);
+        const formText = documentRef.current?.value;
+        if (!formText) {
+            snackbarStore.addFailure("Please explain why this application is being submitted.", false);
+            setSubmissionsLoading(false);
+            return;
+        }
 
-        const rejectRequest = useCallback(async () => {
-            try {
-                if (!activeStateBreakDown) return;
-                await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.REJECTED, notify: false})));
-                dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.REJECTED}});
-            } catch (e) {
-                displayErrorMessageOrDefault(e, "Failed to reject application.");
-                reload();
-            }
-        }, [grantApplication.id, activeStateBreakDown]);
+        const documentToSubmit: Document = {
+            referenceId: null,
+            revisionComment: null,
+            recipient: recipient,
+            allocationRequests: requestedResourcesByAffiliate,
+            form: toForm(target, grantApplication, formText),
+            parentProjectId: grantApplication.currentRevision.document.parentProjectId,
+        };
 
+        const payload = bulkRequestOf({document: documentToSubmit});
 
+        try {
+            const [{id}] = (await runWork<UCloud.BulkResponse<UCloud.FindByLongId>>(
+                submitApplicationRequest(payload),
+                {defaultErrorHandler: false})
+            )!.responses;
+            navigate(`/project/grants/view/${id}`);
+        } catch (error) {
+            displayErrorMessageOrDefault(error, "Failed to submit application.");
+        }
+        setSubmissionsLoading(false);
+    }, [grantGiversInUse, grantProductCategories, grantApplication]);
 
-        const closeRequest = useCallback(async () => {
-            if (!appId) return;
-            try {
-                await runWork(closeApplication(bulkRequestOf({applicationId: appId})), {defaultErrorHandler: false});
-                dispatch({type: SET_STATE_WITHDRAWN});
-            } catch (e) {
-                displayErrorMessageOrDefault(e, "Failed to withdraw application.");
-                reload();
-            }
-        }, [appId]);
+    const updateReferenceID = useCallback(async () => {
+        const value = projectReferenceIdRef.current?.value;
+        if (!value) {
+            snackbarStore.addFailure("Project Reference ID can't be empty", false);
+            return;
+        }
 
-        const setRequestPending = useCallback(async () => {
-            if (!appId || !activeStateBreakDown) return;
-            try {
-                await runWork(updateState(bulkRequestOf({applicationId: appId, newState: State.IN_PROGRESS, notify: false})), {defaultErrorHandler: false});
-                dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.IN_PROGRESS}});
-            } catch (e) {
-                displayErrorMessageOrDefault(e, "Failed to undo.")
-            }
-        }, [appId, activeStateBreakDown]);
+        const {document} = grantApplication.currentRevision;
+        document.referenceId = value;
+        document.revisionComment = "Updated reference ID";
 
-        const trySetRequestPending = React.useCallback(() => {
-            if (grantApplication.updatedAt < THIRTY_DAYS_AGO) {
-                addStandardDialog({
-                    title: "Set as pending",
-                    message: "The application has not been updated for over 30 days. Do you wish to update it?",
-                    onConfirm: setRequestPending
-                })
-            } else {
-                setRequestPending();
-            }
-        }, [grantApplication, setRequestPending]);
+        const toSubmit = {
+            applicationId: appId!,
+            document
+        };
 
-        const reload = useCallback(() => {
-            fetchGrantGivers(browseAffiliations({itemsPerPage: 250}));
-            if (appId) {fetchGrantApplication({id: appId}).then(g => dispatch({type: FETCHED_GRANT_APPLICATION, payload: g}));};
-        }, [appId]);
+        await runWork<[id: string]>(editApplicationRequest(bulkRequestOf(toSubmit)));
+        dispatch({type: UPDATE_DOCUMENT, payload: document});
+        dispatch({
+            type: UPDATE_REVISIONS, payload: [...grantApplication.status.revisions, {
+                createdAt: new Date().getTime(),
+                document,
+                revisionNumber: grantApplication.currentRevision.revisionNumber + 1,
+                updatedBy: Client.username ?? ""
+            }]
+        });
+        setIsEditingProjectReference(false);
+    }, [grantApplication]);
 
+    const cancelEditOfRefId = useCallback(async () => {
+        setIsEditingProjectReference(false);
+    }, []);
 
-        const discardChanges = useCallback(() => {
-            setIsLocked(true);
-            reload();
-        }, [reload]);
-
-        const transferRequest = useCallback(async (project: ProjectWithTitle) => {
-            if (!appId) return;
-            dialogStore.addDialog(
-                <>
-                    <div>
-                        <Heading.h3>Post comment before transferring application?</Heading.h3>
-                        <Divider />
-                        <Box mb="16px">
-                            Note: After transferring the application, the application and comments will  <br />
-                            no longer be available to members of your current active project.
-                        </Box>
-                        <Input
-                            id={"dialog-input"}
-                            as={"textarea"}
-                            rows={3}
-                            width={"100%"}
-                            style={{resize: "none"}}
-                            autoFocus
-                        />
-                    </div>
-                    <ButtonGroup mt="20px">
-                        <ConfirmationButton onAction={async () => {
-                            await runWork(transferApplication(bulkRequestOf({
-                                applicationId: parseInt(appId, 10),
-                                transferToProjectId: project.projectId,
-                                revisionComment: `-- Auto-inserted: transferred from project ${project.title}.`
-                            })));
-                            dialogStore.success();
-                            history.push("/project/grants/ingoing");
-                        }} width="150px" color="blue" actionText="Skip" />
-                        <ConfirmationButton onAction={async () => {
-                            const elem = document.querySelector("#dialog-input") as HTMLInputElement;
-                            const comment = elem.value;
-                            if (comment) {
-                                try {
-                                    await runWork<{id: string}[]>(commentOnGrantApplication({
-                                        grantId: appId,
-                                        comment
-                                    }), {defaultErrorHandler: false});
-                                } catch (e) {
-                                    errorMessageOrDefault(e, "Failed to post comment. Cancelling transfer");
-                                }
-                            }
-
-                            await runWork(transferApplication(bulkRequestOf({
-                                applicationId: parseInt(appId, 10),
-                                transferToProjectId: project.projectId,
-                                revisionComment:
-                                    `${comment ?? ""}
-
--- Auto-inserted: transferred from project ${project.title}.`
-                            })));
-                            dialogStore.success();
-                            history.push("/project/grants/ingoing");
-                        }} width="150px" color="green" actionText="Post" />
-                    </ButtonGroup>
-                    <Button mt="24px" color="red" type="button" onClick={dialogStore.failure}>Cancel</Button>
-                </>, () => undefined, true
-            );
-        }, [appId]);
-
-        React.useEffect(() => {
-            if (
-                grantApplication.currentRevision.document.parentProjectId &&
-                grantGiversInUse.includes(grantApplication.currentRevision.document.parentProjectId)
-            ) return;
-            const [firstGrantGiver] = grantGiversInUse;
-            if (firstGrantGiver != null) dispatch({type: UPDATE_PARENT_PROJECT_ID, payload: {parentProjectId: firstGrantGiver}});
-        }, [grantGiversInUse, grantApplication]);
-
-        const grantFinalized = isGrantFinalized(grantApplication.status.overallState);
-
-        React.useEffect(() => {
-            if (target === RequestTarget.PERSONAL_PROJECT && projectId != null) {
-                history.push("/");
+    const approveRequest = useCallback(async () => {
+        try {
+            if (!activeStateBreakDown) return;
+            if (!canApproveApplication(grantProductCategories)) {
+                snackbarStore.addFailure("Not all requested resources have a source allocation assigned. " +
+                    "You must select one for each resource.", false);
                 return;
             }
-            setGrantGiversInUse([]);
-            fetchWallets(browseWallets({itemsPerPage: 250}));
+
+            if (anyAutoAssigned(grantProductCategories)) {
+                await editApplication(true);
+            }
+            await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.APPROVED, notify: true})), {defaultErrorHandler: false});
+            dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.APPROVED}});
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to reject application.")
             reload();
-        }, [projectId, appId]);
+        }
+    }, [grantApplication.id, activeStateBreakDown, grantProductCategories]);
 
-        const grantGiverDropdown = React.useMemo(() => {
-            const filteredGrantGivers = grantGivers.data.items.filter(grantGiver =>
-                (target === RequestTarget.NEW_PROJECT || grantGiver.projectId !== projectId) &&
-                !grantGiversInUse.includes(grantGiver.projectId)
-            );
-            return target === RequestTarget.VIEW_APPLICATION || filteredGrantGivers.length === 0 ? null :
-                <ClickableDropdown
-                    fullWidth
-                    colorOnHover={false}
-                    trigger={<Flex><Heading.h2>Select grant giver</Heading.h2> <Icon name="chevronDownLight" size="1em" mt="18px" ml=".7em" color={"darkGray"} /></Flex>}
-                >
-                    <Wrapper>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHeaderCell pl="6px">Name</TableHeaderCell>
-                                    <TableHeaderCell pl="6px">Description</TableHeaderCell>
-                                </TableRow>
-                            </TableHeader>
-                            <tbody>
-                                {filteredGrantGivers.map(grantGiver =>
-                                    <TableRow cursor="pointer" key={grantGiver.projectId} onClick={() => setGrantGiversInUse(inUse => [...inUse, grantGiver.projectId])}>
-                                        <TableCell pl="6px"><Flex><Logo projectId={grantGiver.projectId} size="32px" /><Text mt="3px" ml="8px">{grantGiver.title}</Text></Flex></TableCell>
-                                        <TableCell pl="6px"><GrantGiverDescription key={grantGiver.projectId} projectId={grantGiver.projectId} /></TableCell>
-                                    </TableRow>
-                                )}
-                            </tbody>
-                        </Table>
-                    </Wrapper>
-                </ClickableDropdown>
-        }, [grantGivers, grantGiversInUse]);
+    const rejectRequest = useCallback(async () => {
+        try {
+            if (!activeStateBreakDown) return;
+            await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.REJECTED, notify: false})));
+            dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.REJECTED}});
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to reject application.");
+            reload();
+        }
+    }, [grantApplication.id, activeStateBreakDown]);
 
-        const grantGiverEntries = React.useMemo(() =>
-            grantGivers.data.items.filter(it => grantGiversInUse.includes(it.projectId)).map(it =>
-                <GrantGiver
-                    key={it.projectId}
-                    target={target}
-                    isApprover={Client.projectId === it.projectId}
-                    grantApplication={grantApplication}
-                    remove={() => setGrantGiversInUse(inUse => [...inUse.filter(entry => entry !== it.projectId)])}
-                    setGrantProductCategories={setGrantProductCategories}
-                    wallets={wallets.data.items}
-                    project={it}
-                    isParentProject={getDocument(grantApplication).parentProjectId === it.projectId}
-                    setParentProject={parentProjectId => dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})}
-                    isLocked={isLocked}
-                    isRecipient={isRecipient}
-                />
-            ), [grantGivers, isRecipient, grantGiversInUse, isLocked, wallets, grantApplication, isRecipient]);
 
-        const recipient = getDocument(grantApplication).recipient;
-        const recipientName = getRecipientName(grantApplication);
-        const isProject = recipient.type !== "personalWorkspace";
 
-        return (
-            <MainContainer
-                header={target === RequestTarget.EXISTING_PROJECT ?
-                    <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]} /> : null
-                }
-                sidebar={<>
-                    {target !== RequestTarget.VIEW_APPLICATION ? (<>
-                        <Button fullWidth disabled={grantFinalized || submitLoading} onClick={submitRequest}>
-                            Submit Application
-                        </Button>
-                        {target === RequestTarget.NEW_PROJECT ? null : (
-                            <Link to="/project/grants/new">
-                                <Button mt="8px" fullWidth>
-                                    New project
-                                </Button>
-                            </Link>
-                        )}
-                    </>) : null}
-                    {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
-                        isLocked ? (
-                            (isRecipient || isApprover ?
-                                <Button fullWidth disabled={loading} onClick={() => setIsLocked(false)}>
-                                    Edit this request
-                                </Button> :
-                                <Tooltip trigger={<Button fullWidth disabled>
-                                    Edit this request
-                                </Button>}
-                                >
-                                    {infoTextFromContext(recipient)}
-                                </Tooltip>
-                            )
-                        ) : (
-                            <>
-                                <Button
-                                    color={"green"}
-                                    fullWidth
-                                    disabled={loading}
-                                    onClick={() => editApplication()}
-                                >
-                                    Save Changes
-                                </Button>
-                                <Button my="4px" fullWidth color={"red"} onClick={discardChanges}>Discard changes</Button>
-                            </>
-                        )
-                    )}
-                    {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) ?
-                        <Button
-                            mt="4px"
-                            color="blue"
-                            fullWidth
-                            onClick={() => setTransferringApplication(true)}
-                            disabled={!isLocked}
-                        >
-                            Transfer application
-                        </Button> : null
-                    }
-                </>}
-                main={<>
-                    <Flex justifyContent="center">
-                        <Box maxWidth={1400} width="100%">
-                            {target === RequestTarget.VIEW_APPLICATION ? null : (
-                                <>
-                                    <Heading.h3>Requesting for {titleFromTarget(target).toLowerCase()}</Heading.h3>
-                                    <Label mb={16} mt={16}>
-                                        Principal Investigator (PI)
-                                        <Input
-                                            value={piForProject(target, project.fetch().status.members?.find(it => it.role === OldProjectRole.PI)?.username)}
-                                            disabled
-                                        />
-                                    </Label>
-                                    <Label mb={16} mt={16}>
-                                        Project title
-                                        <Input ref={projectTitleRef} disabled={target !== RequestTarget.NEW_PROJECT} />
-                                    </Label>
-                                </>
-                            )}
+    const closeRequest = useCallback(async () => {
+        if (!appId) return;
+        try {
+            await runWork(closeApplication(bulkRequestOf({applicationId: appId})), {defaultErrorHandler: false});
+            dispatch({type: SET_STATE_WITHDRAWN});
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to withdraw application.");
+            reload();
+        }
+    }, [appId]);
 
-                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
-                                <>
-                                    <HighlightedCard color="blue" isLoading={false}>
-                                        <Heading.h4 mb={16}>Metadata</Heading.h4>
+    const setRequestPending = useCallback(async () => {
+        if (!appId || !activeStateBreakDown) return;
+        try {
+            await runWork(updateState(bulkRequestOf({applicationId: appId, newState: State.IN_PROGRESS, notify: false})), {defaultErrorHandler: false});
+            dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.IN_PROGRESS}});
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to undo.")
+        }
+    }, [appId, activeStateBreakDown]);
 
-                                        <Text mb={16}>
-                                            <i>Application must be resubmitted to change the metadata.</i>
-                                        </Text>
-                                        <Table>
-                                            <tbody>
-                                                <TableRow>
-                                                    <TableCell>Application Approver(s)</TableCell>
-                                                    <TableCell>
-                                                        <Box>
-                                                            {grantApplication.status.stateBreakdown.map(state => <Flex key={state.projectId}>
-                                                                <StateIcon state={state.state} /><Text>{state.projectTitle}</Text>
-                                                            </Flex>)}
-                                                        </Box>
-                                                    </TableCell>
-                                                </TableRow>
-                                                <TableRow>
-                                                    <TableCell>{
-                                                        !isProject ? "Recipient Username" : "Project Title"}
-                                                    </TableCell>
-                                                    <TableCell>{recipientName}</TableCell>
-                                                </TableRow>
-                                                {isProject ? <TableRow>
-                                                    <TableCell>Principal Investigator (PI)</TableCell>
-                                                    <TableCell>{grantApplication.status.projectPI}</TableCell>
-                                                </TableRow> : null}
+    const trySetRequestPending = React.useCallback(() => {
+        if (grantApplication.updatedAt < THIRTY_DAYS_AGO) {
+            addStandardDialog({
+                title: "Set as pending",
+                message: "The application has not been updated for over 30 days. Do you wish to update it?",
+                onConfirm: setRequestPending
+            })
+        } else {
+            setRequestPending();
+        }
+    }, [grantApplication, setRequestPending]);
 
-                                                <TableRow>
-                                                    <TableCell verticalAlign="top">
-                                                        Recipient Type
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {recipientTypeToText(recipient)}
-                                                    </TableCell>
-                                                </TableRow>
-                                                <TableRow>
-                                                    <TableCell verticalAlign="top">
-                                                        Reference ID
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <table>
-                                                            <tbody>
-                                                                <tr>
-                                                                    {isEditingProjectReferenceId ? (
-                                                                        <>
-                                                                            <td>
-                                                                                <form onSubmit={e => {
-                                                                                    stopPropagationAndPreventDefault(e);
-                                                                                    updateReferenceID();
-                                                                                }}>
-                                                                                    <Input
-                                                                                        placeholder={"e.g. DeiC-SDU-L1-000001"}
-                                                                                        ref={projectReferenceIdRef}
-                                                                                    />
-                                                                                </form>
-                                                                            </td>
-                                                                            <td>
-                                                                                <Button
-                                                                                    color="blue"
-                                                                                    onClick={updateReferenceID}
-                                                                                    mx="6px"
-                                                                                >
-                                                                                    Update Reference ID
-                                                                                </Button>
-                                                                                <Button
-                                                                                    color="red"
-                                                                                    onClick={cancelEditOfRefId}
-                                                                                >
-                                                                                    Cancel
-                                                                                </Button>
-                                                                            </td>
-                                                                        </>) : (
-                                                                        <>
-                                                                            <td>
-                                                                                {getReferenceId(grantApplication) ?? "No ID given"}
-                                                                            </td>
-                                                                            {!isApprover || grantApplication.status.overallState !== "IN_PROGRESS" ? null :
-                                                                                <td>
-                                                                                    <Button ml={"4px"} onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
-                                                                                </td>
-                                                                            }
-                                                                        </>)
-                                                                    }
-                                                                </tr>
-                                                            </tbody>
-                                                        </table>
-                                                    </TableCell>
-                                                </TableRow>
-                                                <TableRow>
-                                                    <TableCell verticalAlign="top" mt={32}>Current Status</TableCell>
-                                                    <TableCell>
-                                                        {overallStateText(grantApplication)}
-                                                        {target !== RequestTarget.VIEW_APPLICATION ? null : (
-                                                            <Box mt="18px">
-                                                                {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) ?
-                                                                    <>
-                                                                        {activeStateBreakDown.state === State.IN_PROGRESS ? <>
-                                                                            <ConfirmationButton
-                                                                                mb="4px"
-                                                                                icon="check"
-                                                                                color="green"
-                                                                                onAction={approveRequest}
-                                                                                disabled={!isLocked}
-                                                                                fullWidth
-                                                                                actionText={`Approve for ${activeStateBreakDown?.projectTitle}`}
-                                                                            />
-                                                                            <ConfirmationButton
-                                                                                color="red"
-                                                                                disabled={!isLocked}
-                                                                                fullWidth
-                                                                                icon="close"
-                                                                                onAction={rejectRequest}
-                                                                                actionText={`Reject for ${activeStateBreakDown?.projectTitle}`}
-                                                                            />
-                                                                        </> : [State.APPROVED, State.REJECTED].includes(activeStateBreakDown.state) ? <>
-                                                                            <ConfirmationButton
-                                                                                fullWidth
-                                                                                icon="ellipsis"
-                                                                                onAction={trySetRequestPending}
-                                                                                actionText={`Undo ${activeStateBreakDown.state === State.APPROVED ? "approval" : "rejection"}`}
-                                                                            />
-                                                                        </> : null}
-                                                                    </> : null
-                                                                }
-                                                                {isRecipient && !grantFinalized ?
-                                                                    <ConfirmationButton
-                                                                        mt="16px"
-                                                                        icon="close"
-                                                                        color="red"
-                                                                        fullWidth
-                                                                        onAction={closeRequest}
-                                                                        disabled={!isLocked}
-                                                                        actionText={"Withdraw"}
-                                                                    /> : null
-                                                                }
-                                                            </Box>
-                                                        )}
-                                                    </TableCell>
-                                                </TableRow>
-                                            </tbody>
-                                        </Table>
-                                        {grantApplication.status.revisions.length === 0 ? null : <>
-                                            <Divider borderColor="rgba(34,36,38,.1)" />
-                                            <Box my="-8px" />
-                                            <Accordion title="Revisions" borderColor="rgba(34,36,38,.1)">
-                                                <Table mt={"18px"}>
-                                                    <TableHeader>
-                                                        <TableRow>
-                                                            <TableHeaderCell textAlign={"left"} width="200px">
-                                                                Updated at
-                                                            </TableHeaderCell>
-                                                            <TableHeaderCell textAlign={"left"} width="270px">
-                                                                Updated by
-                                                            </TableHeaderCell>
-                                                            <TableHeaderCell textAlign={"left"}>
-                                                                Revision comment
-                                                            </TableHeaderCell>
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <tbody>
-                                                        {grantApplication.status.revisions.map(rev =>
-                                                            <TableRow key={rev.revisionNumber}>
-                                                                <TableCell>
-                                                                    {format(rev.createdAt, "dd/MM/yyyy HH:mm:ss")}
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <Truncate>{rev.updatedBy}</Truncate>
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <pre style={{overflowX: "auto"}}>
-                                                                        {rev.document.revisionComment}
-                                                                    </pre>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        )}
-                                                    </tbody>
-                                                </Table>
-                                            </Accordion>
-                                        </>}
-                                    </HighlightedCard>
-                                </>
-                            )}
+    const reload = useCallback(() => {
+        fetchGrantGivers(browseAffiliations({itemsPerPage: 250}));
+        if (appId) {fetchGrantApplication({id: appId}).then(g => dispatch({type: FETCHED_GRANT_APPLICATION, payload: g}));};
+    }, [appId]);
 
-                            <Box my="32px" />
 
-                            {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverDropdown}
-                            {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverEntries}
-                            {/* Note(Jonas): This is for the grant givers that are part of an existing grant application */}
-                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
-                                grantGivers.data.items.sort(grantGiverSortFn)
-                                    .filter(it => grantApplication.status.stateBreakdown
-                                        .map(it => it.projectId).includes(it.projectId)).map(grantGiver =>
-                                            <GrantGiver
-                                                key={grantGiver.projectId}
-                                                target={target}
-                                                isLocked={isLocked}
-                                                isApprover={Client.projectId === grantGiver.projectId}
-                                                project={grantGiver}
-                                                setParentProject={parentProjectId =>
-                                                    dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})
-                                                }
-                                                isParentProject={grantGiver.projectId === getDocument(grantApplication).parentProjectId}
-                                                grantApplication={grantApplication}
-                                                setGrantProductCategories={setGrantProductCategories}
-                                                wallets={wallets.data.items}
-                                                isRecipient={isRecipient}
-                                            />))}
+    const discardChanges = useCallback(() => {
+        setIsLocked(true);
+        reload();
+    }, [reload]);
 
-                            <CommentApplicationWrapper style={{display: target === RequestTarget.VIEW_APPLICATION || grantGiversInUse.length > 0 ? undefined : "none"}}>
-                                <RequestFormContainer>
-                                    <Heading.h4>Application</Heading.h4>
-                                    <TextArea
-                                        disabled={grantFinalized || isLocked}
-                                        rows={25}
-                                        ref={documentRef}
-                                    />
-                                </RequestFormContainer>
+    const transferRequest = useCallback(async (project: ProjectWithTitle) => {
+        if (!appId) return;
+        dialogStore.addDialog(
+            <>
+                <div>
+                    <Heading.h3>Post comment before transferring application?</Heading.h3>
+                    <Divider />
+                    <Box mb="16px">
+                        Note: After transferring the application, the application and comments will  <br />
+                        no longer be available to members of your current active project.
+                    </Box>
+                    <Input
+                        id={"dialog-input"}
+                        as={"textarea"}
+                        rows={3}
+                        width={"100%"}
+                        style={{resize: "none"}}
+                        autoFocus
+                    />
+                </div>
+                <ButtonGroup mt="20px">
+                    <ConfirmationButton onAction={async () => {
+                        await runWork(transferApplication(bulkRequestOf({
+                            applicationId: parseInt(appId, 10),
+                            transferToProjectId: project.projectId,
+                            revisionComment: `-- Auto-inserted: transferred from project ${project.title}.`
+                        })));
+                        dialogStore.success();
+                        navigate("/project/grants/ingoing");
+                    }} width="150px" color="blue" actionText="Skip" />
+                    <ConfirmationButton onAction={async () => {
+                        const elem = document.querySelector("#dialog-input") as HTMLInputElement;
+                        const comment = elem.value;
+                        if (comment) {
+                            try {
+                                await runWork<{id: string}[]>(commentOnGrantApplication({
+                                    grantId: appId,
+                                    comment
+                                }), {defaultErrorHandler: false});
+                            } catch (e) {
+                                errorMessageOrDefault(e, "Failed to post comment. Cancelling transfer");
+                            }
+                        }
 
-                                <Comments
-                                    target={target}
-                                    appId={appId}
-                                    dispatch={dispatch}
-                                    grantApplication={grantApplication}
-                                    reload={reload}
-                                />
-                            </CommentApplicationWrapper>
-                        </Box>
-                    </Flex>
-                </>}
-                additional={
-                    <TransferApplicationPrompt
-                        isActive={transferringApplication}
-                        close={() => setTransferringApplication(false)}
-                        transfer={transferRequest}
-                        grantId={appId}
-                    />}
-            />
+                        await runWork(transferApplication(bulkRequestOf({
+                            applicationId: parseInt(appId, 10),
+                            transferToProjectId: project.projectId,
+                            revisionComment:
+                                `${comment ?? ""}
+
+-- Auto-inserted: transferred from project ${project.title}.`
+                        })));
+                        dialogStore.success();
+                        navigate("/project/grants/ingoing");
+                    }} width="150px" color="green" actionText="Post" />
+                </ButtonGroup>
+                <Button mt="24px" color="red" type="button" onClick={dialogStore.failure}>Cancel</Button>
+            </>, () => undefined, true
         );
-    };
+    }, [appId]);
+
+    React.useEffect(() => {
+        if (
+            grantApplication.currentRevision.document.parentProjectId &&
+            grantGiversInUse.includes(grantApplication.currentRevision.document.parentProjectId)
+        ) return;
+        const [firstGrantGiver] = grantGiversInUse;
+        if (firstGrantGiver != null) dispatch({type: UPDATE_PARENT_PROJECT_ID, payload: {parentProjectId: firstGrantGiver}});
+    }, [grantGiversInUse, grantApplication]);
+
+    const grantFinalized = isGrantFinalized(grantApplication.status.overallState);
+
+    React.useEffect(() => {
+        if (target === RequestTarget.PERSONAL_PROJECT && projectId != null) {
+            navigate("/");
+            return;
+        }
+        setGrantGiversInUse([]);
+        fetchWallets(browseWallets({itemsPerPage: 250}));
+        reload();
+    }, [projectId, appId]);
+
+    const grantGiverDropdown = React.useMemo(() => {
+        const filteredGrantGivers = grantGivers.data.items.filter(grantGiver =>
+            (target === RequestTarget.NEW_PROJECT || grantGiver.projectId !== projectId) &&
+            !grantGiversInUse.includes(grantGiver.projectId)
+        );
+        return target === RequestTarget.VIEW_APPLICATION || filteredGrantGivers.length === 0 ? null :
+            <ClickableDropdown
+                fullWidth
+                colorOnHover={false}
+                trigger={<Flex><Heading.h2>Select grant giver</Heading.h2> <Icon name="chevronDownLight" size="1em" mt="18px" ml=".7em" color={"darkGray"} /></Flex>}
+            >
+                <Wrapper>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHeaderCell pl="6px">Name</TableHeaderCell>
+                                <TableHeaderCell pl="6px">Description</TableHeaderCell>
+                            </TableRow>
+                        </TableHeader>
+                        <tbody>
+                            {filteredGrantGivers.map(grantGiver =>
+                                <TableRow cursor="pointer" key={grantGiver.projectId} onClick={() => setGrantGiversInUse(inUse => [...inUse, grantGiver.projectId])}>
+                                    <TableCell pl="6px"><Flex><Logo projectId={grantGiver.projectId} size="32px" /><Text mt="3px" ml="8px">{grantGiver.title}</Text></Flex></TableCell>
+                                    <TableCell pl="6px"><GrantGiverDescription key={grantGiver.projectId} projectId={grantGiver.projectId} /></TableCell>
+                                </TableRow>
+                            )}
+                        </tbody>
+                    </Table>
+                </Wrapper>
+            </ClickableDropdown>
+    }, [grantGivers, grantGiversInUse]);
+
+    const grantGiverEntries = React.useMemo(() =>
+        grantGivers.data.items.filter(it => grantGiversInUse.includes(it.projectId)).map(it =>
+            <GrantGiver
+                key={it.projectId}
+                target={target}
+                isApprover={Client.projectId === it.projectId}
+                grantApplication={grantApplication}
+                remove={() => setGrantGiversInUse(inUse => [...inUse.filter(entry => entry !== it.projectId)])}
+                setGrantProductCategories={setGrantProductCategories}
+                wallets={wallets.data.items}
+                project={it}
+                isParentProject={getDocument(grantApplication).parentProjectId === it.projectId}
+                setParentProject={parentProjectId => dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})}
+                isLocked={isLocked}
+                isRecipient={isRecipient}
+            />
+        ), [grantGivers, isRecipient, grantGiversInUse, isLocked, wallets, grantApplication, isRecipient]);
+
+    const recipient = getDocument(grantApplication).recipient;
+    const recipientName = getRecipientName(grantApplication);
+    const isProject = recipient.type !== "personalWorkspace";
+
+    return (
+        <MainContainer
+            header={target === RequestTarget.EXISTING_PROJECT ?
+                <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]} /> : null
+            }
+            sidebar={<>
+                {target !== RequestTarget.VIEW_APPLICATION ? (<>
+                    <Button fullWidth disabled={grantFinalized || submitLoading} onClick={submitRequest}>
+                        Submit Application
+                    </Button>
+                    {target === RequestTarget.NEW_PROJECT ? null : (
+                        <Link to="/project/grants/new">
+                            <Button mt="8px" fullWidth>
+                                New project
+                            </Button>
+                        </Link>
+                    )}
+                </>) : null}
+                {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
+                    isLocked ? (
+                        (isRecipient || isApprover ?
+                            <Button fullWidth disabled={loading} onClick={() => setIsLocked(false)}>
+                                Edit this request
+                            </Button> :
+                            <Tooltip trigger={<Button fullWidth disabled>
+                                Edit this request
+                            </Button>}
+                            >
+                                {infoTextFromContext(recipient)}
+                            </Tooltip>
+                        )
+                    ) : (
+                        <>
+                            <Button
+                                color={"green"}
+                                fullWidth
+                                disabled={loading}
+                                onClick={() => editApplication()}
+                            >
+                                Save Changes
+                            </Button>
+                            <Button my="4px" fullWidth color={"red"} onClick={discardChanges}>Discard changes</Button>
+                        </>
+                    )
+                )}
+                {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) ?
+                    <Button
+                        mt="4px"
+                        color="blue"
+                        fullWidth
+                        onClick={() => setTransferringApplication(true)}
+                        disabled={!isLocked}
+                    >
+                        Transfer application
+                    </Button> : null
+                }
+            </>}
+            main={<>
+                <Flex justifyContent="center">
+                    <Box maxWidth={1400} width="100%">
+                        {target === RequestTarget.VIEW_APPLICATION ? null : (
+                            <>
+                                <Heading.h3>Requesting for {titleFromTarget(target).toLowerCase()}</Heading.h3>
+                                <Label mb={16} mt={16}>
+                                    Principal Investigator (PI)
+                                    <Input
+                                        value={piForProject(target, project.fetch().status.members?.find(it => it.role === OldProjectRole.PI)?.username)}
+                                        disabled
+                                    />
+                                </Label>
+                                <Label mb={16} mt={16}>
+                                    Project title
+                                    <Input ref={projectTitleRef} disabled={target !== RequestTarget.NEW_PROJECT} />
+                                </Label>
+                            </>
+                        )}
+
+                        {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                            <>
+                                <HighlightedCard color="blue" isLoading={false}>
+                                    <Heading.h4 mb={16}>Metadata</Heading.h4>
+
+                                    <Text mb={16}>
+                                        <i>Application must be resubmitted to change the metadata.</i>
+                                    </Text>
+                                    <Table>
+                                        <tbody>
+                                            <TableRow>
+                                                <TableCell>Application Approver(s)</TableCell>
+                                                <TableCell>
+                                                    <Box>
+                                                        {grantApplication.status.stateBreakdown.map(state => <Flex key={state.projectId}>
+                                                            <StateIcon state={state.state} /><Text>{state.projectTitle}</Text>
+                                                        </Flex>)}
+                                                    </Box>
+                                                </TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell>{
+                                                    !isProject ? "Recipient Username" : "Project Title"}
+                                                </TableCell>
+                                                <TableCell>{recipientName}</TableCell>
+                                            </TableRow>
+                                            {isProject ? <TableRow>
+                                                <TableCell>Principal Investigator (PI)</TableCell>
+                                                <TableCell>{grantApplication.status.projectPI}</TableCell>
+                                            </TableRow> : null}
+
+                                            <TableRow>
+                                                <TableCell verticalAlign="top">
+                                                    Recipient Type
+                                                </TableCell>
+                                                <TableCell>
+                                                    {recipientTypeToText(recipient)}
+                                                </TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell verticalAlign="top">
+                                                    Reference ID
+                                                </TableCell>
+                                                <TableCell>
+                                                    <table>
+                                                        <tbody>
+                                                            <tr>
+                                                                {isEditingProjectReferenceId ? (
+                                                                    <>
+                                                                        <td>
+                                                                            <form onSubmit={e => {
+                                                                                stopPropagationAndPreventDefault(e);
+                                                                                updateReferenceID();
+                                                                            }}>
+                                                                                <Input
+                                                                                    placeholder={"e.g. DeiC-SDU-L1-000001"}
+                                                                                    ref={projectReferenceIdRef}
+                                                                                />
+                                                                            </form>
+                                                                        </td>
+                                                                        <td>
+                                                                            <Button
+                                                                                color="blue"
+                                                                                onClick={updateReferenceID}
+                                                                                mx="6px"
+                                                                            >
+                                                                                Update Reference ID
+                                                                            </Button>
+                                                                            <Button
+                                                                                color="red"
+                                                                                onClick={cancelEditOfRefId}
+                                                                            >
+                                                                                Cancel
+                                                                            </Button>
+                                                                        </td>
+                                                                    </>) : (
+                                                                    <>
+                                                                        <td>
+                                                                            {getReferenceId(grantApplication) ?? "No ID given"}
+                                                                        </td>
+                                                                        {!isApprover || grantApplication.status.overallState !== "IN_PROGRESS" ? null :
+                                                                            <td>
+                                                                                <Button ml={"4px"} onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
+                                                                            </td>
+                                                                        }
+                                                                    </>)
+                                                                }
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell verticalAlign="top" mt={32}>Current Status</TableCell>
+                                                <TableCell>
+                                                    {overallStateText(grantApplication)}
+                                                    {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                                                        <Box mt="18px">
+                                                            {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) ?
+                                                                <>
+                                                                    {activeStateBreakDown.state === State.IN_PROGRESS ? <>
+                                                                        <ConfirmationButton
+                                                                            mb="4px"
+                                                                            icon="check"
+                                                                            color="green"
+                                                                            onAction={approveRequest}
+                                                                            disabled={!isLocked}
+                                                                            fullWidth
+                                                                            actionText={`Approve for ${activeStateBreakDown?.projectTitle}`}
+                                                                        />
+                                                                        <ConfirmationButton
+                                                                            color="red"
+                                                                            disabled={!isLocked}
+                                                                            fullWidth
+                                                                            icon="close"
+                                                                            onAction={rejectRequest}
+                                                                            actionText={`Reject for ${activeStateBreakDown?.projectTitle}`}
+                                                                        />
+                                                                    </> : [State.APPROVED, State.REJECTED].includes(activeStateBreakDown.state) ? <>
+                                                                        <ConfirmationButton
+                                                                            fullWidth
+                                                                            icon="ellipsis"
+                                                                            onAction={trySetRequestPending}
+                                                                            actionText={`Undo ${activeStateBreakDown.state === State.APPROVED ? "approval" : "rejection"}`}
+                                                                        />
+                                                                    </> : null}
+                                                                </> : null
+                                                            }
+                                                            {isRecipient && !grantFinalized ?
+                                                                <ConfirmationButton
+                                                                    mt="16px"
+                                                                    icon="close"
+                                                                    color="red"
+                                                                    fullWidth
+                                                                    onAction={closeRequest}
+                                                                    disabled={!isLocked}
+                                                                    actionText={"Withdraw"}
+                                                                /> : null
+                                                            }
+                                                        </Box>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        </tbody>
+                                    </Table>
+                                    {grantApplication.status.revisions.length === 0 ? null : <>
+                                        <Divider borderColor="rgba(34,36,38,.1)" />
+                                        <Box my="-8px" />
+                                        <Accordion title="Revisions" borderColor="rgba(34,36,38,.1)">
+                                            <Table mt={"18px"}>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHeaderCell textAlign={"left"} width="200px">
+                                                            Updated at
+                                                        </TableHeaderCell>
+                                                        <TableHeaderCell textAlign={"left"} width="270px">
+                                                            Updated by
+                                                        </TableHeaderCell>
+                                                        <TableHeaderCell textAlign={"left"}>
+                                                            Revision comment
+                                                        </TableHeaderCell>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <tbody>
+                                                    {grantApplication.status.revisions.map(rev =>
+                                                        <TableRow key={rev.revisionNumber}>
+                                                            <TableCell>
+                                                                {format(rev.createdAt, "dd/MM/yyyy HH:mm:ss")}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Truncate>{rev.updatedBy}</Truncate>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <pre style={{overflowX: "auto"}}>
+                                                                    {rev.document.revisionComment}
+                                                                </pre>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )}
+                                                </tbody>
+                                            </Table>
+                                        </Accordion>
+                                    </>}
+                                </HighlightedCard>
+                            </>
+                        )}
+
+                        <Box my="32px" />
+
+                        {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverDropdown}
+                        {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverEntries}
+                        {/* Note(Jonas): This is for the grant givers that are part of an existing grant application */}
+                        {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                            grantGivers.data.items.sort(grantGiverSortFn)
+                                .filter(it => grantApplication.status.stateBreakdown
+                                    .map(it => it.projectId).includes(it.projectId)).map(grantGiver =>
+                                        <GrantGiver
+                                            key={grantGiver.projectId}
+                                            target={target}
+                                            isLocked={isLocked}
+                                            isApprover={Client.projectId === grantGiver.projectId}
+                                            project={grantGiver}
+                                            setParentProject={parentProjectId =>
+                                                dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})
+                                            }
+                                            isParentProject={grantGiver.projectId === getDocument(grantApplication).parentProjectId}
+                                            grantApplication={grantApplication}
+                                            setGrantProductCategories={setGrantProductCategories}
+                                            wallets={wallets.data.items}
+                                            isRecipient={isRecipient}
+                                        />))}
+
+                        <CommentApplicationWrapper style={{display: target === RequestTarget.VIEW_APPLICATION || grantGiversInUse.length > 0 ? undefined : "none"}}>
+                            <RequestFormContainer>
+                                <Heading.h4>Application</Heading.h4>
+                                <TextArea
+                                    disabled={grantFinalized || isLocked}
+                                    rows={25}
+                                    ref={documentRef}
+                                />
+                            </RequestFormContainer>
+
+                            <Comments
+                                target={target}
+                                appId={appId}
+                                dispatch={dispatch}
+                                grantApplication={grantApplication}
+                                reload={reload}
+                            />
+                        </CommentApplicationWrapper>
+                    </Box>
+                </Flex>
+            </>}
+            additional={
+                <TransferApplicationPrompt
+                    isActive={transferringApplication}
+                    close={() => setTransferringApplication(false)}
+                    transfer={transferRequest}
+                    grantId={appId}
+                />}
+        />
+    );
+};
 
 function infoTextFromContext(recipient: Recipient): string {
     switch (recipient.type) {

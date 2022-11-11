@@ -2,7 +2,7 @@ import * as React from "react";
 import {useRef, useCallback, useEffect, useMemo, useReducer, useState} from "react";
 import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole} from "./Api";
 import styled from "styled-components";
-import {useHistory, useParams} from "react-router";
+import {NavigateFunction, useLocation, useNavigate, useParams} from "react-router";
 import MainContainer from "@/MainContainer/MainContainer";
 import {callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
@@ -355,7 +355,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
         }
 
         case "InspectGroup": {
-            cb.history.push(buildQueryString(`/projects/${project.id}/members`, {group: action.group ?? undefined}));
+            cb.navigate(buildQueryString(`/projects/${project.id}/members`, {group: action.group ?? undefined}));
             break;
         }
 
@@ -379,7 +379,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
 }
 
 interface ActionCallbacks {
-    history: ReturnType<typeof useHistory>;
+    navigate: NavigateFunction;
     pureDispatch: (action: ProjectAction) => void;
     requestReload: () => void; // NOTE(Dan): use when it is difficult to rollback a change
 }
@@ -388,10 +388,11 @@ interface ActionCallbacks {
 // ================================================================================
 export const ProjectMembers2: React.FunctionComponent = () => {
     // Input "parameters"
-    const history = useHistory();
+    const navigate = useNavigate();
+    const location = useLocation();
     const params = useParams<{project: string}>();
-    const inspectingGroupId = getQueryParam(history.location.search, "group");
-    const projectId = params.project;
+    const inspectingGroupId = getQueryParam(location.search, "group");
+    const projectId = params.project!;
 
     // Remote data
     const [invitesFromApi, fetchInvites] = useCloudAPI<PageV2<ProjectInvite>>({noop: true}, emptyPageV2);
@@ -435,10 +436,10 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     }, [projectId]);
 
     const actionCb: ActionCallbacks = useMemo(() => ({
-        history,
+        navigate,
         pureDispatch,
         requestReload: reload
-    }), [history, pureDispatch, reload]);
+    }), [pureDispatch, reload]);
 
     const dispatch = useCallback((action: ProjectAction) => {
         onAction(uiState, action, actionCb);

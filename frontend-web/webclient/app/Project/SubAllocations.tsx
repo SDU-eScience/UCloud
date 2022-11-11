@@ -640,12 +640,14 @@ function ResourceBarByProductType(props: {rows: SubAllocation[]; productType: Pr
     return <Flex>
         {Object.keys(storages).flatMap((s: ChargeType) =>
             storages[s].map(e =>
-                <ResourceProgress
-                    key={`${e.initialBalance}-${e.remaining}`}
-                    width={e.resourceText.length * 7.2 + "px"}
-                    value={e.asPercent}
-                    text={e.resourceText}
-                />
+                <React.Fragment key={`${e.initialBalance}-${e.remaining}`}>
+                    <ResourceProgress
+                        width={e.resourceText.length * 7.2 + "px"}
+                        value={e.asPercent}
+                        text={e.resourceText}
+                    />
+                    <Box mx="1px" />
+                </React.Fragment>
             ))}
     </Flex>;
 }

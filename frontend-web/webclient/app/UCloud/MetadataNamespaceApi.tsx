@@ -124,7 +124,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
             primary: true,
             enabled: (selected, cb) => selected.length === 0 && cb.previewing == null,
             onClick: (selected, cb) => {
-                cb.history.push(buildQueryString("/" + this.routingNamespace + "/create", {namespace: cb.namespace.id}));
+                cb.navigate(buildQueryString("/" + this.routingNamespace + "/create", {namespace: cb.namespace.id}));
             }
         },
         {
@@ -228,7 +228,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
         const createOp = baseOps.find(it => it.tag === CREATE_TAG)!;
         createOp.text = "Create template";
         createOp.onClick = (selected, cb) => {
-            cb.history.push(`/${this.routingNamespace}/create`);
+            cb.navigate(`/${this.routingNamespace}/create`);
         };
         return baseOps;
     }

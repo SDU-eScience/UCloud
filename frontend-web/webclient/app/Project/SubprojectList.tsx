@@ -2,7 +2,7 @@ import MainContainer from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {useHistory, useLocation} from "react-router";
+import { NavigateFunction, useLocation, useNavigate} from "react-router";
 import {Box, Button, ButtonGroup, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
 import List, {ListRow, ListRowStat} from "@/ui-components/List";
 import {errorMessageOrDefault, preventDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
@@ -26,7 +26,7 @@ interface MemberInProjectCallbacks {
     startCreation: () => void;
     onSetArchivedStatus: (id: string, archive: boolean) => void;
     startRename: (id: string) => void;
-    history: ReturnType<typeof useHistory>;
+    navigate: NavigateFunction;
     setActiveProject: (id: string, title: string) => void;
     isAdminOrPIForParent: boolean;
 }
@@ -93,7 +93,7 @@ const projectOperations: ProjectOperation[] = [
     },
     {
         enabled: (selected) => selected.length === 1 && isAdminOrPI(selected[0].role),
-        onClick: ([{project}], extra) => extra.history.push(`/subprojects/?subproject=${project.id}`),
+        onClick: ([{project}], extra) => extra.navigate(`/subprojects/?subproject=${project.id}`),
         text: "View subprojects",
         icon: "projects",
     },
@@ -128,7 +128,7 @@ export default function SubprojectList(): JSX.Element | null {
     useTitle("Subproject");
     const location = useLocation();
     const subprojectFromQuery = getQueryParamOrElse(location.search, "subproject", "");
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const [project, fetchProject] = useCloudAPI<Project>(
         {noop: true},
@@ -182,7 +182,7 @@ export default function SubprojectList(): JSX.Element | null {
                 parent: subprojectFromQuery
             })))).responses;
             dispatchSetProjectAction(dispatch, result.id);
-            history.push("/project/grants/existing/");
+            navigate("/project/grants/existing/");
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, "Invalid subproject name"), false);
         }
@@ -233,7 +233,7 @@ export default function SubprojectList(): JSX.Element | null {
 
     const extra: MemberInProjectCallbacks = {
         startCreation,
-        history,
+        navigate,
         onSetArchivedStatus,
         startRename: setRenameId,
         setActiveProject: setProject,

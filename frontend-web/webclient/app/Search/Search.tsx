@@ -4,7 +4,7 @@ import {setPrioritizedSearch, setRefreshFunction} from "@/Navigation/Redux/Heade
 import {setActivePage, useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
 import {connect} from "react-redux";
-import {useHistory, useLocation, useRouteMatch} from "react-router";
+import {useLocation, useMatch, useNavigate} from "react-router";
 import {Dispatch} from "redux";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {searchPage} from "@/Utilities/SearchUtilities";
@@ -15,11 +15,12 @@ import {useResourceSearch} from "@/Resource/Search";
 import {ApiLike} from "@/Applications/Overview";
 
 function Search(props: SearchProps): JSX.Element {
-    const match = useRouteMatch<{priority: string}>();
-    const history = useHistory();
+    const match = useMatch("/:priority/*");
+    const priority = match?.params.priority!;
+    const navigate = useNavigate();
     const location = useLocation();
 
-    const q = query({location, history});
+    const q = query({location, navigate});
 
     React.useEffect(() => {
         props.setRefresh(fetchAll);
@@ -31,13 +32,13 @@ function Search(props: SearchProps): JSX.Element {
 
 
     React.useEffect(() => {
-        props.setPrioritizedSearch(match.params.priority as HeaderSearchType);
-    }, [match.params.priority]);
+        props.setPrioritizedSearch(priority as HeaderSearchType);
+    }, [priority]);
 
     useTitle("Search");
 
     function fetchAll(): void {
-        history.push(searchPage(match.params.priority, q));
+        navigate(searchPage(priority, q));
     }
 
     useResourceSearch(ApiLike);

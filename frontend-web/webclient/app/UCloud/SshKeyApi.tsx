@@ -116,7 +116,7 @@ class SshKeyApi {
                 primary: true,
                 enabled: (selected) => selected.length === 0,
                 onClick: (selected, cb) => {
-                    cb.history.push("/ssh-keys/create");
+                    cb.navigate("/ssh-keys/create");
                 }
             },
             {

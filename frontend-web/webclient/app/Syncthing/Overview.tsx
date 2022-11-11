@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useHistory} from "react-router";
+import {NavigateFunction, useNavigate} from "react-router";
 import {useRef, useReducer, useCallback, useEffect, useMemo, useState} from "react";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
@@ -13,7 +13,6 @@ import {Label, Input, Image, Box, Flex, Tooltip, NoSelect, Icon, Text, Button, E
 import MainContainer from "@/MainContainer/MainContainer";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import styled from "styled-components";
-import {History} from "history";
 import * as Heading from "@/ui-components/Heading";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "./api";
 import * as Sync from "./api";
@@ -212,14 +211,14 @@ async function onAction(_: UIState, action: UIAction, cb: ActionCallbacks): Prom
 }
 
 interface ActionCallbacks {
-    history: ReturnType<typeof useHistory>;
+    navigate: NavigateFunction;
     pureDispatch: (action: UIAction) => void;
     requestReload: () => void; // NOTE(Dan): use when it is difficult to rollback a change
     requestJobReloader: () => void;
 }
 
 interface OperationCallbacks {
-    history: ReturnType<typeof useHistory>;
+    navigate: NavigateFunction;
     dispatch: (action: UIAction) => void;
     requestReload: () => void;
     permissionProblems: string[];
@@ -229,7 +228,7 @@ interface OperationCallbacks {
 // ================================================================================
 export const Overview: React.FunctionComponent = () => {
     // Input "parameters"
-    const history = useHistory();
+    const navigate = useNavigate();
 
     // UI state
     const [uiState, pureDispatch] = useReducer(uiReducer, {});
@@ -300,11 +299,11 @@ export const Overview: React.FunctionComponent = () => {
     }, [folders.length]);
 
     const actionCb: ActionCallbacks = useMemo(() => ({
-        history,
+        navigate,
         pureDispatch,
         requestReload: reload,
         requestJobReloader,
-    }), [history, pureDispatch, reload]);
+    }), [navigate, pureDispatch, reload]);
 
     const dispatch = useCallback((action: UIAction) => {
         onAction(uiState, action, actionCb);
@@ -312,11 +311,11 @@ export const Overview: React.FunctionComponent = () => {
     }, [uiState, pureDispatch, actionCb]);
 
     const operationCb: OperationCallbacks = useMemo(() => ({
-        history,
+        navigate,
         dispatch,
         requestReload: reload,
         permissionProblems,
-    }), [history, dispatch, reload, permissionProblems]);
+    }), [navigate, dispatch, reload, permissionProblems]);
 
     const openWizard = useCallback(() => {
         pureDispatch({type: "ReloadDeviceWizard", visible: true});
@@ -565,7 +564,7 @@ const FolderRenderer: ItemRenderer<SyncthingFolder> = {
         const prettyPath = usePrettyFilePath(resource?.ucloudPath ?? "/");
         return <Text cursor="pointer" onClick={() => {
             const path = resource.ucloudPath;
-            callbacks.history.push(buildQueryString("/files", {path}));
+            callbacks.navigate(buildQueryString("/files", {path}));
         }}>{fileName(prettyPath)}</Text>;
     },
 
@@ -675,7 +674,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         onClick: ([job], cb) => {
             const path = job.specification.parameters["stateFolder"]?.["path"];
             if (path && typeof path === "string") {
-                cb.history.push(`/files/properties/${encodeURIComponent(`${path}/ucloud_device_id.txt`)}`);
+                cb.navigate(`/files/properties/${encodeURIComponent(`${path}/ucloud_device_id.txt`)}`);
             }
         }
     },
@@ -684,7 +683,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         icon: "fileSignatureSolid",
         enabled: selected => selected.length === 1,
         onClick: ([job], cb) => {
-            cb.history.push(`/jobs/properties/${job.id}`);
+            cb.navigate(`/jobs/properties/${job.id}`);
         }
     },
     {

@@ -32,7 +32,7 @@ import metadataApi, {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import {
     Product,
     productCategoryEquals,
@@ -159,7 +159,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
         fetchTemplate();
     }, []);
 
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.favorite);
 
@@ -202,9 +202,9 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                     <Text cursor="pointer" fontSize="20px" mb="6px" mt="-3px" onClick={async () => {
                         const result = await invokeCommand<UFile>(FilesApi.retrieve({id: it.path}))
                         if (result?.status.type === "FILE") {
-                            history.push(buildQueryString("/files", {path: getParentPath(it.path)}));
+                            navigate(buildQueryString("/files", {path: getParentPath(it.path)}));
                         } else {
-                            history.push(buildQueryString("/files", {path: it.path}))
+                            navigate(buildQueryString("/files", {path: it.path}))
                         }
                     }}>{fileName(it.path)}</Text>
                 </Flex>))}
@@ -300,7 +300,7 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
 function DashboardRuns({runs}: {
     runs: APICallState<UCloud.PageV2<Job>>;
 }): JSX.Element {
-    const history = useHistory();
+    const navigate = useNavigate();
     const toggle = useToggleSet([]);
     return <HighlightedCard
         color="gray"
@@ -324,7 +324,7 @@ function DashboardRuns({runs}: {
                         key={job.id}
                         item={job}
                         browseType={BrowseType.Card}
-                        navigate={() => history.push(`/jobs/properties/${job.id}`)}
+                        navigate={() => navigate(`/jobs/properties/${job.id}`)}
                         renderer={JobsApi.renderer}
                         toggleSet={toggle}
                         operations={[] as ReturnType<typeof JobsApi.retrieveOperations>}
