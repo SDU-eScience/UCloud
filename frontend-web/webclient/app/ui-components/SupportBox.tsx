@@ -107,7 +107,7 @@ export default function Support(): JSX.Element {
                         </>}
                     />
 
-                    {statusUCloud === "Operational\n" ? null : (<Box my="6px">
+                    {["Operational\n", ""].includes(statusUCloud) ? null : (<Box my="6px">
                         <Error error={<>One or more systems are experiencing issues. Go to <ExternalLink style={{color: "var(--textHighlight)"}} href="https://status.cloud.sdu.dk">status.cloud.sdu.dk</ExternalLink> for more info.</>} />
                     </Box>)}
 
