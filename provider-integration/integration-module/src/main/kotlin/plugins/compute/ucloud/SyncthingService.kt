@@ -203,6 +203,8 @@ class SyncthingService(
         initialConfig: SyncthingConfig,
         configFolder: InternalFile,
     ): SyncthingJobStatus {
+        println("START JOB IF NEEDED")
+
         val orchestratorInfo = initialConfig.orchestratorInfo ?: throw RPCException(
             "Received an invalid message from UCloud/Core. Unable to update configuration of Syncthing!",
             HttpStatusCode.BadRequest
@@ -254,6 +256,8 @@ class SyncthingService(
             ),
             username
         )
+
+        println(newJob)
 
         return SyncthingJobStatus(newJob, wasCreated = true)
     }
@@ -328,11 +332,11 @@ class SyncthingService(
 
     private fun SyncthingConfig.Folder.normalize(): SyncthingConfig.Folder {
         val path = runBlocking {
-            pathConverter.ucloudToInternal(UCloudFile.create(ucloudPath)).path
+            pathConverter.ucloudToRelative(UCloudFile.create(ucloudPath)).path
         }
 
         return copy(
-            path = path,
+            path = "/work/${path.normalize().fileName()}",
             id = if (id != "") id else UUID.randomUUID().toString()
         )
     }
