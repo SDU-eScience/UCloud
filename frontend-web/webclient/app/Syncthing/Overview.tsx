@@ -13,7 +13,6 @@ import {Label, Input, Image, Box, Flex, Tooltip, NoSelect, Icon, Text, Button, E
 import MainContainer from "@/MainContainer/MainContainer";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import styled from "styled-components";
-import {History} from "history";
 import * as Heading from "@/ui-components/Heading";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "./api";
 import * as Sync from "./api";

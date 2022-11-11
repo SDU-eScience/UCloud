@@ -203,8 +203,6 @@ class SyncthingService(
         initialConfig: SyncthingConfig,
         configFolder: InternalFile,
     ): SyncthingJobStatus {
-        println("START JOB IF NEEDED")
-
         val orchestratorInfo = initialConfig.orchestratorInfo ?: throw RPCException(
             "Received an invalid message from UCloud/Core. Unable to update configuration of Syncthing!",
             HttpStatusCode.BadRequest
