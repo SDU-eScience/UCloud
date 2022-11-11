@@ -9,7 +9,7 @@ import {Flex, Truncate, Text, Icon, Divider} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import styled from "styled-components";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {useHistory} from "react-router";
+import {NavigateFunction, useNavigate} from "react-router";
 import {initializeResources} from "@/Services/ResourceInit";
 import {useProject} from "./cache";
 import ProjectAPI, {Project, useProjectId} from "@/Project/Api";
@@ -41,7 +41,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
         props.setProject(storedProject ?? undefined);
     }, []);
 
-    const history = useHistory();
+    const navigate = useNavigate();
 
     return (
         <Flex pr="12px" alignItems={"center"} data-component={"project-switcher"}>
@@ -51,7 +51,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                         <HoverIcon
                             onClick={e => {
                                 stopPropagationAndPreventDefault(e);
-                                history.push(`/projects/${projectId ?? "My Workspace"}`);
+                                navigate(`/projects/${projectId ?? "My Workspace"}`);
                             }}
                             name="projects"
                             color2="midGray"
@@ -70,7 +70,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                 <BoxForPadding>
                     {props.activeProject ?
                         (
-                            <Text onClick={() => onProjectUpdated(history, () => props.setProject(), props.refresh, "My Workspace")}>
+                            <Text onClick={() => onProjectUpdated(navigate, () => props.setProject(), props.refresh, "My Workspace")}>
                                 My Workspace
                             </Text>
                         ) : null
@@ -78,14 +78,14 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                     {response.data.items.filter(it => !(it.id === props.activeProject)).map(project =>
                         <Text
                             key={project.id}
-                            onClick={() => onProjectUpdated(history, () => props.setProject(project.id), props.refresh, project.id)}
+                            onClick={() => onProjectUpdated(navigate, () => props.setProject(project.id), props.refresh, project.id)}
                         >
                             <Truncate width="215px">{project.specification.title}</Truncate>
                         </Text>
                     )}
                     {props.activeProject || response.data.items.length > 0 ? <Divider /> : null}
-                    <Text onClick={() => history.push("/projects")}>Manage projects</Text>
-                    <Text onClick={() => history.push("/projects")}>
+                    <Text onClick={() => navigate("/projects")}>Manage projects</Text>
+                    <Text onClick={() => navigate("/projects")}>
                         {projectId ? "Manage active project" : "Manage my workspace"}
                     </Text>
                 </BoxForPadding>
@@ -118,15 +118,15 @@ const HoverIcon = styled(Icon)`
     }
 `;
 
-function onProjectUpdated(history: ReturnType<typeof useHistory>, runThisFunction: () => void, refresh: (() => void) | undefined, projectId: string): void {
+function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId: string): void {
     const {pathname} = window.location;
     runThisFunction();
     const splitPath = pathname.split("/").filter(it => it);
     if (pathname === "/app/files") {
-        history.push("/drives")
+        navigate("/drives")
     } else if (splitPath.length === 3) {
         if (splitPath[0] === "app" && splitPath[1] === "projects") {
-            history.push(`/projects/${projectId}`);
+            navigate(`/projects/${projectId}`);
         }
     }
     initializeResources();

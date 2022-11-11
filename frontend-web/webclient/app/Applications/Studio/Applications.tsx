@@ -9,7 +9,6 @@ import {MainContainer} from "@/MainContainer/MainContainer";
 import {useCallback, useEffect} from "react";
 import * as React from "react";
 import {useState} from "react";
-import {useRouteMatch} from "react-router";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {Button, Checkbox, DataList, Flex, Icon, Label, Text, VerticalButtonGroup} from "@/ui-components";
@@ -27,6 +26,7 @@ import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {useParams} from "react-router";
 
 interface AppVersion {
     version: string;
@@ -71,7 +71,7 @@ const LeftAlignedTableHeader = styled(TableHeader)`
 `;
 
 export const App: React.FunctionComponent = () => {
-    const name = useRouteMatch<{name: string}>().params.name;
+    const name = useParams<{name: string}>().name!;
 
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [logoCacheBust, setLogoCacheBust] = useState("" + Date.now());

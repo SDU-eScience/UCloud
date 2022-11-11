@@ -1,17 +1,17 @@
 import * as React from "react";
 import MainContainer from "@/MainContainer/MainContainer";
-import { ResourceTab, ResourceTabOptions } from "@/Resource/ResourceTabs";
-import { SidebarPages, useSidebarPage } from "@/ui-components/Sidebar";
-import { useTitle } from "@/Navigation/Redux/StatusActions";
+import {ResourceTab, ResourceTabOptions} from "@/Resource/ResourceTabs";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 import SshKeyApi from "@/UCloud/SshKeyApi";
-import { Box, Button, Flex, Icon, Input, Label, Markdown, Text, TextArea } from "@/ui-components";
-import { TextP } from "@/ui-components/Text";
-import { MandatoryField } from "@/Applications/Jobs/Widgets";
-import { useCallback, useMemo, useState } from "react";
-import { bulkRequestOf } from "@/DefaultObjects";
-import { callAPI } from "@/Authentication/DataHook";
-import { extractErrorMessage } from "@/UtilityFunctions";
-import { useHistory } from "react-router";
+import {Box, Button, Flex, Icon, Input, Label, Markdown, Text, TextArea} from "@/ui-components";
+import {TextP} from "@/ui-components/Text";
+import {MandatoryField} from "@/Applications/Jobs/Widgets";
+import {useCallback, useMemo, useState} from "react";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {callAPI} from "@/Authentication/DataHook";
+import {extractErrorMessage} from "@/UtilityFunctions";
+import {useNavigate} from "react-router";
 
 interface GenericInputFieldProps {
     name: string;
@@ -28,15 +28,15 @@ const GenericInputField: React.FunctionComponent<GenericInputFieldProps> = props
             <Flex>
                 <Flex data-component={"param-title"}>
                     {props.title}
-                    {props.optional ? null : <MandatoryField/>}
+                    {props.optional ? null : <MandatoryField />}
                 </Flex>
                 {!props.onRemove ? null : (
                     <>
-                        <Box ml="auto"/>
+                        <Box ml="auto" />
                         <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
-                              data-component={"param-remove"}>
+                            data-component={"param-remove"}>
                             Remove
-                            <Icon ml="6px" size={16} name="close"/>
+                            <Icon ml="6px" size={16} name="close" />
                         </Text>
                     </>
                 )}
@@ -50,13 +50,13 @@ const GenericInputField: React.FunctionComponent<GenericInputFieldProps> = props
 
 const GenericTextField: React.FunctionComponent<GenericInputFieldProps> = props => {
     return <GenericInputField {...props}>
-        <Input id={props.name}/>
+        <Input id={props.name} />
     </GenericInputField>
 }
 
 const GenericTextArea: React.FunctionComponent<GenericInputFieldProps> = props => {
     return <GenericInputField {...props}>
-        <TextArea width={"100%"} rows={5} id={props.name}/>
+        <TextArea width={"100%"} rows={5} id={props.name} />
     </GenericInputField>
 }
 
@@ -64,7 +64,7 @@ export const SshKeysCreate: React.FunctionComponent = () => {
     useTitle(SshKeyApi.titlePlural);
     useSidebarPage(SidebarPages.Resources);
 
-    const history = useHistory();
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [titleError, setTitleError] = useState<string | undefined>(undefined)
     const [contentError, setContentError] = useState<string | undefined>(undefined)
@@ -135,11 +135,11 @@ You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/in
             setLoading(false);
         }
 
-        history.push("/ssh-keys");
+        navigate("/ssh-keys");
     }, []);
 
     return <MainContainer
-        header={<ResourceTab active={ResourceTabOptions.SSH_KEYS}/>}
+        header={<ResourceTab active={ResourceTabOptions.SSH_KEYS} />}
         headerSize={48}
         main={
             <>

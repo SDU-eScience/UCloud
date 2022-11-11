@@ -18,7 +18,7 @@ import {sendNotification} from "@/Notifications";
 import BaseLink from "@/ui-components/BaseLink";
 import {LocalStorageCache} from "@/Utilities/LocalStorageCache";
 import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {Feature, hasFeature} from "@/Features";
@@ -45,7 +45,7 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
     const [isConnecting, setIsConnecting] = useState(false);
 
     const [commandLoading, invokeCommand] = useCloudCommand();
-    const history = useHistory();
+    const navigate = useNavigate();
     const reload = useCallback(() => {
         fetchProviders(IntegrationApi.browse({}));
     }, []);
@@ -66,7 +66,7 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
                     isPinned: true,
                     uniqueId: `${p.providerTitle}-${lastConnectionAt.retrieve() ?? 0}`,
                     onAction: () => {
-                        history.push("/providers/connect");
+                        navigate("/providers/connect");
                     }
                 });
             }

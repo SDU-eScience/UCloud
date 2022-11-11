@@ -55,7 +55,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import MetadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
 import {useCallback, useEffect, useState} from "react";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 
@@ -258,9 +258,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             const synchronizedFolders: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
             const isSynchronized = synchronizedFolders.some(it => it.ucloudPath === resource.id);
 
-            const history = useHistory();
+            const navigate = useNavigate();
             const openSync = useCallback(() => {
-                history.push("/syncthing");
+                navigate("/syncthing");
             }, []);
 
             return <Flex>
@@ -605,7 +605,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         )
                     ).then(it => {
                         if (it?.responses) {
-                            cb.history.push(`/shares/outgoing`);
+                            cb.navigate(`/shares/outgoing`);
                         }
                     });
                 }
@@ -659,7 +659,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             await cb.invokeCommand(
                                 this.emptyTrash(bulkRequestOf({id: cb.directory?.id ?? ""}))
                             );
-                            cb.history.push("/drives")
+                            cb.navigate("/drives")
                         },
                         onCancel: doNothing,
                     });
@@ -914,7 +914,7 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
 
     const devices: SyncthingDevice[] = cb.syncthingConfig?.devices ?? [];
     if (devices.length === 0) {
-        cb.history.push("/syncthing");
+        cb.navigate("/syncthing");
         return;
     }
 

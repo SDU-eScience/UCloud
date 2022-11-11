@@ -2,7 +2,7 @@ import * as React from "react";
 import {Box, Stamp} from "@/ui-components";
 import {emptyPage} from "@/DefaultObjects";
 import {joinToString} from "@/UtilityFunctions";
-import {useHistory} from "react-router";
+import {useLocation, useNavigate} from "react-router";
 import {useEffect} from "react";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -55,14 +55,15 @@ function readQuery(queryParams: string): SearchQuery {
 }
 
 export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = ({entriesPerPage}) => {
-    const history = useHistory();
+    const navigate = useNavigate();
+    const location = useLocation();
     const [, invokeCommand] = useCloudCommand();
     const [results, fetchResults] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite>>(
         {noop: true},
         emptyPage
     );
 
-    const queryParams = history.location.search;
+    const queryParams = location.search;
     const parsedQuery = readQuery(queryParams);
 
     useEffect(() => {
@@ -106,7 +107,7 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
                 </GridCardGroup>
             )}
             onPageChanged={newPage => {
-                history.push(buildQueryString("/applications/search", {
+                navigate(buildQueryString("/applications/search", {
                     q: new URLSearchParams(queryParams).get("q") ?? "",
                     tags: joinToString(parsedQuery.tags),
                     showAllVersions: parsedQuery.showAllVersions.toString(),

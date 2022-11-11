@@ -296,7 +296,7 @@ interface UseProjectFromParams {
 
 export function useProjectFromParams(pageTitle: string): UseProjectFromParams {
     const params = useParams<{project: string}>();
-    const projectId = params.project;
+    const projectId = params.project ?? "";
 
     const [projectFromApi, fetchProject] = useCloudAPI<Project | null>({noop: true}, null);
     const isPersonalWorkspace = projectId === "My Workspace"

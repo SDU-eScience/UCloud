@@ -14,7 +14,7 @@ import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {dateToString} from "@/Utilities/DateUtilities";
 import Icon, {IconName} from "@/ui-components/Icon";
@@ -128,7 +128,7 @@ export const GrantApplicationList: React.FunctionComponent<{
     applications: GrantApplication[],
     slim?: boolean
 }> = ({applications, slim = false}) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const avatars = useAvatars();
     useEffect(() => {
         avatars.updateCache(applications.map(it => it.createdBy));
@@ -156,7 +156,7 @@ export const GrantApplicationList: React.FunctionComponent<{
 
                 return <ListRow
                     key={app.id}
-                    navigate={() => history.push(`/project/grants/view/${app.id}`)}
+                    navigate={() => navigate(`/project/grants/view/${app.id}`)}
                     icon={
                         slim ? null : (
                             <UserAvatar
