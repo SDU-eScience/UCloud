@@ -103,8 +103,8 @@ const Tooltip = (
             {
                 ReactDOM.createPortal(
                     <TooltipContent omitPositionBox={omitPositionBox} height={tooltipContentHeight}
-                                    width={tooltipContentWidth} p={2} mb={3} mt={2} {...props}
-                                    ref={tooltipRef}>
+                        width={tooltipContentWidth} p={2} mb={3} mt={2} {...props}
+                        ref={tooltipRef}>
                         {children}
                     </TooltipContent>,
                     portal
