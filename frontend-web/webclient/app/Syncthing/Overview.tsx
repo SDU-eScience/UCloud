@@ -249,14 +249,15 @@ export const Overview: React.FunctionComponent = () => {
     const servers = uiState?.servers ?? [];
 
     const provider = getQueryParam(location.search, "provider");
-    const productCategory = getQueryParam(location.search, "category");
 
     const [products, fetchProducts] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
         {noop: true},
         {productsByProvider: {}}
     );
 
-    if (!provider || !productCategory) {
+    const [selectedProduct, setSelectedProduct] = useState<UCloud.compute.ComputeProductSupportResolved|null>(null);
+
+    if (!provider) {
         history.push("/drives");
         return null;
     }
@@ -276,10 +277,18 @@ export const Overview: React.FunctionComponent = () => {
         });
 
         fetchProducts(UCloud.compute.jobs.retrieveProducts({
-            providers: "development" // TODO(Brian)
+            providers: provider
         }));
 
     }, [pureDispatch]);
+
+    useEffect(() => {
+        if (products.data) {
+            setSelectedProduct(
+                products.data?.productsByProvider[provider]?.find(it => it.product.category.name === "syncthing") ?? null
+            )
+        }
+    }, [products]);
 
     const requestJobReloader = useCallback((awaitUpdatingAttemptsRemaining: number = 40) => {
         if (jobReloaderTimeout.current !== -1) return;
@@ -330,7 +339,7 @@ export const Overview: React.FunctionComponent = () => {
         requestReload: reload,
         requestJobReloader,
         provider,
-        productCategory
+        productCategory: selectedProduct?.product.category.name ?? ""
     }), [history, pureDispatch, reload]);
 
     const dispatch = useCallback((action: UIAction) => {
@@ -344,7 +353,7 @@ export const Overview: React.FunctionComponent = () => {
         requestReload: reload,
         permissionProblems,
         provider,
-        productCategory
+        productCategory: selectedProduct?.product.category.name ?? ""
     }), [history, dispatch, reload, permissionProblems]);
 
     const openWizard = useCallback(() => {
@@ -401,7 +410,7 @@ export const Overview: React.FunctionComponent = () => {
     useEffectSkipMount(() => {
         callAPI(Sync.api.updateConfiguration({
             providerId: provider,
-            category: productCategory,
+            category: selectedProduct?.product.category.name ?? "",
             config: {devices, folders}
         })).catch(() => reload());
     }, [folders.length, devices.length]);
