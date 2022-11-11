@@ -345,11 +345,13 @@ class ComputeController(
 
             if (plugin !is SyncthingPlugin) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Not a Syncthing plugin: ${request.category} ${plugin.pluginTitle} ${plugin.pluginName} $plugin")
 
-            with(requestContext(controllerContext)) {
-                with(plugin) {
-                    retrieveSyncthingConfiguration(request)
+            ok(
+                with(requestContext(controllerContext)) {
+                    with(plugin) {
+                        retrieveSyncthingConfiguration(request)
+                    }
                 }
-            }
+            )
         }
 
         implement(syncthingProvider.updateConfiguration) {

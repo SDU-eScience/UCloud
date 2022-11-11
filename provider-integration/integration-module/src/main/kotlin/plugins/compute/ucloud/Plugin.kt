@@ -306,40 +306,42 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
 
     override suspend fun RequestContext.retrieveSyncthingConfiguration(
         request: IAppsProviderRetrieveConfigRequest<SyncthingConfig>
-    ): SyncthingConfig {
+    ): IAppsProviderRetrieveConfigResponse<SyncthingConfig> {
         if (syncthingService == null) {
             throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
         }
 
-        return syncthingService!!.retrieveConfiguration(request).config
+        return syncthingService!!.retrieveConfiguration(request)
     }
 
     override suspend fun RequestContext.updateSyncthingConfiguration(
         request: IAppsProviderUpdateConfigRequest<SyncthingConfig>
-    ) {
+    ): IAppsProviderUpdateConfigResponse<SyncthingConfig> {
         if (syncthingService == null) {
             throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
         }
 
-        syncthingService!!.updateConfiguration(request)
+        return syncthingService!!.updateConfiguration(request)
     }
 
     override suspend fun RequestContext.resetSyncthingConfiguration(
         request: IAppsProviderResetConfigRequest<SyncthingConfig>
-    ) {
+    ): IAppsProviderResetConfigResponse<SyncthingConfig> {
         if (syncthingService == null) {
             throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
         }
 
-        syncthingService!!.resetConfiguration(request)
+        return syncthingService!!.resetConfiguration(request)
     }
 
-    override suspend fun RequestContext.restartSyncthing(request: IAppsProviderRestartRequest<SyncthingConfig>) {
+    override suspend fun RequestContext.restartSyncthing(
+        request: IAppsProviderRestartRequest<SyncthingConfig>
+    ): IAppsProviderRestartResponse<SyncthingConfig> {
         if (syncthingService == null) {
             throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
         }
 
-        syncthingService!!.restart(request)
+        return syncthingService!!.restart(request)
     }
 }
 
