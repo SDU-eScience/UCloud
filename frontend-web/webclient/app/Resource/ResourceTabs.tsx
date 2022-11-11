@@ -3,7 +3,6 @@ import * as React from "react";
 
 import {SelectableText, SelectableTextWrapper} from "@/ui-components";
 import {useHistory} from "react-router";
-import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 import {Feature, hasFeature} from "@/Features";
 
 export enum ResourceTabOptions {

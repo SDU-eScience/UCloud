@@ -4,9 +4,8 @@ import {ListRowStat} from "@/ui-components/List";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud/index";
 import {apiBrowse, apiCreate, apiDelete, apiRetrieve} from "@/Authentication/DataHook";
-import { Operation } from "@/ui-components/Operation";
-import { ResourceBrowseCallbacks } from "@/UCloud/ResourceApi";
-import { Icon } from "@/ui-components";
+import {Operation} from "@/ui-components/Operation";
+import {Icon} from "@/ui-components";
 import {bulkRequestOf} from "@/DefaultObjects";
 
 export interface SSHKey {
@@ -53,7 +52,7 @@ function parseFingerprint(fingerprint: string): ParsedFingerprint | null {
         comment += tokens[i];
     }
 
-    return { keyLength, algorithmType, comment, hash };
+    return {keyLength, algorithmType, comment, hash};
 }
 
 class SshKeyApi {
