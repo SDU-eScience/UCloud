@@ -28,6 +28,8 @@ fun findCompose(): DockerCompose {
     error("Could not find docker compose!")
 }
 
+val debugCommands = System.getenv("DEBUG_COMMANDS") != null
+
 data class ExecutableCommand(
     val args: List<String>,
     val workingDir: File? = null,
@@ -42,7 +44,16 @@ data class ExecutableCommand(
     }
 
     fun executeToText(): String? {
+        if (debugCommands) println("Command: " + args.joinToString(" ") { "'$it'" })
+
         val result = startProcessAndCollectToString(args, workingDir = workingDir)
+
+        if (debugCommands) {
+            println("  Exit code: ${result.statusCode}")
+            println("  Stdout: ${result.stdout}")
+            println("  Stderr: ${result.stderr}")
+        }
+
         if (result.statusCode != 0) {
             if (allowFailure) return null
 

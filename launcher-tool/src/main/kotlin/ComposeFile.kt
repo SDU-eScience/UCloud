@@ -85,6 +85,21 @@ sealed class ComposeService {
         allServices.add(Service(name, title, logsSupported, execSupported, serviceConvention, address))
     }
 
+    sealed class Provider : ComposeService() {
+        abstract fun install(credentials: ProviderCredentials)
+    }
+
+    companion object {
+        fun providerFromName(name: String): ComposeService.Provider {
+            return when (name) {
+                "k8" -> ComposeService.Kubernetes
+                "slurm" -> ComposeService.Slurm
+                "puhuri" -> ComposeService.Puhuri
+                else -> ComposeService.GenericProvider(name)
+            }
+        }
+    }
+
     object UCloudBackend : ComposeService() {
         override fun ComposeBuilder.build() {
             val logs = File(environment.dataDirectory, "logs").also { it.mkdirs() }
@@ -223,20 +238,288 @@ sealed class ComposeService {
         }
     }
 
-    object Kubernetes : ComposeService() {
+    object Kubernetes : Provider() {
         override fun ComposeBuilder.build() {
+            val k8Provider = File(environment.dataDirectory, "k8").also { it.mkdirs() }
+            val k3sDir = File(k8Provider, "k3s").also { it.mkdirs() }
+            val k3sOutput = File(k3sDir, "output").also { it.mkdirs() }
+            val k3sData = File(k3sDir, "data").also { it.mkdirs() }
+            val k3sCni = File(k3sDir, "cni").also { it.mkdirs() }
+            val k3sKubelet = File(k3sDir, "kubelet").also { it.mkdirs() }
+            val k3sEtc = File(k3sDir, "etc").also { it.mkdirs() }
+            val k3sTmp = File(k3sDir, "tmp").also { it.mkdirs() }
+
+            val imDir = File(k8Provider, "im").also { it.mkdirs() }
+            val imGradle = File(imDir, "gradle").also { it.mkdirs() }
+            val imData = File(imDir, "data").also { it.mkdirs() }
+            val imStorage = File(imDir, "storage").also { it.mkdirs() }
+            listOf("home", "projects", "collections").forEach {
+                File(imStorage, it).mkdir()
+            }
+            val imLogs = File(environment.dataDirectory, "logs").also { it.mkdirs() }
+
+            val passwdDir = File(imDir, "passwd").also { it.mkdirs() }
+            val passwdFile = File(passwdDir, "passwd")
+            val groupFile = File(passwdDir, "group")
+            val shadowFile = File(passwdDir, "shadow")
+            if (!passwdFile.exists()) {
+                passwdFile.writeText("ucloud:x:998:998::/home/ucloud:/bin/sh\n")
+                groupFile.writeText("ucloud:x:998:\n")
+                shadowFile.writeText("ucloud:!:19110::::::\n")
+            }
+
+            service(
+                "k3",
+                "K8 Provider: K3s Node",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "rancher/k3s:v1.21.6-rc2-k3s1",
+                        "privileged": true,
+                        "tmpfs": ["/run", "/var/run"],
+                        "environment": [
+                          "K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml",
+                          "K3S_KUBECONFIG_MODE=666"
+                        ],
+                        "command": ["server"],
+                        "hostname": "k3",
+                        "restart": "always",
+                        "volumes": [
+                          "${k3sTmp.absolutePath}:/tmp",
+                          "${k3sOutput.absolutePath}:/output",
+                          "${k3sData.absolutePath}:/var/lib/rancher/k3s",
+                          "${k3sCni.absolutePath}:/var/lib/cni",
+                          "${k3sKubelet.absolutePath}:/var/lib/kubelet",
+                          "${k3sEtc}:/etc/rancher",
+                          "${imStorage.absolutePath}:/mnt/storage"
+                        ]
+                      }
+                    """.trimIndent()
+                ),
+                serviceConvention = false
+            )
+
+            service(
+                "k8",
+                "K8 Provider: Integration module",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2022.2.0",
+                        "command": ["sleep", "inf"],
+                        "volumes": [
+                          "${imGradle.absolutePath}:/root/.gradle",
+                          "${imData.absolutePath}:/etc/ucloud",
+                          "${imLogs.absolutePath}:/var/logs/ucloud",
+                          "${k3sOutput.absolutePath}:/mnt/k3s",
+                          "${imStorage.absolutePath}:/mnt/storage",
+                          "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
+                          "${passwdDir.absolutePath}:/mnt/passwd"
+                        ]
+                      }
+                    """.trimIndent(),
+                ),
+                serviceConvention = true
+            )
+        }
+
+        override fun install(credentials: ProviderCredentials) {
+            val k8Provider = File(currentEnvironment, "k8").also { it.mkdirs() }
+            val imDir = File(k8Provider, "im").also { it.mkdirs() }
+            val imData = File(imDir, "data").also { it.mkdirs() }
+
+            val installMarker = File(imData, ".install-marker")
+            if (installMarker.exists()) return
+
+            File(imData, "core.yaml").writeText(
+                //language=yaml
+                """
+                    providerId: k8
+                    launchRealUserInstances: false
+                    allowRootMode: true
+                    developmentMode: true
+                    hosts:
+                      ucloud:
+                        host: backend
+                        scheme: http
+                        port: 8080
+                      self:
+                        host: k8.localhost.direct
+                        scheme: https
+                        port: 443
+                    cors:
+                      allowHosts: ["ucloud.localhost.direct"]
+                """.trimIndent()
+            )
+
+            File(imData, "server.yaml").writeText(
+                //language=yaml
+                """
+                    refreshToken: ${credentials.refreshToken}
+                """.trimIndent()
+            )
+
+            File(imData, "ucloud_crt.pem").writeText(credentials.publicKey)
+
+            File(imData, "products.yaml").writeText(
+                //language=yaml
+                """
+                    compute:
+                      cpu:
+                        - name: cpu-1
+                          description: An example CPU machine with 1 vCPU.
+                          cpu: 1
+                          memoryInGigs: 1
+                          gpu: 0
+                          cost:
+                            currency: DKK
+                            frequency: MINUTE
+                            price: 0.001666
+                            
+                        - name: cpu-2
+                          description: An example CPU machine with 2 vCPU.
+                          cpu: 2
+                          memoryInGigs: 2
+                          gpu: 0
+                          cost:
+                            currency: DKK
+                            frequency: MINUTE
+                            price: 0.003332
+                            
+                    storage: 
+                      storage:
+                        - name: storage
+                          description: An example storage system
+                          cost:
+                            quota: true
+                        - name: share
+                          description: This drive type is used for shares only.
+                          cost:
+                            quota: true
+                        - name: project-home
+                          description: This drive type is used for member files of a project only.
+                          cost:
+                            quota: true
+                            
+                    ingress:
+                      public-link:
+                        - name: public-link 
+                          description: An example public link
+                          cost:
+                            currency: FREE
+                            
+                    publicIps:
+                      public-ip:
+                        - name: public-ip
+                          description: A _fake_ public IP product
+                          cost:
+                            quota: true
+                """.trimIndent()
+            )
+
+            File(imData, "plugins.yaml").writeText(
+                //language=yaml
+                """
+                  connection:
+                    type: UCloud
+                    redirectTo: https://ucloud.localhost.direct
+                    insecureMessageSigningForDevelopmentPurposesOnly: true
+                    
+                  jobs:
+                    default:
+                      type: UCloud
+                      matches: "*"
+                      kubeConfig: /mnt/k3s
+                      namespace: ucloud-apps
+                      scheduler: Pods
+                      fakeIpMount: true
+                      forceMinimumReservation: true
+                  
+                  fileCollections:
+                    default:
+                      type: UCloud
+                      matches: "*"
+                      
+                  files:
+                    default:
+                      type: UCloud
+                      matches: "*"
+                      mountLocation: "/mnt/storage"
+                  
+                  ingresses:
+                    default:
+                      type: UCloud
+                      matches: "*"
+                      domainPrefix: k8-app-
+                      domainSuffix: .localhost.direct
+                      
+                  publicIps:
+                    default:
+                      type: UCloud
+                      matches: "*"
+                      iface: dummy
+                      gatewayCidr: null
+                      
+                  licenses:
+                    default:
+                      type: Generic
+                      matches: "*"
+                      
+                  shares:
+                    default:
+                      type: UCloud
+                      matches: "*"
+                      
+                """.trimIndent()
+            )
+
+            compose.exec(
+                currentEnvironment,
+                "k8",
+                listOf(
+                    "sh",
+                    "-c",
+                    // NOTE(Dan): We have to use the UID/GID here instead of UCloud since the user hasn't been
+                    // created yet.
+                    "chown -R 998:998 /mnt/storage/*"
+                ),
+                tty = false
+            ).executeToText()
+
+            println("TODO Make sure Kubernetes works")
+
+            installMarker.writeText("done")
+        }
+    }
+
+    object Slurm : Provider() {
+        override fun ComposeBuilder.build() {
+
+        }
+
+        override fun install(credentials: ProviderCredentials) {
 
         }
     }
 
-    object Slurm : ComposeService() {
+    object Puhuri : Provider() {
         override fun ComposeBuilder.build() {
+
+        }
+
+        override fun install(credentials: ProviderCredentials) {
 
         }
     }
 
-    object Puhuri : ComposeService() {
+    class GenericProvider(val name: String) : Provider() {
         override fun ComposeBuilder.build() {
+
+        }
+
+        override fun install(credentials: ProviderCredentials) {
 
         }
     }
@@ -294,11 +577,11 @@ sealed class ComposeService {
                     }
                     
                     https://k8.localhost.direct {
-                        reverse_proxy k8-provider:8889
+                        reverse_proxy k8:8889
                     }
                     
                     https://slurm.localhost.direct {
-                        reverse_proxy slurm-provider:8889
+                        reverse_proxy slurm:8889
                     }
                     
                     *.localhost.direct {

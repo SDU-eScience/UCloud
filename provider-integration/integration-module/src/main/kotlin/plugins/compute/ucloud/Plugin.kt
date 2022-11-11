@@ -358,6 +358,9 @@ class UCloudPublicIPPlugin : PublicIPPlugin {
     private lateinit var ipMounter: FeaturePublicIP
     private lateinit var firewall: FeatureFirewall
 
+    override fun supportsRealUserMode(): Boolean = false
+    override fun supportsServiceUserMode(): Boolean = true
+
     override fun configure(config: ConfigSchema.Plugins.PublicIPs) {
         pluginConfig = config as ConfigSchema.Plugins.PublicIPs.UCloud
     }

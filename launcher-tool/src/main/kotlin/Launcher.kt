@@ -8,12 +8,16 @@ import de.codeshelf.consoleui.prompt.InputResult
 import de.codeshelf.consoleui.prompt.ListResult
 import de.codeshelf.consoleui.prompt.builder.ListPromptBuilder
 import jline.TerminalFactory
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole
 import java.awt.Desktop
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.PrintStream
 import java.net.URI
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.system.exitProcess
@@ -66,6 +70,8 @@ fun selectOrCreateEnvironment(baseDir: File): String {
 }
 
 val prompt = ConsolePrompt()
+lateinit var compose: DockerCompose
+lateinit var currentEnvironment: File
 
 fun main(args: Array<String>) {
     try {
@@ -88,52 +94,49 @@ fun main(args: Array<String>) {
 
         val baseDir = File(repoRoot, ".compose").also { it.mkdirs() }
         val currentEnvironmentName = runCatching { File(baseDir, "current.txt").readText() }.getOrNull()
-        var currentEnvironment = if (currentEnvironmentName == null) {
+        var env = if (currentEnvironmentName == null) {
             null
         } else {
             runCatching { File(baseDir, currentEnvironmentName).takeIf { it.exists() } }.getOrNull()
         }
 
-        if (currentEnvironment == null) {
+        if (env == null) {
             println("No active environment detected!")
-            currentEnvironment = File(baseDir, selectOrCreateEnvironment(baseDir)).also { it.mkdirs() }
+            env = File(baseDir, selectOrCreateEnvironment(baseDir)).also { it.mkdirs() }
         } else {
-            println(ansi().render("Active environment: ").bold().render(currentEnvironment.name).boldOff())
+            println(ansi().render("Active environment: ").bold().render(env.name).boldOff())
             println()
         }
 
         val isNewEnvironment = currentEnvironmentName == null
-        File(baseDir, "current.txt").writeText(currentEnvironment.name)
+        File(baseDir, "current.txt").writeText(env.name)
 
         val compose = findCompose()
-        val psText = compose.ps(currentEnvironment).executeToText()
+
+        currentEnvironment = env
+        dk.sdu.cloud.compose = compose
+
+        val psText = compose.ps(env).executeToText()
         if (psText == null) {
-            println("${currentEnvironment.absolutePath} appears to be corrupt. Try deleting this directory!")
+            println("${env.absolutePath} appears to be corrupt. Try deleting this directory!")
             exitProcess(1)
         }
 
         val psLines =
             psText.lines().filter { !it.trim().startsWith("name", ignoreCase = true) && !it.trim().startsWith("---") }
 
-        Environment(currentEnvironment.name, PortAllocator.Direct)
-            .createComposeFile(
-                listOf(
-                    ComposeService.UCloudBackend,
-                    ComposeService.UCloudFrontend,
-                    ComposeService.Gateway,
-                )
-            )
+        generateComposeFile()
 
         if (isNewEnvironment || psLines.size <= 1) {
             val shouldStart = confirm(
                 prompt,
-                "The environment '${currentEnvironment.name}' is not running. Do you want to start it?",
+                "The environment '${env.name}' is not running. Do you want to start it?",
                 default = true
             )
 
             if (!shouldStart) return
 
-            startCluster(compose, currentEnvironment)
+            startCluster(compose, env)
         }
 
         when (TopLevelMenu.display(prompt)) {
@@ -154,50 +157,61 @@ fun main(args: Array<String>) {
                 if (service.useServiceConvention) {
                     File(postExecPath).writeText(
                         compose.exec(
-                            currentEnvironment,
+                            env,
                             item.name,
                             listOf("tail", "-f", "/tmp/service.log")
                         ).toBashScript()
                     )
                 } else {
-                    File(postExecPath).writeText(compose.logs(currentEnvironment, item.name).toBashScript())
+                    File(postExecPath).writeText(compose.logs(env, item.name).toBashScript())
                 }
             }
 
             TopLevelMenu.openShell -> {
                 val item = ServiceMenu(requireExec = true).display(prompt)
                 File(postExecPath).writeText(
-                    compose.exec(currentEnvironment, item.name, listOf("/bin/bash")).toBashScript()
+                    compose.exec(env, item.name, listOf("/bin/bash")).toBashScript()
                 )
             }
 
             TopLevelMenu.createProvider -> {
                 val selectedProviders = CreateProviderMenu.display(prompt)
                 for (provider in selectedProviders) {
-                    run {
-                        val indicator = LoadingIndicator("Initializing ${provider.message}...")
-                        indicator.display()
-                        Thread.sleep(500)
-                        indicator.state.set(LoadingState.SUCCESS)
-                        indicator.join()
+                    if (provider.disabled) continue
+
+                    startProviderService(provider.name)
+
+                    var credentials: ProviderCredentials? = null
+                    LoadingIndicator("Registering provider with UCloud/Core").use {
+                        credentials = registerProvider(provider.name, provider.name, 8889)
                     }
 
-                    run {
-                        val indicator = LoadingIndicator("Registering provider with UCloud/Core...")
-                        indicator.display()
-                        Thread.sleep(1000)
-                        indicator.state.set(LoadingState.SUCCESS)
-                        indicator.join()
+                    LoadingIndicator("Configuring provider...").use {
+                        ComposeService.providerFromName(provider.name).install(credentials!!)
                     }
 
-                    run {
-                        val indicator = LoadingIndicator("Restarting provider...")
-                        indicator.display()
-                        Thread.sleep(3000)
-                        indicator.prompt = "Restart complete!"
-                        indicator.state.set(LoadingState.SUCCESS)
-                        indicator.join()
+                    LoadingIndicator("Starting provider...").use {
+                        compose.up(currentEnvironment).executeToText()
+                        startService(serviceByName(provider.name)).executeToText()
                     }
+
+                    // TODO check if provider is ready and remove the sleep below
+
+                    LoadingIndicator("Registering products with UCloud/Core").use {
+                        compose.exec(
+                            currentEnvironment,
+                            provider.name,
+                            listOf("sh", "-c", "sleep 5 ; yes | ucloud products register"),
+                            tty = false
+                        ).executeToText()
+                    }
+
+                    LoadingIndicator("Restarting provider...").use {
+                        stopService(serviceByName(provider.name)).executeToText()
+                        startService(serviceByName(provider.name)).executeToText()
+                    }
+
+                    println("TODO grant credits to provider project")
                 }
             }
 
@@ -207,55 +221,19 @@ fun main(args: Array<String>) {
                 when (ServiceActionMenu.display(prompt)) {
                     ServiceActionMenu.start -> {
                         File(postExecPath).writeText(
-                            startService(service, compose, currentEnvironment).toBashScript()
+                            startService(service).toBashScript()
                         )
                     }
 
                     ServiceActionMenu.stop -> {
-                        if (service.useServiceConvention) {
-                            File(postExecPath).writeText(
-                                compose.exec(
-                                    currentEnvironment,
-                                    service.containerName,
-                                    listOf("/opt/ucloud/service.sh", "stop")
-                                ).toBashScript()
-                            )
-                        } else {
-                            File(postExecPath).writeText(
-                                compose.stop(currentEnvironment, service.containerName).toBashScript()
-                            )
-                        }
+                        File(postExecPath).writeText(stopService(service).toBashScript())
                     }
 
                     ServiceActionMenu.restart -> {
-                        if (service.useServiceConvention) {
-                            File(postExecPath).writeText(
-                                buildString {
-                                    appendLine(
-                                        compose.exec(
-                                            currentEnvironment,
-                                            service.containerName,
-                                            listOf("/opt/ucloud/service.sh", "stop")
-                                        ).toBashScript()
-                                    )
-
-                                    appendLine(
-                                        compose.exec(
-                                            currentEnvironment,
-                                            service.containerName,
-                                            listOf("/opt/ucloud/service.sh", "start")
-                                        ).toBashScript()
-                                    )
-                                }
-                            )
-                        } else {
-                            File(postExecPath).writeText(
-                                buildString {
-                                    appendLine(compose.stop(currentEnvironment, service.containerName).toBashScript())
-                                    appendLine(compose.start(currentEnvironment, service.containerName).toBashScript())
-                                }
-                            )
-                        }
+                        File(postExecPath).writeText(
+                            stopService(service).toBashScript() + "\n" +
+                            startService(service).toBashScript() + "\n"
+                        )
                     }
                 }
             }
@@ -264,15 +242,15 @@ fun main(args: Array<String>) {
                 when (EnvironmentMenu.display(prompt)) {
                     EnvironmentMenu.stop -> {
                         LoadingIndicator("Shutting down virtual cluster...").use {
-                            compose.down(currentEnvironment).executeToText()
+                            compose.down(env).executeToText()
                         }
                     }
 
                     EnvironmentMenu.restart -> {
                         LoadingIndicator("Shutting down virtual cluster...").use {
-                            compose.down(currentEnvironment).executeToText()
+                            compose.down(env).executeToText()
                         }
-                        startCluster(compose, currentEnvironment)
+                        startCluster(compose, env)
                     }
 
                     EnvironmentMenu.delete -> {
@@ -283,7 +261,7 @@ fun main(args: Array<String>) {
 
                         if (shouldDelete) {
                             LoadingIndicator("Shutting down virtual cluster...").use {
-                                compose.down(currentEnvironment).executeToText()
+                                compose.down(env).executeToText()
                             }
 
                             LoadingIndicator("Delete files associated with virtual cluster...").use {
@@ -297,11 +275,11 @@ fun main(args: Array<String>) {
                                         "run",
                                         "--rm",
                                         "-v",
-                                        "${currentEnvironment.parentFile.absolutePath}:/data",
+                                        "${env.parentFile.absolutePath}:/data",
                                         "alpine:3",
                                         "/bin/sh",
                                         "-c",
-                                        "rm -rf /data/${currentEnvironment.name}"
+                                        "rm -rf /data/${env.name}"
                                     )
                                 )
                             }
@@ -309,12 +287,12 @@ fun main(args: Array<String>) {
                     }
 
                     EnvironmentMenu.status -> {
-                        File(postExecPath).writeText(compose.ps(currentEnvironment).toBashScript())
+                        File(postExecPath).writeText(compose.ps(env).toBashScript())
                     }
 
                     EnvironmentMenu.switch -> {
                         LoadingIndicator("Shutting down virtual cluster...").use {
-                            compose.down(currentEnvironment).executeToText()
+                            compose.down(env).executeToText()
                         }
 
                         val env = selectOrCreateEnvironment(baseDir)
@@ -329,13 +307,175 @@ fun main(args: Array<String>) {
     }
 }
 
+private fun stopService(
+    service: Service,
+): ExecutableCommand {
+    if (service.useServiceConvention) {
+        return compose.exec(
+            currentEnvironment,
+            service.containerName,
+            listOf("/opt/ucloud/service.sh", "stop"),
+            tty = false
+        )
+    } else {
+        return compose.stop(currentEnvironment, service.containerName)
+    }
+}
+
+private fun generateComposeFile() {
+    val providers = runCatching { File(currentEnvironment, "providers.txt").readLines() }.getOrNull() ?: emptyList()
+
+    Environment(currentEnvironment.name, PortAllocator.Direct)
+        .createComposeFile(
+            buildList {
+                add(ComposeService.UCloudBackend)
+                add(ComposeService.UCloudFrontend)
+                add(ComposeService.Gateway)
+                for (provider in providers) {
+                    add(ComposeService.providerFromName(provider))
+                }
+            }
+        )
+}
+
+@Serializable
+data class AccessTokenWrapper(val accessToken: String)
+
+@Serializable
+data class BulkResponse<T>(val responses: List<T>)
+
+@Serializable
+data class FindByStringId(val id: String)
+
+private fun callService(
+    container: String,
+    method: String,
+    url: String,
+    bearer: String,
+    body: String? = null,
+    opts: List<String> = emptyList()
+): String? {
+    return compose.exec(
+        currentEnvironment,
+        container,
+        buildList {
+            add("curl")
+            add("-X$method")
+            add(url)
+            add("-H")
+            add("Authorization: Bearer $bearer")
+            if (body != null) {
+                add("-H")
+                add("Content-Type: application/json")
+                add("-d")
+                add(body)
+            }
+            addAll(opts)
+        },
+        tty = false
+    ).also { it.allowFailure = true }.executeToText()
+}
+
+private fun startProviderService(providerId: String) {
+    File(currentEnvironment, "providers.txt").appendText(providerId + "\n")
+    generateComposeFile()
+    LoadingIndicator("Starting provider services...").use {
+        compose.up(currentEnvironment).executeToText()
+    }
+}
+
+data class ProviderCredentials(val publicKey: String, val refreshToken: String)
+private fun registerProvider(providerId: String, domain: String, port: Int): ProviderCredentials {
+    val tokenJson = callService("backend", "POST", "http://localhost:8080/auth/refresh", "theverysecretadmintoken")
+        ?: error("Failed to contact UCloud/Core backend. Check to see if the backend service is running.")
+    val accessToken = defaultMapper.decodeFromString(AccessTokenWrapper.serializer(), tokenJson).accessToken
+
+    println(accessToken)
+
+    val projectId = defaultMapper.decodeFromString(
+        BulkResponse.serializer(FindByStringId.serializer()),
+        callService(
+            "backend",
+            "POST",
+            "http://localhost:8080/api/projects/v2",
+            accessToken,
+            //language=json
+            """
+              {
+                "items": [
+                  {
+                    "parent": null,
+                    "title": "Provider $providerId"
+                  }
+                ]
+              }
+            """.trimIndent(),
+            opts = listOf(
+                "-H", "principal-investigator: user"
+            )
+        ).also { println(it) } ?: error("Project creation failed. Check backend logs.")
+    ).responses.single().id
+
+    callService(
+        "backend",
+        "POST",
+        "http://localhost:8080/api/providers",
+        accessToken,
+        //language=json
+        """
+          {
+            "items": [
+              {
+                "id": "$providerId",
+                "domain": "$domain",
+                "https": false,
+                "port": $port
+              }
+            ]
+          }
+        """.trimIndent(),
+
+        opts = listOf(
+            "-H", "Project: $projectId"
+        )
+    ) ?: error("Provider creation failed. Check backend logs.")
+
+    val providerObject = defaultMapper.decodeFromString(
+        JsonObject.serializer(),
+        callService(
+            "backend",
+            "GET",
+            "http://localhost:8080/api/providers/browse?filterName=$providerId",
+            accessToken,
+            opts = listOf(
+                "-H", "Project: $projectId"
+            )
+        ) ?: error("Provider creation failed. Check backend logs")
+    )
+
+    val credentials = runCatching {
+        val p = ((providerObject["items"] as JsonArray)[0] as JsonObject)
+        val publicKey = (p["publicKey"] as JsonPrimitive).content
+        val refreshToken = (p["refreshToken"] as JsonPrimitive).content
+
+        ProviderCredentials(publicKey, refreshToken)
+    }.getOrNull() ?: error("Provider creation failed. Check backend logs.")
+
+    return credentials
+}
+
+val defaultMapper = Json {
+    ignoreUnknownKeys = true
+    isLenient = true
+}
+
 private fun startCluster(compose: DockerCompose, currentEnvironment: File) {
     LoadingIndicator("Starting virtual cluster...").use {
         compose.up(currentEnvironment).executeToText()
     }
 
     LoadingIndicator("Starting UCloud...").use {
-        startService(serviceByName("backend"), compose, currentEnvironment).executeToText()
+        startService(serviceByName("backend")).executeToText()
     }
 
     LoadingIndicator("Waiting for UCloud to be ready...").use {
@@ -351,8 +491,6 @@ private fun startCluster(compose: DockerCompose, currentEnvironment: File) {
 
 private fun startService(
     service: Service,
-    compose: DockerCompose,
-    currentEnvironment: File,
 ): ExecutableCommand {
     if (service.useServiceConvention) {
         return compose.exec(

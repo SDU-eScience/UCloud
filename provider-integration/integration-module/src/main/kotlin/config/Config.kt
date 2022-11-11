@@ -498,7 +498,7 @@ data class ConfigSchema(
             class UCloud(
                 override val matches: String,
                 val iface: String,
-                val gatewayCidr: String?
+                val gatewayCidr: String? = null
             ) : PublicIPs()
         }
 

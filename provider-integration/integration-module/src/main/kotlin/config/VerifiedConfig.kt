@@ -645,6 +645,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
             @Suppress("unchecked_cast")
             val jobs: Map<String, ComputePlugin> = loadProductBasedPlugins(
+                "jobs",
                 mapProducts(config.products?.compute),
                 config.plugins.jobs ?: emptyMap(),
                 productReference,
@@ -654,6 +655,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
             @Suppress("unchecked_cast")
             val files: Map<String, FilePlugin> = loadProductBasedPlugins(
+                "files",
                 mapProducts(config.products?.storage),
                 config.plugins.files ?: emptyMap(),
                 productReference,
@@ -663,6 +665,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
             @Suppress("unchecked_cast")
             val fileCollections: Map<String, FileCollectionPlugin> = loadProductBasedPlugins(
+                "fileCollections",
                 mapProducts(config.products?.storage),
                 config.plugins.fileCollections ?: emptyMap(),
                 productReference,
@@ -672,6 +675,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
             @Suppress("unchecked_cast")
             val ingresses: Map<String, IngressPlugin> = loadProductBasedPlugins(
+                "ingresses",
                 mapProducts(config.products?.ingress),
                 config.plugins.ingresses ?: emptyMap(),
                 productReference,
@@ -681,6 +685,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
             @Suppress("unchecked_cast")
             val publicIps: Map<String, PublicIPPlugin> = loadProductBasedPlugins(
+                "publicIps",
                 mapProducts(config.products?.publicIps),
                 config.plugins.publicIps ?: emptyMap(),
                 productReference,
@@ -690,6 +695,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
             @Suppress("unchecked_cast")
             val licenses: Map<String, LicensePlugin> = loadProductBasedPlugins(
+                "licenses",
                 mapProducts(config.products?.licenses),
                 config.plugins.licenses ?: emptyMap(),
                 productReference,
@@ -699,6 +705,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
             @Suppress("unchecked_cast")
             val shares: Map<String, SharePlugin> = loadProductBasedPlugins(
+                "shares",
                 mapProducts(config.products?.storage),
                 config.plugins.shares ?: emptyMap(),
                 productReference,
@@ -748,6 +755,7 @@ private fun <Cfg : Any> loadPlugin(config: Cfg, realUserMode: Boolean): Plugin<C
 }
 
 private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
+    type: String,
     products: Map<String, List<Product>>,
     plugins: Map<String, Cfg>,
     productRef: ConfigurationReference,
@@ -788,7 +796,7 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
         if (bestMatch == null) {
             if (requireProductAllocation) {
                 emitWarning(
-                    "Could not allocate product '$product' to a plugin. No plugins match it, " +
+                    "Could not allocate product '$product' to a plugin ($type). No plugins match it, " +
                             "the integration module will ignore all requests for this product!",
                     productRef
                 )
@@ -806,7 +814,7 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
             plugin.productAllocation = pluginProducts
             if (pluginProducts.isEmpty()) {
                 emitWarning(
-                    "Could not allocate any products to the plugin '$id'. This plugin will never run!",
+                    "Could not allocate any products to the plugin '$id' ($type). This plugin will never run!",
                     pluginRef
                 )
             }
@@ -814,18 +822,14 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
         if (!plugin.supportsRealUserMode() && realUserMode) {
             throw PluginLoadingException(
                 plugin.pluginTitle,
-                "launchRealUserInstances is true but not supported for this plugin: ${plugin.pluginTitle}"
+                "launchRealUserInstances is true but not supported for this plugin: ${plugin.pluginTitle} ($type)"
             )
         }
         if (!plugin.supportsServiceUserMode() && !realUserMode) {
             throw PluginLoadingException(
                 plugin.pluginTitle,
-                "launchRealUserInstances is false but not supported for this plugin: ${plugin.pluginTitle}"
+                "launchRealUserInstances is false but not supported for this plugin: ${plugin.pluginTitle} ($type)"
             )
-        }
-
-        if (plugin.pluginTitle == "Posix" && pluginProducts.size > 1) {
-            emitError("Plugin ${plugin.pluginTitle} supports only 1 product but multiple are specified")
         }
 
         plugin.configure(pluginConfig)

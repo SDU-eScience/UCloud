@@ -9,7 +9,7 @@ import java.io.*
 fun runInstaller(configDir: File) {
     File(configDir, "common.yaml").writeText(
         """
-            refreshToken: theverysecretadmintoken
+            refreshToken: theverysecretservicetoken
             tokenValidation:
               jwt:
                 sharedSecret: notverysecret
@@ -52,12 +52,26 @@ fun runInstaller(configDir: File) {
         try {
             db.withTransaction { session ->
                 session.sendPreparedStatement(
+                    //language=sql
+                    """
+                        insert into auth.refresh_tokens
+                            (token, associated_user_id, csrf, public_session_reference, 
+                            extended_by, scopes, expires_after, refresh_token_expiry,
+                            extended_by_chain, created_at, ip, user_agent)
+                        values
+                            ('theverysecretservicetoken', '_ucloud', 'csrf', 'initial_service', null,
+                            '["all:write"]'::jsonb, 31536000000, null, '[]'::jsonb, now(),
+                            '127.0.0.1', 'UCloud');                                                
+                    """
+                )
+
+                session.sendPreparedStatement(
                     """
                         insert into auth.principals
                             (dtype, id, created_at, modified_at, role, first_names, last_name, 
                             orc_id,phone_number, title, hashed_password, salt, org_id, email)
                         values
-                            ('PASSWORD', 'admin@dev', now(), now(), 'SERVICE', 'Admin', 'Dev',
+                            ('PASSWORD', 'admin@dev', now(), now(), 'ADMIN', 'Admin', 'Dev',
                             null, null, null, E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'admin@dev')
                     """
                 )
