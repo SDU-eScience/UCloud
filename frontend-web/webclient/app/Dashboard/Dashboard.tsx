@@ -250,7 +250,7 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
     };
 }
 
-export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props => (
+export const NoResultsCardBody: React.FunctionComponent<{title: string; children: React.ReactNode}> = props => (
     <Flex
         alignItems="center"
         justifyContent="center"

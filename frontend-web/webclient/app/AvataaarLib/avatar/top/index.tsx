@@ -1023,6 +1023,7 @@ class LongHairFro extends React.Component<{
     hairColor: HairColorEnum,
     facialHair: FacialHairEnum,
     facialHairColor: FacialHairColor
+    children: React.ReactNode;
 }> {
     public static optionValue = "LongHairFro";
     private mask1 = uniqueId("react-mask-");
@@ -1714,7 +1715,8 @@ class ShortHairFrizzle extends React.Component<HairProps> {
 class ShortHairShaggy extends React.Component<{
     hairColor: HairColorEnum,
     facialHairColor: FacialHairColor,
-    facialHair: FacialHairEnum
+    facialHair: FacialHairEnum;
+    children: React.ReactNode;
 }> {
     public static optionValue = "ShortHairShaggy";
 
@@ -1918,6 +1920,7 @@ class ShortHairShortFlat extends React.Component<{
     facialHairColor: FacialHairColor,
     facialHair: FacialHairEnum,
     hairColor: HairColorEnum
+    children: React.ReactNode;
 }> {
     public static optionValue = "ShortHairShortFlat";
 
@@ -1993,6 +1996,7 @@ class ShortHairShortRound extends React.Component<{
     hairColor: HairColorEnum,
     facialHair: FacialHairEnum,
     facialHairColor: FacialHairColor
+    children: React.ReactNode;
 }> {
     public static optionValue = "ShortHairShortRound";
 
@@ -2066,7 +2070,8 @@ class ShortHairShortRound extends React.Component<{
 class ShortHairShortWaved extends React.Component<{
     hairColor: HairColorEnum,
     facialHair: FacialHairEnum,
-    facialHairColor: FacialHairColor
+    facialHairColor: FacialHairColor;
+    children: React.ReactNode;
 }> {
     public static optionValue = "ShortHairShortWaved";
 
@@ -2141,6 +2146,7 @@ class ShortHairSides extends React.Component<{
     hairColor: HairColorEnum,
     facialHair: FacialHairEnum,
     facialHairColor: FacialHairColor
+    children: React.ReactNode;
 }> {
     public static optionValue = "ShortHairSides";
     private mask1 = uniqueId("react-mask-");
@@ -2195,6 +2201,7 @@ class ShortHairTheCaesar extends React.Component<{
     hairColor: HairColorEnum,
     facialHair: FacialHairEnum,
     facialHairColor: FacialHairColor
+    children: React.ReactNode;
 }> {
     public static optionValue = "ShortHairTheCaesar";
 
@@ -2268,7 +2275,8 @@ class ShortHairTheCaesar extends React.Component<{
 class ShortHairTheCaesarSidePart extends React.Component<{
     hairColor: HairColorEnum,
     facialHairColor: FacialHairColor,
-    facialHair: FacialHairEnum
+    facialHair: FacialHairEnum;
+    children: React.ReactNode;
 }> {
     public static optionValue = "ShortHairTheCaesarSidePart";
 

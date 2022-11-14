@@ -108,6 +108,7 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
     formatError?: (errors: string[]) => string;
     onSubmitSucceded?: (res: Response, d: DataType) => void;
     onSubmitError?: (err: string) => void;
+    children: React.ReactNode;
 }> {
     public data: DataType = {required: [], fields: {}};
 

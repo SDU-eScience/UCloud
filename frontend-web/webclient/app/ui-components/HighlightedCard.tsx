@@ -25,6 +25,7 @@ export const HighlightedCard: React.FunctionComponent<{
     highlightSize?: string;
     innerPaddingX?: string;
     innerPaddingY?: string;
+    children?: React.ReactNode;
 }> = ({
     title,
     subtitle,
