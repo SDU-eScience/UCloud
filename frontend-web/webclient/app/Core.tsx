@@ -155,10 +155,13 @@ const Core = (): JSX.Element => (
                         <Route path="/providers/register" element={React.createElement(requireAuth(RegisterProvider))} />
                         <Route path="/providers/overview" element={<ProviderOverview />} />
                         <Route path="/providers/detailed/:id" element={<ProviderDetailed />} />
-                        <Route path={"/providers/*"} element={React.createElement(requireAuth(ProviderRouter))} />
+                        <Route path="/providers/*" element={React.createElement(requireAuth(ProviderRouter))} />
 
                         <Route path="/news/detailed/:id" element={<DetailedNews />} />
-                        <Route path="/news/list/:filter?" element={<NewsList />} />
+
+                        {/* Nullable paths args aren't supported (yet?) so we duplicate. */}
+                        <Route path="/news/list/" element={<NewsList />} />
+                        <Route path="/news/list/:filter" element={<NewsList />} />
 
                         <Route
                             path="/users/settings"
@@ -173,9 +176,12 @@ const Core = (): JSX.Element => (
                         <Route path="/projects/:project/members" element={React.createElement(requireAuth(ProjectMembers))} />
 
                         <Route path="/subprojects" element={React.createElement(requireAuth(SubprojectList))} />
-                        <Route path="/project/settings/:project/:page?" element={React.createElement(requireAuth(ProjectSettings))} />
-                        <Route path="/project/resources/:project?" element={React.createElement(requireAuth(ProjectResources))} />
-                        <Route path="/project/allocations/:project?" element={React.createElement(requireAuth(ProjectAllocations))} />
+
+                        {/* Nullable paths args aren't supported (yet?) so we duplicate. */}
+                        <Route path="/project/settings/:project/" element={React.createElement(requireAuth(ProjectSettings))} />
+                        <Route path="/project/settings/:project/:page" element={React.createElement(requireAuth(ProjectSettings))} />
+                        <Route path="/project/resources/:project" element={React.createElement(requireAuth(ProjectResources))} />
+                        <Route path="/project/allocations/:project" element={React.createElement(requireAuth(ProjectAllocations))} />
                         <Route
                             path="/project/grants/existing"
                             element={React.createElement(requireAuth(GrantApplicationEditor), {key: RequestTarget.EXISTING_PROJECT, target: RequestTarget.EXISTING_PROJECT})}
@@ -192,9 +198,8 @@ const Core = (): JSX.Element => (
                             path="/project/grants/view/:appId"
                             element={React.createElement(requireAuth(GrantApplicationEditor), {key: RequestTarget.VIEW_APPLICATION, target: RequestTarget.VIEW_APPLICATION})}
                         />
-                        <Route path="/project/grants/ingoing/:project?" element={React.createElement(requireAuth(IngoingApplications))} />
-                        <Route path="/project/grants/outgoing/:project?" element={React.createElement(requireAuth(OutgoingApplications))} />
-
+                        <Route path="/project/grants/ingoing/:project" element={React.createElement(requireAuth(IngoingApplications))} />
+                        <Route path="/project/grants/outgoing/:project" element={React.createElement(requireAuth(OutgoingApplications))} />
                         <Route
                             path="/sla"
                             element={React.createElement(requireAuth(ServiceLicenseAgreement, {

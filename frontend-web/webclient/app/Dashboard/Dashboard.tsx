@@ -13,7 +13,7 @@ import {SidebarPages} from "@/ui-components/Sidebar";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {DashboardOperations, DashboardProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
-import {apiBrowse, APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {Spacer} from "@/ui-components/Spacer";
@@ -54,6 +54,8 @@ import {NotificationDashboardCard} from "@/Notifications";
 import {grantsLink} from "@/UtilityFunctions";
 import {isAdminOrPI, useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
+
+const MY_WORKSPACE = "My Workspace";
 
 function Dashboard(props: DashboardProps): JSX.Element {
     useSearch(defaultSearch);
@@ -266,7 +268,7 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props
 function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[]}>}): JSX.Element | null {
     return (
         <HighlightedCard
-            title={<Link to={"/project/resources"}><Heading.h3>Resource Usage</Heading.h3></Link>}
+            title={<Link to={`/project/resources/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource Usage</Heading.h3></Link>}
             icon="hourglass"
             color="yellow"
         >
@@ -375,7 +377,7 @@ function DashboardResources({products}: {
 
     return (
         <HighlightedCard
-            title={<Link to={"/project/allocations"}><Heading.h3>Resource Allocations</Heading.h3></Link>}
+            title={<Link to={`/project/allocations/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource Allocations</Heading.h3></Link>}
             color="red"
             isLoading={products.loading}
             icon={"grant"}
@@ -422,9 +424,9 @@ const DashboardGrantApplications: React.FunctionComponent<{
     const both = outgoingApps.data.items.length > 0 && ingoingApps.data.items.length > 0;
     const anyOutgoing = outgoingApps.data.items.length > 0;
 
-    const title = (none ? <Link to={"/project/grants/outgoing"}><Heading.h3>Grant Applications</Heading.h3></Link>
+    const title = (none ? <Link to={`/project/grants/outgoing/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Grant Applications</Heading.h3></Link>
         : both ? <Heading.h3>Grant Applications</Heading.h3>
-            : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}`}>
+            : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}/${Client.projectId ?? MY_WORKSPACE}`}>
                 <Heading.h3>Grant Applications</Heading.h3>
             </Link>
     );
