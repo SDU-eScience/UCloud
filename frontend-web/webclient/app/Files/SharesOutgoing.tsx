@@ -280,7 +280,7 @@ const ShareGroup: React.FunctionComponent<{
     }
 };
 
-const Tab: React.FunctionComponent<{selected: boolean, onClick: () => void;}> = props => {
+const Tab: React.FunctionComponent<{selected: boolean, onClick: () => void; children: React.ReactNode}> = props => {
     return <SelectableText
         selected={props.selected}
         onClick={props.onClick}

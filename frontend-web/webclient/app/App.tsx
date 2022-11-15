@@ -1,12 +1,14 @@
 import MainApp from "@/Core";
 import * as React from "react";
-import ReactDOM from "react-dom";
+import {createRoot} from 'react-dom/client';
 
-ReactDOM.render(
-    (
+const container = document.getElementById("app");
+
+if (container) {
+    const root = createRoot(container);
+    root.render(
         <React.StrictMode>
             <MainApp />
         </React.StrictMode>
-    ),
-    document.getElementById("app")
-);
+    );
+}

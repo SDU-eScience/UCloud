@@ -1,4 +1,4 @@
-import { emptyPage, emptyPageV2 } from "@/DefaultObjects";
+import {emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
@@ -22,14 +22,13 @@ import AppStoreOverview = compute.AppStoreOverview;
 import AppStoreSectionType = compute.AppStoreSectionType;
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
-import Spinner from "@/LoadingIcon/LoadingIcon";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
     titlePlural: "Applications"
 };
 
-export const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
+export const ShowAllTagItem: React.FunctionComponent<{tag?: string; children: React.ReactNode;}> = props => (
     <Link to={props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
 );
 
@@ -104,10 +103,10 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
                 onFavorite={onFavorite}
                 refreshId={refreshId}
             />
-            {sections.data.sections.map(section => 
+            {sections.data.sections.map(section =>
                 section.type === AppStoreSectionType.TAG ?
                     <TagGrid
-                        key={section.name+section.type}
+                        key={section.name + section.type}
                         tag={section.name}
                         items={section.applications}
                         columns={section.columns}
@@ -117,8 +116,8 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
                         tagBanList={['Engineering']}
                         refreshId={refreshId}
                     />
-                :
-                    <ToolGroup refreshId={refreshId} items={section.applications} key={section.name+section.type} tag={section.name} />
+                    :
+                    <ToolGroup refreshId={refreshId} items={section.applications} key={section.name + section.type} tag={section.name} />
             )}
         </>
     );
@@ -258,7 +257,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                     gridTemplateColumns={showFavorites ? "repeat(auto-fill, minmax(400px, 1fr))" : "repeat(auto-fill, 400px)"}
                     style={{gridAutoFlow: showFavorites ? "row" : "column"}}
                 >
-                    {filteredItems.map(app => 
+                    {filteredItems.map(app =>
                         <ApplicationCard
                             key={`${app.metadata.name}`}
                             onFavorite={() => onFavorite(app)}

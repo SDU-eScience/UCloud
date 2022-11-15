@@ -454,7 +454,7 @@ const Router: React.FunctionComponent = () => {
     />;
 };
 
-const DriveDropdown: React.FunctionComponent<{iconName: "hdd" | "projects"}> = props => {
+const DriveDropdown: React.FunctionComponent<{iconName: "hdd" | "projects"; children: React.ReactNode}> = props => {
     return (
         <ClickableDropdown
             colorOnHover={false}
