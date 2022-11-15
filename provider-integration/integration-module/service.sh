@@ -3,6 +3,7 @@ set -e
 
 PS1=fakeinteractiveshell
 source /root/.bashrc
+running_k8=$(grep "providerId: k8" /etc/ucloud/core.yaml &> /dev/null ; echo $?)
 
 if ! (test -f /tmp/sync.pid && (ps -p $(cat /tmp/sync.pid) > /dev/null)); then
     nohup /opt/ucloud/user-sync.py push /mnt/passwd &> /tmp/sync.log &
@@ -10,9 +11,17 @@ if ! (test -f /tmp/sync.pid && (ps -p $(cat /tmp/sync.pid) > /dev/null)); then
     sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
 fi
 
+uid=ucloud
+if [[ $running_k8 == 0 ]]; then
+    echo f
+    uid=11042
+fi
+
 mkdir -p /home/ucloud
-chown -R ucloud:ucloud /home/ucloud
-chown -R ucloud:ucloud /etc/ucloud
+chown -R $uid:$uid /home/ucloud
+chown -R $uid:$uid /etc/ucloud
+chown -R $uid:$uid /var/run/ucloud
+chown -R $uid:$uid /var/log/ucloud
 mkdir -p /var/log/ucloud/structured
 chmod 777 /var/log/ucloud/structured
 
@@ -29,7 +38,9 @@ isrunning() {
 startsvc() {
     if ! isrunning; then
         ./gradlew buildDebug --console=plain
-        nohup sudo -u ucloud ucloud &> /tmp/service.log &
+
+        nohup sudo -u "#$uid" ucloud &> /tmp/service.log &
+        echo $uid
         echo $! > /tmp/service.pid
         sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
     fi

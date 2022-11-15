@@ -51,6 +51,7 @@ data class Environment(
 }
 
 class ComposeBuilder(val environment: Environment) {
+    val volumes = HashSet<String>()
     val services = HashMap<String, Json>()
 
     fun createComposeFile(): String {
@@ -63,6 +64,12 @@ class ComposeBuilder(val environment: Environment) {
                 append('"')
                 append(":")
                 append(service.value.encoded)
+            }
+            append("}, ")
+            append(""" "volumes": { """)
+            for ((index, vol) in volumes.withIndex()) {
+                if (index != 0) append(", ")
+                append(""" "$vol": {} """)
             }
             append("} }")
         }.toString()
@@ -243,11 +250,11 @@ sealed class ComposeService {
             val k8Provider = File(environment.dataDirectory, "k8").also { it.mkdirs() }
             val k3sDir = File(k8Provider, "k3s").also { it.mkdirs() }
             val k3sOutput = File(k3sDir, "output").also { it.mkdirs() }
-            val k3sData = File(k3sDir, "data").also { it.mkdirs() }
-            val k3sCni = File(k3sDir, "cni").also { it.mkdirs() }
-            val k3sKubelet = File(k3sDir, "kubelet").also { it.mkdirs() }
-            val k3sEtc = File(k3sDir, "etc").also { it.mkdirs() }
-            val k3sTmp = File(k3sDir, "tmp").also { it.mkdirs() }
+
+            val k3sData = "k3sdata".also { volumes.add(it) }
+            val k3sCni = "k3scni".also { volumes.add(it) }
+            val k3sKubelet = "k3skubelet".also { volumes.add(it) }
+            val k3sEtc = "k3setc".also { volumes.add(it) }
 
             val imDir = File(k8Provider, "im").also { it.mkdirs() }
             val imGradle = File(imDir, "gradle").also { it.mkdirs() }
@@ -263,9 +270,13 @@ sealed class ComposeService {
             val groupFile = File(passwdDir, "group")
             val shadowFile = File(passwdDir, "shadow")
             if (!passwdFile.exists()) {
-                passwdFile.writeText("ucloud:x:998:998::/home/ucloud:/bin/sh\n")
-                groupFile.writeText("ucloud:x:998:\n")
-                shadowFile.writeText("ucloud:!:19110::::::\n")
+                passwdFile.appendText("ucloud:x:998:998::/home/ucloud:/bin/sh\n")
+                groupFile.appendText("ucloud:x:998:\n")
+                shadowFile.appendText("ucloud:!:19110::::::\n")
+
+                passwdFile.appendText("ucloudalt:x:11042:11042::/home/ucloudalt:/bin/sh\n")
+                groupFile.appendText("ucloudalt:x:11042:\n")
+                shadowFile.appendText("ucloudalt:!:19110::::::\n")
             }
 
             service(
@@ -286,11 +297,10 @@ sealed class ComposeService {
                         "hostname": "k3",
                         "restart": "always",
                         "volumes": [
-                          "${k3sTmp.absolutePath}:/tmp",
                           "${k3sOutput.absolutePath}:/output",
-                          "${k3sData.absolutePath}:/var/lib/rancher/k3s",
-                          "${k3sCni.absolutePath}:/var/lib/cni",
-                          "${k3sKubelet.absolutePath}:/var/lib/kubelet",
+                          "${k3sData}:/var/lib/rancher/k3s",
+                          "${k3sCni}:/var/lib/cni",
+                          "${k3sKubelet}:/var/lib/kubelet",
                           "${k3sEtc}:/etc/rancher",
                           "${imStorage.absolutePath}:/mnt/storage"
                         ]
@@ -307,8 +317,9 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2022.2.0",
+                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2022.2.67",
                         "command": ["sleep", "inf"],
+                        "hostname": "k8",
                         "volumes": [
                           "${imGradle.absolutePath}:/root/.gradle",
                           "${imData.absolutePath}:/etc/ucloud",
@@ -358,6 +369,10 @@ sealed class ComposeService {
                 //language=yaml
                 """
                     refreshToken: ${credentials.refreshToken}
+                    envoy:
+                      executable: /usr/bin/envoy
+                      funceWrapper: false
+                      directory: /var/run/ucloud/envoy
                 """.trimIndent()
             )
 
@@ -431,11 +446,11 @@ sealed class ComposeService {
                     default:
                       type: UCloud
                       matches: "*"
-                      kubeConfig: /mnt/k3s
                       namespace: ucloud-apps
                       scheduler: Pods
                       fakeIpMount: true
                       forceMinimumReservation: true
+                      usePortForwarding: true
                   
                   fileCollections:
                     default:
@@ -483,12 +498,101 @@ sealed class ComposeService {
                     "-c",
                     // NOTE(Dan): We have to use the UID/GID here instead of UCloud since the user hasn't been
                     // created yet.
-                    "chown -R 998:998 /mnt/storage/*"
+                    "chown -R 11042:11042 /mnt/storage/*"
                 ),
                 tty = false
             ).executeToText()
 
-            println("TODO Make sure Kubernetes works")
+            compose.exec(
+                currentEnvironment,
+                "k8",
+                listOf("sh", "-c", """
+                    while ! test -e "/mnt/k3s/kubeconfig.yaml"; do
+                      sleep 1
+                      echo "Waiting for Kubernetes to be ready..."
+                    done
+                """.trimIndent())
+            ).executeToText()
+
+            compose.exec(
+                currentEnvironment,
+                "k8",
+                listOf(
+                    "sed",
+                    "-i",
+                    "s/127.0.0.1/k3/g",
+                    "/mnt/k3s/kubeconfig.yaml"
+                )
+            ).executeToText()
+
+            compose.exec(
+                currentEnvironment,
+                "k8",
+                listOf(
+                    "kubectl",
+                    "--kubeconfig",
+                    "/mnt/k3s/kubeconfig.yaml",
+                    "create",
+                    "namespace",
+                    "ucloud-apps"
+                )
+            ).executeToText()
+
+            compose.exec(
+                currentEnvironment,
+                "k8",
+                listOf(
+                    "sh",
+                    "-c",
+                    """
+                        cat > /tmp/pvc.yml << EOF
+                        ---
+                        apiVersion: v1
+                        kind: PersistentVolume
+                        metadata:
+                            name: cephfs
+                            namespace: ucloud-apps
+                        spec:
+                            capacity:
+                                storage: 1000Gi
+                            volumeMode: Filesystem
+                            accessModes:
+                                - ReadWriteMany
+                            persistentVolumeReclaimPolicy: Retain
+                            storageClassName: ""
+                            hostPath:
+                                path: "/mnt/storage"
+                        
+                        ---
+                        apiVersion: v1
+                        kind: PersistentVolumeClaim
+                        metadata:
+                            name: cephfs
+                            namespace: ucloud-apps
+                        spec:
+                            accessModes:
+                                - ReadWriteMany
+                            storageClassName: ""
+                            volumeName: cephfs
+                            resources:
+                                requests:
+                                    storage: 1000Gi
+                        EOF
+                    """.trimIndent()
+                )
+            ).executeToText()
+
+            compose.exec(
+                currentEnvironment,
+                "k8",
+                listOf("kubectl", "--kubeconfig", "/mnt/k3s/kubeconfig.yaml", "create", "-f", "/tmp/pvc.yml")
+            ).executeToText()
+
+            compose.exec(
+                currentEnvironment,
+                "k8",
+                listOf("rm", "/tmp/pvc.yml")
+            ).executeToText()
 
             installMarker.writeText("done")
         }
@@ -586,6 +690,11 @@ sealed class ComposeService {
                     
                     *.localhost.direct {
                         tls /certs/tls.crt /certs/tls.key
+                        
+                        @k8apps {
+                            header_regexp appmatcher Host ^k8-.*
+                        }
+                        reverse_proxy @k8apps k8:8889
                     }
                 """.trimIndent()
             )

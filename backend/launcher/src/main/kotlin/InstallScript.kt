@@ -27,6 +27,12 @@ fun runInstaller(configDir: File) {
                     password: postgrespassword
 
             elasticEnabled: false
+            auth:
+                trustedOrigins:
+                    - localhost
+                    - frontend:9000
+                    - backend:8080
+                    - ucloud.localhost.direct
         """.trimIndent()
     )
 

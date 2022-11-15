@@ -93,6 +93,7 @@ data class VerifiedConfig(
             val executable: String?,
             val directory: String,
             val downstreamTls: Boolean,
+            val funceWrapper: Boolean,
         )
     }
 
@@ -551,7 +552,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             val executable = config.server.envoy?.executable
             val directory = config.server.envoy?.directory ?: "/var/run/ucloud/envoy"
             val downstreamTls = config.server.envoy?.downstreamTls ?: false
-            VerifiedConfig.Server.Envoy(executable, directory, downstreamTls)
+            val funceWrapper = config.server.envoy?.funceWrapper ?: true
+            VerifiedConfig.Server.Envoy(executable, directory, downstreamTls, funceWrapper)
         }
 
         VerifiedConfig.Server(refreshToken, network, developmentMode, database, envoy)

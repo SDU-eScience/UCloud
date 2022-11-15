@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.sendWSMessage
+import dk.sdu.cloud.config.VerifiedConfig
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
@@ -241,7 +242,7 @@ class FileController(
 
                 http {
                     method = HttpMethod.Get
-                    path { using(downloadPath(providerId)) }
+                    path { using(downloadPath(null, providerId)) }
                     params { +boundTo(IMFileDownloadRequest::token) }
                 }
             }
@@ -257,7 +258,7 @@ class FileController(
 
                 http {
                     method = HttpMethod.Post
-                    path { using(uploadPath(providerId)) }
+                    path { using(uploadPath(null, providerId)) }
                 }
             }
         }
@@ -364,7 +365,7 @@ class FileController(
                         createDownload(bulkRequestOf(downloadRequest)).forEach {
                             sessions.add(
                                 FilesCreateDownloadResponseItem(
-                                    downloadPath(providerId, it.session)
+                                    downloadPath(config, providerId, it.session)
                                 )
                             )
 
@@ -393,7 +394,7 @@ class FileController(
                 delay(100)
 
                 sctx.ktor.call.respondRedirect(
-                    downloadPath(controllerContext.configuration.core.providerId, request.token) +
+                    downloadPath(config, controllerContext.configuration.core.providerId, request.token) +
                             "&attempt=${attempt + 1}"
                 )
 
@@ -428,7 +429,7 @@ class FileController(
                         createUpload(bulkRequestOf(uploadRequest)).forEach {
                             sessions.add(
                                 FilesCreateUploadResponseItem(
-                                    uploadPath(providerId),
+                                    uploadPath(config, providerId),
                                     UploadProtocol.CHUNKED,
                                     it.session
                                 )
@@ -559,12 +560,14 @@ class FileController(
     )
 
     companion object {
-        fun downloadPath(providerId: String, token: String? = null): String = buildString {
+        fun downloadPath(config: VerifiedConfig?, providerId: String, token: String? = null): String = buildString {
+            if (config != null) append(config.core.hosts.self?.toStringOmitDefaultPort() ?: "")
             append("/ucloud/${providerId}/download")
             if (token != null) append("?token=$token")
         }
 
-        fun uploadPath(providerId: String): String = buildString {
+        fun uploadPath(config: VerifiedConfig?, providerId: String): String = buildString {
+            if (config != null) append(config.core.hosts.self?.toStringOmitDefaultPort() ?: "")
             append("/ucloud/${providerId}/chunked/upload")
         }
     }

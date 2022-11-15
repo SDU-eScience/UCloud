@@ -9,7 +9,6 @@ import de.codeshelf.consoleui.prompt.ListResult
 import de.codeshelf.consoleui.prompt.builder.ListPromptBuilder
 import jline.TerminalFactory
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -116,9 +115,14 @@ fun main(args: Array<String>) {
         currentEnvironment = env
         dk.sdu.cloud.compose = compose
 
-        val psText = compose.ps(env).executeToText()
+        val (psText, failureText) = compose.ps(env).executeToText()
         if (psText == null) {
-            println("${env.absolutePath} appears to be corrupt. Try deleting this directory!")
+            println("Unable to start docker compose in ${env.absolutePath}!")
+            println()
+            println(failureText)
+            println()
+            println("The error message above we got from docker compose. If this isn't helpful, " +
+                "then try deleting this directory: ${env.absolutePath}.")
             exitProcess(1)
         }
 
@@ -186,8 +190,10 @@ fun main(args: Array<String>) {
                         credentials = registerProvider(provider.name, provider.name, 8889)
                     }
 
+                    val creds = credentials!!
+
                     LoadingIndicator("Configuring provider...").use {
-                        ComposeService.providerFromName(provider.name).install(credentials!!)
+                        ComposeService.providerFromName(provider.name).install(creds)
                     }
 
                     LoadingIndicator("Starting provider...").use {
@@ -195,15 +201,26 @@ fun main(args: Array<String>) {
                         startService(serviceByName(provider.name)).executeToText()
                     }
 
-                    // TODO check if provider is ready and remove the sleep below
-
                     LoadingIndicator("Registering products with UCloud/Core").use {
                         compose.exec(
                             currentEnvironment,
                             provider.name,
-                            listOf("sh", "-c", "sleep 5 ; yes | ucloud products register"),
-                            tty = false
+                            listOf("sh", "-c", """
+                                while ! test -e "/var/run/ucloud/ucloud.sock"; do
+                                  sleep 1
+                                  echo "Waiting for UCloud sock to be ready..."
+                                done
+                            """.trimIndent())
                         ).executeToText()
+
+                        compose.exec(
+                            currentEnvironment,
+                            provider.name,
+                            listOf("sh", "-c", "yes | ucloud products register"),
+                            tty = false,
+                        ).also {
+                            it.deadlineInMillis = 30_000
+                        }.executeToText()
                     }
 
                     LoadingIndicator("Restarting provider...").use {
@@ -211,7 +228,51 @@ fun main(args: Array<String>) {
                         startService(serviceByName(provider.name)).executeToText()
                     }
 
-                    println("TODO grant credits to provider project")
+                    LoadingIndicator("Granting credits to provider project").use {
+                        val accessToken = fetchAccessToken()
+                        val productPage = defaultMapper.decodeFromString(
+                            JsonObject.serializer(),
+                            callService(
+                                "backend",
+                                "GET",
+                                "http://localhost:8080/api/products/browse?filterProvider=${provider.name}&itemsPerPage=250",
+                                accessToken
+                            ) ?: error("Failed to retrieve products from UCloud")
+                        )
+
+                        val productItems = productPage["items"] as JsonArray
+                        val productCategories = HashSet<String>()
+                        productItems.forEach { item ->
+                            productCategories.add(
+                                (((item as JsonObject)["category"] as JsonObject)["name"] as JsonPrimitive).content
+                            )
+                        }
+
+                        productCategories.forEach { category ->
+                            callService(
+                                "backend",
+                                "POST",
+                                "http://localhost:8080/api/accounting/rootDeposit",
+                                accessToken,
+                                //language=json
+                                """
+                                  {
+                                    "items": [
+                                      {
+                                        "categoryId": { "name": "$category", "provider": "${provider.name}" },
+                                        "amount": 50000000000,
+                                        "description": "Root deposit",
+                                        "recipient": {
+                                          "type": "project",
+                                          "projectId": "${creds.projectId}"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                """.trimIndent()
+                            )
+                        }
+                    }
                 }
             }
 
@@ -238,6 +299,10 @@ fun main(args: Array<String>) {
                 }
             }
 
+            TopLevelMenu.test -> {
+                println("Not yet implemented") // TODO
+            }
+
             TopLevelMenu.environment -> {
                 when (EnvironmentMenu.display(prompt)) {
                     EnvironmentMenu.stop -> {
@@ -261,7 +326,7 @@ fun main(args: Array<String>) {
 
                         if (shouldDelete) {
                             LoadingIndicator("Shutting down virtual cluster...").use {
-                                compose.down(env).executeToText()
+                                compose.down(env, deleteVolumes = true).executeToText()
                             }
 
                             LoadingIndicator("Delete files associated with virtual cluster...").use {
@@ -373,7 +438,7 @@ private fun callService(
             addAll(opts)
         },
         tty = false
-    ).also { it.allowFailure = true }.executeToText()
+    ).also { it.allowFailure = true }.executeToText().first
 }
 
 private fun startProviderService(providerId: String) {
@@ -384,13 +449,9 @@ private fun startProviderService(providerId: String) {
     }
 }
 
-data class ProviderCredentials(val publicKey: String, val refreshToken: String)
+data class ProviderCredentials(val publicKey: String, val refreshToken: String, val projectId: String)
 private fun registerProvider(providerId: String, domain: String, port: Int): ProviderCredentials {
-    val tokenJson = callService("backend", "POST", "http://localhost:8080/auth/refresh", "theverysecretadmintoken")
-        ?: error("Failed to contact UCloud/Core backend. Check to see if the backend service is running.")
-    val accessToken = defaultMapper.decodeFromString(AccessTokenWrapper.serializer(), tokenJson).accessToken
-
-    println(accessToken)
+    val accessToken = fetchAccessToken()
 
     val projectId = defaultMapper.decodeFromString(
         BulkResponse.serializer(FindByStringId.serializer()),
@@ -413,7 +474,7 @@ private fun registerProvider(providerId: String, domain: String, port: Int): Pro
             opts = listOf(
                 "-H", "principal-investigator: user"
             )
-        ).also { println(it) } ?: error("Project creation failed. Check backend logs.")
+        ) ?: error("Project creation failed. Check backend logs.")
     ).responses.single().id
 
     callService(
@@ -458,10 +519,17 @@ private fun registerProvider(providerId: String, domain: String, port: Int): Pro
         val publicKey = (p["publicKey"] as JsonPrimitive).content
         val refreshToken = (p["refreshToken"] as JsonPrimitive).content
 
-        ProviderCredentials(publicKey, refreshToken)
+        ProviderCredentials(publicKey, refreshToken, projectId)
     }.getOrNull() ?: error("Provider creation failed. Check backend logs.")
 
     return credentials
+}
+
+private fun fetchAccessToken(): String {
+    val tokenJson = callService("backend", "POST", "http://localhost:8080/auth/refresh", "theverysecretadmintoken")
+        ?: error("Failed to contact UCloud/Core backend. Check to see if the backend service is running.")
+    val accessToken = defaultMapper.decodeFromString(AccessTokenWrapper.serializer(), tokenJson).accessToken
+    return accessToken
 }
 
 val defaultMapper = Json {
@@ -483,7 +551,7 @@ private fun startCluster(compose: DockerCompose, currentEnvironment: File) {
         cmd.allowFailure = true
 
         for (i in 0 until 100) {
-            if (cmd.executeToText() != null) break
+            if (cmd.executeToText().first != null) break
             Thread.sleep(1000)
         }
     }
@@ -538,6 +606,7 @@ object TopLevelMenu : Menu("Select an item from the menu") {
     val createProvider = item("providers", "Create provider...")
     val services = item("services", "Manage services...")
     val environment = item("environment", "Manage environment...")
+    val test = item("test", "Run a test suite...")
 }
 
 object EnvironmentMenu : Menu("Select an action") {
@@ -625,6 +694,7 @@ class LoadingIndicator(var prompt: String) {
             state.set(LoadingState.SUCCESS)
         } catch (ex: Throwable) {
             state.set(LoadingState.FAILURE)
+            throw ex
         } finally {
             join()
         }

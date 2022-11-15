@@ -54,8 +54,9 @@ fun startProcessAndCollectToString(
     stdoutMaxSizeInBytes: Int = 1024 * 1024,
     stderrMaxSizeIntBytes: Int = 1024 * 1024,
     workingDir: File? = null,
+    deadlineInMillis: Long = 1000 * 60 * 5,
 ): ProcessResultText {
-    val res = startProcessAndCollectToMemory(args, envs, stdin, stdoutMaxSizeInBytes, stderrMaxSizeIntBytes, workingDir)
+    val res = startProcessAndCollectToMemory(args, envs, stdin, stdoutMaxSizeInBytes, stderrMaxSizeIntBytes, workingDir, deadlineInMillis)
     return ProcessResultText(res.statusCode, res.stdout.decodeToString().trim(), res.stderr.decodeToString().trim())
 }
 
@@ -66,7 +67,9 @@ fun startProcessAndCollectToMemory(
     stdoutMaxSizeInBytes: Int = 1024 * 1024,
     stderrMaxSizeIntBytes: Int = 1024 * 1024,
     workingDir: File? = null,
+    deadlineInMillis: Long = 1000 * 60 * 5,
 ): ProcessResult {
+    val deadline = System.currentTimeMillis() + deadlineInMillis
     val process = startProcess(
         args,
         envs = envs,
@@ -94,7 +97,6 @@ fun startProcessAndCollectToMemory(
     while ((isStdoutOpen || isStderrOpen)) {
         if (process.stdout != null) {
             val bytesToRead = stdoutMaxSizeInBytes - stdoutPtr
-            // TODO Close the process
             if (bytesToRead <= 0) throw IllegalStateException("Max size has been exceeded")
 
             try {
@@ -113,7 +115,6 @@ fun startProcessAndCollectToMemory(
 
         if (process.stderr != null) {
             val bytesToRead = stderrMaxSizeIntBytes - stderrPtr
-            // TODO Close the process
             if (bytesToRead <= 0) throw IllegalStateException("Max size has been exceeded")
 
             try {
@@ -131,6 +132,16 @@ fun startProcessAndCollectToMemory(
         }
 
         status = process.retrieveStatus(waitForExit = false)
+        if (System.currentTimeMillis() >= deadline) {
+            runCatching {
+                process.stderr?.close()
+                process.stdout?.close()
+                process.stdin?.close()
+                process.jvm.destroyForcibly()
+            }
+            return ProcessResult(255, stdoutBuffer.copyOf(stdoutPtr), stderrBuffer.copyOf(stderrPtr))
+        }
+
         if (status.isRunning) {
             Thread.sleep(15)
         } else {

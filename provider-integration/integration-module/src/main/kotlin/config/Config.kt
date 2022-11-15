@@ -121,6 +121,7 @@ data class ConfigSchema(
             val executable: String? = null,
             val directory: String,
             val downstreamTls: Boolean = false,
+            val funceWrapper: Boolean = true,
         )
     }
 
@@ -405,6 +406,7 @@ data class ConfigSchema(
                 val categoryToSelector: Map<String, String> = emptyMap(),
                 val fakeIpMount: Boolean = false,
                 val ssh: Ssh? = null,
+                val usePortForwarding: Boolean = false,
             ) : Jobs() {
                 @Serializable
                 data class TolerationKeyAndValue(val key: String, val value: String)

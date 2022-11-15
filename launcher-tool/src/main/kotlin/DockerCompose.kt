@@ -35,6 +35,7 @@ data class ExecutableCommand(
     val workingDir: File? = null,
     val postProcessor: (result: ProcessResultText) -> String = { it.stdout },
     var allowFailure: Boolean = false,
+    var deadlineInMillis: Long = 1000 * 60 * 5,
 ) {
     fun toBashScript(): String {
         return buildString {
@@ -43,10 +44,10 @@ data class ExecutableCommand(
         }
     }
 
-    fun executeToText(): String? {
+    fun executeToText(): Pair<String?, String> {
         if (debugCommands) println("Command: " + args.joinToString(" ") { "'$it'" })
 
-        val result = startProcessAndCollectToString(args, workingDir = workingDir)
+        val result = startProcessAndCollectToString(args, workingDir = workingDir, deadlineInMillis = deadlineInMillis)
 
         if (debugCommands) {
             println("  Exit code: ${result.statusCode}")
@@ -55,7 +56,7 @@ data class ExecutableCommand(
         }
 
         if (result.statusCode != 0) {
-            if (allowFailure) return null
+            if (allowFailure) return Pair(null, result.stdout + result.stderr)
 
             println("Command failed!")
             println("Command: " + args.joinToString(" ") { "'$it'" })
@@ -65,13 +66,13 @@ data class ExecutableCommand(
             println("Stderr: ${result.stderr}")
             exitProcess(result.statusCode)
         }
-        return postProcessor(result)
+        return Pair(postProcessor(result), "")
     }
 }
 
 sealed class DockerCompose {
     abstract fun up(directory: File): ExecutableCommand
-    abstract fun down(directory: File): ExecutableCommand
+    abstract fun down(directory: File, deleteVolumes: Boolean = false): ExecutableCommand
     abstract fun ps(directory: File): ExecutableCommand
     abstract fun logs(directory: File, container: String): ExecutableCommand
     abstract fun start(directory: File, container: String): ExecutableCommand
@@ -82,8 +83,17 @@ sealed class DockerCompose {
         override fun up(directory: File): ExecutableCommand =
             ExecutableCommand(listOf(exe, "--project-directory", directory.absolutePath, "up", "-d"), directory)
 
-        override fun down(directory: File): ExecutableCommand =
-            ExecutableCommand(listOf(exe, "--project-directory", directory.absolutePath, "down"), directory)
+        override fun down(directory: File, deleteVolumes: Boolean): ExecutableCommand =
+            ExecutableCommand(
+                buildList {
+                    add(exe)
+                    add("--project-directory")
+                    add(directory.absolutePath)
+                    add("down")
+                    if (deleteVolumes) add("-v")
+                },
+                directory
+            )
 
         override fun ps(directory: File): ExecutableCommand =
             ExecutableCommand(
@@ -133,8 +143,18 @@ sealed class DockerCompose {
                 directory
             )
 
-        override fun down(directory: File): ExecutableCommand =
-            ExecutableCommand(listOf(exe, "compose", "--project-directory", directory.absolutePath, "down"), directory)
+        override fun down(directory: File, deleteVolumes: Boolean): ExecutableCommand =
+            ExecutableCommand(
+                buildList {
+                    add(exe)
+                    add("compose")
+                    add("--project-directory")
+                    add(directory.absolutePath)
+                    add("down")
+                    if (deleteVolumes) add("-v")
+                },
+                directory
+            )
 
         override fun ps(directory: File): ExecutableCommand =
             ExecutableCommand(
