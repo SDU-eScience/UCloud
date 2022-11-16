@@ -631,7 +631,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
         browseAffiliations({itemsPerPage: 250}), emptyPage
     );
 
-    const {appId} = useParams<{appId?: string;}>();
+    const {appId} = useParams<{appId: string;}>();
     const projectId = useProjectId();
     const documentRef = useRef<HTMLTextAreaElement>(null);
 
@@ -649,12 +649,14 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
     const isApprover = activeStateBreakDown != null;
 
     const [templates, fetchTemplates] = useCloudAPI<Templates | undefined>({noop: true}, undefined);
+    
     React.useEffect(() => {
         const {parentProjectId} = getDocument(grantApplication);
         if (parentProjectId && target !== RequestTarget.VIEW_APPLICATION) {
             fetchTemplates(retrieveTemplates({projectId: parentProjectId}));
         }
     }, [grantApplication.currentRevision.document.parentProjectId]);
+
     React.useEffect(() => {
         if (target === RequestTarget.VIEW_APPLICATION) return;
         if (!documentRef.current) return;
@@ -671,6 +673,12 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
             }
         }
     }, [templates.data]);
+
+    React.useEffect(() => {
+        if (!projectId && target === RequestTarget.EXISTING_PROJECT) {
+            navigate("/project/grants/personal");
+        }
+    }, [projectId]);
 
     React.useEffect(() => {
         if (documentRef.current) {

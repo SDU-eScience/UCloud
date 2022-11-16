@@ -257,6 +257,7 @@ export function useCloudCommand(): [boolean, InvokeCommand, React.RefObject<bool
     }, [setIsLoading]);
 
     useEffect(() => {
+        didCancel = false;
         return () => {
             didCancel = true;
         };

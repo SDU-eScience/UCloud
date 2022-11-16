@@ -20,6 +20,7 @@ interface GenericInputFieldProps {
     description?: string;
     onRemove?: () => void;
     error?: string;
+    children?: React.ReactNode;
 }
 
 const GenericInputField: React.FunctionComponent<GenericInputFieldProps> = props => {

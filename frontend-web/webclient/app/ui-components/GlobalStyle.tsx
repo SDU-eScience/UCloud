@@ -828,6 +828,8 @@ div.tooltip-content {
 div.tooltip-content.centered {
     justify-content: center;
 
+    z-index: 1;
+
     .user-box {
         width: 350px;
         height: 190px;

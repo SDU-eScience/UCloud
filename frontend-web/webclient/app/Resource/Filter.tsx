@@ -11,7 +11,7 @@ import {SlimDatePickerWrapper} from "@/ui-components/DatePicker";
 import {enGB} from "date-fns/locale";
 import ReactDatePicker from "react-datepicker";
 import {Toggle} from "@/ui-components/Toggle";
-import {doNothing, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
+import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {SortEntry} from "@/UCloud/ResourceApi";
@@ -164,6 +164,7 @@ export const FilterPill: React.FunctionComponent<{
     icon: IconName;
     onRemove: () => void;
     canRemove?: boolean;
+    children: React.ReactNode;
 }> = ({icon, onRemove, canRemove, children}) => {
     return <Stamp onClick={canRemove ? onRemove : undefined} icon={icon} color={"lightBlue"}>
         {children}
@@ -185,6 +186,7 @@ export const FilterWidget: React.FunctionComponent<{
     cursor?: Cursor;
     onClick?: () => void;
     browseType?: BrowseType;
+    children?: React.ReactNode;
 } & BaseFilterWidgetProps> = props => {
     return <FilterWidgetWrapper mr={props.browseType === BrowseType.Embedded ? "16px" : undefined} cursor={props.cursor} onClick={props.onClick}>
         <Icon name={props.icon} size={"16px"} color={"iconColor"} color2={"iconColor2"} mr={"8px"} />
@@ -197,6 +199,7 @@ export const ExpandableFilterWidget: React.FunctionComponent<{
     expanded: boolean;
     onExpand: () => void;
     browseType?: BrowseType;
+    children: React.ReactNode;
 } & BaseFilterWidgetProps> = props => {
     return <div>
         <FilterWidget icon={props.icon} browseType={props.browseType} title={props.title} onClick={props.onExpand} cursor={"pointer"}>
@@ -214,6 +217,7 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
     contentWidth?: string;
     facedownChevron?: boolean;
     browseType?: BrowseType;
+    children?: React.ReactNode;
 } & BaseFilterWidgetProps> = props => {
     const [open, setOpen] = useState(false);
 
@@ -461,6 +465,7 @@ export const ValuePill: React.FunctionComponent<{
     showValue: boolean;
     secondaryProperties?: string[];
     valueToString?: (value: string) => string;
+    children?: React.ReactNode;
 } & PillProps & BaseFilterWidgetProps> = (props) => {
     const onRemove = useCallback(() => {
         const allProperties = [...(props.secondaryProperties ?? [])];

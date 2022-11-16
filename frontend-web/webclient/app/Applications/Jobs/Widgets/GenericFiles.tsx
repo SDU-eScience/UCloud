@@ -12,6 +12,7 @@ import {FilesBrowse} from "@/Files/Files";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {prettyFilePath} from "@/Files/FilePath";
 import {BrowseType} from "@/Resource/BrowseType";
+import {FolderResourceNS} from "../Resources";
 
 type GenericFileParam =
     UCloud.compute.ApplicationParameterNS.InputFile |
@@ -63,6 +64,9 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
                     FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
                     dialogStore.success();
+                    if (anyFolderDuplicates()) {
+                        props.setWarning?.("Duplicate folders selected. This is not always supported.");
+                    }
                 }}
             />,
             doNothing,
@@ -73,7 +77,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
 
     const error = props.errors[props.parameter.name] != null;
     return <>
-        <input type={"hidden"} id={widgetId(props.parameter)}/>
+        <input type={"hidden"} id={widgetId(props.parameter)} />
         <FileSelectorInput
             id={widgetId(props.parameter) + "visual"}
             placeholder={`No ${isDirectoryInput ? "directory" : "file"} selected`}
@@ -109,6 +113,23 @@ export const FilesSetter: WidgetSetter = (param, value) => {
     selector.dispatchEvent(new Event("change"));
 };
 
-function findElement(param: GenericFileParam): HTMLSelectElement {
+function findElement(param: {name: string}): HTMLSelectElement {
     return document.getElementById(widgetId(param)) as HTMLSelectElement;
+}
+
+function findAllFolderNames(): string[] {
+    const result: string[] = [];
+    let count = 0;
+    while (true) {
+        const name: `${FolderResourceNS}${number}` = `resourceFolder${count++}`;
+        const element = findElement({name});
+        if (!element) break;
+        result.push(element.value);
+    }
+    return result;
+}
+
+export function anyFolderDuplicates(): boolean {
+    const dirs = findAllFolderNames();
+    return new Set(dirs).size !== dirs.length;
 }

@@ -146,10 +146,13 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                 // Note(Jonas): Creation can be done as long as user is ADMIN and at least one provider allows it,
                 // so this should be correct, unless I'm missing something.
                 let anySupported = false;
-                Object.keys(cb.supportByProvider).forEach(it => {
-                    const support: FileCollectionSupport = cb.supportByProvider[it];
-                    if (support && support.collection) {
-                        anySupported = anySupported || !!(support?.collection?.usersCanCreate);
+                Object.keys(cb.supportByProvider.productsByProvider).forEach(it => {
+                    const supports = cb.supportByProvider.productsByProvider[it];
+                    for (const entry of supports) {
+                        const support = entry.support as FileCollectionSupport;
+                        if (support.collection) {
+                            anySupported = anySupported || !!support.collection?.usersCanCreate;
+                        }
                     }
                 });
                 if (!anySupported) return false;

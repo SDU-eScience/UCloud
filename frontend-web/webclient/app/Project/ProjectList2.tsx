@@ -332,7 +332,7 @@ const ProjectRenderer: ItemRenderer<Project> = {
 };
 
 // Utility components
-const ProjectTooltip: React.FunctionComponent<{text: string}> = props => {
+const ProjectTooltip: React.FunctionComponent<{text: string; children?: React.ReactNode;}> = props => {
     return <Tooltip
         tooltipContentWidth="80px"
         wrapperOffsetLeft="0"

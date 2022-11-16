@@ -208,4 +208,5 @@ export interface HairProps {
     facialHair: FacialHair;
     facialHairColor: FacialHairColor;
     hatColor: HatColor;
+    children: React.ReactNode;
 }

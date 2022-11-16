@@ -712,6 +712,7 @@ const InfoCard: React.FunctionComponent<{
     stat: string,
     statTitle: string,
     icon: IconName,
+    children: React.ReactNode;
 }> = props => {
     return <HighlightedCard color={"purple"} isLoading={false}>
         <InfoCardContainer>
