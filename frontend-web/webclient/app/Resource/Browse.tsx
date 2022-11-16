@@ -96,6 +96,8 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     extraSidebar?: JSX.Element;
 }
 
+let i = 0;
+
 export interface BaseResourceBrowseProps<Res extends Resource> {
     browseType: BrowseType;
     isSearch?: boolean;
@@ -577,7 +579,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             </List>
         </>
     }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport, renaming,
-        viewProperties]);
+        viewProperties, operations]);
 
     if (!isEmbedded) {
         useTitle(api.titlePlural);
