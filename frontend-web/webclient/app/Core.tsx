@@ -83,6 +83,7 @@ import {injectFonts} from "@/ui-components/GlobalStyle";
 import {SharesOutgoing} from "@/Files/SharesOutgoing";
 import {ApplicationsOverview2} from "./Applications/Overview2";
 import {TerminalContainer} from "@/Terminal/Container";
+import {LOGIN_REDIRECT_KEY} from "@/Login/Login";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -225,7 +226,12 @@ interface RequireAuthOpts {
 function requireAuth<T>(Delegate: React.FunctionComponent<T>, opts?: RequireAuthOpts): React.FunctionComponent<T> {
     return function Auth(props: React.PropsWithChildren<T>) {
         const info = Client.userInfo;
+
         if (!Client.isLoggedIn || info === undefined) {
+            const loginPath = window.location.href.replace(`${window.location.origin}/app`, "");
+            if (loginPath) {
+                sessionStorage.setItem(LOGIN_REDIRECT_KEY, loginPath);
+            }
             return <Navigate to="/login" />;
         }
 
@@ -247,13 +253,13 @@ function requireAuth<T>(Delegate: React.FunctionComponent<T>, opts?: RequireAuth
 }
 
 const LoginSuccess = (): JSX.Element => {
-    const navigate = useNavigate();
     React.useEffect(() => {
         dispatchUserAction(USER_LOGIN);
         onLogin();
-        navigate("/");
     }, []);
-    return <Navigate to="/" />;
+
+    const path = sessionStorage.getItem(LOGIN_REDIRECT_KEY) ?? "/";
+    return <Navigate to={path} />;
 };
 
 export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
