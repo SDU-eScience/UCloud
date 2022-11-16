@@ -53,19 +53,17 @@ const defaultProps = {
     zIndex: 9999
 };
 
-const Tooltip = (
-    {
-        children,
-        zIndex,
-        wrapperOffsetLeft,
-        wrapperOffsetTop,
-        tooltipContentWidth,
-        tooltipContentHeight,
-        omitPositionBox,
-        noDelay,
-        ...props
-    }: Tooltip
-): JSX.Element => {
+const Tooltip = ({
+    children,
+    zIndex,
+    wrapperOffsetLeft,
+    wrapperOffsetTop,
+    tooltipContentWidth,
+    tooltipContentHeight,
+    omitPositionBox,
+    noDelay,
+    ...props
+}: Tooltip): JSX.Element => {
     let portal = document.getElementById(tooltipPortalId);
     if (!portal) {
         const elem = document.createElement("div");
