@@ -1,26 +1,23 @@
 package dk.sdu.cloud
 
-import java.io.File
-import kotlin.system.exitProcess
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTimedValue
-
 fun findDocker(): String {
-    return startProcessAndCollectToString(listOf("/usr/bin/which", "docker")).stdout.trim().takeIf { it.isNotEmpty() }
-        ?: error("Could not find Docker!")
+    return ExecutableCommand(listOf("/usr/bin/which", "docker")).executeToText().first?.trim()?.takeIf { it.isNotEmpty() }
+        ?: error("Could not find docker")
 }
 
 fun findCompose(): DockerCompose {
     val dockerExe = findDocker()
 
     val hasPluginStyle = runCatching {
-        startProcessAndCollectToString(listOf(dockerExe, "compose", "version"))
-    }.getOrNull()?.takeIf { it.stdout.startsWith("Docker Compose", ignoreCase = true) } != null
+        ExecutableCommand(listOf(dockerExe, "compose", "version"), allowFailure = true).executeToText().first
+    }.getOrNull()?.takeIf { it.startsWith("Docker Compose", ignoreCase = true) } != null
 
     if (hasPluginStyle) return DockerCompose.Plugin(dockerExe)
 
-    val dockerComposeExe = startProcessAndCollectToString(listOf("/usr/bin/which", "docker-compose")).stdout.trim()
-        .takeIf { it.isNotEmpty() }
+    val dockerComposeExe = ExecutableCommand(
+        listOf("/usr/bin/which", "docker-compose"),
+        allowFailure = true
+    ).executeToText().first?.trim()?.takeIf { it.isNotEmpty() }
 
     val hasClassicStyle = dockerComposeExe != null
     if (hasClassicStyle) return DockerCompose.Classic(dockerComposeExe!!)
@@ -28,86 +25,59 @@ fun findCompose(): DockerCompose {
     error("Could not find docker compose!")
 }
 
-val debugCommands = System.getenv("DEBUG_COMMANDS") != null
-
-data class ExecutableCommand(
-    val args: List<String>,
-    val workingDir: File? = null,
-    val postProcessor: (result: ProcessResultText) -> String = { it.stdout },
-    var allowFailure: Boolean = false,
-    var deadlineInMillis: Long = 1000 * 60 * 5,
-) {
-    fun toBashScript(): String {
-        return buildString {
-            if (workingDir != null) appendLine("cd '$workingDir'")
-            appendLine(args.joinToString(" ") { "'$it'" })
-        }
-    }
-
-    fun executeToText(): Pair<String?, String> {
-        if (debugCommands) println("Command: " + args.joinToString(" ") { "'$it'" })
-
-        val result = startProcessAndCollectToString(args, workingDir = workingDir, deadlineInMillis = deadlineInMillis)
-
-        if (debugCommands) {
-            println("  Exit code: ${result.statusCode}")
-            println("  Stdout: ${result.stdout}")
-            println("  Stderr: ${result.stderr}")
-        }
-
-        if (result.statusCode != 0) {
-            if (allowFailure) return Pair(null, result.stdout + result.stderr)
-
-            println("Command failed!")
-            println("Command: " + args.joinToString(" ") { "'$it'" })
-            println("Directory: $workingDir")
-            println("Exit code: ${result.statusCode}")
-            println("Stdout: ${result.stdout}")
-            println("Stderr: ${result.stderr}")
-            exitProcess(result.statusCode)
-        }
-        return Pair(postProcessor(result), "")
-    }
-}
-
 sealed class DockerCompose {
-    abstract fun up(directory: File): ExecutableCommand
-    abstract fun down(directory: File, deleteVolumes: Boolean = false): ExecutableCommand
-    abstract fun ps(directory: File): ExecutableCommand
-    abstract fun logs(directory: File, container: String): ExecutableCommand
-    abstract fun start(directory: File, container: String): ExecutableCommand
-    abstract fun stop(directory: File, container: String): ExecutableCommand
-    abstract fun exec(directory: File, container: String, command: List<String>, tty: Boolean = true): ExecutableCommand
+    abstract fun up(directory: LFile, noRecreate: Boolean = false): ExecutableCommand
+    abstract fun down(directory: LFile, deleteVolumes: Boolean = false): ExecutableCommand
+    abstract fun ps(directory: LFile): ExecutableCommand
+    abstract fun logs(directory: LFile, container: String): ExecutableCommand
+    abstract fun start(directory: LFile, container: String): ExecutableCommand
+    abstract fun stop(directory: LFile, container: String): ExecutableCommand
+    abstract fun exec(directory: LFile, container: String, command: List<String>, tty: Boolean = true): ExecutableCommand
 
     class Classic(val exe: String) : DockerCompose() {
-        override fun up(directory: File): ExecutableCommand =
-            ExecutableCommand(listOf(exe, "--project-directory", directory.absolutePath, "up", "-d"), directory)
+        private fun base(directory: LFile): List<String> =
+            buildList {
+                add(exe)
+                add("--project-directory")
+                add(directory.absolutePath)
+                val composeName = composeName
+                if (composeName != null) {
+                    add("-p")
+                    add(composeName)
+                }
+            }
 
-        override fun down(directory: File, deleteVolumes: Boolean): ExecutableCommand =
+        override fun up(directory: LFile, noRecreate: Boolean): ExecutableCommand =
             ExecutableCommand(
                 buildList {
-                    add(exe)
-                    add("--project-directory")
-                    add(directory.absolutePath)
+                    addAll(base(directory))
+                    addAll(listOf("up", "-d") )
+                    if (noRecreate) add("--no-recreate")
+                },
+                directory
+            )
+
+        override fun down(directory: LFile, deleteVolumes: Boolean): ExecutableCommand =
+            ExecutableCommand(
+                buildList {
+                    addAll(base(directory))
                     add("down")
                     if (deleteVolumes) add("-v")
                 },
                 directory
             )
 
-        override fun ps(directory: File): ExecutableCommand =
+        override fun ps(directory: LFile): ExecutableCommand =
             ExecutableCommand(
-                listOf(exe, "--project-directory", directory.absolutePath, "ps"),
+                base(directory) + listOf("ps"),
                 directory,
                 allowFailure = true
             )
 
-        override fun logs(directory: File, container: String): ExecutableCommand =
+        override fun logs(directory: LFile, container: String): ExecutableCommand =
             ExecutableCommand(
+                base(directory) +
                 listOf(
-                    exe,
-                    "--project-directory",
-                    directory.absolutePath,
                     "logs",
                     "--follow",
                     "--no-log-prefix",
@@ -115,12 +85,10 @@ sealed class DockerCompose {
                 ), directory
             )
 
-        override fun exec(directory: File, container: String, command: List<String>, tty: Boolean): ExecutableCommand =
+        override fun exec(directory: LFile, container: String, command: List<String>, tty: Boolean): ExecutableCommand =
             ExecutableCommand(
                 buildList {
-                    add(exe)
-                    add("--project-directory")
-                    add(directory.absolutePath)
+                    addAll(base(directory))
                     add("exec")
                     if (!tty) add("-T")
                     add(container)
@@ -129,47 +97,64 @@ sealed class DockerCompose {
                 directory
             )
 
-        override fun start(directory: File, container: String): ExecutableCommand =
-            ExecutableCommand(listOf(exe, "--project-directory", directory.absolutePath, "start", container), directory)
+        override fun start(directory: LFile, container: String): ExecutableCommand =
+            ExecutableCommand(base(directory) + listOf("start", container), directory)
 
-        override fun stop(directory: File, container: String): ExecutableCommand =
-            ExecutableCommand(listOf(exe, "--project-directory", directory.absolutePath, "stop", container), directory)
+        override fun stop(directory: LFile, container: String): ExecutableCommand =
+            ExecutableCommand(base(directory) + listOf("stop", container), directory)
     }
 
     class Plugin(val exe: String) : DockerCompose() {
-        override fun up(directory: File): ExecutableCommand =
-            ExecutableCommand(
-                listOf(exe, "compose", "--project-directory", directory.absolutePath, "up", "-d"),
-                directory
-            )
+        private fun base(directory: LFile): List<String> =
+            buildList {
+                add(exe)
+                add("compose")
+                add("--project-directory")
+                add(directory.absolutePath)
+                val composeName = composeName
+                if (composeName != null) {
+                    add("-p")
+                    add(composeName)
+                }
+            }
 
-        override fun down(directory: File, deleteVolumes: Boolean): ExecutableCommand =
+        override fun up(directory: LFile, noRecreate: Boolean): ExecutableCommand =
             ExecutableCommand(
                 buildList {
-                    add(exe)
-                    add("compose")
-                    add("--project-directory")
-                    add(directory.absolutePath)
-                    add("down")
-                    if (deleteVolumes) add("-v")
+                    addAll(base(directory))
+                    addAll(listOf("up", "-d") )
+                    if (noRecreate) add("--no-recreate")
                 },
                 directory
             )
 
-        override fun ps(directory: File): ExecutableCommand =
+        override fun down(directory: LFile, deleteVolumes: Boolean): ExecutableCommand =
             ExecutableCommand(
-                listOf(exe, "compose", "--project-directory", directory.absolutePath, "ps"),
+                buildList {
+                    addAll(base(directory))
+
+                    if (!deleteVolumes) {
+                        add("down")
+                    } else {
+                        add("rm")
+                        add("--stop")
+                        add("--volumes")
+                        add("--force")
+                    }
+                },
+                directory
+            )
+
+        override fun ps(directory: LFile): ExecutableCommand =
+            ExecutableCommand(
+                base(directory) + listOf("ps"),
                 directory,
                 allowFailure = true
             )
 
-        override fun logs(directory: File, container: String): ExecutableCommand =
+        override fun logs(directory: LFile, container: String): ExecutableCommand =
             ExecutableCommand(
-                listOf(
-                    exe,
-                    "compose",
-                    "--project-directory",
-                    directory.absolutePath,
+                base(directory) + listOf(
                     "logs",
                     "--follow",
                     "--no-log-prefix",
@@ -177,13 +162,10 @@ sealed class DockerCompose {
                 ), directory
             )
 
-        override fun exec(directory: File, container: String, command: List<String>, tty: Boolean): ExecutableCommand =
+        override fun exec(directory: LFile, container: String, command: List<String>, tty: Boolean): ExecutableCommand =
             ExecutableCommand(
                 buildList {
-                    add(exe)
-                    add("compose")
-                    add("--project-directory")
-                    add(directory.absolutePath)
+                    addAll(base(directory))
                     add("exec")
                     if (!tty) add("-T")
                     add(container)
@@ -192,15 +174,15 @@ sealed class DockerCompose {
                 directory
             )
 
-        override fun start(directory: File, container: String): ExecutableCommand =
+        override fun start(directory: LFile, container: String): ExecutableCommand =
             ExecutableCommand(
-                listOf(exe, "compose", "--project-directory", directory.absolutePath, "start", container),
+                base(directory) + listOf("start", container),
                 directory
             )
 
-        override fun stop(directory: File, container: String): ExecutableCommand =
+        override fun stop(directory: LFile, container: String): ExecutableCommand =
             ExecutableCommand(
-                listOf(exe, "compose", "--project-directory", directory.absolutePath, "stop", container),
+                base(directory) + listOf("stop", container),
                 directory
             )
     }

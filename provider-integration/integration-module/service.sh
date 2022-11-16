@@ -17,6 +17,7 @@ if [[ $running_k8 == 0 ]]; then
     uid=11042
 fi
 
+chmod o+x /opt/ucloud
 mkdir -p /home/ucloud
 chown -R $uid:$uid /home/ucloud
 chown -R $uid:$uid /etc/ucloud
@@ -37,7 +38,7 @@ isrunning() {
 
 startsvc() {
     if ! isrunning; then
-        ./gradlew buildDebug --console=plain
+        gradle buildDebug --console=plain
 
         nohup sudo -u "#$uid" ucloud &> /tmp/service.log &
         echo $uid

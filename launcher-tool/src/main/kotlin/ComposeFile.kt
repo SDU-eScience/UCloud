@@ -14,39 +14,43 @@ sealed class PortAllocator {
     }
 
     class Remapped(private val base: Int) : PortAllocator() {
+        var portAllocator = base
+        val allocatedPorts = HashMap<Int, Int>()
+
         override fun allocate(port: Int): Int {
-            return (port + base) % Short.MAX_VALUE
+            allocatedPorts[port] = portAllocator
+            return portAllocator++
         }
     }
 }
 
 data class Environment(
     val name: String,
-    val portAllocator: PortAllocator,
+    val repoRoot: LFile,
+    val doWriteFile: Boolean,
 ) {
-    val repoRoot = run {
-        when {
-            File(".git").exists() -> File(".")
-            File("../.git").exists() -> File("..")
-            else -> error("Unable to determine repository root. Please run this script from the root of the repository.")
-        }
-    }.absoluteFile.normalize()
+    val dataDirectory = currentEnvironment.also { it.mkdirs() }
 
-    val dataDirectory = File(repoRoot, ".compose/$name").also { it.mkdirs() }
-
-    fun createComposeFile(services: List<ComposeService>): File {
-        val builder = ComposeBuilder(this)
-        with(builder) {
-            for (service in services) {
-                with(service) {
-                    build()
+    fun createComposeFile(services: List<ComposeService>): LFile {
+        disableRemoteFileWriting = !doWriteFile
+        try {
+            LoadingIndicator(if (doWriteFile) "Creating compose environment..." else "Initializing service list...").use {
+                val builder = ComposeBuilder(this)
+                with(builder) {
+                    for (service in services) {
+                        with(service) {
+                            build()
+                        }
+                    }
                 }
-            }
-        }
 
-        val file = File(dataDirectory, "docker-compose.yaml")
-        file.writeText(builder.createComposeFile())
-        return file
+                val file = dataDirectory.child("docker-compose.yaml")
+                file.writeText(builder.createComposeFile())
+                return file
+            }
+        } finally {
+            disableRemoteFileWriting = false
+        }
     }
 }
 
@@ -109,10 +113,10 @@ sealed class ComposeService {
 
     object UCloudBackend : ComposeService() {
         override fun ComposeBuilder.build() {
-            val logs = File(environment.dataDirectory, "logs").also { it.mkdirs() }
-            val homeDir = File(environment.dataDirectory, "backend-home").also { it.mkdirs() }
-            val configDir = File(environment.dataDirectory, "backend-config").also { it.mkdirs() }
-            val gradleDir = File(environment.dataDirectory, "backend-gradle").also { it.mkdirs() }
+            val logs = environment.dataDirectory.child("logs").also { it.mkdirs() }
+            val homeDir = environment.dataDirectory.child("backend-home").also { it.mkdirs() }
+            val configDir = environment.dataDirectory.child("backend-config").also { it.mkdirs() }
+            val gradleDir = environment.dataDirectory.child("backend-gradle").also { it.mkdirs() }
 
             service(
                 "backend",
@@ -126,8 +130,8 @@ sealed class ComposeService {
                         "restart": "always",
                         "hostname": "backend",
                         "ports": [
-                          "${environment.portAllocator.allocate(8080)}:8080",
-                          "${environment.portAllocator.allocate(42999)}:42999"
+                          "${portAllocator.allocate(8080)}:8080",
+                          "${portAllocator.allocate(42999)}:42999"
                         ],
                         "volumes": [
                           "${environment.repoRoot}/backend:/opt/ucloud",
@@ -143,7 +147,7 @@ sealed class ComposeService {
                 ),
             )
 
-            val postgresDataDir = File(environment.dataDirectory, "pg-data").also { it.mkdirs() }
+            val postgresDataDir = environment.dataDirectory.child("pg-data").also { it.mkdirs() }
 
             service(
                 "postgres",
@@ -163,7 +167,7 @@ sealed class ComposeService {
                           "${environment.repoRoot}/backend:/opt/ucloud"
                         ],
                         "ports": [
-                          "${environment.portAllocator.allocate(35432)}:5432"
+                          "${portAllocator.allocate(35432)}:5432"
                         ]
                       }
                     """.trimIndent()
@@ -192,7 +196,7 @@ sealed class ComposeService {
                 address = "https://postgres.localhost.direct"
             )
 
-            val redisDataDir = File(environment.dataDirectory, "redis-data").also { it.mkdirs() }
+            val redisDataDir = environment.dataDirectory.child("redis-data").also { it.mkdirs() }
             service(
                 "redis",
                 "UCloud/Core: Redis",
@@ -230,7 +234,7 @@ sealed class ComposeService {
                         "hostname": "frontend",
                         "working_dir": "/opt/ucloud",
                         "ports": [
-                          "${environment.portAllocator.allocate(9000)}:9000"
+                          "${portAllocator.allocate(9000)}:9000"
                         ],
                         "volumes": [
                           "${environment.repoRoot}/frontend-web/webclient:/opt/ucloud"
@@ -247,36 +251,48 @@ sealed class ComposeService {
 
     object Kubernetes : Provider() {
         override fun ComposeBuilder.build() {
-            val k8Provider = File(environment.dataDirectory, "k8").also { it.mkdirs() }
-            val k3sDir = File(k8Provider, "k3s").also { it.mkdirs() }
-            val k3sOutput = File(k3sDir, "output").also { it.mkdirs() }
+            val k8Provider = environment.dataDirectory.child("k8").also { it.mkdirs() }
+            val k3sDir = k8Provider.child("k3s").also { it.mkdirs() }
+            val k3sOutput = k3sDir.child("output").also { it.mkdirs() }
 
             val k3sData = "k3sdata".also { volumes.add(it) }
             val k3sCni = "k3scni".also { volumes.add(it) }
             val k3sKubelet = "k3skubelet".also { volumes.add(it) }
             val k3sEtc = "k3setc".also { volumes.add(it) }
 
-            val imDir = File(k8Provider, "im").also { it.mkdirs() }
-            val imGradle = File(imDir, "gradle").also { it.mkdirs() }
-            val imData = File(imDir, "data").also { it.mkdirs() }
-            val imStorage = File(imDir, "storage").also { it.mkdirs() }
+            val imDir = k8Provider.child("im").also { it.mkdirs() }
+            val imGradle = imDir.child("gradle").also { it.mkdirs() }
+            val imData = imDir.child("data").also { it.mkdirs() }
+            val imStorage = imDir.child("storage").also { it.mkdirs() }
             listOf("home", "projects", "collections").forEach {
-                File(imStorage, it).mkdir()
+                imStorage.child(it).mkdirs()
             }
-            val imLogs = File(environment.dataDirectory, "logs").also { it.mkdirs() }
+            val imLogs = environment.dataDirectory.child("logs").also { it.mkdirs() }
 
-            val passwdDir = File(imDir, "passwd").also { it.mkdirs() }
-            val passwdFile = File(passwdDir, "passwd")
-            val groupFile = File(passwdDir, "group")
-            val shadowFile = File(passwdDir, "shadow")
+            val passwdDir = imDir.child("passwd").also { it.mkdirs() }
+            val passwdFile = passwdDir.child("passwd")
+            val groupFile = passwdDir.child("group")
+            val shadowFile = passwdDir.child("shadow")
             if (!passwdFile.exists()) {
-                passwdFile.appendText("ucloud:x:998:998::/home/ucloud:/bin/sh\n")
-                groupFile.appendText("ucloud:x:998:\n")
-                shadowFile.appendText("ucloud:!:19110::::::\n")
+                passwdFile.writeText(
+                    """
+                        ucloud:x:998:998::/home/ucloud:/bin/sh
+                        ucloudalt:x:11042:11042::/home/ucloudalt:/bin/sh
+                    """.trimIndent()
+                )
+                groupFile.writeText(
+                    """
+                        ucloud:x:998:
+                        ucloudalt:x:11042:
+                    """.trimIndent()
+                )
 
-                passwdFile.appendText("ucloudalt:x:11042:11042::/home/ucloudalt:/bin/sh\n")
-                groupFile.appendText("ucloudalt:x:11042:\n")
-                shadowFile.appendText("ucloudalt:!:19110::::::\n")
+                shadowFile.writeText(
+                    """
+                        ucloud:!:19110::::::
+                        ucloudalt:!:19110::::::
+                    """.trimIndent()
+                )
             }
 
             service(
@@ -337,14 +353,14 @@ sealed class ComposeService {
         }
 
         override fun install(credentials: ProviderCredentials) {
-            val k8Provider = File(currentEnvironment, "k8").also { it.mkdirs() }
-            val imDir = File(k8Provider, "im").also { it.mkdirs() }
-            val imData = File(imDir, "data").also { it.mkdirs() }
+            val k8Provider = currentEnvironment.child("k8").also { it.mkdirs() }
+            val imDir = k8Provider.child("im").also { it.mkdirs() }
+            val imData = imDir.child("data").also { it.mkdirs() }
 
-            val installMarker = File(imData, ".install-marker")
+            val installMarker = imData.child(".install-marker")
             if (installMarker.exists()) return
 
-            File(imData, "core.yaml").writeText(
+            imData.child("core.yaml").writeText(
                 //language=yaml
                 """
                     providerId: k8
@@ -365,7 +381,7 @@ sealed class ComposeService {
                 """.trimIndent()
             )
 
-            File(imData, "server.yaml").writeText(
+            imData.child("server.yaml").writeText(
                 //language=yaml
                 """
                     refreshToken: ${credentials.refreshToken}
@@ -376,9 +392,9 @@ sealed class ComposeService {
                 """.trimIndent()
             )
 
-            File(imData, "ucloud_crt.pem").writeText(credentials.publicKey)
+            imData.child("ucloud_crt.pem").writeText(credentials.publicKey)
 
-            File(imData, "products.yaml").writeText(
+            imData.child("products.yaml").writeText(
                 //language=yaml
                 """
                     compute:
@@ -434,7 +450,7 @@ sealed class ComposeService {
                 """.trimIndent()
             )
 
-            File(imData, "plugins.yaml").writeText(
+            imData.child("plugins.yaml").writeText(
                 //language=yaml
                 """
                   connection:
@@ -511,7 +527,8 @@ sealed class ComposeService {
                       sleep 1
                       echo "Waiting for Kubernetes to be ready..."
                     done
-                """.trimIndent())
+                """.trimIndent()),
+                tty = false
             ).executeToText()
 
             compose.exec(
@@ -522,7 +539,8 @@ sealed class ComposeService {
                     "-i",
                     "s/127.0.0.1/k3/g",
                     "/mnt/k3s/kubeconfig.yaml"
-                )
+                ),
+                tty = false
             ).executeToText()
 
             compose.exec(
@@ -535,7 +553,8 @@ sealed class ComposeService {
                     "create",
                     "namespace",
                     "ucloud-apps"
-                )
+                ),
+                tty = false
             ).executeToText()
 
             compose.exec(
@@ -579,19 +598,22 @@ sealed class ComposeService {
                                     storage: 1000Gi
                         EOF
                     """.trimIndent()
-                )
+                ),
+                tty = false
             ).executeToText()
 
             compose.exec(
                 currentEnvironment,
                 "k8",
-                listOf("kubectl", "--kubeconfig", "/mnt/k3s/kubeconfig.yaml", "create", "-f", "/tmp/pvc.yml")
+                listOf("kubectl", "--kubeconfig", "/mnt/k3s/kubeconfig.yaml", "create", "-f", "/tmp/pvc.yml"),
+                tty = false
             ).executeToText()
 
             compose.exec(
                 currentEnvironment,
                 "k8",
-                listOf("rm", "/tmp/pvc.yml")
+                listOf("rm", "/tmp/pvc.yml"),
+                tty = false
             ).executeToText()
 
             installMarker.writeText("done")
@@ -630,27 +652,27 @@ sealed class ComposeService {
 
     object Gateway : ComposeService() {
         override fun ComposeBuilder.build() {
-            val gatewayDir = File(environment.dataDirectory, "gateway").also { it.mkdirs() }
-            val gatewayData = File(gatewayDir, "data").also { it.mkdirs() }
-            val certificates = File(gatewayDir, "certs").also { it.mkdirs() }
+            val gatewayDir = environment.dataDirectory.child("gateway").also { it.mkdirs() }
+            val gatewayData = gatewayDir.child("data").also { it.mkdirs() }
+            val certificates = gatewayDir.child("certs").also { it.mkdirs() }
 
             // See https://get.localhost.direct for details about this. Base64 just to avoid showing up in search
             // results.
-            File(certificates, "tls.crt").writeBytes(
+            certificates.child("tls.crt").writeBytes(
                 Base64.getDecoder().decode(
                     Gateway::class.java.getResourceAsStream("/tlsc.txt")!!.readAllBytes()
                         .decodeToString().replace("\r", "").replace("\n", "")
                 )
             )
 
-            File(certificates, "tls.key").writeBytes(
+            certificates.child("tls.key").writeBytes(
                 Base64.getDecoder().decode(
                     Gateway::class.java.getResourceAsStream("/tlsk.txt")!!.readAllBytes()
                         .decodeToString().replace("\r", "").replace("\n", "")
                 )
             )
 
-            val gatewayConfig = File(gatewayDir, "Caddyfile")
+            val gatewayConfig = gatewayDir.child("Caddyfile")
             gatewayConfig.writeText(
                 """
                     https://ucloud.localhost.direct {
@@ -714,8 +736,8 @@ sealed class ComposeService {
                           "${certificates.absolutePath}:/certs"
                         ],
                         "ports": [
-                          "${environment.portAllocator.allocate(80)}:80",
-                          "${environment.portAllocator.allocate(443)}:443" 
+                          "${portAllocator.allocate(80)}:80",
+                          "${portAllocator.allocate(443)}:443" 
                         ],
                         "hostname": "gateway"
                       }
