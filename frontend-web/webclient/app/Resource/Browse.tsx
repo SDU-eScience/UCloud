@@ -96,8 +96,6 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     extraSidebar?: JSX.Element;
 }
 
-let i = 0;
-
 export interface BaseResourceBrowseProps<Res extends Resource> {
     browseType: BrowseType;
     isSearch?: boolean;
