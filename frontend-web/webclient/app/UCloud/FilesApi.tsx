@@ -747,41 +747,41 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     }
 
     public copy(request: BulkRequest<FilesCopyRequestItem>): APICallParameters<BulkRequest<FilesCopyRequestItem>> {
-        return apiUpdate(request, this.baseContext, "/copy");
+        return apiUpdate(request, this.baseContext, "copy");
     }
 
     public move(request: BulkRequest<FilesMoveRequestItem>): APICallParameters<BulkRequest<FilesMoveRequestItem>> {
-        return apiUpdate(request, this.baseContext, "/move");
+        return apiUpdate(request, this.baseContext, "move");
     }
 
     public createUpload(
         request: BulkRequest<FilesCreateUploadRequestItem>
     ): APICallParameters<BulkRequest<FilesCreateUploadRequestItem>> {
-        return apiCreate(request, this.baseContext, "/upload");
+        return apiCreate(request, this.baseContext, "upload");
     }
 
     public createDownload(
         request: BulkRequest<FilesCreateDownloadRequestItem>
     ): APICallParameters<BulkRequest<FilesCreateDownloadRequestItem>> {
-        return apiCreate(request, this.baseContext, "/download");
+        return apiCreate(request, this.baseContext, "download");
     }
 
     public createFolder(
         request: BulkRequest<FilesCreateFolderRequestItem>
     ): APICallParameters<BulkRequest<FilesCreateFolderRequestItem>> {
-        return apiCreate(request, this.baseContext, "/folder");
+        return apiCreate(request, this.baseContext, "folder");
     }
 
     public trash(
         request: BulkRequest<FilesTrashRequestItem>
     ): APICallParameters<BulkRequest<FilesTrashRequestItem>> {
-        return apiUpdate(request, this.baseContext, "/trash");
+        return apiUpdate(request, this.baseContext, "trash");
     }
 
     public emptyTrash(
         request: BulkRequest<FilesEmptyTrashRequestItem>
     ): APICallParameters<BulkRequest<FilesEmptyTrashRequestItem>> {
-        return apiUpdate(request, this.baseContext, "/emptyTrash");
+        return apiUpdate(request, this.baseContext, "emptyTrash");
     }
 
     fileSelectorModalStyle = largeModalStyle;

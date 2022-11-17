@@ -28,7 +28,7 @@ import {bulkRequestOf} from "@/DefaultObjects";
 import {BrowseType} from "@/Resource/BrowseType";
 import {formatDistanceToNow} from "date-fns/esm";
 import {ListRowStat} from "@/ui-components/List";
-import {apiUpdate} from "@/Authentication/DataHook";
+import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -302,42 +302,19 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
     }
 
     terminate(request: BulkRequest<FindByStringId>): APICallParameters<BulkRequest<FindByStringId>, BulkResponse<any | null>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "terminate",
-            payload: request,
-            parameters: request
-        };
+        return apiUpdate(request, this.baseContext, "terminate");
     }
 
     retrieveUtilization(request: {jobId: string}): APICallParameters<{jobId: string}, ComputeUtilization> {
-        return {
-            context: "",
-            method: "GET",
-            path: buildQueryString(this.baseContext + "retrieveUtilization", request),
-            parameters: request
-        };
+        return apiRetrieve(request, this.baseContext, "retrieveUtilization");
     }
 
     extend(request: BulkRequest<ExtendRequest>): APICallParameters<BulkRequest<ExtendRequest>, BulkResponse<any | null>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "extend",
-            payload: request,
-            parameters: request
-        };
+        return apiUpdate(request, this.baseContext, "extend");
     }
 
     suspend(request: BulkRequest<SuspendRequest>): APICallParameters<BulkRequest<SuspendRequest>, BulkResponse<any | null>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "suspend",
-            payload: request,
-            parameters: request
-        };
+        return apiUpdate(request, this.baseContext, "suspend");
     }
     
     unsuspend(request: BulkRequest<ResumeRequest>): APICallParameters {
@@ -347,13 +324,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
     openInteractiveSession(
         request: BulkRequest<OpenInteractiveSessionRequest>
     ): APICallParameters<BulkRequest<OpenInteractiveSessionRequest>, BulkResponse<InteractiveSession>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "interactiveSession",
-            payload: request,
-            parameters: request
-        };
+        return apiUpdate(request, this.baseContext, "interactiveSession");
     }
 }
 
