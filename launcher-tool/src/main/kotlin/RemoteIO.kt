@@ -9,7 +9,6 @@ import net.schmizz.sshj.connection.channel.direct.Session
 import java.lang.StringBuilder
 import java.nio.file.Files
 import java.util.*
-import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 
 var disableRemoteFileWriting = false
@@ -27,24 +26,6 @@ class SshConnection(
 
     inline fun <R> useSession(block: (Session) -> R): R {
         return ssh.startSession().use(block)
-    }
-
-    fun exec(args: List<String>): Session.Command {
-        return ssh.startSession().use { session ->
-            session.exec(
-                args.joinToString(" ") {
-                    require(!it.contains("'")) { "Command cannot contain: '" }
-
-                    "'$it'"
-                }
-            )
-        }
-    }
-
-    fun close() {
-        shell.close()
-        sftp.close()
-        ssh.close()
     }
 
     companion object {

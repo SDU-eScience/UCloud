@@ -14,6 +14,8 @@ fun serviceByName(name: String): Service {
     return allServices.find { it.containerName == name } ?: error("No such service: $name")
 }
 
+val allVolumeNames = ArrayList<String>()
+
 class ServiceMenu(
     val requireLogs: Boolean = false,
     val requireExec: Boolean = false,

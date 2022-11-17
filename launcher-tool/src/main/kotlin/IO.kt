@@ -51,3 +51,9 @@ fun <T : ExecutableCommand> T.allowFailure(): T {
     allowFailure = true
     return this
 }
+
+data class ProcessResultText(
+    val statusCode: Int,
+    val stdout: String,
+    val stderr: String,
+)

@@ -16,8 +16,8 @@ if [[ $running_k8 == 0 ]]; then
     uid=11042
 fi
 
-! (test -f /mnt/storage) || chmod 755 /mnt/storage
-! (test -f /mnt/k3s) || chmod 755 /mnt/k3s
+! (test -d /mnt/storage) || chmod 755 /mnt/storage
+! (test -d /mnt/k3s) || chmod 755 /mnt/k3s
 chmod o+x /opt/ucloud
 mkdir -p /home/ucloud
 chown -R $uid:$uid /home/ucloud

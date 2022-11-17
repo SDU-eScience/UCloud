@@ -1,6 +1,5 @@
 package dk.sdu.cloud
 
-import java.io.File
 import java.util.Base64
 
 @JvmInline
@@ -74,6 +73,11 @@ class ComposeBuilder(val environment: Environment) {
             for ((index, vol) in volumes.withIndex()) {
                 if (index != 0) append(", ")
                 append(""" "$vol": {} """)
+            }
+
+            run {
+                val prefix = (composeName ?: environment.name) + "_"
+                volumes.forEach { allVolumeNames.add(prefix + it) }
             }
             append("} }")
         }.toString()
