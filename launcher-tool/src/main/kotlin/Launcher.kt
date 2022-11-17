@@ -30,41 +30,6 @@ fun ExecutableCommand(
 ): ExecutableCommand = commandFactory.create(args, workingDir, postProcessor, allowFailure, deadlineInMillis)
 
 fun main(args: Array<String>) {
-    if (false) {
-        LoadingIndicator("No output").use {
-            Thread.sleep(2000)
-        }
-        LoadingIndicator("Two lines").use {
-            Thread.sleep(1000)
-            printStatus("Line 1")
-            printStatus("Line 2")
-            Thread.sleep(1000)
-        }
-        LoadingIndicator("This is a test").use {
-            repeat(10) {
-                printStatus("This is a status: $it")
-                Thread.sleep(500L)
-            }
-        }
-        LoadingIndicator("This is a test with a lot of output in batches").use {
-            repeat(3) { outer ->
-                repeat(30) {
-                    printStatus("This is a status: ${outer * it}")
-                }
-                Thread.sleep(Random.nextInt(5) * 1000L)
-            }
-        }
-        LoadingIndicator("This is a test with a lot of output").use {
-            repeat(5000) {
-                printStatus("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA: $it")
-                printStatus("BBBBB: $it")
-                printStatus("CCCCCCCCCCCCCCC: $it")
-                printStatus("DDDDDDDDDDDDDDDDDDDDD: $it")
-                Thread.sleep(1)
-            }
-        }
-        return
-    }
     try {
         val postExecPath = args.getOrNull(0) ?: error("Bad invocation")
         postExecFile = File(postExecPath)
@@ -166,7 +131,7 @@ fun main(args: Array<String>) {
                         compose.exec(
                             currentEnvironment,
                             item.name,
-                            listOf("tail", "-f", "/tmp/service.log")
+                            listOf("sh", "-c", "tail -F /tmp/service.log /var/log/ucloud/*.log")
                         ).toBashScript()
                     )
                 } else {
