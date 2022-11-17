@@ -517,7 +517,7 @@ sealed class ComposeService {
                     "chown -R 11042:11042 /mnt/storage/*"
                 ),
                 tty = false
-            ).executeToText()
+            ).streamOutput().executeToText()
 
             compose.exec(
                 currentEnvironment,
@@ -529,7 +529,7 @@ sealed class ComposeService {
                     done
                 """.trimIndent()),
                 tty = false
-            ).executeToText()
+            ).streamOutput().executeToText()
 
             compose.exec(
                 currentEnvironment,
@@ -541,7 +541,7 @@ sealed class ComposeService {
                     "/mnt/k3s/kubeconfig.yaml"
                 ),
                 tty = false
-            ).executeToText()
+            ).streamOutput().executeToText()
 
             compose.exec(
                 currentEnvironment,
@@ -555,7 +555,7 @@ sealed class ComposeService {
                     "ucloud-apps"
                 ),
                 tty = false
-            ).executeToText()
+            ).streamOutput().executeToText()
 
             compose.exec(
                 currentEnvironment,
@@ -600,21 +600,21 @@ sealed class ComposeService {
                     """.trimIndent()
                 ),
                 tty = false
-            ).executeToText()
+            ).streamOutput().executeToText()
 
             compose.exec(
                 currentEnvironment,
                 "k8",
                 listOf("kubectl", "--kubeconfig", "/mnt/k3s/kubeconfig.yaml", "create", "-f", "/tmp/pvc.yml"),
                 tty = false
-            ).executeToText()
+            ).streamOutput().executeToText()
 
             compose.exec(
                 currentEnvironment,
                 "k8",
                 listOf("rm", "/tmp/pvc.yml"),
                 tty = false
-            ).executeToText()
+            ).streamOutput().executeToText()
 
             installMarker.writeText("done")
         }

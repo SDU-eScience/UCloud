@@ -48,8 +48,10 @@ class LocalExecutableCommandFactory() : ExecutableCommandFactory() {
         workingDir: LFile?,
         postProcessor: (result: ProcessResultText) -> String,
         allowFailure: Boolean,
-        deadlineInMillis: Long
-    ) = LocalExecutableCommand(args, workingDir as LocalFile?, postProcessor, allowFailure, deadlineInMillis)
+        deadlineInMillis: Long,
+        streamOutput: Boolean,
+    ) = LocalExecutableCommand(args, workingDir as LocalFile?, postProcessor, allowFailure, deadlineInMillis,
+        streamOutput)
 }
 
 data class LocalExecutableCommand(
@@ -58,6 +60,7 @@ data class LocalExecutableCommand(
     override val postProcessor: (result: ProcessResultText) -> String = { it.stdout },
     override var allowFailure: Boolean = false,
     override var deadlineInMillis: Long = 1000 * 60 * 5,
+    override var streamOutput: Boolean = false,
 ) : ExecutableCommand {
     override fun toBashScript(): String {
         return buildString {
@@ -69,29 +72,64 @@ data class LocalExecutableCommand(
     override fun executeToText(): Pair<String?, String> {
         if (debugCommands) println("Command: " + args.joinToString(" ") { "'$it'" })
 
-        val result = startProcessAndCollectToString(
-            args,
-            workingDir = workingDir?.jvmFile,
-            deadlineInMillis = deadlineInMillis
-        )
+        val deadline = System.currentTimeMillis() + deadlineInMillis
 
-        if (debugCommands) {
-            println("  Exit code: ${result.statusCode}")
-            println("  Stdout: ${result.stdout}")
-            println("  Stderr: ${result.stderr}")
+        val process = ProcessBuilder(args).apply {
+            if (workingDir != null) {
+                directory(workingDir.jvmFile)
+            }
+        }.start()
+
+        process.outputStream.close()
+        val output = process.inputStream.bufferedReader()
+        val error = process.errorStream.bufferedReader()
+
+        val outputBuilder = StringBuilder()
+        val errBuilder = StringBuilder()
+        val stdoutThread = Thread {
+            while (System.currentTimeMillis() < deadline) {
+                val line = output.readLine() ?: break
+                if (streamOutput) printStatus(line)
+                outputBuilder.appendLine(line)
+            }
+        }.also { it.start() }
+
+        val stderrThread = Thread {
+            while (System.currentTimeMillis() < deadline) {
+                val line = error.readLine() ?: break
+                if (streamOutput) printStatus(line)
+                errBuilder.appendLine(line)
+            }
+        }.also { it.start() }
+
+        stdoutThread.join()
+        stderrThread.join()
+        runCatching {
+            output.close()
+            error.close()
+
+            if (process.isAlive) process.destroy()
         }
 
-        if (result.statusCode != 0) {
-            if (allowFailure) return Pair(null, result.stdout + result.stderr)
+        val exitCode = process.waitFor()
+
+        if (debugCommands) {
+            println("  Exit code: ${exitCode}")
+            println("  Stdout: ${outputBuilder}")
+            println("  Stderr: ${errBuilder}")
+        }
+
+        if (exitCode != 0) {
+            if (allowFailure) return Pair(null, outputBuilder.toString() + errBuilder.toString())
 
             println("Command failed!")
             println("Command: " + args.joinToString(" ") { "'$it'" })
             println("Directory: $workingDir")
-            println("Exit code: ${result.statusCode}")
-            println("Stdout: ${result.stdout}")
-            println("Stderr: ${result.stderr}")
-            exitProcess(result.statusCode)
+            println("Exit code: ${exitCode}")
+            println("Stdout: ${outputBuilder}")
+            println("Stderr: ${errBuilder}")
+            exitProcess(exitCode)
         }
-        return Pair(postProcessor(result), "")
+        return Pair(postProcessor(ProcessResultText(exitCode, outputBuilder.toString(), errBuilder.toString())), "")
     }
 }

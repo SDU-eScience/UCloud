@@ -1,5 +1,6 @@
 package dk.sdu.cloud
 
+import net.schmizz.sshj.userauth.UserAuthException
 import org.fusesource.jansi.Ansi.ansi
 import java.io.File
 import kotlin.math.absoluteValue
@@ -130,14 +131,21 @@ fun initIO() {
             error("Unable to parse remote details from environment: $baseDir. Try deleting this folder.")
         }
 
-        val conn = SshConnection.create(username = lineSplit[0], host = lineSplit[1])
+        val conn = try {
+            SshConnection.create(username = lineSplit[0], host = lineSplit[1])
+        } catch (ex: UserAuthException) {
+            println("Unable to connect to ${lineSplit[0]}@${lineSplit[1]}!")
+            println("Please make sure that you have ssh-agent running and are able to connect to this server.")
+            println("Try running ssh-add and retry this command.")
+            exitProcess(1)
+        }
         localEnvironment = currentEnvironment as LocalFile
 
         commandFactory = RemoteExecutableCommandFactory(conn)
         fileFactory = RemoteFileFactory(conn)
 
         val remoteRepoRoot = fileFactory.create("ucloud")
-        if (!remoteRepoRoot.exists()) syncRepository(conn)
+        if (!remoteRepoRoot.exists()) syncRepository()
         val remoteEnvironment = remoteRepoRoot.child(".compose/${currentEnvironment.name}").also {
             it.mkdirs()
         }

@@ -69,7 +69,8 @@ class SshConnection(
     }
 }
 
-fun syncRepository(conn: SshConnection) {
+fun syncRepository() {
+    val conn = (commandFactory as? RemoteExecutableCommandFactory)?.connection ?: return
     LoadingIndicator("Synchronizing repository with remote").use {
         ProcessBuilder(
             listOf(
@@ -154,14 +155,16 @@ class RemoteExecutableCommandFactory(val connection: SshConnection) : Executable
         workingDir: LFile?,
         postProcessor: (result: ProcessResultText) -> String,
         allowFailure: Boolean,
-        deadlineInMillis: Long
+        deadlineInMillis: Long,
+        streamOutput: Boolean,
     ): ExecutableCommand = RemoteExecutableCommand(
         connection,
         args,
         workingDir,
         postProcessor,
         allowFailure,
-        deadlineInMillis
+        deadlineInMillis,
+        streamOutput
     )
 }
 
@@ -171,7 +174,8 @@ class RemoteExecutableCommand(
     override val workingDir: LFile?,
     override val postProcessor: (result: ProcessResultText) -> String,
     override var allowFailure: Boolean,
-    override var deadlineInMillis: Long
+    override var deadlineInMillis: Long,
+    override var streamOutput: Boolean,
 ) : ExecutableCommand {
     override fun toBashScript(): String {
         return buildString {
@@ -198,7 +202,7 @@ class RemoteExecutableCommand(
                 appendLine("echo")
                 appendLine("echo $boundary-${"$"}st")
                 appendLine("echo 1>&2 $boundary")
-            }.also {println(it)}.encodeToByteArray()
+            }.encodeToByteArray()
         )
 
         connection.shell.outputStream.flush()
@@ -208,13 +212,12 @@ class RemoteExecutableCommand(
         var exitCode = 0
         val stdoutThread = Thread {
             while (true) {
-                println("waiting for line")
                 val line = connection.shellOutput.readLine()
-                println("got line: $line")
                 if (line.startsWith(boundary)) {
                     exitCode = line.removePrefix("$boundary-").trim().toInt()
                     break
                 } else {
+                    if (streamOutput) printStatus(line)
                     outputBuilder.appendLine(line)
                 }
             }
@@ -223,10 +226,10 @@ class RemoteExecutableCommand(
         val stderrThread = Thread {
             while (true) {
                 val line = connection.shellError.readLine()
-                println("err line: $line")
                 if (line.startsWith(boundary)) {
                     break
                 } else {
+                    if (streamOutput) printStatus(line)
                     errBuilder.appendLine(line)
                 }
             }
@@ -240,14 +243,6 @@ class RemoteExecutableCommand(
 
         if (exitCode != 0) {
             if (allowFailure) {
-                repeat(10) { println() }
-                println("Command failed!")
-                println("Command: " + args.joinToString(" ") { "'$it'" })
-                println("Directory: $workingDir")
-                println("Exit code: ${exitCode}")
-                println("Stdout: ${output}")
-                println("Stderr: ${err}")
-                repeat(10) { println() }
                 return Pair(null, output + err)
             } else {
                 println("Command failed!")
@@ -260,52 +255,5 @@ class RemoteExecutableCommand(
             }
         }
         return Pair(output, "")
-
-        /*
-        if (exitCode != 0) {
-
-        }
-
-        connection.shellOutput.readLine()
-        connection.useSession { session ->
-            val command = session.exec(buildString {
-                append("sh -c \"")
-                if (workingDir != null) append("cd '$workingDir'; ")
-                append(args.joinToString(" ") { "'$it'" })
-                append("\"")
-            })
-
-            runCatching {
-                command.join(deadlineInMillis, TimeUnit.MILLISECONDS)
-            }
-
-            val outs = command.inputStream.readAllBytes().decodeToString()
-            val errs = command.errorStream.readAllBytes().decodeToString()
-
-            if (command.exitStatus != 0) {
-                if (allowFailure) {
-                    repeat(10) { println() }
-                    println("Command failed!")
-                    println("Command: " + args.joinToString(" ") { "'$it'" })
-                    println("Directory: $workingDir")
-                    println("Exit code: ${command.exitStatus}")
-                    println("Stdout: ${outs}")
-                    println("Stderr: ${errs}")
-                    repeat(10) { println() }
-                    return Pair(null, outs + errs)
-                } else {
-                    println("Command failed!")
-                    println("Command: " + args.joinToString(" ") { "'$it'" })
-                    println("Directory: $workingDir")
-                    println("Exit code: ${command.exitStatus}")
-                    println("Stdout: ${outs}")
-                    println("Stderr: ${errs}")
-                    exitProcess(command.exitStatus)
-                }
-            }
-            return Pair(postProcessor(ProcessResultText(command.exitStatus, outs, errs)), "")
-
-        }
-         */
     }
 }

@@ -11,6 +11,7 @@ import org.fusesource.jansi.AnsiConsole
 import java.awt.Desktop
 import java.io.File
 import java.net.URI
+import kotlin.random.Random
 import kotlin.system.exitProcess
 
 val prompt = ConsolePrompt()
@@ -29,6 +30,41 @@ fun ExecutableCommand(
 ): ExecutableCommand = commandFactory.create(args, workingDir, postProcessor, allowFailure, deadlineInMillis)
 
 fun main(args: Array<String>) {
+    if (false) {
+        LoadingIndicator("No output").use {
+            Thread.sleep(2000)
+        }
+        LoadingIndicator("Two lines").use {
+            Thread.sleep(1000)
+            printStatus("Line 1")
+            printStatus("Line 2")
+            Thread.sleep(1000)
+        }
+        LoadingIndicator("This is a test").use {
+            repeat(10) {
+                printStatus("This is a status: $it")
+                Thread.sleep(500L)
+            }
+        }
+        LoadingIndicator("This is a test with a lot of output in batches").use {
+            repeat(3) { outer ->
+                repeat(30) {
+                    printStatus("This is a status: ${outer * it}")
+                }
+                Thread.sleep(Random.nextInt(5) * 1000L)
+            }
+        }
+        LoadingIndicator("This is a test with a lot of output").use {
+            repeat(5000) {
+                printStatus("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA: $it")
+                printStatus("BBBBB: $it")
+                printStatus("CCCCCCCCCCCCCCC: $it")
+                printStatus("DDDDDDDDDDDDDDDDDDDDD: $it")
+                Thread.sleep(1)
+            }
+        }
+        return
+    }
     try {
         val postExecPath = args.getOrNull(0) ?: error("Bad invocation")
         postExecFile = File(postExecPath)
@@ -106,7 +142,7 @@ fun main(args: Array<String>) {
                         echo;
                         echo;
                         sudo -E ssh -F ~/.ssh/config $forward ${conn.username}@${conn.host} sleep inf  
-                    """.trimIndent().also { println(it) }
+                    """.trimIndent()
                 )
             }
 
@@ -148,6 +184,7 @@ fun main(args: Array<String>) {
 
             topLevel.createProvider -> {
                 generateComposeFile()
+                syncRepository()
                 val selectedProviders = CreateProviderMenu.display(prompt)
                 for (provider in selectedProviders) {
                     if (provider.disabled) continue
@@ -180,8 +217,8 @@ fun main(args: Array<String>) {
                                   echo "Waiting for UCloud sock to be ready..."
                                 done
                             """.trimIndent()),
-                            tty = false
-                        ).executeToText()
+                            tty = false,
+                        ).streamOutput().executeToText()
 
                         compose.exec(
                             currentEnvironment,
@@ -190,7 +227,7 @@ fun main(args: Array<String>) {
                             tty = false,
                         ).also {
                             it.deadlineInMillis = 30_000
-                        }.executeToText()
+                        }.streamOutput().executeToText()
                     }
 
                     LoadingIndicator("Restarting provider...").use {
@@ -248,6 +285,7 @@ fun main(args: Array<String>) {
 
             topLevel.services -> {
                 generateComposeFile()
+                syncRepository()
                 val service = serviceByName(ServiceMenu().display(prompt).name)
 
                 when (ServiceActionMenu.display(prompt)) {
@@ -271,22 +309,25 @@ fun main(args: Array<String>) {
             }
 
             topLevel.test -> {
+                generateComposeFile()
+                syncRepository()
                 println("Not yet implemented") // TODO
             }
 
             topLevel.environment -> {
                 generateComposeFile()
+                syncRepository()
 
                 when (EnvironmentMenu.display(prompt)) {
                     EnvironmentMenu.stop -> {
                         LoadingIndicator("Shutting down virtual cluster...").use {
-                            compose.down(currentEnvironment).executeToText()
+                            compose.down(currentEnvironment).streamOutput().executeToText()
                         }
                     }
 
                     EnvironmentMenu.restart -> {
                         LoadingIndicator("Shutting down virtual cluster...").use {
-                            compose.down(currentEnvironment).executeToText()
+                            compose.down(currentEnvironment).streamOutput().executeToText()
                         }
                         startCluster(compose, noRecreate = false)
                     }
@@ -299,7 +340,7 @@ fun main(args: Array<String>) {
 
                         if (shouldDelete) {
                             LoadingIndicator("Shutting down virtual cluster...").use {
-                                compose.down(currentEnvironment, deleteVolumes = true).executeToText()
+                                compose.down(currentEnvironment, deleteVolumes = true).streamOutput().executeToText()
                             }
 
                             LoadingIndicator("Deleting files associated with virtual cluster...").use {
@@ -333,7 +374,7 @@ fun main(args: Array<String>) {
 
                     EnvironmentMenu.switch -> {
                         LoadingIndicator("Shutting down virtual cluster...").use {
-                            compose.down(currentEnvironment).executeToText()
+                            compose.down(currentEnvironment).streamOutput().executeToText()
                         }
 
                         val baseDir = File(localEnvironment.jvmFile, ".compose").also { it.mkdirs() }
@@ -427,7 +468,7 @@ private fun callService(
             addAll(opts)
         },
         tty = false
-    ).also { it.allowFailure = true }.executeToText().first
+    ).allowFailure().executeToText().first
 }
 
 private fun startProviderService(providerId: String) {
@@ -528,7 +569,7 @@ val defaultMapper = Json {
 
 private fun startCluster(compose: DockerCompose, noRecreate: Boolean) {
     LoadingIndicator("Starting virtual cluster...").use {
-        compose.up(currentEnvironment, noRecreate = noRecreate).executeToText()
+        compose.up(currentEnvironment, noRecreate = noRecreate).streamOutput().executeToText()
     }
 
     LoadingIndicator("Starting UCloud...").use {
@@ -540,6 +581,7 @@ private fun startCluster(compose: DockerCompose, noRecreate: Boolean) {
         cmd.allowFailure = true
 
         for (i in 0 until 100) {
+            if (i > 20) cmd.streamOutput()
             if (cmd.executeToText().first != null) break
             Thread.sleep(1000)
         }
@@ -555,8 +597,8 @@ private fun startService(
             service.containerName,
             listOf("/opt/ucloud/service.sh", "start"),
             tty = false
-        )
+        ).streamOutput()
     } else {
-        return compose.start(currentEnvironment, service.containerName)
+        return compose.start(currentEnvironment, service.containerName).streamOutput()
     }
 }

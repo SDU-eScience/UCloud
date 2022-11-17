@@ -26,6 +26,7 @@ sealed class ExecutableCommandFactory {
         postProcessor: (result: ProcessResultText) -> String = { it.stdout },
         allowFailure: Boolean = false,
         deadlineInMillis: Long = 1000 * 60 * 5,
+        streamOutput: Boolean = false,
     ): ExecutableCommand
 }
 
@@ -35,7 +36,18 @@ interface ExecutableCommand {
     val postProcessor: (result: ProcessResultText) -> String
     var allowFailure: Boolean
     var deadlineInMillis: Long
+    var streamOutput: Boolean
 
     fun toBashScript(): String
     fun executeToText(): Pair<String?, String>
+}
+
+fun <T : ExecutableCommand> T.streamOutput(): T {
+    streamOutput = true
+    return this
+}
+
+fun <T : ExecutableCommand> T.allowFailure(): T {
+    allowFailure = true
+    return this
 }

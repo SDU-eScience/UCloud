@@ -13,10 +13,11 @@ fi
 
 uid=ucloud
 if [[ $running_k8 == 0 ]]; then
-    echo f
     uid=11042
 fi
 
+! (test -f /mnt/storage) || chmod 755 /mnt/storage
+! (test -f /mnt/k3s) || chmod 755 /mnt/k3s
 chmod o+x /opt/ucloud
 mkdir -p /home/ucloud
 chown -R $uid:$uid /home/ucloud
@@ -41,7 +42,6 @@ startsvc() {
         gradle buildDebug --console=plain
 
         nohup sudo -u "#$uid" ucloud &> /tmp/service.log &
-        echo $uid
         echo $! > /tmp/service.pid
         sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
     fi

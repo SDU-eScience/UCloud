@@ -7,8 +7,12 @@ import de.codeshelf.consoleui.prompt.ConsolePrompt
 import de.codeshelf.consoleui.prompt.InputResult
 import de.codeshelf.consoleui.prompt.ListResult
 import de.codeshelf.consoleui.prompt.builder.ListPromptBuilder
+import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.Ansi.ansi
+import java.io.File
+import java.util.*
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.collections.ArrayList
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -121,7 +125,15 @@ enum class LoadingState {
     WARNING
 }
 
-const val disableIndicator = true
+const val numberOfStatusLines = 10
+val messageQueueLock = Any()
+val messageQueue = ArrayList<String>()
+fun printStatus(message: String) {
+    synchronized(messageQueueLock) {
+        messageQueue.add(message)
+    }
+}
+
 class LoadingIndicator(var prompt: String) {
     private lateinit var thread: Thread
     val state = AtomicReference(LoadingState.IN_PROGRESS)
@@ -136,14 +148,16 @@ class LoadingIndicator(var prompt: String) {
             callsInPlace(code, InvocationKind.EXACTLY_ONCE)
         }
 
+        var success = true
         try {
             display()
             code()
         } catch (ex: Throwable) {
+            success = false
             state.set(LoadingState.FAILURE)
             throw ex
         } finally {
-            state.set(LoadingState.SUCCESS)
+            if (success) state.set(LoadingState.SUCCESS)
             join()
         }
     }
@@ -151,6 +165,10 @@ class LoadingIndicator(var prompt: String) {
     fun display() {
         thread = Thread {
             var iteration = 0
+
+            val statusLines = Array(numberOfStatusLines) { "" }
+            var activeLines = 0
+            var lastActiveLines = 0
 
             while (true) {
                 val current = state.get()
@@ -163,18 +181,52 @@ class LoadingIndicator(var prompt: String) {
                     else -> ""
                 }
 
-                if (!disableIndicator) {
-                    val message = "[$symbol] $prompt"
-                    if (iteration == 0) {
-                        println(ansi().render(message))
-                    } else {
-                        println(ansi().cursorUp(1).eraseLine().render(message))
+                val tail = synchronized(messageQueueLock) {
+                    val tail = messageQueue.takeLast(numberOfStatusLines)
+                    messageQueue.clear()
+                    ArrayDeque(tail.toMutableList())
+                }
+
+                if (tail.isNotEmpty()) {
+                    if (activeLines < numberOfStatusLines) {
+                        // Fill the initial buffer, if possible
+                        while (activeLines < numberOfStatusLines && tail.isNotEmpty()) {
+                            statusLines[activeLines] = tail.removeFirst()
+                            activeLines++
+                        }
                     }
+
+                    if (activeLines >= numberOfStatusLines) {
+                        val tailList = tail.toList()
+                        if (tail.size < numberOfStatusLines) {
+                            val shift = tail.size
+                            for (i in statusLines.indices) {
+                                if (i + shift >= statusLines.size) break
+                                statusLines[i] = statusLines[i + shift]
+                            }
+                        }
+
+                        val startIdx = numberOfStatusLines - tail.size
+                        for (i in startIdx until numberOfStatusLines) {
+                            statusLines[i] = tailList[i - startIdx]
+                        }
+                    }
+                }
+
+                val message = "[$symbol] $prompt"
+                if (iteration == 0) {
+                    println(ansi().bold().render(message).boldOff())
+                } else {
+                    println(ansi().cursorUp(lastActiveLines + 1).eraseLine().bold().render(message).boldOff())
+                }
+                for (i in 0 until activeLines) {
+                    println(ansi().eraseLine().render(statusLines[i]))
                 }
 
                 if (current != LoadingState.IN_PROGRESS) break
                 Thread.sleep(50)
                 iteration += 1
+                lastActiveLines = activeLines
             }
         }.also { it.start() }
     }
