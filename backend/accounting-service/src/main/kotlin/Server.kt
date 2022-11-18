@@ -72,8 +72,7 @@ class Server(
         val giftService = GiftService(db, accountingService)
         val settings = GrantSettingsService(db)
         val notifications = GrantNotificationService(db, client)
-        val grantApplicationService = GrantApplicationService(db, notifications, simpleProviders, projectsV2,
-            accountingService)
+        val grantApplicationService = GrantApplicationService(db, notifications, simpleProviders, projectNotifications, accountingService)
         val templates = GrantTemplateService(db, config)
         val comments = GrantCommentService(db)
 

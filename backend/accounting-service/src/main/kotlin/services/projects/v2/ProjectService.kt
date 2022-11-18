@@ -582,7 +582,6 @@ class ProjectService(
     suspend fun create(
         actorAndProject: ActorAndProject,
         request: BulkRequest<Project.Specification>,
-        piOverride: String? = null,
         ctx: DBContext = db,
         piOverride: String? = null,
     ): BulkResponse<FindByStringId> {

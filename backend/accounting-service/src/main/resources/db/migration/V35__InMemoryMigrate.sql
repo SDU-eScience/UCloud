@@ -40,4 +40,4 @@ alter table "grant".applications add column synchronized boolean default false;
 
 update "grant".applications
 set synchronized = true
-where status = 'APPROVED'
+where overall_state = 'APPROVED'

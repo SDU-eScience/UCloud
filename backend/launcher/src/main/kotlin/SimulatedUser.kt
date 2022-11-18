@@ -1,6 +1,7 @@
 package dk.sdu.cloud
 
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.projects.*
 import dk.sdu.cloud.app.kubernetes.api.KubernetesLicense
 import dk.sdu.cloud.app.kubernetes.api.KubernetesLicenseMaintenance
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -39,8 +40,14 @@ class Simulator(
 
     fun allocatePi(): SimulatedUser = users.filter { it.becomesPi }.random()
     suspend fun requestGrantApproval(id: Long) {
-        Grants.approveApplication.call(
-            ApproveApplicationRequest(id),
+        Grants.updateApplicationState.call(
+            bulkRequestOf(
+                UpdateApplicationState(
+                    id,
+                    GrantApplication.State.APPROVED,
+                    false
+                )
+            ),
             serviceClient
         ).orThrow()
     }
@@ -196,16 +203,19 @@ class Simulator(
                 serviceClient
             ).orThrow().responses.single().id
 
-            Grants.setEnabledStatus.call(
-                SetEnabledStatusRequest(root, true),
+            GrantsEnabled.setEnabledStatus.call(
+                bulkRequestOf(SetEnabledStatusRequest(root, true)),
                 serviceClient
             ).orThrow()
 
-            Grants.uploadRequestSettings.call(
-                ProjectApplicationSettings(
-                    AutomaticApprovalSettings(emptyList(), emptyList()),
-                    listOf(UserCriteria.Anyone()),
-                    emptyList()
+            GrantSettings.uploadRequestSettings.call(
+                bulkRequestOf(
+                    ProjectApplicationSettings(
+                        root,
+                        AutomaticApprovalSettings(emptyList(), emptyList()),
+                        listOf(UserCriteria.Anyone()),
+                        emptyList()
+                    )
                 ),
                 serviceClient.withProject(root)
             ).orThrow()
@@ -327,22 +337,24 @@ class SimulatedUser(
 
         if (becomesPi) {
             val grantId = Grants.submitApplication.call(
-                CreateApplication(
-                    parentProject,
-                    GrantRecipient.NewProject("${simulator.simulationId} ${projectIdGenerator.getAndIncrement()}"),
-                    "This is my application",
-                    buildList {
-                        fun request(categoryId: ProductCategoryId): ResourceRequest =
-                            ResourceRequest(categoryId.name, categoryId.provider, 50_000 * 1_000_000L)
-
-                        if (hasComputeByCredits) add(request(Simulator.computeByCredits))
-                        if (hasComputeByHours) add(request(Simulator.computeByHours))
-                        if (hasLicenses) add(request(Simulator.licenseByQuota))
-                        if (hasStorage) add(request(Simulator.storageByQuota))
-                    }
+                bulkRequestOf(
+                    CreateApplication(
+                        GrantApplication.Document(
+                            GrantApplication.Recipient.NewProject("${simulator.simulationId} ${projectIdGenerator.getAndIncrement()}"),
+                            buildList {
+                                fun request(categoryId: ProductCategoryId): GrantApplication.AllocationRequest =
+                                    GrantApplication.AllocationRequest(categoryId.name, categoryId.provider, parentProject, 50_000 * 1_000_000L, period = GrantApplication.Period(System.currentTimeMillis()-1000L, null))
+                                if (hasComputeByCredits) add(request(Simulator.computeByCredits))
+                                if (hasComputeByHours) add(request(Simulator.computeByHours))
+                                if (hasLicenses) add(request(Simulator.licenseByQuota))
+                                if (hasStorage) add(request(Simulator.storageByQuota))
+                            },
+                            GrantApplication.Form.PlainText("This is my application"),
+                        )
+                    )
                 ),
                 client
-            ).orThrow().id
+            ).orThrow().responses.first().id
 
             simulator.requestGrantApproval(grantId)
 

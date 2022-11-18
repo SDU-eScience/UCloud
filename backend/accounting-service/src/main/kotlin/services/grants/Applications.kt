@@ -3,12 +3,10 @@ package dk.sdu.cloud.accounting.services.grants
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.projects.v2.ProviderNotificationService
+import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.mail.api.Mail
@@ -25,7 +23,8 @@ class GrantApplicationService(
     private val notifications: GrantNotificationService,
     private val providers: Providers<SimpleProviderCommunication>,
     private val projectNotifications: ProviderNotificationService,
-) {
+    private val accounting: AccountingService
+    ) {
     suspend fun retrieveProducts(
         actorAndProject: ActorAndProject,
         request: GrantsBrowseProductsRequest,
@@ -192,7 +191,7 @@ class GrantApplicationService(
                             where id = :app_in
                         """
                     )
-                    onApplicationApprove(session, applicationId, createRequest.document.parentProjectId)
+                    onApplicationApprove(session, applicationId, createRequest.document.parentProjectId, actorAndProject)
                     val notification = GrantNotification(
                         applicationId,
                         adminMessage =
@@ -922,7 +921,7 @@ class GrantApplicationService(
                         ).rows
                             .singleOrNull()
                             ?.getString(0)
-                        onApplicationApprove(session, update.applicationId, parentId)
+                        onApplicationApprove(session, update.applicationId, parentId, actorAndProject)
                         GrantApplication.State.APPROVED
                     } else {
                         val overall = session.sendPreparedStatement(
@@ -1197,21 +1196,69 @@ class GrantApplicationService(
     private suspend fun onApplicationApprove(
         session: AsyncDBConnection,
         applicationId: Long,
-        parentId: String?
+        parentId: String?,
+        actorAndProject: ActorAndProject
     ) {
-        session.sendPreparedStatement(
-            {
-                setParameter("id", applicationId)
-                setParameter("parent", parentId)
-            },
-            """select "grant".approve_application(:id, :parent::text)"""
-        )
-        val createdProject = session.sendPreparedStatement("select project_id from grant_created_projects").rows
-            .map { it.getString(0)!! }.singleOrNull()
 
-        if (createdProject != null) {
-            projectNotifications.notifyChange(listOf(createdProject), session)
+        val application = retrieveGrantApplication(applicationId, actorAndProject , session)
+
+        //creating project and PI if newProject and returning workspaceID
+        val (workspaceId, type)  = when (application.currentRevision.document.recipient) {
+            is GrantApplication.Recipient.NewProject -> {
+                val recipient = application.currentRevision.document.recipient as GrantApplication.Recipient.NewProject
+                val createdProject = session.sendPreparedStatement(
+                    {
+                        setParameter("parent_id", parentId)
+                        setParameter("pi", application.createdBy)
+                        setParameter("title", recipient.title)
+                    },
+                    """ 
+                    with created_project as (
+                        insert into project.projects (id, created_at, modified_at, title, archived, parent, dmp, subprojects_renameable)
+                        select uuid_generate_v4()::text, now(), now(), :title, false, :parent_id, null, false
+                        returning id
+                    ),
+                    created_user as (
+                        insert into project.project_members (created_at, modified_at, role, username, project_id)
+                        select now(), now(), 'PI', :pi, created_project.id
+                    )
+                    select * from created_project
+                """.trimIndent()
+                ).rows
+                    .singleOrNull()
+                    ?.getString(0)
+                    ?: throw RPCException.fromStatusCode(
+                        HttpStatusCode.InternalServerError,
+                        "Error in creating project and PI"
+                    )
+
+                projectNotifications.notifyChange(listOf(createdProject), session)
+
+                Pair(createdProject, GrantApplication.Recipient.NewProject)
+
+            }
+            is GrantApplication.Recipient.ExistingProject -> {
+                val recipient = application.currentRevision.document.recipient as GrantApplication.Recipient.ExistingProject
+                Pair(recipient.id, GrantApplication.Recipient.ExistingProject)
+            }
+            is GrantApplication.Recipient.PersonalWorkspace -> {
+                val recipient = application.currentRevision.document.recipient as GrantApplication.Recipient.PersonalWorkspace
+                Pair(recipient.username, GrantApplication.Recipient.PersonalWorkspace)
+            }
         }
+
+        val requestItems = application.currentRevision.document.allocationRequests.map {
+            DepositToWalletRequestItem(
+                recipient = if (type == GrantApplication.Recipient.PersonalWorkspace) WalletOwner.User(workspaceId) else WalletOwner.Project(workspaceId),
+                sourceAllocation = it.sourceAllocation.toString(),
+                amount = it.balanceRequested!!,
+                description = "Granted In $applicationId",
+                startDate = it.period.start,
+                endDate = it.period.end
+            )
+        }
+
+        accounting.deposit(actorAndProject, bulkRequestOf(requestItems))
 
         val providerIds = session.sendPreparedStatement(
             { setParameter("id", applicationId) },

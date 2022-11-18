@@ -1,38 +1,26 @@
 package dk.sdu.cloud.accounting.services.wallets
 
-import com.google.common.math.LongMath
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.accounting.api.WalletAllocation as ApiWalletAllocation
 import dk.sdu.cloud.accounting.api.Wallet as ApiWallet
 import dk.sdu.cloud.accounting.api.WalletOwner as ApiWalletOwner
 import dk.sdu.cloud.debug.DebugSystem
-import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.detailD
 import dk.sdu.cloud.debug.enterContext
-import dk.sdu.cloud.events.RedisConnectionManager
+import dk.sdu.cloud.grant.api.GrantApplication
 import dk.sdu.cloud.grant.api.ProjectWithTitle
-import dk.sdu.cloud.micro.MicroAttributeKey
-import dk.sdu.cloud.micro.MicroFeatureFactory
-import dk.sdu.cloud.micro.serviceDescription
-import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.provider.api.getTime
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.k8.KubernetesResources
-import dk.sdu.cloud.service.k8.NAMESPACE_ANY
-import dk.sdu.cloud.service.k8.deleteResource
-import dk.sdu.cloud.service.k8.listResources
-import io.lettuce.core.RedisClient
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -42,8 +30,8 @@ import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.decodeFromString
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.*
@@ -53,7 +41,6 @@ import kotlin.collections.ArrayList
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
-import kotlin.system.exitProcess
 
 const val doDebug = false
 
@@ -649,6 +636,84 @@ class AccountingProcessor(
             allocationIdGenerator = allocations.size
 
             if (doDebug) printState(printWallets = true)
+
+            val unresolvedApplications = session.sendPreparedStatement(
+                //language=postgresql
+                """
+                    with unsynced_applications as (
+                        select id 
+                        from "grant".applications
+                        where overall_state = 'APPROVED' and synchronized = false
+                    )
+                    select "grant".application_to_json(id)
+                    from unsynced_applications
+                """
+            ).rows
+                .map{
+                    defaultMapper.decodeFromString<GrantApplication>(it.getString(0)!!)
+                }
+
+            unresolvedApplications.forEach { application ->
+                val owner = when (val recipient = application.currentRevision.document.recipient) {
+                    is GrantApplication.Recipient.NewProject -> {
+                        //Attempt to create project and PI. In case of conflict nothing is created but id returned
+                        val createdProject = session.sendPreparedStatement(
+                            {
+                                setParameter("parent_id", application.currentRevision.document.parentProjectId)
+                                setParameter("pi", application.createdBy)
+                                setParameter("title", recipient.title)
+                            },
+                            """ 
+                                with created_project as (
+                                    insert into project.projects (id, created_at, modified_at, title, archived, parent, dmp, subprojects_renameable)
+                                    select uuid_generate_v4()::text, now(), now(), :title, false, :parent_id::text, null, false
+                                    on conflict (title, parent) do nothing
+                                    returning id 
+                                ),
+                                created_user as (
+                                    insert into project.project_members (created_at, modified_at, role, username, project_id)
+                                    select now(), now(), 'PI', :pi, created_project.id
+                                    on conflict (project_id) do nothing
+                                )
+                                select * from created_project
+                            """.trimIndent()
+                        ).rows
+                            .singleOrNull()
+                            ?.getString(0)
+                            ?: throw RPCException.fromStatusCode(
+                                HttpStatusCode.InternalServerError,
+                                "Error in creating project and PI"
+                            )
+
+                        createdProject
+                    }
+                    is GrantApplication.Recipient.ExistingProject -> {
+                        recipient.id
+                    }
+                    is GrantApplication.Recipient.PersonalWorkspace ->
+                        recipient.username
+                }
+                application.currentRevision.document.allocationRequests.forEach {allocRequest ->
+                    val granterOfResource =
+                        application.status.stateBreakdown.find { it.projectId == allocRequest.grantGiver }?.projectId
+                        ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Project not found")
+
+                    val pi =
+                        projects.retrievePIFromProjectID(granterOfResource)
+                            ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "missing PI for project")
+                    deposit(
+                        AccountingRequest.Deposit(
+                            actor = Actor.SystemOnBehalfOfUser(pi),
+                            owner = owner,
+                            parentAllocation = allocRequest.sourceAllocation!!.toInt(),
+                            amount = allocRequest.balanceRequested!!,
+                            notBefore = allocRequest.period.start ?: Time.now(),
+                            notAfter = allocRequest.period.end,
+                            grantedIn = application.id.toLong()
+                        )
+                    )
+                }
+            }
         }
 
         verifyFromTransactions()
@@ -955,12 +1020,12 @@ class AccountingProcessor(
             ?: createWallet(request.owner, request.productCategory)
             ?: return AccountingResponse.Error("Unknown product category.")
 
-        val now = System.currentTimeMillis()
+        val start = getTime(atStartOfDay = true)
         val created = createAllocation(
             existingWallet.id,
             request.amount,
             null,
-            now,
+            start,
             null,
             null
         ).id
@@ -968,13 +1033,13 @@ class AccountingProcessor(
         dirtyTransactions.add(
             Transaction.Deposit(
                 null,
-                now,
+                start,
                 null,
                 request.amount,
                 "_ucloud",
                 "Root deposit",
                 created.toString(),
-                now,
+                System.currentTimeMillis(),
                 request.productCategory,
                 transactionId,
                 transactionId
@@ -1759,7 +1824,7 @@ class AccountingProcessor(
                     """
                         UPDATE "grant".applications
                         SET synchronized = true
-                        WHERE status = 'APPROVED' AND synchronized = false
+                        WHERE overall_state = 'APPROVED' AND synchronized = false
                     """
                 )
             }
@@ -1947,12 +2012,24 @@ private class ProjectCache(private val db: DBContext) {
     }
 
     suspend fun retrieveProjectRole(username: String, project: String, allowCacheRefill: Boolean = true): ProjectRole? {
+        println(username)
+        println(project)
         val role = projectMembers.get().find { it.username == username && it.project == project }?.role
         if (role == null && allowCacheRefill) {
+            println("attempt refil")
             fillCache()
             return retrieveProjectRole(username, project, false)
         }
         return role
+    }
+
+    suspend fun retrievePIFromProjectID(projectId: String, allowCacheRefill: Boolean = true): String? {
+        val pi = projectMembers.get().find { it.project == projectId && it.role == ProjectRole.PI }?.username
+        if (pi == null && allowCacheRefill) {
+            fillCache()
+            return retrievePIFromProjectID(projectId, false)
+        }
+        return pi
     }
 }
 

@@ -68,7 +68,7 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
             add(
                 newAppender(stdoutLog, "CONSOLE")
                     .addAttribute("target", ConsoleAppender.Target.SYSTEM_OUT)
-                    .add(newFilter("ThresholdFilter", "ACCEPT", "DENY").addAttribute("level", "WARN"))
+                 //   .add(newFilter("ThresholdFilter", "ACCEPT", "DENY").addAttribute("level", "WARN"))
                     .add(newLayout("PatternLayout").addAttribute("pattern", pattern))
             )
 
