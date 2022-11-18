@@ -89,7 +89,7 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
     </ListStyle>;
 }
 
-export const ListStatContainer: React.FunctionComponent = props => <>{props.children}</>;
+export const ListStatContainer: React.FunctionComponent<{children: React.ReactNode}> = props => <>{props.children}</>;
 
 export const ListRowStat: React.FunctionComponent<{
     icon?: IconName;
@@ -98,6 +98,7 @@ export const ListRowStat: React.FunctionComponent<{
     textColor?: ThemeColor;
     onClick?: () => void;
     cursor?: Cursor;
+    children: React.ReactNode;
 }> = props => {
     const color: ThemeColor = props.color ?? "gray";
     const color2: ThemeColor = props.color2 ?? "white";

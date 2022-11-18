@@ -28,6 +28,7 @@ import {bulkRequestOf} from "@/DefaultObjects";
 import {BrowseType} from "@/Resource/BrowseType";
 import {formatDistanceToNow} from "date-fns/esm";
 import {ListRowStat} from "@/ui-components/List";
+import {apiUpdate} from "@/Authentication/DataHook";
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -144,7 +145,8 @@ export interface ExtendRequest {
     requestedTime: SimpleDuration;
 }
 
-export type SuspendRequest = FindByStringId
+export type ResumeRequest = FindByStringId;
+export type SuspendRequest = FindByStringId;
 export interface OpenInteractiveSessionRequest {
     id: string;
     rank: number;
@@ -336,6 +338,10 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             payload: request,
             parameters: request
         };
+    }
+    
+    unsuspend(request: BulkRequest<ResumeRequest>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "unsuspend")
     }
 
     openInteractiveSession(

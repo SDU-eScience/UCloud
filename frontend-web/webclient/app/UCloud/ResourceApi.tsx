@@ -12,12 +12,11 @@ import {doNothing} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {DateRangeFilter, FilterWidgetProps, PillProps, TextFilter} from "@/Resource/Filter";
 import {IconName} from "@/ui-components/Icon";
-import * as H from "history";
 import {Dispatch} from "redux";
 import {ResourceProperties} from "@/Resource/Properties";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {Product, ProductType} from "@/Accounting";
-import {useHistory} from "react-router";
+import {NavigateFunction} from "react-router";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -111,7 +110,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     embedded: boolean;
     dispatch: Dispatch;
     startRenaming?: (resource: Res, defaultValue: string) => void;
-    history: ReturnType<typeof useHistory>;
+    navigate: NavigateFunction;
     supportByProvider: SupportByProvider;
     isWorkspaceAdmin: boolean;
 }
@@ -167,6 +166,10 @@ export abstract class ResourceApi<Res extends Resource,
     }
 
     public idIsUriEncoded = false;
+
+    public getNamespace(): string {
+        return this.namespace;
+    }
 
     public abstract renderer: ItemRenderer<Res>;
     /*
@@ -271,7 +274,7 @@ export abstract class ResourceApi<Res extends Resource,
                     cb.closeProperties?.();
                     
                     if (!cb.viewProperties && !cb.embedded) {
-                        cb.history.push(`/${cb.api.routingNamespace}`)
+                        cb.navigate(`/${cb.api.routingNamespace}`)
                     }
                 },
                 tag: DELETE_TAG

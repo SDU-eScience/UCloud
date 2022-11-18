@@ -1,5 +1,4 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
-import {useProjectManagementStatus} from "@/Project";
 import * as React from "react";
 import {Flex, Card, Icon, Box} from "@/ui-components";
 import {connect} from "react-redux";
@@ -10,16 +9,20 @@ import {dispatchSetProjectAction} from "@/Project/Redux";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import styled from "styled-components";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "@/ui-components/Sidebar";
-import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import HighlightedCard from "@/ui-components/HighlightedCard";
+import {useProject} from "./cache";
+import {isAdminOrPI} from "./Api";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
-    const {projectId, projectDetails, projectRole} =
-        useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
-
+    const project = useProject();
+    const fetchedProject = project.fetch();
+    const projectId = fetchedProject.id;
+    const projectRole = fetchedProject.status.myRole;
+    const needsVerification = fetchedProject.status.needsVerification;
+        
     function isPersonalProjectActive(id: string): boolean {
         return id === undefined || id === "";
     }
@@ -27,7 +30,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     useTitle("Project Dashboard");
     useSidebarPage(SidebarPages.Projects);
 
-    const history = useHistory();
+    const navigate = useNavigate();
 
     return (
         <MainContainer
@@ -41,7 +44,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         {projectId !== undefined && projectId !== "" ? (
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => history.push("/project/members")}
+                                onClick={() => navigate("/project/members")}
                                 title="Members"
                                 icon="user"
                                 color="blue"
@@ -50,7 +53,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 Manage and project members and groups. This is where you can invite new members to your
                                 project.
 
-                                {projectDetails.data.needsVerification ?
+                                {needsVerification ?
                                     <Box color="red" mt={16}><Icon name="warning" mr="4px" /> Attention required</Box> :
                                     null
                                 }
@@ -61,7 +64,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             icon="grant"
                             color="green"
                             isLoading={false}
-                            onClick={() => history.push("/project/resources")}
+                            onClick={() => navigate("/project/resources")}
                             subtitle={<RightArrow />}
                         >
                             Track how many resources you have consumed.
@@ -71,7 +74,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             icon="grant"
                             color="darkGreen"
                             isLoading={false}
-                            onClick={() => history.push("/project/allocations")}
+                            onClick={() => navigate("/project/allocations")}
                             subtitle={<RightArrow />}
                         >
                             Manage your allocations and grant allocations to sub-projects.
@@ -80,7 +83,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null :
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => history.push("/project/grants/ingoing")}
+                                onClick={() => navigate("/project/grants/ingoing")}
                                 title="Grant Applications"
                                 icon="mail"
                                 color="red"
@@ -91,7 +94,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null : (
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => history.push("/project/settings")}
+                                onClick={() => navigate("/project/settings")}
                                 title="Settings"
                                 icon="properties"
                                 color="orange"
@@ -103,7 +106,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null :
                             <HighlightedCard
                                 subtitle={<RightArrow/>}
-                                onClick={() => history.push(`/subprojects?subproject=${projectId}`)}
+                                onClick={() => navigate(`/subprojects?subproject=${projectId}`)}
                                 title="Subprojects"
                                 icon="projects"
                                 color="purple"
@@ -148,4 +151,4 @@ const mapDispatchToProps = (dispatch: Dispatch): ProjectDashboardOperations => (
     setActiveProject: project => dispatchSetProjectAction(dispatch, project),
 });
 
-export default connect(null, mapDispatchToProps)(ProjectDashboard);
+const _unused = connect(null, mapDispatchToProps)(ProjectDashboard);

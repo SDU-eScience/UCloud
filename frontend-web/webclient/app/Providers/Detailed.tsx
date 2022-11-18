@@ -19,7 +19,7 @@ export default function DetailedProvider() {
     const params = useParams<{id: string}>();
     const entry = React.useMemo(() => Providers.providers.find(it => it.id === params.id), [params.id]);
 
-    useTitle(entry?.title ?? params.id);
+    useTitle(entry?.title ?? params.id!);
 
     if (!entry) return null;
 

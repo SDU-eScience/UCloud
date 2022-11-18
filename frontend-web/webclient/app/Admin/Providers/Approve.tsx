@@ -10,7 +10,7 @@ import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 import {useLayoutEffect, useRef, useState} from "react";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {Toggle} from "@/ui-components/Toggle";
-import {useHistory} from "react-router";
+import {useLocation, useNavigate} from "react-router";
 import {FindByStringId} from "@/UCloud";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 
@@ -20,7 +20,8 @@ function ApproveOrSign(): JSX.Element | null {
     useTitle("Approve Provider");
     useSidebarPage(SidebarPages.Admin);
     useLoading(loading);
-    const history = useHistory();
+    const navigate = useNavigate();
+    const location = useLocation();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const userIsAdmin = Client.userIsAdmin;
@@ -29,7 +30,7 @@ function ApproveOrSign(): JSX.Element | null {
     const [isAlsoSigning, setIsAlsoSigning] = useState(devMode);
 
     useLayoutEffect(() => {
-        inputRef.current!.value = getQueryParamOrElse(history.location.search, "token", "");
+        inputRef.current!.value = getQueryParamOrElse(location.search, "token", "");
     }, []);
 
     return <MainContainer
@@ -70,7 +71,7 @@ function ApproveOrSign(): JSX.Element | null {
                     true
                 );
 
-                history.push("/");
+                navigate("/");
                 return;
             }
         }
@@ -83,7 +84,7 @@ function ApproveOrSign(): JSX.Element | null {
             );
 
             if (res) {
-                history.push(`/admin/providers/view/${encodeURIComponent(res.id)}`)
+                navigate(`/admin/providers/view/${encodeURIComponent(res.id)}`)
                 res.id
             }
         }

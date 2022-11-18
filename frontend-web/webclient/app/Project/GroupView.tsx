@@ -1,46 +1,46 @@
 import * as React from "react";
 import {Text, Link, Truncate, Flex, Button, Input, Box, Icon} from "@/ui-components";
-import * as Pagination from "@/Pagination";
 import {useCloudCommand} from "@/Authentication/DataHook";
-import {
-    listGroupMembersRequest,
-    removeGroupMemberRequest,
-    updateGroupName,
-} from "@/Project";
 import {ConfirmCancelButtons} from "@/UtilityComponents";
-import {ProjectRole} from "@/Project";
-import {useProjectManagementStatus} from "@/Project/index";
 import {MembersList} from "@/Project/MembersList";
 import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import ProjectAPI, {isAdminOrPI, ProjectMember, useGroupIdAndMemberId, useProjectFromParams} from "@/Project/Api";
+import {bulkRequestOf} from "@/DefaultObjects";
 
+// UNUSED (Used by unused component)
 const GroupView: React.FunctionComponent = () => {
-    const {
-        allowManagement, projectId, groupId, groupMembers, groupDetails, fetchGroupMembers, groupMembersParams,
-        membersPage, projectRole, projectDetails, fetchGroupDetails, groupDetailsParams
-    } = useProjectManagementStatus({isRootComponent: false});
-    const activeGroup = groupMembers;
     const renameRef = React.useRef<HTMLInputElement>(null);
-    const fetchActiveGroup = fetchGroupMembers;
     const [, runCommand] = useCloudCommand();
     const [renamingGroup, setRenamingGroup] = React.useState<boolean>(false);
 
-    async function renameGroup(): Promise<void> {
-        if (!groupId) return;
-        const newGroupName = renameRef.current?.value;
-        if (!newGroupName) return;
+    const [groupId, membersPage] = useGroupIdAndMemberId();
 
-        const success = await runCommand(updateGroupName({groupId, newGroupName}));
+    async function renameGroup(): Promise<void> {
+        const newTitle = renameRef.current?.value;
+        if (!newTitle) return;
+        if (!groupId) return;
+
+        const success = await runCommand(ProjectAPI.renameGroup(bulkRequestOf({group: groupId, newTitle})));
 
         if (!success) {
             snackbarStore.addFailure("Failed to rename project group", true);
             return;
         }
 
-        fetchGroupDetails(groupDetailsParams);
         setRenamingGroup(false);
         snackbarStore.addSuccess("Project group renamed", true);
     }
+
+    // TODO(Jonas): Is this always correct?
+    const {project, projectId, reload} = useProjectFromParams("");
+    const allowManagement = isAdminOrPI(project?.status.myRole);
+
+    const group = project?.status.groups?.find(it => it.id === groupId);
+    const members = React.useMemo(() => {
+        return (group?.status.members?.map(m => project?.status.members?.find(it => it.username === m)).filter(it => it) ?? []) as ProjectMember[]
+    }, [project]);
+
 
     const header = (
         <form onSubmit={e => {
@@ -67,14 +67,14 @@ const GroupView: React.FunctionComponent = () => {
                             width="100%"
                             ref={renameRef}
                             autoFocus
-                            defaultValue={groupDetails.data.groupTitle}
+                            defaultValue={group?.specification.title}
                         />
                     </Flex>
                 ) : (
-                        <Flex width={"100%"}>
-                            <Truncate fontSize="25px" width={1}>{groupDetails.data.groupTitle}</Truncate>
-                        </Flex>
-                    )}
+                    <Flex width={"100%"}>
+                        <Truncate fontSize="25px" width={1}>{group?.specification.title}</Truncate>
+                    </Flex>
+                )}
 
                 {allowManagement ?
                     renamingGroup ? (
@@ -91,14 +91,14 @@ const GroupView: React.FunctionComponent = () => {
                             />
                         </Box>
                     ) : (
-                            <Button onClick={() => setRenamingGroup(true)}>Rename</Button>
-                        )
+                        <Button onClick={() => setRenamingGroup(true)}>Rename</Button>
+                    )
                     : null}
             </Flex>
         </form>
     );
 
-    if (!groupId || activeGroup.error) {
+    if (!groupId) {
         return (
             <>
                 {header}
@@ -109,41 +109,29 @@ const GroupView: React.FunctionComponent = () => {
 
     return <>
         {header}
-        <Pagination.List
-            loading={activeGroup.loading}
-            onPageChanged={(newPage, page) => fetchActiveGroup(listGroupMembersRequest({
-                group: groupId,
-                itemsPerPage: page.itemsPerPage,
-                page: newPage
-            }))}
-            customEmptyPage={(
-                <Text mt={40} textAlign="center">
-                    <Heading.h4>No members in group</Heading.h4>
-                    You can add members by clicking on the green arrow in the
-                    &apos;Members of {projectDetails.data.title}&apos; panel.
-                </Text>
-            )}
-            page={activeGroup.data}
-            pageRenderer={page =>
-                <>
-                    <MembersList
-                        members={page.items.map(it => ({role: ProjectRole.USER, username: it}))}
-                        onRemoveMember={removeMember}
-                        projectId={projectId}
-                        projectRole={projectRole}
-                        allowRoleManagement={false}
-                        showRole={false}
-                    />
-                </>
-            }
+        {group?.status.members?.length !== 0 ? null :
+            <Text mt={40} textAlign="center">
+                <Heading.h4>No members in group</Heading.h4>
+                You can add members by clicking on the green arrow in the
+                &apos;Members of {project?.specification.title}&apos; panel.
+            </Text>
+        }
+        <MembersList
+            members={members}
+            onRemoveMember={removeMember}
+            projectId={projectId}
+            projectRole={project?.status.myRole!}
+            allowRoleManagement={false}
+            groups={project?.status.groups!}
+            showRole={false}
         />
     </>;
 
     async function removeMember(member: string): Promise<void> {
-        if (groupId === undefined) return;
+        if (!groupId) return;
 
-        await runCommand(removeGroupMemberRequest({group: groupId!, memberUsername: member}));
-        fetchGroupMembers(groupMembersParams);
+        await runCommand(ProjectAPI.deleteGroupMember(bulkRequestOf({group: groupId, username: member})));
+        reload();
     }
 };
 

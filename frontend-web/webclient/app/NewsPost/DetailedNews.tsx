@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useHistory, useParams} from "react-router";
+import { useNavigate, useParams} from "react-router";
 import {Box, Markdown, Flex, Text, Link, theme, Button, Input, TextArea, SelectableTextWrapper, SelectableText, ButtonGroup} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import Loading from "@/LoadingIcon/LoadingIcon";
@@ -27,10 +27,10 @@ function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> 
 }
 
 export const DetailedNews: React.FC = () => {
-    const {id} = useParams<{id: string}>();
+    const id = useParams<{id: string}>().id!;
     const [newsPost, setParams, params] = useCloudAPI<NewsPost | null, {id: string}>(getByIdRequest({id}), null);
     const [editing, setEditing] = React.useState(false);
-    const history = useHistory();
+    const navigate = useNavigate();
     const isAdmin = Client.userIsAdmin;
 
     React.useEffect(() => {
@@ -87,7 +87,7 @@ export const DetailedNews: React.FC = () => {
                 try {
                     await Client.delete("/news/delete", {id});
                     snackbarStore.addSuccess("Deleted news post.", false);
-                    history.push("/news/list/");
+                    navigate("/news/list/");
                 } catch (err) {
                     snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to deleted news post."), false);
                 }

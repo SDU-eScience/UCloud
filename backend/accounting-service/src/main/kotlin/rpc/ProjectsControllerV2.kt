@@ -36,6 +36,10 @@ class ProjectsControllerV2(
             ok(projects.toggleFavorite(actorAndProject, request))
         }
 
+        implement(Projects.renameProject) {
+            ok(projects.renameProject(actorAndProject, request))
+        }
+
         implement(Projects.updateSettings) {
             ok(projects.updateSettings(actorAndProject, request))
         }

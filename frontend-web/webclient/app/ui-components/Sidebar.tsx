@@ -16,8 +16,8 @@ import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
 import {useCallback, useEffect} from "react";
 import {setActivePage} from "@/Navigation/Redux/StatusActions";
-import {ProjectRole, useProjectId, UserInProject, viewProject} from "@/Project";
-import {useGlobalCloudAPI} from "@/Authentication/DataHook";
+import {useProjectId} from "@/Project/Api";
+import {useProject} from "@/Project/cache";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;
@@ -189,12 +189,12 @@ export const sideBarMenuElements: {
     },
     general: {
         items: [
-            {icon: "files", label: "Files", to: "/drives"},
-            {icon: "projects", label: "Projects", to: "/projects", show: () => Client.hasActiveProject},
+            {icon: "files", label: "Files", to: "/drives/"},
+            {icon: "projects", label: "Projects", to: "/projects/", show: () => Client.hasActiveProject},
             {icon: "shareMenu", label: "Shares", to: "/shares/", show: () => !Client.hasActiveProject},
-            {icon: "dashboard", label: "Resources", to: "/public-ips"},
-            {icon: "appStore", label: "Apps", to: "/applications/overview"},
-            {icon: "results", label: "Runs", to: "/jobs"}
+            {icon: "dashboard", label: "Resources", to: "/public-ips/"},
+            {icon: "appStore", label: "Apps", to: "/applications/overview/"},
+            {icon: "results", label: "Runs", to: "/jobs/"}
         ], predicate: () => Client.isLoggedIn
     },
     auditing: {items: [], predicate: () => Client.isLoggedIn},
@@ -212,35 +212,20 @@ interface SidebarProps extends SidebarStateProps {
 }
 
 const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: SidebarProps): JSX.Element | null => {
-    if (!loggedIn) return null;
-
-    if (useFrameHidden()) return null;
-
+    const project = useProject();
     const projectId = useProjectId();
-    const [projectDetails, fetchProjectDetails] = useGlobalCloudAPI<UserInProject>(
-        "projectManagementDetails",
-        {noop: true},
-        {
-            projectId: projectId ?? "",
-            favorite: false,
-            needsVerification: false,
-            title: "",
-            whoami: {username: Client.username ?? "", role: ProjectRole.USER},
-            archived: false
-        }
-    );
-
-    useEffect(() => {
-        if (projectId) fetchProjectDetails(viewProject({id: projectId}));
-    }, [projectId]);
 
     const projectPath = joinToString(
-        [...(projectDetails.data.ancestorPath?.split("/")?.filter(it => it.length > 0) ?? []), projectDetails.data.title],
+        [...(project.fetch().status.path?.split("/")?.filter(it => it.length > 0) ?? []), project.fetch().specification.title],
         "/"
     );
     const copyProjectPath = useCallback(() => {
         copyToClipboard({value: projectPath, message: "Project copied to clipboard!"});
     }, [projectPath]);
+    
+    if (useFrameHidden()) return null;
+    if (!loggedIn) return null;
+
 
     const sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
@@ -273,7 +258,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                 </SidebarTextLabel>
             </> : null}
             {!projectId ? null : <>
-                <SidebarTextLabel icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1} space={".5em"}>
+                <SidebarTextLabel key={projectId} icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1} space={".5em"}>
                     <Tooltip
                         left="-50%"
                         top="1"

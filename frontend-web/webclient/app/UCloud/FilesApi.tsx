@@ -6,7 +6,6 @@ import {
     ResourceSpecification,
     ResourceStatus,
     ResourceUpdate,
-    SupportByProvider
 } from "@/UCloud/ResourceApi";
 import {FileIconHint, FileType} from "@/Files";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
@@ -20,8 +19,10 @@ import {
     readableUnixMode,
     sizeToString
 } from "@/Utilities/FileUtilities";
-import { onDevSite, inDevEnvironment, displayErrorMessageOrDefault, doNothing, extensionFromPath, isLikelySafari, 
-        prettierString, removeTrailingSlash } from "@/UtilityFunctions";
+import {
+    displayErrorMessageOrDefault, doNothing, extensionFromPath, isLikelySafari,
+    prettierString, removeTrailingSlash
+} from "@/UtilityFunctions";
 import {Operation} from "@/ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
 import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
@@ -52,11 +53,11 @@ import {Spacer} from "@/ui-components/Spacer";
 import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import MetadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
-import { useCallback, useEffect, useState } from "react";
-import { SyncthingConfig, SyncthingDevice, SyncthingFolder } from "@/Syncthing/api";
-import { useHistory } from "react-router";
-import { Feature, hasFeature } from "@/Features";
-import { b64EncodeUnicode } from "@/Utilities/XHRUtils";
+import {useCallback, useEffect, useState} from "react";
+import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
+import {useNavigate} from "react-router";
+import {Feature, hasFeature} from "@/Features";
+import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -228,14 +229,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         this.registerFilter(CheckboxFilter("search", "filterHiddenFiles", "Show hidden files", true));
     }
 
-    routingNamespace = "files";
-    title = "File";
-    page = SidebarPages.Files;
-    productType = "STORAGE" as const
+    public routingNamespace = "files";
+    public title = "File";
+    public page = SidebarPages.Files;
+    public productType = "STORAGE" as const
 
-    idIsUriEncoded = true;
+    public idIsUriEncoded = true;
 
-    renderer: ItemRenderer<UFile> = {
+    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks> = {
         MainTitle({resource}) {return <>{resource ? fileName(resource.id) : ""}</>},
         Icon(props: {resource?: UFile, size: string}) {
             const file = props.resource;
@@ -257,9 +258,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             const synchronizedFolders: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
             const isSynchronized = synchronizedFolders.some(it => it.ucloudPath === resource.id);
 
-            const history = useHistory();
+            const navigate = useNavigate();
             const openSync = useCallback(() => {
-                history.push("/syncthing");
+                navigate("/syncthing");
             }, []);
 
             return <Flex>
@@ -267,15 +268,15 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     <div style={{cursor: "pointer"}} onClick={openSync}>
                         <Icon size={24} name="refresh" color="midGray" mt={7} mr={10} />
                     </div>
-                : null}
+                    : null}
                 <div style={{cursor: "pointer"}} onClick={() => addFileSensitivityDialog(resource, callbacks.invokeCommand, callbacks.reload)}>
                     <Sensitivity sensitivity={sensitivity ?? "PRIVATE"} />
                 </div>
             </Flex>;
         },
-        Stats({resource}) {
+        Stats({resource, callbacks}) {
             if (resource == null) return null;
-            const size = resource.status.sizeIncludingChildrenInBytes ?? resource.status.sizeInBytes;
+            const size = fileSize(resource, callbacks.collection?.status.resolvedSupport?.support)
             return <>
                 {size === undefined ? null : <ListRowStat icon={"rulerSolid"}>{sizeToString(size)}</ListRowStat>}
                 {resource.status.unixMode === undefined ? null :
@@ -289,7 +290,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         includeSizes: true,
         includeTimestamps: true,
         includeUnixInfo: true,
-        allowUnsupportedInclude: true,
+        allowUnsupportedInclude: true
     };
 
     public Properties = (props) => {
@@ -558,6 +559,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => {
                     if (Client.hasActiveProject) {return false;}
                     if (selected.length === 0) return false;
+
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.shareSupport === false) return false;
+
                     const isMissingPermissions = selected.some(it => !it.permissions.myself.some(p => p === "ADMIN"));
                     const hasNonDirectories = selected.some(it => it.status.type != "DIRECTORY");
 
@@ -599,7 +605,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         )
                     ).then(it => {
                         if (it?.responses) {
-                            cb.history.push(`/shares/outgoing`);
+                            cb.navigate(`/shares/outgoing`);
                         }
                     });
                 }
@@ -608,6 +614,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Change sensitivity",
                 icon: "sensitivity",
                 enabled(selected, cb) {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if ((support as FileCollectionSupport)) {}
+
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;
                     }
@@ -626,6 +635,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
+                    if ((support as FileCollectionSupport).files.trashSupported) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
@@ -649,7 +659,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             await cb.invokeCommand(
                                 this.emptyTrash(bulkRequestOf({id: cb.directory?.id ?? ""}))
                             );
-                            cb.history.push("/drives")
+                            cb.navigate("/drives")
                         },
                         onCancel: doNothing,
                     });
@@ -835,10 +845,22 @@ function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallback
     }
 }
 
-function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): boolean | string {
-    const hasCookie = true;
-    if (!hasCookie) return false;
+function fileSize(file: UFile, support?: FileCollectionSupport): undefined | number {
+    if (!support) return undefined;
+    if (file.status.type === "FILE") {
+        if (support.stats.sizeInBytes) {
+            return file.status.sizeInBytes;
+        }
+    } else if (file.status.type === "DIRECTORY") {
+        if (support.stats.sizeIncludingChildrenInBytes) {
+            return file.status.sizeIncludingChildrenInBytes;
+        }
+    }
 
+    return undefined;
+}
+
+function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): boolean | string {
     const support = cb.collection?.status.resolvedSupport?.support;
     if (!support) return false;
 
@@ -892,7 +914,7 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
 
     const devices: SyncthingDevice[] = cb.syncthingConfig?.devices ?? [];
     if (devices.length === 0) {
-        cb.history.push("/syncthing");
+        cb.navigate("/syncthing");
         return;
     }
 

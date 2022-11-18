@@ -50,10 +50,16 @@ suspend fun KubernetesClient.exec(
                     "stderr" to stderr.toString(),
                 ),
                 "exec"
-            ).replace("https://", "wss://").replace("http://", "ws://")
+            )
 
             url(
                 URLBuilder(builtUrl).apply {
+                    this.protocol = when {
+                        builtUrl.startsWith("http://") -> URLProtocol.WS
+                        builtUrl.startsWith("https://") -> URLProtocol.WSS
+                        else -> URLProtocol.WS
+                    }
+
                     command.forEach { parameters.append("command", it) }
                 }.build()
             )

@@ -1,17 +1,16 @@
-import {browseWallets, ChargeType, explainAllocation, normalizeBalanceForFrontend, ProductPriceUnit, ProductType, productTypes, productTypeToIcon, usageExplainer, Wallet, WalletAllocation} from "@/Accounting";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {browseWallets, ChargeType, explainAllocation, ProductCategoryId, ProductPriceUnit, ProductType, productTypes, productTypeToIcon, usageExplainer, Wallet, WalletAllocation} from "@/Accounting";
+import {apiBrowse, apiSearch, useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {PageV2} from "@/UCloud";
+import {PageV2, PaginationRequestV2} from "@/UCloud";
 import {Box, Flex, Grid, Icon, Link, Text} from "@/ui-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import * as React from "react";
 import {useCallback, useState} from "react";
-import {browseSubAllocations, searchSubAllocations, SubAllocation, useProjectManagementStatus} from ".";
 import * as Heading from "@/ui-components/Heading";
-import {SubAllocationViewer} from "./SubAllocations";
+import {mapToBalancesWithExplanation, SubAllocationViewer} from "./SubAllocations";
 import format from "date-fns/format";
 import {Accordion} from "@/ui-components/Accordion";
 import {prettierString, timestampUnixMs} from "@/UtilityFunctions";
@@ -21,14 +20,40 @@ import {VisualizationSection} from "./Resources";
 import formatDistance from "date-fns/formatDistance";
 import {Spacer} from "@/ui-components/Spacer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
-import icon from "@/ui-components/Icon";
-import * as ui from "@/ui-components";
-import Tooltip from "@/ui-components/Tooltip";
+import {isAdminOrPI, useProjectFromParams} from "./Api";
+
+export interface SubAllocation {
+    id: string;
+    path: string;
+    startDate: number;
+    endDate?: number | null;
+
+    productCategoryId: ProductCategoryId;
+    productType: ProductType;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
+
+    workspaceId: string;
+    workspaceTitle: string;
+    workspaceIsProject: boolean;
+    projectPI?: string;
+
+    remaining: number;
+    initialBalance: number;
+}
+
+export function browseSubAllocations(request: PaginationRequestV2): APICallParameters {
+    return apiBrowse(request, "/api/accounting/wallets", "subAllocation");
+}
+
+export function searchSubAllocations(request: {query: string} & PaginationRequestV2): APICallParameters {
+    return apiSearch(request, "/api/accounting/wallets", "subAllocation");
+}
 
 const FORMAT = "dd/MM/yyyy";
 
 function Allocations(): JSX.Element {
-    const managementStatus = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
+    const {project, projectId, loading, isPersonalWorkspace, breadcrumbs} = useProjectFromParams("Allocations");
 
     useTitle("Allocations");
 
@@ -38,7 +63,7 @@ function Allocations(): JSX.Element {
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
 
     const loadMoreAllocations = useCallback(() => {
-        fetchAllocations(browseSubAllocations({itemsPerPage: 250, next: allocations.data.next}));
+        fetchAllocations({...browseSubAllocations({itemsPerPage: 250, next: allocations.data.next}), projectOverride: projectId});
     }, [allocations.data]);
 
     const filterByAllocation = useCallback((allocationId: string) => {
@@ -49,39 +74,43 @@ function Allocations(): JSX.Element {
         setFilters(prev => ({
             ...prev,
             "filterWorkspace": workspaceId,
-            "filterWorkspaceProject": workspaceIsProject.toString()
+            "filterWorkspaceProject": isPersonalWorkspace ? "" : workspaceIsProject.toString()
         }));
     }, [setFilters]);
 
-    const reloadPage = useCallback(() => {
-        fetchWallets(browseWallets({itemsPerPage: 50, ...filters}));
-        fetchAllocations(browseSubAllocations({itemsPerPage: 250, ...filters}));
+    const reloadPage = useCallback(async () => {
+        const projectOverride = isPersonalWorkspace ? undefined : projectId;
+        await Promise.allSettled([
+            fetchWallets({...browseWallets({itemsPerPage: 50, ...filters}), projectOverride}),
+            fetchAllocations({...browseSubAllocations({itemsPerPage: 250, ...filters}), projectOverride})
+        ]);
         setAllocationGeneration(prev => prev + 1);
-    }, [filters]);
+    }, [filters, projectId]);
 
     React.useEffect(() => {
         reloadPage();
-    }, [managementStatus.projectId])
+    }, [projectId]);
 
     useRefreshFunction(reloadPage);
 
     const onSubAllocationQuery = useCallback((query: string) => {
-        fetchAllocations(searchSubAllocations({query, itemsPerPage: 250}));
+        fetchAllocations({...searchSubAllocations({query, itemsPerPage: 250}), projectOverride: projectId});
         setAllocationGeneration(prev => prev + 1);
-    }, []);
+    }, [projectId]);
 
     return <MainContainer
         header={<Spacer
             width={"calc(100% - var(--sidebarWidth))"}
-            left={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Allocations"}]} />}
+            left={<ProjectBreadcrumbs omitActiveProject crumbs={breadcrumbs} />}
             right={<Box ml="12px" width="512px"></Box>}
         />}
         main={<>
             <Grid gridGap="0px">
                 <Wallets wallets={wallets.data.items} />
             </Grid>
-            {managementStatus.allowManagement ?
+            {!loading && isAdminOrPI(project?.status.myRole) ?
                 <SubAllocationViewer
+                    key={projectId}
                     allocations={allocations}
                     generation={allocationGeneration}
                     loadMore={loadMoreAllocations}
@@ -178,13 +207,13 @@ function ProductTypeProgressBars(props: {walletsByProductTypes: Wallet[]}) {
     </>
 }
 
-function allocationText(unit: ProductPriceUnit, productType: ProductType, chargeType: ChargeType, doTruncate: boolean): string {
+export function allocationText(unit: ProductPriceUnit, productType: ProductType, doTruncate: boolean): string {
     if (unit === "PER_UNIT" && productType === "STORAGE") {
         if (doTruncate) {
             return "TB";
         }
     }
-    return (doTruncate ? "k" : "") + explainAllocation(productType, chargeType, unit);
+    return (doTruncate ? "k" : "") + explainAllocation(productType, unit);
 }
 
 function ResourceBarsByChargeType(props: {chargeType: ChargeType; wallets: Record<ChargeType, Record<ProductPriceUnit, Wallet[]>>;}) {
@@ -204,17 +233,10 @@ function ResourceBarsByChargeType(props: {chargeType: ChargeType; wallets: Recor
     return <>{nonEmptyWallets.map(it => {
         if (wallets[it].length === 0) return null;
         const total = totalUsageFromMultipleWallets(wallets[it]);
-        const {unit, productType, chargeType} = wallets[it][0];
-        const asPercent = resultAsPercent(total);
-        const doTruncate = total.initialBalance > 1_000_000;
-        const usedBalance = doTruncate ? (total.initialBalance - total.balance) / 1_000 : (total.initialBalance - total.balance);
-        const initialBalance = doTruncate ? (total.initialBalance) / 1_000 : total.initialBalance;
-        const used = normalizeBalanceForFrontend(Math.floor(usedBalance), productType, chargeType, unit);
-        const initial = normalizeBalanceForFrontend(Math.floor(initialBalance), productType, chargeType, unit);
-        const allocationExplanation = allocationText(unit, productType, props.chargeType, doTruncate);
-        const resourceProgress = `${used} / ${initial} ${allocationExplanation} (${Math.round(asPercent)}%)`;
+        const {unit, productType} = wallets[it][0];
+        const mapped = mapToBalancesWithExplanation({initialBalance: total.initialBalance, remaining: Math.min(total.initialBalance, total.balance)}, productType, unit)
         return <ResourceProgressWrapper key={unit + productType}>
-            <ResourceProgress width={resourceProgress.length * 7.3 + "px"} value={Math.round(asPercent)} text={resourceProgress} />
+            <ResourceProgress width={mapped.resourceText.length * 7.3 + "px"} value={mapped.asPercent} text={mapped.resourceText} />
         </ResourceProgressWrapper>
     })}</>
 }
@@ -236,13 +258,10 @@ function SimpleWalletView(props: {wallets: Wallet[];}): JSX.Element {
     return <SimpleWalletRowWrapper>
         {props.wallets.map(wallet => {
             const total = totalUsageFromWallet(wallet);
-            const asPercent = resultAsPercent(total);
+            const mapped = mapToBalancesWithExplanation({initialBalance: total.initialBalance, remaining: Math.min(total.initialBalance, total.balance)}, wallet.productType, wallet.unit)
             const expiration = wallet.allocations.reduce((lowest, wallet) =>
                 wallet.endDate && wallet.endDate < lowest ? wallet.endDate! : lowest, VERY_HIGH_DATE_VALUE
             );
-            const used = normalizeBalanceForFrontend(total.initialBalance - total.balance, wallet.productType, wallet.chargeType, wallet.unit);
-            const initial = normalizeBalanceForFrontend(total.initialBalance, wallet.productType, wallet.chargeType, wallet.unit);
-            const resourceProgress = `${used} / ${initial} ${explainAllocation(wallet.productType, wallet.chargeType, wallet.unit)} (${Math.round(asPercent)}%)`;
             const expirationText = expiration === VERY_HIGH_DATE_VALUE ? "" : `Earliest expiration: ${format(expiration, FORMAT)}`;
             return (
                 <Accordion
@@ -250,7 +269,7 @@ function SimpleWalletView(props: {wallets: Wallet[];}): JSX.Element {
                     title={<Text color="text">{wallet.paysFor.name} @ {wallet.paysFor.provider}</Text>}
                     titleContent={<>
                         <Text color="text" mt="-2px" mr="12px">{expirationText}</Text>
-                        <ResourceProgress width={resourceProgress.length * 7.3 + "px"} value={Math.round(asPercent)} text={resourceProgress} />
+                        <ResourceProgress width={mapped.resourceText.length * 7.3 + "px"} value={mapped.asPercent} text={mapped.resourceText} />
                     </>}
                 >
                     <VisualizationSection><WalletViewer wallet={wallet} /></VisualizationSection>

@@ -10,6 +10,7 @@ export const defaultModalStyle = {
         background: "",
         minWidth: "500px",
         minHeight: "400px",
+        maxWidth: "calc(100vw - 10px)",
         maxHeight: "80vh",
         border: "solid 1px var(--black)"
     },
@@ -32,6 +33,7 @@ export const largeModalStyle = {
         minHeight: "400px",
         height: "80vh",
         maxHeight: "80vh",
+        maxWidth: "calc(100vw - 10px)",
         border: "solid 1px var(--black)"
     },
     overlay: {

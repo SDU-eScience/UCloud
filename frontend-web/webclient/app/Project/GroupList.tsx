@@ -1,8 +1,7 @@
 import * as React from "react";
-import * as Pagination from "@/Pagination";
 import {Button, List, Icon, Flex} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import GroupView from "./GroupView";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
@@ -11,12 +10,12 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {NamingField} from "@/UtilityComponents";
 import {ListRow} from "@/ui-components/List";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
-import {useProjectManagementStatus} from "@/Project/index";
-import {deleteGroup, groupSummaryRequest, updateGroupName} from "@/Project";
 import {useRef, useState} from "react";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import {Spacer} from "@/ui-components/Spacer";
 import {Operation, Operations} from "@/ui-components/Operation";
+import ProjectAPI, {isAdminOrPI, ProjectGroup, useGroupIdAndMemberId, useProjectFromParams} from "@/Project/Api";
+import {bulkRequestOf} from "@/DefaultObjects";
 
 export interface GroupWithSummary {
     groupId: string;
@@ -27,10 +26,13 @@ export interface GroupWithSummary {
 
 const baseContext = "/projects/groups";
 
+// UNUSED
 const GroupList: React.FunctionComponent = () => {
-    const history = useHistory();
-    const {allowManagement, groupId, groupList, fetchGroupList, groupListParams,
-        membersPage} = useProjectManagementStatus({isRootComponent: false});
+    const navigate = useNavigate();
+    const {project, reload} = useProjectFromParams("");
+    const [groupId, membersPage] = useGroupIdAndMemberId();
+
+    const allowManagement = isAdminOrPI(project?.status.myRole);
 
     const [creatingGroup, setCreatingGroup] = useState(false);
     const [, setLoading] = useState(false);
@@ -43,13 +45,13 @@ const GroupList: React.FunctionComponent = () => {
     const operations: GroupOperation[] = [
         {
             enabled: groups => groups.length === 1 && allowManagement,
-            onClick: ([group]) => setRenamingGroup(group.groupId),
+            onClick: ([group]) => setRenamingGroup(group.id),
             icon: "rename",
             text: "Rename"
         },
         {
             enabled: groups => groups.length > 0 && allowManagement,
-            onClick: (groups) => deleteSelectedGroups(groups),
+            onClick: (groups) => ProjectAPI.deleteGroup(bulkRequestOf(...groups.map(it => ({id: it.id})))),
             icon: "trash",
             text: "Delete",
             color: "red",
@@ -57,11 +59,12 @@ const GroupList: React.FunctionComponent = () => {
         }
     ];
 
+    const groups = project?.status.groups ?? [];
 
     if (groupId) return <GroupView />;
     const content = (
         <>
-            {groupList.data.items.length !== 0 || creatingGroup ? null : (
+            {groups.length !== 0 || creatingGroup ? null : (
                 <Flex justifyContent={"center"} alignItems={"center"} minHeight={"300px"} flexDirection={"column"}>
                     <Heading.h4>You have no groups to manage.</Heading.h4>
                     <ul>
@@ -88,13 +91,13 @@ const GroupList: React.FunctionComponent = () => {
                         isSelected={false}
                         select={() => undefined}
                     /> : null}
-                {groupList.data.items.map((g, index) => (<React.Fragment key={g.groupId + index}>
+                {groups.map((g, index) => (<React.Fragment key={g.id + index}>
                     <ListRow
                         left={
-                            renamingGroup !== g.groupId ? g.groupTitle : (
+                            renamingGroup !== g.id ? g.specification.title : (
                                 <NamingField
                                     confirmText="Rename"
-                                    defaultValue={g.groupTitle}
+                                    defaultValue={g.specification.title}
                                     onCancel={() => setRenamingGroup(null)}
                                     onSubmit={renameGroup}
                                     inputRef={renameRef}
@@ -102,16 +105,16 @@ const GroupList: React.FunctionComponent = () => {
                             )
                         }
                         navigate={() => {
-                            if (renamingGroup !== g.groupId) {
-                                history.push(`/project/members/${encodeURIComponent(g.groupId)}/${membersPage ?? ""}`);
+                            if (renamingGroup !== g.id) {
+                                navigate(`/project/members/${encodeURIComponent(g.id)}/${membersPage ?? ""}`);
                             }
                         }}
                         leftSub={<div />}
                         right={
                             <>
-                                {g.numberOfMembers === 0 ? null :
+                                {g.status.members?.length === 0 ? null :
                                     <Flex>
-                                        <Icon mt="4px" mr="4px" size="18" name="user" /> {g.numberOfMembers}
+                                        <Icon mt="4px" mr="4px" size="18" name="user" /> {g.status.members?.length}
                                     </Flex>
                                 }
 
@@ -146,21 +149,8 @@ const GroupList: React.FunctionComponent = () => {
             )}
         />
 
-        <Pagination.List
-            loading={groupList.loading}
-            page={groupList.data}
-            customEmptyPage={content}
-            onPageChanged={(newPage, oldPage) => {
-                fetchGroupList(groupSummaryRequest({page: newPage, itemsPerPage: oldPage.itemsPerPage}));
-            }}
-            pageRenderer={() => content}
-        />
+        {content}
     </>;
-
-    async function deleteSelectedGroups(groups: GroupWithSummary[]): Promise<void> {
-        await runCommand(deleteGroup({groups: groups.map(it => it.groupId)}));
-        fetchGroupList(groupListParams);
-    }
 
     async function createGroup(e: React.SyntheticEvent): Promise<void> {
         e.preventDefault();
@@ -175,7 +165,7 @@ const GroupList: React.FunctionComponent = () => {
             snackbarStore.addSuccess(`Group created`, true);
             createGroupRef.current!.value = "";
             setCreatingGroup(false);
-            fetchGroupList({...groupListParams});
+            reload();
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Could not create group."), false);
         } finally {
@@ -189,19 +179,17 @@ const GroupList: React.FunctionComponent = () => {
         const newGroupName = renameRef.current?.value;
         if (!newGroupName) return;
 
-        const success = await runCommand(updateGroupName({groupId, newGroupName}));
+        const success = await runCommand(ProjectAPI.renameGroup(bulkRequestOf({group: groupId, newTitle: newGroupName})));
 
         if (!success) {
             snackbarStore.addFailure("Failed to rename project group", true);
             return;
         }
 
-        fetchGroupList(groupListParams);
+        reload();
         setRenamingGroup(null);
         snackbarStore.addSuccess("Project group renamed", true);
     }
 };
 
-type GroupOperation = Operation<GroupWithSummary>;
-
-export default GroupList;
+type GroupOperation = Operation<ProjectGroup>;

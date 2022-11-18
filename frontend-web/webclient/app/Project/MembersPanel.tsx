@@ -1,17 +1,18 @@
-import {useAsyncCommand} from "@/Authentication/DataHook";
-import {deleteMemberInProject, inviteMember, listOutgoingInvites, ProjectRole, rejectInvite} from "@/Project/index";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as React from "react";
 import {useRef} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
 import {Button, Flex, Icon, Input, Absolute, Label, Relative, Text, Tooltip, Box} from "@/ui-components";
-import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
-import {useProjectManagementStatus} from "@/Project/index";
-import {addGroupMember} from "@/Project";
+import {addStandardInputDialog} from "@/UtilityComponents";
 import {MembersList} from "@/Project/MembersList";
 import * as Pagination from "@/Pagination";
 import styled from "styled-components";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import ProjectAPI, {isAdminOrPI, OldProjectRole, ProjectInvite, useGroupIdAndMemberId} from "@/Project/Api";
+import {useProject} from "./cache";
+import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
+import {PageV2} from "@/UCloud";
 
 const SearchContainer = styled(Flex)`
     flex-wrap: wrap;
@@ -26,16 +27,24 @@ const SearchContainer = styled(Flex)`
 `;
 
 const MembersPanel: React.FunctionComponent = () => {
-    const {
-        projectId, projectMembers, groupId, fetchGroupMembers, groupMembersParams,
-        setProjectMemberParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement,
-        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, projectRole, reloadProjectStatus
-    } = useProjectManagementStatus({isRootComponent: false});
-    const [isLoading, runCommand] = useAsyncCommand();
+    const project = useProject();
+    const fetchedProject = project.fetch();
+    const myRole = fetchedProject.status.myRole ?? OldProjectRole.USER;
+    const projectId = fetchedProject.id;
+    const allowManagement = isAdminOrPI(myRole);
+    const [isLoading, runCommand] = useCloudCommand();
+    const [memberSearchQuery, setMemberSearchQuery] = React.useState("")
+
+    const [outgoingInvites, fetchOutgoingInvites] = useCloudAPI<PageV2<ProjectInvite>>(
+        ProjectAPI.browseInvites({itemsPerPage: 25, filterType: "OUTGOING"}),
+        emptyPageV2
+    );
+
+    const [groupId] = useGroupIdAndMemberId();
+
     const reloadMembers = (): void => {
-        setProjectMemberParams(projectMemberParams);
-        fetchOutgoingInvites(outgoingInvitesParams);
-        reloadProjectStatus();
+        fetchOutgoingInvites(ProjectAPI.browseInvites({itemsPerPage: 25, filterType: "OUTGOING"}));
+        project.reload();
     };
 
     const newMemberRef = useRef<HTMLInputElement>(null);
@@ -43,12 +52,11 @@ const MembersPanel: React.FunctionComponent = () => {
     const onSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
         const inputField = newMemberRef.current!;
-        const username = inputField.value.trim();
+        const recipient = inputField.value.trim();
         try {
-            await runCommand(inviteMember({
-                projectId,
-                usernames: [username]
-            }));
+            await runCommand(ProjectAPI.createInvite(bulkRequestOf({
+                recipient
+            })));
             inputField.value = "";
             reloadMembers();
         } catch (err) {
@@ -104,7 +112,7 @@ const MembersPanel: React.FunctionComponent = () => {
                                     .map(it => it.trim())
                                     .filter(it => it.length > 0);
 
-                                await runCommand(inviteMember({projectId, usernames}));
+                                await runCommand(ProjectAPI.createInvite(bulkRequestOf(...usernames.map(it => ({recipient: it})))));
                                 reloadMembers();
                             } catch (ignored) {
                                 // Ignored
@@ -124,9 +132,7 @@ const MembersPanel: React.FunctionComponent = () => {
                     autoComplete="off"
                     disabled={isLoading}
                     value={memberSearchQuery}
-                    onChange={e => {
-                        setMemberSearchQuery(e.target.value);
-                    }}
+                    onChange={e => setMemberSearchQuery(e.target.value)}
                 />
                 <Relative>
                     <Absolute right="6px" top="10px">
@@ -139,45 +145,46 @@ const MembersPanel: React.FunctionComponent = () => {
         </SearchContainer>
 
         <MembersList
-            members={projectMembers.data.items}
-            onRemoveMember={async member => {
-                await runCommand(deleteMemberInProject({
-                    projectId,
-                    member
-                }));
+            members={fetchedProject.status.members?.filter(it => it.username.includes(memberSearchQuery)) ?? []}
+            onRemoveMember={async username => {
+                await runCommand(ProjectAPI.deleteMember(bulkRequestOf({
+                    username
+                })));
 
                 reloadMembers();
             }}
+            groups={fetchedProject.status.groups ?? []}
             reload={reloadMembers}
             projectId={projectId}
-            projectRole={projectRole}
+            projectRole={myRole}
             allowRoleManagement={allowManagement}
-            onAddToGroup={!(allowManagement && !!groupId) ? undefined : async (memberUsername) => {
-                await runCommand(addGroupMember({group: groupId, memberUsername}));
-                fetchGroupMembers(groupMembersParams);
+            onAddToGroup={!(allowManagement && !!groupId) ? undefined : async username => {
+                await runCommand(ProjectAPI.createGroupMember(bulkRequestOf({group: groupId, username})));
+                project.reload();
             }}
         />
 
         {groupId ? null :
-            <Pagination.List
+            <Pagination.ListV2
                 loading={outgoingInvites.loading}
                 page={outgoingInvites.data}
-                onPageChanged={(newPage) => {
-                    fetchOutgoingInvites(listOutgoingInvites({...outgoingInvitesParams.parameters, page: newPage}));
-                }}
+                onLoadMore={() => 
+                    ProjectAPI.browseInvites({itemsPerPage: outgoingInvites.data.itemsPerPage, next: outgoingInvites.data.next, filterType: "OUTGOING"})
+                }
                 customEmptyPage={<></>}
                 pageRenderer={() => (
                     <MembersList
                         isOutgoingInvites
                         members={outgoingInvites.data.items.map(it => ({
-                            username: it.username,
-                            role: ProjectRole.USER
+                            username: it.recipient,
+                            role: OldProjectRole.USER
                         }))}
+                        groups={fetchedProject.status.groups ?? []}
                         onRemoveMember={async (member) => {
-                            await runCommand(rejectInvite({projectId, username: member}));
+                            await runCommand(ProjectAPI.deleteInvite(bulkRequestOf({project: projectId, username: member})));
                             reloadMembers();
                         }}
-                        projectRole={projectRole}
+                        projectRole={myRole}
                         allowRoleManagement={false}
                         projectId={projectId}
                         showRole={false}

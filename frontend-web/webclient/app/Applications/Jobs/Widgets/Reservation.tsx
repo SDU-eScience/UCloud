@@ -10,11 +10,11 @@ import {
 } from "@/Applications/Jobs/Widgets/Machines";
 import {useCallback, useEffect, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {useProjectId} from "@/Project";
 import {MandatoryField} from "@/Applications/Jobs/Widgets/index";
 import {costOfDuration, Product, productCategoryEquals, ProductCompute} from "@/Accounting";
 import {emptyPageV2} from "@/DefaultObjects";
 import {joinToString} from "@/UtilityFunctions";
+import {useProjectId} from "@/Project/Api";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";

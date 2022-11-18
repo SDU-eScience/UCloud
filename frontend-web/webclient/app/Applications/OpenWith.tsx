@@ -1,21 +1,19 @@
 import * as React from "react";
 import {UFile} from "@/UCloud/FilesApi";
 import {apiUpdate, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {accounting, BulkResponse, compute, FindByStringId, PaginationRequestV2} from "@/UCloud";
+import {BulkResponse, compute, FindByStringId, PaginationRequestV2} from "@/UCloud";
 import ApplicationWithExtension = compute.ApplicationWithExtension;
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {Operation} from "@/ui-components/Operation";
-import {ProductSelector} from "@/Resource/ProductSelector";
 import {FileCollection} from "@/UCloud/FileCollectionsApi";
 import JobsApi from "@/UCloud/JobsApi";
-import {SupportByProvider} from "@/UCloud/ResourceApi";
 import {Button} from "@/ui-components";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {getParentPath} from "@/Utilities/FileUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import {Product, ProductCompute} from "@/Accounting";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as UCloud from "@/UCloud";
@@ -66,7 +64,7 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
     );
     const [resolvedApplication, fetchResolvedApplication] = useCloudAPI<UCloud.compute.Application | null>({noop: true}, null);
 
-    const history = useHistory();
+    const navigate = useNavigate();
 
     useEffect(() => {
         fetchWallet(UCloud.accounting.products.browse({
@@ -162,7 +160,7 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
                 return;
             }
 
-            history.push(`/jobs/properties/${ids[0]?.id}?app=${selectedApplication.metadata.name}`);
+            navigate(`/jobs/properties/${ids[0]?.id}?app=${selectedApplication.metadata.name}`);
         } catch (e) {
             snackbarStore.addFailure("UCloud failed to submit the job", false);
         }

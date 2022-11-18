@@ -1,10 +1,9 @@
 import MainContainer from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {useHistory, useLocation} from "react-router";
+import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import { NavigateFunction, useLocation, useNavigate} from "react-router";
 import {Box, Button, ButtonGroup, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
-import {createProject, setProjectArchiveStatus, listSubprojects, renameProject, MemberInProject, ProjectRole, projectRoleToStringIcon, projectRoleToString, useProjectId, viewProject, UserInProject, emptyUserInProject, useProjectManagementStatus} from ".";
 import List, {ListRow, ListRowStat} from "@/ui-components/List";
 import {errorMessageOrDefault, preventDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Operations, Operation} from "@/ui-components/Operation";
@@ -12,19 +11,22 @@ import {ItemRenderer, ItemRow, StandardBrowse} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {History} from "history";
 import {BrowseType} from "@/Resource/BrowseType";
-import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {useDispatch} from "react-redux";
 import {dispatchSetProjectAction} from "./Redux";
 import {Toggle} from "@/ui-components/Toggle";
 import {ProjectBreadcrumbs} from "./Breadcrumbs";
+import {isAdminOrPI, OldProjectRole, Project, projectRoleToString, projectRoleToStringIcon, useProjectFromParams, useProjectId} from "./Api";
+import ProjectAPI from "@/Project/Api";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {PaginationRequestV2} from "@/UCloud";
+import {emptyProject} from "./cache";
 
 interface MemberInProjectCallbacks {
     startCreation: () => void;
     onSetArchivedStatus: (id: string, archive: boolean) => void;
     startRename: (id: string) => void;
-    history: ReturnType<typeof useHistory>;
+    navigate: NavigateFunction;
     setActiveProject: (id: string, title: string) => void;
     isAdminOrPIForParent: boolean;
 }
@@ -90,19 +92,19 @@ const projectOperations: ProjectOperation[] = [
         primary: true
     },
     {
-        enabled: (selected) => selected.length === 1 && isAdminOrPI(selected[0].role ?? ProjectRole.USER),
-        onClick: ([{project}], extra) => extra.history.push(`/subprojects/?subproject=${project.id}`),
+        enabled: (selected) => selected.length === 1 && isAdminOrPI(selected[0].role),
+        onClick: ([{project}], extra) => extra.navigate(`/subprojects/?subproject=${project.id}`),
         text: "View subprojects",
         icon: "projects",
     },
     {
-        enabled: (selected) => selected.length === 1 && !selected[0].project.archived && isAdminOrPI(selected[0].role ?? ProjectRole.USER),
+        enabled: (selected) => selected.length === 1 && !selected[0].project.archived && isAdminOrPI(selected[0].role),
         onClick: ([{project}], extras) => extras.onSetArchivedStatus(project.id, true),
         text: "Archive",
         icon: "tags"
     },
     {
-        enabled: (selected) => selected.length === 1 && selected[0].project.archived && isAdminOrPI(selected[0].role ?? ProjectRole.USER),
+        enabled: (selected) => selected.length === 1 && selected[0].project.archived && isAdminOrPI(selected[0].role),
         onClick: ([{project}], extras) => extras.onSetArchivedStatus(project.id, false),
         text: "Unarchive",
         icon: "tags"
@@ -110,7 +112,7 @@ const projectOperations: ProjectOperation[] = [
     {
         enabled: (selected, extras) => {
             if (selected.length !== 1) return false;
-            if (extras.isAdminOrPIForParent || isAdminOrPI(selected[0].role ?? ProjectRole.USER)) {
+            if (extras.isAdminOrPIForParent || isAdminOrPI(selected[0].role)) {
                 return true;
             } else {
                 return "Only Admins and PIs can rename.";
@@ -126,17 +128,16 @@ export default function SubprojectList(): JSX.Element | null {
     useTitle("Subproject");
     const location = useLocation();
     const subprojectFromQuery = getQueryParamOrElse(location.search, "subproject", "");
-    const history = useHistory();
-    const [overrideRedirect, setOverride] = React.useState(false);
+    const navigate = useNavigate();
 
-    const project = useProjectManagementStatus({isRootComponent: true});
-    const {projectId, projectRole} = project;
+    const [project, fetchProject] = useCloudAPI<Project>(
+        {noop: true},
+        emptyProject()
+    );
 
     React.useEffect(() => {
-        if (!overrideRedirect) {
-            history.push(`/subprojects?subproject=${projectId}`);
-        }
-    }, [projectId, overrideRedirect]);
+        if (subprojectFromQuery) fetchProject(ProjectAPI.retrieve({id: subprojectFromQuery}));
+    }, [subprojectFromQuery]);
 
     const dispatch = useDispatch();
     const setProject = React.useCallback((id: string, title: string) => {
@@ -147,7 +148,7 @@ export default function SubprojectList(): JSX.Element | null {
         );
     }, [dispatch]);
 
-    const [, invokeCommand,] = useCloudCommand();
+    const [, invokeCommand] = useCloudCommand();
 
     const [creating, setCreating] = React.useState(false);
     const [renameId, setRenameId] = React.useState("");
@@ -176,13 +177,12 @@ export default function SubprojectList(): JSX.Element | null {
         setCreating(false);
 
         try {
-            const result = await invokeCommand(createProject({
+            const [result] = (await invokeCommand(ProjectAPI.create(bulkRequestOf({
                 title: subprojectName,
                 parent: subprojectFromQuery
-            }));
-            setOverride(true);
+            })))).responses;
             dispatchSetProjectAction(dispatch, result.id);
-            history.push("/project/grants/existing/");
+            navigate("/project/grants/existing/");
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, "Invalid subproject name"), false);
         }
@@ -199,7 +199,7 @@ export default function SubprojectList(): JSX.Element | null {
             return;
         }
         try {
-            await invokeCommand(renameProject({id, newTitle: newProjectName}));
+            await invokeCommand(ProjectAPI.renameProject(bulkRequestOf({id, newTitle: newProjectName})));
             reloadRef.current();
             toggleSet.uncheckAll();
             setRenameId("");
@@ -210,10 +210,8 @@ export default function SubprojectList(): JSX.Element | null {
 
     const onSetArchivedStatus = React.useCallback(async (id: string, archive: boolean) => {
         try {
-            await invokeCommand({
-                ...setProjectArchiveStatus({archiveStatus: archive}),
-                projectOverride: id
-            });
+            const call = archive ? ProjectAPI.archive : ProjectAPI.unarchive;
+            await invokeCommand(call(bulkRequestOf({id})));
             toggleSet.uncheckAll();
             reloadRef.current();
         } catch (e) {
@@ -235,27 +233,20 @@ export default function SubprojectList(): JSX.Element | null {
 
     const extra: MemberInProjectCallbacks = {
         startCreation,
-        history,
+        navigate,
         onSetArchivedStatus,
         startRename: setRenameId,
         setActiveProject: setProject,
-        isAdminOrPIForParent: isAdminOrPI(projectRole),
+        isAdminOrPIForParent: isAdminOrPI(project.data.status.myRole),
     };
 
-    const [subproject, fetchSubproject] = useCloudAPI<UserInProject>({noop: true}, emptyUserInProject(subprojectFromQuery));
-
-    React.useEffect(() => {
-        fetchSubproject(viewProject({id: subprojectFromQuery}));
-    }, [subprojectFromQuery]);
-
-    const isActiveProject = subproject.data.projectId === projectId;
-    const crumbs = (isActiveProject ? [] : [{title: subproject.data.title}]).concat([{title: "Subprojects"}]);
+    const crumbs = [{title: project.data.specification.title ?? ""}].concat([{title: "Subprojects"}]);
 
     return <MainContainer
         main={
             !subprojectFromQuery ? <Text fontSize={"24px"}>Missing subproject</Text> :
                 <>
-                    <ProjectBreadcrumbs omitActiveProject={!isActiveProject} crumbs={crumbs} />
+                    <ProjectBreadcrumbs omitActiveProject crumbs={crumbs} />
                     <StandardBrowse
                         reloadRef={reloadRef}
                         generateCall={generateCall}
@@ -321,4 +312,29 @@ export default function SubprojectList(): JSX.Element | null {
             </List>
         );
     }
+}
+
+// Note(Jonas): Endpoint missing from ProjectV2-api
+type ListSubprojectsRequest = PaginationRequestV2;
+const listSubprojects = (parameters: ListSubprojectsRequest): APICallParameters<ListSubprojectsRequest> => ({
+    method: "GET",
+    path: buildQueryString(
+        "/projects/sub-projects",
+        parameters
+    ),
+    parameters,
+    reloadId: Math.random()
+});
+
+export interface OldProject {
+    id: string;
+    title: string;
+    parent?: string;
+    archived: boolean;
+    fullPath?: string;
+}
+
+interface MemberInProject {
+    role?: OldProjectRole;
+    project: OldProject;
 }

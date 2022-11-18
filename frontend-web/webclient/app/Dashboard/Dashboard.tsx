@@ -32,7 +32,7 @@ import metadataApi, {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import {
     Product,
     productCategoryEquals,
@@ -47,36 +47,15 @@ import {Job, api as JobsApi} from "@/UCloud/JobsApi";
 import {ItemRow} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
-import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
-
-// TODO(Jonas): Move
-// 29/8 2022
-interface BrowseApplicationsRequest {
-    filter: "SHOW_ALL" | "ACTIVE" | "INACTIVE";
-
-    includeIngoingApplications: boolean;
-    includeOutgoingApplications: boolean;
-
-    itemsPerPage?: number;
-    next?: string;
-    consistency?: "PREFER" | "REQUIRE";
-    itemsToSkip?: number;
-}
-
-function browseGrantsApplications(request: BrowseApplicationsRequest): APICallParameters<BrowseApplicationsRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/grant/browse", request),
-        parameters: request,
-        payload: request
-    }
-}
+import {browseGrantApplications, GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 import {Connect} from "@/Providers/Connect";
 import {NotificationDashboardCard} from "@/Notifications";
 import {grantsLink} from "@/UtilityFunctions";
-import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {isAdminOrPI, useProjectId} from "@/Project/Api";
+import {useProject} from "@/Project/cache";
+
+const MY_WORKSPACE = "My Workspace";
 
 function Dashboard(props: DashboardProps): JSX.Element {
     useSearch(defaultSearch);
@@ -122,13 +101,13 @@ function Dashboard(props: DashboardProps): JSX.Element {
             includeBalance: true,
             includeMaxBalance: true
         }));
-        fetchOutgoingApps(browseGrantsApplications({
+        fetchOutgoingApps(browseGrantApplications({
             itemsPerPage: 10,
             includeIngoingApplications: false,
             includeOutgoingApplications: true,
             filter: GrantApplicationFilter.ACTIVE
         }));
-        fetchIngoingApps(browseGrantsApplications({
+        fetchIngoingApps(browseGrantApplications({
             itemsPerPage: 10,
             includeIngoingApplications: true,
             includeOutgoingApplications: false,
@@ -183,7 +162,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
         fetchTemplate();
     }, []);
 
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.favorite);
 
@@ -226,9 +205,9 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                     <Text cursor="pointer" fontSize="20px" mb="6px" mt="-3px" onClick={async () => {
                         const result = await invokeCommand<UFile>(FilesApi.retrieve({id: it.path}))
                         if (result?.status.type === "FILE") {
-                            history.push(buildQueryString("/files", {path: getParentPath(it.path)}));
+                            navigate(buildQueryString("/files", {path: getParentPath(it.path)}));
                         } else {
-                            history.push(buildQueryString("/files", {path: it.path}))
+                            navigate(buildQueryString("/files", {path: it.path}))
                         }
                     }}>{fileName(it.path)}</Text>
                 </Flex>))}
@@ -272,7 +251,7 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
     };
 }
 
-export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props => (
+export const NoResultsCardBody: React.FunctionComponent<{title: string; children: React.ReactNode}> = props => (
     <Flex
         alignItems="center"
         justifyContent="center"
@@ -290,7 +269,7 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props
 function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[]}>}): JSX.Element | null {
     return (
         <HighlightedCard
-            title={<Link to={"/project/resources"}><Heading.h3>Resource Usage</Heading.h3></Link>}
+            title={<Link to={`/project/resources/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource Usage</Heading.h3></Link>}
             icon="hourglass"
             color="yellow"
         >
@@ -324,7 +303,7 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
 function DashboardRuns({runs}: {
     runs: APICallState<UCloud.PageV2<Job>>;
 }): JSX.Element {
-    const history = useHistory();
+    const navigate = useNavigate();
     const toggle = useToggleSet([]);
     return <HighlightedCard
         color="gray"
@@ -348,7 +327,7 @@ function DashboardRuns({runs}: {
                         key={job.id}
                         item={job}
                         browseType={BrowseType.Card}
-                        navigate={() => history.push(`/jobs/properties/${job.id}`)}
+                        navigate={() => navigate(`/jobs/properties/${job.id}`)}
                         renderer={JobsApi.renderer}
                         toggleSet={toggle}
                         operations={[] as ReturnType<typeof JobsApi.retrieveOperations>}
@@ -386,8 +365,11 @@ function DashboardResources({products}: {
         return wallets;
     }, [products.data.items]);
 
-    const projectId = useProjectId()
+    const projectId = useProjectId();
 
+
+    const project = useProject();
+    const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
     const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"}>
@@ -396,7 +378,7 @@ function DashboardResources({products}: {
 
     return (
         <HighlightedCard
-            title={<Link to={"/project/allocations"}><Heading.h3>Resource Allocations</Heading.h3></Link>}
+            title={<Link to={`/project/allocations/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource Allocations</Heading.h3></Link>}
             color="red"
             isLoading={products.loading}
             icon={"grant"}
@@ -404,10 +386,10 @@ function DashboardResources({products}: {
         >
             {wallets.length === 0 ? (
                 <NoResultsCardBody title={"No available resources"}>
-                    <Text>
+                    {!canApply ? null : <Text>
                         Apply for resources to use storage and compute on UCloud.
                         {applyLinkButton}
-                    </Text>
+                    </Text>}
                 </NoResultsCardBody>
             ) :
                 <>
@@ -443,16 +425,16 @@ const DashboardGrantApplications: React.FunctionComponent<{
     const both = outgoingApps.data.items.length > 0 && ingoingApps.data.items.length > 0;
     const anyOutgoing = outgoingApps.data.items.length > 0;
 
-    const title = (none ? <Link to={"/project/grants/outgoing"}><Heading.h3>Grant Applications</Heading.h3></Link>
+    const title = (none ? <Link to={`/project/grants/outgoing/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Grant Applications</Heading.h3></Link>
         : both ? <Heading.h3>Grant Applications</Heading.h3>
-            : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}`}>
+            : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}/${Client.projectId ?? MY_WORKSPACE}`}>
                 <Heading.h3>Grant Applications</Heading.h3>
             </Link>
     );
 
 
-    const project = useProjectManagementStatus({isRootComponent: false, allowPersonalProject: true});
-    const canApply = !Client.hasActiveProject || isAdminOrPI(project.projectDetails.data.whoami.role);
+    const project = useProject();
+    const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
     if (!canApply) return null;
 

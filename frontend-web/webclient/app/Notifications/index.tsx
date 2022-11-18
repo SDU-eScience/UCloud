@@ -18,7 +18,7 @@ import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import * as H from "history";
 import {Dispatch} from "redux";
-import {useHistory} from "react-router";
+import {Location, NavigateFunction, useLocation, useNavigate} from "react-router";
 import {useDispatch, useSelector} from "react-redux";
 import {getStoredProject} from "@/Project/Redux";
 import {dispatchSetProjectAction} from "@/Project/Redux";
@@ -68,25 +68,25 @@ function resolveNotification(event: Notification): {
     }
 }
 
-function onNotificationAction(notification: Notification, history: ReturnType<typeof useHistory>, dispatch: Dispatch) {
+function onNotificationAction(notification: Notification, navigate: NavigateFunction, dispatch: Dispatch) {
     const currentProject = getStoredProject();
     switch (notification.type) {
         case "APP_COMPLETE":
-            history.push(`/applications/results/${notification.meta.jobId}`);
+            navigate(`/applications/results/${notification.meta.jobId}`);
             break;
         case "SHARE_REQUEST":
-            history.push("/shares");
+            navigate("/shares");
             break;
         case "REVIEW_PROJECT":
         case "PROJECT_INVITE":
-            history.push("/projects/");
+            navigate("/projects/");
             break;
         case "NEW_GRANT_APPLICATION":
         case "COMMENT_GRANT_APPLICATION":
         case "GRANT_APPLICATION_RESPONSE":
         case "GRANT_APPLICATION_UPDATED": {
             const {meta} = notification;
-            history.push(`/project/grants/view/${meta.appId}`);
+            navigate(`/project/grants/view/${meta.appId}`);
             break;
         }
         case "PROJECT_ROLE_CHANGE": {
@@ -94,7 +94,7 @@ function onNotificationAction(notification: Notification, history: ReturnType<ty
             if (currentProject !== projectId) {
                 dispatchSetProjectAction(dispatch, projectId);
             }
-            history.push("/project/members");
+            navigate("/project/members");
             break;
         }
         default:
@@ -179,7 +179,7 @@ export function sendNotification(notification: NormalizedNotification) {
 // When UI updates are required, then this function will invoke `renderNotifications()` to trigger a UI update in all
 // relevant components.
 let wsConnection: WebSocketConnection | undefined = undefined;
-let snackbarSubscription: (snack?: Snack) => void = () => {};
+let snackbarSubscription: (snack?: Snack) => void = () => { };
 let snoozeLoop: any;
 function initializeStore() {
     // NOTE(Dan): We first fetch a history of old events. These are only added to the tray and do not trigger a popup.
@@ -277,9 +277,10 @@ export function markAsRead(notifications: NormalizedNotification[]) {
 
 // HACK(Dan): I would agree this isn't great.
 let normalizationDependencies: {
-    history: ReturnType<typeof useHistory>;
+    navigate: NavigateFunction;
+    location: Location;
     dispatch: Dispatch;
-    refresh: { current?: () => void }
+    refresh: {current?: () => void}
 } | null = null;
 
 // The <Notifications> component is the main component for notifications. It is almost always mounted and visible in
@@ -287,8 +288,9 @@ let normalizationDependencies: {
 // function is responsible for initializing the notification store. It is also responsible for mounting the popup
 // component.
 export const Notifications: React.FunctionComponent = () => {
-    const history = useHistory();
     const dispatch = useDispatch();
+    const location = useLocation();
+    const navigate = useNavigate();
     const rerender = useForcedRender();
     const [notificationsVisible, setNotificationsVisible] = React.useState(false);
 
@@ -304,7 +306,7 @@ export const Notifications: React.FunctionComponent = () => {
     }, []);
 
     React.useEffect(() => {
-        const evHandler = () => { setNotificationsVisible(false) };
+        const evHandler = () => {setNotificationsVisible(false)};
         document.addEventListener("click", evHandler);
         return () => {
             document.removeEventListener("click", evHandler);
@@ -313,7 +315,7 @@ export const Notifications: React.FunctionComponent = () => {
 
     React.useEffect(() => {
         notificationCallbacks.add(rerender);
-        normalizationDependencies = { history, dispatch, refresh: globalRefreshRef };
+        normalizationDependencies = {navigate, location, dispatch, refresh: globalRefreshRef};
         initializeStore();
 
         return () => {
@@ -374,7 +376,7 @@ export const Notifications: React.FunctionComponent = () => {
                 <div className="header">
                     <h3>Notifications</h3>
                     <Icon name="checkDouble" className="read-all" color="iconColor" color2="iconColor2"
-                          onClick={markAllAsRead} />
+                        onClick={markAllAsRead} />
                 </div>
 
                 {pinnedEntries}
@@ -448,8 +450,8 @@ export interface Notification {
 
 function normalizeNotification(
     notification: Notification | NormalizedNotification,
-): NormalizedNotification & { onSnooze?: () => void } {
-    const {history, dispatch, refresh} = normalizationDependencies!;
+): NormalizedNotification & {onSnooze?: () => void} {
+    const {location, dispatch, refresh, navigate} = normalizationDependencies!;
 
     if ("isPinned" in notification) {
         const result = {
@@ -457,19 +459,19 @@ function normalizeNotification(
             onSnooze: () => Snooze.snooze(notification.uniqueId),
         };
         result.onAction = () => {
-            const before = history.location.pathname;
+            const before = location.pathname;
 
             markAsRead([result]);
             notification.onAction?.();
 
-            const after = history.location.pathname;
+            const after = location.pathname;
             if (before === after && refresh.current) refresh.current();
         };
         return result;
     }
 
     const resolved = resolveNotification(notification);
-    const result: NormalizedNotification & { onSnooze?: () => void } = {
+    const result: NormalizedNotification & {onSnooze?: () => void} = {
         icon: resolved.icon,
         iconColor: resolved.color ?? "iconColor",
         iconColor2: resolved.color2 ?? "iconColor2",
@@ -483,12 +485,12 @@ function normalizeNotification(
     };
 
     result.onAction = () => {
-        const before = history.location.pathname;
+        const before = location.pathname;
 
         markAsRead([result]);
-        onNotificationAction(notification, history, dispatch);
+        onNotificationAction(notification, navigate, dispatch);
 
-        const after = history.location.pathname;
+        const after = location.pathname;
         if (before === after && refresh.current) refresh.current();
     };
 
@@ -518,7 +520,7 @@ function NotificationEntry(props: NotificationEntryProps): JSX.Element {
     return (
         <NotificationWrapper onClick={onAction} className={classes.join(" ")}>
             <Icon name={notification.icon} size="24px" color={notification.iconColor ?? "iconColor"}
-                  color2={notification.iconColor2 ?? "iconColor2"} />
+                color2={notification.iconColor2 ?? "iconColor2"} />
             <div className="notification-content">
                 <Flex>
                     <b>{notification.title}</b>
@@ -618,7 +620,7 @@ export const NotificationDashboardCard: React.FunctionComponent = () => {
         title="Recent notifications"
         subtitle={
             <Icon name="checkDouble" color="iconColor" color2="iconColor2" title="Mark all as read" cursor="pointer"
-                  onClick={markAllAsRead} />
+                onClick={markAllAsRead} />
         }
     >
         {notificationStore.length !== 0 ? null :

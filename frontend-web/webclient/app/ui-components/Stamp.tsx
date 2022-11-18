@@ -7,8 +7,8 @@ import theme, {Theme, ThemeColor} from "./theme";
 
 const useFullWidth = ({fullWidth}: {fullWidth?: boolean}): {width: string} | null => fullWidth ? {width: "100%"} : null;
 
-export const colorScheme = (props: {theme: Theme; color: ThemeColor}) => {
-    const badgeColors = {
+export const colorScheme = (props: {theme: Theme; color?: string}): {backgroundColor: string; borderColor: string; color: string;} => {
+    const badgeColors: Record<string, {backgroundColor: string; borderColor: string; color: string}> = {
         white: {
             backgroundColor: props.theme.colors.black,
             borderColor: props.theme.colors.black,
@@ -60,7 +60,7 @@ export const colorScheme = (props: {theme: Theme; color: ThemeColor}) => {
             color: props.theme.colors.text
         }
     };
-    const color = badgeColors[props.color];
+    const color = badgeColors[props.color ?? ""];
     return color || badgeColors.white;
 };
 
@@ -87,6 +87,7 @@ interface StampProps extends SpaceProps {
     theme?: Theme;
     fontSize?: number | string;
     fullWidth?: boolean;
+    children?: React.ReactNode;
 }
 
 StampBase.defaultProps = {

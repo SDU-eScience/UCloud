@@ -308,7 +308,7 @@ class AccountingService(
                     setParameter("filter_provider", request.filterProvider)
                     setParameter("filter_category", request.filterProductCategory)
                     setParameter("filter_type", request.filterType?.name)
-                    setParameter("filter_allocation", request.filterAllocation?.toLongOrNull() ?: -1)
+                    setParameter("filter_allocation", request.filterAllocation?.toLongOrNull())
                     setParameter("filter_workspace", request.filterWorkspace)
                     setParameter("filter_workspace_project", request.filterWorkspaceProject)
                     setParameter("num_buckets", 30 as Int)
@@ -357,7 +357,7 @@ class AccountingService(
                                 ) and
                                 (
                                     :filter_allocation::bigint is null or
-                                    t.source_allocation_id = :filter_allocation
+                                    t.source_allocation_id = :filter_allocation::bigint
                                 ) and
                                 (
                                     :filter_workspace::text is null or
@@ -490,7 +490,7 @@ class AccountingService(
                         )
                     select * from combined_charts;
                 """,
-                "Accounting Retrieve Usage"
+                "Accounting Retrieve Usage",
             )
         }.rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) } ?: throw RPCException(
             "No usage data found. Are you sure you are allowed to view the data?",
@@ -513,7 +513,7 @@ class AccountingService(
                     setParameter("filter_provider", request.filterProvider)
                     setParameter("filter_category", request.filterProductCategory)
                     setParameter("filter_type", request.filterType?.name)
-                    setParameter("filter_allocation", request.filterAllocation?.toLongOrNull() ?: -1)
+                    setParameter("filter_allocation", request.filterAllocation?.toLongOrNull())
                     setParameter("filter_workspace", request.filterWorkspace)
                     setParameter("filter_workspace_project", request.filterWorkspaceProject)
                 },
@@ -562,7 +562,7 @@ class AccountingService(
                                 ) and
                                 (
                                     :filter_allocation::bigint is null or
-                                    t.source_allocation_id = :filter_allocation
+                                    t.source_allocation_id = :filter_allocation::bigint
                                 ) and
                                 (
                                     :filter_workspace::text is null or

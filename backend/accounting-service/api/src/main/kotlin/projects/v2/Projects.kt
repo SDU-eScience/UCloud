@@ -28,7 +28,7 @@ data class Project(
         @UCloudApiDoc("""
             A flag which indicates if the project is currently archived.
 
-            Currently archiving does not mean a lot in UCloud. This is subject to change in the future. For the most
+            Currently, archiving does not mean a lot in UCloud. This is subject to change in the future. For the most
             part, archived projects simply do not appear when using a `browse`, unless `includeArchived = true`.
         """)
         val archived: Boolean,
@@ -132,6 +132,19 @@ data class ProjectInvite(
     val projectTitle: String,
 )
 
+@Serializable
+data class RenameProjectRequest(
+    val id: String,
+    val newTitle: String
+)
+typealias RenameProjectResponse = Unit
+
+@Serializable
+data class SetProjectVerificationStatusRequest(
+    val projectId: String,
+)
+typealias SetProjectVerificationStatusResponse = Unit
+
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object Projects : CallDescriptionContainer("projects.v2") {
     const val baseContext = "/api/projects/v2"
@@ -175,8 +188,13 @@ object Projects : CallDescriptionContainer("projects.v2") {
         httpUpdate(baseContext, "retrieveAllUsersGroup", roles = Roles.SERVICE)
     }
 
-    // TODO Rename
-    // TODO verification status
+    val renameProject = call("renameProject", BulkRequest.serializer(RenameProjectRequest.serializer()), RenameProjectResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "renameProject")
+    }
+
+    val projectVerificationStatus = call("projectVerificationStatus", BulkRequest.serializer(SetProjectVerificationStatusRequest.serializer()), SetProjectVerificationStatusResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "projectVerificationStatus")
+    }
 
     val verifyMembership = call("verifyMembership", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "verifyMembership")

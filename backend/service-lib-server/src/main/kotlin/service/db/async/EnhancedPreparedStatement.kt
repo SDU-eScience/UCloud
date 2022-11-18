@@ -269,7 +269,7 @@ suspend inline fun AsyncDBConnection.sendPreparedStatement(
 ): QueryResult {
     val statement = EnhancedPreparedStatement(query)
     statement.block()
-    if (debug) EnhancedPreparedStatement.log.debug(statement.toString())
+    if (debug) EnhancedPreparedStatement.log.info(statement.toString())
     return statement.sendPreparedStatement(this, release, tagName)
 }
 
