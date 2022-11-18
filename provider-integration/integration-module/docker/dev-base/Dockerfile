@@ -25,7 +25,7 @@ RUN mkdir -p /var/log/ucloud
 RUN chown -R 998:998 /var/log/ucloud
 RUN mkdir -p /etc/ucloud
 RUN chown -R 998:998 /etc/ucloud
-RUN echo 'ucloud  ALL=(%ucloud) NOPASSWD: /usr/bin/ucloud, /opt/ucloud/build/install/ucloud-integration-module/bin/ucloud-integration-module, /opt/ucloud/build/native/nativeCompile/ucloud-integration-module' >> /etc/sudoers
+RUN echo 'ucloud  ALL=(ALL:ALL) NOPASSWD: /etc/ucloud/extensions/*, /usr/bin/ucloud, /opt/ucloud/build/install/ucloud-integration-module/bin/ucloud-integration-module' >> /etc/sudoers
 RUN echo 'Defaults runas_allow_unknown_id' >> /etc/sudoers
 
 WORKDIR /tmp

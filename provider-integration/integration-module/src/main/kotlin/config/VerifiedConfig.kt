@@ -39,7 +39,8 @@ data class VerifiedConfig(
         val launchRealUserInstances: Boolean,
         val allowRootMode: Boolean,
         val developmentMode: Boolean,
-        val cors: Cors
+        val cors: Cors,
+        val disableInsecureFileCheck: Boolean,
     ) {
         data class Hosts(
             val ucloud: Host,
@@ -257,13 +258,18 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
     run {
         // Verify that sections required by the mode are available.
+        val disableInsecureCheck =
+            config.core?.disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy == true &&
+                config.core.developmentMode == true
+
+        println(disableInsecureCheck)
 
         if (config.core == null) missingFile(config, ConfigSchema.FILE_CORE) // Required for all
 
         when (mode) {
             ServerMode.FrontendProxy -> {
                 if (config.frontendProxy == null) missingFile(config, ConfigSchema.FILE_FRONTEND_PROXY)
-                if (config.server != null) insecureFile(config, ConfigSchema.FILE_SERVER)
+                if (config.server != null) insecureFile(config, ConfigSchema.FILE_SERVER, disableInsecureCheck)
             }
 
             is ServerMode.Plugin -> {
@@ -277,10 +283,10 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             }
 
             ServerMode.User -> {
-                if (config.server != null) insecureFile(config, ConfigSchema.FILE_SERVER)
+                if (config.server != null) insecureFile(config, ConfigSchema.FILE_SERVER, disableInsecureCheck)
                 if (config.plugins == null) missingFile(config, ConfigSchema.FILE_PLUGINS)
                 if (config.products == null) missingFile(config, ConfigSchema.FILE_PRODUCTS)
-                if (config.frontendProxy != null) insecureFile(config, ConfigSchema.FILE_FRONTEND_PROXY)
+                if (config.frontendProxy != null) insecureFile(config, ConfigSchema.FILE_FRONTEND_PROXY, disableInsecureCheck)
             }
         }
     }
@@ -396,7 +402,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             core.launchRealUserInstances,
             core.allowRootMode,
             core.developmentMode ?: (core.hosts.ucloud.host == "backend"),
-            cors
+            cors,
+            core.disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy && core.developmentMode == true
         )
     }
 
@@ -865,20 +872,35 @@ private fun missingFile(config: ConfigSchema, file: String): Nothing {
     exitProcess(1)
 }
 
-private fun insecureFile(config: ConfigSchema, file: String): Nothing {
-    sendTerminalMessage {
-        bold { red { inline("Insecure file! ") } }
-        code {
-            inline(config.configurationDirectory)
-            inline("/")
-            line(file)
+private fun insecureFile(config: ConfigSchema, file: String, disabled: Boolean) {
+    if (disabled) {
+        sendTerminalMessage {
+            bold { yellow { inline("Insecure file! ") } }
+            code {
+                inline(config.configurationDirectory)
+                inline("/")
+                line(file)
+            }
+            line()
+            line("This file is not supposed to be readable in the configuration, yet it was. ")
+            line("It appears you might be running a some weird dev environment. We are allowing you to continue")
+            line("with this insecure file.")
         }
-        line()
-        line("This file is not supposed to be readable in the configuration, yet it was. ")
-        line("We refer to the documentation for more information about this error.")
-    }
+    } else {
+        sendTerminalMessage {
+            bold { red { inline("Insecure file! ") } }
+            code {
+                inline(config.configurationDirectory)
+                inline("/")
+                line(file)
+            }
+            line()
+            line("This file is not supposed to be readable in the configuration, yet it was. ")
+            line("We refer to the documentation for more information about this error.")
+        }
 
-    exitProcess(1)
+        exitProcess(1)
+    }
 }
 
 private fun emitWarning(warning: String, ref: ConfigurationReference? = null) {

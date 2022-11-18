@@ -76,10 +76,6 @@ class RemoteFileFactory(private val connection: SshConnection) : FileFactory() {
 }
 
 class RemoteFile(private val connection: SshConnection, path: String) : LFile(path) {
-    init {
-        require(!path.contains("'")) { "Paths cannot contain: '" }
-    }
-
     override val absolutePath: String =
         if (!path.startsWith("/")) connection.remoteRoot + "/" + path.removePrefix("/")
         else path
@@ -111,7 +107,7 @@ class RemoteFile(private val connection: SshConnection, path: String) : LFile(pa
         connection.useSession {
             it.exec(
                 """
-                    cat >> '$absolutePath' << EOF
+                    cat >> '${escapeBash(absolutePath)}' << EOF
                     $text
                     EOF
                 """.trimIndent()
@@ -121,7 +117,7 @@ class RemoteFile(private val connection: SshConnection, path: String) : LFile(pa
 
     override fun delete() {
         if (disableRemoteFileWriting) return
-        connection.useSession { it.exec("rm -rf '$absolutePath'").join() }
+        connection.useSession { it.exec("rm -rf '${escapeBash(absolutePath)}'").join() }
     }
 
     override fun mkdirs() {
@@ -166,8 +162,8 @@ class RemoteExecutableCommand(
             append(connection.host)
             append(' ')
             append('"')
-            if (workingDir != null) append("cd '$workingDir'; ")
-            append(args.joinToString(" ") { "'$it'" })
+            if (workingDir != null) append("cd '${escapeBash(workingDir.toString())}'; ")
+            append(args.joinToString(" ") { "'${escapeBash(it)}'" })
             appendLine('"')
         }
     }
@@ -176,7 +172,7 @@ class RemoteExecutableCommand(
         val boundary = UUID.randomUUID().toString()
         connection.shell.outputStream.write(
             buildString {
-                if (workingDir != null) appendLine("cd '$workingDir';")
+                if (workingDir != null) appendLine("cd '${escapeBash(workingDir.toString())}';")
                 append(args.joinToString(" ") { "'$it'" })
                 appendLine(" < /dev/null")
                 appendLine("st=${'$'}?")
@@ -227,7 +223,7 @@ class RemoteExecutableCommand(
                 return Pair(null, output + err)
             } else {
                 println("Command failed!")
-                println("Command: " + args.joinToString(" ") { "'$it'" })
+                println("Command: " + args.joinToString(" ") { "'${escapeBash(it)}'" })
                 println("Directory: $workingDir")
                 println("Exit code: ${exitCode}")
                 println("Stdout: ${output}")

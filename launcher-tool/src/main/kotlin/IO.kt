@@ -57,3 +57,16 @@ data class ProcessResultText(
     val stdout: String,
     val stderr: String,
 )
+
+fun escapeBash(value: String): String {
+    return buildString {
+        for (char in value) {
+            append(
+                when (char) {
+                    '\'' -> "'\"'\"'"
+                    else -> char
+                }
+            )
+        }
+    }
+}

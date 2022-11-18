@@ -4,6 +4,7 @@ set -e
 PS1=fakeinteractiveshell
 source /root/.bashrc
 running_k8=$(grep "providerId: k8" /etc/ucloud/core.yaml &> /dev/null ; echo $?)
+running_slurm=$(grep "providerId: slurm" /etc/ucloud/core.yaml &> /dev/null ; echo $?)
 
 if ! (test -f /tmp/sync.pid && (ps -p $(cat /tmp/sync.pid) > /dev/null)); then
     nohup /opt/ucloud/user-sync.py push /mnt/passwd &> /tmp/sync.log &
@@ -11,13 +12,21 @@ if ! (test -f /tmp/sync.pid && (ps -p $(cat /tmp/sync.pid) > /dev/null)); then
     sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
 fi
 
-uid=ucloud
+uid=998
 if [[ $running_k8 == 0 ]]; then
     uid=11042
 fi
 
+
+if [[ $running_slurm == 0 ]]; then
+    uid=998
+    chown -R munge:munge /etc/munge
+    service munge start;
+fi
+
 ! (test -d /mnt/storage) || chmod 755 /mnt/storage
 ! (test -d /mnt/k3s) || chmod 755 /mnt/k3s
+! (test -d /etc/ucloud/extensions) || chmod 755 /etc/ucloud/extensions /etc/ucloud/extensions/*
 chmod o+x /opt/ucloud
 mkdir -p /home/ucloud
 chown -R $uid:$uid /home/ucloud
@@ -25,6 +34,7 @@ chown -R $uid:$uid /etc/ucloud
 chown -R $uid:$uid /var/run/ucloud
 chown -R $uid:$uid /var/log/ucloud
 mkdir -p /var/log/ucloud/structured
+chmod 777 /var/log/ucloud
 chmod 777 /var/log/ucloud/structured
 
 ! (test -f /etc/ucloud/plugins.yaml) || chmod 644 /etc/ucloud/plugins.yaml
