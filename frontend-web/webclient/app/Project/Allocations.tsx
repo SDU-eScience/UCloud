@@ -1,4 +1,4 @@
-import {browseWallets, ChargeType, explainAllocation, normalizeBalanceForFrontend, ProductCategoryId, ProductPriceUnit, ProductType, productTypes, productTypeToIcon, usageExplainer, Wallet, WalletAllocation} from "@/Accounting";
+import {browseWallets, ChargeType, explainAllocation, ProductCategoryId, ProductPriceUnit, ProductType, productTypes, productTypeToIcon, usageExplainer, Wallet, WalletAllocation} from "@/Accounting";
 import {apiBrowse, apiSearch, useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
 import MainContainer from "@/MainContainer/MainContainer";
@@ -79,10 +79,12 @@ function Allocations(): JSX.Element {
         }));
     }, [setFilters]);
 
-    const reloadPage = useCallback(() => {
+    const reloadPage = useCallback(async () => {
         const projectOverride = isPersonalWorkspace ? undefined : projectId;
-        fetchWallets({...browseWallets({itemsPerPage: 50, ...filters}), projectOverride});
-        fetchAllocations({...browseSubAllocations({itemsPerPage: 250, ...filters}), projectOverride});
+        await Promise.allSettled([
+            fetchWallets({...browseWallets({itemsPerPage: 50, ...filters}), projectOverride}),
+            fetchAllocations({...browseSubAllocations({itemsPerPage: 250, ...filters}), projectOverride})
+        ]);
         setAllocationGeneration(prev => prev + 1);
     }, [filters, projectId]);
 
