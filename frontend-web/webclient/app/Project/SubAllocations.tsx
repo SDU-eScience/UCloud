@@ -842,8 +842,8 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                 </UsageRowsWithMargin>
             </>}
             titleContentOnOpened={<>
-                {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" width="98px" onClick={addNewRow}>New row</Button> :
-                    <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" width="98px" disabled>New row</Button>}>
+                {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" width="100px" onClick={addNewRow}>New row</Button> :
+                    <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" width="100px" disabled>New row</Button>}>
                         No allocations available for use.
                     </Tooltip>
                 }
