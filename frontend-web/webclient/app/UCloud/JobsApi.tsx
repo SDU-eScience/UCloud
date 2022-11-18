@@ -305,25 +305,33 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         return apiUpdate(request, this.baseContext, "terminate");
     }
 
+    /* Untested */
     retrieveUtilization(request: {jobId: string}): APICallParameters<{jobId: string}, ComputeUtilization> {
-        return apiRetrieve(request, this.baseContext, "retrieveUtilization");
+        console.log("RETRIEVE_UTILIZATION");
+        return apiRetrieve(request, this.baseContext, "utilization");
     }
 
     extend(request: BulkRequest<ExtendRequest>): APICallParameters<BulkRequest<ExtendRequest>, BulkResponse<any | null>> {
         return apiUpdate(request, this.baseContext, "extend");
     }
 
+    /* Untested */
     suspend(request: BulkRequest<SuspendRequest>): APICallParameters<BulkRequest<SuspendRequest>, BulkResponse<any | null>> {
+        console.log("SUSPEND");
         return apiUpdate(request, this.baseContext, "suspend");
     }
-    
+
+    /* Untested */
     unsuspend(request: BulkRequest<ResumeRequest>): APICallParameters {
+        console.log("USUSPEND");
         return apiUpdate(request, this.baseContext, "unsuspend")
     }
 
+    /* Untested */
     openInteractiveSession(
         request: BulkRequest<OpenInteractiveSessionRequest>
     ): APICallParameters<BulkRequest<OpenInteractiveSessionRequest>, BulkResponse<InteractiveSession>> {
+        console.log("OPEN_INTERACTIVE_SESSION");
         return apiUpdate(request, this.baseContext, "interactiveSession");
     }
 }
