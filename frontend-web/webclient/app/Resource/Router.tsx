@@ -14,7 +14,7 @@ export function ResourceRouter<T extends Resource>(props: PropsWithChildren<Rout
     const Properties = props.api.Properties;
     return <Routes>
         <Route path={"/"} element={<props.Browser />} />
-        <Route path={`/properties/:id`} element={<Properties api={props.api} />} />
+        <Route path={`/properties/:id/`} element={<Properties api={props.api} />} />
         {props.Create ? <Route path="/create" element={<props.Create />} /> : null}
         <Route path={`/search`} element={<props.Browser isSearch />} />
     </Routes>;

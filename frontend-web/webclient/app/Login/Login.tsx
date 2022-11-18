@@ -8,7 +8,7 @@ import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Lin
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {DropdownContent, Dropdown} from "@/ui-components/Dropdown";
 import {TextSpan} from "@/ui-components/Text";
-import {getQueryParamOrElse, RouterLocationProps, getQueryParam} from "@/Utilities/URIUtilities";
+import {getQueryParamOrElse, getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
 import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
 import {BG1} from "./BG1";
@@ -24,6 +24,8 @@ const BackgroundImage = styled.div<{image: string}>`
     background-size: cover;
     overflow: hidden;
 `;
+
+export const LOGIN_REDIRECT_KEY = "redirect_on_login";
 
 const inDevEnvironment = DEVELOPMENT_ENV;
 const enabledWayf = true;

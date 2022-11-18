@@ -536,6 +536,7 @@ export class HttpClient {
             if (!is5xxStatusCode(res.status)) {
                 window.localStorage.removeItem("accessToken");
                 window.localStorage.removeItem("csrfToken");
+                window.sessionStorage.removeItem("redirect_on_login");
                 setStoredProject(null);
                 this.openBrowserLoginPage();
                 return;
