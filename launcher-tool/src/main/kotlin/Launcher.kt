@@ -9,10 +9,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole
-import java.awt.Desktop
 import java.io.File
-import java.net.URI
-import kotlin.random.Random
 import kotlin.system.exitProcess
 
 val prompt = ConsolePrompt()
@@ -31,7 +28,8 @@ fun ExecutableCommand(
 ): ExecutableCommand = commandFactory.create(args, workingDir, postProcessor, allowFailure, deadlineInMillis)
 
 fun cliHint(invocation: String) {
-    println(ansi().reset().render("You can also do this with: '").bold().render("./launcher $invocation").boldOff().render("'"))
+    println(ansi().reset().render("You can also do this with: '")
+        .bold().render("./launcher $invocation").boldOff().render("'"))
 }
 
 fun main(args: Array<String>) {
@@ -93,6 +91,13 @@ fun main(args: Array<String>) {
             if (!startConfirmed) return
 
             startCluster(compose, noRecreate = false)
+
+            if (shouldStart) {
+                println()
+                println()
+                println("UCloud is now running. You should create a provider to get started. Select the " +
+                    "'Create provider...' entry below to do so.")
+            }
         }
 
         cliIntercept(args.drop(1))
@@ -205,6 +210,246 @@ fun main(args: Array<String>) {
                         initIO()
                         currentEnvironment.child("..").child(env).mkdirs()
                         File(baseDir, "current.txt").writeText(env)
+                    }
+                }
+            }
+
+            topLevel.help -> {
+                val topics = object : Menu("Select a topic") {
+                    val gettingStarted = item("start", "Getting started")
+                    val usage = item("usage", "Using UCloud and basic troubleshooting")
+                    val debug = item("debug", "UCloud/Core databases and debugging")
+                    val providers = item("providers", "UCloud/IM and Providers")
+                }
+
+                var nextTopic: ListItem? = topics.display(prompt)
+
+                while (nextTopic != null) {
+                    nextTopic = null
+
+                    when (topics.display(prompt)) {
+                        topics.gettingStarted -> {
+                            println(
+                                """
+                                    Welcome! This is a small interactive help tool. For more in-depth documentation, 
+                                    please go here: https://docs.cloud.sdu.dk
+                                    
+                                    UCloud should now be up and running. If everything is working, then you should be able
+                                    to access UCloud's frontend by opening the following web-page in your browser:
+                                    https://ucloud.localhost.direct.
+                                    
+                                    The default credentials for this instance is:
+                                    
+                                    Username: user
+                                    Password: mypassword
+                                    
+                                    This is an UCloud admin account which you can use to manage the UCloud instance. You
+                                    can see which options are available to you from the "Admin" tab in the UCloud sidebar.
+                                """.trimIndent()
+                            )
+
+                            val moreTopics = object : Menu("Select a topic") {
+                                val troubleshoot = item("troubleshoot", "It is not working")
+                                val whatNext = item("whatNext", "What should I do now?")
+                            }
+
+                            when (moreTopics.display(prompt)) {
+                                moreTopics.troubleshoot -> {
+                                    println(
+                                        """
+                                            There are a number of ways for you to troubleshoot a UCloud environment which
+                                            is not working. Below we will try to guide you through a number of steps which
+                                            might be relevant.
+                                        """.trimIndent()
+                                    )
+
+                                    fun suggestion(text: String) {
+                                        println()
+                                        println(text)
+                                        println()
+                                    }
+
+                                    if (environmentIsRemote) {
+                                        suggestion(
+                                            """
+                                                It looks like your current environment is using a remote machine. Please 
+                                                make sure that port-forwarding is configured and working correctly. You can 
+                                                access port-forwarding from the interactive menu.
+                                            """.trimIndent()
+                                        )
+                                    }
+
+                                    suggestion(
+                                        """
+                                            Sometimes Docker is not able to correctly restart all the container of your
+                                            system. You can try to restart your environment with "./launcher env restart".
+                                            
+                                            Following this, you should attempt to verify that the backend is running and
+                                            not producing any errors. You can view the logs with "./launcher svc backend logs".
+                                        """.trimIndent()
+                                    )
+
+                                    suggestion(
+                                        """
+                                            Some development builds can be quite buggy or incompatible between versions. 
+                                            This can, for example, happen when in-development database schemas change 
+                                            drastically. In these cases, it is often easier to simply recreate your 
+                                            development environment. You can do this by running "./launcher env delete".
+                                        """.trimIndent()
+                                    )
+
+                                    suggestion(
+                                        """
+                                            If the issue persist after recreating your environment, then you might want to
+                                            troubleshoot further by looking at the logs of the backend (./launcher svc backend logs)
+                                            and any configured providers. Finally, you may wish to inspect the 
+                                            database (https://postgres.localhost.direct) and look for any problems here.
+                                        """.trimIndent()
+                                    )
+                                }
+
+                                moreTopics.whatNext -> {
+                                    nextTopic = topics.usage
+                                }
+                            }
+                        }
+
+                        topics.usage -> {
+                            println(
+                                """
+                                    UCloud has quite a number of features. If you have never used UCloud before, then
+                                    we recommend reading the documentation here: https://docs.cloud.sdu.dk
+                                    
+                                    You can also select one of the topics below for common operations.
+                                """.trimIndent()
+                            )
+
+                            val moreTopics = object : Menu("Select a topic") {
+                                val login = item("login", "How do I login?")
+                                val createUser = item("createUser", "How do I create a new user?")
+                                val createProject = item("createProject", "How do I create a project?")
+                                val certExpired = item("certExpired", "The certificate has expired?")
+                                val noProducts = item("noProducts", "I don't see any machines when I attempt to start a job")
+                                val noFiles = item("noFiles", "I don't see any drives when I attempt to access my files")
+                            }
+
+                            when (moreTopics.display(prompt)) {
+                                moreTopics.login -> {
+                                    println("""
+                                        You can access UCloud here: https://ucloud.localhost.direct
+                                        
+                                        Username: user
+                                        Password: mypassword
+                                        
+                                        See the "Getting started" topic for more information.
+                                    """.trimIndent())
+                                }
+
+                                moreTopics.createUser -> {
+                                    println(
+                                        """
+                                            Using your admin user. You can select the "Admin" tab in the sidebar and
+                                            create a new user from the "Create user" sub-menu.
+                                        """.trimIndent()
+                                    )
+                                }
+
+                                moreTopics.createProject -> {
+                                    println(
+                                        """
+                                            You can create a new sub-project from the "Root" project.
+                                            
+                                            1. Click on "Manage projects" from the project selector.
+                                               You can find this next to the UCloud logo after you have logged in.
+                                            2. Open the "Root" project by clicking on "Root" 
+                                               (alternatively, right click and select properties)
+                                            3. Open the "Subprojects" menu
+                                            4. Click "Create subproject" in the left sidebar
+                                            
+                                            At this point you should have a new project. Remember, your project cannot
+                                            do anything until you have allocated resources to it. You should 
+                                            automatically end up on a screen where you can ask for resources from your
+                                            configured providers. If you don't see any resources, then make sure that
+                                            you have configured a provider and that they are running.
+                                        """.trimIndent()
+                                    )
+                                }
+
+                                moreTopics.certExpired -> {
+                                    println(
+                                        """
+                                            Try pulling from the git repository again. If that doesn't help and you
+                                            are part of the development slack, try to ask @dan.
+                                        """.trimIndent()
+                                    )
+                                }
+
+                                moreTopics.noFiles, moreTopics.noProducts -> {
+                                    println(
+                                        """
+                                            Make sure that you have configured a provider and that it is running.
+                                            You can create a provider by selecting "Create provider..." from the launcher
+                                            menu.
+                                            
+                                            You can view the logs of the provider using "Open logs..." from the launcher.
+                                        """.trimIndent()
+                                    )
+
+                                    println(
+                                        """
+                                            You should also make sure that your current workspace has resources from
+                                            this provider.
+                                            
+                                            You can check this by looking at "Resource Allocations" on the dashboard.
+                                            If you don't see your provider listed here, then you don't have any 
+                                            resources allocated in this workspace.
+                                            
+                                            The easiest way to solve this, is by switching to the provider project. You
+                                            can find this project from the project selector, which is next to the UCloud
+                                            logo.
+                                            
+                                            If none of this works, then you may wish to look at the troubleshooting
+                                            options from the "Getting started" help topic.
+                                        """.trimIndent()
+                                    )
+                                }
+                            }
+                        }
+
+                        topics.debug -> {
+                            println(
+                                """
+                                    You can access the database from the web-interface here:
+                                    https://postgres.localhost.direct.
+                                    
+                                    Alternatively, you can access it directly via:
+                                    
+                                    Host: localhost
+                                    Port: 35432
+                                    Username: postgres
+                                    Password: postgrespassword
+                                    
+                                    You can view the logs from the database with: "./launcher svc postgres logs"
+                                """.trimIndent()
+                            )
+                            println()
+                            println(
+                                """
+                                    You can access the debugger from the web-interface here:
+                                    https://debugger.localhost.direct
+                                    
+                                    You can view the logs from the debugger with: "./launcher svc debugger logs"
+                                    
+                                    Logs from all services should appear here.
+                                    
+                                    NOTE(17/11/22): Not fully implemented yet.
+                                """.trimIndent()
+                            )
+                        }
+
+                        topics.providers -> {
+                            println("TODO(17/11/22): Not yet written.")
+                        }
                     }
                 }
             }

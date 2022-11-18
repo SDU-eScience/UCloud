@@ -46,13 +46,19 @@ abstract class Menu(val prompt: String) {
 
 class TopLevelMenu : Menu("Select an item from the menu") {
     val portforward = if (environmentIsRemote) item("port-forward", "Enable port-forwarding (REQUIRED)") else null
+    val createProvider = item("providers", buildString {
+        append("Create provider...")
+        if (listConfiguredProviders().isEmpty()) {
+            append(" (Recommended)")
+        }
+    })
     val openUserInterface = item("ui", "Open user-interface...")
     val openShell = item("shell", "Open shell to...")
     val openLogs = item("logs", "Open logs...")
-    val createProvider = item("providers", "Create provider...")
     val services = item("services", "Manage services...")
     val environment = item("environment", "Manage environment...")
     val test = item("test", "Run a test suite...")
+    val help = item("help", "Get help with UCloud")
 }
 
 object EnvironmentMenu : Menu("Select an action") {
