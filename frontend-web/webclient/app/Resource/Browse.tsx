@@ -28,7 +28,7 @@ import {doNothing, preventDefault, timestampUnixMs, useEffectSkipMount} from "@/
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useSidebarPage} from "@/ui-components/Sidebar";
 import * as Heading from "@/ui-components/Heading";
-import { NavigateFunction, useLocation, useNavigate} from "react-router";
+import {NavigateFunction, useLocation, useNavigate} from "react-router";
 import {EnumFilterWidget, EnumOption, ResourceFilter, StaticPill} from "@/Resource/Filter";
 import {useResourceSearch} from "@/Resource/Search";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
@@ -129,7 +129,7 @@ function getStoredFilters(title: string): Record<string, string> | null {
         } else {
             return null;
         }
-    }  catch (e) {
+    } catch (e) {
         return null;
     }
 }
@@ -177,7 +177,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 
     const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
-    useEffect(() => fetchProductsWithSupport(api.retrieveProducts()), []);
+    useEffect(() => {fetchProductsWithSupport(api.retrieveProducts())}, []);
     const renaming = useRenamingState<Res>(
         () => renamingValue, [renamingValue],
         (a, b) => a.id === b.id, [],
@@ -430,7 +430,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     hasFeature(Feature.PROVIDER_CONNECTION) ?
                         <Tooltip
                             trigger={
-                                <ProviderLogo providerId={resource?.specification?.product?.provider ?? "?"} size={40}/>
+                                <ProviderLogo providerId={resource?.specification?.product?.provider ?? "?"} size={40} />
                             }
                         >
                             This resource is provided by{" "}
@@ -467,8 +467,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         }
     }, [props.navigateToChildren, viewProperties]);
 
-    const listItem = useCallback<(p: { style, index, data: Res[], isScrolling?: boolean }) => JSX.Element>(
-        ({ style, index, data }) => {
+    const listItem = useCallback<(p: {style, index, data: Res[], isScrolling?: boolean}) => JSX.Element>(
+        ({style, index, data}) => {
             const it = data[index];
             return <div style={style} className={"list-item"}>
                 <ItemRowMemo
@@ -572,7 +572,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             children={listItem}
                             overscanCount={32}
                         />
-                    )}/>
+                    )} />
                 </div>
             </List>
         </>
@@ -634,14 +634,14 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 {inlineInspecting ? null :
                     <>
                         <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
-                                    entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                                    extra={callbacks} operations={operations}/>
+                            entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                            extra={callbacks} operations={operations} />
 
                         <ResourceFilter pills={allPills} filterWidgets={api.filterWidgets}
-                                        sortEntries={api.sortEntries} sortDirection={sortDirection}
-                                        onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                                        browseType={props.browseType}
-                                        readOnlyProperties={props.additionalFilters}/>
+                            sortEntries={api.sortEntries} sortDirection={sortDirection}
+                            onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
+                            browseType={props.browseType}
+                            readOnlyProperties={props.additionalFilters} />
                     </>
                 }
 

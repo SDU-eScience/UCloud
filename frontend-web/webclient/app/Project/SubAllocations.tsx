@@ -38,7 +38,7 @@ import {AllocationViewer, resultAsPercent, SubAllocation, allocationText} from "
 import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
-import ProjectAPI, {useProjectId} from "@/Project/Api";
+import ProjectAPI, {useProjectIdFromParams} from "@/Project/Api";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider) + ` [${getParentAllocationFromSuballocation(alloc)}]`;
@@ -119,7 +119,7 @@ interface Recipient {
 
 function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}): JSX.Element {
     const [newRecipients, setRecipients] = useState<Recipient[]>([]);
-    const projectId = useProjectId();
+    const projectId = useProjectIdFromParams();
 
     const newRecipientId = useRef(0);
 
