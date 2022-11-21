@@ -25,8 +25,15 @@ RUN mkdir -p /var/log/ucloud
 RUN chown -R 998:998 /var/log/ucloud
 RUN mkdir -p /etc/ucloud
 RUN chown -R 998:998 /etc/ucloud
-RUN echo 'ucloud  ALL=(%ucloud) NOPASSWD: /usr/bin/ucloud, /opt/ucloud/build/install/ucloud-integration-module/bin/ucloud-integration-module, /opt/ucloud/build/native/nativeCompile/ucloud-integration-module' >> /etc/sudoers
+RUN echo 'ucloud  ALL=(ALL:ALL) NOPASSWD: /etc/ucloud/extensions/*, /usr/bin/ucloud, /opt/ucloud/build/install/ucloud-integration-module/bin/ucloud-integration-module' >> /etc/sudoers
+RUN echo 'Defaults runas_allow_unknown_id' >> /etc/sudoers
 
+WORKDIR /tmp
+RUN apt-get install xz-utils -y
+RUN curl -L https://archive.tetratelabs.io/envoy/download/v1.23.0/envoy-v1.23.0-linux-amd64.tar.xz -o /tmp/envoy.tar.xz
+RUN ls -lah && tar xvf /tmp/envoy.tar.xz
+RUN ls -lah && mv /tmp/envoy-v1.23.0-linux-amd64/bin/envoy /usr/bin/envoy
+RUN rm -rf /tmp/envoy-v1.23.0-linux-amd64 && rm -rf /tmp/envoy.tar.xz
 
 RUN apt-get update && apt-get install -y vim
 WORKDIR /usr/bin

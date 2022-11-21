@@ -1,0 +1,15 @@
+http://localhost:8000 {
+    reverse_proxy /api/auth-callback-csrf localhost:9000
+    reverse_proxy /api/auth-callback localhost:9000
+    reverse_proxy /api/sync-callback localhost:9000
+    reverse_proxy /assets localhost:9000
+    reverse_proxy /favicon.ico localhost:9000
+    reverse_proxy /favicon.svg localhost:9000
+    reverse_proxy /AppVersion.txt localhost:9000
+    reverse_proxy /Images/* localhost:9000
+    reverse_proxy /app localhost:9000
+    reverse_proxy /app/* localhost:9000
+    reverse_proxy /api/* localhost:8080
+    reverse_proxy /auth/*localhost:8080
+    redir / /app/dashboard
+}

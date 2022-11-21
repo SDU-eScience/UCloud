@@ -1,6 +1,11 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
-class NameAllocator(private val namespace: String) {
+class NameAllocator(
+    private val namespace: String,
+
+    // HACK(Dan): Ideally the runtime controls all of this. The NameAllocator probably shouldn't exist at all.
+    var runtime: ContainerRuntime? = null
+) {
     fun namespace(): String {
         return namespace
     }
@@ -25,6 +30,7 @@ class NameAllocator(private val namespace: String) {
     }
 
     fun jobIdAndRankToPodName(jobId: String, rank: Int): String {
+        if (runtime is K8PodRuntime) return "j-$jobId-$rank"
         return jobIdToJobName(jobId) + "-job-" + rank
     }
 

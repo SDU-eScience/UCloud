@@ -822,9 +822,14 @@ class JobOrchestrator(
                 else OpenSessionWithProvider(
                     with(providerSpec) {
                         buildString {
-                            if (https) append("https://") else append("http://")
-                            append(domain)
-                            if (port != null) append(":$port")
+                            val domainOverride = response.domainOverride
+                            if (domainOverride != null) {
+                                append(domainOverride)
+                            } else {
+                                if (https) append("https://") else append("http://")
+                                append(domain)
+                                if (port != null) append(":$port")
+                            }
                         }
                     },
                     providerSpec.id,

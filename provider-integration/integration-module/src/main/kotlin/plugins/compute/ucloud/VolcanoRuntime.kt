@@ -2,6 +2,7 @@ package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.app.orchestrator.api.CpuAndMemory
 import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.utils.forEachGraal
 import io.ktor.http.*
@@ -12,6 +13,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import java.util.concurrent.atomic.AtomicInteger
 
 class KubernetesNode(private val node: Node, val categoryToSelector: Map<String, String>) : ComputeNode {
     override suspend fun productCategory(): String? {
@@ -69,6 +71,7 @@ class VolcanoRuntime(
     private val k8: K8DependenciesImpl,
     private val categoryToSelector: Map<String, String>,
     private val fakeIpMount: Boolean,
+    private val usePortForwarding: Boolean,
 ) : ContainerRuntime {
     override fun builder(
         jobId: String,
@@ -185,6 +188,39 @@ class VolcanoRuntime(
             }
 
         return allNodes.map { KubernetesNode(it, categoryToSelector) }
+    }
+
+    override suspend fun openTunnel(jobId: String, rank: Int, port: Int): Tunnel {
+        if (!usePortForwarding) {
+            val pod = k8.client.getResource(
+                Pod.serializer(),
+                KubernetesResourceLocator.common.pod.withNameAndNamespace(
+                    k8.nameAllocator.jobIdAndRankToPodName(jobId, rank),
+                    k8.nameAllocator.namespace(),
+                )
+            )
+
+            val ipAddress =
+                pod.status?.podIP ?: throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.BadGateway)
+
+            return Tunnel(ipAddress, port, close = {})
+        } else {
+            val allocatedPort = basePortForward + portAllocator.getAndIncrement()
+            val process = k8.client.kubectl(listOf(
+                "port-forward",
+                "-n",
+                k8.nameAllocator.namespace(),
+                k8.nameAllocator.jobIdAndRankToPodName(jobId, rank),
+                "$allocatedPort:$port"
+            ))
+
+            return Tunnel("127.0.0.1", allocatedPort, close = { process.destroy() })
+        }
+    }
+
+    companion object {
+        private val basePortForward = 30_000
+        private val portAllocator = AtomicInteger(0)
     }
 }
 
