@@ -578,6 +578,48 @@ fun registerProvider(providerId: String, domain: String, port: Int): ProviderCre
     callService(
         "backend",
         "POST",
+        "http://localhost:8080/api/grant/setEnabled",
+        accessToken,
+        //language=json
+        """
+          {
+            "items": [{ "projectId":  "$projectId", "enabledStatus": true }]
+          }
+        """.trimIndent(),
+
+        opts = listOf(
+            "-H", "Project: $projectId"
+        )
+    ) ?: error("Failed to mark project as grant giver")
+
+    callService(
+        "backend",
+        "POST",
+        "http://localhost:8080/api/grant/settings/upload",
+        accessToken,
+        //language=json
+        """
+          {
+            "type":"bulk",
+            "items":[
+              {
+                "projectId":"$projectId",
+                "automaticApproval": { "from":[], "maxResources":[] },
+                "allowRequestsFrom":[{ "type":"anyone" }],
+                "excludeRequestsFrom":[]
+              }
+            ]
+          }
+        """.trimIndent(),
+
+        opts = listOf(
+            "-H", "Project: $projectId"
+        )
+    ) ?: error("Failed to mark project as grant giver (2)")
+
+    callService(
+        "backend",
+        "POST",
         "http://localhost:8080/api/providers",
         accessToken,
         //language=json

@@ -155,27 +155,6 @@ object Commands {
                 )
             }
         }
-
-        LoadingIndicator("Adding provider project to grant list").use {
-            compose.exec(
-                currentEnvironment,
-                "postgres",
-                listOf(
-                    "psql",
-                    "-U",
-                    "postgres",
-                    "-c",
-                    """
-                        with enable_providers as (
-                          insert into "grant".is_enabled (project_id) select id from project.projects where title ilike 'Provider %' on conflict do nothing
-                          returning project_id
-                        )
-                        insert into "grant".allow_applications_from (project_id, type, applicant_id) select project_id, 'anyone', null from enable_providers on conflict do nothing;
-                    """.trimIndent()
-                ),
-                tty = false
-            ).streamOutput().executeToText()
-        }
     }
 
     fun serviceStart(serviceName: String) {

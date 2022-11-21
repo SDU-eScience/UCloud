@@ -20,10 +20,12 @@ fi
 
 if [[ $running_slurm == 0 ]]; then
     uid=998
-    chown -R munge:munge /etc/munge
+    chown -R munge:munge /etc/munge || true
     service munge start;
 fi
 
+chmod 755 /work || true
+chmod 755 /home || true
 ! (test -d /mnt/storage) || chmod 755 /mnt/storage
 ! (test -d /mnt/k3s) || chmod 755 /mnt/k3s
 ! (test -d /etc/ucloud/extensions) || chmod 755 /etc/ucloud/extensions /etc/ucloud/extensions/*

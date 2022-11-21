@@ -1,5 +1,6 @@
 package dk.sdu.cloud
 
+import com.jcraft.jsch.agentproxy.AgentProxyException
 import net.schmizz.sshj.userauth.UserAuthException
 import org.fusesource.jansi.Ansi.ansi
 import java.io.File
@@ -138,6 +139,15 @@ fun initIO() {
             println("Please make sure that you have ssh-agent running and are able to connect to this server.")
             println("Try running ssh-add and retry this command.")
             exitProcess(1)
+        } catch (ex: AgentProxyException) {
+            if (ex.message?.contains("does not support -U") == true) {
+                println("This tool requires nc to be installed with -U support for remote development. If you are")
+                println("on macOS try the following: brew install nmap. If you are on Linux, try installing netcat")
+                println("from your package manager.")
+                exitProcess(1)
+            } else {
+                throw ex
+            }
         }
         localEnvironment = currentEnvironment as LocalFile
 

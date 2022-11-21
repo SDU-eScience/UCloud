@@ -93,7 +93,7 @@ sealed class ComposeService {
         compose: Json,
         logsSupported: Boolean = true,
         execSupported: Boolean = true,
-        serviceConvention: Boolean = true,
+        serviceConvention: Boolean,
         address: String? = null
     ) {
         services[name] = compose
@@ -149,6 +149,7 @@ sealed class ComposeService {
                       }
                     """.trimIndent(),
                 ),
+                serviceConvention = true
             )
 
             val postgresDataDir = environment.dataDirectory.child("pg-data").also { it.mkdirs() }
@@ -635,7 +636,8 @@ sealed class ComposeService {
             val imDir = slurmProvider.child("im").also { it.mkdirs() }
             val imGradle = imDir.child("gradle").also { it.mkdirs() }
             val imData = imDir.child("data").also { it.mkdirs() }
-            val imStorage = imDir.child("storage").also { it.mkdirs() }
+            val imHome = imDir.child("home").also { it.mkdirs() }
+            val imWork = imDir.child("work").also { it.mkdirs() }
             val imLogs = environment.dataDirectory.child("logs").also { it.mkdirs() }
             val imMySqlDb = "immysql".also { volumes.add(it) }
             val etcMunge = "etc_munge".also { volumes.add(it) }
@@ -682,7 +684,8 @@ sealed class ComposeService {
                           "${imGradle.absolutePath}:/root/.gradle",
                           "${imData.absolutePath}:/etc/ucloud",
                           "${imLogs.absolutePath}:/var/logs/ucloud",
-                          "${imStorage.absolutePath}:/home",
+                          "${imHome.absolutePath}:/home",
+                          "${imWork.absolutePath}:/work",
                           "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
                           "${passwdDir.absolutePath}:/mnt/passwd"
                         ],
@@ -714,7 +717,8 @@ sealed class ComposeService {
                         "restart": "always"
                       }
                     """.trimIndent()
-                )
+                ),
+                serviceConvention = false
             )
 
             service(
@@ -729,7 +733,8 @@ sealed class ComposeService {
                         "hostname": "slurmdbd",
                         "volumes": [
                           "${passwdDir.absolutePath}:/mnt/passwd",
-                          "${imStorage}:/home",
+                          "${imHome}:/home",
+                          "${imWork}:/work",
                           "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
                           "$etcMunge:/etc/munge",
                           "$etcSlurm:/etc/slurm",
@@ -739,7 +744,8 @@ sealed class ComposeService {
                         "restart": "always"
                       }
                     """.trimIndent()
-                )
+                ),
+                serviceConvention = false
             )
 
             service(
@@ -754,7 +760,8 @@ sealed class ComposeService {
                         "hostname": "slurmctld",
                         "volumes": [
                           "${passwdDir.absolutePath}:/mnt/passwd",
-                          "${imStorage}:/home",
+                          "${imHome}:/home",
+                          "${imWork}:/work",
                           "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
                           "$etcMunge:/etc/munge",
                           "$etcSlurm:/etc/slurm",
@@ -764,7 +771,8 @@ sealed class ComposeService {
                         "restart": "always"
                       }
                     """.trimIndent()
-                )
+                ),
+                serviceConvention = false
             )
 
             for (id in 1..numberOfSlurmNodes) {
@@ -780,7 +788,8 @@ sealed class ComposeService {
                             "hostname": "c$id",
                             "volumes": [
                               "${passwdDir.absolutePath}:/mnt/passwd",
-                              "${imStorage}:/home",
+                              "${imHome}:/home",
+                              "${imWork}:/work",
                               "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
                               "$etcMunge:/etc/munge",
                               "$etcSlurm:/etc/slurm",
@@ -789,8 +798,9 @@ sealed class ComposeService {
                             "depends_on": ["slurmctld"],
                             "restart": "always"
                           }
-                        """.trimIndent()
-                    )
+                        """.trimIndent(),
+                    ),
+                    serviceConvention = false
                 )
             }
         }
@@ -918,7 +928,6 @@ sealed class ComposeService {
             val imExtensions = imData.child("extensions").also { it.mkdirs() }
 
             imExtensions.child("connection-complete").writeText(
-                //language=python
                 """
                     #!/usr/bin/env python3
                     import json
@@ -975,7 +984,6 @@ sealed class ComposeService {
             )
 
             imExtensions.child("posix-drive-locator").writeText(
-                //language=python
                 """
                     #!/usr/bin/env python3
                     import sys
@@ -1034,7 +1042,6 @@ sealed class ComposeService {
             )
 
             imExtensions.child("project-extension").writeText(
-                //language=python
                 """
                     #!/usr/bin/env python3
                     import json
