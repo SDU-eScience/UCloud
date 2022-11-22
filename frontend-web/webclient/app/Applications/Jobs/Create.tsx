@@ -87,7 +87,8 @@ export const Create: React.FunctionComponent = () => {
     const jobBeingLoaded = useRef<Partial<JobSpecification> | null>(null);
 
     useEffect(() => {
-        if (appName === "syncthing") {
+        console.log(localStorage.getItem("syncthingRedirect"));
+        if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
             history.push("/drives"); // NOTE(Brian): There might be a better location
         }
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))

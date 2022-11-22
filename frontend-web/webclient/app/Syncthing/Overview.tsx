@@ -265,7 +265,7 @@ export const Overview: React.FunctionComponent = () => {
 
     // UI callbacks and state manipulation
     const reload = useCallback(() => {
-        Sync.fetchConfig().then(config => {
+        Sync.fetchConfig(provider).then(config => {
             if (didUnmount.current) return;
             pureDispatch({type: "ReloadConfig", config});
         });
@@ -275,19 +275,13 @@ export const Overview: React.FunctionComponent = () => {
             pureDispatch({type: "ReloadServers", servers});
         });
 
-        fetchProducts(UCloud.compute.jobs.retrieveProducts({
-            providers: provider
-        }));
+        Sync.fetchProducts(provider).then(products => {
+            setSelectedProduct(
+                products[provider]?.find(it => it.product.category.name === "syncthing") ?? null
+            );
+        });
 
     }, [pureDispatch]);
-
-    useEffect(() => {
-        if (products.data) {
-            setSelectedProduct(
-                products.data?.productsByProvider[provider]?.find(it => it.product.category.name === "syncthing") ?? null
-            )
-        }
-    }, [products]);
 
     const requestJobReloader = useCallback((awaitUpdatingAttemptsRemaining: number = 40) => {
         if (jobReloaderTimeout.current !== -1) return;
@@ -338,7 +332,7 @@ export const Overview: React.FunctionComponent = () => {
         requestReload: reload,
         requestJobReloader,
         provider,
-        productCategory: selectedProduct?.product.category.name ?? ""
+        productCategory: selectedProduct?.product.category.name ?? "syncthing"
     }), [history, pureDispatch, reload]);
 
     const dispatch = useCallback((action: UIAction) => {
@@ -352,7 +346,7 @@ export const Overview: React.FunctionComponent = () => {
         requestReload: reload,
         permissionProblems,
         provider,
-        productCategory: selectedProduct?.product.category.name ?? ""
+        productCategory: selectedProduct?.product.category.name ?? "syncthing"
     }), [history, dispatch, reload, permissionProblems]);
 
     const openWizard = useCallback(() => {
@@ -409,10 +403,10 @@ export const Overview: React.FunctionComponent = () => {
     useEffectSkipMount(() => {
         callAPI(Sync.api.updateConfiguration({
             providerId: provider,
-            category: selectedProduct?.product.category.name ?? "",
+            category: selectedProduct?.product.category.name ?? "syncthing",
             config: {devices, folders}
         })).catch(() => reload());
-    }, [folders.length, devices.length]);
+    }, [folders.length, devices.length, selectedProduct]);
 
     useTitle("File Synchronization");
     useRefreshFunction(reload);

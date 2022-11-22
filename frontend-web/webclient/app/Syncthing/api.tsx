@@ -1,6 +1,7 @@
-import { PageV2 } from "@/UCloud";
+import { PageV2, compute } from "@/UCloud";
 import { api as JobsApi, Job, isJobStateFinal } from "@/UCloud/JobsApi";
-import { callAPI, apiRetrieve, apiUpdate } from "@/Authentication/DataHook";
+import { callAPI, apiRetrieve, apiUpdate, useCloudAPI } from "@/Authentication/DataHook";
+import {Product} from "@/Accounting";
 
 export interface SyncthingConfig {
     devices: SyncthingDevice[];
@@ -18,7 +19,7 @@ export interface SyncthingFolder {
     ucloudPath: string;
 }
 
-export function fetchConfigFake(): Promise<SyncthingConfig> {
+/*export function fetchConfigFake(): Promise<SyncthingConfig> {
     const devices: SyncthingDevice[] = [];
 
     for (let i = 0; i < 10; i++) {
@@ -39,15 +40,24 @@ export function fetchConfigFake(): Promise<SyncthingConfig> {
         folders.push(folder);
     }
 
-    
     return new Promise((resolve) => {
         resolve({devices, folders});
     });
+}*/
+
+export async function fetchConfig(provider: string): Promise<SyncthingConfig> {
+    const resp = await callAPI<SyncthingConfigResponse>(api.retrieveConfiguration(provider, "syncthing"));
+    return resp.config;
 }
 
-export async function fetchConfig(): Promise<SyncthingConfig> {
-    const resp = await callAPI<SyncthingConfigResponse>(api.retrieveConfiguration("development", "syncthing"));
-    return resp.config;
+export async function fetchProducts(provider: string): Promise<compute.ComputeProductSupportResolved[]> {
+    console.log(provider);
+    const resp = await callAPI<compute.JobsRetrieveProductsResponse>(compute.jobs.retrieveProducts({
+        providers: provider
+    }));
+    console.log(resp);
+
+    return resp.productsByProvider[provider];
 }
 
 export function fetchServersFake(): Promise<Job[]> {
