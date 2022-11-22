@@ -227,13 +227,15 @@ object Commands {
                 "POST",
                 "http://localhost:8080/api/hpc/apps/devImport",
                 fetchAccessToken(),
+                // NOTE(Dan): checksum is sha256 of the file
                 """
                     {
                         "endpoint": "https://launcher-assets.cloud.sdu.dk/apps.zip",
-                        "checksum": "TODO"
+                        "checksum": "a5b02af4f63acd060c3664b9c12f7ca9543893c0ae2f9bb8731d51d6efaef7ce"
                     }
                 """.trimIndent()
-            ) ?: error("Failed to import applications (see backend logs)")
+            ) ?: error("Failed to import applications (see backend logs). " +
+                    "You might need to do a git pull to get the latest version.")
         }
     }
 }

@@ -23,6 +23,7 @@ import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.util.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
 import io.ktor.utils.io.jvm.javaio.*
@@ -30,9 +31,11 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.nio.file.FileSystems
 import java.nio.file.Files
+import java.security.MessageDigest
 import kotlin.streams.toList
 
 class Importer(
@@ -48,6 +51,25 @@ class Importer(
         val outputFile = Files.createTempFile("import", ".zip").toFile()
         FileOutputStream(outputFile).use { fos ->
             client.get(endpoint).bodyAsChannel().copyTo(fos)
+        }
+
+        val digest = MessageDigest.getInstance("SHA-256")
+        FileInputStream(outputFile).use { ins ->
+            val buf = ByteArray(1024)
+            while (true) {
+                val bytesRead = ins.read(buf)
+                if (bytesRead == -1) break
+                digest.update(buf, 0, bytesRead)
+            }
+        }
+
+        // NOTE(Dan): This checksum assumes that the client can be trusted. This is only intended to protect against a
+        // sudden compromise of the domain we use to host the assets or some other mitm attack. This should all be
+        // fine given that this code is only ever supposed to run locally.
+        val computedChecksum = hex(digest.digest())
+        if (computedChecksum != checksum) {
+            log.info("Invalid checksum. Computed: $computedChecksum. Expected: $checksum")
+            throw RPCException("invalid checksum", HttpStatusCode.BadRequest)
         }
 
         val fs = FileSystems.newFileSystem(outputFile.toPath(), null as ClassLoader?)
@@ -198,6 +220,9 @@ class Importer(
                 """
             )
         }
+
+        fs.close()
+        outputFile.delete()
     }
 
     companion object : Loggable {
