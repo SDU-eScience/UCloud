@@ -219,4 +219,21 @@ object Commands {
     fun environmentStatus() {
         postExecFile.appendText(compose.ps(currentEnvironment).toBashScript())
     }
+
+    fun importApps() {
+        LoadingIndicator("Importing applications").use {
+            callService(
+                "backend",
+                "POST",
+                "http://localhost:8080/api/hpc/apps/devImport",
+                fetchAccessToken(),
+                """
+                    {
+                        "endpoint": "https://launcher-assets.cloud.sdu.dk/apps.zip",
+                        "checksum": "TODO"
+                    }
+                """.trimIndent()
+            ) ?: error("Failed to import applications (see backend logs)")
+        }
+    }
 }

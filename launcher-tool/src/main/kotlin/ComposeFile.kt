@@ -403,6 +403,14 @@ sealed class ComposeService {
                 //language=yaml
                 """
                     compute:
+                      syncthing:
+                        - name: syncthing
+                          description: A product for use in syncthing
+                          cpu: 1
+                          memoryInGigs: 1
+                          gpu: 0
+                          cost:
+                            currency: FREE
                       cpu:
                         - name: cpu-1
                           description: An example CPU machine with 1 vCPU.

@@ -9,6 +9,12 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.encodeToJsonElement
 
 @Serializable
+data class DevImportRequest(
+    val endpoint: String,
+    val checksum: String
+)
+
+@Serializable
 data class Project(
     val id: String,
     val title: String
@@ -1098,6 +1104,15 @@ ${ApiConventions.nonConformingApiWarning}
 
         documentation {
             summary = "Retrieves a logo associated with an Application"
+        }
+    }
+
+    @UCloudApiInternal(InternalLevel.BETA)
+    val devImport = call("devImport", DevImportRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "devImport", roles = Roles.PRIVILEGED)
+
+        documentation {
+            summary = "An endpoint for importing applications - Only usable in dev environments"
         }
     }
 }

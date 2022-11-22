@@ -27,6 +27,7 @@ fun printHelp(): Nothing {
     println("  - delete: Delete the environment permanently")
     println()
     println("- port-forward: Initializes port forwarding for remote environments")
+    println("- import-apps: Import test applications")
     exitProcess(0)
 }
 
@@ -106,6 +107,10 @@ fun cliIntercept(args: List<String>) {
 
         "port-forward" -> {
             Commands.portForward()
+        }
+
+        "import-apps" -> {
+            Commands.importApps()
         }
     }
     exitProcess(0)

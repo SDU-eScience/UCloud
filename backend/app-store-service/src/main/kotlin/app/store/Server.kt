@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store
 
+import app.store.services.Importer
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.jsontype.NamedType
@@ -81,17 +82,22 @@ class Server(override val micro: Micro) : CommonServer {
             elasticDAO,
             micro.eventStreamServiceOrNull?.createProducer(AppStoreStreams.AppDeletedStream)
         )
-        val logoService = LogoService(db, appLogoDAO, toolDAO)
+        val logoService = LogoService(db, applicationDAO, appLogoDAO, toolDAO)
         val tagService = ApplicationTagsService(db, tagDAO, elasticDAO)
         val publicService = ApplicationPublicService(db, publicDAO)
         val searchService = ApplicationSearchService(db, searchDAO, elasticDAO, applicationDAO, authenticatedClient)
         val favoriteService = FavoriteService(db, favoriteDAO, authenticatedClient)
+        val importer = if (micro.developmentModeEnabled) {
+            Importer(db, logoService, tagService, toolDAO, appStoreService)
+        } else {
+            null
+        }
 
         configureJackson(ApplicationParameter::class, yamlMapper)
 
         with(micro.server) {
             configureControllers(
-                AppStoreController(appStoreService),
+                AppStoreController(appStoreService, importer),
                 ToolController(db, toolDAO, logoService),
                 AppLogoController(logoService),
                 AppTagController(tagService),
