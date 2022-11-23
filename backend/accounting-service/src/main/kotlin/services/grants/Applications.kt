@@ -1220,7 +1220,8 @@ class GrantApplicationService(
                     ),
                     created_user as (
                         insert into project.project_members (created_at, modified_at, role, username, project_id)
-                        select now(), now(), 'PI', :pi, created_project.id
+                        select now(), now(), 'PI', :pi, id
+                        from created_project
                     )
                     select * from created_project
                 """.trimIndent()

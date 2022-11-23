@@ -429,10 +429,12 @@ function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllo
             allocationRequest.sourceAllocation == null &&
             allocationCount === 1
         ) {
+            console.log("HERE")
             const [wallet] = wallets;
             setAllocation({wallet: wallet, allocation: wallet.allocations[0], autoAssigned: true});
             setAllocationId(wallet.allocations[0].id);
         } else for (const w of wallets) {
+            console.log("NOPE HERE")
             for (const a of w.allocations) {
                 if (allocationRequest.sourceAllocation == a.id) {
                     setAllocation({wallet: w, allocation: a, autoAssigned: false});

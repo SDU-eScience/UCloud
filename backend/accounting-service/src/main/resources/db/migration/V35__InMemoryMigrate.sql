@@ -40,4 +40,9 @@ alter table "grant".applications add column synchronized boolean default false;
 
 update "grant".applications
 set synchronized = true
-where overall_state = 'APPROVED'
+where overall_state = 'APPROVED';
+
+alter table "grant".gifts_claimed add column synchronized boolean default false;
+
+update "grant".gifts_claimed
+set synchronized = true;

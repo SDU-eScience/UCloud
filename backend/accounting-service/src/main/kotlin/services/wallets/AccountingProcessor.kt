@@ -2,10 +2,12 @@ package dk.sdu.cloud.accounting.services.wallets
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.accounting.api.WalletAllocation as ApiWalletAllocation
 import dk.sdu.cloud.accounting.api.Wallet as ApiWallet
@@ -13,6 +15,7 @@ import dk.sdu.cloud.accounting.api.WalletOwner as ApiWalletOwner
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.debug.detailD
 import dk.sdu.cloud.debug.enterContext
+import dk.sdu.cloud.grant.api.Gifts
 import dk.sdu.cloud.grant.api.GrantApplication
 import dk.sdu.cloud.grant.api.ProjectWithTitle
 import dk.sdu.cloud.project.api.ProjectRole
@@ -521,6 +524,7 @@ class AccountingProcessor(
     // The accounting processor loads the data at start-up and only then. All wallet and allocation data is then used
     // only from the in-memory version which is periodically synchronized using attemptSynchronize().
     private suspend fun loadDatabase() {
+        log.info("Loading DB into memory.")
         db.withSession { session ->
             session.sendPreparedStatement(
                 {},
@@ -649,8 +653,9 @@ class AccountingProcessor(
                     from unsynced_applications
                 """
             ).rows
-                .map{
-                    defaultMapper.decodeFromString<GrantApplication>(it.getString(0)!!)
+                .map {
+                    val application = defaultMapper.decodeFromString<GrantApplication>(it.getString(0)!!)
+                    application
                 }
 
             unresolvedApplications.forEach { application ->
@@ -672,7 +677,8 @@ class AccountingProcessor(
                                 ),
                                 created_user as (
                                     insert into project.project_members (created_at, modified_at, role, username, project_id)
-                                    select now(), now(), 'PI', :pi, created_project.id
+                                    select now(), now(), 'PI', :pi, id
+                                    from created_project
                                     on conflict (project_id) do nothing
                                 )
                                 select * from created_project
@@ -687,20 +693,28 @@ class AccountingProcessor(
 
                         createdProject
                     }
+
                     is GrantApplication.Recipient.ExistingProject -> {
                         recipient.id
                     }
+
                     is GrantApplication.Recipient.PersonalWorkspace ->
                         recipient.username
                 }
-                application.currentRevision.document.allocationRequests.forEach {allocRequest ->
+                application.currentRevision.document.allocationRequests.forEach { allocRequest ->
                     val granterOfResource =
                         application.status.stateBreakdown.find { it.projectId == allocRequest.grantGiver }?.projectId
-                        ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Project not found")
+                            ?: throw RPCException.fromStatusCode(
+                                HttpStatusCode.InternalServerError,
+                                "Project not found"
+                            )
 
                     val pi =
                         projects.retrievePIFromProjectID(granterOfResource)
-                            ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "missing PI for project")
+                            ?: throw RPCException.fromStatusCode(
+                                HttpStatusCode.InternalServerError,
+                                "missing PI for project"
+                            )
                     deposit(
                         AccountingRequest.Deposit(
                             actor = Actor.SystemOnBehalfOfUser(pi),
@@ -714,9 +728,83 @@ class AccountingProcessor(
                     )
                 }
             }
+
+            val giftIdsAndClaimer = session.sendPreparedStatement(
+                //language=postgresql
+                """
+                    select * 
+                    from "grant".gifts_claimed
+                    where synchronized = false
+                """
+            ).rows.map {
+                Pair(it.getLong(0), it.getString(1))
+            }
+
+            giftIdsAndClaimer.forEach {
+                val rows = session.sendPreparedStatement(
+                    {
+                        setParameter("gift_id", it.first)
+                        setParameter("username", it.second)
+                    },
+                    """
+                        select
+                            g.id gift_id,
+                            :username recipient,
+                            coalesce(res.credits, res.quota) as balance,
+                            pc.category,
+                            pc.provider,
+                            g.resources_owned_by
+                        from
+                            -- NOTE(Dan): Fetch data about the gift
+                            "grant".gifts g join
+                            "grant".gift_resources res on g.id = res.gift_id join
+
+                            accounting.product_categories pc on
+                                res.product_category = pc.id 
+                        where
+                            g.id = :gift_id;
+                    """
+                ).rows
+
+                rows.forEach { row ->
+                    val receiver = row.getString(1)!!
+                    val balance = row.getLong(2)!!
+                    val category = ProductCategoryId(row.getString(3)!!, row.getString(4)!!)
+                    val sourceProject = row.getString(5)!!
+
+                    val now = System.currentTimeMillis()
+                    val wallet = findWallet(sourceProject, category)
+                        ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Wallet missing for gift to be claimed")
+
+                    val allocations = allocations
+                        .asSequence()
+                        .filterNotNull()
+                        .filter { it.associatedWallet == wallet.id && it.isValid(now) }
+                        .map { it.toApiAllocation() }
+                        .toList()
+
+
+                    val sourceAllocation = allocations.find { it.balance >= balance } ?: allocations.firstOrNull() ?:
+                        throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
+
+
+                    deposit(
+                        AccountingRequest.Deposit(
+                            ActorAndProject(Actor.System, null).actor,
+                            receiver,
+                            sourceAllocation.id.toInt(),
+                            balance,
+                            notBefore = now,
+                            notAfter = null
+                        )
+                    )
+                }
+            }
+
         }
 
         verifyFromTransactions()
+        log.info("Load of DB done.")
     }
 
     private suspend fun verifyFromTransactions() {
@@ -763,7 +851,6 @@ class AccountingProcessor(
                 error("Allocation $i has an unexpected balance according to transaction trace. Expected ${tBalances[i]} but was ${allocation.currentBalance}")
             }
 
-            println("Balance is matchinf for ${allocation.id} balance is ${tBalances[i]}")
         }
     }
 
@@ -1570,6 +1657,7 @@ class AccountingProcessor(
         if (now < nextSynchronization && !forced) return
         if (isSyncing) {return}
         isSyncing = true
+        log.info("synching")
         debug.enterContext("Synchronizing accounting data") {
             debug.detailD("Filling products", Unit.serializer(), Unit)
             products.fillCache()
@@ -1663,7 +1751,6 @@ class AccountingProcessor(
                                         val parent = current.parentAllocation
                                         current = if (parent == null) null else allocations[parent]
                                     }
-
                                     reversePath.reversed().joinToString(".")
                                 }
                                 into("associated_wallets") { it.associatedWallet.toLong() }
@@ -1827,6 +1914,15 @@ class AccountingProcessor(
                         WHERE overall_state = 'APPROVED' AND synchronized = false
                     """
                 )
+
+                session.sendPreparedStatement(
+                    //language=postgresql
+                    """
+                        UPDATE "grant".gifts_claimed
+                        SET synchronized = true
+                        WHERE synchronized = false
+                    """
+                )
             }
 
             val depositForProviders = dirtyTransactions.asSequence()
@@ -1850,6 +1946,7 @@ class AccountingProcessor(
             logExit("Done!")
             nextSynchronization = now + 30_000
             isSyncing = false
+            log.info("Synching of DB is done!")
         }
     }
 
@@ -2012,11 +2109,8 @@ private class ProjectCache(private val db: DBContext) {
     }
 
     suspend fun retrieveProjectRole(username: String, project: String, allowCacheRefill: Boolean = true): ProjectRole? {
-        println(username)
-        println(project)
         val role = projectMembers.get().find { it.username == username && it.project == project }?.role
         if (role == null && allowCacheRefill) {
-            println("attempt refil")
             fillCache()
             return retrieveProjectRole(username, project, false)
         }

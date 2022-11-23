@@ -24,7 +24,7 @@ class GiftService(
         giftId: Long,
     ) {
         db.withSession(remapExceptions = true) { session ->
-            val row = session.sendPreparedStatement(
+            val rows = session.sendPreparedStatement(
                 {
                     setParameter("username", actorAndProject.actor.safeUsername())
                     setParameter("gift_id", giftId)
@@ -82,30 +82,34 @@ class GiftService(
                         resources_to_be_gifted res join
                         gifts_claimed on
                             res.gift_id = gifts_claimed.gift_id;
-                """,
-            ).rows.singleOrNull() ?: throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
+                """, debug=true
+            ).rows
 
-            val balance = row.getLong(0)!!
-            val category = ProductCategoryId(row.getString(1)!!, row.getString(2)!!)
-            val sourceProject = row.getString(3)!!
+            if (rows.isEmpty()) { return@withSession }
 
-            val allocations = accountingService.retrieveAllocationsInternal(
-                ActorAndProject(Actor.System, null),
-                WalletOwner.Project(sourceProject),
-                category
-            )
-            val sourceAllocation = allocations.find { it.balance >= balance } ?: allocations.firstOrNull() ?:
+            rows.forEach { row ->
+                val balance = row.getLong(0)!!
+                val category = ProductCategoryId(row.getString(1)!!, row.getString(2)!!)
+                val sourceProject = row.getString(3)!!
+
+                val allocations = accountingService.retrieveAllocationsInternal(
+                    ActorAndProject(Actor.System, null),
+                    WalletOwner.Project(sourceProject),
+                    category
+                )
+                val sourceAllocation = allocations.find { it.balance >= balance } ?: allocations.firstOrNull() ?:
                 throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
 
-            accountingService.deposit(
-                ActorAndProject(Actor.System, null),
-                bulkRequestOf(DepositToWalletRequestItem(
-                    WalletOwner.User(actorAndProject.actor.safeUsername()),
-                    sourceAllocation.id,
-                    balance,
-                    "Gift for ${category.name} / ${category.provider}"
-                ))
-            )
+                accountingService.deposit(
+                    ActorAndProject(Actor.System, null),
+                    bulkRequestOf(DepositToWalletRequestItem(
+                        WalletOwner.User(actorAndProject.actor.safeUsername()),
+                        sourceAllocation.id,
+                        balance,
+                        "Gift for ${category.name} / ${category.provider}"
+                    ))
+                )
+            }
         }
     }
 

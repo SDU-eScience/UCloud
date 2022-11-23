@@ -107,7 +107,7 @@ class AccountingService(
                     deposit.sourceAllocation.toIntOrNull() ?: return@map,
                     deposit.amount,
                     deposit.startDate ?: Time.now(),
-                    deposit.endDate,
+                    deposit.endDate
                 )
             )
         }
