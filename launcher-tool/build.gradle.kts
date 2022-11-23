@@ -15,7 +15,7 @@ repositories {
 
 dependencies {
     testImplementation(kotlin("test"))
-    implementation("de.codeshelf.consoleui:consoleui:0.0.13")
+    implementation(project(":consoleui"))
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
     implementation("com.hierynomus:sshj:0.32.0")
     implementation(project(":ssh-agent-proxy"))

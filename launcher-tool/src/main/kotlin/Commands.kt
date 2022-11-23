@@ -32,13 +32,18 @@ object Commands {
     }
 
     fun openUserInterface(serviceName: String) {
-        val address = serviceByName(serviceName).address
+        val service = serviceByName(serviceName)
+        val address = service.address
+        val uiHelp = service.uiHelp
         if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
             println("Unable to open web-browser. Open this URL in your own browser:")
             println(address)
-            return
         } else {
             Desktop.getDesktop().browse(URI(address))
+        }
+
+        if (uiHelp != null) {
+            printExplanation(uiHelp)
         }
     }
 

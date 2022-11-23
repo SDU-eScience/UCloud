@@ -60,14 +60,21 @@ fun main(args: Array<String>) {
             exitProcess(0)
         }
 
-        commandFactory = LocalExecutableCommandFactory()
-        fileFactory = LocalFileFactory()
-
         println("UCloud $version - Launcher tool")
         println(CharArray(TerminalFactory.get().width) { '-' }.concatToString())
 
+        // NOTE(Dan): initCurrentEnvironment() needs these to be set. We start out by running locally.
+        commandFactory = LocalExecutableCommandFactory()
+        fileFactory = LocalFileFactory()
+
+        // NOTE(Dan): initCurrentEnvironment() now initializes an environment which is ready. It returns true if the
+        // environment is new. This method will override several "environment" global variables, such as the
+        // commandFactory and fileFactory.
         val shouldStart = initCurrentEnvironment().shouldStartEnvironment
 
+        // NOTE(Dan): We start out by trying to understand if we need to start the environment. This is more or less
+        // just checking the output of `docker compose ps`. This has the added benefit of stopping early if the user
+        // doesn't have docker compose.
         val compose = findCompose()
         dk.sdu.cloud.compose = compose
 
@@ -147,10 +154,24 @@ fun main(args: Array<String>) {
             topLevel.createProvider -> {
                 generateComposeFile()
                 syncRepository()
-                val selectedProviders = CreateProviderMenu.display(prompt)
-                for (provider in selectedProviders) {
-                    if (provider.disabled) continue
-                    Commands.createProvider(provider.name)
+
+                while (true) {
+                    val configured = listConfiguredProviders()
+                    val selectedProviders = CreateProviderMenu.display(prompt)
+                        .filter { it.name !in configured && !it.disabled }
+
+                    if (selectedProviders.isEmpty()) {
+                        println("You didn't select any providers. Use space to select a provider and enter to finish.")
+                        println("Alternatively, you can exit with crtl + c.")
+                        println()
+                        continue
+                    }
+
+                    for (provider in selectedProviders) {
+                        Commands.createProvider(provider.name)
+                    }
+
+                    break
                 }
             }
 
@@ -702,6 +723,10 @@ fun startCluster(compose: DockerCompose, noRecreate: Boolean) {
         startService(serviceByName("backend")).executeToText()
     }
 
+    LoadingIndicator("Starting UCloud Debugger...").use {
+        startService(serviceByName("debugger")).executeToText()
+    }
+
     LoadingIndicator("Waiting for UCloud to be ready...").use {
         val cmd = compose.exec(currentEnvironment, "backend", listOf("curl", "http://localhost:8080"), tty = false)
         cmd.allowFailure = true
@@ -710,6 +735,12 @@ fun startCluster(compose: DockerCompose, noRecreate: Boolean) {
             if (i > 20) cmd.streamOutput()
             if (cmd.executeToText().first != null) break
             Thread.sleep(1000)
+        }
+    }
+
+    for (provider in listConfiguredProviders()) {
+        LoadingIndicator("Starting provider: ${ComposeService.providerFromName(provider).title}").use {
+            startService(serviceByName(provider)).executeToText()
         }
     }
 }

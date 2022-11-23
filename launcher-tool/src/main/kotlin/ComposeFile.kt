@@ -94,25 +94,29 @@ sealed class ComposeService {
         logsSupported: Boolean = true,
         execSupported: Boolean = true,
         serviceConvention: Boolean,
-        address: String? = null
+        address: String? = null,
+        uiHelp: String? = null,
     ) {
         services[name] = compose
-        allServices.add(Service(name, title, logsSupported, execSupported, serviceConvention, address))
+        allServices.add(Service(name, title, logsSupported, execSupported, serviceConvention, address, uiHelp))
     }
 
     sealed class Provider : ComposeService() {
+        abstract val name: String
+        abstract val title: String
         abstract fun install(credentials: ProviderCredentials)
     }
 
     companion object {
         fun providerFromName(name: String): ComposeService.Provider {
-            return when (name) {
-                "k8" -> ComposeService.Kubernetes
-                "slurm" -> ComposeService.Slurm
-                "puhuri" -> ComposeService.Puhuri
-                else -> ComposeService.GenericProvider(name)
-            }
+            return allProviders().find { it.name == name } ?: error("No such provider: $name")
         }
+
+        fun allProviders(): List<Provider> = listOf(
+            Kubernetes,
+            Slurm,
+            Puhuri
+        )
     }
 
     object UCloudBackend : ComposeService() {
@@ -121,6 +125,7 @@ sealed class ComposeService {
             val homeDir = environment.dataDirectory.child("backend-home").also { it.mkdirs() }
             val configDir = environment.dataDirectory.child("backend-config").also { it.mkdirs() }
             val gradleDir = environment.dataDirectory.child("backend-gradle").also { it.mkdirs() }
+            val debuggerGradle = environment.dataDirectory.child("debugger-gradle").also { it.mkdirs() }
 
             service(
                 "backend",
@@ -135,7 +140,6 @@ sealed class ComposeService {
                         "hostname": "backend",
                         "ports": [
                           "${portAllocator.allocate(8080)}:8080",
-                          "${portAllocator.allocate(42999)}:42999"
                         ],
                         "volumes": [
                           "${environment.repoRoot}/backend:/opt/ucloud",
@@ -145,6 +149,31 @@ sealed class ComposeService {
                           "${configDir.absolutePath}:/etc/ucloud",
                           "${homeDir.absolutePath}:/home",
                           "${gradleDir.absolutePath}:/root/.gradle"
+                        ]
+                      }
+                    """.trimIndent(),
+                ),
+                serviceConvention = true
+            )
+
+            service(
+                "debugger",
+                "UCloud/Core: Debugger",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2021.3.0-alpha14",
+                        "command": ["sleep", "inf"],
+                        "restart": "always",
+                        "hostname": "debugger",
+                        "ports": [
+                          "${portAllocator.allocate(42999)}:42999"
+                        ],
+                        "volumes": [
+                          "${environment.repoRoot}/debugger:/opt/ucloud",
+                          "${logs.absolutePath}:/var/log/ucloud",
+                          "${debuggerGradle.absolutePath}:/root/.gradle"
                         ]
                       }
                     """.trimIndent(),
@@ -198,7 +227,18 @@ sealed class ComposeService {
                     """.trimIndent()
                 ),
                 serviceConvention = false,
-                address = "https://postgres.localhost.direct"
+                address = "https://postgres.localhost.direct",
+                uiHelp = """
+                    The postgres interface is connected to the database of UCloud/Core. You don't need any credentials. 
+                    
+                    If you wish to connect via psql or some tool:
+                    
+                    Hostname: localhost<br>
+                    Port: 35432<br>
+                    Database: postgres<br>
+                    Username: postgres<br>
+                    Password: postgrespassword
+                """
             )
 
             val redisDataDir = environment.dataDirectory.child("redis-data").also { it.mkdirs() }
@@ -238,9 +278,6 @@ sealed class ComposeService {
                         "restart": "always",
                         "hostname": "frontend",
                         "working_dir": "/opt/ucloud",
-                        "ports": [
-                          "${portAllocator.allocate(9000)}:9000"
-                        ],
                         "volumes": [
                           "${environment.repoRoot}/frontend-web/webclient:/opt/ucloud"
                         ]
@@ -248,13 +285,22 @@ sealed class ComposeService {
                     """.trimIndent()
                 ),
 
+                serviceConvention = false,
                 address = "https://ucloud.localhost.direct",
-                serviceConvention = false
+                uiHelp = """
+                    Default credentials to access UCloud:
+                    
+                    Username: user<br>
+                    Password: mypassword<br>
+                """
             )
         }
     }
 
     object Kubernetes : Provider() {
+        override val name = "k8"
+        override val title = "Kubernetes"
+
         override fun ComposeBuilder.build() {
             val k8Provider = environment.dataDirectory.child("k8").also { it.mkdirs() }
             val k3sDir = k8Provider.child("k3s").also { it.mkdirs() }
@@ -344,7 +390,7 @@ sealed class ComposeService {
                         "volumes": [
                           "${imGradle.absolutePath}:/root/.gradle",
                           "${imData.absolutePath}:/etc/ucloud",
-                          "${imLogs.absolutePath}:/var/logs/ucloud",
+                          "${imLogs.absolutePath}:/var/log/ucloud",
                           "${k3sOutput.absolutePath}:/mnt/k3s",
                           "${imStorage.absolutePath}:/mnt/storage",
                           "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
@@ -634,6 +680,9 @@ sealed class ComposeService {
     }
 
     object Slurm : Provider() {
+        override val name = "slurm"
+        override val title = "Slurm"
+
         // NOTE(Dan): Please keep this number relatively stable. This will break existing installations if it moves
         // around too much.
         const val numberOfSlurmNodes = 2
@@ -691,7 +740,7 @@ sealed class ComposeService {
                         "volumes": [
                           "${imGradle.absolutePath}:/root/.gradle",
                           "${imData.absolutePath}:/etc/ucloud",
-                          "${imLogs.absolutePath}:/var/logs/ucloud",
+                          "${imLogs.absolutePath}:/var/log/ucloud",
                           "${imHome.absolutePath}:/home",
                           "${imWork.absolutePath}:/work",
                           "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
@@ -907,6 +956,9 @@ sealed class ComposeService {
                       matches: "*"
                       partition: normal
                       useFakeMemoryAllocations: true
+                      terminal:
+                        type: SSH
+                        generateSshKeys: true
                       web:
                         type: Simple
                         domainPrefix: slurm-
@@ -1202,16 +1254,9 @@ sealed class ComposeService {
     }
 
     object Puhuri : Provider() {
-        override fun ComposeBuilder.build() {
+        override val name = "puhuri"
+        override val title = "Puhuri"
 
-        }
-
-        override fun install(credentials: ProviderCredentials) {
-
-        }
-    }
-
-    class GenericProvider(val name: String) : Provider() {
         override fun ComposeBuilder.build() {
 
         }
@@ -1270,7 +1315,7 @@ sealed class ComposeService {
                     }
                    
                     https://debugger.localhost.direct {
-                        reverse_proxy backend:42999
+                        reverse_proxy debugger:42999
                     }
                     
                     https://k8.localhost.direct {

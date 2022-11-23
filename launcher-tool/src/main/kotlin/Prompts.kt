@@ -8,27 +8,99 @@ import de.codeshelf.consoleui.prompt.InputResult
 import de.codeshelf.consoleui.prompt.ListResult
 import de.codeshelf.consoleui.prompt.builder.ListPromptBuilder
 import jline.TerminalFactory
-import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.Ansi.ansi
-import java.io.File
 import java.util.*
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.ArrayList
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import kotlin.math.min
 
-data class ListItem(val message: String, val name: String)
+fun printExplanation(explanation: String) {
+    val currentWidth = TerminalFactory.get().width
+    val desiredWidth = min(100, currentWidth)
+    val paragraphs = ArrayList<String>()
+
+    val currentParagraph = StringBuilder()
+    val lines = explanation.trim().split("\n").map { it.trim() }
+    for (line in lines) {
+        if (line.isEmpty()) {
+            paragraphs.add(currentParagraph.toString())
+            currentParagraph.clear()
+        } else {
+            if (currentParagraph.isNotEmpty()) {
+                currentParagraph.append(" ")
+            }
+
+            currentParagraph.append(line)
+        }
+    }
+
+    if (currentParagraph.isNotEmpty()) {
+        paragraphs.add(currentParagraph.toString())
+        currentParagraph.clear()
+    }
+
+    print(
+        paragraphs.joinToString("\n") {
+            it.wrapParagraph(desiredWidth)
+        }
+    )
+}
+
+private fun String.wrapParagraph(columns: Int): String {
+    val b = StringBuilder()
+    val line = StringBuilder()
+
+    val words = split(" ")
+    for (word in words) {
+        if (line.isNotEmpty()) {
+            line.append(" ")
+        }
+
+        if (line.length + word.length > columns) {
+            b.appendLine(line.toString().replace("<br> ", "\n").replace("<br>", "\n"))
+            line.clear()
+        }
+        line.append(word)
+    }
+    if (line.isNotEmpty()) b.appendLine(line.toString().replace("<br> ", "\n").replace("<br>", "\n"))
+    return b.toString()
+}
+
+data class ListItem(val message: String, val name: String, val isSeparator: Boolean)
 
 fun ListPromptBuilder.add(item: ListItem): ListPromptBuilder {
-    return newItem(item.name).text(item.message).add()
+    if (item.isSeparator) {
+        if (item.message == "spacer") {
+            return newItem("sep-spacer").text("").add()
+        }
+        val desiredSize = 80
+        val dash = "-".repeat((desiredSize - item.name.length - 2) / 2)
+        var text = "$dash ${item.name} $dash"
+        while (text.length < desiredSize) text += "-"
+
+        return newItem("sep-$item.name").text(text).add()
+    } else {
+        return newItem(item.name).text(item.message).add()
+    }
 }
 
 abstract class Menu(val prompt: String) {
     private val items = ArrayList<ListItem>()
 
     fun item(name: String, message: String): ListItem {
-        val result = ListItem(message, name)
+        val result = ListItem(message, name, false)
+        items.add(result)
+        return result
+    }
+
+    fun separator(message: String): ListItem {
+        if (items.isNotEmpty()) {
+            items.add(ListItem("spacer", "spacer", true))
+        }
+        val result = ListItem(message, message, true)
         items.add(result)
         return result
     }
@@ -36,6 +108,7 @@ abstract class Menu(val prompt: String) {
     fun display(prompt: ConsolePrompt): ListItem {
         val builder = prompt.promptBuilder
         val b = builder.createListPrompt().message(this.prompt)
+        b.pageSize(40)
         for (item in items) {
             b.add(item)
         }
@@ -46,19 +119,26 @@ abstract class Menu(val prompt: String) {
 }
 
 class TopLevelMenu : Menu("Select an item from the menu") {
+    val remoteDevelopmentSep = if (environmentIsRemote) separator("Remote development") else null
     val portforward = if (environmentIsRemote) item("port-forward", "Enable port-forwarding (REQUIRED)") else null
+
+    val managementSep = separator("Management")
     val createProvider = item("providers", buildString {
         append("Create provider...")
         if (listConfiguredProviders().isEmpty()) {
             append(" (Recommended)")
         }
     })
+    val services = item("services", "Manage services...")
+    val environment = item("environment", "Manage environment...")
+
+    val developmentSep = separator("Development")
     val openUserInterface = item("ui", "Open user-interface...")
     val openShell = item("shell", "Open shell to...")
     val openLogs = item("logs", "Open logs...")
-    val services = item("services", "Manage services...")
-    val environment = item("environment", "Manage environment...")
     val test = item("test", "Run a test suite...")
+
+    val supportSep = separator("Support")
     val help = item("help", "Get help with UCloud")
 }
 
@@ -118,10 +198,21 @@ abstract class MultipleChoiceMenu(val prompt: String) {
 }
 
 object CreateProviderMenu : MultipleChoiceMenu("Select the providers you wish to configure") {
-    val kubernetes = item("k8", "Kubernetes")
-    val slurm = item("slurm", "Slurm")
-    val puhuri = item("puhuri", "Puhuri", default = true, disabled = true, disabledText = "Already configured")
-    val openstack = item("openstack", "OpenStack", disabled = true)
+    init {
+        val configuredProviders = listConfiguredProviders()
+        val allProviders = ComposeService.allProviders()
+
+        for (provider in allProviders) {
+            val isConfigured = provider.name in configuredProviders
+            item(
+                provider.name,
+                provider.title,
+                default = isConfigured,
+                disabled = isConfigured,
+                disabledText = "Already configured"
+            )
+        }
+    }
 }
 
 enum class LoadingState {
@@ -266,13 +357,19 @@ fun confirm(prompt: ConsolePrompt, question: String, default: Boolean? = null): 
 }
 
 fun queryText(prompt: ConsolePrompt, question: String, defaultValue: String? = null): String {
-    val builder = prompt.promptBuilder
-    builder
-        .createInputPrompt()
-        .name("question")
-        .message(question)
-        .also { if (defaultValue != null) it.defaultValue(defaultValue) }
-        .addPrompt()
+    while (true) {
+        val builder = prompt.promptBuilder
+        builder
+            .createInputPrompt()
+            .name("question")
+            .message(question)
+            .also { if (defaultValue != null) it.defaultValue(defaultValue) }
+            .addPrompt()
 
-    return (prompt.prompt(builder.build()).values.single() as InputResult).input!!
+        try {
+            return (prompt.prompt(builder.build()).values.single() as InputResult).input!!
+        } catch (ignored: NullPointerException) {
+
+        }
+    }
 }

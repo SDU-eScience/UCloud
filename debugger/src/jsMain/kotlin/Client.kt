@@ -15,7 +15,7 @@ class Client {
     fun start() {
         if (socket != null) return
 
-        val socket = WebSocket("ws://${document.location?.host ?: ""}")
+        val socket = WebSocket("wss://${document.location?.host ?: ""}")
         this.socket = socket
 
         socket.onopen = {
