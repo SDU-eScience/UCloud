@@ -1329,7 +1329,7 @@ data class FSFileSupport(
 
 
 NOTE(Dan, 01/09/2022): For backwards compatibility, this is true by default, however, this will likely change 
-to false in a later release. Providers should explicltly declare support for this endpoint for the time being.
+to false in a later release. Providers should explicitly declare support for this endpoint for the time being.
 
 
 </details>

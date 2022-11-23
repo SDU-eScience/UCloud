@@ -5,19 +5,7 @@ import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.Visualization
 import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.alerting.api.Alerting
-import dk.sdu.cloud.app.orchestrator.api.IngressControl
-import dk.sdu.cloud.app.orchestrator.api.IngressProvider
-import dk.sdu.cloud.app.orchestrator.api.Ingresses
-import dk.sdu.cloud.app.orchestrator.api.Jobs
-import dk.sdu.cloud.app.orchestrator.api.JobsControl
-import dk.sdu.cloud.app.orchestrator.api.JobsProvider
-import dk.sdu.cloud.app.orchestrator.api.LicenseControl
-import dk.sdu.cloud.app.orchestrator.api.LicenseProvider
-import dk.sdu.cloud.app.orchestrator.api.Licenses
-import dk.sdu.cloud.app.orchestrator.api.NetworkIPControl
-import dk.sdu.cloud.app.orchestrator.api.NetworkIPProvider
-import dk.sdu.cloud.app.orchestrator.api.NetworkIPs
-import dk.sdu.cloud.app.orchestrator.api.Shells
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.ToolStore
 import dk.sdu.cloud.audit.ingestion.api.Auditing
@@ -265,6 +253,7 @@ fun generateCode() {
                             Chapter.Feature("ips", "Public IPs (NetworkIP)", NetworkIPs),
                             Chapter.Feature("ingress", "Public Links (Ingress)", Ingresses),
                             Chapter.Feature("license", "Software Licenses", Licenses),
+                            Chapter.Feature("syncthing", "Syncthing", Syncthing),
                             Chapter.Node(
                                 "providers",
                                 "Provider APIs",
@@ -551,7 +540,6 @@ fun generateCode() {
             }
         }
     }
-    writeSerializer()
     generateSphinxCalls(callsByFeature.values)
     generateSphinxTypes(types.values)
     generateSphinxExamples(useCases)

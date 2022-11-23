@@ -9,6 +9,7 @@
 
 ```kotlin
 sealed class OpenSession {
+    abstract val domainOverride: String?
     abstract val jobId: String
     abstract val rank: Int
 
@@ -22,6 +23,17 @@ sealed class OpenSession {
 <summary>
 <b>Properties</b>
 </summary>
+
+<details>
+<summary>
+<code>domainOverride</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Domain override, which will be forwarded to the end-user. This overrides the domain used by UCloud/Core. Must contain scheme (e.g. https://).
+</summary>
+
+
+
+
+
+</details>
 
 <details>
 <summary>

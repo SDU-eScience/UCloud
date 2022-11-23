@@ -12,6 +12,7 @@ data class Web(
     val jobId: String,
     val rank: Int,
     val redirectClientTo: String,
+    val domainOverride: String?,
     val type: String /* "web" */,
 )
 ```
@@ -46,6 +47,17 @@ data class Web(
 <details>
 <summary>
 <code>redirectClientTo</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>domainOverride</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Domain override, which will be forwarded to the end-user. This overrides the domain used by UCloud/Core. Must contain scheme (e.g. https://).
 </summary>
 
 

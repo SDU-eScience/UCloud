@@ -12,4 +12,5 @@
  - [Public IPs (NetworkIP)](/docs/developer-guide/orchestration/compute/ips.md)
  - [Public Links (Ingress)](/docs/developer-guide/orchestration/compute/ingress.md)
  - [Software Licenses](/docs/developer-guide/orchestration/compute/license.md)
+ - [Syncthing](/docs/developer-guide/orchestration/compute/syncthing.md)
  - [Provider APIs](/docs/developer-guide/orchestration/compute/providers/README.md)

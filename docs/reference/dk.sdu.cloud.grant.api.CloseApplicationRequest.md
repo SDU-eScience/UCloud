@@ -9,7 +9,7 @@
 
 ```kotlin
 data class CloseApplicationRequest(
-    val requestId: Long,
+    val applicationId: String,
 )
 ```
 
@@ -20,7 +20,7 @@ data class CloseApplicationRequest(
 
 <details>
 <summary>
-<code>requestId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>applicationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 

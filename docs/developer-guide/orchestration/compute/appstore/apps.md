@@ -119,6 +119,14 @@ changes are expected:
 <td>Lists all Applications</td>
 </tr>
 <tr>
+<td><a href='#listtags'><code>listTags</code></a></td>
+<td>List all application tags</td>
+</tr>
+<tr>
+<td><a href='#overview'><code>overview</code></a></td>
+<td>Returns the application catalog overview</td>
+</tr>
+<tr>
 <td><a href='#retrievefavorites'><code>retrieveFavorites</code></a></td>
 <td>Retrieves the list of favorite Applications for the curent user</td>
 </tr>
@@ -141,6 +149,10 @@ changes are expected:
 <tr>
 <td><a href='#delete'><code>delete</code></a></td>
 <td>Removes an Application from the catalog</td>
+</tr>
+<tr>
+<td><a href='#devimport'><code>devImport</code></a></td>
+<td>An endpoint for importing applications - Only usable in dev environments</td>
 </tr>
 <tr>
 <td><a href='#removetag'><code>removeTag</code></a></td>
@@ -330,6 +342,18 @@ changes are expected:
 <td>A textual value</td>
 </tr>
 <tr>
+<td><a href='#appstoresection'><code>AppStoreSection</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#appstoresection.tag'><code>AppStoreSection.Tag</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#appstoresection.tool'><code>AppStoreSection.Tool</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#applicationaccessright'><code>ApplicationAccessRight</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -402,6 +426,10 @@ changes are expected:
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#devimportrequest'><code>DevImportRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#favoriterequest'><code>FavoriteRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -431,6 +459,10 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#updateaclrequest'><code>UpdateAclRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#appstoreoverviewresponse'><code>AppStoreOverviewResponse</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -2727,6 +2759,34 @@ _Lists all Applications_
 Results are not ordered in any specific fashion
 
 
+### `listTags`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_List all application tags_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `overview`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Returns the application catalog overview_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#appstoreoverviewresponse'>AppStoreOverviewResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `retrieveFavorites`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2808,6 +2868,20 @@ _Removes an Application from the catalog_
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#deleteapprequest'>DeleteAppRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `devImport`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_An endpoint for importing applications - Only usable in dev environments_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#devimportrequest'>DevImportRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -6270,6 +6344,215 @@ When this is used with an `Enumeration` it must match the value of one of the as
 
 ---
 
+### `AppStoreSection`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+sealed class AppStoreSection {
+    abstract val name: String
+
+    class Tag : AppStoreSection()
+    class Tool : AppStoreSection()
+}
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStoreSection.Tag`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Tag(
+    val name: String,
+    val applications: List<ApplicationSummaryWithFavorite>,
+    val columns: Int,
+    val rows: Int,
+    val type: String /* "tag" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>applications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>columns</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>rows</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "tag" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStoreSection.Tool`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Tool(
+    val name: String,
+    val applications: List<ApplicationSummaryWithFavorite>,
+    val columns: Int,
+    val rows: Int,
+    val type: String /* "tool" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>applications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>columns</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>rows</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "tool" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `ApplicationAccessRight`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -7318,6 +7601,54 @@ data class DeleteAppRequest(
 
 ---
 
+### `DevImportRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class DevImportRequest(
+    val endpoint: String,
+    val checksum: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>endpoint</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>checksum</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `FavoriteRequest`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -7722,6 +8053,42 @@ data class UpdateAclRequest(
 <details>
 <summary>
 <code>changes</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#aclentryrequest'>ACLEntryRequest</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStoreOverviewResponse`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class AppStoreOverviewResponse(
+    val sections: List<AppStoreSection>,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>sections</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#appstoresection'>AppStoreSection</a>&gt;</code></code>
 </summary>
 
 

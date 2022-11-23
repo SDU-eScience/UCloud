@@ -27,7 +27,7 @@ NotificationDescriptions.create.call(
                 isString = false, 
             )),)), 
             read = false, 
-            ts = 1662706353436, 
+            ts = 1669212996451, 
             type = "MY_NOTIFICATION_TYPE", 
         ), 
         user = "User#1234", 
@@ -62,7 +62,7 @@ await callAPI(NotificationsApi.create(
             "meta": {
                 "myParameter": 42
             },
-            "ts": 1662706353436,
+            "ts": 1669212996451,
             "read": false
         }
     }
@@ -99,7 +99,7 @@ curl -XPUT -H "Authorization: Bearer $accessToken" -H "Content-Type: content-typ
         "meta": {
             "myParameter": 42
         },
-        "ts": 1662706353436,
+        "ts": 1669212996451,
         "read": false
     }
 }'

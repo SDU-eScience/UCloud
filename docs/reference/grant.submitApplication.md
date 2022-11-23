@@ -10,7 +10,7 @@ _Submits an [Application] to a project_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#createapplication'>CreateApplication</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByLongId.md'>FindByLongId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#createapplication'>CreateApplication</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByLongId.md'>FindByLongId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 In order for the user to submit an application they must match any criteria in
 [ProjectApplicationSettings.allowRequestsFrom]. If they are not the request will fail.

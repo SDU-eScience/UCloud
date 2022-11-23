@@ -221,6 +221,7 @@ data class GrantApplication(
     }
     @Serializable
     @SerialName("allocation_request")
+    @UCloudApiOwnedBy(Grants::class)
     data class AllocationRequest(
         val category: String,
         val provider: String,

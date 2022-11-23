@@ -11,6 +11,7 @@
 data class TransferApplicationRequest(
     val applicationId: Long,
     val transferToProjectId: String,
+    val revisionComment: String,
 )
 ```
 
@@ -33,6 +34,17 @@ data class TransferApplicationRequest(
 <details>
 <summary>
 <code>transferToProjectId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>revisionComment</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 

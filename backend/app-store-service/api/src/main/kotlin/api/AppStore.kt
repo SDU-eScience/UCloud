@@ -194,7 +194,7 @@ sealed class AppStoreSection {
     @SerialName("tag")
     data class Tag(
         override val name: String,
-        val applications: ArrayList<ApplicationSummaryWithFavorite>,
+        val applications: MutableList<ApplicationSummaryWithFavorite>,
         override val columns: Int,
         override val rows: Int
     ) : AppStoreSection(), WithDimensions
@@ -203,7 +203,7 @@ sealed class AppStoreSection {
     @SerialName("tool")
     data class Tool(
         override val name: String,
-        val applications: ArrayList<ApplicationSummaryWithFavorite>,
+        val applications: MutableList<ApplicationSummaryWithFavorite>,
         override val columns: Int,
         override val rows: Int
     ) : AppStoreSection(), WithDimensions

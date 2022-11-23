@@ -181,7 +181,7 @@ data class GiftWithCriteria(
     val resourcesOwnedBy: String,
     val title: String,
     val description: String,
-    val resources: List<ResourceRequest>,
+    val resources: List<GrantApplication.AllocationRequest>,
     val criteria: List<UserCriteria>,
 )
 ```
@@ -237,7 +237,7 @@ data class GiftWithCriteria(
 
 <details>
 <summary>
-<code>resources</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.grant.api.ResourceRequest.md'>ResourceRequest</a>&gt;</code></code>
+<code>resources</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.AllocationRequest.md'>GrantApplication.AllocationRequest</a>&gt;</code></code>
 </summary>
 
 
@@ -248,7 +248,7 @@ data class GiftWithCriteria(
 
 <details>
 <summary>
-<code>criteria</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.grant.api.UserCriteria.md'>UserCriteria</a>&gt;</code></code>
+<code>criteria</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.projects.UserCriteria.md'>UserCriteria</a>&gt;</code></code>
 </summary>
 
 

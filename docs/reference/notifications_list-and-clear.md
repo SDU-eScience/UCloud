@@ -37,7 +37,7 @@ Page(
             isString = false, 
         )),)), 
         read = false, 
-        ts = 1662706353437, 
+        ts = 1669212996451, 
         type = "MY_NOTIFICATION_TYPE", 
     )), 
     itemsInTotal = 1, 
@@ -87,7 +87,7 @@ await callAPI(NotificationsApi.list(
             "meta": {
                 "myParameter": 42
             },
-            "ts": 1662706353437,
+            "ts": 1669212996451,
             "read": false
         }
     ]
@@ -133,7 +133,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/notifications?"
 #             "meta": {
 #                 "myParameter": 42
 #             },
-#             "ts": 1662706353437,
+#             "ts": 1669212996451,
 #             "read": false
 #         }
 #     ]

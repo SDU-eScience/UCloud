@@ -13,6 +13,7 @@ data class Vnc(
     val rank: Int,
     val url: String,
     val password: String?,
+    val domainOverride: String?,
     val type: String /* "vnc" */,
 )
 ```
@@ -58,6 +59,17 @@ data class Vnc(
 <details>
 <summary>
 <code>password</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>domainOverride</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Domain override, which will be forwarded to the end-user. This overrides the domain used by UCloud/Core. Must contain scheme (e.g. https://).
 </summary>
 
 

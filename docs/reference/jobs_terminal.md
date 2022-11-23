@@ -108,6 +108,7 @@ BulkResponse(
         providerDomain = "provider.example.com", 
         providerId = "example", 
         session = OpenSession.Shell(
+            domainOverride = null, 
             jobId = "123", 
             rank = 1, 
             sessionIdentifier = "a81ea644-58f5-44d9-8e94-89f81666c441", 
@@ -269,7 +270,8 @@ await callAPI(JobsApi.openInteractiveSession(
                 "type": "shell",
                 "jobId": "123",
                 "rank": 1,
-                "sessionIdentifier": "a81ea644-58f5-44d9-8e94-89f81666c441"
+                "sessionIdentifier": "a81ea644-58f5-44d9-8e94-89f81666c441",
+                "domainOverride": null
             }
         }
     ]
@@ -383,7 +385,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 "type": "shell",
 #                 "jobId": "123",
 #                 "rank": 1,
-#                 "sessionIdentifier": "a81ea644-58f5-44d9-8e94-89f81666c441"
+#                 "sessionIdentifier": "a81ea644-58f5-44d9-8e94-89f81666c441",
+#                 "domainOverride": null
 #             }
 #         }
 #     ]

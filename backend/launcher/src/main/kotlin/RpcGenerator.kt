@@ -186,8 +186,12 @@ private fun generateCall(
 ): GeneratedRemoteProcedureCall {
     val requestType = traverseType(call.requestClass!!.javaType, visitedTypes)
         .also { it.attachOwner(container::class, visitedTypes) }
-    val responseType = traverseType(call.successClass!!.javaType, visitedTypes)
-        .also { it.attachOwner(container::class, visitedTypes) }
+    val responseType = try {
+        traverseType(call.successClass!!.javaType, visitedTypes)
+            .also { it.attachOwner(container::class, visitedTypes) }
+    } catch (ex: Throwable) {
+        throw RuntimeException("Caught exception while generating response type for $call", ex)
+    }
     val errorType = traverseType(call.errorClass!!.javaType, visitedTypes)
         .also { it.attachOwner(container::class, visitedTypes) }
 

@@ -1311,6 +1311,7 @@ BulkResponse(
         providerDomain = "provider.example.com", 
         providerId = "example", 
         session = OpenSession.Shell(
+            domainOverride = null, 
             jobId = "123", 
             rank = 1, 
             sessionIdentifier = "a81ea644-58f5-44d9-8e94-89f81666c441", 
@@ -1472,7 +1473,8 @@ await callAPI(JobsApi.openInteractiveSession(
                 "type": "shell",
                 "jobId": "123",
                 "rank": 1,
-                "sessionIdentifier": "a81ea644-58f5-44d9-8e94-89f81666c441"
+                "sessionIdentifier": "a81ea644-58f5-44d9-8e94-89f81666c441",
+                "domainOverride": null
             }
         }
     ]
@@ -1586,7 +1588,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 "type": "shell",
 #                 "jobId": "123",
 #                 "rank": 1,
-#                 "sessionIdentifier": "a81ea644-58f5-44d9-8e94-89f81666c441"
+#                 "sessionIdentifier": "a81ea644-58f5-44d9-8e94-89f81666c441",
+#                 "domainOverride": null
 #             }
 #         }
 #     ]
@@ -2705,6 +2708,7 @@ BulkResponse(
         providerDomain = "provider.example.com", 
         providerId = "example", 
         session = OpenSession.Vnc(
+            domainOverride = null, 
             jobId = "51231", 
             password = "e7ccc6e0870250073286c44545e6b41820d1db7f", 
             rank = 0, 
@@ -2796,7 +2800,8 @@ await callAPI(JobsApi.openInteractiveSession(
                 "jobId": "51231",
                 "rank": 0,
                 "url": "vnc-69521c85-4811-43e6-9de3-2a48614d04ab.provider.example.com",
-                "password": "e7ccc6e0870250073286c44545e6b41820d1db7f"
+                "password": "e7ccc6e0870250073286c44545e6b41820d1db7f",
+                "domainOverride": null
             }
         }
     ]
@@ -2885,7 +2890,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 "jobId": "51231",
 #                 "rank": 0,
 #                 "url": "vnc-69521c85-4811-43e6-9de3-2a48614d04ab.provider.example.com",
-#                 "password": "e7ccc6e0870250073286c44545e6b41820d1db7f"
+#                 "password": "e7ccc6e0870250073286c44545e6b41820d1db7f",
+#                 "domainOverride": null
 #             }
 #         }
 #     ]
@@ -2978,6 +2984,7 @@ BulkResponse(
         providerDomain = "provider.example.com", 
         providerId = "example", 
         session = OpenSession.Web(
+            domainOverride = null, 
             jobId = "62342", 
             rank = 0, 
             redirectClientTo = "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d", 
@@ -3061,7 +3068,8 @@ await callAPI(JobsApi.openInteractiveSession(
                 "type": "web",
                 "jobId": "62342",
                 "rank": 0,
-                "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d"
+                "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d",
+                "domainOverride": null
             }
         }
     ]
@@ -3143,7 +3151,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 "type": "web",
 #                 "jobId": "62342",
 #                 "rank": 0,
-#                 "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d"
+#                 "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d",
+#                 "domainOverride": null
 #             }
 #         }
 #     ]
@@ -7996,6 +8005,7 @@ data class JobsLog(
 
 ```kotlin
 sealed class OpenSession {
+    abstract val domainOverride: String?
     abstract val jobId: String
     abstract val rank: Int
 
@@ -8009,6 +8019,17 @@ sealed class OpenSession {
 <summary>
 <b>Properties</b>
 </summary>
+
+<details>
+<summary>
+<code>domainOverride</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Domain override, which will be forwarded to the end-user. This overrides the domain used by UCloud/Core. Must contain scheme (e.g. https://).
+</summary>
+
+
+
+
+
+</details>
 
 <details>
 <summary>
@@ -8051,6 +8072,7 @@ data class Shell(
     val jobId: String,
     val rank: Int,
     val sessionIdentifier: String,
+    val domainOverride: String?,
     val type: String /* "shell" */,
 )
 ```
@@ -8095,6 +8117,17 @@ data class Shell(
 
 <details>
 <summary>
+<code>domainOverride</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Domain override, which will be forwarded to the end-user. This overrides the domain used by UCloud/Core. Must contain scheme (e.g. https://).
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>type</code>: <code><code>String /* "shell" */</code></code> The type discriminator
 </summary>
 
@@ -8125,6 +8158,7 @@ data class Vnc(
     val rank: Int,
     val url: String,
     val password: String?,
+    val domainOverride: String?,
     val type: String /* "vnc" */,
 )
 ```
@@ -8180,6 +8214,17 @@ data class Vnc(
 
 <details>
 <summary>
+<code>domainOverride</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Domain override, which will be forwarded to the end-user. This overrides the domain used by UCloud/Core. Must contain scheme (e.g. https://).
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>type</code>: <code><code>String /* "vnc" */</code></code> The type discriminator
 </summary>
 
@@ -8209,6 +8254,7 @@ data class Web(
     val jobId: String,
     val rank: Int,
     val redirectClientTo: String,
+    val domainOverride: String?,
     val type: String /* "web" */,
 )
 ```
@@ -8243,6 +8289,17 @@ data class Web(
 <details>
 <summary>
 <code>redirectClientTo</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>domainOverride</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Domain override, which will be forwarded to the end-user. This overrides the domain used by UCloud/Core. Must contain scheme (e.g. https://).
 </summary>
 
 

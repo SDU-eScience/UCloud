@@ -66,6 +66,7 @@ BulkResponse(
         providerDomain = "provider.example.com", 
         providerId = "example", 
         session = OpenSession.Web(
+            domainOverride = null, 
             jobId = "62342", 
             rank = 0, 
             redirectClientTo = "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d", 
@@ -149,7 +150,8 @@ await callAPI(JobsApi.openInteractiveSession(
                 "type": "web",
                 "jobId": "62342",
                 "rank": 0,
-                "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d"
+                "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d",
+                "domainOverride": null
             }
         }
     ]
@@ -231,7 +233,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 "type": "web",
 #                 "jobId": "62342",
 #                 "rank": 0,
-#                 "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d"
+#                 "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d",
+#                 "domainOverride": null
 #             }
 #         }
 #     ]

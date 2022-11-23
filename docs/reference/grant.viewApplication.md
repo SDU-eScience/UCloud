@@ -10,7 +10,7 @@ _Retrieves an active [Application]_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#viewapplicationrequest'>ViewApplicationRequest</a></code>|<code><a href='#applicationwithcomments'>ApplicationWithComments</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#retrieveapplicationrequest'>RetrieveApplicationRequest</a></code>|<code><a href='#grantapplication'>GrantApplication</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 Only the creator and grant reviewers are allowed to view any given [Application].
 

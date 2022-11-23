@@ -66,6 +66,7 @@ BulkResponse(
         providerDomain = "provider.example.com", 
         providerId = "example", 
         session = OpenSession.Vnc(
+            domainOverride = null, 
             jobId = "51231", 
             password = "e7ccc6e0870250073286c44545e6b41820d1db7f", 
             rank = 0, 
@@ -157,7 +158,8 @@ await callAPI(JobsApi.openInteractiveSession(
                 "jobId": "51231",
                 "rank": 0,
                 "url": "vnc-69521c85-4811-43e6-9de3-2a48614d04ab.provider.example.com",
-                "password": "e7ccc6e0870250073286c44545e6b41820d1db7f"
+                "password": "e7ccc6e0870250073286c44545e6b41820d1db7f",
+                "domainOverride": null
             }
         }
     ]
@@ -246,7 +248,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 "jobId": "51231",
 #                 "rank": 0,
 #                 "url": "vnc-69521c85-4811-43e6-9de3-2a48614d04ab.provider.example.com",
-#                 "password": "e7ccc6e0870250073286c44545e6b41820d1db7f"
+#                 "password": "e7ccc6e0870250073286c44545e6b41820d1db7f",
+#                 "domainOverride": null
 #             }
 #         }
 #     ]
