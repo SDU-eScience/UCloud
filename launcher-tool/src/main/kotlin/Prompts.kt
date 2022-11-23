@@ -7,6 +7,7 @@ import de.codeshelf.consoleui.prompt.ConsolePrompt
 import de.codeshelf.consoleui.prompt.InputResult
 import de.codeshelf.consoleui.prompt.ListResult
 import de.codeshelf.consoleui.prompt.builder.ListPromptBuilder
+import jline.TerminalFactory
 import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.Ansi.ansi
 import java.io.File
@@ -169,6 +170,8 @@ class LoadingIndicator(var prompt: String) {
     }
 
     fun display() {
+        val maxLineLength = TerminalFactory.get().width
+
         thread = Thread {
             var iteration = 0
 
@@ -226,7 +229,12 @@ class LoadingIndicator(var prompt: String) {
                     println(ansi().cursorUp(lastActiveLines + 1).eraseLine().bold().render(message).boldOff())
                 }
                 for (i in 0 until activeLines) {
-                    println(ansi().eraseLine().render(statusLines[i]))
+                    val line = if (statusLines[i].length > maxLineLength) {
+                        statusLines[i].substring(0, maxLineLength)
+                    } else {
+                        statusLines[i]
+                    }
+                    println(ansi().eraseLine().render(line))
                 }
 
                 if (current != LoadingState.IN_PROGRESS) break

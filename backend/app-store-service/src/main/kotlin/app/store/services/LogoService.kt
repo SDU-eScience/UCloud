@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.NormalizedPaginationRequest
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -23,6 +24,7 @@ enum class LogoType {
 
 class LogoService(
     private val db: AsyncDBSessionFactory,
+    private val appService: AppStoreAsyncDao,
     private val appDao: ApplicationLogoAsyncDao,
     private val toolDao: ToolAsyncDao
 ) {
@@ -48,6 +50,7 @@ class LogoService(
                     verifyAppUpdatePermission(actorAndProject, session, name)
                     appDao.createLogo(session, actorAndProject, name, imageBytes)
                 }
+
                 LogoType.TOOL -> {
                     verifyToolUpdatePermission(actorAndProject, session, name)
                     toolDao.createLogo(session, actorAndProject, name, imageBytes)
@@ -70,8 +73,38 @@ class LogoService(
             when (type) {
                 LogoType.APPLICATION -> appDao.fetchLogo(session, name)
                 LogoType.TOOL -> toolDao.fetchLogo(session, name)
+            } ?: when (type) {
+                LogoType.APPLICATION -> {
+                    println("Couldnt find by app. trying tool")
+                    val app = appService.findAllByName(
+                        session,
+                        null,
+                        null,
+                        emptyList(),
+                        name,
+                        NormalizedPaginationRequest(10, 0)
+                    ).items.firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                    println("foudn app ${app.metadata.name} ${app.metadata.version}")
+
+                    fetchLogo(
+                        LogoType.TOOL,
+                        appService.findByNameAndVersion(
+                            session,
+                            null,
+                            null,
+                            emptyList(),
+                            app.metadata.name,
+                            app.metadata.version
+                        ).invocation.tool.name
+                    )
+                }
+
+                else -> {
+                    println("Could not find $type $name")
+                    throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                }
             }
-        } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
     }
 
     fun resizeLogo(logoBytes: ByteArray): ByteArray {

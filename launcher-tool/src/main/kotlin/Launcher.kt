@@ -55,6 +55,11 @@ fun main(args: Array<String>) {
 
         val version = runCatching { File(repoRoot, "./backend/version.txt").readText() }.getOrNull()?.trim() ?: ""
 
+        if (args.contains("--version") || args.contains("-v")) {
+            println("UCloud $version")
+            exitProcess(0)
+        }
+
         commandFactory = LocalExecutableCommandFactory()
         fileFactory = LocalFileFactory()
 
@@ -93,6 +98,17 @@ fun main(args: Array<String>) {
             startCluster(compose, noRecreate = false)
 
             if (shouldStart) {
+                LoadingIndicator("Retrieving initial access token").use {
+                    for (attempt in 1..10) {
+                        val success = runCatching { fetchAccessToken() }.isSuccess
+                        if (success) break
+
+                        Thread.sleep(1000)
+                    }
+                }
+
+                Commands.importApps()
+
                 println()
                 println()
                 println("UCloud is now running. You should create a provider to get started. Select the " +

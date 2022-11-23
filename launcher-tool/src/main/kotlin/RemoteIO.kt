@@ -4,6 +4,7 @@ import com.jcraft.jsch.agentproxy.AgentProxy
 import com.jcraft.jsch.agentproxy.connector.SSHAgentConnector
 import com.jcraft.jsch.agentproxy.sshj.AuthAgent
 import com.jcraft.jsch.agentproxy.usocket.NCUSocketFactory
+import jdk.jshell.execution.LocalExecutionControlProvider
 import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.connection.channel.direct.Session
 import java.lang.StringBuilder
@@ -53,7 +54,7 @@ class SshConnection(
 fun syncRepository() {
     val conn = (commandFactory as? RemoteExecutableCommandFactory)?.connection ?: return
     LoadingIndicator("Synchronizing repository with remote").use {
-        ProcessBuilder(
+        LocalExecutableCommandFactory().create(
             listOf(
                 "rsync",
                 "-zvhPr",
@@ -64,10 +65,7 @@ fun syncRepository() {
                 ".",
                 "${conn.username}@${conn.host}:ucloud"
             )
-        ).apply {
-            redirectOutput(ProcessBuilder.Redirect.DISCARD)
-            redirectError(ProcessBuilder.Redirect.DISCARD)
-        }.start()
+        ).allowFailure().streamOutput().executeToText()
     }
 }
 

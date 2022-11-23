@@ -48,8 +48,10 @@ data class EnvironmentVariableParameter(val variable: String) : InvocationParame
         context: InvocationParameterContext,
         builder: ArgumentBuilder,
     ): List<String> {
-        if (context != InvocationParameterContext.ENVIRONMENT) return emptyList()
-        return listOf("$($variable)")
+        return when (context) {
+            InvocationParameterContext.COMMAND -> listOf("${"$"}variable")
+            InvocationParameterContext.ENVIRONMENT -> listOf("$($variable)")
+        }
     }
 }
 
