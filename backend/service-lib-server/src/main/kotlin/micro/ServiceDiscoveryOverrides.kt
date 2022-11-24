@@ -10,15 +10,21 @@ data class ServiceDiscoveryOverride internal constructor(
 )
 
 class ServiceDiscoveryOverrides : MicroFeature {
-    private val overrides = HashMap<String, ServiceDiscoveryOverride>()
+    private var port = 8080
+    private var devMode = false
 
-    fun createOverride(serviceName: String, port: Int, hostname: String = "localhost") {
-        overrides[serviceName] = ServiceDiscoveryOverride(serviceName, port, hostname)
+    override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
+        devMode = ctx.developmentModeEnabled
+        val servicePort = ctx.configuration.requestChunkAtOrNull<Int>("servicePort")
+        if (servicePort != null) {
+            this.port = servicePort
+        }
     }
 
-    override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {}
-
-    operator fun get(serviceName: String): ServiceDiscoveryOverride? = overrides[serviceName]
+    operator fun get(serviceName: String): ServiceDiscoveryOverride? {
+        if (!devMode) return null
+        return ServiceDiscoveryOverride(serviceName, port)
+    }
 
     companion object Feature : MicroFeatureFactory<ServiceDiscoveryOverrides, Unit>,
         Loggable {

@@ -28,6 +28,7 @@ import {bulkRequestOf} from "@/DefaultObjects";
 import {BrowseType} from "@/Resource/BrowseType";
 import {formatDistanceToNow} from "date-fns/esm";
 import {ListRowStat} from "@/ui-components/List";
+import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -144,7 +145,8 @@ export interface ExtendRequest {
     requestedTime: SimpleDuration;
 }
 
-export type SuspendRequest = FindByStringId
+export type ResumeRequest = FindByStringId;
+export type SuspendRequest = FindByStringId;
 export interface OpenInteractiveSessionRequest {
     id: string;
     rank: number;
@@ -203,6 +205,9 @@ function jobStateToIconAndColor(state: JobState): [IconName, string] {
             icon = "chrono";
             color = "orange";
             break;
+        case "SUSPENDED":
+            icon = "pauseSolid";
+            break;
         default:
             icon = "ellipsis";
             break;
@@ -249,7 +254,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
             const job = resource as Job;
             const [icon, color] = jobStateToIconAndColor(job.status.state);
-            return <Flex width={"120px"} mt="4px" height={"27px"}><Icon name={icon} color={color} mr={"8px"} />
+            return <Flex width={"140px"} mt="4px" height={"27px"}><Icon name={icon} color={color} mr={"8px"} />
                 <Box mt={"-2px"}>{stateToTitle(job.status.state)}</Box>
             </Flex>
         }
@@ -270,6 +275,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
                 {title: "Success", value: "SUCCESS", icon: "check"},
                 {title: "Failure", value: "FAILURE", icon: "close"},
                 {title: "Expired", value: "EXPIRED", icon: "chrono"},
+                {title: "Suspended", value: "SUSPENDED", icon: "pauseSolid"},
             ]
         ));
     }
@@ -296,54 +302,37 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
     }
 
     terminate(request: BulkRequest<FindByStringId>): APICallParameters<BulkRequest<FindByStringId>, BulkResponse<any | null>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "terminate",
-            payload: request,
-            parameters: request
-        };
+        return apiUpdate(request, this.baseContext, "terminate");
     }
 
+    /* Untested */
     retrieveUtilization(request: {jobId: string}): APICallParameters<{jobId: string}, ComputeUtilization> {
-        return {
-            context: "",
-            method: "GET",
-            path: buildQueryString(this.baseContext + "retrieveUtilization", request),
-            parameters: request
-        };
+        console.log("RETRIEVE_UTILIZATION");
+        return apiRetrieve(request, this.baseContext, "utilization");
     }
 
     extend(request: BulkRequest<ExtendRequest>): APICallParameters<BulkRequest<ExtendRequest>, BulkResponse<any | null>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "extend",
-            payload: request,
-            parameters: request
-        };
+        return apiUpdate(request, this.baseContext, "extend");
     }
 
+    /* Untested */
     suspend(request: BulkRequest<SuspendRequest>): APICallParameters<BulkRequest<SuspendRequest>, BulkResponse<any | null>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "suspend",
-            payload: request,
-            parameters: request
-        };
+        console.log("SUSPEND");
+        return apiUpdate(request, this.baseContext, "suspend");
     }
 
+    /* Untested */
+    unsuspend(request: BulkRequest<ResumeRequest>): APICallParameters {
+        console.log("USUSPEND");
+        return apiUpdate(request, this.baseContext, "unsuspend")
+    }
+
+    /* Untested */
     openInteractiveSession(
         request: BulkRequest<OpenInteractiveSessionRequest>
     ): APICallParameters<BulkRequest<OpenInteractiveSessionRequest>, BulkResponse<InteractiveSession>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "interactiveSession",
-            payload: request,
-            parameters: request
-        };
+        console.log("OPEN_INTERACTIVE_SESSION");
+        return apiUpdate(request, this.baseContext, "interactiveSession");
     }
 }
 

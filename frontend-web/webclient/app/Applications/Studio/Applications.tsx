@@ -6,13 +6,12 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {emptyPage} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/MainContainer/MainContainer";
-import {useCallback, useEffect, useRef} from "react";
+import {useCallback, useEffect} from "react";
 import * as React from "react";
 import {useState} from "react";
-import {useRouteMatch} from "react-router";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Button, Checkbox, Flex, Icon, Label, Text, VerticalButtonGroup} from "@/ui-components";
+import {Button, Checkbox, DataList, Flex, Icon, Label, Text, VerticalButtonGroup} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import * as Heading from "@/ui-components/Heading";
@@ -27,6 +26,7 @@ import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {useParams} from "react-router";
 
 interface AppVersion {
     version: string;
@@ -71,11 +71,16 @@ const LeftAlignedTableHeader = styled(TableHeader)`
 `;
 
 export const App: React.FunctionComponent = () => {
-    const name = useRouteMatch<{name: string}>().params.name;
+    const name = useParams<{name: string}>().name!;
 
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [logoCacheBust, setLogoCacheBust] = useState("" + Date.now());
     const [access, setAccess] = React.useState<ApplicationAccessRight>("LAUNCH");
+    const [allTags, fetchAllTags] = useCloudAPI<string[]>(
+        {noop: true},
+        []
+    );
+    const [selectedTag, setSelectedTag] = useState<string>("");
 
     const [permissionEntries, fetchPermissionEntries] = useCloudAPI<UCloud.compute.DetailedEntityWithPermission[]>(
         {noop: true},
@@ -96,6 +101,7 @@ export const App: React.FunctionComponent = () => {
     // Loading of permission entries
     useEffect(() => {
         fetchPermissionEntries(UCloud.compute.apps.listAcl({appName: name}));
+        fetchAllTags(UCloud.compute.apps.listTags({}));
     }, [name]);
 
     // Loading of application versions
@@ -107,13 +113,13 @@ export const App: React.FunctionComponent = () => {
         setVersions(appVersions);
     }, [apps.data.items]);
 
-
     useTitle("Application Studio | Applications");
     useSidebarPage(SidebarPages.Admin);
     usePrioritizedSearch("applications");
 
     const refresh = useCallback(() => {
         setAppParameters(UCloud.compute.apps.findByName({appName: name, itemsPerPage: 50, page: 0}));
+        fetchAllTags(UCloud.compute.apps.listTags({}));
     }, [name]);
 
     useRefreshFunction(refresh);
@@ -121,7 +127,6 @@ export const App: React.FunctionComponent = () => {
 
     const appTitle = apps.data.items.length > 0 ? apps.data.items[0].metadata.title : name;
     const tags = apps.data.items[0]?.tags ?? [];
-    const newTagField = useRef<HTMLInputElement>(null);
     const userEntityField = React.useRef<HTMLInputElement>(null);
     const projectEntityField = React.useRef<HTMLInputElement>(null);
     const groupEntityField = React.useRef<HTMLInputElement>(null);
@@ -209,27 +214,28 @@ export const App: React.FunctionComponent = () => {
                                     e.preventDefault();
                                     if (commandLoading) return;
 
-                                    const tagField = newTagField.current;
-                                    if (tagField === null) return;
-
-                                    const tagValue = tagField.value;
-                                    if (tagValue === "") return;
+                                    if (selectedTag === null) return;
+                                    if (selectedTag === "") return;
 
                                     await invokeCommand(UCloud.compute.apps.createTag({
                                         applicationName: name,
-                                        tags: [tagValue]
+                                        tags: [selectedTag]
                                     }));
-                                    refresh();
 
-                                    tagField.value = "";
+                                    refresh();
                                 }}
                             >
                                 <Flex>
                                     <Box flexGrow={1}>
-                                        <Input type="text"
-                                            ref={newTagField}
-                                            rightLabel
-                                            height={35} />
+                                        {allTags.data.length > 0 ?
+                                            <DataList
+                                                options={allTags.data.map(tag => ({value: tag, content: tag}))}
+                                                onSelect={(item) => setSelectedTag(item)}
+                                                onChange={(item) => setSelectedTag(item)}
+                                                placeholder={"Enter or choose a tag..."}
+                                            />
+                                            : <></>
+                                        }
                                     </Box>
                                     <Button disabled={commandLoading} type="submit" width={100} attached>
                                         Add tag

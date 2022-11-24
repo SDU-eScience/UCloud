@@ -383,6 +383,10 @@ JNIEXPORT jint JNICALL Java_libc_LibC_resizePty(JNIEnv *env, jobject thisRef, ji
     return 0;
 }
 
+JNIEXPORT jint JNICALL Java_libc_LibC_umask(JNIEnv *env, jobject thisRef, jint mask) {
+    return umask(mask);
+}
+
 #ifdef __cplusplus
 }
 #endif

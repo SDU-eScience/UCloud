@@ -39,47 +39,45 @@ export const MainContainer = ({
     }, [mainYpad]);
 
     return (
-        <React.StrictMode>
-            <Box data-component={"main"} backgroundColor="white" ml={leftSidebarSize} pt={topMenuSize} pb={pad} pl={pad} pr="0">
-                {header && (
-                    <HeaderContainer
-                        top={topMenuSize}
-                        left="0"
-                        py={pad}
-                        pl={leftSidebarSize + pad}
-                        pr={pad}
-                        width={1}
-                        height={headerSize}
-                        bg="white"
+        <Box data-component={"main"} backgroundColor="white" ml={leftSidebarSize} pt={topMenuSize} pb={pad} pl={pad} pr="0">
+            {header && (
+                <HeaderContainer
+                    top={topMenuSize}
+                    left="0"
+                    py={pad}
+                    pl={leftSidebarSize + pad}
+                    pr={pad}
+                    width={1}
+                    height={headerSize}
+                    bg="white"
+                >
+                    {header}
+                </HeaderContainer>
+            )}
+            {sidebar && (
+                <Hide sm xs md>
+                    <SidebarContainer
+                        data-component={"sidebar"}
+                        height="calc(100% - var(--termsize, 0px))"
+                        data-tag="sidebar"
+                        pt={topMenuSize + mainYpad}
+                        top="0"
+                        right="0"
+                        px={pad}
+                        width={sidebarSize}
                     >
-                        {header}
-                    </HeaderContainer>
-                )}
-                {sidebar && (
-                    <Hide sm xs md>
-                        <SidebarContainer
-                            data-component={"sidebar"}
-                            height="100%"
-                            data-tag="sidebar"
-                            pt={topMenuSize + mainYpad}
-                            top="0"
-                            right="0"
-                            px={pad}
-                            width={sidebarSize}
-                        >
-                            {sidebar}
-                        </SidebarContainer>
-                    </Hide>
-                )}
-                <Box pt={mainYpad} pr={mainXpad}>
-                    <Hide lg xl xxl>
                         {sidebar}
-                    </Hide>
-                    {main}
-                </Box>
-                {additional}
+                    </SidebarContainer>
+                </Hide>
+            )}
+            <Box pt={mainYpad} pr={mainXpad}>
+                <Hide lg xl xxl>
+                    {sidebar}
+                </Hide>
+                {main}
             </Box>
-        </React.StrictMode>
+            {additional}
+        </Box>
     );
 };
 

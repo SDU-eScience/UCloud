@@ -74,6 +74,7 @@ export interface WidgetProps {
     provider?: string;
     parameter: ApplicationParameter;
     errors: Record<string, string>;
+    setWarning?: (warning: string) => void;
 }
 
 interface RootWidgetProps {
@@ -290,7 +291,7 @@ export interface WidgetValidationAnswer {
     value?: AppParameterValue;
 }
 
-export function widgetId(param: ApplicationParameter): string {
+export function widgetId(param: {name: string}): string {
     return `app-param-${param.name}`;
 }
 

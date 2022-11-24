@@ -37,6 +37,7 @@ import javax.net.ssl.*
 
 sealed class KubernetesConfigurationSource {
     abstract fun retrieveConnection(): KubernetesConnection?
+    abstract fun kubectl(args: List<String>): List<String>
 
     class KubeConfigFile(val path: String?, val context: String?) : KubernetesConfigurationSource() {
         @Serializable
@@ -137,6 +138,21 @@ sealed class KubernetesConfigurationSource {
             return null
         }
 
+        override fun kubectl(args: List<String>): List<String> {
+            return buildList {
+                add("kubectl")
+                if (path != null) {
+                    add("--kubeconfig")
+                    add(path)
+                }
+                if (context != null) {
+                    add("--context")
+                    add(context)
+                }
+                addAll(args)
+            }
+        }
+
         companion object : Loggable {
             override val log = logger()
 
@@ -189,32 +205,38 @@ sealed class KubernetesConfigurationSource {
                 trustManager
             )
         }
-    }
 
-    object Auto : KubernetesConfigurationSource() {
-        override fun retrieveConnection(): KubernetesConnection? {
-            val defaultKubeConfig = KubeConfigFile(null, null).retrieveConnection()
-            if (defaultKubeConfig != null) return defaultKubeConfig
-
-            val inCluster = InClusterConfiguration().retrieveConnection()
-            if (inCluster != null) return inCluster
-
-            val composeKubeConfigFile = File("/mnt/k3s/kubeconfig.yaml")
-            if (composeKubeConfigFile.exists()) {
-                val newText = composeKubeConfigFile.readText().replace("127.0.0.1", "k3s")
-                composeKubeConfigFile.writeText(newText)
+        override fun kubectl(args: List<String>): List<String> {
+            return buildList {
+                add("kubectl")
+                addAll(args)
             }
-
-            val composeKubeConfig = KubeConfigFile("/mnt/k3s/kubeconfig.yaml", null).retrieveConnection()
-            if (composeKubeConfig != null) return composeKubeConfig
-
-            return null
         }
     }
 
-    object Placeholder : KubernetesConfigurationSource() {
+    object Auto : KubernetesConfigurationSource() {
+        private fun findDelegate(): KubernetesConfigurationSource {
+            val defaultKubeConfig = KubeConfigFile(null, null)
+            if (defaultKubeConfig.retrieveConnection() != null) return defaultKubeConfig
+
+            val inCluster = InClusterConfiguration()
+            if (inCluster.retrieveConnection() != null) return inCluster
+
+            val composeKubeConfigFile = File("/mnt/k3s/kubeconfig.yaml")
+            if (composeKubeConfigFile.exists()) {
+                val newText = composeKubeConfigFile.readText().replace("127.0.0.1", "k3")
+                composeKubeConfigFile.writeText(newText)
+            }
+
+            return KubeConfigFile("/mnt/k3s/kubeconfig.yaml", null)
+        }
+
         override fun retrieveConnection(): KubernetesConnection? {
-            error("retrieveConnection() was called on a placeholder source")
+            return runCatching { findDelegate() }.getOrNull()?.retrieveConnection()
+        }
+
+        override fun kubectl(args: List<String>): List<String> {
+            return findDelegate().kubectl(args)
         }
     }
 }
@@ -276,7 +298,12 @@ sealed class KubernetesAuthenticationMethod {
 
             httpRequestBuilder.url(
                 URLBuilder(httpRequestBuilder.url.fixedClone()).apply {
-                    protocol = URLProtocol.HTTP
+                    protocol = when (protocol) {
+                        URLProtocol.HTTP, URLProtocol.HTTPS -> URLProtocol.HTTP
+                        URLProtocol.WS, URLProtocol.WSS -> URLProtocol.WS
+                        else -> URLProtocol.HTTP
+                    }
+
                     host = "localhost"
                     port = 42010
                 }.build()
@@ -383,6 +410,16 @@ class KubernetesClient(
 ) {
     val conn by lazy {
         configurationSource.retrieveConnection() ?: error("Found no valid Kubernetes configuration")
+    }
+
+    fun kubectl(args: List<String>): Process {
+        return ProcessBuilder(*configurationSource.kubectl(args).toTypedArray()).start().also { process ->
+            Runtime.getRuntime().addShutdownHook(object : Thread() {
+                override fun run() {
+                    process.destroyForcibly()
+                }
+            })
+        }
     }
 
     @PublishedApi

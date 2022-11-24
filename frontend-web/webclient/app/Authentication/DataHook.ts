@@ -257,6 +257,7 @@ export function useCloudCommand(): [boolean, InvokeCommand, React.RefObject<bool
     }, [setIsLoading]);
 
     useEffect(() => {
+        didCancel = false;
         return () => {
             didCancel = true;
         };
@@ -351,18 +352,16 @@ export function useCloudCache(): CloudCacheHook {
     return {cleanup, removePrefix};
 }
 
-export type APIFetch<Parameters> = (params: APICallParameters<Parameters>, disableCache?: boolean) => void;
+export type APIFetch<Parameters> = (params: APICallParameters<Parameters>, disableCache?: boolean) => Promise<void>;
 
 export function useCloudAPI<T, Parameters = any>(
     callParametersInitial: APICallParameters<Parameters, T>,
     dataInitial: T,
     cachingPolicy?: {cacheTtlMs: number, cacheKey: string}
 ): [APICallState<T>, APIFetch<Parameters>, APICallParameters<Parameters>] {
-    const shouldLog = (cachingPolicy?.cacheKey === "avatar");
     const parameters = useRef(callParametersInitial);
     const initialCall = useRef(true);
     const lastKey = useRef("");
-    if (shouldLog) console.log("In here");
     const [cache, , mergeCache] = useGlobal("cloudApiCache", {}, (oldCache, newCache) => {
         let cacheKey = cachingPolicy?.cacheKey;
         if (cacheKey === undefined) return true; // Don't give us the update
@@ -373,7 +372,6 @@ export function useCloudAPI<T, Parameters = any>(
         for (const key of Object.keys(newCache)) {
             if (key.indexOf(cacheKey) === 0) {
                 if (newCache[key] !== oldCache[key] && key != lastKey.current) {
-                    if (shouldLog) console.log("Change");
                     return false;
                 }
             }
@@ -388,8 +386,7 @@ export function useCloudAPI<T, Parameters = any>(
         data: dataInitial
     });
 
-    const refetch = useCallback((params: APICallParameters<Parameters, T>) => {
-        if (shouldLog) console.log("  Fetching");
+    const refetch = useCallback(async (params: APICallParameters<Parameters, T>) => {
         let didCancel = false;
 
         let key: string | null = null;
@@ -405,7 +402,6 @@ export function useCloudAPI<T, Parameters = any>(
 
         // NOTE: We only cache successful attempts
         if (cachedEntry && now < cachedEntry.expiresAt && !params.disableCache) {
-            if (shouldLog) console.log("Using cached entry: ", cachedEntry, cache);
             dispatch({type: "FETCH_SUCCESS", payload: cachedEntry});
             return;
         }
@@ -414,14 +410,11 @@ export function useCloudAPI<T, Parameters = any>(
             // eslint-disable-next-line no-inner-declarations
             async function fetchData(): Promise<void> {
                 if (params.path !== undefined) {
-                    if (shouldLog) console.log("    Init");
                     dispatch({type: "FETCH_INIT"});
 
                     try {
                         const result: T = await callAPI(params);
-
                         if (!didCancel) {
-                            if (shouldLog) console.log("    Success");
                             dispatch({type: "FETCH_SUCCESS", payload: result});
                             if (cachingPolicy !== undefined && cachingPolicy.cacheTtlMs > 0 && params.method === "GET") {
                                 const newEntry = {};
@@ -438,8 +431,7 @@ export function useCloudAPI<T, Parameters = any>(
                     }
                 }
             }
-
-            fetchData();
+            await fetchData();
         }
 
         return () => {
@@ -447,13 +439,12 @@ export function useCloudAPI<T, Parameters = any>(
         };
     }, [cache]);
 
-    const doFetch = useCallback((params: APICallParameters, disableCache = false): void => {
-        if (shouldLog) console.log("doFetch")
+    const doFetch = useCallback(async (params: APICallParameters, disableCache = false): Promise<void> => {
         parameters.current = params;
         if (disableCache) {
-            refetch({...params, disableCache: true});
+            await refetch({...params, disableCache: true});
         } else {
-            refetch(params);
+            await refetch(params);
         }
     }, [refetch]);
 

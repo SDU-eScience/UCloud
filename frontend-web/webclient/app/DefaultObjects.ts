@@ -6,14 +6,6 @@ import {Upload} from "@/Files/Upload";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {ProjectCache} from "@/Project/cache";
 import {APICallStateWithParams} from "@/Authentication/DataHook";
-import {
-    ListGroupMembersRequestProps,
-    ListOutgoingInvitesRequest,
-    OutgoingInvite,
-    ProjectMember,
-    UserInProject
-} from "@/Project";
-import {GroupWithSummary} from "@/Project/GroupList";
 import {Product} from "@/Accounting";
 import * as UCloud from "@/UCloud";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud";
@@ -21,8 +13,8 @@ import {useEffect} from "react";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {UCLOUD_CORE} from "@/UCloud/ResourceApi";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {History} from "history";
-import {useHistory} from "react-router";
+import {NavigateFunction} from "react-router";
+import {initTerminalState, TerminalState} from "@/Terminal/State";
 
 export enum KeyCode {
     ENTER = 13,
@@ -121,15 +113,9 @@ export interface HookStore {
     uploadPath?: string;
 
     searchPlaceholder?: string;
-    onSearch?: (query: string, history: ReturnType<typeof useHistory>) => void;
+    onSearch?: (query: string, navigate: NavigateFunction) => void;
 
     projectCache?: ProjectCache;
-    projectManagementDetails?: APICallStateWithParams<UserInProject>;
-    projectManagement?: APICallStateWithParams<Page<ProjectMember>>;
-    projectManagementGroupMembers?: APICallStateWithParams<Page<string>, ListGroupMembersRequestProps>;
-    projectManagementGroupSummary?: APICallStateWithParams<Page<GroupWithSummary>, PaginationRequest>;
-    projectManagementQuery?: string;
-    projectManagementOutgoingInvites?: APICallStateWithParams<Page<OutgoingInvite>, ListOutgoingInvitesRequest>;
     computeProducts?: APICallStateWithParams<Page<Product>>;
     storageProducts?: APICallStateWithParams<Page<Product>>;
     frameHidden?: boolean;
@@ -146,6 +132,7 @@ interface LegacyReduxObject {
     avatar: AvatarReduxObject;
     responsive?: ResponsiveReduxObject;
     project: ProjectRedux.State;
+    terminal: TerminalState;
     loading?: boolean;
 }
 
@@ -177,6 +164,7 @@ export function initObject(): ReduxObject {
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         responsive: undefined,
+        terminal: initTerminalState(),
     };
 }
 
@@ -185,11 +173,11 @@ export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: un
 
 export const defaultSearchPlaceholder = "Search files and applications..."
 
-export function defaultSearch(query: string, history: ReturnType<typeof useHistory>) {
-    history.push(buildQueryString("/files/search", {q: query}));
+export function defaultSearch(query: string, navigate: NavigateFunction) {
+    navigate(buildQueryString("/files/search", {q: query}));
 }
 
-export function useSearch(onSearch: (query: string, history: ReturnType<typeof useHistory>) => void): void {
+export function useSearch(onSearch: (query: string, navigate: NavigateFunction) => void): void {
     const [, setOnSearch] = useGlobal("onSearch", defaultSearch);
     useEffect(() => {
         setOnSearch(() => onSearch);

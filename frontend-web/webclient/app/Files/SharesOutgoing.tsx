@@ -26,15 +26,13 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import {useDispatch} from "react-redux";
 import Icon from "../ui-components/Icon";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {Spacer} from "@/ui-components/Spacer";
 import {BrowseType} from "@/Resource/BrowseType";
-import {useProjectId, useProjectManagementStatus} from "@/Project";
-import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 
 function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
@@ -67,31 +65,24 @@ export const SharesOutgoing: React.FunctionComponent = () => {
     // HACK(Jonas): DISABLE UNTIL ALL SHARES CAN BE SEARCHED
     // useResourceSearch(SharesApi);
 
-    const history = useHistory();
+    const navigate = useNavigate();
     const dispatch = useDispatch();
     const [commandLoading, invokeCommand] = useCloudCommand();
     const reloadRef = useRef<() => void>(doNothing);
     const avatars = useAvatars();
-
-    const projectId = useProjectId();
-    const projectManagement = useProjectManagementStatus({
-        isRootComponent: true,
-        allowPersonalProject: true
-    });
-    const isWorkspaceAdmin = projectId === undefined ? true : isAdminOrPI(projectManagement.projectRole);
 
     const callbacks: ResourceBrowseCallbacks<Share> = useMemo(() => ({
         commandLoading,
         invokeCommand,
         reload: () => reloadRef.current(),
         api: SharesApi,
+        navigate,
         isCreating: false,
         embedded: false,
         dispatch,
-        history,
         supportByProvider: {productsByProvider: {}},
-        isWorkspaceAdmin
-    }), [history, dispatch, commandLoading, invokeCommand]);
+        isWorkspaceAdmin: true
+    }), [dispatch, commandLoading, invokeCommand]);
 
     const generateFetch = useCallback((next?: string) => {
         return SharesApi.browseOutgoing({next, itemsPerPage: 50});
@@ -289,7 +280,7 @@ const ShareGroup: React.FunctionComponent<{
     }
 };
 
-const Tab: React.FunctionComponent<{selected: boolean, onClick: () => void;}> = props => {
+const Tab: React.FunctionComponent<{selected: boolean, onClick: () => void; children: React.ReactNode}> = props => {
     return <SelectableText
         selected={props.selected}
         onClick={props.onClick}
@@ -298,12 +289,12 @@ const Tab: React.FunctionComponent<{selected: boolean, onClick: () => void;}> = 
     </SelectableText>
 };
 export const SharedByTabs: React.FunctionComponent<{sharedByMe: boolean}> = ({sharedByMe}) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const goToSharedByMe = useCallback(() => {
-        history.push("/shares/outgoing");
+        navigate("/shares/outgoing");
     }, [history]);
     const goToSharedWithMe = useCallback(() => {
-        history.push("/shares");
+        navigate("/shares");
     }, [history]);
 
     return <SelectableTextWrapper mb={"16px"}>

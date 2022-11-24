@@ -1,7 +1,7 @@
-import {useHistory} from "react-router";
+import {NavigateFunction} from "react-router";
 
 export interface RouterLocationProps {
-    history: ReturnType<typeof useHistory>;
+    navigate: NavigateFunction;
     location: {
         search: string;
     };

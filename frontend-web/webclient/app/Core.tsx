@@ -23,15 +23,12 @@ const NewsList = React.lazy(() => import("@/NewsPost/NewsList"));
 const NewsManagement = React.lazy(() => import("@/Admin/NewsManagement"));
 const Playground = React.lazy(() => import("@/Playground/Playground"));
 const Products = React.lazy(() => import("@/Products/Products"));
-const ProjectDashboard = React.lazy(() => import("@/Project/ProjectDashboard"));
-const ProjectList = React.lazy(() => import("@/Project/ProjectList"));
-const ProjectMembers = React.lazy(() => import("@/Project/Members"));
 const ProjectSettings = React.lazy(() => import("@/Project/ProjectSettings"));
 const ProjectResources = React.lazy(() => import("@/Project/Resources"));
 const ProjectAllocations = React.lazy(() => import("@/Project/Allocations"));
-const ProjectList2 = React.lazy(() => import("@/Project/ProjectList2"));
-const ProjectDashboard2 = React.lazy(() => import("@/Project/Dashboard2"));
-const ProjectMembers2 = React.lazy(() => import("@/Project/Members2"));
+const ProjectList = React.lazy(() => import("@/Project/ProjectList2"));
+const ProjectDashboard = React.lazy(() => import("@/Project/Dashboard2"));
+const ProjectMembers = React.lazy(() => import("@/Project/Members2"));
 const Search = React.lazy(() => import("@/Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("@/ServiceLicenseAgreement"));
 const Studio = React.lazy(() => import("@/Applications/Studio/Page"));
@@ -48,6 +45,8 @@ const CreateProvider = React.lazy(() => import("@/Admin/Providers/Save"));
 const EditProvider = React.lazy(() => import("@/Admin/Providers/Save"));
 const RegisterProvider = React.lazy(() => import("@/Admin/Providers/Approve"));
 const ProviderConnection = React.lazy(() => import("@/Providers/Connect"));
+const ProviderOverview = React.lazy(() => import("@/Providers/Overview"));
+const ProviderDetailed = React.lazy(() => import("@/Providers/Detailed"));
 const IngressRouter = React.lazy(() => import("@/Applications/Ingresses/Router"));
 const LicenseRouter = React.lazy(() => import("@/Applications/Licenses"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
@@ -62,10 +61,9 @@ import Sidebar from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
 import Snackbars from "@/Snackbar/Snackbars";
 import {Dialog} from "@/Dialog/Dialog";
-import {Route, RouteComponentProps, Switch} from "react-router-dom";
+import {Navigate, Route, Routes, useNavigate} from "react-router-dom";
 import {USER_LOGIN} from "@/Navigation/Redux/HeaderReducer";
 import {inDevEnvironment} from "@/UtilityFunctions";
-import {History} from "history";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -83,6 +81,9 @@ import {store} from "@/Utilities/ReduxUtilities";
 import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
 import {injectFonts} from "@/ui-components/GlobalStyle";
 import {SharesOutgoing} from "@/Files/SharesOutgoing";
+import {ApplicationsOverview2} from "./Applications/Overview2";
+import {TerminalContainer} from "@/Terminal/Container";
+import {LOGIN_REDIRECT_KEY} from "@/Login/Login";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -92,123 +93,128 @@ const Core = (): JSX.Element => (
         <Snackbars />
         <Uploader />
         <Sidebar />
-        <ErrorBoundary>
-            <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>
-                <Switch>
-                    <Route exact path="/login" component={LoginPage} />
-                    <Route exact path="/loginSuccess" component={LoginSuccess} />
-                    <Route exact path="/login/wayf" component={Wayf} />
-                    <Route exact path="/" component={requireAuth(Dashboard)} />
-                    <Route exact path="/dashboard" component={requireAuth(Dashboard)} />
-                    <Route exact path={"/debugger"} component={Debugger} />
+        <div style={{height: "calc(100vh - var(--termsize, 0px))", overflowX: "auto", overflowY: "auto"}}>
+            <ErrorBoundary>
+                <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>
+                    <Routes>
+                        <Route path="/login" element={<LoginPage />} />
+                        <Route path="/loginSuccess" element={<LoginSuccess />} />
+                        <Route path="/login/wayf" element={<Wayf />} />
+                        <Route path="/" element={React.createElement(requireAuth(Dashboard))} />
+                        <Route path="/dashboard" element={React.createElement(requireAuth(Dashboard))} />
+                        <Route path={"/debugger"} element={<Debugger />} />
+                        <Route path={"/drives/*"} element={React.createElement(requireAuth(FileCollectionsRouter))} />
+                        <Route path={"/files/*"} element={React.createElement(requireAuth(FilesRouter))} />
+                        <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
+                        <Route path={"/shares/outgoing"} element={React.createElement(requireAuth(SharesOutgoing))} />
+                        <Route path={"/shares/*"} element={React.createElement(requireAuth(ShareRouter))} />
 
-                    <Route path={"/drives"} component={requireAuth(FileCollectionsRouter)} />
-                    <Route path={"/files"} component={requireAuth(FilesRouter)} />
-                    <Route path={"/metadata"} component={requireAuth(MetadataNamespacesRouter)} />
-                    <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)} />
-                    <Route path={"/shares"} component={requireAuth(ShareRouter)} />
+                        <Route path={"/syncthing"} element={React.createElement(requireAuth(SyncthingOverview))} />
 
-                    <Route exact path={"/syncthing"} component={requireAuth(SyncthingOverview)} />
+                        <Route path="/applications" element={React.createElement(requireAuth(Applications))} />
+                        <Route path="/applications/overview_old" element={React.createElement(requireAuth(ApplicationsOverview))} />
+                        <Route path="/applications/overview" element={React.createElement(requireAuth(ApplicationsOverview2))} />
+                        <Route path="/applications/search" element={React.createElement(requireAuth(Search))} />
 
-                    <Route exact path="/applications" component={requireAuth(Applications)} />
-                    <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />
-                    <Route exact path="/applications/search" component={requireAuth(Search)} />
+                        {!inDevEnvironment() ? null :
+                            <Route path="/MANUAL-TESTING-OVERVIEW" element={<ManualTestingOverview />} />
+                        }
 
-                    {!inDevEnvironment() ? null :
-                        <Route exact path="/MANUAL-TESTING-OVERVIEW" component={ManualTestingOverview} />
-                    }
+                        <Route path="/applications/shell/:jobId/:rank" element={React.createElement(requireAuth(JobShell))} />
+                        <Route path="/applications/web/:jobId/:rank" element={React.createElement(requireAuth(JobWeb))} />
+                        <Route path="/applications/vnc/:jobId/:rank" element={React.createElement(requireAuth(JobVnc))} />
+                        <Route path="/public-links/*" element={React.createElement(requireAuth(IngressRouter))} />
+                        <Route path="/jobs/*" element={React.createElement(requireAuth(JobRouter))} />
+                        <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
+                        <Route path="/public-ips/*" element={React.createElement(requireAuth(NetworkIPsRouter))} />
+                        <Route path={"/ssh-keys"} element={React.createElement(requireAuth(SshKeyBrowse))} />
+                        <Route path={"/ssh-keys/create"} element={React.createElement(requireAuth(SshKeyCreate))} />
 
-                    <Route exact path="/applications/shell/:jobId/:rank" component={requireAuth(JobShell)} />
-                    <Route exact path="/applications/web/:jobId/:rank" component={requireAuth(JobWeb)} />
-                    <Route exact path="/applications/vnc/:jobId/:rank" component={requireAuth(JobVnc)} />
-                    <Route path="/public-links" component={requireAuth(IngressRouter)} />
-                    <Route path="/jobs" component={requireAuth(JobRouter)} />
-                    <Route path="/licenses" component={requireAuth(LicenseRouter)} />
-                    <Route path="/public-ips" component={requireAuth(NetworkIPsRouter)} />
-                    <Route path={"/ssh-keys"} exact component={requireAuth(SshKeyBrowse)} />
-                    <Route path={"/ssh-keys/create"} exact component={requireAuth(SshKeyCreate)} />
+                        <Route path="/applications/studio" element={React.createElement(requireAuth(Studio))} />
+                        <Route path="/applications/studio/t/:name" element={React.createElement(requireAuth(Tool))} />
+                        <Route path="/applications/studio/a/:name" element={React.createElement(requireAuth(App))} />
 
-                    <Route exact path="/applications/studio" component={requireAuth(Studio)} />
-                    <Route exact path="/applications/studio/t/:name" component={requireAuth(Tool)} />
-                    <Route exact path="/applications/studio/a/:name" component={requireAuth(App)} />
+                        {!inDevEnvironment() ? null : <Route path={"/playground"} element={<Playground />} />}
+                        {!inDevEnvironment() ? null : <Route path={"/playground/demo"} element={<Demo />} />}
+                        {!inDevEnvironment() ? null : <Route path={"/playground/lag"} element={<LagTest />} />}
 
-                    {!inDevEnvironment() ? null : <Route exact path={"/playground"} component={Playground} />}
-                    {!inDevEnvironment() ? null : <Route exact path={"/playground/demo"} component={Demo} />}
-                    {!inDevEnvironment() ? null : <Route exact path={"/playground/lag"} component={LagTest} />}
+                        <Route path="/admin" element={React.createElement(requireAuth(AdminOverview))} />
+                        <Route path="/admin/userCreation" element={React.createElement(requireAuth(UserCreation))} />
+                        <Route path="/admin/licenseServers" element={React.createElement(requireAuth(LicenseServers))} />
+                        <Route path="/admin/news" element={React.createElement(requireAuth(NewsManagement))} />
+                        <Route path="/admin/appk8" element={React.createElement(requireAuth(AppK8Admin))} />
+                        <Route path="/admin/scripts" element={React.createElement(requireAuth(Scripts))} />
 
-                    <Route exact path="/admin" component={requireAuth(AdminOverview)} />
-                    <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)} />
-                    <Route exact path="/admin/licenseServers" component={requireAuth(LicenseServers)} />
-                    <Route exact path="/admin/news" component={requireAuth(NewsManagement)} />
-                    <Route exact path="/admin/appk8" component={requireAuth(AppK8Admin)} />
-                    <Route exact path="/admin/scripts" component={requireAuth(Scripts)} />
+                        <Route path="/admin/providers" element={React.createElement(requireAuth(Providers))} />
+                        <Route path="/admin/providers/create" element={React.createElement(requireAuth(CreateProvider))} />
+                        <Route path="/admin/providers/edit/:id" element={React.createElement(requireAuth(EditProvider))} />
+                        <Route path="/admin/providers/register" element={React.createElement(requireAuth(RegisterProvider))} />
 
-                    <Route exact path="/admin/providers" component={requireAuth(Providers)} />
-                    <Route exact path="/admin/providers/create" component={requireAuth(CreateProvider)} />
-                    <Route exact path="/admin/providers/edit/:id" component={requireAuth(EditProvider)} />
-                    <Route exact path="/admin/providers/register" component={requireAuth(RegisterProvider)} />
+                        <Route path="/providers/connect" element={React.createElement(requireAuth(ProviderConnection))} />
+                        <Route path="/providers/create" element={React.createElement(requireAuth(CreateProvider))} />
+                        <Route path="/providers/edit/:id" element={React.createElement(requireAuth(EditProvider))} />
+                        <Route path="/providers/register" element={React.createElement(requireAuth(RegisterProvider))} />
+                        <Route path="/providers/overview" element={<ProviderOverview />} />
+                        <Route path="/providers/detailed/:id" element={<ProviderDetailed />} />
+                        <Route path="/providers/*" element={React.createElement(requireAuth(ProviderRouter))} />
 
-                    <Route exact path={"/providers/connect"} component={requireAuth(ProviderConnection)} />
-                    <Route exact path="/providers/create" component={requireAuth(CreateProvider)} />
-                    <Route exact path="/providers/edit/:id" component={requireAuth(EditProvider)} />
-                    <Route exact path="/providers/register" component={requireAuth(RegisterProvider)} />
-                    <Route path={"/providers"} component={requireAuth(ProviderRouter)} />
+                        <Route path="/news/detailed/:id" element={<DetailedNews />} />
 
-                    <Route exact path="/news/detailed/:id" component={DetailedNews} />
-                    <Route exact path="/news/list/:filter?" component={NewsList} />
+                        {/* Nullable paths args aren't supported (yet?) so we duplicate. */}
+                        <Route path="/news/list/" element={<NewsList />} />
+                        <Route path="/news/list/:filter" element={<NewsList />} />
 
-                    <Route
-                        exact
-                        path="/users/settings"
-                        component={requireAuth(UserSettings, {requireTwoFactor: false})}
-                    />
-                    <Route exact path="/users/avatar" component={requireAuth(AvataaarModification)} />
+                        <Route
+                            path="/users/settings"
+                            element={React.createElement(requireAuth(UserSettings, {requireTwoFactor: false}))}
+                        />
+                        <Route path="/users/avatar" element={React.createElement(requireAuth(AvataaarModification))} />
 
-                    <Route exact path="/skus" component={Products} />
+                        <Route path="/skus" element={<Products />} />
 
-                    <Route exact path="/projects2/" component={requireAuth(ProjectList2)} />
-                    <Route exact path="/projects2/:project" component={requireAuth(ProjectDashboard2)} />
-                    <Route exact path="/projects2/:project/members" component={requireAuth(ProjectMembers2)} />
+                        <Route path="/projects/" element={React.createElement(requireAuth(ProjectList))} />
+                        <Route path="/projects/:project" element={React.createElement(requireAuth(ProjectDashboard))} />
+                        <Route path="/projects/:project/members" element={React.createElement(requireAuth(ProjectMembers))} />
 
-                    <Route exact path="/projects/" component={requireAuth(ProjectList)} />
-                    <Route exact path="/subprojects" component={requireAuth(SubprojectList)} />
-                    <Route exact path="/project/dashboard" component={requireAuth(ProjectDashboard)} />
-                    <Route exact path="/project/settings/:page?" component={requireAuth(ProjectSettings)} />
-                    <Route exact path="/project/resources" component={requireAuth(ProjectResources)} />
-                    <Route exact path="/project/allocations" component={requireAuth(ProjectAllocations)} />
-                    <Route
-                        exact
-                        path="/project/grants/existing"
-                        component={requireAuth(GrantApplicationEditor(RequestTarget.EXISTING_PROJECT))}
-                    />
-                    <Route
-                        exact
-                        path="/project/grants/personal"
-                        component={requireAuth(GrantApplicationEditor(RequestTarget.PERSONAL_PROJECT))}
-                    />
-                    <Route
-                        exact
-                        path="/project/grants/new"
-                        component={requireAuth(GrantApplicationEditor(RequestTarget.NEW_PROJECT))}
-                    />
-                    <Route
-                        exact
-                        path="/project/grants/view/:appId"
-                        component={requireAuth(GrantApplicationEditor(RequestTarget.VIEW_APPLICATION))}
-                    />
-                    <Route exact path="/project/members/:group?/:member?" component={requireAuth(ProjectMembers)} />
-                    <Route exact path="/project/grants/ingoing" component={requireAuth(IngoingApplications)} />
-                    <Route exact path="/project/grants/outgoing" component={requireAuth(OutgoingApplications)} />
+                        <Route path="/subprojects" element={React.createElement(requireAuth(SubprojectList))} />
 
-                    <Route
-                        exact
-                        path="/sla"
-                        component={requireAuth(ServiceLicenseAgreement, {requireTwoFactor: false, requireSla: false})}
-                    />
-                    <Route component={NotFound} />
-                </Switch>
-            </React.Suspense>
-        </ErrorBoundary>
+                        {/* Nullable paths args aren't supported (yet?) so we duplicate. */}
+                        <Route path="/project/settings/:project/" element={React.createElement(requireAuth(ProjectSettings))} />
+                        <Route path="/project/settings/:project/:page" element={React.createElement(requireAuth(ProjectSettings))} />
+                        <Route path="/project/resources/:project" element={React.createElement(requireAuth(ProjectResources))} />
+                        <Route path="/project/allocations/:project" element={React.createElement(requireAuth(ProjectAllocations))} />
+                        <Route
+                            path="/project/grants/existing"
+                            element={React.createElement(requireAuth(GrantApplicationEditor), {key: RequestTarget.EXISTING_PROJECT, target: RequestTarget.EXISTING_PROJECT})}
+                        />
+                        <Route
+                            path="/project/grants/personal"
+                            element={React.createElement(requireAuth(GrantApplicationEditor), {key: RequestTarget.PERSONAL_PROJECT, target: RequestTarget.PERSONAL_PROJECT})}
+                        />
+                        <Route
+                            path="/project/grants/new"
+                            element={React.createElement(requireAuth(GrantApplicationEditor), {key: RequestTarget.NEW_PROJECT, target: RequestTarget.NEW_PROJECT})}
+                        />
+                        <Route
+                            path="/project/grants/view/:appId"
+                            element={React.createElement(requireAuth(GrantApplicationEditor), {key: RequestTarget.VIEW_APPLICATION, target: RequestTarget.VIEW_APPLICATION})}
+                        />
+                        <Route path="/project/grants/ingoing/:project" element={React.createElement(requireAuth(IngoingApplications))} />
+                        <Route path="/project/grants/outgoing/:project" element={React.createElement(requireAuth(OutgoingApplications))} />
+                        <Route
+                            path="/sla"
+                            element={React.createElement(requireAuth(ServiceLicenseAgreement, {
+                                requireTwoFactor: false,
+                                requireSla: false
+                            }))}
+                        />
+                        <Route path="*" element={<NotFound />} />
+                    </Routes>
+                </React.Suspense>
+            </ErrorBoundary>
+        </div>
+
+        <TerminalContainer />
     </>
 );
 
@@ -218,25 +224,27 @@ interface RequireAuthOpts {
 }
 
 function requireAuth<T>(Delegate: React.FunctionComponent<T>, opts?: RequireAuthOpts): React.FunctionComponent<T> {
-    return function Auth(props: T & RouteComponentProps) {
+    return function Auth(props: React.PropsWithChildren<T>) {
         const info = Client.userInfo;
+
         if (!Client.isLoggedIn || info === undefined) {
-            props.history.push("/login");
-            return null;
+            const loginPath = window.location.href.replace(`${window.location.origin}/app`, "");
+            if (loginPath) {
+                sessionStorage.setItem(LOGIN_REDIRECT_KEY, loginPath);
+            }
+            return <Navigate to="/login" />;
         }
 
         if (opts === undefined || opts.requireSla !== false) {
             if (info.serviceLicenseAgreement === false) {
-                props.history.push("/sla");
-                return null;
+                return <Navigate to="/sla" />;
             }
         }
 
         if (opts === undefined || opts.requireTwoFactor) {
             if (info.principalType === "password" && Client.userRole === "USER" &&
                 info.twoFactorAuthentication === false) {
-                props.history.push("/users/settings");
-                return null;
+                return <Navigate to="/user/settings" />;
             }
         }
 
@@ -244,13 +252,14 @@ function requireAuth<T>(Delegate: React.FunctionComponent<T>, opts?: RequireAuth
     };
 }
 
-const LoginSuccess = (props: {history: History}): null => {
+const LoginSuccess = (): JSX.Element => {
     React.useEffect(() => {
         dispatchUserAction(USER_LOGIN);
         onLogin();
-        props.history.push("/");
     }, []);
-    return null;
+
+    const path = sessionStorage.getItem(LOGIN_REDIRECT_KEY) ?? "/";
+    return <Navigate to={path} />;
 };
 
 export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
@@ -263,7 +272,7 @@ export async function onLogin(): Promise<void> {
 }
 
 const GlobalStyle = createGlobalStyle`
-  ${UIGlobalStyle}
+    ${UIGlobalStyle}
 `;
 
 Client.initializeStore(store);

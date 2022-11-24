@@ -2,10 +2,17 @@ package dk.sdu.cloud.app.store.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.encodeToJsonElement
+
+@Serializable
+data class DevImportRequest(
+    val endpoint: String,
+    val checksum: String
+)
 
 @Serializable
 data class Project(
@@ -172,6 +179,46 @@ typealias FindLatestByToolResponse = Page<Application>
 @Serializable
 data class DeleteAppRequest(val appName: String, val appVersion: String)
 typealias DeleteAppResponse = Unit
+
+typealias AppStoreOverviewRequest = Unit
+
+@Serializable
+data class AppStoreOverviewResponse(
+    val sections: List<AppStoreSection>
+)
+
+@Serializable
+sealed class AppStoreSection {
+    abstract val name: String
+    @Serializable
+    @SerialName("tag")
+    data class Tag(
+        override val name: String,
+        val applications: ArrayList<ApplicationSummaryWithFavorite>,
+        override val columns: Int,
+        override val rows: Int
+    ) : AppStoreSection(), WithDimensions
+
+    @Serializable
+    @SerialName("tool")
+    data class Tool(
+        override val name: String,
+        val applications: ArrayList<ApplicationSummaryWithFavorite>,
+        override val columns: Int,
+        override val rows: Int
+    ) : AppStoreSection(), WithDimensions
+}
+
+interface WithDimensions {
+    val rows: Int
+    val columns: Int
+}
+
+@Serializable
+enum class AppStoreSectionType {
+    TAG,
+    TOOL
+}
 
 @UCloudApiExampleValue
 fun exampleApplication(
@@ -861,6 +908,26 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
+    val overview = call("overview", AppStoreOverviewRequest.serializer(), AppStoreOverviewResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.AUTHENTICATED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"overview"
+            }
+
+            documentation {
+                summary = "Returns the application catalog overview"
+            }
+        }
+    }
+
     val create = call("create", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = setOf(Role.ADMIN, Role.SERVICE, Role.PROVIDER)
@@ -943,6 +1010,26 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
+    val listTags = call("listTags", Unit.serializer(), ListSerializer(String.serializer()), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"listTags"
+            }
+        }
+
+        documentation {
+            summary = "List all application tags"
+        }
+    }
+
     val uploadLogo = call("uploadLogo", UploadApplicationLogoRequest.serializer(), UploadApplicationLogoResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 roles = Roles.PRIVILEGED
@@ -1017,6 +1104,15 @@ ${ApiConventions.nonConformingApiWarning}
 
         documentation {
             summary = "Retrieves a logo associated with an Application"
+        }
+    }
+
+    @UCloudApiInternal(InternalLevel.BETA)
+    val devImport = call("devImport", DevImportRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "devImport", roles = Roles.PRIVILEGED)
+
+        documentation {
+            summary = "An endpoint for importing applications - Only usable in dev environments"
         }
     }
 }

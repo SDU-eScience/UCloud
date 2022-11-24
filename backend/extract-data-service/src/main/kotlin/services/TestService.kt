@@ -4,19 +4,15 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.extract.data.api.CenterDaily
 import dk.sdu.cloud.extract.data.api.TYPE_1_HPC_CENTER_ID
 import dk.sdu.cloud.extract.data.api.TYPE_1_HPC_SUB_CENTER_ID_AAU
 import dk.sdu.cloud.extract.data.api.TYPE_1_HPC_SUB_CENTER_ID_SDU
-import org.joda.time.Days
-import org.joda.time.LocalDate
-import org.joda.time.LocalDateTime
 import java.io.File
-import java.util.Date
+import java.time.Duration
+import java.time.LocalDateTime
 
 class TestService {
-
     fun testCenterDaily(file: File) {
         val fileContent = jacksonObjectMapper().readValue<List<CenterDaily>>(file)
 
@@ -34,9 +30,9 @@ class TestService {
 
         val startDate = fileContent.first().date
         val endDate = fileContent.last().date
-        val start = LocalDateTime(startDate)
-        val end = LocalDateTime(endDate)
-        val daysInPeriod = Days.daysBetween(start, end).days
+        val start = LocalDateTime.parse(startDate)
+        val end = LocalDateTime.parse(endDate)
+        val daysInPeriod = Duration.between(start, end).toDays()
 
         val sdu = CenterDailyTestClass(
             TYPE_1_HPC_CENTER_ID,

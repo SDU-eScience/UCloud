@@ -313,6 +313,7 @@ const InRowPrimaryButtons = styled.div`
     }
 
     margin-top: 4px;
+    margin-left: 8px;
 `;
 
 export function useOperationOpener(): [React.MutableRefObject<(left: number, top: number) => void>, EventHandler<MouseEvent<never>>] {

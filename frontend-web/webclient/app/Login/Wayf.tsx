@@ -1,7 +1,7 @@
 import * as React from "react";
-import {RouterLocationProps} from "@/Utilities/URIUtilities";
 import {inDevEnvironment} from "@/UtilityFunctions";
 import {LoginPage} from "./Login";
+import {Navigate} from "react-router";
 
 // https://stackoverflow.com/a/2138471
 export function setCookie(name: string, value: string, days: number): void {
@@ -31,7 +31,7 @@ function eraseCookie(name: string): void {
 type WayfTestState = "success" | "2fa";
 const testState: WayfTestState | null = "2fa";
 
-function Wayf(props: RouterLocationProps): JSX.Element | null {
+function Wayf(): JSX.Element | null {
     const authCookieName = "authState";
 
     if (inDevEnvironment()) {
@@ -68,11 +68,11 @@ function Wayf(props: RouterLocationProps): JSX.Element | null {
     } else {
         const authState = JSON.parse(decodeURIComponent(authStateCookie));
         eraseCookie(authCookieName);
-        return <LoginPage {...props} initialState={authState} />;
+        return <LoginPage initialState={authState} />;
     }
 
-    props.history.push("/");
-    return null;
+    // Note(Jonas): An attempt to work around the bad setState warning/error.
+    return <Navigate to="/" />;
 }
 
 export default Wayf;

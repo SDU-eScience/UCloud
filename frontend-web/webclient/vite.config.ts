@@ -6,9 +6,13 @@ import {DEV_SITE} from "./site.config.json";
 
 // https://vitejs.dev/config/
 
-type Mode = "development" | "local-dev" | "production" | "compose";
+type Mode = "development" | "local-dev" | "production" | "compose" | string;
 
 function targetFromConfig(mode: Mode): string {
+    if (mode.startsWith("http")) {
+        return mode;
+    }
+
     switch (mode) {
         case "development":
             return `https://${DEV_SITE}`;
@@ -21,7 +25,7 @@ function targetFromConfig(mode: Mode): string {
     }
 }
 
-export default ({mode, ...rest}: {mode: Mode; command: string}): UserConfigExport => {
+export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfigExport => {
     const sharedProxySetting = {
         target: targetFromConfig(mode),
         ws: true,
@@ -52,7 +56,7 @@ export default ({mode, ...rest}: {mode: Mode; command: string}): UserConfigExpor
             }
         },
         server: {
-            port: 9000,
+            port: port ?? 9000,
             host: "0.0.0.0",
             cors: {
                 origin: "*",
@@ -77,6 +81,13 @@ export default ({mode, ...rest}: {mode: Mode; command: string}): UserConfigExpor
                 },
                 "/ucloud/": sharedProxySetting,
                 "/AppVersion.txt": sharedProxySetting
+            },
+            watch: {
+                usePolling: true,
+                interval: 1000,
+                binaryInterval: 3000,
+                alwaysStat: true,
+                depth: 99,
             }
         }
     });

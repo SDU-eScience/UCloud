@@ -14,7 +14,7 @@ import * as React from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductStorage, UCLOUD_PROVIDER} from "@/Accounting";
-import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud/index";
+import {accounting, BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud/index";
 import {apiUpdate} from "@/Authentication/DataHook";
 import {Operation} from "@/ui-components/Operation";
 import {CheckboxFilter, ConditionalFilter} from "@/Resource/Filter";
@@ -24,7 +24,7 @@ import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
 import {doNothing} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {useHistory} from "react-router";
+import {NavigateFunction} from "react-router";
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
@@ -62,6 +62,8 @@ export interface FileCollectionSupport extends ProductSupport {
     files: {
         aclSupported?: boolean;
         aclModifiable?: boolean;
+
+        shareSupport?: boolean;
 
         trashSupported?: boolean;
         isReadOnly?: boolean;
@@ -140,6 +142,21 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
             createOperation.enabled = (selected, cb, all) => {
                 const isEnabled = enabled(selected, cb, all);
                 if (isEnabled !== true) return isEnabled;
+
+                // Note(Jonas): Creation can be done as long as user is ADMIN and at least one provider allows it,
+                // so this should be correct, unless I'm missing something.
+                let anySupported = false;
+                Object.keys(cb.supportByProvider.productsByProvider).forEach(it => {
+                    const supports = cb.supportByProvider.productsByProvider[it];
+                    for (const entry of supports) {
+                        const support = entry.support as FileCollectionSupport;
+                        if (support.collection) {
+                            anySupported = anySupported || !!support.collection?.usersCanCreate;
+                        }
+                    }
+                });
+                if (!anySupported) return false;
+
                 if (!cb.isWorkspaceAdmin) {
                     return "Only workspace administrators can create a new drive!";
                 }
@@ -219,8 +236,8 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         ]
     }
 
-    navigateToChildren(history: ReturnType<typeof useHistory>, resource: FileCollection) {
-        history.push(buildQueryString("/files", {path: `/${resource.id}`}))
+    navigateToChildren(navigate: NavigateFunction, resource: FileCollection) {
+        navigate(buildQueryString("/files", {path: `/${resource.id}`}))
     }
 
     rename(request: BulkRequest<{id: string; newTitle: string;}>): APICallParameters {

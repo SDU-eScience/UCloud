@@ -29,10 +29,15 @@ class SimpleProjectPlugin : ProjectPlugin {
     override val pluginTitle: String = "Simple"
     private lateinit var pluginConfig: ConfigSchema.Plugins.Projects.Simple
     private lateinit var extensions: Extensions
+    private lateinit var ctx: PluginContext
 
     override fun configure(config: ConfigSchema.Plugins.Projects) {
         this.pluginConfig = config as ConfigSchema.Plugins.Projects.Simple
         this.extensions = Extensions(this.pluginConfig)
+    }
+
+    override suspend fun PluginContext.initialize() {
+        ctx = this
     }
 
     // NOTE(Dan): Invoked whenever an update arrives from UCloud/Core. The update simply contains the new state of a
@@ -631,17 +636,17 @@ class SimpleProjectPlugin : ProjectPlugin {
 
     private suspend fun dispatchEvent(event: ProjectDiff) {
         when (event) {
-            is ProjectDiff.GroupRenamed -> extensions.groupRenamed.optionalInvoke(event)
-            is ProjectDiff.GroupsCreated -> extensions.groupCreated.optionalInvoke(event)
-            is ProjectDiff.GroupsDeleted -> extensions.groupDeleted.optionalInvoke(event)
-            is ProjectDiff.MembersAddedToGroup -> extensions.membersAddedToGroup.optionalInvoke(event)
-            is ProjectDiff.MembersAddedToProject -> extensions.membersAddedToProject.optionalInvoke(event)
-            is ProjectDiff.MembersRemovedFromGroup -> extensions.membersRemovedFromGroup.optionalInvoke(event)
-            is ProjectDiff.MembersRemovedFromProject -> extensions.membersRemovedFromProject.optionalInvoke(event)
-            is ProjectDiff.ProjectArchived -> extensions.projectArchived.optionalInvoke(event)
-            is ProjectDiff.ProjectRenamed -> extensions.projectRenamed.optionalInvoke(event)
-            is ProjectDiff.ProjectUnarchived -> extensions.projectUnarchived.optionalInvoke(event)
-            is ProjectDiff.RoleChanged -> extensions.roleChanged.optionalInvoke(event)
+            is ProjectDiff.GroupRenamed -> extensions.groupRenamed.optionalInvoke(ctx, event)
+            is ProjectDiff.GroupsCreated -> extensions.groupCreated.optionalInvoke(ctx, event)
+            is ProjectDiff.GroupsDeleted -> extensions.groupDeleted.optionalInvoke(ctx, event)
+            is ProjectDiff.MembersAddedToGroup -> extensions.membersAddedToGroup.optionalInvoke(ctx, event)
+            is ProjectDiff.MembersAddedToProject -> extensions.membersAddedToProject.optionalInvoke(ctx, event)
+            is ProjectDiff.MembersRemovedFromGroup -> extensions.membersRemovedFromGroup.optionalInvoke(ctx, event)
+            is ProjectDiff.MembersRemovedFromProject -> extensions.membersRemovedFromProject.optionalInvoke(ctx, event)
+            is ProjectDiff.ProjectArchived -> extensions.projectArchived.optionalInvoke(ctx, event)
+            is ProjectDiff.ProjectRenamed -> extensions.projectRenamed.optionalInvoke(ctx, event)
+            is ProjectDiff.ProjectUnarchived -> extensions.projectUnarchived.optionalInvoke(ctx, event)
+            is ProjectDiff.RoleChanged -> extensions.roleChanged.optionalInvoke(ctx, event)
         }
     }
 

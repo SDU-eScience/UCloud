@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Box, Button, ButtonGroup, Flex, Grid, Icon, Input, Label, Relative, Text, TextArea, Tooltip} from "@/ui-components";
+import {Box, Button, ButtonGroup, Flex, Grid, Icon, Input, Label, Relative, Text, TextArea, Tooltip, Truncate} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {
     ChargeType,
@@ -23,7 +23,6 @@ import {PageV2} from "@/UCloud";
 import {MutableRefObject, useCallback, useMemo, useRef, useState} from "react";
 import {displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/DefaultObjects";
-import {createProject, SubAllocation, useProjectId} from "@/Project/index";
 import {Accordion} from "@/ui-components/Accordion";
 import {Spacer} from "@/ui-components/Spacer";
 import format from "date-fns/format";
@@ -35,10 +34,11 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListV2} from "@/Pagination";
-import {AllocationViewer, resultAsPercent} from "./Allocations";
+import {AllocationViewer, resultAsPercent, SubAllocation, allocationText} from "./Allocations";
 import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
+import ProjectAPI, {useProjectIdFromParams} from "@/Project/Api";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider) + ` [${getParentAllocationFromSuballocation(alloc)}]`;
@@ -119,7 +119,7 @@ interface Recipient {
 
 function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}): JSX.Element {
     const [newRecipients, setRecipients] = useState<Recipient[]>([]);
-    const projectId = useProjectId();
+    const projectId = useProjectIdFromParams();
 
     const newRecipientId = useRef(0);
 
@@ -239,7 +239,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
         allocations: WalletAllocation[];
     }[], recipientId: number, allocationId: number) => {
         dialogStore.addDialog(
-            <Box width="830px">
+            <Box maxWidth={largeModalStyle.content.maxWidth} width="830px">
                 <Heading.h3>Available Allocations</Heading.h3>
                 <Grid gridTemplateColumns={`repeat(2, 1fr)`} gridGap="15px">
                     {allocationAndWallets.flatMap(it => it.allocations.map(allocation =>
@@ -276,10 +276,10 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
 
         try {
             if (recipient.asNewProject) {
-                const result = await invokeCommand(createProject({
+                const [result] = (await invokeCommand(ProjectAPI.create(bulkRequestOf({
                     title: recipientId,
                     parent: projectId
-                }), {defaultErrorHandler: false});
+                })), {defaultErrorHandler: false})).responses;
                 recipientTitle = result.id;
             } else {
                 const result = await invokeCommand<RetrieveRecipientResponse>(retrieveRecipient({query: recipientId}), {defaultErrorHandler: false});
@@ -380,13 +380,13 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                 iconColor2="white"
                 title={<Flex>
                     <Flex width="170px" mt="7px">
-                        <ClickableDropdown width="250px" chevron trigger={<><Icon mr="4px" color2="white" name={recipient.isProject ? "projects" : "user"} />{!recipient.isProject ? "User" : recipient.asNewProject ? "New" : "Existing"}</>}>
+                        <ClickableDropdown useMousePositioning width="250px" chevron trigger={<><Icon mr="4px" color2="white" name={recipient.isProject ? "projects" : "user"} />{!recipient.isProject ? "User" : recipient.asNewProject ? "New" : "Existing"}</>}>
                             <Flex onClick={() => toggleIsProject(recipient.id, true)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> Existing project</Flex>
                             <Flex onClick={() => toggleAsNewProject(recipient.id)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> New project</Flex>
                             <Flex onClick={() => toggleIsProject(recipient.id, false)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"user"} /> User</Flex>
                         </ClickableDropdown>
                     </Flex>
-                    <Input ref={recipient.ref} placeholder={recipient.isProject ? "Projectname..." : "Username..."} />
+                    <Input ml="10px" ref={recipient.ref} placeholder={recipient.isProject ? "Projectname..." : "Username..."} />
                 </Flex>}
                 titleContent={
                     <Button ml="8px" mt="4px" height="32px" color="red" onClick={() => removeNewRecipientRow(recipient.id)}>Discard</Button>
@@ -455,7 +455,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                                         />
                                     </Flex>
                                 </Flex>}
-                                right={row.wallet == null ? null : <Flex width={["NETWORK_IP", "INGRESS", "LICENSE"].includes(row.productType) ? "330px" : "280px"}>
+                                right={row.wallet == null ? null : <Flex width={flexRequiresMoreSpace(row.productType) ? "330px" : "280px"}>
                                     <Input
                                         width="100%"
                                         type="number"
@@ -464,7 +464,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                                         placeholder="Amount..."
                                         onChange={e => newRecipients[recipientId].suballocations[suballocationId].amount = normalizeBalanceForBackend(parseInt(e.target.value, 10), row.productType, row.wallet!.chargeType, row.wallet!.unit)}
                                     />
-                                    <InputLabel textAlign="center" width={["INGRESS", "LICENSE"].includes(row.productType) ? "250px" : "78px"} rightLabel>{explainSubAllocation(row.wallet)}</InputLabel>
+                                    <InputLabel textAlign="center" width={labelSpace(row.wallet)} rightLabel>{explainSubAllocation(row.wallet)}</InputLabel>
                                     <Icon mt="9px" ml="12px" name="close" color="red" cursor="pointer" onClick={() => removeSubAllocation(recipient.id, row.id)} />
                                 </Flex>}
                             />);
@@ -473,6 +473,17 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
             </Accordion>
         )}
     </>;
+}
+
+function flexRequiresMoreSpace(type: ProductType): boolean {
+    if (["NETWORK_IP", "INGRESS", "LICENSE"].includes(type)) return true;
+    return false;
+}
+
+function labelSpace(wallet?: {productType: ProductType, unit: ProductPriceUnit}): string {
+    if (!wallet) return "0px";
+    const PADDING = "20px";
+    return `calc(${explainAllocation(wallet.productType, wallet.unit).length * 3}em + ${PADDING})`;
 }
 
 function SuballocationRows(props: {
@@ -547,16 +558,49 @@ interface SuballocationCreationRow {
     allocationId: string;
 }
 
-interface InitialAndRemainingBalance {
-    initialBalance: string;
-    remaining: string;
+interface InitialAndRemainingBalanceWithExplanation {
+    initialBalance: number;
+    remaining: number;
     asPercent: number;
     resourceText: string;
 }
 
 interface EntriesByUnitAndChargeType {
-    ABSOLUTE: InitialAndRemainingBalance[];
-    DIFFERENTIAL_QUOTA: InitialAndRemainingBalance[];
+    ABSOLUTE: InitialAndRemainingBalanceWithExplanation[];
+    DIFFERENTIAL_QUOTA: InitialAndRemainingBalanceWithExplanation[];
+}
+
+export function mapToBalancesWithExplanation(
+    entry: {remaining: number; initialBalance: number;},
+    productType: ProductType,
+    unit: ProductPriceUnit
+): InitialAndRemainingBalanceWithExplanation {
+    const doTruncate = shouldTruncate(entry.initialBalance);
+    const initialBalance = Math.floor(doTruncate ? entry.initialBalance / 1_000 : entry.initialBalance);
+    const remaining = Math.floor(doTruncate ? entry.remaining / 1_000 : entry.remaining);
+    const used = initialBalance - Math.min(initialBalance, remaining);
+    return {
+        initialBalance,
+        remaining,
+        asPercent: resultAsPercent({
+            balance: remaining,
+            initialBalance
+        }),
+        resourceText: normalizeBalanceForFrontend(
+            used,
+            productType,
+            unit,
+            2
+        ) + " / " + normalizeBalanceForFrontend(
+            initialBalance,
+            productType,
+            unit,
+            2
+        ) + " " + allocationText(unit, productType, doTruncate) + " (" + Math.round(resultAsPercent({
+            balance: remaining,
+            initialBalance
+        })) + "%)"
+    };
 }
 
 function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType: ProductType): EntriesByUnitAndChargeType {
@@ -564,66 +608,24 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
     for (const entry of suballocations) {
         const remaining = entry.remaining;
         const initialBalance = entry.initialBalance;
-        if (byUnitAndChargeType[entry.chargeType][entry.unit] == null) byUnitAndChargeType[entry.chargeType][entry.unit] = {
-            remaining,
-            initialBalance
-        };
-        else {
+        if (byUnitAndChargeType[entry.chargeType][entry.unit] == null) {
+            byUnitAndChargeType[entry.chargeType][entry.unit] = {
+                remaining,
+                initialBalance
+            };
+        } else {
             byUnitAndChargeType[entry.chargeType][entry.unit].initialBalance += initialBalance;
             byUnitAndChargeType[entry.chargeType][entry.unit].remaining += remaining;
         }
     }
 
-    const absolute =
-        Object.keys(byUnitAndChargeType.ABSOLUTE).map((it: ProductPriceUnit) => ({
-            initialBalance: byUnitAndChargeType.ABSOLUTE[it].initialBalance,
-            remaining: byUnitAndChargeType.ABSOLUTE[it].remaining,
-            asPercent: resultAsPercent({
-                balance: byUnitAndChargeType.ABSOLUTE[it].remaining,
-                initialBalance: byUnitAndChargeType.ABSOLUTE[it].initialBalance
-            }),
-            resourceText: normalizeBalanceForFrontend(
-                byUnitAndChargeType.ABSOLUTE[it].initialBalance - Math.min(byUnitAndChargeType.ABSOLUTE[it].initialBalance, byUnitAndChargeType.ABSOLUTE[it].remaining),
-                productType,
-                "ABSOLUTE",
-                it,
-                2
-            ) + " / " + normalizeBalanceForFrontend(
-                byUnitAndChargeType.ABSOLUTE[it].initialBalance,
-                productType,
-                "ABSOLUTE",
-                it,
-                2
-            ) + " " + explainAllocation(productType, "ABSOLUTE", it) + " (" + Math.round(resultAsPercent({
-                balance: byUnitAndChargeType.ABSOLUTE[it].remaining,
-                initialBalance: byUnitAndChargeType.ABSOLUTE[it].initialBalance
-            })) + "%)"
-        }));
+    const absolute = Object.keys(byUnitAndChargeType.ABSOLUTE).map((it: ProductPriceUnit) => {
+        return mapToBalancesWithExplanation(byUnitAndChargeType.ABSOLUTE[it], productType, it);
+    });
 
-    const differential = Object.keys(byUnitAndChargeType.DIFFERENTIAL_QUOTA).map((it: ProductPriceUnit) => ({
-        initialBalance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance,
-        remaining: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining,
-        asPercent: resultAsPercent({
-            balance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining,
-            initialBalance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance
-        }),
-        resourceText: normalizeBalanceForFrontend(
-            byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance - Math.min(byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance, byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining),
-            productType,
-            "DIFFERENTIAL_QUOTA",
-            it,
-            2
-        ) + " / " + normalizeBalanceForFrontend(
-            byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance,
-            productType,
-            "DIFFERENTIAL_QUOTA",
-            it,
-            2
-        ) + " " + explainAllocation(productType, "DIFFERENTIAL_QUOTA", it) + " (" + Math.round(resultAsPercent({
-            balance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining,
-            initialBalance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance
-        })) + "%)"
-    }));
+    const differential = Object.keys(byUnitAndChargeType.DIFFERENTIAL_QUOTA).map((it: ProductPriceUnit) => {
+        return mapToBalancesWithExplanation(byUnitAndChargeType.DIFFERENTIAL_QUOTA[it], productType, it);
+    });
 
     return {
         ABSOLUTE: absolute,
@@ -638,12 +640,14 @@ function ResourceBarByProductType(props: {rows: SubAllocation[]; productType: Pr
     return <Flex>
         {Object.keys(storages).flatMap((s: ChargeType) =>
             storages[s].map(e =>
-                <ResourceProgress
-                    key={`${e.initialBalance}-${e.remaining}`}
-                    width={e.resourceText.length * 7.2 + "px"}
-                    value={e.asPercent}
-                    text={e.resourceText}
-                />
+                <React.Fragment key={`${e.initialBalance}-${e.remaining}`}>
+                    <ResourceProgress
+                        width={e.resourceText.length * 7.2 + "px"}
+                        value={e.asPercent}
+                        text={e.resourceText}
+                    />
+                    <Box mx="1px" />
+                </React.Fragment>
             ))}
     </Flex>;
 }
@@ -655,7 +659,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
     const [loading, invokeCommand] = useCloudCommand();
 
     /* TODO(Jonas): Use context? */
-    const editEntries = useRef<{[id: string]: SubAllocation}>({});
+    const editEntries = useRef<Record<string, SubAllocation>>({});
     /* TODO(Jonas): End */
 
     React.useEffect(() => {
@@ -825,10 +829,10 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             key={props.entryKey}
             icon={isProject ? "projects" : "user"}
             iconColor2="white"
-            title={<Box mt="-8px">
-                {props.entryKey}
-                <Text color="var(--gray)" fontSize={"10px"}><Icon size="10px" name={isProject ? "userPi" : "user"} /> {isProject ? "Project PI: " + pi : "Personal Workspace"}</Text>
-            </Box>}
+            title={props.entryKey}
+            titleSub={<ListRowStat>
+                <Icon size="10px" name={isProject ? "userPi" : "user"} /> {isProject ? "Project PI: " + pi : "Personal Workspace"}
+            </ListRowStat>}
             forceOpen={editing || creationRows.length > 0}
             noBorder={props.isLast}
             titleContent={<>
@@ -838,8 +842,8 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                 </UsageRowsWithMargin>
             </>}
             titleContentOnOpened={<>
-                {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={addNewRow}>New row</Button> :
-                    <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" disabled>New row</Button>}>
+                {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" width="100px" onClick={addNewRow}>New row</Button> :
+                    <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" width="100px" disabled>New row</Button>}>
                         No allocations available for use.
                     </Tooltip>
                 }
@@ -912,7 +916,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                     placeholder="Amount..."
                                     onChange={e => creationRows[index].amount = normalizeBalanceForBackend(parseInt(e.target.value, 10), row.productType, row.wallet!.chargeType, row.wallet!.unit)}
                                 />
-                                <InputLabel textAlign="center" width={["INGRESS", "LICENSE"].includes(row.productType) ? "250px" : "78px"} rightLabel>{explainSubAllocation(row.wallet)}</InputLabel>
+                                <InputLabel textAlign="center" width={labelSpace(row.wallet)} rightLabel>{explainSubAllocation(row.wallet)}</InputLabel>
                                 <Icon mt="9px" ml="12px" name="close" color="red" cursor="pointer" onClick={() => removeRow(row.id)} />
                             </Flex>}
                         />);
@@ -952,64 +956,66 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
         setDates([entry.startDate, entry.endDate]);
     }, [props.editing]);
 
-    if (props.editing) return (
-        <ListRow
-            key={entry.id}
-            icon={<Box pl="20px"><Icon name={productTypeToIcon(entry.productType)} /></Box>}
-            left={<Flex>
-                <Text>{titleForSubAllocation(entry)}</Text>
-                <Flex color="var(--gray)" ml="12px">
-                    <Text color="var(--gray)" mt="3px" fontSize="18px">
-                        Start date: <DatePicker
-                            selectsRange
-                            fontSize="18px"
-                            py="0"
-                            width="215px"
-                            paddingLeft={0}
-                            dateFormat="dd/MM/yy"
-                            isClearable={dates[1] != null}
-                            startDate={new Date(dates[0])}
-                            endDate={dates[1] != null ? new Date(dates[1]) : undefined}
-                            onChange={(dates: [Date, Date | null]) =>
-                                setDates(oldDates => {
-                                    const firstDate = dates[0] ? dates[0].getTime() : oldDates[0];
-                                    const secondDate = dates[1]?.getTime();
-                                    props.editEntries.current[entry.id].startDate = firstDate;
-                                    props.editEntries.current[entry.id].endDate = secondDate;
-                                    return [firstDate, secondDate];
-                                })
+    if (props.editing) {
+        return (
+            <ListRow
+                key={entry.id}
+                icon={<Box pl="20px"><Icon name={productTypeToIcon(entry.productType)} /></Box>}
+                left={<Flex>
+                    <Text>{titleForSubAllocation(entry)}</Text>
+                    <Flex color="var(--gray)" ml="12px">
+                        <Text color="var(--gray)" mt="3px" fontSize="18px">
+                            <DatePicker
+                                selectsRange
+                                fontSize="18px"
+                                py="0"
+                                width="215px"
+                                pl={0}
+                                dateFormat="dd/MM/yy"
+                                isClearable={dates[1] != null}
+                                startDate={new Date(dates[0])}
+                                endDate={dates[1] != null ? new Date(dates[1]) : undefined}
+                                onChange={(dates: [Date, Date | null]) =>
+                                    setDates(oldDates => {
+                                        const firstDate = dates[0] ? dates[0].getTime() : oldDates[0];
+                                        const secondDate = dates[1]?.getTime();
+                                        props.editEntries.current[entry.id].startDate = firstDate;
+                                        props.editEntries.current[entry.id].endDate = secondDate;
+                                        return [firstDate, secondDate];
+                                    })
+                                }
+                            />
+                        </Text>
+                    </Flex>
+                </Flex>}
+                right={<Flex width="280px">
+                    <Input
+                        width="100%"
+                        type="number"
+                        rightLabel
+                        min={0}
+                        placeholder={normalizeSuballocationBalanceForFrontend(entry, entry.chargeType === "ABSOLUTE" ? entry.remaining : entry.initialBalance)}
+                        onChange={e => {
+                            const {chargeType} = props.editEntries.current[entry.id];
+                            const balance = normalizeBalanceForBackend(parseInt(e.target.value, 10), entry.productType, entry.chargeType, entry.unit);
+                            if (chargeType === "ABSOLUTE") {
+                                props.editEntries.current[entry.id].remaining = balance;
+                            } else if (chargeType === "DIFFERENTIAL_QUOTA") {
+                                props.editEntries.current[entry.id].initialBalance = balance;
                             }
-                        />
-                    </Text>
-                </Flex>
-            </Flex>}
-            right={<Flex width="280px">
-                <Input
-                    width="100%"
-                    type="number"
-                    rightLabel
-                    min={0}
-                    placeholder={normalizeSuballocationBalanceForFrontend(entry, entry.chargeType === "ABSOLUTE" ? entry.remaining : entry.initialBalance)}
-                    onChange={e => {
-                        const {chargeType} = props.editEntries.current[entry.id];
-                        const balance = normalizeBalanceForBackend(parseInt(e.target.value, 10), entry.productType, entry.chargeType, entry.unit);
-                        if (chargeType === "ABSOLUTE") {
-                            props.editEntries.current[entry.id].remaining = balance;
-                        } else if (chargeType === "DIFFERENTIAL_QUOTA") {
-                            props.editEntries.current[entry.id].initialBalance = balance;
-                        }
-                    }}
-                />
-                <InputLabel textAlign={"center"} width={["INGRESS", "LICENSE"].includes(entry.productType) ? "250px" : "78px"} rightLabel>{explainSubAllocation(entry)}</InputLabel>
-            </Flex>}
-        />
-    ); else return (
+                        }}
+                    />
+                    <InputLabel textAlign={"center"} width={["INGRESS", "LICENSE"].includes(entry.productType) ? "250px" : "78px"} rightLabel>{explainSubAllocation(entry)}</InputLabel>
+                </Flex>}
+            />
+        );
+    } else return (
         <ListRow
             key={entry.id}
             icon={<Box pl="20px"><Icon name={productTypeToIcon(entry.productType)} /></Box>}
             left={<Flex>
                 <Text>{titleForSubAllocation(entry)}</Text>
-                <Text mt="3px" color="var(--gray)" ml="12px" fontSize={"18px"}>Start date: {format(entry.startDate, "dd/MM/yy")}, End date: {entry.endDate ? format(entry.endDate, "dd/MM/yy") : "N/A"}</Text>
+                <Text mt="3px" color="var(--gray)" ml="12px" fontSize={"18px"}>{format(entry.startDate, "dd/MM/yy")} - {entry.endDate ? format(entry.endDate, "dd/MM/yy") : "N/A"}</Text>
             </Flex>}
             right={
                 <Box mr="0" width="auto" pl="0"><UsageBar suballocation={entry} /></Box>
@@ -1020,22 +1026,22 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
 }
 
 function UsageBar(props: {suballocation: SubAllocation}) {
-    const {unit, productType, chargeType} = props.suballocation;
-    const {suballocation} = props;
-    const asPercent = resultAsPercent({initialBalance: suballocation.initialBalance, balance: suballocation.remaining});
-    const remaining = Math.min(suballocation.remaining, suballocation.initialBalance);
-    const used = normalizeBalanceForFrontend(suballocation.initialBalance - remaining, productType, chargeType, unit);
-    const initial = normalizeBalanceForFrontend(suballocation.initialBalance, productType, chargeType, unit);
-    const resourceProgress = `${used} / ${initial} ${explainAllocation(productType, chargeType, unit)} (${Math.round(asPercent)}%)`;
-    return <ResourceProgress value={Math.round(asPercent)} text={resourceProgress} />;
+    const {unit, productType} = props.suballocation;
+    const mapped = mapToBalancesWithExplanation(props.suballocation, productType, unit);
+    return <ResourceProgress value={Math.round(mapped.asPercent)} text={mapped.resourceText} />;
 }
 
 function explainSubAllocation(suballocation: {productType: ProductType; chargeType: ChargeType; unit: ProductPriceUnit}): string {
-    return explainAllocation(suballocation.productType, suballocation.chargeType, suballocation.unit);
+    return explainAllocation(suballocation.productType, suballocation.unit);
 }
 
 function normalizeSuballocationBalanceForFrontend(suballocation: SubAllocation, balance: number): string {
     return normalizeBalanceForFrontend(
-        balance, suballocation.productType, suballocation.chargeType, suballocation.unit, 2
+        balance, suballocation.productType, suballocation.unit, 2
     );
+}
+
+const TRUNCATATION_LIMIT = 1_000_000;
+export function shouldTruncate(value: number): boolean {
+    return value >= TRUNCATATION_LIMIT;
 }

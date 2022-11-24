@@ -36,11 +36,10 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
-import dk.sdu.cloud.utils.LinuxFileHandle
-import dk.sdu.cloud.utils.LinuxInputStream
-import dk.sdu.cloud.utils.LinuxOutputStream
+import dk.sdu.cloud.plugins.storage.posix.posixFilePermissionsFromInt
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
+import dk.sdu.cloud.config.ConfigSchema.Core.Logs.Tracer as TracerFeature
 import io.ktor.util.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.builtins.ListSerializer
@@ -145,7 +144,7 @@ fun main(args: Array<String>) {
                 }
 
                 if (runInstaller) {
-                    runInstaller(ownExecutable)
+                    runInstaller()
                     exitProcess(0)
                 }
 
@@ -213,6 +212,13 @@ fun main(args: Array<String>) {
             // For example, a service could be the RPC server (w/plugin controllers) or the L7 router. Not all
             // modes have access to all services.
             // =======================================================================================================
+
+            // Feature traces
+            // -------------------------------------------------------------------------------------------------------
+            run {
+                val trace = config.core.logs.trace
+                shellTracer = createFeatureTracer(TracerFeature.SHELL in trace, "Shell")
+            }
 
             // Database services
             // -------------------------------------------------------------------------------------------------------
@@ -320,6 +326,18 @@ fun main(args: Array<String>) {
                     allowHost("localhost:9000")
                     val ucloudHost = config.core.hosts.ucloud.toStringOmitDefaultPort()
                     allowHost(ucloudHost.substringAfter("://"), listOf(ucloudHost.substringBefore("://")))
+
+                    val selfHost = config.core.hosts.self?.toStringOmitDefaultPort()
+                    if (selfHost != null) {
+                        allowHost(selfHost.substringAfter("://"), listOf(selfHost.substringBefore("://")))
+                    }
+
+                    println(config.core.cors.allowHosts.toString())
+                    config.core.cors.allowHosts.forEach {
+                        println("Setting $it")
+                        allowHost(it.removePrefix("https://").removePrefix("http://"), listOf("https", "http"))
+                    }
+
                     allowMethod(HttpMethod.Get)
                     allowMethod(HttpMethod.Post)
                     allowMethod(HttpMethod.Put)
@@ -334,6 +352,7 @@ fun main(args: Array<String>) {
                     allowHeader("refreshToken")
                     allowHeader("chunked-upload-offset")
                     allowHeader("chunked-upload-token")
+                    allowHeader("ucloud-username")
                     allowHeader("upload-name")
                 }
 
@@ -540,15 +559,26 @@ fun main(args: Array<String>) {
             } else {
                 DebugMessageTransformer.Production
             }
+            val structuredLogs = File(config.core.logs.directory, "structured").also {
+                it.mkdirs()
+                runCatching {
+                    java.nio.file.Files.setPosixFilePermissions(
+                        it.toPath(),
+                        posixFilePermissionsFromInt("777".toInt(8))
+                    )
+                }
+            }.absolutePath
             val debugSystem = when (serverMode) {
                 ServerMode.Server -> CommonDebugSystem(
                     "IM/Server",
-                    CommonFile(config.core.logs.directory), debugTransformer
+                    CommonFile(structuredLogs),
+                    debugTransformer
                 )
 
                 ServerMode.User -> CommonDebugSystem(
                     "IM/User/${clib.getuid()}",
-                    CommonFile(config.core.logs.directory), debugTransformer
+                    CommonFile(structuredLogs),
+                    debugTransformer
                 )
 
                 else -> null
@@ -671,7 +701,7 @@ fun main(args: Array<String>) {
                     LicenseController(controllerContext),
                     ShareController(controllerContext),
                     ConnectionController(controllerContext, envoyConfig),
-                    NotificationController(controllerContext),
+                    EventController(controllerContext),
                 )
             }
 
@@ -807,7 +837,7 @@ private suspend fun testDB(db: DBContext) {
 
 private fun createDBConnection(database: VerifiedConfig.Server.Database): DBContext {
     return object : JdbcDriver() {
-        override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
+        override val pool: SimpleConnectionPool = SimpleConnectionPool(DB_CONNECTION_POOL_SIZE) { pool ->
             JdbcConnection(
                 DriverManager.getConnection(database.jdbcUrl, database.username, database.password),
                 pool
@@ -815,6 +845,8 @@ private fun createDBConnection(database: VerifiedConfig.Server.Database): DBCont
         }
     }
 }
+
+const val DB_CONNECTION_POOL_SIZE = 8
 
 private fun readSelfExecutablePath(): String {
     return File("/proc/self/exe").toPath().readSymbolicLink().toFile().absolutePath

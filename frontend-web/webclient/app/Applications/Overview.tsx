@@ -29,7 +29,7 @@ export const ApiLike: ReducedApiInterface = {
     titlePlural: "Applications"
 };
 
-export const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
+export const ShowAllTagItem: React.FunctionComponent<{tag?: string; children: React.ReactNode;}> = props => (
     <Link to={props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
 );
 
@@ -50,7 +50,8 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
         "Salmon",
         "SAMtools",
         "Seqtk",
-    ];
+        "Space Ranger",
+    ].sort();
 
     const featuredTags = [
         "Engineering",

@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Slurm + distributed file system - UCloud/IM Documentation</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+    <section>
+        <h1>Recipes / Slurm + Distributed file system</h1>
+        <h2 class="summary">A traditional HPC system consisting of Slurm and a distributed POSIX file system.</h2>
+    </section>
+
+    <article>
+        <h2 id="prerequisites">Prerequisites</h2>
+        <p>
+            The UCloud Integration Module should be deployed on the HPC frontend or a node with a similar configuration.
+            In particular, the following requirements must be satisfied.
+        </p>
+
+        <ul>
+            <li>The machine must run Linux with an x86-based processor.</li>
+            <li>You should expect to use at least 128MB RAM per active concurrent user.</li>
+            <li>We recommend that the machine has at least 4 vCPUs and 16 GB RAM.</li>
+            <li>The machine must be able to communicate with Slurm using the normal Slurm CLI commands.</li>
+            <li>The machine must have access to the distributed storage system and the filesystem(s) must be accessible
+                via
+                the same path(s) as the compute nodes.</li>
+            <li>The machine must use the same user database as the compute nodes, such that users and ids are consistent
+                across the entire cluster.</li>
+        </ul>
+        <p>
+            For security reasons, the integration module should always run as a non-privileged user. In the following we
+            assume the user is called <code>ucloud</code> with a dedicated primary group also called <code>ucloud</code>.
+            This user will need to be granted a couple of extra privileges, as described in the following sections.
+        </p>
+
+        <p>
+            The following directories are used by the integration module by default. Some of these paths can be changed
+            if needed, but make sure to consistently change them in all configuration files.
+        </p>
+
+        <doc-table>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Path</th>
+                        <th>Permissions</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>/opt/ucloud</code></td>
+                        <td><code>0755 (ucloud:ucloud)</code></td>
+                        <td>Installation path for the integration module</td>
+                    </tr>
+                    <tr>
+                        <td><code>/opt/ucloud/extensions</code></td>
+                        <td><code>0755 (ucloud:ucloud)</code></td>
+                        <td>Installation path for custom extension scripts used by the integration module</td>
+                    </tr>
+                    <tr>
+                        <td><code>/etc/ucloud</code></td>
+                        <td><code>0755 (ucloud:ucloud)</code></td>
+                        <td>Configuration files for the integration module</td>
+                    </tr>
+                    <tr>
+                        <td><code>/var/run/ucloud</code></td>
+                        <td><code>0755 (ucloud:ucloud)</code></td>
+                        <td>Run-time data for the integration module (see systemd file)</td>
+                    </tr>
+                    <tr>
+                        <td><code>/var/log/ucloud</code></td>
+                        <td><code>0733 (ucloud:ucloud)</code></td>
+                        <td>Log files for the integration module (see systemd file)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </doc-table>
+
+        <h2>Machine configuration</h2>
+
+        <h3>Preparing the service user and folders</h3>
+
+        <doc-snippet>
+            # Preparing a local service user (NOTE: You may prefer to create one in your normal identity system)
+            useradd -r ucloud            
+
+            # Preparing folders (see table above for an explanation)
+            mkdir -p /opt/ucloud/extensions
+            chown -R ucloud:ucloud /opt/ucloud
+            chmod 755 /opt/ucloud /opt/ucloud/extensions
+
+            mkdir -p /etc/ucloud
+            chown -R ucloud:ucloud /etc/ucloud
+            chmod 755 /etc/ucloud
+
+            mkdir -p /var/run/ucloud
+            chown -R ucloud:ucloud /var/run/ucloud
+            chmod 755 /var/run/ucloud
+
+            mkdir -p /var/log/ucloud
+            chown -R ucloud:ucloud /var/log/ucloud
+            chmod 733 /var/run/ucloud
+        </doc-snippet>
+
+        <h3>Installing UCloud/IM</h3>
+        <p>
+            In order to install UCloud/IM, you should first grab the latest release from 
+            <a href="https://github.com/SDU-eScience/UCloud/releases">here</a>. This single executable can be put
+            anywhere on your file-system where users can reach it and execute it. In this guide we recommend that you
+            install in <code>/opt/ucloud/ucloud</code>. The following snippet should achieve this:
+        </p>
+
+        <doc-snippet>
+            curl -o /opt/ucloud/ucloud $DOWNLOAD_LINK
+            chmod +x /opt/ucloud/ucloud
+        </doc-snippet>
+
+        <p>
+            This executable has no external dependencies other than libc.
+        </p>
+
+        <h3>Privileged scripts</h3>
+
+        <p>All extension scripts will either be executed as the `ucloud` service
+        account or as one of the HPC users. In both cases these users are
+        unprivileged, so whenever the extension scripts need to perform a
+        privileged operation (like creating a new user or account in Slurm), a
+        method for granting privileges to the script is needed.</p>
+
+        <p>To avoid granting additional privileges to the `ucloud` service
+        account, which is running the integration module, we instead suggest to
+        create a new service account and grant privileges to that account. By
+        doing so, there is a clear separation of privileges and the integration
+        module does not have access to perform any changes on the system.</p>
+
+        <p>If we follow this approach, the extension scripts must be able to run
+        as the privileged service account, which we will call `sysop` in the
+        following examples. This can be achieved with an additional sudo
+        rule.</p>
+
+        <doc-snippet>
+            ucloud ALL=(sysop) NOPASSWD: /etc/ucloud/extensions/*
+        </doc-snippet>
+
+        <p>This rule allows the `ucloud` service account to execute the
+        extension scripts as the privileged user. However, the integration
+        module will not actually run these scripts as the privileged user, since
+        it has no knowledge of whether or not that is necessary. Instead the
+        extension scripts should automatically switch to this user whenever
+        needed. Below are two examples, one for Bash and one for Python, that
+        shows how a script can make a switch itself to the privileged user.</p>
+
+        <b>Bash</b>
+
+        <doc-snippet>
+            #!/usr/bin/env bash
+
+            if [ $USER != "sysop" ]; then
+                exec sudo -u sysop $0 "$@"
+            fi
+
+            echo "user = $USER"
+        </doc-snippet>
+
+        <b>Python</b>
+
+        <doc-snippet>
+            #!/usr/bin/env python3
+
+            import os
+            import sys
+
+            if os.environ.get('USER') != 'sysop':
+                os.execvp('sudo', ['sudo', '-u', 'sysop'] + sys.argv)
+
+            print('user =', os.environ.get('USER'))
+        </doc-snippet>
+
+        <h3 id="slurm">Slurm</h3>
+        <p>
+            Making the <code>ucloud</code> user an administrator in Slurm is often necessary, but ultimately it depends
+            on the local environment. Some of the extension scripts will run as the <code>ucloud</code> user, so if any of
+            these need to modify Slurm accounts or users, then administrator privileges are needed.
+        </p>
+
+        <p>
+            Use the following commands to create the <code>ucloud</code> user in Slurm and grant it administrator
+            privileges.
+        </p>
+
+        <doc-snippet>
+            sacctmgr -i create user ucloud account=root
+            sacctmgr -i modify user ucloud set adminlevel=admin
+        </doc-snippet>
+
+        <h3 id="system-service">System service</h3>
+        <p>
+            To start and stop the integration module we suggest to use a systemd service. Create the file
+            <code>/usr/lib/systemd/system/ucloud-im.service</code> with the following content.
+        </p>
+
+        <doc-snippet>
+            [Unit]
+            Description=UCloud Integration Module
+            After=network-online.target
+
+            [Service]
+            Type=simple
+            User=ucloud
+            Group=ucloud
+            Restart=on-failure
+            RestartSec=5s
+            ExecStartPre=/bin/install -d -m 755 -o ucloud -g ucloud /var/run/ucloud
+            ExecStartPre=/bin/install -d -m 755 -o ucloud -g ucloud /var/run/ucloud/envoy
+            ExecStartPre=/bin/install -d -m 733 -o ucloud -g ucloud /var/log/ucloud
+            ExecStart=/opt/ucloud/ucloud
+
+            [Install]
+            WantedBy=multi-user.target
+        </doc-snippet>
+
+        <p>
+            This service file will start the integration module as the <code>ucloud</code> user and before starting it
+            will create a couple of directories with the proper permissions. Moreover, the service will automatically 
+            restart in case of failures. To start and enable the service, use:
+        </p>
+
+        <doc-snippet>
+            systemctl enable --now ucloud-im.service
+        </doc-snippet>
+
+        <h2>Registering as a provider</h2>
+
+        <p>
+            Before you can continue, you must first register as a UCloud provider. How you do this depends entirely on
+            what you are trying to achieve. If you wish to integrate with the production instance of UCloud, then you
+            must <a href="https://escience.sdu.dk" target="_blank">contact us</a> directly. On the other hand, if you
+            are trying to evaluate UCloud or you are developing code for UCloud, then you 
+            can look at <a href="/getting-started/">this guide</a> which covers both cases.
+        </p>
+
+        <h2>Basic configuration</h2>
+
+        <p>
+            In this section, we will cover the basic configuration which is needed to get started. Throughout the
+            section we will be referencing a lot of scripts which are specialized to your system. We will go through any
+            details in the next section.
+        </p>
+
+        <h3><code>/etc/ucloud/core.yaml</code></h3>
+
+        <doc-snippet>
+            providerId: my-provider                     # Must be updated
+            developmentMode: false
+            hosts:
+                self:                                   # Must be updated
+                    host: my-provider.example.com
+                    scheme: https
+                    port: 443
+                ucloud:                                 # Could be updated
+                    host: cloud.sdu.dk
+                    scheme: https
+                    port: 443
+        </doc-snippet>
+
+        <h3><code>/etc/ucloud/server.yaml</code></h3>
+
+        <doc-snippet>
+            refreshToken: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx  # Must be updated
+            envoy:
+                executable: /opt/ucloud/envoy/func-e            # Could be updated
+                directory: /etc/ucloud/envoy                    # Could be updated
+        </doc-snippet>
+
+        <h3><code>/etc/ucloud/products.yaml</code></h3>
+
+        <doc-snippet>
+            # Should be updated (entire file)
+
+            compute:
+                fat:
+                - name: fat-1
+                  description: Allocation on a fat node with 1 CPU allocated
+                  cpu: 1
+                  gpu: 0
+                  memoryInGigs: 32
+                  cost:
+                      currency: UNITS
+                      frequency: MINUTE
+                - name: fat-128
+                  description: Allocation on a fat node with 128 CPUs allocated
+                  cpu: 128
+                  gpu: 0
+                  memoryInGigs: 4096
+                  cost:
+                      currency: UNITS
+                      frequency: MINUTE
+            
+            storage:
+                exotic:
+                - name: exotic
+                    description: File-system using the exotic FS by Foobar enterprises.
+                    cost:
+                        currency: UNITS
+                        quota: true
+        </doc-snippet>
+
+        <h3><code>/etc/ucloud/plugins.yaml</code></h3>
+
+        <doc-todo></doc-todo>
+
+        <doc-snippet>
+          connection:                                                       # Could change this
+            type: UCloud
+            installSshKeys: true
+            redirectTo: https://cloud.sdu.dk                                # Could change this
+            extensions:
+              onConnectionComplete: /opt/ucloud/extensions/connection-complete
+          
+          projects:
+            type: Simple
+            unixGroupNamespace: 739300000                                   # Should change this
+            extensions:
+              all: /opt/ucloud/extensions/project-extension
+          
+          allocations:
+            STORAGE:
+              type: Extension
+              extensions:
+                onAllocation: /opt/ucloud/extensions/on-storage-allocation
+                onSynchronization: /opt/ucloud/extensions/on-storage-allocation
+            COMPUTE:
+              type: Extension
+              extensions:
+                onAllocation: /opt/ucloud/extensions/on-compute-allocation
+                onSynchronization: /opt/ucloud/extensions/on-compute-allocation
+          
+          fileCollections:
+            default:
+              type: Posix
+              matches: "*"
+              accounting: /opt/ucloud/extensions/storage-accounting
+              extensions:
+                driveLocator: /opt/ucloud/extensions/drive-locator
+          
+          files:
+            default:
+              type: Posix
+              matches: "*"
+          
+          jobs:
+            default:
+              type: Slurm
+              matches: "*"
+              partition: slurm-partition-to-use                             # Must change this
+              modifySlurmConf: null                                         # Could change this
+              accountMapper:
+                type: Extension
+                extension: /opt/ucloud/extensions/account-mapper
+              web:                                                          # Must change this
+                type: Simple
+                domainPrefix: app-
+                domainSuffix: .usercontent.my-provider.example.com
+              udocker:                                                      # Could change this
+                enabled: true
+                execMode: P2
+              terminal:                                                     # Could change this
+                type: Slurm
+                enabled: true
+        </doc-snippet>
+
+        <h2>Extensions</h2>
+
+        <doc-todo></doc-todo>
+
+        <p>
+            In this section, we will try to provider you guidance with the extension scripts that you need to write.
+            For each script, we will tell you about the types of input you receive, what type of output you should
+            produce and which side-effects your scripts should have. We will exemplify this by showing how this works
+            in a real production system.
+        </p>
+
+        <h3>Our setup</h3>
+
+        <doc-image src="/images/hippo.png" alt="A diagram of a system running UCloud/IM"></doc-image>
+
+        <doc-table>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 64px">Component</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>UCloud/Core</td>
+                        <td>
+                            The UCloud platform itself. This is the service hosting the user-interface and core APIs. 
+                            It is typicially not hosted by the provider itself. For example, there is 
+                            <a href="https://cloud.sdu.dk" target="_blank">cloud.sdu.dk</a> which is hosted by the 
+                            SDU eScience Center.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>End-user</td>
+                        <td>
+                            An end-user who is consuming the resources of a provider through UCloud. In this case, the
+                            end-user has a Unix UID of <code>41231</code> on the provider system. The user is capable
+                            of consuming resources either by using UCloud or by using their SSH credentials to
+                            authenticate with the provider's SSH server.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>NGINX</td>
+                        <td>
+                            Gateway proxy server which is accepting all traffic. The proxy will forward traffic to
+                            relevant services, such as the IM's gateway. This proxy performs 
+                            <a href="https://en.wikipedia.org/wiki/TLS_termination_proxy" target="_blank">TLS termination</a>.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>IM (Envoy gateway)</td>
+                        <td>
+                            Embedded into the integration module, this service accepts all traffic destined to the 
+                            integration module. In then forwards to either the UCloud/IM server instance or one of the
+                            user instances. It does this based on routing information from UCloud/Core or the end-user.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>IM (Server instance)</td>
+                        <td>
+                            The server instance of the integration module. This server is responsible for handling
+                            server-to-server traffic which is not related to an end-user request. For example, this
+                            server instance will tell UCloud/Core about which services it exposes. 
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>IM (UID XXXXX)</td>
+                        <td>
+                            One of the integration module server instances. These instances are launched by the 
+                            UCloud/IM server instance on demand. Any end-user action through UCloud/Core will trigger
+                            the automatic launching of such an instance. This instance runs with the same privileges as
+                            if the user had logged in through the SSH server. All authorization checks are enforced
+                            directly by the operating system.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>SSH server</td>
+                        <td>
+                            An <a href="https://en.wikipedia.org/wiki/Comparison_of_SSH_servers" target="_blank">SSH server</a>.
+                            End-users authenticate with this service to access the HPC system. From here they can 
+                            compile code, manage their data and submit jobs. Once a user has authenticated with the
+                            server, a login shell is spawned. All user interaction is done through this login shell and
+                            all authorization checks are enforced directly by the operating system.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Login shell</td>
+                        <td>
+                            A shell which the end-user can interact with the system through. It is spawned by the SSH
+                            server after a successful authentication by the end-user.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Slurm</td>
+                        <td>
+                            <a href="https://slurm.schedmd.com/" target="_blank">Slurm</a>
+                            is a workload manager typicially used in HPC systems. Its primary purpose is to launch
+                            computational jobs on one or more servers.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>FreeIPA</td>
+                        <td>
+                            <a href="https://www.freeipa.org/page/Main_Page" target="_blank">FreeIPA</a>
+                            is an identity management system. Its primary purpose is to manage Linux users and groups.
+                            This component could be replaced with any other identity system, including local users.
+                            UCloud/IM does not know or care about the details of the identity management system.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>IBM ESS</td>
+                        <td>
+                            <a href="https://www.ibm.com/products/elastic-storage-system" target="_blank">IBM ESS</a> 
+                            is a storage system. In our case, its primary purpose is to deliver a distributed POSIX 
+                            file system. Any other system, which delivers a distributed POSIX file system, could be
+                            used instead. UCloud/IM does not care about the underlying storage system.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </doc-table>
+
+        <h3>User initialization (<code>connection-complete</code>)</h3>
+        <doc-table>
+            <table>
+                <tbody>
+                    <tr>
+                        <th style="width: 64px">Purpose</th>
+                        <td>
+                            To initialize the end-user in the system. The user should be able to use the system fully
+                            after this script has executed.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>When is it invoked?</th>
+                        <td>
+                            Every time the user finishes the connection procedure. <br><br>
+                            
+                            This naturually happens periodicially since the connection itself doesn't last 
+                            indefinitely. As a result, the script must be able to handle a previous connection. 
+                            This could be done by looking up the user in the identity management system. If the user 
+                            already exists, then there is no need to create a new one.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Input</th>
+                        <td>
+                            <ul>
+                                <li>UCloud username</li>
+                                <li>Optional details from the identity provider (if using OpenIdConnect plugin)</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Tasks</th>
+                        <td>
+                            <ol>
+                                <li>Create a user in FreeIPA</li>
+                                <li>
+                                    Create a Slurm account
+                                    <ul>
+                                        <li>The account receives a small default allocation</li>
+                                        <li>This is adjusted later when we receive information about the allocation</li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    Create a home folder (implemented as a fileset in ESS)
+                                    <ul>
+                                        <li>The home folder receives a small default quota</li>
+                                        <li>This quota is adjusted later when we receive information about the allocation</li>
+                                    </ul>
+                                </li>
+                                <li>Return the UID of the user in FreepIPA</li>
+                            </ol>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Output</th>
+                        <td>
+                            The user ID of the created/existing user. Example:
+                            <doc-snippet>
+                                { "uid": 41231, "gid": 41231 }
+                            </doc-snippet>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Documentation</th>
+                        <td>
+                            <doc-link href="/plugins/connections.html#ucloud">Here</doc-link>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Example:</th>
+                        <td><a href="https://github.com/SDU-eScience/im-extensions/blob/main/slurm/connection-complete" target="_blank">GitHub</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </doc-table>
+
+        <h3>Project management (<code>project-extension</code>)</h3>
+
+        <doc-table>
+            <table>
+                <tbody>
+                    <tr>
+                        <th style="width: 64px">Purpose</th>
+                        <td>To synchronize project state into the identity management system.</td>
+                    </tr>
+                    <tr>
+                        <th>When is it invoked?</th>
+                        <td>
+                            Every time a relevant project management event occurs in UCloud/Core.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Input</th>
+                        <td>
+                            Details about the event. This could for example be a new project. It could also be a new
+                            project member being added or a project member being removed from the project.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Tasks</th>
+                        <td>
+                            <b>When creating a new project:</b>
+                            <ol>
+                                <li>Create a new group in FreeIPA</li>
+                                <li>Create a Slurm account for the group (small default allocation)</li>
+                                <li>Create a fileset in ESS (small default quota)</li>
+                            </ol>
+
+                            <b>When a member is added to the project:</b>
+                            <ol>
+                                <li>Add the corresponding unix user to the group</li>
+                            </ol>
+
+                            <b>When a member is removed from the project:</b>
+                            <ol>
+                                <li>Remove the corresponding unix user from the group</li>
+                            </ol>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Output</th>
+                        <td>
+                            An empty JSON object.
+
+                            <doc-snippet>
+                                {}
+                            </doc-snippet>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Documentation</th>
+                        <td>
+                            <doc-link href="/plugins/projects.html#simple">Here</doc-link>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Example:</th>
+                        <td><a href="https://github.com/SDU-eScience/im-extensions/blob/main/slurm/project-extension" target="_blank">GitHub</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </doc-table>
+
+        <h3>Drive locator (<code>drive-locator</code>)</h3>
+
+        <doc-table>
+            <table>
+                <tbody>
+                    <tr>
+                        <th style="width: 64px">Purpose</th>
+                        <td>To return a list of entry-points to the user's/project's files.</td>
+                    </tr>
+                    <tr>
+                        <th>When is it invoked?</th>
+                        <td>
+                            Always after a successful allocation. Subsequently, it may be periodicially invoked 
+                            when requred by the IM.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Input</th>
+                        <td>
+                            Details about the user's UID, if it is a personal workspace. Otherwise, it will contain
+                            information about the project's GID.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Tasks</th>
+                        <td>
+                            Locate the home folder of the user or the work directory of the project.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Output</th>
+                        <td>
+                            Path(s) to the home folder or work directory.
+
+                            <doc-snippet>
+                                [
+                                    {
+                                        "title": "Work",
+                                        "path": "/work/an-example-project"
+                                    }
+                                ]
+                            </doc-snippet>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Documentation</th>
+                        <td>
+                            <doc-link href="/plugins/fileCollections.html#posix">Here</doc-link>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Example:</th>
+                        <td><a href="https://github.com/SDU-eScience/im-extensions/blob/main/slurm/drive-locator" target="_blank">GitHub</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </doc-table>
+
+        <h3>Slurm account mapper (<code>account-mapper</code>)</h3>
+
+        <doc-table>
+            <table>
+                <tbody>
+                    <tr>
+                        <th style="width: 64px">Purpose</th>
+                        <td>
+                            To return a list of entry-points to the user's/project's files. The integration module
+                            needs to know this to generate the correct sbatch scripts.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>When is it invoked?</th>
+                        <td>
+                            On demand, when required by the IM.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Input</th>
+                        <td>
+                            Details about the user's UID, if it is a personal workspace. Otherwise, it will contain
+                            information about the project's GID.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Tasks</th>
+                        <td>
+                            Locate the Slurm account created in a previous step.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Output</th>
+                        <td>
+                            The Slurm account of the user/project.
+
+                            <doc-snippet>
+                                {
+                                    "account": "example"
+                                }
+                            </doc-snippet>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Documentation</th>
+                        <td>
+                            <doc-link href="/plugins/jobs.html#slurm">Here</doc-link>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Example:</th>
+                        <td><a href="https://github.com/SDU-eScience/im-extensions/blob/main/slurm/account-mapper" target="_blank">GitHub</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </doc-table>
+
+        <h3>Synchronization of storage allocations (<code>on-storage-allocation</code>)</h3>
+
+        <doc-table>
+            <table>
+                <tbody>
+                    <tr>
+                        <th style="width: 64px">Purpose</th>
+                        <td>
+                            To synchronize the resource allocation from UCloud into the storage system.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>When is it invoked?</th>
+                        <td>
+                            Periodicially and when a new allocation is created. This script will always run
+                            <i>after</i> the project/connection extensions.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Input</th>
+                        <td>
+                            Details about the user's UID, if it is a personal workspace. Otherwise, it will contain
+                            information about the project's GID. <br><br>
+
+                            Additionailly, it will contain information about the allocation. Such as the combined size
+                            and product information.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Tasks</th>
+                        <td>
+                            <ol>
+                                <li>Locate the appropiate ESS fileset based on UID or GID</li>
+                                <li>Set the quota of this fileset in ESS to the value received from the input</li>
+                            </ol>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Output</th>
+                        <td>
+                            This JSON object:
+
+                            <doc-snippet>
+                                { "type": "ucloud_managed" }
+                            </doc-snippet>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Documentation</th>
+                        <td>
+                            <doc-link href="/plugins/allocations.html#extension">Here</doc-link>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Example:</th>
+                        <td><a href="https://github.com/SDU-eScience/im-extensions/blob/main/slurm/on-storage-allocation" target="_blank">GitHub</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </doc-table>
+
+        <h3>Synchronization of compute allocations (<code>on-compute-allocation</code>)</h3>
+
+        <doc-table>
+            <table>
+                <tbody>
+                    <tr>
+                        <th style="width: 64px">Purpose</th>
+                        <td>
+                            To synchronize the resource allocation from UCloud into Slurm.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>When is it invoked?</th>
+                        <td>
+                            Periodicially and when a new allocation is created. This script will always run
+                            <i>after</i> the project/connection extensions.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Input</th>
+                        <td>
+                            Details about the user's UID, if it is a personal workspace. Otherwise, it will contain
+                            information about the project's GID. <br><br>
+
+                            Additionailly, it will contain information about the allocation. Such as the combined size
+                            and product information.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Tasks</th>
+                        <td>
+                            <ol>
+                                <li>Locate the appropiate Slurm account based on UID or GID</li>
+                                <li>Set the balance of this account in Slurm to the value received from the input</li>
+                            </ol>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Output</th>
+                        <td>
+                            This JSON object:
+
+                            <doc-snippet>
+                                { "type": "ucloud_managed" }
+                            </doc-snippet>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Documentation</th>
+                        <td>
+                            <doc-link href="/plugins/allocations.html#extension">Here</doc-link>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Example:</th>
+                        <td><a href="https://github.com/SDU-eScience/im-extensions/blob/main/slurm/on-compute-allocation" target="_blank">GitHub</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </doc-table>
+
+        <h3>Storage accounting (<code>storage-accounting</code>)</h3>
+
+        <doc-table>
+            <table>
+                <tbody>
+                    <tr>
+                        <th style="width: 64px">Purpose</th>
+                        <td>
+                            To report usage of storage to UCloud/Core.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>When is it invoked?</th>
+                        <td>
+                            Periodicially, one invocation per active drive.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Input</th>
+                        <td>
+                            The local path to the drive's entrypoint.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Tasks</th>
+                        <td>
+                            To <i>efficiently</i> compute usage in bytes of a drive.
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Output</th>
+                        <td>
+                            A JSON object contianing current usage.
+
+                            <doc-snippet>
+                                { "bytesUsed": "12314512" }
+                            </doc-snippet>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Documentation</th>
+                        <td>
+                            <doc-link href="/plugins/fileCollections.html#posix">Here</doc-link>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Example:</th>
+                        <td><a href="https://github.com/SDU-eScience/im-extensions/blob/main/slurm/storage-accounting" target="_blank">GitHub</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </doc-table>
+
+    </article>
+    <script src="/app.js"></script>
+</body>
+</html>

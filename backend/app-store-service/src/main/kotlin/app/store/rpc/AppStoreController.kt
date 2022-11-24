@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.rpc
 
+import app.store.services.Importer
 import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -22,7 +23,8 @@ import io.ktor.utils.io.*
 import org.yaml.snakeyaml.reader.ReaderException
 
 class AppStoreController(
-    private val appStore: AppStoreService
+    private val appStore: AppStoreService,
+    private val importer: Importer? = null
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
@@ -59,6 +61,10 @@ class AppStoreController(
 
         implement(AppStore.listAll) {
             ok(appStore.listAll(ctx.securityPrincipal, ctx.project, request.normalize()))
+        }
+
+        implement(AppStore.overview) {
+            ok(appStore.overview(ctx.securityPrincipal, ctx.project))
         }
 
         implement(AppStore.create) {
@@ -108,6 +114,12 @@ class AppStoreController(
 
         implement(AppStore.findLatestByTool) {
             ok(appStore.findLatestByTool(ctx.securityPrincipal, ctx.project, request.tool, request.normalize()))
+        }
+
+        importer?.let { im ->
+            implement(AppStore.devImport) {
+                ok(im.importApplications(request.endpoint, request.checksum))
+            }
         }
     }
 

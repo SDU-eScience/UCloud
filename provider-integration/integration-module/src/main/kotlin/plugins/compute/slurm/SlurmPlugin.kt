@@ -21,6 +21,7 @@ import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.compute.udocker.UDocker
+import dk.sdu.cloud.plugins.storage.posix.PosixCollectionIpc
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
@@ -34,14 +35,17 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import libc.clib
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.collections.ArrayList
 import kotlin.math.max
-
-typealias SlurmConfig = ConfigSchema.Plugins.Jobs.Slurm
+import dk.sdu.cloud.config.ConfigSchema.Plugins.Jobs.Slurm as SlurmConfig
 
 class SlurmPlugin : ComputePlugin {
     override val pluginTitle: String = "Slurm"
@@ -52,9 +56,12 @@ class SlurmPlugin : ComputePlugin {
         private set
     private lateinit var jobCache: JobCache
     private lateinit var cli: SlurmCommandLine
+    private var lastAccountingCharge = 0L
     private var fileCollectionPlugin: PosixCollectionPlugin? = null
     var udocker: UDocker? = null
         private set
+    private val didInitKeys = AtomicBoolean(false)
+    private lateinit var ctx: PluginContext
 
     override fun configure(config: ConfigSchema.Plugins.Jobs) {
         this.pluginConfig = config as SlurmConfig
@@ -62,6 +69,7 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun PluginContext.initialize() {
+        ctx = this
         if (config.shouldRunServerCode()) {
             if (accountMapperOrNull == null) accountMapperOrNull = AccountMapper(this)
             if (productEstimatorOrNull == null) productEstimatorOrNull = ProductEstimator(config)
@@ -148,8 +156,28 @@ class SlurmPlugin : ComputePlugin {
 
     // User Mode
     // =================================================================================================================
-    private fun findJobFolder(jobId: String): String? {
-        val homeDirectory = homeDirectory()
+    private var baseJobDirectory: String? = null
+    private val baseJobDirectoryMutex = Mutex()
+    private suspend fun findJobFolder(job: Job): String? {
+        val jobId = job.id
+        val homeDirectory: String = if (baseJobDirectory != null) {
+            baseJobDirectory!!
+        } else {
+            baseJobDirectoryMutex.withLock {
+                if (baseJobDirectory != null) {
+                    baseJobDirectory!!
+                } else {
+                    val baseDir = ctx.ipcClient.sendRequest(
+                        PosixCollectionIpc.retrieveCollections,
+                        job.owner
+                    ).items.singleOrNull()?.id ?: homeDirectory()
+
+                    baseJobDirectory = baseDir
+                    baseDir
+                }
+            }
+        }
+
         if (!fileExists(homeDirectory)) return null
         val jobsDir = homeDirectory.removeSuffix("/") + "/UCloud Jobs"
         if (!fileExists(jobsDir)) {
@@ -170,7 +198,7 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun RequestContext.create(resource: Job): FindByStringId? {
-        val jobFolder = findJobFolder(resource.id)
+        val jobFolder = findJobFolder(resource)
 
         val account = ipcClient.sendRequest(
             SlurmAccountIpc.retrieve,
@@ -191,8 +219,8 @@ class SlurmPlugin : ComputePlugin {
 
         if (jobFolder != null) {
             fileCollectionPlugin?.let { files ->
-                val path = files.pathConverter.internalToUCloud(InternalFile(jobFolder)).path
                 runCatching {
+                    val path = files.pathConverter.internalToUCloud(InternalFile(jobFolder)).path
                     JobsControl.update.call(
                         bulkRequestOf(
                             ResourceUpdateAndId(
@@ -224,7 +252,7 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun ComputePlugin.FollowLogsContext.follow(job: Job) {
-        val jobFolder = findJobFolder(job.id)
+        val jobFolder = findJobFolder(job)
 
         class OutputFile(val rank: Int, val out: NativeFile?, val err: NativeFile?)
 
@@ -271,7 +299,7 @@ class SlurmPlugin : ComputePlugin {
                     emitStdout(
                         rank,
                         "Unable to read logs. If the job was submitted outside of UCloud, then we might not be " +
-                                "able to read the logs automatically."
+                            "able to read the logs automatically."
                     )
                 }
 
@@ -326,7 +354,7 @@ class SlurmPlugin : ComputePlugin {
                 val nodes = cli.getJobNodeList(slurmJob.slurmId)
                 val nodeToUse = nodes[job.rank]
                     ?: throw RPCException("Unable to connect to job", HttpStatusCode.BadGateway)
-                val jobFolder = findJobFolder(jobId)
+                val jobFolder = findJobFolder(job.job)
                     ?: throw RPCException("Unable to connect to job", HttpStatusCode.BadGateway)
                 val port = runCatching { File(jobFolder, ALLOCATED_PORT_FILE).readText().trim().toInt() }.getOrNull()
                     ?: throw RPCException("Unable to connect to job - Try again later", HttpStatusCode.BadGateway)
@@ -342,7 +370,34 @@ class SlurmPlugin : ComputePlugin {
                 )
             }
 
-            InteractiveSessionType.SHELL -> ComputeSession()
+            InteractiveSessionType.SHELL -> {
+                shellTracer { "Starting to open Slurm shell" }
+                val terminal = pluginConfig.terminal
+                shellTracer { "$terminal" }
+                val generateSshKeys = (terminal as? SlurmConfig.Terminal.Ssh)?.generateSshKeys
+                if (terminal.enabled && generateSshKeys == true && didInitKeys.compareAndSet(false, true)) {
+                    shellTracer { "We need to generate an SSH key" }
+                    val publicKeyFile = File("${homeDirectory()}/.ssh/$sshId.pub")
+
+                    if (!publicKeyFile.exists()) {
+                        executeCommandToText("/usr/bin/ssh-keygen") {
+                            addArg("-t", "rsa")
+                            addArg("-q")
+                            addArg("-f", "${homeDirectory()}/.ssh/$sshId")
+                            addArg("-N", "")
+                        }
+
+                        val publicKey = publicKeyFile.readText()
+
+                        val authorizedKeysFile = "${homeDirectory()}/.ssh/authorized_keys"
+                        File(authorizedKeysFile).appendText(publicKey + "\n")
+                        clib.chmod(authorizedKeysFile, "600".toInt(8))
+                    }
+                }
+
+                shellTracer { "Success! We are ready to send a session." }
+                ComputeSession()
+            }
 
             else -> throw RPCException("Not supported", HttpStatusCode.BadRequest)
         }
@@ -351,38 +406,69 @@ class SlurmPlugin : ComputePlugin {
     @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) {
         val shellIsActive = isActive
+        shellTracer { "Looking for slurm job $jobId" }
         val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(jobId))
+        shellTracer { "Got a job $slurmJob" }
         val nodes: Map<Int, String> = cli.getJobNodeList(slurmJob.slurmId)
+        shellTracer { "Found nodes $nodes" }
         val nodeToUse = nodes[jobRank] ?: throw RPCException("Could not locate job node", HttpStatusCode.BadGateway)
+        shellTracer { "Found the node to use $nodeToUse" }
 
         val masterFd = clib.createAndForkPty(
-            command = arrayOf(
-                ("/usr/bin/ssh"),
-                ("-tt"),
-                ("-oStrictHostKeyChecking=accept-new"),
-                nodeToUse,
-                buildString {
-                    append("([ -x /bin/bash ] && exec /bin/bash) || ")
-                    append("([ -x /usr/bin/bash ] && exec /usr/bin/bash) || ")
-                    append("([ -x /bin/zsh ] && exec /bin/zsh) || ")
-                    append("([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || ")
-                    append("([ -x /bin/fish ] && exec /bin/fish) || ")
-                    append("([ -x /usr/bin/fish ] && exec /usr/bin/fish) || ")
-                    append("exec /bin/sh")
+            command = buildList {
+                when (pluginConfig.terminal) {
+                    is SlurmConfig.Terminal.Ssh -> {
+                        shellTracer { "Using SSH to connect to $nodeToUse" }
+                        add("/usr/bin/ssh")
+                        add("-tt")
+                        add("-oStrictHostKeyChecking=accept-new")
+
+                        if ((pluginConfig.terminal as? SlurmConfig.Terminal.Ssh)?.generateSshKeys == true) {
+                            add("-i")
+                            add("${homeDirectory()}/.ssh/${sshId}")
+                        }
+
+                        add(nodeToUse)
+                        add(buildString {
+                            append("([ -x /bin/bash ] && exec /bin/bash) || ")
+                            append("([ -x /usr/bin/bash ] && exec /usr/bin/bash) || ")
+                            append("([ -x /bin/zsh ] && exec /bin/zsh) || ")
+                            append("([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || ")
+                            append("([ -x /bin/fish ] && exec /bin/fish) || ")
+                            append("([ -x /usr/bin/fish ] && exec /usr/bin/fish) || ")
+                            append("exec /bin/sh")
+                        })
+                    }
+
+                    is SlurmConfig.Terminal.Slurm -> {
+                        shellTracer { "Using srun to connect to $nodeToUse" }
+                        add(SlurmCommandLine.SRUN_EXE)
+                        add("--overlap")
+                        add("--pty")
+                        add("--jobid=${slurmJob.slurmId}")
+                        add("-w")
+                        add(nodeToUse)
+                        add("bash")
+                    }
                 }
-            ),
+            }.also { shellTracer { "Command is $it" } }.toTypedArray(),
             env = arrayOf(
                 "TERM", "xterm"
             )
         )
+        shellTracer { "master fd is $masterFd" }
         val processInput = LinuxOutputStream(LinuxFileHandle.createOrThrow(masterFd, { error("Bad fd") }))
         val processOutput = LinuxInputStream(LinuxFileHandle.createOrThrow(masterFd, { error("Bad fd") }))
 
         val userInputToSsh = ProcessingScope.launch {
+            shellTracer { "userInputToSsh init" }
             while (shellIsActive() && isActive && !receiveChannel.isClosedForReceive) {
+                shellTracer { "userInputToSsh spin" }
                 select {
                     receiveChannel.onReceiveCatching {
+                        shellTracer { "Got input?" }
                         val userInput = it.getOrNull() ?: return@onReceiveCatching Unit
+                        shellTracer { "input = $userInput" }
 
                         when (userInput) {
                             is ShellRequest.Input -> {
@@ -412,8 +498,12 @@ class SlurmPlugin : ComputePlugin {
         val sshOutputToUser = ProcessingScope.launch {
             val readBuffer = ByteArray(256)
 
+            shellTracer { "sshOutputToUser ready" }
             while (shellIsActive() && isActive) {
+                shellTracer { "sshOutputToUser spin" }
                 val bytesRead = processOutput.read(readBuffer)
+                shellTracer { "sshOutputToUser read $bytesRead" }
+
                 if (bytesRead <= 0) break
                 val decodedString = readBuffer.decodeToString(0, bytesRead)
                 emitData(decodedString)
@@ -422,9 +512,23 @@ class SlurmPlugin : ComputePlugin {
 
         while (currentCoroutineContext().isActive) {
             val shouldBreak = select {
-                sshOutputToUser.onJoin { true }
-                userInputToSsh.onJoin { true }
-                onTimeout(500) { !shellIsActive() }
+                sshOutputToUser.onJoin {
+                    shellTracer { "Join sshOutputToUser" }
+                    true
+                }
+
+                userInputToSsh.onJoin {
+                    shellTracer { "Join sshOutputToUser" }
+                    true
+                }
+
+                onTimeout(500) {
+                    val shouldBreak = !shellIsActive()
+                    if (shouldBreak) {
+                        shellTracer { "Breaking because shell is no longer active" }
+                    }
+                    shouldBreak
+                }
             }
 
             if (shouldBreak) break
@@ -447,7 +551,7 @@ class SlurmPlugin : ComputePlugin {
 
         while (currentCoroutineContext().isActive) {
             loop(Time.now() >= nextAccountingScan)
-            if (Time.now() >= nextAccountingScan) nextAccountingScan = Time.now() + 60_000 * 15
+            if (lastAccountingCharge >= nextAccountingScan) nextAccountingScan = Time.now() + 60_000 * 15
         }
     }
 
@@ -618,7 +722,7 @@ class SlurmPlugin : ComputePlugin {
             charges.add(
                 ResourceChargeCredits(
                     job.ucloudId,
-                    job.ucloudId + "_" + job.elapsed,
+                    job.ucloudId + "_" + job.elapsed / 1000,
                     units,
                     max(1, periods),
                 )
@@ -658,6 +762,8 @@ class SlurmPlugin : ComputePlugin {
                 }
             }
         }
+
+        lastAccountingCharge = Time.now()
 
         debugSystem.logD(
             "Charged $chargedJobs slurm jobs",
@@ -718,14 +824,14 @@ class SlurmPlugin : ComputePlugin {
                     enabled = true,
                     logs = true,
                     timeExtension = false,
-                    terminal = true,
+                    terminal = pluginConfig.terminal.enabled,
                     utilization = false,
                 ),
                 native = ComputeSupport.Native(
                     enabled = true,
                     logs = true,
                     timeExtension = false,
-                    terminal = true,
+                    terminal = pluginConfig.terminal.enabled,
                     utilization = false,
                     web = pluginConfig.web !is ConfigSchema.Plugins.Jobs.Slurm.Web.None,
                 ),
@@ -748,5 +854,6 @@ class SlurmPlugin : ComputePlugin {
         private val jobNameUnsafeRegex = Regex("""[^\w ():_-]""")
 
         const val ALLOCATED_PORT_FILE = "allocated-port.txt"
+        private const val sshId = "id_ucloud_im"
     }
 }

@@ -1,12 +1,12 @@
 import * as React from "react";
-import { useRef, useCallback, useEffect, useMemo, useReducer, useState } from "react";
-import { default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite } from "./Api";
+import {useRef, useCallback, useEffect, useMemo, useReducer, useState} from "react";
+import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole} from "./Api";
 import styled from "styled-components";
-import { useHistory, useParams } from "react-router";
+import {NavigateFunction, useLocation, useNavigate, useParams} from "react-router";
 import MainContainer from "@/MainContainer/MainContainer";
-import { callAPIWithErrorHandler, useCloudAPI } from "@/Authentication/DataHook";
-import { BreadCrumbsBase } from "@/ui-components/Breadcrumbs";
-import { HexSpinWrapper } from "@/LoadingIcon/LoadingIcon";
+import {callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
+import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
+import {HexSpinWrapper} from "@/LoadingIcon/LoadingIcon";
 import {
     Absolute,
     Box,
@@ -22,33 +22,30 @@ import {
     Text,
     Tooltip, Truncate
 } from "@/ui-components";
-import { shorten } from "@/Utilities/TextUtilities";
-import { isAdminOrPI } from "@/Utilities/ProjectUtilities";
-import { getCssVar } from "@/Utilities/StyledComponentsUtilities";
-import { addStandardDialog, addStandardInputDialog, NamingField } from "@/UtilityComponents";
-import { preventDefault } from "@/UtilityFunctions";
-import { useAvatars } from "@/AvataaarLib/hook";
-import { UserAvatar } from "@/AvataaarLib/UserAvatar";
-import { defaultAvatar } from "@/UserSettings/Avataaar";
-import { IconName } from "@/ui-components/Icon";
-import { ProjectRole } from "@/Project/index";
-import { bulkRequestOf } from "@/DefaultObjects";
+import {shorten} from "@/Utilities/TextUtilities";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {addStandardDialog, addStandardInputDialog, NamingField} from "@/UtilityComponents";
+import {preventDefault} from "@/UtilityFunctions";
+import {useAvatars} from "@/AvataaarLib/hook";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {defaultAvatar} from "@/UserSettings/Avataaar";
+import {IconName} from "@/ui-components/Icon";
+import {bulkRequestOf} from "@/DefaultObjects";
 import * as Heading from "@/ui-components/Heading";
-import { ItemRenderer, ItemRow, useRenamingState } from "@/ui-components/Browse";
-import { BrowseType } from "@/Resource/BrowseType";
-import { useToggleSet } from "@/Utilities/ToggleSet";
-import { buildQueryString, getQueryParam } from "@/Utilities/URIUtilities";
-import { History } from "history";
+import {ItemRenderer, ItemRow, useRenamingState} from "@/ui-components/Browse";
+import {BrowseType} from "@/Resource/BrowseType";
+import {useToggleSet} from "@/Utilities/ToggleSet";
+import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import BaseLink from "@/ui-components/BaseLink";
-import { deepCopy } from "@/Utilities/CollectionUtilities";
-import { Operation } from "@/ui-components/Operation";
-import { useTitle, useLoading } from "@/Navigation/Redux/StatusActions";
-import { useRefreshFunction } from "@/Navigation/Redux/HeaderActions";
-import { SidebarPages, useSidebarPage } from "@/ui-components/Sidebar";
-import { PageV2, BulkResponse, FindByStringId } from "@/UCloud";
-import { emptyPageV2 } from "@/DefaultObjects";
-import { Client } from "@/Authentication/HttpClientInstance";
-import { timestampUnixMs } from "@/UtilityFunctions";
+import {deepCopy} from "@/Utilities/CollectionUtilities";
+import {Operation} from "@/ui-components/Operation";
+import {useTitle, useLoading} from "@/Navigation/Redux/StatusActions";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {PageV2, BulkResponse, FindByStringId} from "@/UCloud";
+import {emptyPageV2} from "@/DefaultObjects";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {timestampUnixMs} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 
 // UI state management
@@ -74,7 +71,7 @@ interface RemoveMember {
 
 interface ChangeRole {
     type: "ChangeRole";
-    changes: { username: string; role: ProjectRole }[];
+    changes: {username: string; role: ProjectRole}[];
 }
 
 interface AddToGroup {
@@ -159,7 +156,7 @@ function projectReducer(state: UIState, action: ProjectAction): UIState {
 
     switch (action.type) {
         case "RemoveMember": {
-            project.status.members = project.status.members!.filter(mem => 
+            project.status.members = project.status.members!.filter(mem =>
                 action.members.every(toRemove => mem.username !== toRemove));
             return copy;
         }
@@ -195,7 +192,7 @@ function projectReducer(state: UIState, action: ProjectAction): UIState {
         case "RenameGroup": {
             const g = project.status.groups!.find(it => it.id === action.group);
             if (!g) return state;
-            
+
             g.specification.title = action.newTitle;
             return copy;
         }
@@ -236,9 +233,9 @@ function projectReducer(state: UIState, action: ProjectAction): UIState {
         case "InviteMember": {
             for (const member of action.members) {
                 copy.invites.items.push({
-                    recipient: member, 
-                    createdAt: timestampUnixMs(), 
-                    invitedTo: project.id, 
+                    recipient: member,
+                    createdAt: timestampUnixMs(),
+                    invitedTo: project.id,
                     invitedBy: Client.username!,
                     projectTitle: project.specification.title
                 });
@@ -249,7 +246,7 @@ function projectReducer(state: UIState, action: ProjectAction): UIState {
 
         case "FailedInvite":
         case "RemoveInvite": {
-            copy.invites.items = copy.invites.items.filter(invite => 
+            copy.invites.items = copy.invites.items.filter(invite =>
                 action.members.every(removed => invite.recipient != removed)
             );
             return copy;
@@ -266,7 +263,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
     switch (action.type) {
         case "RemoveMember": {
             const success = await callAPIWithErrorHandler(
-                Api.deleteMember(bulkRequestOf(...action.members.map(it => ({ username: it }))))
+                Api.deleteMember(bulkRequestOf(...action.members.map(it => ({username: it}))))
             );
 
             // NOTE(Dan): Something is probably really wrong if this happens. Just reload the entire thing.
@@ -283,7 +280,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
             );
 
             if (!success) {
-                const oldRoles: { username: string, role: ProjectRole }[] = [];
+                const oldRoles: {username: string, role: ProjectRole}[] = [];
                 for (const member of project.status.members!) {
                     const hasChange = action.changes.some(it => it.username === member.username);
                     if (hasChange) {
@@ -291,7 +288,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
                     }
                 }
 
-                cb.pureDispatch({ type: "ChangeRole", changes: oldRoles });
+                cb.pureDispatch({type: "ChangeRole", changes: oldRoles});
             }
             break;
         }
@@ -302,7 +299,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
             ) != null;
 
             if (!success) {
-                cb.pureDispatch({ type: "RemoveFromGroup", group: action.group, member: action.member });
+                cb.pureDispatch({type: "RemoveFromGroup", group: action.group, member: action.member});
             }
             break;
         }
@@ -313,7 +310,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
             ) != null;
 
             if (!success) {
-                cb.pureDispatch({ type: "AddToGroup", group: action.group, member: action.member });
+                cb.pureDispatch({type: "AddToGroup", group: action.group, member: action.member});
             }
             break;
         }
@@ -323,25 +320,25 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
                 ?.find(it => it.id === action.group)?.specification?.title;
 
             const success = await callAPIWithErrorHandler(
-                Api.renameGroup(bulkRequestOf({group: action.group, newTitle: action.newTitle }))
+                Api.renameGroup(bulkRequestOf({group: action.group, newTitle: action.newTitle}))
             );
 
             if (!success && currentTitle) {
-                cb.pureDispatch({ type: "RenameGroup", group: action.group, newTitle: currentTitle });
+                cb.pureDispatch({type: "RenameGroup", group: action.group, newTitle: currentTitle});
             }
             break;
         }
 
         case "CreateGroup": {
             const ids = await callAPIWithErrorHandler<BulkResponse<FindByStringId>>(
-                Api.createGroup(bulkRequestOf({ project: project.id, title: action.title }))
+                Api.createGroup(bulkRequestOf({project: project.id, title: action.title}))
             );
 
             if (!ids || ids.responses.length === 0) {
-                cb.pureDispatch({ type: "RemoveGroup", ids: [placeholderPrefix + action.placeholderId] });
+                cb.pureDispatch({type: "RemoveGroup", ids: [placeholderPrefix + action.placeholderId]});
             } else {
                 const id = ids.responses[0].id;
-                cb.pureDispatch({ type: "UpdateGroupWithId", actualId: id, placeholderId: action.placeholderId });
+                cb.pureDispatch({type: "UpdateGroupWithId", actualId: id, placeholderId: action.placeholderId});
             }
             break;
         }
@@ -358,7 +355,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
         }
 
         case "InspectGroup": {
-            cb.history.push(buildQueryString(`/projects2/${project.id}/members`, {group: action.group ?? undefined}));
+            cb.navigate(buildQueryString(`/projects/${project.id}/members`, {group: action.group ?? undefined}));
             break;
         }
 
@@ -375,14 +372,14 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
 
         case "RemoveInvite": {
             await callAPIWithErrorHandler(
-                Api.deleteInvite(bulkRequestOf(...action.members.map(it => ({username: it, project: project.id }))))
+                Api.deleteInvite(bulkRequestOf(...action.members.map(it => ({username: it, project: project.id}))))
             );
         }
     }
 }
 
 interface ActionCallbacks {
-    history: ReturnType<typeof useHistory>;
+    navigate: NavigateFunction;
     pureDispatch: (action: ProjectAction) => void;
     requestReload: () => void; // NOTE(Dan): use when it is difficult to rollback a change
 }
@@ -391,10 +388,11 @@ interface ActionCallbacks {
 // ================================================================================
 export const ProjectMembers2: React.FunctionComponent = () => {
     // Input "parameters"
-    const history = useHistory();
-    const params = useParams<{ project: string }>();
-    const inspectingGroupId = getQueryParam(history.location.search, "group");
-    const projectId = params.project;
+    const navigate = useNavigate();
+    const location = useLocation();
+    const params = useParams<{project: string}>();
+    const inspectingGroupId = getQueryParam(location.search, "group");
+    const projectId = params.project!;
 
     // Remote data
     const [invitesFromApi, fetchInvites] = useCloudAPI<PageV2<ProjectInvite>>({noop: true}, emptyPageV2);
@@ -438,10 +436,10 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     }, [projectId]);
 
     const actionCb: ActionCallbacks = useMemo(() => ({
-        history,
+        navigate,
         pureDispatch,
         requestReload: reload
-    }), [history, pureDispatch, reload]);
+    }), [pureDispatch, reload]);
 
     const dispatch = useCallback((action: ProjectAction) => {
         onAction(uiState, action, actionCb);
@@ -477,7 +475,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
 
     // Aliases and computed data
     const inspectingGroup: ProjectGroup | null =
-        !inspectingGroupId || !project ? null : 
+        !inspectingGroupId || !project ? null :
             project.status.groups!.find(it => it.id === inspectingGroupId) ?? null;
 
     const isAdmin = !project ? false : isAdminOrPI(project.status.myRole!);
@@ -514,9 +512,9 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         setIsCreating: setIsCreatingGroup,
         create: (title: string) => {
             setIsCreatingGroup(false);
-            callbacks.dispatch({type: "CreateGroup", title, placeholderId: groupIdCounter++ });
+            callbacks.dispatch({type: "CreateGroup", title, placeholderId: groupIdCounter++});
         },
-        
+
     }), [callbacks, setIsCreatingGroup, groupRenaming.setRenaming]);
 
     // Effects
@@ -535,19 +533,19 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     }, [invitesFromApi.data]);
 
     useEffect(() => {
-        inviteToggleSet.uncheckAll();   
+        inviteToggleSet.uncheckAll();
     }, [invites]);
 
     useEffect(() => {
-        groupToggleSet.uncheckAll();   
+        groupToggleSet.uncheckAll();
     }, [groups]);
 
     useEffect(() => {
-        memberToggleSet.uncheckAll();   
+        memberToggleSet.uncheckAll();
     }, [relevantMembers]);
 
     useEffect(() => {
-        groupMemberToggleSet.uncheckAll();   
+        groupMemberToggleSet.uncheckAll();
     }, [inspectingGroup?.status?.members]);
 
     useTitle("Member and Group Management");
@@ -563,9 +561,9 @@ export const ProjectMembers2: React.FunctionComponent = () => {
             <TwoColumnLayout>
                 <div className="members">
                     <ProjectBreadcrumbsWrapper mb="12px" embedded={false}>
-                        <span><Link to="/projects2">My Projects</Link></span>
+                        <span><Link to="/projects">My Projects</Link></span>
                         <span>
-                            <Link to={`/projects2/${projectId}`}>
+                            <Link to={`/projects/${projectId}`}>
                                 {shorten(20, project.specification.title)}
                             </Link>
                         </span>
@@ -602,21 +600,21 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                                 .map(it => it.trim())
                                                 .filter(it => it.length > 0);
 
-                                            callbacks.dispatch({ type: "InviteMember", members: usernames });
+                                            callbacks.dispatch({type: "InviteMember", members: usernames});
                                         } catch (ignored) {
                                             // Ignored
                                         }
                                     }}
                                 >
-                                    <Icon name="open"/>
+                                    <Icon name="open" />
                                 </Button>
                                 <Button attached type={"submit"}>Add</Button>
                                 <Relative left="-160px" top="8px">
                                     <Absolute>
-                                        <Tooltip tooltipContentWidth="160px" trigger={<HelpCircle/>}>
+                                        <Tooltip tooltipContentWidth="160px" trigger={<HelpCircle />}>
                                             <Text color="black" fontSize={12}>
                                                 Your username can be found at the bottom of the sidebar next to
-                                                {" "}<Icon name="id"/>.
+                                                {" "}<Icon name="id" />.
                                             </Text>
                                         </Tooltip>
                                     </Absolute>
@@ -635,7 +633,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                             <Relative>
                                 <Absolute right="6px" top="10px">
                                     <Label htmlFor="project-member-search">
-                                        <Icon name="search" size="24"/>
+                                        <Icon name="search" size="24" />
                                     </Label>
                                 </Absolute>
                             </Relative>
@@ -674,7 +672,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                             <BreadCrumbsBase embedded={false}>
                                 <span>Groups</span>
                             </BreadCrumbsBase>
-                            <div style={{flexGrow: 1}}/>
+                            <div style={{flexGrow: 1}} />
                             {!isAdmin ? null : (
                                 <Button mt={"2px"} height={"40px"} width={"120px"} onClick={startGroupCreation}>
                                     New Group
@@ -683,7 +681,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                         </Flex>
                         {groups.length !== 0 ? null : <>
                             <Flex justifyContent={"center"} alignItems={"center"} minHeight={"300px"}
-                                  flexDirection={"column"}>
+                                flexDirection={"column"}>
                                 <Heading.h4>You have no groups to manage.</Heading.h4>
                                 <ul>
                                     <li>Groups are used to manage permissions in your project</li>
@@ -757,7 +755,7 @@ const MemberRenderer: ItemRenderer<ProjectMember, Callbacks> = {
         const avatars = useAvatars();
         if (!resource) return null;
 
-        return <UserAvatar avatar={avatars.cache[resource.username] ?? defaultAvatar}/>;
+        return <UserAvatar avatar={avatars.cache[resource.username] ?? defaultAvatar} />;
     },
 
     MainTitle: ({resource}) => {
@@ -775,27 +773,27 @@ const MemberRenderer: ItemRenderer<ProjectMember, Callbacks> = {
         if (!isAdmin || resource.username === Client.username || !!inspectingGroup) {
             options = [roleOptionForRole(resource.role)];
         } else {
-            options = [roleOptionForRole(ProjectRole.USER), roleOptionForRole(ProjectRole.ADMIN)];
+            options = [roleOptionForRole(OldProjectRole.USER), roleOptionForRole(OldProjectRole.ADMIN)];
 
-            if (project.status.myRole! === ProjectRole.PI) {
-                options.push(roleOptionForRole(ProjectRole.PI));
+            if (project.status.myRole! === OldProjectRole.PI) {
+                options.push(roleOptionForRole(OldProjectRole.PI));
             }
 
-            if (resource.role === ProjectRole.PI) {
-                options = [roleOptionForRole(ProjectRole.PI)]
+            if (resource.role === OldProjectRole.PI) {
+                options = [roleOptionForRole(OldProjectRole.PI)]
             }
         }
 
         const onRoleChange: Record<ProjectRole, (e: React.SyntheticEvent) => void> = useMemo(() => {
             const dispatchChange = (e: React.SyntheticEvent, role: ProjectRole) => {
                 e.stopPropagation();
-                callbacks.dispatch({ type: "ChangeRole", changes: [{ username: resource.username, role }] });
+                callbacks.dispatch({type: "ChangeRole", changes: [{username: resource.username, role}]});
             };
 
             const result: Record<ProjectRole, (e: React.SyntheticEvent) => void> = {
-                "USER": (e) => dispatchChange(e, ProjectRole.USER),
-                "ADMIN": (e) => dispatchChange(e, ProjectRole.ADMIN),
-                "PI": (e) => {
+                [OldProjectRole.USER]: (e) => dispatchChange(e, OldProjectRole.USER),
+                [OldProjectRole.ADMIN]: (e) => dispatchChange(e, OldProjectRole.ADMIN),
+                [OldProjectRole.PI]: (e) => {
                     e.stopPropagation();
                     addStandardDialog({
                         title: "Transfer PI Role",
@@ -803,10 +801,12 @@ const MemberRenderer: ItemRenderer<ProjectMember, Callbacks> = {
                             "A project can only have one PI. " +
                             "Your own user will be demoted to admin.",
                         onConfirm: () => {
-                            callbacks.dispatch({ type: "ChangeRole", changes: [
-                                { username: resource.username, role: ProjectRole.PI },
-                                { username: Client.username!, role: ProjectRole.ADMIN }
-                            ] });
+                            callbacks.dispatch({
+                                type: "ChangeRole", changes: [
+                                    {username: resource.username, role: OldProjectRole.PI},
+                                    {username: Client.username!, role: OldProjectRole.ADMIN}
+                                ]
+                            });
                         },
                         confirmText: "Transfer PI role"
                     });
@@ -818,7 +818,7 @@ const MemberRenderer: ItemRenderer<ProjectMember, Callbacks> = {
         const addToGroup = useCallback((e: React.SyntheticEvent) => {
             e.stopPropagation();
             if (!inspectingGroup) return;
-            callbacks.dispatch({type: "AddToGroup", member: resource.username, group: inspectingGroup.id });
+            callbacks.dispatch({type: "AddToGroup", member: resource.username, group: inspectingGroup.id});
         }, [callbacks.dispatch, resource, inspectingGroup]);
 
         return <MemberRowWrapper>
@@ -840,7 +840,7 @@ const MemberRenderer: ItemRenderer<ProjectMember, Callbacks> = {
 
             {!isAdmin ? null : !inspectingGroup ? null : <>
                 <Button ml="8px" color="green" height="35px" width="35px" onClick={addToGroup}
-                        disabled={memberOfThisGroup}>
+                    disabled={memberOfThisGroup}>
                     <Icon
                         color="white"
                         name="arrowDown"
@@ -874,12 +874,12 @@ const memberOperations: Operation<ProjectMember, Callbacks>[] = [
     {
         text: "Promote to admin",
         icon: "userAdmin",
-        enabled: (members, cb) => members.length >= 1 && cb.isAdmin && !cb.inspectingGroup && 
-            members.every(m => m.role === ProjectRole.USER && m.username !== Client.username),
+        enabled: (members, cb) => members.length >= 1 && cb.isAdmin && !cb.inspectingGroup &&
+            members.every(m => m.role === OldProjectRole.USER && m.username !== Client.username),
         onClick: (members, cb) => {
             cb.dispatch({
-                type: "ChangeRole", 
-                changes: members.map(m => ({ username: m.username, role: ProjectRole.ADMIN })) 
+                type: "ChangeRole",
+                changes: members.map(m => ({username: m.username, role: OldProjectRole.ADMIN}))
             });
         }
     },
@@ -887,11 +887,11 @@ const memberOperations: Operation<ProjectMember, Callbacks>[] = [
         text: "Demote to user",
         icon: "user",
         enabled: (members, cb) => members.length >= 1 && cb.isAdmin && !cb.inspectingGroup &&
-            members.every(m => m.role === ProjectRole.ADMIN && m.username !== Client.username),
+            members.every(m => m.role === OldProjectRole.ADMIN && m.username !== Client.username),
         onClick: (members, cb) => {
             cb.dispatch({
-                type: "ChangeRole", 
-                changes: members.map(m => ({ username: m.username, role: ProjectRole.USER })) 
+                type: "ChangeRole",
+                changes: members.map(m => ({username: m.username, role: OldProjectRole.USER}))
             });
 
         }
@@ -902,9 +902,9 @@ const memberOperations: Operation<ProjectMember, Callbacks>[] = [
         color: "red",
         confirm: true,
         enabled: (members, cb) => members.length >= 1 && cb.isAdmin && !cb.inspectingGroup &&
-            members.every(m => m.role !== ProjectRole.PI && m.username !== Client.username),
+            members.every(m => m.role !== OldProjectRole.PI && m.username !== Client.username),
         onClick: (members, cb) => {
-            cb.dispatch({ type: "RemoveMember", members: members.map(it => it.username) });
+            cb.dispatch({type: "RemoveMember", members: members.map(it => it.username)});
         }
     },
     {
@@ -914,7 +914,7 @@ const memberOperations: Operation<ProjectMember, Callbacks>[] = [
         enabled: (members, cb) => members.length >= 1 && cb.isAdmin && !!cb.inspectingGroup,
         onClick: (members, cb) => {
             for (const member of members) {
-                cb.dispatch({ type: "AddToGroup", group: cb.inspectingGroup!.id, member: member.username });
+                cb.dispatch({type: "AddToGroup", group: cb.inspectingGroup!.id, member: member.username});
             }
         }
     }
@@ -970,7 +970,7 @@ const GroupRenderer: ItemRenderer<ProjectGroup> = addNamingToRenderer({
     },
 });
 
-interface GroupCallbacks extends Callbacks, CreationCallbacks { 
+interface GroupCallbacks extends Callbacks, CreationCallbacks {
     setRenaming: (group: ProjectGroup) => void;
 }
 
@@ -992,7 +992,7 @@ const groupOperations: Operation<ProjectGroup, GroupCallbacks>[] = [
         confirm: true,
         enabled: (groups, cb) => groups.length >= 1 && cb.isAdmin,
         onClick: (groups, cb) => {
-            cb.dispatch({type: "RemoveGroup", ids: groups.map(it => it.id) });
+            cb.dispatch({type: "RemoveGroup", ids: groups.map(it => it.id)});
         }
     },
     {
@@ -1009,7 +1009,7 @@ const GroupMemberRenderer: ItemRenderer<string> = {
     Icon: ({resource}) => {
         const avatars = useAvatars();
         if (!resource) return null;
-        return <UserAvatar avatar={avatars.cache[resource] ?? defaultAvatar}/>;
+        return <UserAvatar avatar={avatars.cache[resource] ?? defaultAvatar} />;
     },
     MainTitle: ({resource}) => <>{resource}</>,
 };
@@ -1046,9 +1046,9 @@ interface RoleOption {
 }
 
 const allRoleOptions: RoleOption[] = [
-    {text: "User", icon: "user", value: ProjectRole.USER},
-    {text: "Admin", icon: "userAdmin", value: ProjectRole.ADMIN},
-    {text: "PI", icon: "userPi", value: ProjectRole.PI}
+    {text: "User", icon: "user", value: OldProjectRole.USER},
+    {text: "Admin", icon: "userAdmin", value: OldProjectRole.ADMIN},
+    {text: "PI", icon: "userPi", value: OldProjectRole.PI}
 ];
 
 function roleOptionForRole(role: ProjectRole): RoleOption {
@@ -1072,7 +1072,7 @@ function addNamingToRenderer<T, CB extends CreationCallbacks>(renderer: ItemRend
             if (!value) return;
             callbacks.create(value);
         }, [callbacks.create]);
-        
+
         if (resource === undefined) {
             return <NamingField
                 confirmText={"Create"}

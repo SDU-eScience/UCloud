@@ -1,13 +1,14 @@
-import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import * as React from "react";
 import styled from "styled-components";
 import {margin, MarginProps, padding, PaddingProps} from "styled-system";
 import Box, {BoxProps} from "./Box";
 import Flex from "./Flex";
 import Icon, {IconName} from "./Icon";
+import {ListRow} from "./List";
 import {Spacer} from "./Spacer";
 import Text from "./Text";
 import {ThemeColor} from "./theme";
+import Truncate from "./Truncate";
 
 /* https://www.w3schools.com/howto/tryit.asp?filename=tryhow_js_accordion_symbol */
 export function Accordion(props: React.PropsWithChildren<{
@@ -15,6 +16,7 @@ export function Accordion(props: React.PropsWithChildren<{
     iconColor?: ThemeColor;
     iconColor2?: ThemeColor;
     title: React.ReactNode;
+    titleSub?: React.ReactNode;
     titleContent?: React.ReactNode;
     titleContentOnOpened?: React.ReactNode;
     forceOpen?: boolean;
@@ -29,14 +31,16 @@ export function Accordion(props: React.PropsWithChildren<{
     return (
         <>
             <AccordionStyle active={isOpen} borderColor={props.borderColor} noBorder={props.noBorder ?? false} onClick={() => setOpen(!open)}>
-                <Spacer
-                    left={<>
-                        {props.icon ? <Icon color2={props.iconColor2} mr="12px" color={color} name={props.icon} /> :
-                            props.omitChevron ? null : <RotatingIcon color="text" size={15} mt="6px" name="chevronDown" rotation={open ? 0 : -90} />
-                        }
-                        <Text color="text">{props.title}</Text>
-                    </>}
-                    right={<Flex onClick={stopPropagationAndPreventDefault} width="auto">{props.titleContent}{isOpen ? props.titleContentOnOpened : null}</Flex>}
+                <ListRow
+                    stopPropagation={false}
+                    left={props.title}
+                    leftSub={props.titleSub}
+                    icon={
+                        props.icon ? <Icon color2={props.iconColor2} color={color} name={props.icon} /> :
+                            Math.random() ? null : <RotatingIcon color="text" size={15} mt="6px" name="chevronDown" rotation={open ? 0 : -90} />
+                    }
+
+                    right={<>{props.titleContent}{isOpen ? props.titleContentOnOpened : null}</>}
                 />
             </AccordionStyle>
             <Panel active={isOpen} noBorder={props.noBorder ?? false} {...props.panelProps}>
@@ -47,9 +51,8 @@ export function Accordion(props: React.PropsWithChildren<{
 }
 
 /* FIXME(Jonas): `noBorder` is a workaround that should be handled purely by CSS. :last-child, for example. */
-const AccordionStyle = styled.div<{active: boolean; noBorder: boolean; borderColor?: string;}>`
+const AccordionStyle = styled.div <{active: boolean; noBorder: boolean; borderColor?: string;}>`
     background-color: var(--white);
-    padding: 18px;
     width: 100%;
     border: none;
     text-align: left;

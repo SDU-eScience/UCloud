@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.sendWSMessage
+import dk.sdu.cloud.config.VerifiedConfig
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
@@ -77,7 +78,6 @@ class FileController(
                 val id = secureToken(32).replace("/", "-")
 
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         insert into tasks(title, ucloud_task_id, local_identity)
                         values (:title, :task_id, :local)
@@ -101,7 +101,6 @@ class FileController(
             var doesExist = false
             dbConnection.withSession { session ->
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         select ucloud_task_id
                         from tasks
@@ -135,7 +134,6 @@ class FileController(
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         insert into file_download_sessions(session, plugin_name, plugin_data)
                         values (:session, :plugin_name, :plugin_data)
@@ -148,22 +146,12 @@ class FileController(
                     }
                 )
             }
-
-            envoyConfig.requestConfiguration(
-                EnvoyRoute.DownloadSession(
-                    request.session,
-                    controllerContext.configuration.core.providerId,
-                    ucloudIdentity ?: EnvoyConfigurationService.IM_SERVER_CLUSTER
-                ),
-                null,
-            )
         })
 
         server.addHandler(FilesDownloadIpc.retrieve.handler { _, request ->
             var result: FileSessionWithPlugin? = null
             dbConnection.withSession { session ->
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         select plugin_name, plugin_data
                         from file_download_sessions
@@ -194,7 +182,6 @@ class FileController(
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         insert into file_upload_sessions(session, plugin_name, plugin_data)
                         values (:session, :plugin_name, :plugin_data)
@@ -207,22 +194,12 @@ class FileController(
                     }
                 )
             }
-
-            envoyConfig.requestConfiguration(
-                EnvoyRoute.UploadSession(
-                    request.session,
-                    controllerContext.configuration.core.providerId,
-                    ucloudIdentity ?: EnvoyConfigurationService.IM_SERVER_CLUSTER
-                ),
-                null,
-            )
         })
 
         server.addHandler(FilesUploadIpc.retrieve.handler { _, request ->
             var result: FileSessionWithPlugin? = null
             dbConnection.withSession { session ->
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         select plugin_name, plugin_data
                         from file_upload_sessions
@@ -265,7 +242,7 @@ class FileController(
 
                 http {
                     method = HttpMethod.Get
-                    path { using(downloadPath(providerId)) }
+                    path { using(downloadPath(null, providerId)) }
                     params { +boundTo(IMFileDownloadRequest::token) }
                 }
             }
@@ -281,7 +258,7 @@ class FileController(
 
                 http {
                     method = HttpMethod.Post
-                    path { using(uploadPath(providerId)) }
+                    path { using(uploadPath(null, providerId)) }
                 }
             }
         }
@@ -388,7 +365,7 @@ class FileController(
                         createDownload(bulkRequestOf(downloadRequest)).forEach {
                             sessions.add(
                                 FilesCreateDownloadResponseItem(
-                                    downloadPath(providerId, it.session)
+                                    downloadPath(config, providerId, it.session)
                                 )
                             )
 
@@ -417,7 +394,7 @@ class FileController(
                 delay(100)
 
                 sctx.ktor.call.respondRedirect(
-                    downloadPath(controllerContext.configuration.core.providerId, request.token) +
+                    downloadPath(config, controllerContext.configuration.core.providerId, request.token) +
                             "&attempt=${attempt + 1}"
                 )
 
@@ -452,7 +429,7 @@ class FileController(
                         createUpload(bulkRequestOf(uploadRequest)).forEach {
                             sessions.add(
                                 FilesCreateUploadResponseItem(
-                                    uploadPath(providerId),
+                                    uploadPath(config, providerId),
                                     UploadProtocol.CHUNKED,
                                     it.session
                                 )
@@ -473,10 +450,10 @@ class FileController(
         implement(uploadApi.upload) {
             val sctx = ctx as? HttpCall ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             val offset = sctx.ktor.call.request.header("Chunked-Upload-Offset")?.toLongOrNull()
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                ?: throw RPCException("Missing or invalid offset", HttpStatusCode.BadRequest)
 
             val token = sctx.ktor.call.request.header("Chunked-Upload-Token")
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
 
             with(requestContext(controllerContext)) {
                 val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
@@ -583,12 +560,14 @@ class FileController(
     )
 
     companion object {
-        fun downloadPath(providerId: String, token: String? = null): String = buildString {
+        fun downloadPath(config: VerifiedConfig?, providerId: String, token: String? = null): String = buildString {
+            if (config != null) append(config.core.hosts.self?.toStringOmitDefaultPort() ?: "")
             append("/ucloud/${providerId}/download")
             if (token != null) append("?token=$token")
         }
 
-        fun uploadPath(providerId: String): String = buildString {
+        fun uploadPath(config: VerifiedConfig?, providerId: String): String = buildString {
+            if (config != null) append(config.core.hosts.self?.toStringOmitDefaultPort() ?: "")
             append("/ucloud/${providerId}/chunked/upload")
         }
     }

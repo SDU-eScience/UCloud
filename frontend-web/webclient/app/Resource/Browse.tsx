@@ -28,12 +28,11 @@ import {doNothing, preventDefault, timestampUnixMs, useEffectSkipMount} from "@/
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useSidebarPage} from "@/ui-components/Sidebar";
 import * as Heading from "@/ui-components/Heading";
-import {useHistory, useLocation} from "react-router";
+import {NavigateFunction, useLocation, useNavigate} from "react-router";
 import {EnumFilterWidget, EnumOption, ResourceFilter, StaticPill} from "@/Resource/Filter";
 import {useResourceSearch} from "@/Resource/Search";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
-import * as H from "history";
 import {ItemRenderer, ItemRow, ItemRowMemo, StandardBrowse, useRenamingState} from "@/ui-components/Browse";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {Avatar} from "@/AvataaarLib";
@@ -41,14 +40,14 @@ import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {Product, ProductType, productTypeToIcon} from "@/Accounting";
 import {BrowseType} from "./BrowseType";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {useProjectId, useProjectManagementStatus} from "@/Project";
-import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {FixedSizeList} from "react-window";
 import {default as AutoSizer} from "react-virtualized-auto-sizer";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {Feature, hasFeature} from "@/Features";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {isAdminOrPI, useProjectId} from "@/Project/Api";
+import {useProject} from "@/Project/cache";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -69,7 +68,7 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     onRename?: (text: string, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
 
     // Properties and navigation
-    navigateToChildren?: (history: ReturnType<typeof useHistory>, resource: Res) => "properties" | void;
+    navigateToChildren?: (navigate: NavigateFunction, resource: Res) => "properties" | void;
     propsForInlineResources?: Record<string, any>;
     viewPropertiesInline?: (res: Res) => boolean;
 
@@ -120,6 +119,25 @@ function setStoredSortDirection(title: string, order: "ascending" | "descending"
     localStorage.setItem(`${title}:sortDirection`, order);
 }
 
+function getStoredFilters(title: string): Record<string, string> | null {
+    const data = localStorage.getItem(`${title}:filters`);
+    if (!data) return null;
+    try {
+        const parsed = JSON.parse(data);
+        if (typeof parsed === "object") {
+            return parsed as Record<string, string>;
+        } else {
+            return null;
+        }
+    } catch (e) {
+        return null;
+    }
+}
+
+function setStoredFilters(title: string, filters: Record<string, string>) {
+    localStorage.setItem(`${title}:filters`, JSON.stringify(filters));
+}
+
 export function ResourceBrowse<Res extends Resource, CB = undefined>({
     onSelect, api, ...props
 }: PropsWithChildren<ResourceBrowseProps<Res, CB>> & {/* HACK(Jonas) */disableSearch?: boolean/* HACK(Jonas): End */}): ReactElement | null {
@@ -134,10 +152,10 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(props.inlineProduct ?? null);
     const [renamingValue, setRenamingValue] = useState("");
     const [commandLoading, invokeCommand] = useCloudCommand();
-    const [filters, setFilters] = useState<Record<string, string>>({});
+    const [filters, setFilters] = useState<Record<string, string>>(getStoredFilters(api.title) ?? {});
     const [sortDirection, setSortDirection] = useState<"ascending" | "descending">(getStoredSortDirection(api.title) ?? api.defaultSortDirection);
     const [sortColumn, setSortColumn] = useState<string | undefined>(getStoredSortColumn(api.title) ?? undefined);
-    const history = useHistory();
+    const navigate = useNavigate();
     const location = useLocation();
     const query = getQueryParamOrElse(location.search, "q", "");
 
@@ -149,17 +167,17 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const [isCreating, setIsCreating] = useState(false);
     const dispatch = useDispatch();
     const projectId = useProjectId();
-    const projectManagement = useProjectManagementStatus({
-        isRootComponent: props.browseType == BrowseType.MainContent,
-        allowPersonalProject: true
-    });
-    const isWorkspaceAdmin = projectId === undefined ? true : isAdminOrPI(projectManagement.projectRole);
+    const project = useProject();
+    const isWorkspaceAdmin = projectId === undefined ? true : !project.loading && isAdminOrPI(project.fetch().status.myRole);
 
     useEffect(() => toggleSet.uncheckAll(), [props.additionalFilters]);
+    useEffectSkipMount(() => {
+        setStoredFilters(api.title, filters);
+    }, [filters]);
 
     const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
-    useEffect(() => fetchProductsWithSupport(api.retrieveProducts()), []);
+    useEffect(() => {fetchProductsWithSupport(api.retrieveProducts())}, []);
     const renaming = useRenamingState<Res>(
         () => renamingValue, [renamingValue],
         (a, b) => a.id === b.id, [],
@@ -240,13 +258,14 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         if (isEmbedded && (props.viewPropertiesInline === undefined || props.viewPropertiesInline(res))) {
             setInlineInspecting(res);
         } else {
-            history.push(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
+            navigate(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
         }
-    }, [setInlineInspecting, isEmbedded, history, api, props.viewPropertiesInline]);
+    }, [setInlineInspecting, isEmbedded, navigate, api, props.viewPropertiesInline]);
 
     const callbacks: ResourceBrowseCallbacks<Res> & CB = useMemo(() => ({
         api,
         isCreating,
+        navigate,
         invokeCommand,
         commandLoading,
         reload: () => {
@@ -257,7 +276,6 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         onSelect,
         onSelectRestriction: props.onSelectRestriction,
         dispatch,
-        history,
         isWorkspaceAdmin,
         startRenaming(res: Res, value: string) {
             renaming.setRenaming(res);
@@ -275,7 +293,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         viewProperties,
         ...props.extraCallbacks,
         supportByProvider: productsWithSupport.data
-    }), [api, invokeCommand, commandLoading, reloadRef, isCreating, props.onInlineCreation, history, dispatch,
+    }), [api, invokeCommand, commandLoading, reloadRef, isCreating, navigate, props.onInlineCreation, dispatch,
         viewProperties, props.inlineProduct, props.extraCallbacks, toggleSet, productsWithSupport.data]);
 
     const onProductSelected = useCallback(async (product: Product) => {
@@ -412,7 +430,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     hasFeature(Feature.PROVIDER_CONNECTION) ?
                         <Tooltip
                             trigger={
-                                <ProviderLogo providerId={resource?.specification?.product?.provider ?? "?"} size={40}/>
+                                <ProviderLogo providerId={resource?.specification?.product?.provider ?? "?"} size={40} />
                             }
                         >
                             This resource is provided by{" "}
@@ -440,7 +458,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 
     const navigateCallback = useCallback((item: Res) => {
         if (props.navigateToChildren) {
-            const result = props.navigateToChildren?.(history, item)
+            const result = props.navigateToChildren?.(navigate, item)
             if (result === "properties") {
                 viewProperties(item);
             }
@@ -449,8 +467,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         }
     }, [props.navigateToChildren, viewProperties]);
 
-    const listItem = useCallback<(p: { style, index, data: Res[], isScrolling?: boolean }) => JSX.Element>(
-        ({ style, index, data }) => {
+    const listItem = useCallback<(p: {style, index, data: Res[], isScrolling?: boolean}) => JSX.Element>(
+        ({style, index, data}) => {
             const it = data[index];
             return <div style={style} className={"list-item"}>
                 <ItemRowMemo
@@ -536,11 +554,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     - 48px corresponds to the top nav-header
                     - 45px to deal with header of the browse component
                     - 48px to deal with load more button
+                    - 6px from padding between header and content
                     - the rest depends entirely on the headerSize of the <MainContainer /> which we load from a
                       global value.
                 */}
                 <div style={props.browseType == BrowseType.MainContent ?
-                    {height: `calc(100vh - 48px - 45px - ${opts.hasNext ? 48 : 0}px - ${headerSize}px)`} :
+                    {height: `calc(100vh - 48px - 45px - ${opts.hasNext ? 48 : 0}px - ${headerSize}px - var(--termsize, 0px) - 6px)`} :
                     {height: `${sizeAllocationForEmbeddedAndCard}px`}}
                 >
                     <AutoSizer children={({width, height}) => (
@@ -553,12 +572,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             children={listItem}
                             overscanCount={32}
                         />
-                    )}/>
+                    )} />
                 </div>
             </List>
         </>
     }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport, renaming,
-        viewProperties]);
+        viewProperties, operations]);
 
     if (!isEmbedded) {
         useTitle(api.titlePlural);
@@ -615,14 +634,14 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 {inlineInspecting ? null :
                     <>
                         <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
-                                    entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                                    extra={callbacks} operations={operations}/>
+                            entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                            extra={callbacks} operations={operations} />
 
                         <ResourceFilter pills={allPills} filterWidgets={api.filterWidgets}
-                                        sortEntries={api.sortEntries} sortDirection={sortDirection}
-                                        onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                                        browseType={props.browseType}
-                                        readOnlyProperties={props.additionalFilters}/>
+                            sortEntries={api.sortEntries} sortDirection={sortDirection}
+                            onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
+                            browseType={props.browseType}
+                            readOnlyProperties={props.additionalFilters} />
                     </>
                 }
 

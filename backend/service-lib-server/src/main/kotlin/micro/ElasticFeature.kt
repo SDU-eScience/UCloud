@@ -122,7 +122,7 @@ var Micro.elasticClient: ElasticsearchClient
         attributes[ElasticFeature.CLIENT] = value
     }
 
-var Micro.elasticHighLevelClient: RestHighLevelClient
+	var Micro.elasticHighLevelClient: RestHighLevelClient
     get() {
         requireFeature(ElasticFeature)
         return attributes[ElasticFeature.HIGH_LEVEL]

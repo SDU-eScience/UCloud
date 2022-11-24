@@ -439,7 +439,7 @@ class NativeFS(
                 }
                 var i = 1
                 while (i < fileDescriptors.size) {
-                    val previousFd = fileDescriptors[i - 1] ?: error("Should never happen")
+                    val previousFd = fileDescriptors[i - 1] ?: error("Should never happen. $fileDescriptors $components $i")
 
                     if (didCreatePrevious && owner != null) {
                         fchown(previousFd.fd, owner, owner)

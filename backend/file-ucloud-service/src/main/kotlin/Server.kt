@@ -25,6 +25,7 @@ class Server(
 
     @OptIn(ExperimentalStdlibApi::class)
     override fun start() {
+        if (!configuration.enabled) return
         /*
         NOTE(Dan): This service has at this point gotten fairly complex in terms of functionality. The start function,
         as in any other service, is responsible for creating, initializing and starting the internal services. The

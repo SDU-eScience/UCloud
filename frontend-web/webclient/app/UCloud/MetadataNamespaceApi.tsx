@@ -26,6 +26,7 @@ import * as Heading from "@/ui-components/Heading";
 import {JsonSchemaForm} from "@/Files/Metadata/JsonSchemaForm";
 import {prettierString} from "@/UtilityFunctions";
 import {Product} from "@/Accounting";
+import {apiBrowse, apiCreate, apiRetrieve} from "@/Authentication/DataHook";
 
 export type FileMetadataTemplateNamespaceType = "COLLABORATORS" | "PER_USER";
 
@@ -124,7 +125,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
             primary: true,
             enabled: (selected, cb) => selected.length === 0 && cb.previewing == null,
             onClick: (selected, cb) => {
-                cb.history.push(buildQueryString("/" + this.routingNamespace + "/create", {namespace: cb.namespace.id}));
+                cb.navigate(buildQueryString("/" + this.routingNamespace + "/create", {namespace: cb.namespace.id}));
             }
         },
         {
@@ -228,46 +229,26 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
         const createOp = baseOps.find(it => it.tag === CREATE_TAG)!;
         createOp.text = "Create template";
         createOp.onClick = (selected, cb) => {
-            cb.history.push(`/${this.routingNamespace}/create`);
+            cb.navigate(`/${this.routingNamespace}/create`);
         };
         return baseOps;
     }
 
     createTemplate(request: BulkRequest<FileMetadataTemplate>): APICallParameters<BulkRequest<FileMetadataTemplate>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "templates",
-            parameters: request,
-            payload: request
-        };
+        return apiCreate(request, this.baseContext, "templates");
     }
 
     retrieveLatest(request: FindByStringId): APICallParameters<FindByStringId> {
-        return {
-            context: "",
-            method: "GET",
-            path: buildQueryString(this.baseContext + "retrieveLatest", request),
-            parameters: request,
-        };
+        return apiRetrieve(request, this.baseContext, "latest")
     }
 
+    /* Unused  */
     retrieveTemplate(request: FileMetadataTemplateAndVersion): APICallParameters<FileMetadataTemplateAndVersion> {
-        return {
-            context: "",
-            method: "GET",
-            path: buildQueryString(this.baseContext + "retrieveTemplates", request),
-            parameters: request,
-        };
+        return apiRetrieve(request, this.baseContext, "templates");
     }
 
     browseTemplates(request: FindByStringId & PaginationRequestV2): APICallParameters<FindByStringId & PaginationRequestV2> {
-        return {
-            context: "",
-            method: "GET",
-            path: buildQueryString(this.baseContext + "browseTemplates", request),
-            parameters: request,
-        };
+        return apiBrowse(request, this.baseContext, "templates");
     }
 }
 

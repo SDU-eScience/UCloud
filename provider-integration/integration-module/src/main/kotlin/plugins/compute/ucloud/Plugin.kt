@@ -24,6 +24,8 @@ import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.controllers.ComputeSessionIpc
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.dbConnection
+import dk.sdu.cloud.debug.wrongD
+import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.ComputePlugin
 import dk.sdu.cloud.plugins.ComputeSession
 import dk.sdu.cloud.plugins.IngressPlugin
@@ -34,7 +36,9 @@ import dk.sdu.cloud.plugins.storage.ucloud.UCloudFilePlugin
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.selects.select
+import kotlin.coroutines.coroutineContext
 
 class UCloudComputePlugin : ComputePlugin {
     override val pluginTitle: String = "UCloud"
@@ -70,6 +74,7 @@ class UCloudComputePlugin : ComputePlugin {
             }
 
         jobCache = VerifiedJobCache(rpcClient)
+        val nameAllocator = NameAllocator(pluginConfig.namespace)
         k8 = K8DependenciesImpl(
             KubernetesClient(
                 if (pluginConfig.kubeSvcOverride != null) {
@@ -82,17 +87,19 @@ class UCloudComputePlugin : ComputePlugin {
             ),
             GlobalScope,
             rpcClient,
-            NameAllocator(pluginConfig.namespace),
+            nameAllocator,
             debugSystem,
             jobCache
         )
 
         runtime = when (pluginConfig.scheduler) {
             ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Volcano -> VolcanoRuntime(k8, pluginConfig.categoryToSelector,
-                pluginConfig.fakeIpMount)
+                pluginConfig.fakeIpMount, pluginConfig.usePortForwarding)
             ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> K8PodRuntime(k8.client, pluginConfig.namespace,
-                pluginConfig.categoryToSelector, pluginConfig.fakeIpMount)
+                pluginConfig.categoryToSelector, pluginConfig.fakeIpMount, pluginConfig.usePortForwarding)
         }
+
+        nameAllocator.runtime = runtime
 
         jobManagement = JobManagement(
             pluginName,
@@ -157,7 +164,13 @@ class UCloudComputePlugin : ComputePlugin {
     }
 
     override suspend fun PluginContext.runMonitoringLoopInServerMode() {
-        jobManagement.runMonitoring()
+        while (coroutineContext.isActive) {
+            try {
+                jobManagement.runMonitoring()
+            } catch (ex: Throwable) {
+                debugSystem.logThrowable("Caught exception while monitoring K8 jobs", ex)
+            }
+        }
     }
 
     override suspend fun RequestContext.create(resource: Job): FindByStringId? {
@@ -215,6 +228,13 @@ class UCloudComputePlugin : ComputePlugin {
 
                 val isPublic = domain == publicDomain
 
+                val tunnel = runtime.openTunnel(
+                    job.job.id,
+                    job.rank,
+                    job.job.status.resolvedApplication?.invocation?.web?.port ?: 80
+                )
+
+                /*
                 val pod = k8.client.getResource(
                     Pod.serializer(),
                     KubernetesResourceLocator.common.pod.withNameAndNamespace(
@@ -225,17 +245,21 @@ class UCloudComputePlugin : ComputePlugin {
 
                 val ipAddress = pod.status?.podIP ?: throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
 
+                 */
+
                 ComputeSession(
                     target = ComputeSessionIpc.SessionTarget(
                         domain,
-                        ipAddress,
-                        job.job.status.resolvedApplication?.invocation?.web?.port ?: 80,
-                        webSessionIsPublic = isPublic
+                        tunnel.hostnameOrIpAddress,
+                        tunnel.port,
+                        webSessionIsPublic = isPublic,
+                        useDnsForAddressLookup = !tunnel.hostnameOrIpAddress[0].isDigit()
                     )
                 )
             }
 
             InteractiveSessionType.VNC -> {
+                /*
                 val pod = k8.client.getResource(
                     Pod.serializer(),
                     KubernetesResourceLocator.common.pod.withNameAndNamespace(
@@ -245,12 +269,20 @@ class UCloudComputePlugin : ComputePlugin {
                 )
 
                 val ipAddress = pod.status?.podIP ?: throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
+                 */
+
+                val tunnel = runtime.openTunnel(
+                    job.job.id,
+                    job.rank,
+                    job.job.status.resolvedApplication?.invocation?.vnc?.port ?: 5900
+                )
 
                 ComputeSession(
                     target = ComputeSessionIpc.SessionTarget(
                         "",
-                        ipAddress,
-                        job.job.status.resolvedApplication?.invocation?.vnc?.port ?: 5900
+                        tunnel.hostnameOrIpAddress,
+                        tunnel.port,
+                        useDnsForAddressLookup = !tunnel.hostnameOrIpAddress[0].isDigit()
                     )
                 )
             }
@@ -347,6 +379,9 @@ class UCloudPublicIPPlugin : PublicIPPlugin {
     private lateinit var pluginConfig: ConfigSchema.Plugins.PublicIPs.UCloud
     private lateinit var ipMounter: FeaturePublicIP
     private lateinit var firewall: FeatureFirewall
+
+    override fun supportsRealUserMode(): Boolean = false
+    override fun supportsServiceUserMode(): Boolean = true
 
     override fun configure(config: ConfigSchema.Plugins.PublicIPs) {
         pluginConfig = config as ConfigSchema.Plugins.PublicIPs.UCloud

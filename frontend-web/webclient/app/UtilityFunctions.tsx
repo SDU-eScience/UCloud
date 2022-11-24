@@ -1,8 +1,4 @@
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Notification} from "@/Notifications";
-import {History} from "history";
-import {ProjectName} from "@/Project";
-import {getStoredProject} from "@/Project/Redux";
 import {JWT} from "@/Authentication/lib";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useEffect, useState} from "react";
@@ -203,7 +199,7 @@ export function extractErrorCode(e: unknown): number {
     if (typeof e === "object") {
         if (e != null && "request" in e) {
             const req = e["request"];
-            if ("status" in req) {
+            if (hasStatus(req)) {
                 const status = req.status;
                 if (typeof status === "number") {
                     return status;
@@ -213,6 +209,10 @@ export function extractErrorCode(e: unknown): number {
     }
 
     return 500;
+}
+
+function hasStatus(req: unknown): req is {status: any} {
+    return "status" in (req as any);
 }
 
 export function extractErrorMessage(

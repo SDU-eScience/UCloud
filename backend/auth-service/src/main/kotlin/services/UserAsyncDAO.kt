@@ -19,8 +19,7 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
+import dk.sdu.cloud.service.timestampToLocalDateTime
 
 data class HashedPasswordAndSalt(val hashedPassword: ByteArray, val salt: ByteArray)
 data class UserIdAndName(val userId: String, val firstNames: String, val lastName: String)
@@ -450,8 +449,8 @@ class UserAsyncDAO(
                             set(PrincipalTable.type, USERTYPE.WAYF.name)
                             set(PrincipalTable.id, principal.id)
                             set(PrincipalTable.role, principal.role.toString())
-                            set(PrincipalTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
-                            set(PrincipalTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                            set(PrincipalTable.createdAt, timestampToLocalDateTime(Time.now()))
+                            set(PrincipalTable.modifiedAt, timestampToLocalDateTime(Time.now()))
                             set(PrincipalTable.uid, principal.uid)
                             set(PrincipalTable.firstNames, principal.firstNames)
                             set(PrincipalTable.lastName, principal.lastName)
@@ -468,8 +467,8 @@ class UserAsyncDAO(
                             set(PrincipalTable.type, USERTYPE.PASSWORD.name)
                             set(PrincipalTable.id, principal.id)
                             set(PrincipalTable.role, principal.role.toString())
-                            set(PrincipalTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
-                            set(PrincipalTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                            set(PrincipalTable.createdAt, timestampToLocalDateTime(Time.now()))
+                            set(PrincipalTable.modifiedAt, timestampToLocalDateTime(Time.now()))
                             set(PrincipalTable.title, principal.title)
                             set(PrincipalTable.firstNames, principal.firstNames)
                             set(PrincipalTable.lastName, principal.lastName)
@@ -488,8 +487,8 @@ class UserAsyncDAO(
                             set(PrincipalTable.type, USERTYPE.SERVICE.name)
                             set(PrincipalTable.id, principal.id)
                             set(PrincipalTable.role, principal.role.toString())
-                            set(PrincipalTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
-                            set(PrincipalTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                            set(PrincipalTable.createdAt, timestampToLocalDateTime(Time.now()))
+                            set(PrincipalTable.modifiedAt, timestampToLocalDateTime(Time.now()))
                             set(PrincipalTable.uid, principal.uid)
                         }
                     else -> {

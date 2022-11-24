@@ -3,12 +3,12 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {LoadingMainContainer} from "@/MainContainer/MainContainer";
 import {useCallback} from "react";
 import * as React from "react";
-import {RouteComponentProps} from "react-router";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Markdown} from "@/ui-components";
 import styled from "styled-components";
 import {addStandardDialog} from "@/UtilityComponents";
 import {initializeResources} from "@/Services/ResourceInit";
+import {useNavigate} from "react-router";
 
 function fetchSla(): APICallParameters {
     return {
@@ -38,21 +38,22 @@ const Container = styled.div`
     max-width: 1000px;
 `;
 
-const ServiceLicenseAgreement: React.FunctionComponent<RouteComponentProps> = props => {
+const ServiceLicenseAgreement: React.FunctionComponent = () => {
     const [sla] = useCloudAPI<ServiceAgreementText>(fetchSla(), {version: 0, text: ""});
+    const navigate = useNavigate();
     const [commandLoading, invokeCommand] = useCloudCommand();
     const onAccept = useCallback(async () => {
         try {
             await invokeCommand(acceptSla(sla.data.version));
             await Client.invalidateAccessToken();
             initializeResources()
-            props.history.push("/");
+            navigate("/");
         } catch (res) {
             const response = res.response;
             const why: string = response?.why ?? "Error while attempting to accept agreement";
             snackbarStore.addFailure(why, false);
         }
-    }, [sla, invokeCommand, props.history]);
+    }, [sla, invokeCommand, navigate]);
 
     return (
         <LoadingMainContainer

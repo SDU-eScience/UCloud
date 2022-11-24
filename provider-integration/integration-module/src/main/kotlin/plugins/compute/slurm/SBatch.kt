@@ -8,6 +8,7 @@ import dk.sdu.cloud.app.store.api.ApplicationType
 import dk.sdu.cloud.app.store.api.ArgumentBuilder
 import dk.sdu.cloud.app.store.api.BooleanFlagParameter
 import dk.sdu.cloud.app.store.api.EnvironmentVariableParameter
+import dk.sdu.cloud.app.store.api.InvocationParameter
 import dk.sdu.cloud.app.store.api.InvocationParameterContext
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.ToolBackend
@@ -58,8 +59,16 @@ suspend fun createSbatchFile(
         }.toMap()
     val argBuilder = OurArgBuilder(PathConverter(ctx))
     var cliInvocation = app.invocation.flatMap { parameter ->
-        parameter.buildInvocationList(givenParameters, builder = argBuilder)
-    }.joinToString(separator = " ") { "'" + escapeBash(it) + "'" }
+        when (parameter) {
+            is EnvironmentVariableParameter -> {
+                listOf("$" + parameter.variable)
+            }
+            else -> {
+                parameter.buildInvocationList(givenParameters, builder = argBuilder).map { "'" + escapeBash(it) + "'" }
+            }
+        }
+
+    }.joinToString(separator = " ")
 
     val memoryAllocation = if (pluginConfig.useFakeMemoryAllocations) {
         "50M"

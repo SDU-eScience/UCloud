@@ -1,0 +1,171 @@
+html {
+    font-family: 'IBM Plex Sans', sans-serif;
+    margin: 0;
+}
+
+body {
+    margin: 0;
+    width: 100vw;
+    overflow-x: hidden;
+    opacity: 0;
+}
+
+body.ready {
+    opacity: 1;
+    display: grid;
+    grid-template-areas:
+        'header header header header header header'
+        'menu main main main main article-toc';
+    grid-template-columns: 300px auto auto auto auto 300px;
+    overflow: hidden;
+}
+
+doc-header {
+    grid-area: header;
+    z-index: 100;
+}
+
+doc-toc {
+    grid-area: menu;
+}
+
+doc-article-toc {
+    grid-area: article-toc;
+}
+
+.content-wrapper {
+    grid-area: main;
+}
+
+code {
+    font-family: 'JetBrains Mono', monospace;
+    background-color: #e1e3e5;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.summary {
+    color: rgb(100, 100, 100);
+    font-style: italic;
+    font-size: 120%;
+}
+
+th ul, td ul {
+    margin: 0;
+}
+
+li {
+    margin: 16px;
+}
+
+table {
+    border: 1px solid black;
+    text-align: left;
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0;
+}
+
+tr {
+    border: 1px solid black;
+    vertical-align: top;
+}
+
+th, td {
+    border: 1px solid black;
+    padding: 8px;
+}
+
+figcaption::before {
+    content: "Figure: ";
+    font-weight: bold;
+}
+
+figcaption {
+    text-align: left;
+}
+
+a {
+    color: #006aff;
+}
+
+input[type=checkbox] {
+    height: 24px;
+    width: 24px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+doc-todo {
+    padding: 16px;
+    display: block;
+    text-align: center;
+    width: 100%;
+    background: red;
+    color: white;
+}
+
+@media screen and (max-width: 900px) {
+    body.ready {
+        grid-template-areas:
+            'header'
+            'menu'
+            'main';
+        grid-template-columns: auto;
+    }
+
+    doc-toc {
+        width: 100%;
+    }
+
+    doc-article-toc {
+        display: none;
+    }
+
+    .content-wrapper {
+        height: calc(100vh - 64px - 48px) !important;
+    }
+}
+
+@media screen and (min-width: 901px) and (max-width: 1100px) {
+    body.ready {
+        grid-template-areas:
+            'header header'
+            'menu main';
+        grid-template-columns: 300px auto;
+    }
+
+    doc-article-toc {
+        display: none;
+    }
+}
+
+.content-wrapper {
+    width: 100%;
+    height: calc(100vh - 64px);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.content {
+    max-width: 1200px;
+    font-size: 19px;
+    line-height: 1.5;
+    margin-left: 32px;
+    margin-right: 32px;
+    margin-bottom: 32px;
+}
+
+h1 {
+    font-size: 2rem;
+}
+
+h2 {
+    font-size: 1.5rem;
+}
+
+h3 {
+    font-size: 1.3rem;
+}

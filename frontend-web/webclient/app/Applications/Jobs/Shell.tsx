@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useXTerm} from "@/Applications/Jobs/xterm";
-import {WSFactory} from "@/Authentication/HttpClientInstance";
+import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {useEffect, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {useParams} from "react-router";
@@ -10,10 +10,13 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
 import {bulkRequestOf, bulkResponseOf} from "@/DefaultObjects";
 import {default as JobsApi} from "@/UCloud/JobsApi";
+import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 
 export const Shell: React.FunctionComponent = () => {
     const {termRef, terminal, fitAddon} = useXTerm();
-    const {jobId, rank} = useParams<{jobId: string, rank: string}>();
+    const params = useParams<{jobId: string, rank: string}>();
+    const jobId = params.jobId!;
+    const rank = params.rank!;
     const [sessionResp, openSession] = useCloudAPI(
         JobsApi.openInteractiveSession(
             bulkRequestOf({id: jobId, rank: parseInt(rank, 10), sessionType: "SHELL"})
@@ -44,7 +47,7 @@ export const Shell: React.FunctionComponent = () => {
         setClosed(false);
 
         const wsConnection = WSFactory.open(
-            `${sessionWithProvider.providerDomain}/ucloud/${sessionWithProvider.providerId}/websocket?session=${sessionIdentifier}`,
+                `${sessionWithProvider.providerDomain}/ucloud/${sessionWithProvider.providerId}/websocket?session=${sessionIdentifier}&usernameHint=${b64EncodeUnicode(Client.activeUsername!)}`,
             {
                 reconnect: false,
                 includeAuthentication: false,

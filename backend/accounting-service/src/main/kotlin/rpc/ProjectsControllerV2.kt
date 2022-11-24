@@ -1,11 +1,14 @@
 package dk.sdu.cloud.accounting.rpc
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.accounting.services.projects.v2.*
 import dk.sdu.cloud.calls.BulkResponse
+import io.ktor.server.request.*
 
 class ProjectsControllerV2(
     private val projects: ProjectService,
@@ -21,7 +24,16 @@ class ProjectsControllerV2(
         }
 
         implement(Projects.create) {
-            ok(projects.create(actorAndProject, request))
+            val pi = if ((actorAndProject.actor as? Actor.User)?.principal?.role == Role.ADMIN) {
+                var result: String? = null
+                withContext<HttpCall> {
+                    result = ctx.call.request.header("principal-investigator")
+                }
+                result
+            } else {
+                null
+            }
+            ok(projects.create(actorAndProject, request, piOverride = pi, addSelfWithPiOverride = true))
         }
 
         implement(Projects.archive) {
@@ -34,6 +46,10 @@ class ProjectsControllerV2(
 
         implement(Projects.toggleFavorite) {
             ok(projects.toggleFavorite(actorAndProject, request))
+        }
+
+        implement(Projects.renameProject) {
+            ok(projects.renameProject(actorAndProject, request))
         }
 
         implement(Projects.updateSettings) {

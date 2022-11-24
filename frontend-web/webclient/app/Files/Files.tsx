@@ -4,7 +4,7 @@ import {api as FilesApi, UFile, UFileIncludeFlags} from "@/UCloud/FilesApi";
 import {ResourceBrowse} from "@/Resource/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
 import {ResourceRouter} from "@/Resource/Router";
-import {useHistory, useLocation} from "react-router";
+import {NavigateFunction, useLocation, useNavigate} from "react-router";
 import {buildQueryString, getQueryParam, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
@@ -19,7 +19,6 @@ import {
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
-import * as H from "history";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {Box, Button, Flex, Icon, Link, List, Text} from "@/ui-components";
 import {PageV2} from "@/UCloud";
@@ -28,14 +27,14 @@ import styled from "styled-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
-import {UserInProject, ListProjectsRequest, listProjects} from "@/Project";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {SyncthingConfig} from "@/Syncthing/api";
 import * as Sync from "@/Syncthing/api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
-import {setLoading, useLoading} from "@/Navigation/Redux/StatusActions";
+import {setLoading} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
+import ProjectAPI, {Project} from "@/Project/Api";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -53,7 +52,7 @@ export const FilesBrowse: React.FunctionComponent<{
     const lightTheme = isLightThemeStored();
 
     const location = useLocation();
-    const history = useHistory();
+    const navigate = useNavigate();
     const dispatch = useDispatch();
 
     const browseType = props.browseType ?? BrowseType.MainContent;
@@ -69,8 +68,8 @@ export const FilesBrowse: React.FunctionComponent<{
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
     const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);
     const [drives, setDrives] = useState<PageV2<FileCollection>>(emptyPageV2);
-    const [projects, fetchProjects] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
-        listProjects({page: 0, itemsPerPage: 25, archived: false}),
+    const [projects] = useCloudAPI<PageV2<Project>>(
+        ProjectAPI.browse({itemsPerPage: 25, includeArchived: false}),
         emptyPage
     );
 
@@ -107,17 +106,17 @@ export const FilesBrowse: React.FunctionComponent<{
         []
     );
 
-    const navigateToPath = useCallback((history: ReturnType<typeof useHistory>, path: string) => {
+    const navigateToPath = useCallback((navigate: NavigateFunction, path: string) => {
         if (browseType === BrowseType.Embedded && !props.forceNavigationToPage) {
             setPathFromState(path);
         } else {
-            history.push(buildQueryString("/files", {path}));
+            navigate(buildQueryString("/files", {path}));
         }
     }, [browseType, props.forceNavigationToPage]);
 
-    const navigateToFile = useCallback((history: ReturnType<typeof useHistory>, file: UFile): "properties" | void => {
+    const navigateToFile = useCallback((navigate: NavigateFunction, file: UFile): "properties" | void => {
         if (file.status.type === "DIRECTORY") {
-            navigateToPath(history, file.id);
+            navigateToPath(navigate, file.id);
         } else {
             return "properties";
         }
@@ -251,7 +250,7 @@ export const FilesBrowse: React.FunctionComponent<{
     useEffect(() => {
         if (!props.isSearch) return;
         if (!searchContext && uploadPath) {
-            history.replace(`${location.pathname}${location.search}&searchContext=${encodeURIComponent(uploadPath)}`);
+            navigate(`${location.pathname}${location.search}&searchContext=${encodeURIComponent(uploadPath)}`, {replace: true});
         }
     }, [props.isSearch, location.search, location.pathname]);
 
@@ -324,14 +323,11 @@ export const FilesBrowse: React.FunctionComponent<{
         return <Box backgroundColor={getCssVar("white")}>
             {browseType !== BrowseType.Embedded ? null : <Flex>
                 <DriveDropdown iconName="projects">
-                    <ListV1
+                    <ListV2
                         loading={projects.loading}
-                        onPageChanged={newPage => fetchProjects(listProjects({
-                            itemsPerPage: projects.data.itemsPerPage,
-                            page: newPage
-                        }))}
+                        onLoadMore={() => ProjectAPI.browse({itemsPerPage: 25, includeArchived: false, next: projects.data.next})}
                         page={projects.data}
-                        pageRenderer={page => (
+                        pageRenderer={items => (
                             <>
                                 <List childPadding={"8px"} bordered={false}>
                                     <DriveInDropdown
@@ -340,13 +336,13 @@ export const FilesBrowse: React.FunctionComponent<{
                                     >
                                         My Workspace
                                     </DriveInDropdown>
-                                    {page.items.filter(it => it.projectId !== localActiveProject).map(project => (
+                                    {items.filter(it => it.id !== localActiveProject).map(project => (
                                         <DriveInDropdown
-                                            key={project.projectId}
+                                            key={project.id}
                                             className="expandable-row-child"
-                                            onClick={() => selectLocalProject(project.projectId)}
+                                            onClick={() => selectLocalProject(project.id)}
                                         >
-                                            {project.title}
+                                            {project.specification.title}
                                         </DriveInDropdown>
 
                                     ))}
@@ -356,7 +352,7 @@ export const FilesBrowse: React.FunctionComponent<{
                     />
                 </DriveDropdown>
                 <Text fontSize="25px">
-                    {localActiveProject === "" ? "My Workspace" : (projects.data.items.find(it => it.projectId === localActiveProject)?.title ?? "")}
+                    {localActiveProject === "" ? "My Workspace" : (projects.data.items.find(it => it.id === localActiveProject)?.specification.title ?? "")}
                 </Text>
             </Flex>}
             <Flex>
@@ -375,7 +371,7 @@ export const FilesBrowse: React.FunctionComponent<{
                                     <DriveInDropdown
                                         key={drive.id}
                                         className="expandable-row-child"
-                                        onClick={() => navigateToPath(history, `/${drive.id}`)}
+                                        onClick={() => navigateToPath(navigate, `/${drive.id}`)}
                                     >
                                         {drive.specification?.title}
                                     </DriveInDropdown>
@@ -390,7 +386,7 @@ export const FilesBrowse: React.FunctionComponent<{
                         <span data-component={"crumb"} key={it} test-tag={it} title={it}
                             onClick={() => {
                                 navigateToPath(
-                                    history,
+                                    navigate,
                                     "/" + joinToString(components.slice(0, idx + 1), "/")
                                 );
                             }}
@@ -458,7 +454,7 @@ const Router: React.FunctionComponent = () => {
     />;
 };
 
-const DriveDropdown: React.FunctionComponent<{iconName: "hdd" | "projects"}> = props => {
+const DriveDropdown: React.FunctionComponent<{iconName: "hdd" | "projects"; children: React.ReactNode}> = props => {
     return (
         <ClickableDropdown
             colorOnHover={false}

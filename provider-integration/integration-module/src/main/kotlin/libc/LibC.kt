@@ -59,6 +59,7 @@ class LibC {
 
     external fun createAndForkPty(command: Array<String>, env: Array<String>): Int
     external fun resizePty(masterFd: Int, cols: Int, rows: Int): Int
+    external fun umask(mask: Int): Int
 
     companion object {
         init {

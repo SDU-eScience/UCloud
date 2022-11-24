@@ -13,8 +13,7 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
+import java.time.LocalDateTime
 import java.util.*
 
 data class Subscription(
@@ -40,7 +39,7 @@ class SubscriptionDao {
                 set(SubscriptionsTable.hostname, hostname)
                 set(SubscriptionsTable.port, port)
                 set(SubscriptionsTable.username, username)
-                set(SubscriptionsTable.lastPing, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                set(SubscriptionsTable.lastPing, LocalDateTime.now())
             }
             id
         }

@@ -7,8 +7,8 @@ import dk.sdu.cloud.news.api.NewsPost
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.*
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
+import dk.sdu.cloud.service.timestampToLocalDateTime
+import dk.sdu.cloud.service.toTimestamp
 
 object NewsTable : SQLTable("news") {
     val id = long("id", notNull = true)
@@ -41,8 +41,8 @@ class NewsService {
                 set(NewsTable.subtitle, subtitle)
                 set(NewsTable.body, body)
                 set(NewsTable.postedBy, postedBy)
-                set(NewsTable.showFrom, LocalDateTime(showFrom, DateTimeZone.UTC))
-                set(NewsTable.hideFrom, if (hideFrom != null) LocalDateTime(hideFrom, DateTimeZone.UTC) else null)
+                set(NewsTable.showFrom, timestampToLocalDateTime(showFrom))
+                set(NewsTable.hideFrom, if (hideFrom != null) timestampToLocalDateTime(hideFrom) else null)
                 set(NewsTable.hidden, false)
                 set(NewsTable.category, category)
             }
@@ -66,8 +66,8 @@ class NewsService {
                     setParameter("title", title)
                     setParameter("subtitle", subtitle)
                     setParameter("body", body)
-                    setParameter("show_from", LocalDateTime(showFrom, DateTimeZone.UTC))
-                    setParameter("hide_from", if (hideFrom != null) LocalDateTime(hideFrom, DateTimeZone.UTC) else null)
+                    setParameter("show_from", timestampToLocalDateTime(showFrom))
+                    setParameter("hide_from", if (hideFrom != null) timestampToLocalDateTime(hideFrom) else null)
                     setParameter("category", category)
                 },
                 """
@@ -199,8 +199,8 @@ fun RowData.toNewsPost(): NewsPost {
         subtitle = getField(NewsTable.subtitle),
         body = getField(NewsTable.body),
         postedBy = getField(NewsTable.postedBy),
-        showFrom = getField(NewsTable.showFrom).toDateTime().millis,
-        hideFrom = getFieldNullable(NewsTable.hideFrom)?.let { it.toDateTime().millis },
+        showFrom = getField(NewsTable.showFrom).toTimestamp(),
+        hideFrom = getFieldNullable(NewsTable.hideFrom)?.toTimestamp(),
         hidden = getField(NewsTable.hidden),
         category = getField(NewsTable.category)
     )

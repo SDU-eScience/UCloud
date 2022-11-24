@@ -7,15 +7,14 @@ import {
     grantApplicationFilterPrettify,
 } from "@/Project/Grant/index";
 import {emptyPage} from "@/DefaultObjects";
-import {useProjectId, useProjectManagementStatus} from "@/Project";
 import * as Pagination from "@/Pagination";
 import {ListRow, ListRowStat} from "@/ui-components/List";
-import {Flex, List, Text, Truncate, VerticalButtonGroup} from "@/ui-components";
+import {Flex, List, VerticalButtonGroup} from "@/ui-components";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {dateToString} from "@/Utilities/DateUtilities";
 import Icon, {IconName} from "@/ui-components/Icon";
@@ -26,14 +25,15 @@ import {EnumFilter, ResourceFilter} from "@/Resource/Filter";
 import {BrowseType} from "@/Resource/BrowseType";
 import {browseGrantApplications, GrantApplication, State} from "@/Project/Grant/GrantApplicationTypes";
 import {PageV2} from "@/UCloud";
+import {useProjectFromParams} from "../Api";
 
-export const GrantApplications: React.FunctionComponent<{ ingoing: boolean }> = (props) => {
-    const projectId = useProjectId();
+export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (props) => {
     const [scrollGeneration, setScrollGeneration] = useState(0);
     const [applications, fetchApplications] = useCloudAPI<PageV2<GrantApplication>>(
         {noop: true},
         emptyPage
     );
+
 
     const [filters, setFilters] = useState<Record<string, string>>({});
     const baseName = props.ingoing ? "Ingoing" : "Outgoing";
@@ -52,14 +52,20 @@ export const GrantApplications: React.FunctionComponent<{ ingoing: boolean }> = 
 
     useTitle(`${baseName} Applications`);
 
+    const paramProject = useProjectFromParams(`${baseName} Applications`);
+    const projectIdToUse = !paramProject.isPersonalWorkspace ? paramProject.projectId : undefined;
+
     useEffect(() => {
         setScrollGeneration(prev => prev + 1);
-        fetchApplications(browseGrantApplications({
-            includeIngoingApplications: props.ingoing,
-            includeOutgoingApplications: !props.ingoing,
-            itemsPerPage: 50, filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.ACTIVE
-        }));
-    }, [projectId, filters]);
+        fetchApplications({
+            ...browseGrantApplications({
+                includeIngoingApplications: props.ingoing,
+                includeOutgoingApplications: !props.ingoing,
+                itemsPerPage: 50,
+                filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.ACTIVE
+            }), projectOverride: projectIdToUse
+        });
+    }, [projectIdToUse, filters]);
 
     const loadMore = useCallback(() => {
         fetchApplications(browseGrantApplications({
@@ -85,7 +91,11 @@ export const GrantApplications: React.FunctionComponent<{ ingoing: boolean }> = 
     );
 
     return <MainContainer
-        header={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: `${baseName} Applications`}]} />}
+        header={<ProjectBreadcrumbs
+            allowPersonalProject={false}
+            omitActiveProject
+            crumbs={paramProject.breadcrumbs}
+        />}
         sidebar={<VerticalButtonGroup>
             <ResourceFilter
                 browseType={BrowseType.MainContent}
@@ -116,7 +126,7 @@ export const GrantApplicationList: React.FunctionComponent<{
     applications: GrantApplication[],
     slim?: boolean
 }> = ({applications, slim = false}) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const avatars = useAvatars();
     useEffect(() => {
         avatars.updateCache(applications.map(it => it.createdBy));
@@ -144,7 +154,7 @@ export const GrantApplicationList: React.FunctionComponent<{
 
                 return <ListRow
                     key={app.id}
-                    navigate={() => history.push(`/project/grants/view/${app.id}`)}
+                    navigate={() => navigate(`/project/grants/view/${app.id}`)}
                     icon={
                         slim ? null : (
                             <UserAvatar

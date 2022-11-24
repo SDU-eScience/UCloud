@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Getting Started - UCloud/IM Documentation</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="/style.css">
+
+    <style>
+        .launcher-steps > li > ul > li {
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body class="content">
+    <section>
+        <h1>Getting Started</h1>
+        <div class="summary">
+            First steps to becoming a UCloud service provider.
+        </div>
+    </section>
+
+    <section>
+        <h2>Goal of this guide</h2>
+        <p>
+            In this guide, we will guide you through how to run your own local UCloud instance and connecting an example
+            provider to it. We will explain some of the relevant concepts, which are also needed when you intend to run
+            a production ready provider.
+        </p>
+
+        <p>
+            If you have never used UCloud before, then we highly recommend that you familiarize yourself with some of 
+            the basics. You can find a number of video demonstrations 
+            <a href="https://docs.cloud.sdu.dk/tutorials/tutorial1.html" target="_blank">here</a>.
+        </p>
+    </section>
+
+    <section>
+        <h2>Preparing your machine</h2>
+
+        <p>
+            The following is required of your local machine:
+
+            <ul>
+                <li>Your machine should run a recent version of either Linux or macOS</li>
+                <li>You must have <code>docker</code> and docker compose installed</li>
+                <li>You must be able to use <code>docker</code> from the command-line without sudo privileges</li>
+                <li>You must have <code>git</code>installed</li>
+                <li>You must have <code>javac</code> installed (<a href="https://sdkman.io/" target="_blank">SDKMAN</a> is a useful tool for installing Java)</li>
+            </ul>
+        </p>
+
+        <p>
+            You should now clone the UCloud repository:
+
+            <doc-snippet>
+                git clone https://github.com/sdu-escience/ucloud.git
+            </doc-snippet>
+        </p>
+
+        <h2>Installing and running UCloud</h2>
+
+        <p>
+            From the repository, start the <code>launcher</code> application:
+
+            <doc-snippet>
+                cd ucloud
+                ./launcher
+            </doc-snippet>
+        </p>
+
+        <p>
+            This application will guide you through the installation of UCloud and get you up and running. Once UCloud
+            has started, make sure to select the "Create provider..." item and install one of the providers. The
+            Kubernetes provider is a good first choice.
+        </p>
+
+        <p>
+            Below you can see a demonstration of how to use the launcher tool to install UCloud and the Kubernetes
+            provider.
+        </p>
+
+        <script id="asciicast-539738" src="https://asciinema.org/a/539738.js" async></script>
+
+        <p>
+            <i>
+                Note: The video shows the full duration, including quite a lot of compilation time. You might want to 
+                skip those parts of the video (00:20 until 03:55).
+            </i>
+        </p>
+
+        <h2>Understanding what the launcher tool does</h2>
+
+        <p>
+            The <code>./launcher</code> is a tool for installing UCloud for use in evaluation and development.
+            It will perform all the basic configuration and installation of all the components involved. This gives you
+            a functional system which you can explore and tweak with.
+        </p>
+
+        <p>
+            In the first section of the demonstration (until 04:00) UCloud/Core along with its dependencies are
+            installed. This leaves you with a fully function UCloud/Core system. However, UCloud/Core is itself not very
+            useful without any providers. All you can do in UCloud at this point is login, change your avatar and invite
+            a few friends to your project. But, you cannot consume any resources. All resources, regardless of type,
+            are in one way or another implemented by a provider. 
+        </p>
+
+        <p>
+            From 04:00 in the video, we create a Kubernetes provider. The exact same steps apply for any other 
+            provider type. This installation goes through quite a lot of steps, which we will try to summarize here:
+
+            <ol class="launcher-steps">
+                <li>
+                    A Kubernetes cluster is installed and started
+                    <ul>
+                        <li>Production env: This is your existing system.</li>
+                    </ul>
+                </li>
+                <li>
+                    A "server" is provisioned for the integration module and configured to use the K8 cluster
+                    <ul>
+                        <li>Production env: This is the server you control which runs the IM. For example: an HPC frontend.</li>
+                    </ul>
+                </li>
+                <li>
+                    The launcher registers the provider with UCloud/Core. This produces a refresh token for the provider 
+                    and a unique public key which UCloud/Core will use for all of its communication with the provider.
+                    <ul>
+                        <li>Production env: This is done by a UCloud administrator. Keys are securely exchanged 
+                            between UCloud admin and provider.</li>
+                    </ul>
+                </li>
+                <li>
+                    The IM server install the tokens, keys and relevant configuration
+                    <ul>
+                        <li>Production env: This takes place on the server running UCloud/IM. The rest of the 
+                            documentation explains how this process works.</li>
+                    </ul>
+                </li>
+                <li>The integration module starts and connects to UCloud/Core</li>
+                <li>
+                    The launcher initiates registration of the provider's product catalog
+                    <ul>
+                        <li>Production env: You can do this with <code>ucloud products register</code></li>
+                    </ul>
+                </li>
+                <li>
+                    The provider is restarted
+                    <ul>
+                        <li>Production env: This step is important, without it, UCloud/IM will not be able to use the 
+                            products.</li>
+                    </ul>
+                </li>
+                <li>
+                    A grant allocator is provisioned and given initial resources for the new provider
+                    <ul>
+                        <li>Production env: A UCloud administrator will do this for you based on your instructions.</li>
+                    </ul>
+                </li>
+            </ol>
+        </p>
+
+        <h2>Launcher troubleshooting</h2>
+
+        <p>
+            In case something goes wrong, the following troubleshooting steps can be useful to reset your environment:
+
+            <ul>
+                <li>Try to delete the <code>.compose/$envName</code> and <code>.compose/current.txt</code> from your local repository</li>
+                <li>If using the remote option, try to delete the <code>ucloud</code> folder from the remote machine</li>
+                <li>Try to delete the <code>.compose</code> folder from your local repository</li>
+                <li>Manually look for docker volumes (<code>docker volume ls</code>) and docker containers (<code>docker ps -a</code>) and remove any which start with your environment name.</li>
+                <li>Remove the local repository and clone it again</li>
+            </ul>
+        </p>
+
+        <h2>Next steps</h2>
+
+        <p>
+            The remainder of this documentation will explore the different configuration files that UCloud/IM has.
+            It explains in detail how the different plugins affect UCloud/IM's functionality and how the different
+            pieces work.
+        </p>
+
+        <p>
+            We recommend that you initially skim through the different configuration sections and then pick one of the
+            tutorials from the sidebar which are relevant for you.
+        </p>
+
+    </section>
+
+    <script src="/app.js"></script>
+</body>
+
+</html>

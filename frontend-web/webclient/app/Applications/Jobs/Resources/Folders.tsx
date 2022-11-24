@@ -8,6 +8,8 @@ import {Widget} from "@/Applications/Jobs/Widgets";
 import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
 import {GrayBox} from "../Create";
+import Warning from "@/ui-components/Warning";
+import {anyFolderDuplicates} from "../Widgets/GenericFiles";
 
 export function folderResourceAllowed(app: UCloud.compute.Application): boolean {
     if (app.invocation.allowAdditionalMounts != null) return app.invocation.allowAdditionalMounts;
@@ -24,9 +26,11 @@ export const FolderResource: React.FunctionComponent<{
     application: UCloud.compute.Application;
     params: ApplicationParameter[];
     errors: Record<string, string>;
+    warning: string;
+    setWarning: (warning: string) => void;
     onAdd: () => void;
     onRemove: (id: string) => void;
-}> = ({application, params, errors, onAdd, onRemove}) => {
+}> = ({application, params, errors, onAdd, onRemove, warning, setWarning}) => {
     return !folderResourceAllowed(application) ? null : (
         <GrayBox>
             <Box>
@@ -34,9 +38,12 @@ export const FolderResource: React.FunctionComponent<{
                     <Box flexGrow={1}>
                         <Heading.h4>Select folders to use</Heading.h4>
                     </Box>
-
                     <Button type={"button"} ml={"5px"} lineHeight={"16px"} onClick={onAdd}>Add folder</Button>
                 </Flex>
+
+                <Box my="6px">
+                    <Warning warning={warning} clearWarning={() => setWarning("")} />
+                </Box>
 
                 <Box mb={8} mt={8}>
                     {params.length !== 0 ? (
@@ -75,8 +82,12 @@ export const FolderResource: React.FunctionComponent<{
                         <Widget
                             parameter={entry}
                             errors={errors}
+                            setWarning={setWarning}
                             onRemove={() => {
                                 onRemove(entry.name);
+                                if (!anyFolderDuplicates()) {
+                                    setWarning("");
+                                }
                             }}
                         />
                     </Box>

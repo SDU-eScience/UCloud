@@ -18,7 +18,7 @@ class ExtensionAllocationPlugin : AllocationPlugin {
     ): List<OnResourceAllocationResult> {
         val results = ArrayList<OnResourceAllocationResult>()
         for (notification in notifications) {
-            results.add(onAllocationTotal.invoke(pluginConfig.extensions.onAllocationTotal, notification))
+            results.add(onAllocationTotal.invoke(this, pluginConfig.extensions.onAllocationTotal, notification))
         }
         return results
     }
@@ -28,20 +28,20 @@ class ExtensionAllocationPlugin : AllocationPlugin {
     ): List<OnResourceAllocationResult> {
         val results = ArrayList<OnResourceAllocationResult>()
         for (notification in notifications) {
-            results.add(onAllocationSingle.invoke(pluginConfig.extensions.onAllocationSingle, notification))
+            results.add(onAllocationSingle.invoke(this, pluginConfig.extensions.onAllocationSingle, notification))
         }
         return results
     }
 
     override suspend fun PluginContext.onResourceSynchronizationTotal(notifications: List<AllocationNotificationTotal>) {
         for (notification in notifications) {
-            onSynchronizationTotal.invoke(pluginConfig.extensions.onSynchronizationTotal, notification)
+            onSynchronizationTotal.invoke(this, pluginConfig.extensions.onSynchronizationTotal, notification)
         }
     }
 
     override suspend fun PluginContext.onResourceSynchronizationSingle(notifications: List<AllocationNotificationSingle>) {
         for (notification in notifications) {
-            onSynchronizationSingle.invoke(pluginConfig.extensions.onSynchronizationSingle, notification)
+            onSynchronizationSingle.invoke(this, pluginConfig.extensions.onSynchronizationSingle, notification)
         }
     }
 

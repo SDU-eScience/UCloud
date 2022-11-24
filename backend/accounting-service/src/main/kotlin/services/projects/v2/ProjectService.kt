@@ -584,6 +584,7 @@ class ProjectService(
         request: BulkRequest<Project.Specification>,
         ctx: DBContext = db,
         piOverride: String? = null,
+        addSelfWithPiOverride: Boolean = false,
     ): BulkResponse<FindByStringId> {
         return ctx.withSession(remapExceptions = true) { session ->
             // NOTE(Dan): First we check if the actor is allowed to create _all_ of the requested projects. The system
@@ -680,6 +681,19 @@ class ProjectService(
                 """
             )
 
+            if (piOverride != null && addSelfWithPiOverride) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("ids", ids)
+                        setParameter("username", actor.safeUsername())
+                    },
+                    """
+                        insert into project.project_members (created_at, modified_at, role, username, project_id) 
+                        select now(), now(), 'ADMIN', :username, unnest(:ids::text[])
+                    """
+                )
+            }
+
             projectCache.invalidate(actor.safeUsername())
 
             ids.forEach { locateOrCreateAllUsersGroup(it, session) }
@@ -760,6 +774,31 @@ class ProjectService(
             )
 
             updateHandlers.forEach { it(projects) }
+        }
+    }
+
+    suspend fun renameProject(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<RenameProjectRequest>,
+        ctx: DBContext = db,
+    ) {
+        request.items.forEach {
+            if (it.newTitle.trim().length != it.newTitle.length) {
+                throw RPCException("Project names cannot start or end with whitespace.", HttpStatusCode.BadRequest)
+            }
+        }
+
+        ctx.withSession(remapExceptions = true) { session ->
+            requireAdmin(actorAndProject.actor, request.items.map { it.id }, session)
+            request.items.forEach {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("projectId", it.id)
+                        setParameter("newTitle", it.newTitle)
+                    },
+                    """update project.projects set title = :newTitle where id = :projectId"""
+                )
+            }
         }
     }
 
@@ -1151,7 +1190,8 @@ class ProjectService(
                     ActorAndProject(Actor.System, null),
                     BulkRequest(usersAndProjects.map { GroupMember(it.first, group) }),
                     ctx = session,
-                    dispatchUpdate = false
+                    dispatchUpdate = false,
+                    allowNoChange = true
                 )
             }
 
@@ -1350,6 +1390,7 @@ class ProjectService(
             // the username of the successful changes, such that we can send the correct notifications.
             val updatedUsers = session.sendPreparedStatement(
                 {
+                    setParameter("project", project)
                     requestItems.split {
                         into("users") { it.username }
                         into("roles") { it.role.name }
@@ -1364,7 +1405,9 @@ class ProjectService(
                     update project.project_members
                     set role = new_role
                     from changes
-                    where username = user_to_update
+                    where
+                        username = user_to_update and
+                        project_id = :project
                     returning username
                 """
             ).rows.map { it.getString(0)!! }
@@ -1657,6 +1700,7 @@ class ProjectService(
         request: BulkRequest<GroupMember>,
         ctx: DBContext = db,
         dispatchUpdate: Boolean = true,
+        allowNoChange: Boolean = false
     ) {
         val (actor) = actorAndProject
         ctx.withSession { session ->
@@ -1691,7 +1735,7 @@ class ProjectService(
                 """
             ).rowsAffected > 0
 
-            if (!success) {
+            if (!success && !allowNoChange) {
                 throw RPCException(
                     "Unable to add member to group. Maybe they are no longer in the project? " +
                         "Try refreshing or contact support for assistance.",
@@ -1763,7 +1807,7 @@ class ProjectService(
             ).rows.map { it.getString(0)!! to it.getString(1)!! }
 
             if (affectedProjectsAndGroupTitles.any { it.second == ALL_USERS_GROUP_TITLE }) {
-                 throw RPCException(
+                throw RPCException(
                     "The group '$ALL_USERS_GROUP_TITLE' is special. You cannot remove a member from this group.",
                     HttpStatusCode.BadRequest
                 )

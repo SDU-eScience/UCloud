@@ -1,36 +1,19 @@
 import * as React from "react";
-import {Box, Image} from "@/ui-components";
-import HippoLogo from "@/Assets/Providers/hippo.png";
-import PuhuriLogo from "@/Assets/Providers/puhuri.png";
-import SophiaLogo from "@/Assets/Providers/sophia.png";
-import UCloudLogo from "@/Assets/Providers/ucloud.png";
+import {Image} from "@/ui-components";
 import styled from "styled-components";
+import ProviderInfo from "@/Assets/provider_info.json";
 
-export const ProviderLogo: React.FunctionComponent<{ providerId: string; size: number; }> = ({providerId, size}) => {
-    let logo: any = null;
-    switch (providerId) {
-        case "hippo":
-            logo = HippoLogo;
-            break;
-        case "sophia":
-            logo = SophiaLogo;
-            break;
-        case "puhuri":
-            logo = PuhuriLogo;
-            break;
-        case "ucloud":
-            logo = UCloudLogo;
-            break;
-    }
-
+export const ProviderLogo: React.FunctionComponent<{providerId: string; size: number;}> = ({providerId, size}) => {
+    const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
     return <LogoWrapper size={size}>
-        {!logo ? (providerId[0] ?? "?").toUpperCase() : <Image src={logo} />}
+        {!myInfo ? (providerId[0] ?? "?").toUpperCase() : <Image src={`/Images/${myInfo.logo}`} />}
     </LogoWrapper>
 };
 
 const LogoWrapper = styled.div<{size: number}>`
   --wrapper-size: ${p => p.size}px;
-  --logo-padding: 5px;
+  --border-radius: 8px;
+  --logo-padding: calc(var(--wrapper-size) / 10);
   
   display: flex;
   align-items: center;
@@ -38,14 +21,14 @@ const LogoWrapper = styled.div<{size: number}>`
   color: white;
   font-size: calc(var(--wrapper-size) - 8px);
   
-  padding: var(--logo-padding);
-  border-radius: calc(var(--logo-padding) * 1.5);
+  border-radius: var(--border-radius);
   background-color: var(--blue);
   width: var(--wrapper-size);
   height: var(--wrapper-size);
   
   img {
-    width: calc(var(--wrapper-size) - var(--logo-padding));
+    padding: var(--logo-padding);
+    max-width: calc(var(--wrapper-size) - var(--logo-padding));
     max-height: calc(var(--wrapper-size) - var(--logo-padding));
   }
 `;

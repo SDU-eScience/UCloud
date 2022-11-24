@@ -3,7 +3,7 @@ import * as React from "react";
 import {extensionFromPath, extensionTypeFromPath, isExtPreviewSupported} from "@/UtilityFunctions";
 import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
 import {Markdown} from "@/ui-components";
-import {api as FilesApi, FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
+import {api as FilesApi, FilesCreateDownloadResponseItem, normalizeDownloadEndpoint, UFile} from "@/UCloud/FilesApi";
 import {useEffect, useState} from "react";
 import {fileName} from "@/Utilities/FileUtilities";
 import {bulkRequestOf} from "@/DefaultObjects";
@@ -24,7 +24,6 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
 
     const fetchData = React.useCallback(async () => {
         const size = file.status.sizeInBytes;
-        console.log(size);
         if (file.status.type !== "FILE") return;
         if (!loading && isValidExtension && size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0) {
             try {
@@ -37,19 +36,21 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
                     setError("Unable to display preview. Try again later or with a different file.");
                     return;
                 }
-                const content = await fetch(downloadEndpoint);
+                const content = await fetch(normalizeDownloadEndpoint(downloadEndpoint));
                 switch (type) {
                     case "image":
                     case "audio":
                     case "video":
                     case "pdf":
                         setData(URL.createObjectURL(await content.blob()));
+                        setError(null);
                         break;
                     case "code":
                     case "text":
                     case "application":
                     case "markdown":
                         setData(await content.text());
+                        setError(null);
                         break;
                     default:
                         setError(`Preview not support for '${extensionFromPath(file.id)}'.`);
@@ -105,7 +106,7 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
             node = <div />
             break;
     }
-
+    
     if (error !== null) {
         node = <div>{error}</div>;
     }
