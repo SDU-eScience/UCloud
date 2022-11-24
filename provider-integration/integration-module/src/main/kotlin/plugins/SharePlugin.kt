@@ -49,7 +49,7 @@ abstract class SharePlugin : ResourcePlugin<Product.Storage, ShareSupport, Share
         // Do nothing
     }
 
-    final override suspend fun PluginContext.onAllocationCompleteInServerMode(notification: AllocationNotification) {
+    final override suspend fun PluginContext.onAllocationCompleteInServerModeTotal(notification: AllocationNotificationTotal) {
         // Do nothing
     }
 

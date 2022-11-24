@@ -18,23 +18,43 @@ sealed class OnResourceAllocationResult {
 }
 
 @Serializable
-data class AllocationNotification(
-    val balance: Long,
+data class AllocationNotificationSingle(
+    var balance: Long,
     val owner: ResourceOwnerWithId,
     val allocationId: String,
     val productCategory: String,
     val productType: ProductType,
 )
 
+@Serializable
+data class AllocationNotificationTotal(
+    var balance: Long,
+    val owner: ResourceOwnerWithId,
+    val productCategory: String,
+    val productType: ProductType,
+)
+
 interface AllocationPlugin : Plugin<ConfigSchema.Plugins.Allocations> {
-    suspend fun PluginContext.onResourceAllocation(
-        notifications: List<AllocationNotification>
+    suspend fun PluginContext.onResourceAllocationTotal(
+        notifications: List<AllocationNotificationTotal>
     ): List<OnResourceAllocationResult> {
         return notifications.map { OnResourceAllocationResult.ManageThroughUCloud }
     }
 
-    suspend fun PluginContext.onResourceSynchronization(
-        notifications: List<AllocationNotification>
+    suspend fun PluginContext.onResourceAllocationSingle(
+        notifications: List<AllocationNotificationSingle>
+    ): List<OnResourceAllocationResult> {
+        return notifications.map { OnResourceAllocationResult.ManageThroughUCloud }
+    }
+
+    suspend fun PluginContext.onResourceSynchronizationTotal(
+        notifications: List<AllocationNotificationTotal>
+    ) {
+        // Do nothing
+    }
+
+    suspend fun PluginContext.onResourceSynchronizationSingle(
+        notifications: List<AllocationNotificationSingle>
     ) {
         // Do nothing
     }

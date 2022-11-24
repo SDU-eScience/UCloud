@@ -9,15 +9,14 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.debug.*
+import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.IpcServer
 import dk.sdu.cloud.ipc.handler
-import dk.sdu.cloud.plugins.AllocationNotification
 import dk.sdu.cloud.plugins.AllocationPlugin
 import dk.sdu.cloud.plugins.OnResourceAllocationResult
 import dk.sdu.cloud.plugins.rpcClient
@@ -38,7 +37,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 @Serializable
@@ -298,69 +296,15 @@ class EventController(
 
         if (batch.responses.isEmpty()) return
 
-        val output = arrayOfNulls<OnResourceAllocationResult>(batch.responses.size)
-        val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, AllocationNotification>>>()
-
-        outer@ for ((idx, notification) in batch.responses.withIndex()) {
-            val combinedProviderSummary = Wallets.retrieveProviderSummary.call(
-                WalletsRetrieveProviderSummaryRequest(
-                    filterOwnerId = when (val owner = notification.owner) {
-                        is WalletOwner.User -> owner.username
-                        is WalletOwner.Project -> owner.projectId
-                    },
-                    filterOwnerIsProject = notification.owner is WalletOwner.Project,
-                    filterCategory = notification.category.name
-                ),
-                controllerContext.pluginContext.rpcClient
-            ).orThrow().items
-            for (providerSummary in combinedProviderSummary) {
-
-                val productType = providerSummary.productType
-
-                val list = notificationsByType[productType] ?: ArrayList()
-                notificationsByType[productType] = list
-                // TODO Should IM combine these?
-
-                list.add(Pair(idx, prepareAllocationNotification(providerSummary) ?: continue))
-            }
-        }
-
-        for ((type, list) in notificationsByType) {
-            val plugins = controllerContext.configuration.plugins
-            val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == type }?.value
-
-            with(controllerContext.pluginContext) {
-                if (allocationPlugin != null) {
-                    val response = with(allocationPlugin) {
-                        onResourceAllocation(list.map { it.second })
-                    }
-
-                    for ((request, pluginResponse) in list.zip(response)) {
-                        val (origIdx, _) = request
-                        output[origIdx] = pluginResponse
-                    }
-                }
-            }
-
-            for ((_, notification) in list) {
-                notifyPlugins(notification)
-            }
-        }
-
-        val allPlugin = controllerContext.configuration.plugins.allocations.entries.find { (t) ->
-            t == ConfigSchema.Plugins.AllocationsProductType.ALL
-        }?.value
-
-        allPlugin?.run {
-            with(controllerContext.pluginContext) {
-                onResourceAllocation(notificationsByType.entries.flatMap { (_, allocs) -> allocs.map { it.second } })
-            }
+        val singles = processAllocationsSingles(batch.responses)
+        val totals = processAllocationsTotals(batch.responses)
+        val combined = totals.mapIndexed { idx, value ->
+            value ?: singles[idx]
         }
 
         val items = ArrayList<DepositNotificationsMarkAsReadRequestItem>()
-        for ((index, res) in output.withIndex()) {
+        for ((index, res) in combined.withIndex()) {
             if (res == null) continue
-
             items.add(
                 DepositNotificationsMarkAsReadRequestItem(
                     batch.responses[index].id,
@@ -385,7 +329,135 @@ class EventController(
         )
     }
 
-    private suspend fun notifyPlugins(notification: AllocationNotification) {
+    private suspend fun processAllocationsSingles(notifications: List<DepositNotification>): Array<OnResourceAllocationResult?> {
+        val output = arrayOfNulls<OnResourceAllocationResult>(notifications.size)
+        val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, AllocationNotificationSingle>>>()
+
+        outer@ for ((idx, notification) in notifications.withIndex()) {
+            val combinedProviderSummary = Wallets.retrieveProviderSummary.call(
+                WalletsRetrieveProviderSummaryRequest(
+                    filterOwnerId = when (val owner = notification.owner) {
+                        is WalletOwner.User -> owner.username
+                        is WalletOwner.Project -> owner.projectId
+                    },
+                    filterOwnerIsProject = notification.owner is WalletOwner.Project,
+                    filterCategory = notification.category.name
+                ),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow().items
+            for (providerSummary in combinedProviderSummary) {
+                val productType = providerSummary.productType
+
+                val list = notificationsByType[productType] ?: ArrayList()
+                notificationsByType[productType] = list
+
+                list.add(Pair(idx, prepareAllocationNotificationSingle(providerSummary) ?: continue))
+            }
+        }
+
+        for ((type, list) in notificationsByType) {
+            val plugins = controllerContext.configuration.plugins
+            val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == type }?.value
+
+            with(controllerContext.pluginContext) {
+                if (allocationPlugin != null) {
+                    val response = with(allocationPlugin) {
+                        onResourceAllocationSingle(list.map { it.second })
+                    }
+
+                    for ((request, pluginResponse) in list.zip(response)) {
+                        val (origIdx, _) = request
+                        output[origIdx] = pluginResponse
+                    }
+                }
+            }
+
+            for ((_, notification) in list) {
+                notifyPlugins(notification)
+            }
+        }
+
+        val allPlugin = controllerContext.configuration.plugins.allocations.entries.find { (t) ->
+            t == ConfigSchema.Plugins.AllocationsProductType.ALL
+        }?.value
+
+        allPlugin?.run {
+            with(controllerContext.pluginContext) {
+                onResourceAllocationSingle(notificationsByType.entries.flatMap { (_, allocs) -> allocs.map { it.second } })
+            }
+        }
+
+        return output
+    }
+
+    private suspend fun processAllocationsTotals(notifications: List<DepositNotification>): Array<OnResourceAllocationResult?> {
+        val output = arrayOfNulls<OnResourceAllocationResult>(notifications.size)
+        val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, AllocationNotificationTotal>>>()
+        outer@ for ((idx, notification) in notifications.withIndex()) {
+            val combinedProviderSummary = Wallets.retrieveProviderSummary.call(
+                WalletsRetrieveProviderSummaryRequest(
+                    filterOwnerId = when (val owner = notification.owner) {
+                        is WalletOwner.User -> owner.username
+                        is WalletOwner.Project -> owner.projectId
+                    },
+                    filterOwnerIsProject = notification.owner is WalletOwner.Project,
+                    filterCategory = notification.category.name
+                ),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow().items
+            for (providerSummary in combinedProviderSummary) {
+                val productType = providerSummary.productType
+
+                val list = notificationsByType[productType] ?: ArrayList()
+                val newPair = Pair(idx, prepareAllocationNotificationTotal(providerSummary) ?: continue)
+                val existing = list.find { it.first == newPair.first && it.second.owner == newPair.second.owner && it.second.productCategory == newPair.second.productCategory }
+
+                if (existing != null) {
+                    existing.second.balance += newPair.second.balance
+                } else {
+                    list.add(newPair)
+                }
+
+                notificationsByType[productType] = list
+            }
+        }
+
+        for ((type, list) in notificationsByType) {
+            val plugins = controllerContext.configuration.plugins
+            val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == type }?.value
+
+            with(controllerContext.pluginContext) {
+                if (allocationPlugin != null) {
+                    val response = with(allocationPlugin) {
+                        onResourceAllocationTotal(list.map { it.second })
+                    }
+
+                    for ((request, pluginResponse) in list.zip(response)) {
+                        val (origIdx, _) = request
+                        output[origIdx] = pluginResponse
+                    }
+                }
+            }
+
+            for ((_, notification) in list) {
+                notifyPlugins(notification)
+            }
+        }
+
+        val allPlugin = controllerContext.configuration.plugins.allocations.entries.find { (t) ->
+            t == ConfigSchema.Plugins.AllocationsProductType.ALL
+        }?.value
+
+        allPlugin?.run {
+            with(controllerContext.pluginContext) {
+                onResourceAllocationTotal(notificationsByType.entries.flatMap { (_, allocs) -> allocs.map { it.second } })
+            }
+        }
+
+        return output
+    }
+
+    private suspend fun notifyPlugins(notification: AllocationNotificationTotal) {
         val plugins = controllerContext.configuration.plugins
         plugins.resourcePlugins().asSequence()
             .filter { plugin ->
@@ -394,7 +466,22 @@ class EventController(
             .forEach { plugin ->
                 with(controllerContext.pluginContext) {
                     with(plugin) {
-                        onAllocationCompleteInServerMode(notification)
+                        onAllocationCompleteInServerModeTotal(notification)
+                    }
+                }
+            }
+    }
+
+    private suspend fun notifyPlugins(notification: AllocationNotificationSingle) {
+        val plugins = controllerContext.configuration.plugins
+        plugins.resourcePlugins().asSequence()
+            .filter { plugin ->
+                plugin.productAllocation.any { it.category == notification.productCategory }
+            }
+            .forEach { plugin ->
+                with(controllerContext.pluginContext) {
+                    with(plugin) {
+                        onAllocationCompleteInServerModeSingle(notification)
                     }
                 }
             }
@@ -402,7 +489,9 @@ class EventController(
 
     private fun onConnectionComplete(ucloudId: String, localId: Int) {
         runBlocking {
-            val notifications = ArrayList<AllocationNotification>()
+            val notificationsTotal = HashMap<String, AllocationNotificationTotal>()
+            val notificationsSingle = ArrayList<AllocationNotificationSingle>()
+
             var next: String? = null
             while (true) {
                 val providerSummary = Wallets.retrieveProviderSummary.call(
@@ -416,8 +505,8 @@ class EventController(
                 ).orThrow()
 
                 for (summary in providerSummary.items) {
-                    notifications.add(
-                        AllocationNotification(
+                    notificationsSingle.add(
+                        AllocationNotificationSingle(
                             min(summary.maxUsableBalance, summary.maxPromisedBalance),
                             ResourceOwnerWithId.User(ucloudId, localId),
                             summary.id,
@@ -425,20 +514,40 @@ class EventController(
                             summary.productType,
                         )
                     )
+
+                    if (notificationsTotal[summary.id] != null) {
+                        val newBalance = notificationsTotal[summary.id]?.balance?.plus(
+                            min(
+                                summary.maxUsableBalance,
+                                summary.maxPromisedBalance
+                            )
+                        )
+
+                        notificationsTotal[summary.id]?.balance = (newBalance ?: notificationsTotal[summary.id]?.balance) as Long
+                    } else {
+                        notificationsTotal[summary.id] = AllocationNotificationTotal(
+                            min(summary.maxUsableBalance, summary.maxPromisedBalance),
+                            ResourceOwnerWithId.User(ucloudId, localId),
+                            summary.categoryId.name,
+                            summary.productType,
+                        )
+                    }
+
+
                 }
 
                 next = providerSummary.next
                 if (next == null) break
             }
 
-            for (notification in notifications) {
-                val plugins = controllerContext.configuration.plugins
+            val plugins = controllerContext.configuration.plugins
+            for (notification in notificationsTotal.values) {
                 val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == notification.productType }
                     ?.value
                 if (allocationPlugin != null) {
                     with(controllerContext.pluginContext) {
                         with(allocationPlugin) {
-                            onResourceAllocation(listOf(notification))
+                            onResourceAllocationTotal(listOf(notification))
                         }
                     }
                 }
@@ -446,6 +555,18 @@ class EventController(
                 notifyPlugins(notification)
             }
 
+            for (notification in notificationsSingle) {
+                val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == notification.productType }
+                    ?.value
+
+                if (allocationPlugin != null) {
+                    with(controllerContext.pluginContext) {
+                        with(allocationPlugin) {
+                            onResourceAllocationSingle(listOf(notification))
+                        }
+                    }
+                }
+            }
 
             val allPlugin = controllerContext.configuration.plugins.allocations.entries.find { (t) ->
                 t == ConfigSchema.Plugins.AllocationsProductType.ALL
@@ -454,21 +575,34 @@ class EventController(
             if (allPlugin != null) {
                 with(controllerContext.pluginContext) {
                     with(allPlugin) {
-                        onResourceAllocation(notifications)
+                        onResourceAllocationTotal(notificationsTotal.values.toList())
+                        onResourceAllocationSingle(notificationsSingle)
                     }
                 }
             }
         }
     }
 
-    private suspend fun prepareAllocationNotification(summary: ProviderWalletSummary): AllocationNotification? {
-        return AllocationNotification(
+    private suspend fun prepareAllocationNotificationSingle(summary: ProviderWalletSummary): AllocationNotificationSingle? {
+        return AllocationNotificationSingle(
             min(summary.maxUsableBalance, summary.maxPromisedBalance),
             ResourceOwnerWithId.load(summary.owner, controllerContext.pluginContext) ?: run {
                 log.info("Could not find UID/GID for ${summary.owner}")
                 return null
             },
             summary.id,
+            summary.categoryId.name,
+            summary.productType
+        )
+    }
+
+    private suspend fun prepareAllocationNotificationTotal(summary: ProviderWalletSummary): AllocationNotificationTotal? {
+        return AllocationNotificationTotal(
+            min(summary.maxUsableBalance, summary.maxPromisedBalance),
+            ResourceOwnerWithId.load(summary.owner, controllerContext.pluginContext) ?: run {
+                log.info("Could not find UID/GID for ${summary.owner}")
+                return null
+            },
             summary.categoryId.name,
             summary.productType
         )
@@ -559,8 +693,8 @@ class EventController(
     private suspend fun dispatchSyncToPlugin(plugin: AllocationPlugin, list: List<ProviderWalletSummary>) {
         with(controllerContext.pluginContext) {
             with(plugin) {
-                val items = list.mapNotNull { prepareAllocationNotification(it) }
-                if (items.isNotEmpty()) onResourceSynchronization(items)
+                val items = list.mapNotNull { prepareAllocationNotificationTotal(it) }
+                if (items.isNotEmpty()) onResourceSynchronizationTotal(items)
             }
         }
     }
