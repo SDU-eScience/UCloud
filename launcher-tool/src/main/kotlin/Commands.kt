@@ -187,12 +187,15 @@ object Commands {
         environmentStart()
     }
 
-    fun environmentDelete() {
-        LoadingIndicator("Shutting down virtual cluster...").use {
-            compose.down(currentEnvironment, deleteVolumes = true).streamOutput().executeToText()
-            if (compose is DockerCompose.Plugin) {
-                allVolumeNames.forEach { volName ->
-                    ExecutableCommand(listOf(findDocker(), "volume", "rm", volName, "-f")).streamOutput().executeToText()
+    fun environmentDelete(shutdown: Boolean = true) {
+        if (shutdown) {
+            LoadingIndicator("Shutting down virtual cluster...").use {
+                compose.down(currentEnvironment, deleteVolumes = true).streamOutput().executeToText()
+                if (compose is DockerCompose.Plugin) {
+                    allVolumeNames.forEach { volName ->
+                        ExecutableCommand(listOf(findDocker(), "volume", "rm", volName, "-f")).streamOutput()
+                            .executeToText()
+                    }
                 }
             }
         }
@@ -202,19 +205,23 @@ object Commands {
             // delete the files. This is basically a convoluted way of asking for root permissions
             // without actually asking for root permissions (we are just asking for the equivalent
             // through docker)
-            ExecutableCommand(
-                listOf(
-                    findDocker(),
-                    "run",
-                    "--rm",
-                    "-v",
-                    "${File(currentEnvironment.absolutePath).parentFile.absolutePath}:/data",
-                    "alpine:3",
-                    "/bin/sh",
-                    "-c",
-                    "rm -rf /data/${currentEnvironment.name}"
-                )
-            ).executeToText()
+            try {
+                ExecutableCommand(
+                    listOf(
+                        findDocker(),
+                        "run",
+                        "--rm",
+                        "-v",
+                        "${File(currentEnvironment.absolutePath).parentFile.absolutePath}:/data",
+                        "alpine:3",
+                        "/bin/sh",
+                        "-c",
+                        "rm -rf /data/${currentEnvironment.name}"
+                    )
+                ).also { if (!shutdown) it.allowFailure() }.executeToText()
+            } catch (ex: Throwable) {
+                if (shutdown) throw ex
+            }
 
             File(localEnvironment.jvmFile.parentFile, "current.txt").delete()
             localEnvironment.jvmFile.deleteRecursively()

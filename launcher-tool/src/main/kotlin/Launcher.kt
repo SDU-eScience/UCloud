@@ -244,7 +244,7 @@ fun main(args: Array<String>) {
 
                         val baseDir = File(localEnvironment.jvmFile, ".compose").also { it.mkdirs() }
                         val env = selectOrCreateEnvironment(baseDir)
-                        initIO()
+                        initIO(true)
                         currentEnvironment.child("..").child(env).mkdirs()
                         File(baseDir, "current.txt").writeText(env)
                     }

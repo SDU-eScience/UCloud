@@ -356,7 +356,7 @@ fun confirm(prompt: ConsolePrompt, question: String, default: Boolean? = null): 
     return (prompt.prompt(builder.build()).values.single() as ConfirmResult).confirmed == ConfirmChoice.ConfirmationValue.YES
 }
 
-fun queryText(prompt: ConsolePrompt, question: String, defaultValue: String? = null): String {
+fun queryText(prompt: ConsolePrompt, question: String, defaultValue: String? = null, mask: Boolean = false): String {
     while (true) {
         val builder = prompt.promptBuilder
         builder
@@ -364,6 +364,7 @@ fun queryText(prompt: ConsolePrompt, question: String, defaultValue: String? = n
             .name("question")
             .message(question)
             .also { if (defaultValue != null) it.defaultValue(defaultValue) }
+            .also { if (mask) it.mask('*') }
             .addPrompt()
 
         try {
