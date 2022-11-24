@@ -214,7 +214,6 @@ fun initIO(isNew: Boolean) {
         fileFactory = RemoteFileFactory(conn)
 
         val remoteRepoRoot = fileFactory.create("ucloud")
-        println(isNew)
         if (isNew) syncRepository()
         val remoteEnvironment = remoteRepoRoot.child(".compose/${currentEnvironment.name}").also {
             it.mkdirs()
