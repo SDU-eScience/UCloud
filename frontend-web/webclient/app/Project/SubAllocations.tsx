@@ -380,13 +380,13 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                 iconColor2="white"
                 title={<Flex>
                     <Flex width="170px" mt="7px">
-                        <ClickableDropdown width="250px" chevron trigger={<><Icon mr="4px" color2="white" name={recipient.isProject ? "projects" : "user"} />{!recipient.isProject ? "User" : recipient.asNewProject ? "New" : "Existing"}</>}>
+                        <ClickableDropdown useMousePositioning width="250px" chevron trigger={<><Icon mr="4px" color2="white" name={recipient.isProject ? "projects" : "user"} />{!recipient.isProject ? "User" : recipient.asNewProject ? "New" : "Existing"}</>}>
                             <Flex onClick={() => toggleIsProject(recipient.id, true)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> Existing project</Flex>
                             <Flex onClick={() => toggleAsNewProject(recipient.id)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> New project</Flex>
                             <Flex onClick={() => toggleIsProject(recipient.id, false)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"user"} /> User</Flex>
                         </ClickableDropdown>
                     </Flex>
-                    <Input ref={recipient.ref} placeholder={recipient.isProject ? "Projectname..." : "Username..."} />
+                    <Input ml="10px" ref={recipient.ref} placeholder={recipient.isProject ? "Projectname..." : "Username..."} />
                 </Flex>}
                 titleContent={
                     <Button ml="8px" mt="4px" height="32px" color="red" onClick={() => removeNewRecipientRow(recipient.id)}>Discard</Button>
@@ -842,8 +842,8 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                 </UsageRowsWithMargin>
             </>}
             titleContentOnOpened={<>
-                {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" width="98px" onClick={addNewRow}>New row</Button> :
-                    <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" width="98px" disabled>New row</Button>}>
+                {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" width="100px" onClick={addNewRow}>New row</Button> :
+                    <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" width="100px" disabled>New row</Button>}>
                         No allocations available for use.
                     </Tooltip>
                 }
