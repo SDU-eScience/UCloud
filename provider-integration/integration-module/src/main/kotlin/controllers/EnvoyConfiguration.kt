@@ -16,6 +16,7 @@ import kotlin.random.*
 
 class EnvoyConfigurationService(
     private val executable: String?,
+    private val funceWrapper: Boolean,
     private val configDir: String,
     private val useUCloudUsernameHeader: Boolean,
     private val logDirectory: String,
@@ -24,6 +25,7 @@ class EnvoyConfigurationService(
 ) {
     constructor(config: VerifiedConfig) : this(
         config.server.envoy.executable,
+        config.server.envoy.funceWrapper,
         config.server.envoy.directory,
         config.core.launchRealUserInstances,
         config.core.logs.directory,
@@ -78,12 +80,12 @@ class EnvoyConfigurationService(
         // TODO We probably cannot depend on this being allowed to download envoy for us. We need an alternative for
         //  people who don't what this.
         val envoyProcess = startProcess(
-            args = listOf(
-                executable ?: "/usr/local/bin/getenvoy",
-                "run",
-                "--config-path",
-                "$configDir/$configFile"
-            ),
+            args = buildList {
+                add(executable ?: "/usr/local/bin/getenvoy")
+                if (funceWrapper) add("run")
+                add("--config-path")
+                add("$configDir/$configFile")
+            },
             envs = listOf("ENVOY_VERSION=1.23.0"),
             attachStdout = false,
             attachStderr = false,

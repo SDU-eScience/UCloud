@@ -12,7 +12,7 @@ export const Debugger: React.FunctionComponent = () => {
             You can also (re)start the debugger with <code>./start_debugger.sh</code> script.
         </div>
         <div>
-            <ExternalLink href="http://localhost:42999">
+            <ExternalLink href="https://debugger.localhost.direct">
                 <Button>Open debugger - I will read the text above if it is not working</Button>
             </ExternalLink>
         </div>

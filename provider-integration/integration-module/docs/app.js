@@ -233,13 +233,18 @@ class DocTodo extends HTMLElement {
 customElements.define("doc-todo", DocTodo);
 
 class DocTable extends HTMLElement {
+    shadow;
+
     constructor() {
         super();
+        this.shadow = this.attachShadow({ mode: "open" });
+        this.rerender();
+        new MutationObserver(() => this.rerender()).observe(this, { attributes: false, childList: true, subtree: true });
+    }
 
-        const shadow = this.attachShadow({ mode: "open" });
-
-        shadow.innerHTML = this.innerHTML
-        shadow.append(style(`
+    rerender() {
+        this.shadow.innerHTML = this.innerHTML;
+        this.shadow.append(style(`
             :host {
                 display: block;
                 border: var(--border);
@@ -439,7 +444,6 @@ class DocHeader extends HTMLElement {
                 </a>
 
                 <div class="middle">
-                    <a href="/versions">Version history</a>
                     <a href="/getting-started">Documentation</a>
                     <a href="https://escience.sdu.dk" target="_blank">Support</a>
                 </div>
@@ -461,16 +465,6 @@ customElements.define("doc-header", DocHeader);
 class DocRecipes extends HTMLElement {
     static recipes = [
         { 
-            title: "Puhuri integration",
-            description: "Show-cases a collection of plugins which together form the basis of an integration with Puhuri",
-            href: "/recipes/puhuri"
-        },
-        { 
-            title: "Kubernetes compute with storage",
-            description: "A complete Kubernetes based setup which exposes storage from any compatible distributed file-system",
-            href: "/recipes/kubernetes"
-        },
-        { 
             title: "Slurm + distributed file system",
             description: "A traditional HPC system consisting of Slurm and a distributed POSIX file system",
             href: "/recipes/slurm"
@@ -479,9 +473,67 @@ class DocRecipes extends HTMLElement {
             title: "Keycloak",
             description: "Connection procedure using Keycloak",
             href: "/recipes/keycloak"
-        }
+        },
+        { 
+            title: "Kubernetes compute with storage",
+            description: "A complete Kubernetes based setup which exposes storage from any compatible distributed file-system",
+            href: "/recipes/kubernetes"
+        },
+        { 
+            title: "Puhuri integration",
+            description: "Show-cases a collection of plugins which together form the basis of an integration with Puhuri",
+            href: "/recipes/puhuri"
+        },
     ];
+
+    constructor() {
+        super();
+
+        const shadow = this.attachShadow({ mode: "open" });
+        const tableWrapper = document.createElement("doc-table");
+        const table = document.createElement("table");
+        const thead = document.createElement("thead");
+        const tbody = document.createElement("tbody");
+
+        shadow.append(tableWrapper);
+        tableWrapper.append(table);
+        table.append(thead);
+        table.append(tbody);
+
+        const tr = (target, cols, header) => {
+            const row = document.createElement("tr");
+            target.append(row);
+            const result = [];
+            for (let i = 0; i < cols; i++) {
+                const cell = document.createElement(header ? "th" : "td");
+                row.append(cell);
+                result.push(cell);
+            }
+            return result;
+        }
+
+        {
+            const row = tr(thead, 2, true);
+            row[0].textContent = "Name";
+            row[1].textContent = "Description";
+        }
+
+        for (const recipe of DocRecipes.recipes) {
+            const row = tr(tbody, 2);
+
+            const anchor = document.createElement("a");
+            anchor.href = recipe.href;
+            anchor.textContent = recipe.title;
+            row[0].append(anchor);
+
+            row[1].textContent = recipe.description;
+        }
+
+        document.create
+    }
 }
+
+customElements.define("doc-recipes", DocRecipes);
 
 class DocTableOfContents extends HTMLElement {
     static sections = [

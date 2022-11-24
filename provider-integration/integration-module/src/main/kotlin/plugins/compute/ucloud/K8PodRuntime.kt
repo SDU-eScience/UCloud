@@ -12,6 +12,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import java.util.concurrent.atomic.AtomicInteger
 
 class K8Pod(
     override val k8Client: KubernetesClient,
@@ -119,6 +120,7 @@ class K8PodRuntime(
     private val namespace: String,
     private val categoryToSelector: Map<String, String>,
     private val fakeIpMount: Boolean,
+    private val usePortForwarding: Boolean,
 ) : ContainerRuntime {
     private val canReadNodes = SimpleCache<Unit, Boolean>(SimpleCache.DONT_EXPIRE) {
         try {
@@ -241,8 +243,38 @@ class K8PodRuntime(
         return allNodes.map { KubernetesNode(it, categoryToSelector) }
     }
 
+    override suspend fun openTunnel(jobId: String, rank: Int, port: Int): Tunnel {
+        if (!usePortForwarding) {
+            val pod = k8Client.getResource(
+                Pod.serializer(),
+                KubernetesResourceLocator.common.pod.withNameAndNamespace(
+                    idAndRankToPodName(jobId, rank),
+                    namespace,
+                )
+            )
+
+            val ipAddress =
+                pod.status?.podIP ?: throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.BadGateway)
+
+            return Tunnel(ipAddress, port, close = {})
+        } else {
+            val allocatedPort = basePortForward + portAllocator.getAndIncrement()
+            val process = k8Client.kubectl(listOf(
+                "port-forward",
+                "-n",
+                namespace,
+                idAndRankToPodName(jobId, rank),
+                "$allocatedPort:$port"
+            ))
+
+            return Tunnel("127.0.0.1", allocatedPort, close = { process.destroy() })
+        }
+    }
+
     companion object {
         const val podAnnotation = "ucloud.dk/user-job"
+        private val basePortForward = 30_000
+        private val portAllocator = AtomicInteger(0)
 
         fun idAndRankToPodName(id: String, rank: Int): String = "j-$id-$rank"
         fun podNameToIdAndRank(podName: String): Pair<String, Int> {

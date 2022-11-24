@@ -41,6 +41,10 @@ data class ConfigSchema(
         val allowRootMode: Boolean = false,
         val developmentMode: Boolean? = null,
         val cors: Cors? = null,
+
+        // NOTE(Dan): Some setups with docker compose doesn't correctly handle file permissions. We have this option to
+        // just disable the insecure file check. This setting only works in development mode.
+        val disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy: Boolean = false,
     ) {
         @Serializable
         data class Hosts(
@@ -121,6 +125,7 @@ data class ConfigSchema(
             val executable: String? = null,
             val directory: String,
             val downstreamTls: Boolean = false,
+            val funceWrapper: Boolean = true,
         )
     }
 
@@ -405,6 +410,7 @@ data class ConfigSchema(
                 val categoryToSelector: Map<String, String> = emptyMap(),
                 val fakeIpMount: Boolean = false,
                 val ssh: Ssh? = null,
+                val usePortForwarding: Boolean = false,
             ) : Jobs() {
                 @Serializable
                 data class TolerationKeyAndValue(val key: String, val value: String)
@@ -498,7 +504,7 @@ data class ConfigSchema(
             class UCloud(
                 override val matches: String,
                 val iface: String,
-                val gatewayCidr: String?
+                val gatewayCidr: String? = null
             ) : PublicIPs()
         }
 

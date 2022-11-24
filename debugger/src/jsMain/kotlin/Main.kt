@@ -1,5 +1,6 @@
 package dk.sdu.cloud.debug
 
+import kotlinx.browser.window
 import kotlinx.browser.document
 import kotlinx.html.dom.create
 import kotlinx.html.js.div
@@ -31,6 +32,7 @@ fun createGlobalStyle(): HTMLElement  {
 }
 
 fun main() {
+    if (window.location.pathname.contains("/popup")) return
     cssReset()
     head.append(createGlobalStyle())
 
