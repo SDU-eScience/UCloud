@@ -26,7 +26,7 @@ object Commands {
                 echo;
                 echo;
                 echo;
-                sudo -E ssh -F ~/.ssh/config $forward ${conn.username}@${conn.host} sleep inf  
+                sudo -E ssh -F ~/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $forward ${conn.username}@${conn.host} sleep inf  
             """.trimIndent()
         )
     }

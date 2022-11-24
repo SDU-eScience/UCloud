@@ -115,7 +115,6 @@ sealed class ComposeService {
         fun allProviders(): List<Provider> = listOf(
             Kubernetes,
             Slurm,
-            Puhuri
         )
     }
 
@@ -1250,19 +1249,6 @@ sealed class ComposeService {
             )
 
             installMarker.writeText("done")
-        }
-    }
-
-    object Puhuri : Provider() {
-        override val name = "puhuri"
-        override val title = "Puhuri"
-
-        override fun ComposeBuilder.build() {
-
-        }
-
-        override fun install(credentials: ProviderCredentials) {
-
         }
     }
 
