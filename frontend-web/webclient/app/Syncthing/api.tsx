@@ -19,43 +19,15 @@ export interface SyncthingFolder {
     ucloudPath: string;
 }
 
-/*export function fetchConfigFake(): Promise<SyncthingConfig> {
-    const devices: SyncthingDevice[] = [];
-
-    for (let i = 0; i < 10; i++) {
-        const device = {
-            label: "Android " + i, 
-            deviceId: "L5WRYM7-V6IDHTV-2V4MN67-2STUNXL-FLEX7QR-LD7UXEC-2QRUCQE-FUHWEQ" + i
-        };
-        devices.push(device);
-    }
-
-    const folders: SyncthingFolder[] = [];
-
-    for (let i = 0; i < 5; i++) {
-        const folder = {
-            id: "Cuda" + i,
-            ucloudPath: "/4/Jobs/Coder CUDA" + i
-        };
-        folders.push(folder);
-    }
-
-    return new Promise((resolve) => {
-        resolve({devices, folders});
-    });
-}*/
-
 export async function fetchConfig(provider: string): Promise<SyncthingConfig> {
     const resp = await callAPI<SyncthingConfigResponse>(api.retrieveConfiguration(provider, "syncthing"));
     return resp.config;
 }
 
 export async function fetchProducts(provider: string): Promise<compute.ComputeProductSupportResolved[]> {
-    console.log(provider);
     const resp = await callAPI<compute.JobsRetrieveProductsResponse>(compute.jobs.retrieveProducts({
         providers: provider
     }));
-    console.log(resp);
 
     return resp.productsByProvider[provider];
 }

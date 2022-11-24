@@ -369,6 +369,11 @@ export const Overview: React.FunctionComponent = () => {
                 pathRef={pathRef}
                 onSelectRestriction={file => file.status.type === "DIRECTORY" && file.specification.product.id !== "share"}
                 onSelect={async (res) => {
+                    if (res.specification.product.provider != provider) {
+                         snackbarStore.addFailure("Only folders hosted at the same provider as the Syncthing server can be added", false);
+                        return;
+                    }
+
                     const sensitivity = await findSensitivity(res);
                     if (sensitivity == "SENSITIVE") {
                         snackbarStore.addFailure("Folder marked as sensitive cannot be added to Syncthing", false);

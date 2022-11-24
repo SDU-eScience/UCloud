@@ -125,6 +125,10 @@ export const FilesBrowse: React.FunctionComponent<{
     }, [navigateToPath]);
 
     const setSynchronization = useCallback((file: UFile, shouldAdd: boolean) => {
+        if (!syncthingProduct) {
+            return;
+        }
+
         setSyncthingConfig((conf) => {
             if (!conf) return conf;
             const newConf = deepCopy(conf);
@@ -152,13 +156,14 @@ export const FilesBrowse: React.FunctionComponent<{
                 category: collection.data?.specification.product.category,
                 config: newConf
             })).catch(e => {
-                    if (didUnmount.current) return;
-                    defaultErrorHandler(e);
-                    setSyncthingConfig(conf);
-                });
+                if (didUnmount.current) return;
+                defaultErrorHandler(e);
+                setSyncthingConfig(conf);
+            });
+            console.log(newConf)
             return newConf;
         });
-    }, []);
+    }, [syncthingProduct]);
 
     const selectLocalProject = useCallback(async (projectOverride: string) => {
         const result = await invokeCommand<PageV2<FileCollection>>({
@@ -205,19 +210,25 @@ export const FilesBrowse: React.FunctionComponent<{
     }, []);
 
     useEffect(() => {
-        // NOTE(Dan): Load relevant synchronization configuration. We don't currently reload any of this information,
-        // but maybe we should.
         if (collection.data?.specification.product.provider) {
             Sync.fetchProducts(collection.data?.specification.product.provider).then(products => {
                 setSyncthingProduct(products.find(it => it.product.category.name === "syncthing") ?? null);
             });
-
-            Sync.fetchConfig(collection.data?.specification.product.provider).then(config => {
-                if (didUnmount.current) return;
-                setSyncthingConfig(config);
-            });
         }
     }, [collection.data?.specification.product.provider]);
+
+    useEffect(() => {
+        // NOTE(Dan): Load relevant synchronization configuration. We don't currently reload any of this information,
+        // but maybe we should.
+        if (collection.data?.specification.product.provider) {
+            if (syncthingProduct) {
+                Sync.fetchConfig(collection.data?.specification.product.provider).then(config => {
+                    if (didUnmount.current) return;
+                    setSyncthingConfig(config);
+                });
+            }
+        }
+    }, []);
 
     useEffect(() => {
         // NOTE(Dan): The uploader component, triggered by one of the operations, need to know about the current folder.
@@ -415,9 +426,6 @@ export const FilesBrowse: React.FunctionComponent<{
         </Box>;
     }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject, props.isSearch]);
 
-    const syncEnabled = syncthingProduct != null;
-    console.log(syncEnabled)
-
     return <ResourceBrowse
         api={FilesApi}
         onSelect={props.onSelect}
@@ -454,7 +462,7 @@ export const FilesBrowse: React.FunctionComponent<{
         extraSidebar={
             <>
                 <Box flexGrow={1} />
-                {!syncEnabled ? null :
+                {!syncthingConfig ? null :
                     <Link to={`/syncthing?provider=${collection.data?.specification.product.provider}`}>
                         <Button>Manage synchronization (BETA)</Button>
                     </Link>

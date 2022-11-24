@@ -257,6 +257,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
             const synchronizedFolders: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
             const isSynchronized = synchronizedFolders.some(it => it.ucloudPath === resource.id);
+            console.log(callbacks.syncthingConfig);
 
             const history = useHistory();
             const openSync = useCallback(() => {
