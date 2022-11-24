@@ -7,6 +7,7 @@ data class Service(
     val execSupported: Boolean,
     val useServiceConvention: Boolean,
     val address: String? = null,
+    val uiHelp: String? = null,
 )
 
 val allServices = ArrayList<Service>()
@@ -22,10 +23,19 @@ class ServiceMenu(
     val requireAddress: Boolean = false,
 ) : Menu("Select a service") {
     init {
-        allServices
+        val filteredServices = allServices
             .filter { !requireLogs || it.logsSupported }
             .filter { !requireExec || it.execSupported }
             .filter { !requireAddress || it.address != null }
-            .forEach { item(it.containerName, it.title) }
+
+        var lastPrefix = ""
+        for (service in filteredServices) {
+            val myPrefix = service.title.substringBefore(':')
+            if (myPrefix != lastPrefix) {
+                separator(myPrefix)
+                lastPrefix = myPrefix
+            }
+            item(service.containerName, service.title.substringAfter(": ", ))
+        }
     }
 }

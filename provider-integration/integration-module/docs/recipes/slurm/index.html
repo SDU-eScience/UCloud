@@ -133,26 +133,62 @@
             This executable has no external dependencies other than libc.
         </p>
 
-        <h3 id="sudo">Sudo</h3>
-        <p>
-            Because the integration module acts on behalf of the HPC users, it must be allowed to spawn an instance of
-            itself as that user. By spawning an instance of itself as the user in question, we are guaranteed that the
-            integration module has exactly the same permissions, as if the user had accessed the system via e.g. SSH.
-        </p>
-        <p>
-            The easiest way to grant this permission is by creating a file <code>/etc/sudoers.d/ucloud</code> with the
-            following content.
-        </p>
+        <h3>Privileged scripts</h3>
+
+        <p>All extension scripts will either be executed as the `ucloud` service
+        account or as one of the HPC users. In both cases these users are
+        unprivileged, so whenever the extension scripts need to perform a
+        privileged operation (like creating a new user or account in Slurm), a
+        method for granting privileges to the script is needed.</p>
+
+        <p>To avoid granting additional privileges to the `ucloud` service
+        account, which is running the integration module, we instead suggest to
+        create a new service account and grant privileges to that account. By
+        doing so, there is a clear separation of privileges and the integration
+        module does not have access to perform any changes on the system.</p>
+
+        <p>If we follow this approach, the extension scripts must be able to run
+        as the privileged service account, which we will call `sysop` in the
+        following examples. This can be achieved with an additional sudo
+        rule.</p>
 
         <doc-snippet>
-            ucloud ALL=(%ucloud_users) NOPASSWD: /opt/ucloud/ucloud /opt/ucloud/extensions/*
+            ucloud ALL=(sysop) NOPASSWD: /etc/ucloud/extensions/*
         </doc-snippet>
 
-        <p>
-            This allows the <code>ucloud</code> user to run the integration module itself <code>/opt/ucloud/ucloud</code>
-            and all extension scripts, as any user in the group <code>ucloud_users</code>. By restricting ourselves to a
-            specific group of users, we can ensure that the integration module is never spawned as a non-HPC user.
-        </p>
+        <p>This rule allows the `ucloud` service account to execute the
+        extension scripts as the privileged user. However, the integration
+        module will not actually run these scripts as the privileged user, since
+        it has no knowledge of whether or not that is necessary. Instead the
+        extension scripts should automatically switch to this user whenever
+        needed. Below are two examples, one for Bash and one for Python, that
+        shows how a script can make a switch itself to the privileged user.</p>
+
+        <b>Bash</b>
+
+        <doc-snippet>
+            #!/usr/bin/env bash
+
+            if [ $USER != "sysop" ]; then
+                exec sudo -u sysop $0 "$@"
+            fi
+
+            echo "user = $USER"
+        </doc-snippet>
+
+        <b>Python</b>
+
+        <doc-snippet>
+            #!/usr/bin/env python3
+
+            import os
+            import sys
+
+            if os.environ.get('USER') != 'sysop':
+                os.execvp('sudo', ['sudo', '-u', 'sysop'] + sys.argv)
+
+            print('user =', os.environ.get('USER'))
+        </doc-snippet>
 
         <h3 id="slurm">Slurm</h3>
         <p>

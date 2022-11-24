@@ -4,6 +4,7 @@ import com.jcraft.jsch.agentproxy.AgentProxyException
 import net.schmizz.sshj.userauth.UserAuthException
 import org.fusesource.jansi.Ansi.ansi
 import java.io.File
+import java.net.UnknownHostException
 import kotlin.math.absoluteValue
 import kotlin.system.exitProcess
 
@@ -39,6 +40,9 @@ fun selectOrCreateEnvironment(baseDir: File): String {
 
         val selected = menu.display(prompt)
         if (selected != menu.createNew) {
+            val env = LocalFile(selected.name)
+            currentEnvironment = env
+            environmentIsRemote = File(env.jvmFile, "remote").exists()
             return selected.name.substringAfterLast('/')
         }
     }
@@ -48,14 +52,34 @@ fun selectOrCreateEnvironment(baseDir: File): String {
         val remote = item("remote", "Remote environment on some other machine (via SSH)")
     }
 
-    val newEnvironment = queryText(prompt, "Select a name for your environment", "default")
-    if (newEnvironment in blacklistedEnvNames) {
-        println("Illegal name. Try a different one.")
-        exitProcess(1)
+    val newEnvironment: String
+    while (true) {
+        val env = queryText(prompt, "Select a name for your environment", "default")
+        if (env in blacklistedEnvNames) {
+            println("Illegal name. Try a different one.")
+            continue
+        }
+
+        val alreadyExists = File(File(repoRoot.absolutePath, ".compose"), env).exists()
+        if (alreadyExists) {
+            println("This environment already exists. Please try a different name.")
+            continue
+        }
+
+        newEnvironment = env
+        break
     }
 
     when (localOrRemoteMenu.display(prompt)) {
         localOrRemoteMenu.local -> {
+            printExplanation("The following is expected of your machine:")
+            println()
+            printExplanation("- The machine should run Linux or macOS")
+            printExplanation("- Docker and Docker Compose (either through `docker compose` or `docker-compose`)")
+            printExplanation("- Your user must be in the docker group and be able to issue docker commands without sudo")
+            println()
+
+
             val env = LocalFile(
                 File(
                     File(repoRoot.absolutePath, ".compose"),
@@ -69,8 +93,15 @@ fun selectOrCreateEnvironment(baseDir: File): String {
         }
 
         localOrRemoteMenu.remote -> {
-            val hostname = queryText(prompt, "Remote machine hostname")
-            val username = queryText(prompt, "Remote username")
+            printExplanation("The following is expected of the remote machine:")
+            println()
+            printExplanation("- The machine should run Linux")
+            printExplanation("- Docker and Docker Compose (either through `docker compose` or `docker-compose`)")
+            printExplanation("- Your user must be in the docker group and be able to issue docker commands without sudo")
+            println()
+
+            val hostname = queryText(prompt, "What is the hostname/IP of this machine? (e.g. machine42.example.com)")
+            val username = queryText(prompt, "What is your username on this machine? (e.g. janedoe)")
 
            val env = LocalFile(
                 File(
@@ -108,7 +139,19 @@ fun initCurrentEnvironment(): InitEnvironmentResult {
     }
 
     if (env == null) {
-        println("No active environment detected!")
+        printExplanation(
+            """
+                No active environment detected!
+                
+                An environment is a complete installation of UCloud. It contains all the files and software required to 
+                run UCloud. You can have multiple environments, all identified by a name, but only one environment 
+                running at any given time. 
+
+                In the next step, we will ask you to select a name for your environment. The name doesn't have any 
+                meaning and you can simply choose the default by pressing enter.
+            """
+        )
+        println()
         selectOrCreateEnvironment(baseDir)
     } else {
         println(ansi().render("Active environment: ").bold().render(env.name).boldOff())
@@ -118,13 +161,14 @@ fun initCurrentEnvironment(): InitEnvironmentResult {
         environmentIsRemote = currentIsRemote
     }
 
-    initIO()
+    val isNew = env == null
+    initIO(isNew)
 
     File(baseDir, "current.txt").writeText(currentEnvironment.name)
-    return InitEnvironmentResult(shouldStartEnvironment = currentEnvironmentName == null)
+    return InitEnvironmentResult(shouldStartEnvironment = isNew)
 }
 
-fun initIO() {
+fun initIO(isNew: Boolean) {
     if (environmentIsRemote) {
         val baseDir = currentEnvironment.absolutePath
         val lineSplit = File(baseDir, "remote").readText().trim().split("@")
@@ -148,6 +192,21 @@ fun initIO() {
             } else {
                 throw ex
             }
+        } catch (ex: UnknownHostException) {
+            println("Unable to resolve host: ${lineSplit[1]}. You might have made a typo or have connectivity issues.")
+            println("If you have made a typo, then you should delete your environment.")
+            println()
+            confirm(prompt, "Do you want to delete your current environment?")
+
+            val success = runCatching {
+                File(baseDir).deleteRecursively()
+            }.getOrElse { false }
+
+            if (!success) {
+                Commands.environmentDelete(shutdown = false)
+            }
+            initCurrentEnvironment()
+            return
         }
         localEnvironment = currentEnvironment as LocalFile
 
@@ -155,7 +214,7 @@ fun initIO() {
         fileFactory = RemoteFileFactory(conn)
 
         val remoteRepoRoot = fileFactory.create("ucloud")
-        if (!remoteRepoRoot.exists()) syncRepository()
+        if (isNew) syncRepository()
         val remoteEnvironment = remoteRepoRoot.child(".compose/${currentEnvironment.name}").also {
             it.mkdirs()
         }

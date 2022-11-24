@@ -58,6 +58,8 @@ fun syncRepository() {
             listOf(
                 "rsync",
                 "-zvhPr",
+                "--no-o",
+                "--no-g",
                 "--exclude=/.git",
                 "--exclude=/.compose",
                 "--filter=:- .gitignore",

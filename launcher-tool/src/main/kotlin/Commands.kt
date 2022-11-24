@@ -26,19 +26,24 @@ object Commands {
                 echo;
                 echo;
                 echo;
-                sudo -E ssh -F ~/.ssh/config $forward ${conn.username}@${conn.host} sleep inf  
+                sudo -E ssh -F ~/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $forward ${conn.username}@${conn.host} sleep inf  
             """.trimIndent()
         )
     }
 
     fun openUserInterface(serviceName: String) {
-        val address = serviceByName(serviceName).address
+        val service = serviceByName(serviceName)
+        val address = service.address
+        val uiHelp = service.uiHelp
         if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
             println("Unable to open web-browser. Open this URL in your own browser:")
             println(address)
-            return
         } else {
             Desktop.getDesktop().browse(URI(address))
+        }
+
+        if (uiHelp != null) {
+            printExplanation(uiHelp)
         }
     }
 
@@ -182,12 +187,15 @@ object Commands {
         environmentStart()
     }
 
-    fun environmentDelete() {
-        LoadingIndicator("Shutting down virtual cluster...").use {
-            compose.down(currentEnvironment, deleteVolumes = true).streamOutput().executeToText()
-            if (compose is DockerCompose.Plugin) {
-                allVolumeNames.forEach { volName ->
-                    ExecutableCommand(listOf(findDocker(), "volume", "rm", volName, "-f")).streamOutput().executeToText()
+    fun environmentDelete(shutdown: Boolean = true) {
+        if (shutdown) {
+            LoadingIndicator("Shutting down virtual cluster...").use {
+                compose.down(currentEnvironment, deleteVolumes = true).streamOutput().executeToText()
+                if (compose is DockerCompose.Plugin) {
+                    allVolumeNames.forEach { volName ->
+                        ExecutableCommand(listOf(findDocker(), "volume", "rm", volName, "-f")).streamOutput()
+                            .executeToText()
+                    }
                 }
             }
         }
@@ -197,19 +205,23 @@ object Commands {
             // delete the files. This is basically a convoluted way of asking for root permissions
             // without actually asking for root permissions (we are just asking for the equivalent
             // through docker)
-            ExecutableCommand(
-                listOf(
-                    findDocker(),
-                    "run",
-                    "--rm",
-                    "-v",
-                    "${File(currentEnvironment.absolutePath).parentFile.absolutePath}:/data",
-                    "alpine:3",
-                    "/bin/sh",
-                    "-c",
-                    "rm -rf /data/${currentEnvironment.name}"
-                )
-            ).executeToText()
+            try {
+                ExecutableCommand(
+                    listOf(
+                        findDocker(),
+                        "run",
+                        "--rm",
+                        "-v",
+                        "${File(currentEnvironment.absolutePath).parentFile.absolutePath}:/data",
+                        "alpine:3",
+                        "/bin/sh",
+                        "-c",
+                        "rm -rf /data/${currentEnvironment.name}"
+                    )
+                ).also { if (!shutdown) it.allowFailure() }.executeToText()
+            } catch (ex: Throwable) {
+                if (shutdown) throw ex
+            }
 
             File(localEnvironment.jvmFile.parentFile, "current.txt").delete()
             localEnvironment.jvmFile.deleteRecursively()
