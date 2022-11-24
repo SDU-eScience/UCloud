@@ -29,7 +29,6 @@ export const Shell: React.FunctionComponent = () => {
     useTitle(`Job ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`);
 
     useEffect(() => {
-        console.log(jobId, rank);
         openSession(JobsApi.openInteractiveSession(
             bulkRequestOf({id: jobId, rank: parseInt(rank, 10), sessionType: "SHELL"}))
         );
