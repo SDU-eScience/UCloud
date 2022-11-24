@@ -28,7 +28,7 @@ import {bulkRequestOf} from "@/DefaultObjects";
 import {BrowseType} from "@/Resource/BrowseType";
 import {formatDistanceToNow} from "date-fns/esm";
 import {ListRowStat} from "@/ui-components/List";
-import {apiUpdate} from "@/Authentication/DataHook";
+import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -302,58 +302,37 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
     }
 
     terminate(request: BulkRequest<FindByStringId>): APICallParameters<BulkRequest<FindByStringId>, BulkResponse<any | null>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "terminate",
-            payload: request,
-            parameters: request
-        };
+        return apiUpdate(request, this.baseContext, "terminate");
     }
 
+    /* Untested */
     retrieveUtilization(request: {jobId: string}): APICallParameters<{jobId: string}, ComputeUtilization> {
-        return {
-            context: "",
-            method: "GET",
-            path: buildQueryString(this.baseContext + "retrieveUtilization", request),
-            parameters: request
-        };
+        console.log("RETRIEVE_UTILIZATION");
+        return apiRetrieve(request, this.baseContext, "utilization");
     }
 
     extend(request: BulkRequest<ExtendRequest>): APICallParameters<BulkRequest<ExtendRequest>, BulkResponse<any | null>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "extend",
-            payload: request,
-            parameters: request
-        };
+        return apiUpdate(request, this.baseContext, "extend");
     }
 
+    /* Untested */
     suspend(request: BulkRequest<SuspendRequest>): APICallParameters<BulkRequest<SuspendRequest>, BulkResponse<any | null>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "suspend",
-            payload: request,
-            parameters: request
-        };
+        console.log("SUSPEND");
+        return apiUpdate(request, this.baseContext, "suspend");
     }
-    
+
+    /* Untested */
     unsuspend(request: BulkRequest<ResumeRequest>): APICallParameters {
+        console.log("USUSPEND");
         return apiUpdate(request, this.baseContext, "unsuspend")
     }
 
+    /* Untested */
     openInteractiveSession(
         request: BulkRequest<OpenInteractiveSessionRequest>
     ): APICallParameters<BulkRequest<OpenInteractiveSessionRequest>, BulkResponse<InteractiveSession>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "interactiveSession",
-            payload: request,
-            parameters: request
-        };
+        console.log("OPEN_INTERACTIVE_SESSION");
+        return apiUpdate(request, this.baseContext, "interactiveSession");
     }
 }
 

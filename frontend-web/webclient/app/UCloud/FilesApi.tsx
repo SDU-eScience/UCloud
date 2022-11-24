@@ -47,7 +47,7 @@ import {ListRowStat} from "@/ui-components/List";
 import SharesApi from "@/UCloud/SharesApi";
 import {BrowseType} from "@/Resource/BrowseType";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {callAPI, InvokeCommand} from "@/Authentication/DataHook";
+import {apiCreate, apiUpdate, callAPI, InvokeCommand} from "@/Authentication/DataHook";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {Spacer} from "@/ui-components/Spacer";
 import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
@@ -747,83 +747,41 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     }
 
     public copy(request: BulkRequest<FilesCopyRequestItem>): APICallParameters<BulkRequest<FilesCopyRequestItem>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "/copy",
-            parameters: request,
-            payload: request
-        };
+        return apiUpdate(request, this.baseContext, "copy");
     }
 
     public move(request: BulkRequest<FilesMoveRequestItem>): APICallParameters<BulkRequest<FilesMoveRequestItem>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "/move",
-            parameters: request,
-            payload: request
-        };
+        return apiUpdate(request, this.baseContext, "move");
     }
 
     public createUpload(
         request: BulkRequest<FilesCreateUploadRequestItem>
     ): APICallParameters<BulkRequest<FilesCreateUploadRequestItem>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "/upload",
-            parameters: request,
-            payload: request
-        };
+        return apiCreate(request, this.baseContext, "upload");
     }
 
     public createDownload(
         request: BulkRequest<FilesCreateDownloadRequestItem>
     ): APICallParameters<BulkRequest<FilesCreateDownloadRequestItem>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "/download",
-            parameters: request,
-            payload: request
-        };
+        return apiCreate(request, this.baseContext, "download");
     }
 
     public createFolder(
         request: BulkRequest<FilesCreateFolderRequestItem>
     ): APICallParameters<BulkRequest<FilesCreateFolderRequestItem>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "/folder",
-            parameters: request,
-            payload: request
-        };
+        return apiCreate(request, this.baseContext, "folder");
     }
 
     public trash(
         request: BulkRequest<FilesTrashRequestItem>
     ): APICallParameters<BulkRequest<FilesTrashRequestItem>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "/trash",
-            parameters: request,
-            payload: request
-        };
+        return apiUpdate(request, this.baseContext, "trash");
     }
 
     public emptyTrash(
         request: BulkRequest<FilesEmptyTrashRequestItem>
     ): APICallParameters<BulkRequest<FilesEmptyTrashRequestItem>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "/emptyTrash",
-            parameters: request,
-            payload: request
-        };
+        return apiUpdate(request, this.baseContext, "emptyTrash");
     }
 
     fileSelectorModalStyle = largeModalStyle;

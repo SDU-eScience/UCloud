@@ -16,6 +16,7 @@ import {ResourceProperties} from "@/Resource/Properties";
 import {FirewallEditor} from "@/Applications/NetworkIP/FirewallEditor";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductNetworkIP} from "@/Accounting";
+import {apiUpdate} from "@/Authentication/DataHook";
 
 export interface NetworkIPSpecification extends ResourceSpecification {
     firewall?: Firewall;
@@ -110,14 +111,9 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpe
         ));
     }
 
+    /* Untested */
     updateFirewall(request: BulkRequest<FirewallAndId>): APICallParameters<BulkRequest<FirewallAndId>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "/firewall",
-            parameters: request,
-            payload: request
-        };
+        return apiUpdate(request, this.baseContext, "firewall");
     }
 }
 
