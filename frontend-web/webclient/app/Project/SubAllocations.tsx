@@ -39,6 +39,7 @@ import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
 import ProjectAPI, {useProjectIdFromParams} from "@/Project/Api";
+import { isAllocationSuitableForSubAllocation } from "@/Project/Grant";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider) + ` [${getParentAllocationFromSuballocation(alloc)}]`;
@@ -937,10 +938,7 @@ function findValidAllocations(wallets: Wallet[], productType: ProductType): {wal
 
     return wallets.filter(it => it.productType === productType).flatMap(w => ({
         wallet: w,
-        allocations: w.allocations.filter(it =>
-            (it.endDate == null || it.endDate < now) &&
-            it.localBalance > 0
-        )
+        allocations: w.allocations.filter(it => isAllocationSuitableForSubAllocation(it))
     }));
 }
 

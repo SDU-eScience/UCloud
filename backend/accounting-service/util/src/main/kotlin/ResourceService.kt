@@ -315,7 +315,7 @@ abstract class ResourceService<
         return resource
     }
 
-    private suspend fun verifyCreationInProject(actorAndProject: ActorAndProject, ctx: DBContext? = null) {
+    private suspend fun verifyCreationInProject(actorAndProject: ActorAndProject, ctx: DBContext? = null, isCoreResource: Boolean = false) {
         if (actorAndProject.project == null) return
         (ctx ?: db).withSession { session ->
             val row = session
@@ -345,7 +345,7 @@ abstract class ResourceService<
             }
 
             val canConsumeResources = row?.getBoolean(1) == true
-            if (!canConsumeResources) {
+            if (!canConsumeResources && !isCoreResource) {
                 throw RPCException(
                     "This project is not allowed to consume any resources. Please use a different project.",
                     HttpStatusCode.Forbidden
@@ -403,7 +403,11 @@ abstract class ResourceService<
                     request: BulkRequest<Spec>
                 ): List<RequestWithRefOrResource<Spec, Res>> {
                     (ctx as? AsyncDBConnection ?: db).withSession { session ->
-                        verifyCreationInProject(actorAndProject, session)
+                        verifyCreationInProject(
+                            actorAndProject,
+                            session,
+                            request.items.all { it.product.provider == Provider.UCLOUD_CORE_PROVIDER }
+                        )
                     }
 
                     return request.items.map { it to ProductRefOrResource.SomeRef(it.product) }

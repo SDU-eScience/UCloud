@@ -187,7 +187,9 @@ data class WalletAllocation(
     )
     val grantedIn: Long?,
     @UCloudApiDoc("A property which indicates if this allocation can be used to create sub-allocations")
-    val canAllocate: Boolean = false but this isnt done yet, so please dont think it is there is no json stuff,
+    val canAllocate: Boolean = false,
+    @UCloudApiDoc("A property which indicates that new sub-allocations of this allocation by default should have canAllocate = true")
+    val allowSubAllocationsToAllocate: Boolean = true,
 )
 
 @Serializable
