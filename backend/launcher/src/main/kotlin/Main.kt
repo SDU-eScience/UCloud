@@ -198,7 +198,7 @@ suspend fun main(args: Array<String>) {
             val m = Micro(reg.rootMicro)
             m.install(AuthenticatorFeature)
             val client = m.authenticator.authenticateClient(OutgoingHttpCall)
-            val newUser = UserDescriptions.createNewUser.call(
+            UserDescriptions.createNewUser.call(
                 listOf(
                     CreateSingleUserRequest(
                         "user",
@@ -206,128 +206,6 @@ suspend fun main(args: Array<String>) {
                         role = Role.ADMIN,
                         email = "user@localhost"
                     )
-                ),
-                client
-            ).orThrow()
-
-            val userClient = RefreshingJWTAuthenticator(
-                reg.rootMicro.client,
-                JwtRefresher.Normal(newUser[0].refreshToken, OutgoingHttpCall)
-            ).authenticateClient(OutgoingHttpCall)
-
-            val project = Projects.create.call(
-                CreateProjectRequest(
-                    "Root",
-                    principalInvestigator = "user"
-                ),
-                client
-            ).orThrow().id
-
-            GrantsEnabled.setEnabledStatus.call(
-                bulkRequestOf(SetEnabledStatusRequest(project, true)),
-                userClient
-            ).orThrow()
-
-            GrantSettings.uploadRequestSettings.call(
-                bulkRequestOf(
-                    UploadRequestSettingsRequest(
-                        automaticApproval = AutomaticApprovalSettings(
-                            from = emptyList(),
-                            maxResources = emptyList()
-                        ),
-                        allowRequestsFrom = listOf<UserCriteria>(UserCriteria.Anyone()),
-                        excludeRequestsFrom = emptyList(),
-                        projectId = project
-                    )
-                ),
-                userClient.withProject(project)
-            )
-
-            ToolStore.create.call(
-                Unit,
-                client.withHttpBody(
-                    //language=yaml
-                    """
-                        ---
-                        tool: v1
-
-                        title: Alpine
-                        name: alpine
-                        version: 1
-
-                        container: alpine:3
-
-                        authors:
-                        - Dan
-                          
-                        defaultTimeAllocation:
-                          hours: 1
-                          minutes: 0
-                          seconds: 0
-
-                        description: All
-                                   
-                        defaultNumberOfNodes: 1 
-                        defaultTasksPerNode: 1
-
-                        backend: DOCKER                        
-                    """.trimIndent(),
-                    ContentType("text", "yaml")
-                )
-            ).orThrow()
-
-            AppStore.create.call(
-                Unit,
-                client.withHttpBody(
-                    //language=yaml
-                    """
-                        application: v1
-
-                        title: Alpine
-                        name: alpine
-                        version: 3
-
-                        applicationType: BATCH
-
-                        allowMultiNode: true
-
-                        tool:
-                          name: alpine
-                          version: 1
-
-                        authors:
-                        - Dan
-
-                        container:
-                          runAsRoot: true
-                         
-                        description: >
-                          Alpine!
-                         
-                        invocation:
-                        - sh
-                        - -c
-                        - >
-                          echo "Hello, World!";
-                          sleep 2;
-                          echo "How are you doing?";
-                          sleep 1;
-                          echo "This is just me writing some stuff for testing purposes!";
-                          sleep 1;
-                          seq 0 7200 | xargs -n 1 -I _ sh -c 'echo _; sleep 1';
-
-                        outputFileGlobs:
-                          - "*"
-                        
-                    """.trimIndent(),
-                    ContentType("text", "yaml")
-                )
-            ).orThrow()
-
-            AppStore.createTag.call(
-                CreateTagsRequest(
-                    listOf("Featured"),
-                    "alpine"
                 ),
                 client
             ).orThrow()

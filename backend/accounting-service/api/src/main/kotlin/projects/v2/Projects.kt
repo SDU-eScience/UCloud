@@ -81,6 +81,7 @@ data class Project(
     data class Specification(
         val parent: String?,
         val title: String,
+        val canConsumeResources: Boolean = true,
     ) {
         init {
             checkSingleLine(::title, title, maximumSize = 128)

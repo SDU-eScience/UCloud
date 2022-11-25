@@ -315,21 +315,41 @@ abstract class ResourceService<
         return resource
     }
 
-    private suspend fun verifyMembership(actorAndProject: ActorAndProject, ctx: DBContext? = null) {
+    private suspend fun verifyCreationInProject(actorAndProject: ActorAndProject, ctx: DBContext? = null) {
         if (actorAndProject.project == null) return
         (ctx ?: db).withSession { session ->
-            val isMember = session
+            val row = session
                 .sendPreparedStatement(
                     {
                         setParameter("user", actorAndProject.actor.safeUsername())
                         setParameter("project", actorAndProject.project)
                     },
-                    "select project.is_member(:user, :project)"
+                    """
+                        select pm.role is not null, p.can_consume_resources
+                        from
+                            project.projects p join
+                            project.project_members pm on p.id = pm.project_id
+                        where
+                            p.id = :project and
+                            pm.username = :user
+                    """
                 )
-                .rows.singleOrNull()?.getBoolean(0) ?: false
+                .rows.singleOrNull()
 
+            val isMember = row?.getBoolean(0) == true
             if (!isMember) {
-                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                throw RPCException(
+                    "You are not able to create a resource in this project. Please check your permissions.",
+                    HttpStatusCode.Forbidden
+                )
+            }
+
+            val canConsumeResources = row?.getBoolean(1) == true
+            if (!canConsumeResources) {
+                throw RPCException(
+                    "This project is not allowed to consume any resources. Please use a different project.",
+                    HttpStatusCode.Forbidden
+                )
             }
         }
     }
@@ -383,7 +403,7 @@ abstract class ResourceService<
                     request: BulkRequest<Spec>
                 ): List<RequestWithRefOrResource<Spec, Res>> {
                     (ctx as? AsyncDBConnection ?: db).withSession { session ->
-                        verifyMembership(actorAndProject, session)
+                        verifyCreationInProject(actorAndProject, session)
                     }
 
                     return request.items.map { it to ProductRefOrResource.SomeRef(it.product) }
