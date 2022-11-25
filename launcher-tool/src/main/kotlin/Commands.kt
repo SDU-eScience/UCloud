@@ -64,7 +64,7 @@ object Commands {
     
     fun openShell(serviceName: String) {
         postExecFile.appendText(
-            compose.exec(currentEnvironment, serviceName, listOf("/bin/bash")).toBashScript()
+            compose.exec(currentEnvironment, serviceName, listOf("/bin/sh", "-c", "bash || sh")).toBashScript()
         )
     }
     

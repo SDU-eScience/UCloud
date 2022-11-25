@@ -12,6 +12,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.config.ConfigSchema
+import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.ipc.IpcContainer
@@ -28,6 +29,9 @@ import dk.sdu.cloud.project.api.v2.ProjectsRetrieveRequest
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.sql.useAndInvoke
+import dk.sdu.cloud.sql.useAndInvokeAndDiscard
+import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.forEachGraal
 import kotlin.math.min
 import kotlinx.coroutines.currentCoroutineContext
@@ -249,13 +253,20 @@ class EventController(
         if (batch.responses.isEmpty()) return
 
         // Handle notifications by dispatching to the plugin.
-        val output = ArrayList<FindByStringId>()
+        val acknowlegedEvents = ArrayList<FindByStringId>()
+        val projectsToIgnore = HashSet<String>()
         for (item in batch.responses) {
+            if (!item.project.specification.canConsumeResources) {
+                projectsToIgnore.add(item.project.id)
+                acknowlegedEvents.add(FindByStringId(item.id))
+                continue
+            }
+
             with(controllerContext.pluginContext) {
                 with(projectPlugin) {
                     try {
                         onProjectUpdated(item.project)
-                        output.add(FindByStringId(item.id))
+                        acknowlegedEvents.add(FindByStringId(item.id))
                     } catch (ex: Throwable) {
                         log.warn(
                             "Caught an exception while handling project update: ${item.project}\n" +
@@ -266,19 +277,34 @@ class EventController(
             }
         }
 
+        if (projectsToIgnore.isNotEmpty()) {
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
+                        insert into events.projects_to_ignore(project_id)
+                        select unnest(:project_ids::text[]) on conflict do nothing
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindList("project_ids", projectsToIgnore.toList())
+                    }
+                )
+            }
+        }
+
         // Notify UCloud/Core about the notifications we handled successfully
-        if (output.isNotEmpty()) {
+        if (acknowlegedEvents.isNotEmpty()) {
             ProjectNotifications.markAsRead.call(
-                BulkRequest(output),
+                BulkRequest(acknowlegedEvents),
                 controllerContext.pluginContext.rpcClient
             ).orThrow()
         }
 
         debug.logD(
-            "Handled ${output.size} project notifications",
+            "Handled ${acknowlegedEvents.size} project notifications",
             Unit.serializer(),
             Unit,
-            if (output.size == 0) MessageImportance.IMPLEMENTATION_DETAIL
+            if (acknowlegedEvents.size == 0) MessageImportance.IMPLEMENTATION_DETAIL
             else MessageImportance.THIS_IS_NORMAL
         )
     }
@@ -296,8 +322,35 @@ class EventController(
 
         if (batch.responses.isEmpty()) return
 
-        val singles = processAllocationsSingles(batch.responses)
-        val totals = processAllocationsTotals(batch.responses)
+        var notifications = batch.responses
+        val projects = batch.responses.mapNotNull { (it.owner as? WalletOwner.Project)?.projectId }.toSet()
+        if (projects.isNotEmpty()) {
+            val projectsToIgnore = HashSet<String>()
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
+                        select project_id
+                        from events.projects_to_ignore
+                        where project_id = some(:project_ids::text[])
+                    """
+                ).useAndInvoke(
+                    prepare = {
+                        bindList("project_ids", projects.toList())
+                    },
+                    readRow = { row ->
+                        projectsToIgnore.add(row.getString(0)!!)
+                    }
+                )
+            }
+
+            notifications = notifications.filter { event ->
+                val owner = event.owner
+                owner !is WalletOwner.Project || owner.projectId !in projectsToIgnore
+            }
+        }
+
+        val singles = processAllocationsSingles(notifications)
+        val totals = processAllocationsTotals(notifications)
         val combined = totals.mapIndexed { idx, value ->
             value ?: singles[idx]
         }
@@ -307,7 +360,7 @@ class EventController(
             if (res == null) continue
             items.add(
                 DepositNotificationsMarkAsReadRequestItem(
-                    batch.responses[index].id,
+                    notifications[index].id,
                     (res as? OnResourceAllocationResult.ManageThroughProvider)?.uniqueId
                 )
             )
@@ -627,6 +680,7 @@ class EventController(
 
             // NOTE(Dan): Before we synchronize the allocations, attempt to synchronize the project. This will solve
             // issues when the project has failed the synchronization earlier.
+            val ignoredProjects = HashSet<String>()
             val projectPlugin = controllerContext.configuration.plugins.projects
             if (projectPlugin != null) {
                 providerSummary
@@ -649,10 +703,14 @@ class EventController(
                                 controllerContext.pluginContext.rpcClient
                             ).orThrow()
 
-                            with(controllerContext.pluginContext) {
-                                with(projectPlugin) {
-                                    onProjectUpdated(project)
+                            if (project.specification.canConsumeResources) {
+                                with(controllerContext.pluginContext) {
+                                    with(projectPlugin) {
+                                        onProjectUpdated(project)
+                                    }
                                 }
+                            } else {
+                                ignoredProjects.add(project.id)
                             }
                         } catch (ex: Throwable) {
                             log.warn(
@@ -663,7 +721,32 @@ class EventController(
                     }
             }
 
-            val notificationsByType = providerSummary.groupBy { it.productType }
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
+                        select project_id
+                        from events.projects_to_ignore
+                        where project_id = some(:project_ids::text[])
+                    """
+                ).useAndInvoke(
+                    prepare = {
+                        bindList(
+                            "project_ids",
+                            providerSummary.mapNotNull { (it.owner as? WalletOwner.Project)?.projectId }.toSet().toList()
+                        )
+                    },
+                    readRow = { row ->
+                        ignoredProjects.add(row.getString(0)!!)
+                    }
+                )
+            }
+
+            val filteredSummary = providerSummary.filter {
+                val owner = it.owner
+                owner !is WalletOwner.Project || owner.projectId !in ignoredProjects
+            }
+
+            val notificationsByType = filteredSummary.groupBy { it.productType }
 
             for ((type, list) in notificationsByType) {
                 val plugin = controllerContext.configuration.plugins.allocations.entries.find { (pluginType) ->
@@ -677,7 +760,7 @@ class EventController(
                 pluginType == ConfigSchema.Plugins.AllocationsProductType.ALL
             }?.value
 
-            if (allPlugin != null) dispatchSyncToPlugin(allPlugin, providerSummary)
+            if (allPlugin != null) dispatchSyncToPlugin(allPlugin, filteredSummary)
 
         }
 
