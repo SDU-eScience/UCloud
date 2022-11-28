@@ -177,7 +177,7 @@ function Header(props: HeaderProps): JSX.Element | null {
             const result = await promises.makeCancelable(Client.get<Page<NewsPost>>("/news/listDowntimes")).promise;
             if (result.response.items.length > 0) setUpcomingDowntime(result.response.items[0].id);
         } catch (err) {
-            displayErrorMessageOrDefault(err, "Could not fetch upcoming downtimes.");
+            // Ignored
         }
     }
 }

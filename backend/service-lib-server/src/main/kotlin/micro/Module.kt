@@ -38,7 +38,7 @@ class ServiceRegistry(
     val rootMicro = Micro()
     private val services = ArrayList<ConfiguredService>()
     val isRunning: Boolean get() = rootServer.isRunning
-    private val rootServer  = object : CommonServer {
+    private val rootServer = object : CommonServer {
         override val micro: Micro = rootMicro
         override fun start() {
             // Do nothing
@@ -63,7 +63,8 @@ class ServiceRegistry(
             install(ServiceInstanceFeature)
             install(DevelopmentOverrides)
             install(LogFeature)
-            install(KtorServerProviderFeature)
+            val noServer = args.contains("--no-server")
+            if (!noServer) install(KtorServerProviderFeature)
             install(ClientFeature)
             install(TokenValidationFeature)
 
@@ -72,17 +73,21 @@ class ServiceRegistry(
                 val loadedConfig = rootMicro.configuration
                 redisEnabled = loadedConfig.requestChunkAtOrNull("redisEnabled") ?: true
                 elasticEnabled = loadedConfig.requestChunkAtOrNull("elasticEnabled") ?: true
+            }
 
+            if (!noServer) {
                 if (redisEnabled) install(RedisFeature)
                 if (elasticEnabled) install(ElasticFeature)
             }
 
             // Mandatory features (which has optional dependencies)
-            install(ServerFeature)
-            install(HealthCheckFeature)
-            install(BackgroundScopeFeature)
-            install(DebugSystemFeature)
-            install(ScriptManager)
+            if (!noServer) {
+                install(ServerFeature)
+                install(HealthCheckFeature)
+                install(BackgroundScopeFeature)
+                install(DebugSystemFeature)
+                install(ScriptManager)
+            }
         }
     }
 

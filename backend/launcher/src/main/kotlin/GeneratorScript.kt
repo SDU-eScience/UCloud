@@ -557,3 +557,5 @@ fun generateCode() {
     generateSphinxExamples(useCases)
     generateFrontendRpcNameTable(callsByFeature.values)
 }
+
+const val PROVIDER_ID_PLACEHOLDER = "PROVIDERID"

@@ -25,7 +25,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
 
     public render() {
         return (
-            <React.StrictMode>
+            <>
                 <Heading.h2>Two Factor Authentication</Heading.h2>
                 {this.props.mustActivate2fa ? (
                     <Heading.h3 color={getCssVar("red")}>
@@ -35,7 +35,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
                 <b>{this.displayConnectedStatus()}</b>
                 <Divider />
                 {!this.state.isConnectedToAccount ? this.setupPage() : undefined}
-            </React.StrictMode>
+            </>
         );
     }
 

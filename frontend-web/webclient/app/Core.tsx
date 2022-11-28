@@ -305,6 +305,7 @@ function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
 injectFonts();
 
 export default function UCloudApp(): JSX.Element {
+    if (window.location.pathname === "/" && inDevEnvironment()) window.location.href = "/app";
     return (
         <Provider store={store}>
             <MainApp>

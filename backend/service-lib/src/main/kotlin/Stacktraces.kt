@@ -11,7 +11,14 @@ data class ReadableStackTrace(
     val type: String,
     val message: String,
     val frames: List<String>,
-)
+) {
+    override fun toString(): String = buildString {
+        appendLine("$type: $message")
+        for (frame in frames) {
+            appendLine("  at $frame")
+        }
+    }
+}
 
 data class ProposedStackFrame(val className: String, val methodName: String)
 
