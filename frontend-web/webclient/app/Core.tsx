@@ -176,7 +176,7 @@ const Core = (): JSX.Element => (
                         <Route path="/projects/:project" element={React.createElement(requireAuth(ProjectDashboard))} />
                         <Route path="/projects/:project/members" element={React.createElement(requireAuth(ProjectMembers))} />
 
-                        <Route path="/subprojects" element={React.createElement(requireAuth(SubprojectList))} />
+                        <Route path="/subprojects/:project" element={React.createElement(requireAuth(SubprojectList))} />
 
                         {/* Nullable paths args aren't supported (yet?) so we duplicate. */}
                         <Route path="/project/settings/:project/" element={React.createElement(requireAuth(ProjectSettings))} />
