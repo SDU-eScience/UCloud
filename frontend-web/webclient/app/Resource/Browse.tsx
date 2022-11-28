@@ -577,7 +577,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             </List>
         </>
     }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport, renaming,
-        viewProperties]);
+        viewProperties, callbacks]);
 
     if (!isEmbedded) {
         useTitle(api.titlePlural);

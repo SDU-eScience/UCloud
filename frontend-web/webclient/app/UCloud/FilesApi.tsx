@@ -8,7 +8,7 @@ import {
     ResourceUpdate,
 } from "@/UCloud/ResourceApi";
 import {FileIconHint, FileType} from "@/Files";
-import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
+import {BulkRequest, BulkResponse, compute, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Box, Button, Flex, FtIcon, Icon, Link, Select, Text, TextArea} from "@/ui-components";
@@ -257,11 +257,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
             const synchronizedFolders: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
             const isSynchronized = synchronizedFolders.some(it => it.ucloudPath === resource.id);
-            console.log(callbacks.syncthingConfig);
 
             const history = useHistory();
             const openSync = useCallback(() => {
-                history.push("/syncthing");
+                history.push(`/syncthing?provider=${resource.specification.product.provider}`);
             }, []);
 
             return <Flex>
