@@ -65,7 +65,8 @@ export const FilesBrowse: React.FunctionComponent<{
 
     // UI state
     const didUnmount = useDidUnmount();
-    const [syncthingConfig, fetchSyncthingConfig] = useCloudAPI<SyncthingConfigResponse | null>({noop: true}, null);
+    //const [syncthingConfig, fetchSyncthingConfig] = useCloudAPI<SyncthingConfigResponse | null>({noop: true}, null);
+    const [syncthingConfig, setSyncthingConfig] = useState<SyncthingConfig | null>(null);
     const [syncthingProduct, setSyncthingProduct] = useState<compute.ComputeProductSupportResolved | null>(null);
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
     const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);
@@ -125,58 +126,36 @@ export const FilesBrowse: React.FunctionComponent<{
     }, [navigateToPath]);
 
     const setSynchronization = useCallback((file: UFile, shouldAdd: boolean) => {
-        /*if (!syncthingProduct) {
-            return;
-        }*/
-
-        const syncthingProduct = !collection.data?.specification.product.provider ? null :
-            invokeCommand(compute.jobs.retrieveProducts({providers: collection.data.specification.product.provider}));
-        
-        if (!syncthingProduct) {
-            return;
-        }
-
-            /*Sync.fetchProducts(collection.data?.specification.product.provider).then(products => {
-                console.log("Setting syncthing product");
-                setSyncthingProduct(products.find(it => it.product.category.name === "syncthing") ?? null);
-            });*/
-
-        
-
-
-        /*fetchSyncthingConfig((conf) => {
-            if (!conf) return conf;
-            const newConf = deepCopy(conf);
-
-            const folders = newConf?.folders ?? []
+        setSyncthingConfig((config) => {
+            if (!config) return config;
+            const newConfig = deepCopy(config);
+            
+            const folders = newConfig?.folders ?? []
 
             if (shouldAdd) {
                 const newFolders = [...folders];
-                newConf.folders = newFolders;
+                newConfig.folders = newFolders;
 
                 if (newFolders.every(it => it.ucloudPath !== file.id)) {
                     newFolders.push({id: randomUUID(), ucloudPath: file.id});
                 }
             } else {
-                newConf.folders = folders.filter(it => it.ucloudPath !== file.id);
+                newConfig.folders = folders.filter(it => it.ucloudPath !== file.id);
             }
 
-            if (!collection.data) {
-                snackbarStore.addFailure("Unable to add to Syncthing: Unknown product", false);
-                return conf;
-            }
+            if (!collection.data?.specification.product.provider) return config;
 
             invokeCommand(Sync.api.updateConfiguration({
                 providerId: collection.data?.specification.product.provider,
-                category: collection.data?.specification.product.category,
-                config: newConf
+                category: "syncthing",
+                config: newConfig
             })).catch(e => {
                 if (didUnmount.current) return;
                 defaultErrorHandler(e);
-                fetchSyncthingConfig(conf);
+                setSyncthingConfig(config);
             });
-            return newConf;
-        });*/
+            return newConfig;
+        });
     }, [collection.data?.specification.product.provider]);
 
     const selectLocalProject = useCallback(async (projectOverride: string) => {
@@ -212,7 +191,7 @@ export const FilesBrowse: React.FunctionComponent<{
         collection: collection?.data ?? undefined,
         allowMoveCopyOverride: props.allowMoveCopyOverride,
         directory: directory?.data ?? undefined,
-        syncthingConfig: syncthingConfig?.data?.config ?? undefined,
+        syncthingConfig: syncthingConfig ?? undefined,
         setSynchronization
     }), [collection.data, directory.data, syncthingConfig]);
 
@@ -241,9 +220,12 @@ export const FilesBrowse: React.FunctionComponent<{
     useEffect(() => {
         if (!syncthingProduct) return;
         if (didUnmount.current) return;
-        if (!syncthingConfig.loading) {
+        Sync.fetchConfig(syncthingProduct.product.category.provider).then(config => {
+            setSyncthingConfig(config);
+        });
+        /*if (!syncthingConfig.loading) {
             fetchSyncthingConfig(Sync.api.retrieveConfiguration(syncthingProduct.product.category.provider, "syncthing"));
-        }
+        }*/
     }, [collection.data, path, localActiveProject, syncthingProduct]);
 
     useEffect(() => {

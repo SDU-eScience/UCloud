@@ -864,9 +864,6 @@ function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBr
     const support = cb.collection?.status.resolvedSupport?.support;
     if (!support) return false;
 
-    const isUCloud = cb.collection?.specification?.product?.provider === "ucloud"
-    if (!isUCloud) return false;
-
     const isShare = cb.collection?.specification.product.id === "share";
     if (isShare) {
         return false;
@@ -893,6 +890,7 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
     const resolvedFiles = files.length === 0 ? (cb.directory ? [cb.directory] : []) : files;
     const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
 
+    if (!cb.syncthingConfig) return;
     if (!allSynchronized) {
         const synchronizedFolderNames = synchronized.map(it => it.ucloudPath.split("/").pop());
 
