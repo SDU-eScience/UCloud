@@ -185,7 +185,11 @@ data class WalletAllocation(
     @UCloudApiDoc(
         "ID reference to which grant application this allocation was granted in"
     )
-    val grantedIn: Long?
+    val grantedIn: Long?,
+    @UCloudApiDoc("A property which indicates if this allocation can be used to create sub-allocations")
+    val canAllocate: Boolean = false,
+    @UCloudApiDoc("A property which indicates that new sub-allocations of this allocation by default should have canAllocate = true")
+    val allowSubAllocationsToAllocate: Boolean = true,
 )
 
 @Serializable

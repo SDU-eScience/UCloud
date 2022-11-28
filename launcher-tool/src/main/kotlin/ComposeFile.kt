@@ -400,6 +400,26 @@ sealed class ComposeService {
                 ),
                 serviceConvention = true
             )
+
+            service(
+                "k8pgweb",
+                "K8 Provider: Postgres UI",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "sosedoff/pgweb",
+                        "hostname": "k8pgweb",
+                        "restart": "always",
+                        "environment": {
+                          "DATABASE_URL": "postgres://postgres:postgrespassword@k8:5432/postgres?sslmode=disable"
+                        }
+                      }
+                    """.trimIndent()
+                ),
+                serviceConvention = false,
+                address = "https://k8-pg.localhost.direct",
+            )
         }
 
         override fun install(credentials: ProviderCredentials) {
@@ -439,6 +459,12 @@ sealed class ComposeService {
                       executable: /usr/bin/envoy
                       funceWrapper: false
                       directory: /var/run/ucloud/envoy
+                      
+                    database:
+                      type: Embedded
+                      directory: /etc/ucloud/pgsql
+                      host: 0.0.0.0
+                      password: postgrespassword
                 """.trimIndent()
             )
 
@@ -859,6 +885,26 @@ sealed class ComposeService {
                     serviceConvention = false
                 )
             }
+
+            service(
+                "slurmpgweb",
+                "Slurm Provider: Postgres UI",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "sosedoff/pgweb",
+                        "hostname": "slurmpgweb",
+                        "restart": "always",
+                        "environment": {
+                          "DATABASE_URL": "postgres://postgres:postgrespassword@slurm:5432/postgres?sslmode=disable"
+                        }
+                      }
+                    """.trimIndent()
+                ),
+                serviceConvention = false,
+                address = "https://slurm-pg.localhost.direct",
+            )
         }
 
         override fun install(credentials: ProviderCredentials) {
@@ -899,6 +945,11 @@ sealed class ComposeService {
                       executable: /usr/bin/envoy
                       funceWrapper: false
                       directory: /var/run/ucloud/envoy
+                    database:
+                      type: Embedded
+                      host: 0.0.0.0
+                      directory: /etc/ucloud/pgsql
+                      password: postgrespassword
                 """.trimIndent()
             )
 
@@ -1308,8 +1359,16 @@ sealed class ComposeService {
                         reverse_proxy k8:8889
                     }
                     
+                    https://k8-pg.localhost.direct {
+                        reverse_proxy k8pgweb:8081
+                    }
+                    
                     https://slurm.localhost.direct {
                         reverse_proxy slurm:8889
+                    }
+                    
+                    https://slurm-pg.localhost.direct {
+                        reverse_proxy slurmpgweb:8081
                     }
                     
                     *.localhost.direct {

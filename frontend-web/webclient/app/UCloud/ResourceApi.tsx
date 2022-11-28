@@ -140,6 +140,7 @@ export abstract class ResourceApi<Res extends Resource,
     public abstract routingNamespace;
     public abstract title: string;
     public abstract page: SidebarPages;
+    public isCoreResource: boolean = false;
     public defaultSortDirection: "ascending" | "descending" = "ascending";
 
     public filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [];

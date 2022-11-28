@@ -39,7 +39,7 @@ import {
 import styled from "styled-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {
-    GrantsRetrieveAffiliationsResponse,
+    GrantsRetrieveAffiliationsResponse, isAllocationSuitableForSubAllocation,
     retrieveDescription,
     RetrieveDescriptionResponse,
 } from "@/Project/Grant/index";
@@ -409,7 +409,7 @@ function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllo
     const [allocationId, setAllocationId] = useState<string | undefined>(allocationRequest?.sourceAllocation ?? "");
 
     const allocationCount = React.useMemo(() => {
-        return wallets.reduce((acc, w) => w.allocations.length + acc, 0);
+        return wallets.reduce((acc, w) => w.allocations.filter(isAllocationSuitableForSubAllocation).length + acc, 0);
     }, [wallets]);
 
     React.useEffect(() => {
@@ -430,8 +430,11 @@ function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllo
             allocationCount === 1
         ) {
             const [wallet] = wallets;
-            setAllocation({wallet: wallet, allocation: wallet.allocations[0], autoAssigned: true});
-            setAllocationId(wallet.allocations[0].id);
+            const allocs = wallet.allocations.filter(isAllocationSuitableForSubAllocation);
+            if (allocs.length === 1) {
+                setAllocation({wallet: wallet, allocation: allocs[0], autoAssigned: true});
+                setAllocationId(allocs[0].id);
+            }
         } else for (const w of wallets) {
             for (const a of w.allocations) {
                 if (allocationRequest.sourceAllocation == a.id) {
@@ -488,7 +491,7 @@ function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllo
 
 function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: WalletAllocation): void; wallet: Wallet;}) {
     return <>
-        {wallet.allocations.map(a =>
+        {wallet.allocations.filter(it => isAllocationSuitableForSubAllocation(it)).map(a =>
             <TableRow key={a.id} onClick={() => onClick(wallet, a)} cursor="pointer">
                 <TableCell width="200px">{wallet.paysFor.provider}</TableCell>
                 <TableCell width="200px">{wallet.paysFor.name}</TableCell>

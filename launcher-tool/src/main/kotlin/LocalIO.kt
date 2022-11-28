@@ -65,7 +65,7 @@ data class LocalExecutableCommand(
     override fun toBashScript(): String {
         return buildString {
             if (workingDir != null) appendLine("cd '$workingDir'")
-            appendLine(args.joinToString(" ") { "'$${escapeBash(it)}'" })
+            appendLine(args.joinToString(" ") { "'${escapeBash(it)}'" })
         }
     }
 

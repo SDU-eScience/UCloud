@@ -662,11 +662,12 @@ class ProjectService(
                     request.items.split {
                         into("titles") { it.title }
                         into("parents") { it.parent }
+                        into("can_consume_resources") { it.canConsumeResources }
                     }
                 },
                 """
-                    insert into project.projects (id, created_at, modified_at, title, parent, dmp) 
-                    select unnest(:ids::text[]), now(), now(), unnest(:titles::text[]), unnest(:parents::text[]), null
+                    insert into project.projects (id, created_at, modified_at, title, parent, dmp, can_consume_resources) 
+                    select unnest(:ids::text[]), now(), now(), unnest(:titles::text[]), unnest(:parents::text[]), null, unnest(:can_consume_resources::bool[])
                 """
             )
 

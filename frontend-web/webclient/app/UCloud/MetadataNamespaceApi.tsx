@@ -81,6 +81,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
     title = "Metadata Template";
     page = SidebarPages.Files;
     productType = undefined;
+    isCoreResource = true;
 
     renderer: ItemRenderer<FileMetadataTemplateNamespace, StandardCallbacks<FileMetadataTemplate> & TemplateCallbacks> = {
         Icon({resource, size}) {return <Icon name={"docs"} size={size} />},

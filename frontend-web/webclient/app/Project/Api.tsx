@@ -46,6 +46,7 @@ export interface ProjectStatus {
 export interface ProjectSpecification {
     parent?: string | null;
     title: string;
+    canConsumeResources?: boolean;
 }
 
 export interface ProjectSettings {
