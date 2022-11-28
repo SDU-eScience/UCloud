@@ -20,9 +20,11 @@ import {
     sizeToString
 } from "@/Utilities/FileUtilities";
 import {
-    displayErrorMessageOrDefault, doNothing, extensionFromPath, isLikelySafari,
+    displayErrorMessageOrDefault, doNothing, extensionFromPath, inDevEnvironment, isLikelySafari,
+    onDevSite,
     prettierString, removeTrailingSlash
 } from "@/UtilityFunctions";
+import * as Heading from "@/ui-components/Heading";
 import {Operation} from "@/ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
 import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
@@ -58,6 +60,7 @@ import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api
 import {useNavigate} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
+import { ProviderTitle } from "@/Providers/ProviderTitle";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -149,6 +152,31 @@ interface ExtraCallbacks {
     setSynchronization?: (file: UFile, shouldAdd: boolean) => void;
 }
 
+function isSensitivitySupported(resource: UFile): boolean {
+    // NOTE(Dan): This is a temporary frontend workaround. A proper backend solution will be implemented at a later
+    // point in time. For the time being we will simply use a list of supported providers on the frontend. This list
+    // contains the known production providers which support sensitive data. This list will also contain some "fake"
+    // providers which are known to be used in development builds.
+    if (inDevEnvironment() || onDevSite()) {
+        switch (resource.specification.product.provider) {
+            case "k8":
+            case "ucloud":
+                return true;
+
+            default:
+                return false;
+        }
+    } else {
+        switch (resource.specification.product.provider) {
+            case "ucloud":
+                return true;
+
+            default:
+                return false;
+        }
+    }
+}
+
 const FileSensitivityVersion = "1.0.0";
 const FileSensitivityNamespace = "sensitivity";
 type SensitivityLevel = | "PRIVATE" | "SENSITIVE" | "CONFIDENTIAL";
@@ -158,6 +186,8 @@ async function findSensitivityWithFallback(file: UFile): Promise<SensitivityLeve
 }
 
 export async function findSensitivity(file: UFile): Promise<SensitivityLevel | undefined> {
+    if (!isSensitivitySupported(file)) return Promise.resolve("PRIVATE");
+
     if (!sensitivityTemplateId) {
         sensitivityTemplateId = await findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
         if (!sensitivityTemplateId) {
@@ -992,6 +1022,29 @@ function downloadFile(url: string) {
 }
 
 async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand, reload: () => void): Promise<void> {
+    if (!isSensitivitySupported(file)) {
+        dialogStore.addDialog(
+            <>
+                <Heading.h2>Sensitive files not supported <Icon name="warning" color="red" size="32" /></Heading.h2>
+                <p>
+                    This provider (<ProviderTitle providerId={file.specification.product.provider} />) has declared 
+                    that they do not support sensitive data. This means that you <b>cannot/should not</b>:
+
+                    <ul>
+                        <li>Store sensitive data on this provider</li>
+                        <li>It is not possible to mark files as confidential or sensitive</li>
+                    </ul>
+                </p>
+                <p>
+                    You can look at the providers own web-page for more information. We recommend that you use a
+                    different provider if you need to store sensitive data.
+                </p>
+            </>,
+            doNothing,
+            true
+        );
+        return;
+    }
     if (file.permissions.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
         return;
     }
