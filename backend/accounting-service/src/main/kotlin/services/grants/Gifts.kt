@@ -82,10 +82,10 @@ class GiftService(
                         resources_to_be_gifted res join
                         gifts_claimed on
                             res.gift_id = gifts_claimed.gift_id;
-                """, debug=true
+                """
             ).rows
 
-            if (rows.isEmpty()) { return@withSession }
+            if (rows.isEmpty()) { throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest) }
 
             rows.forEach { row ->
                 val balance = row.getLong(0)!!
@@ -98,7 +98,7 @@ class GiftService(
                     category
                 )
                 val sourceAllocation = allocations.find { it.balance >= balance } ?: allocations.firstOrNull() ?:
-                throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
+                    throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
 
                 accountingService.deposit(
                     ActorAndProject(Actor.System, null),

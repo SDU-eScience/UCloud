@@ -615,41 +615,6 @@ typealias ForceInMemoryDBSyncRequest = Unit
 typealias ForceInMemoryDBSyncResponse = Unit
 
 @Serializable
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
-data class TransferToWalletRequestItem(
-    @UCloudApiDoc("The category to transfer from")
-    val categoryId: ProductCategoryId,
-    @UCloudApiDoc("The target wallet to insert the credits into")
-    val target: WalletOwner,
-    @UCloudApiDoc("The source allocation from where the credits is transferred from")
-    val sourceAllocationId: String,
-    @UCloudApiDoc("The amount of credits to transfer")
-    val amount: Long,
-    @UCloudApiDoc(
-        """
-        A timestamp for when this deposit should become valid
-        
-        This value must overlap with the source allocation. A value of null indicates that the allocation becomes valid
-        immediately.
-    """
-    )
-    val startDate: Long? = null,
-    @UCloudApiDoc(
-        """
-        A timestamp for when this deposit should become invalid
-        
-        This value must overlap with the source allocation. A value of null indicates that the allocation will never
-        expire.
-    """
-    )
-    val endDate: Long? = null,
-    @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
-    var transactionId: String = Random.nextLong().toString() + Time.now(),
-)
-
-typealias TransferToWalletResponse = Unit
-
-@Serializable
 data class UpdateAllocationRequestItem(
     val id: String,
     val balance: Long,
@@ -695,8 +660,6 @@ object Accounting : CallDescriptionContainer("accounting") {
               the same amount. The local balances of an ancestor remains unchanged. 
             - $CALL_REF accounting.deposit: Creates a new _sub-allocation_ from a parent allocation. The new allocation
               will have the current allocation as a parent. The balance of the parent allocation is not changed.
-            - $CALL_REF accounting.transfer: Creates a new root allocation from a parent allocation. The new allocation 
-              will have no parents. The balance of the parent allocation is immediately removed, in full.
 
             ---
 
@@ -738,7 +701,6 @@ object Accounting : CallDescriptionContainer("accounting") {
     private const val chargeAbsoluteMultiMissingUseCase = "charge-absolute-multi-missing"
     private const val chargeDifferentialMultiMissingUseCase = "charge-differential-multi-missing"
     private const val depositUseCase = "deposit"
-    private const val transferUseCase = "transfer"
 
     override fun documentation() {
         val defaultOwner: WalletOwner = WalletOwner.Project("my-research")

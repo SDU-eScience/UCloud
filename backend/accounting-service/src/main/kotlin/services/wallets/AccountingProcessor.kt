@@ -997,7 +997,11 @@ class AccountingProcessor(
                 ApiWalletOwner.Project(owner)
             },
             paysFor,
-            allocations.mapNotNull { it?.toApiAllocation() },
+            allocations.mapNotNull { alloc ->
+                if (alloc?.associatedWallet == id ) {
+                    alloc.toApiAllocation()
+                } else null
+           },
             chargePolicy,
             productType,
             chargeType,
@@ -1583,6 +1587,7 @@ class AccountingProcessor(
 
     private suspend fun retrieveWalletsInternal(request: AccountingRequest.RetrieveWalletsInternal): AccountingResponse {
         val wallets = wallets.filter { it?.owner == request.owner }
+        println(wallets)
         return AccountingResponse.RetrieveWalletsInternal(
             wallets
                 .asSequence()
