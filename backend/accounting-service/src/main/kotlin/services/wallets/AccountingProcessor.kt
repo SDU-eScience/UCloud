@@ -155,6 +155,7 @@ sealed class AccountingRequest {
         val productCategory: ProductCategoryId,
         val amount: Long,
         override var id: Long = -1,
+        val forcedSync: Boolean = false
     ) : AccountingRequest()
 
     data class Deposit(
@@ -1136,6 +1137,9 @@ class AccountingProcessor(
                 transactionId
             )
         )
+        if (request.forcedSync) {
+            attemptSynchronize(forced = true)
+        }
         return AccountingResponse.RootDeposit(created)
     }
 

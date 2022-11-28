@@ -101,7 +101,8 @@ suspend fun initializeWallets(
                 owner,
                 amount,
                 "Initial balance",
-                transactionId = UUID.randomUUID().toString()
+                transactionId = UUID.randomUUID().toString(),
+                forcedSync = true
             )
         }),
         serviceClient

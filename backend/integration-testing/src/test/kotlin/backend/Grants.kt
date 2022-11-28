@@ -1,9 +1,6 @@
 package dk.sdu.cloud.integration.backend
 
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.accounting.api.Wallet
-import dk.sdu.cloud.accounting.api.WalletBrowseRequest
-import dk.sdu.cloud.accounting.api.Wallets
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.grants.*
 import dk.sdu.cloud.accounting.api.projects.*
 import dk.sdu.cloud.base64Encode
@@ -212,6 +209,10 @@ class GrantTest : IntegrationTest() {
 
             test<In, Out>("Grant applications, expected flow") {
                 execute {
+                    Wallets.testResetCaches.call(
+                        Unit,
+                        serviceClient
+                    )
                     val grantPi = createUser("pi-${UUID.randomUUID()}")
                     val grantAdmins = (0 until input.numberOfProjectAdmins).map {
                         createUser("admin-${UUID.randomUUID()}")
@@ -224,13 +225,13 @@ class GrantTest : IntegrationTest() {
                     )
                     val createdProject = initializeRootProject(grantPi.username)
 
-                    val walletAllocations = Wallets.browse.call(
-                        WalletBrowseRequest(),
-                        grantPi.client.withProject(createdProject)
+                    val walletAllocations = Wallets.retrieveWalletsInternal.call(
+                        WalletsInternalRetrieveRequest(WalletOwner.Project(createdProject)),
+                        serviceClient
                     ).orThrow()
 
                     val requestedResources = input.resourcesRequested.map {requested ->
-                        val alloc = walletAllocations.items.find { it.paysFor == ProductCategoryId(requested.category, requested.provider) }
+                        val alloc = walletAllocations.wallets.find { it.paysFor == ProductCategoryId(requested.category, requested.provider) }
                         GrantApplication.AllocationRequest(
                             requested.category,
                             requested.provider,
@@ -590,20 +591,23 @@ class GrantTest : IntegrationTest() {
                         is GrantApplication.Recipient.ExistingProject, is GrantApplication.Recipient.NewProject -> {
                             val project = userProjects.singleOrNull()?.projectId
                             if (project == null) emptyList()
-                            else Wallets.browse.call(
-                                WalletBrowseRequest(),
-                                normalUser.client.withProject(project)
-                            ).orThrow().items
+                            else Wallets.retrieveWalletsInternal.call(
+                                WalletsInternalRetrieveRequest(WalletOwner.Project(project)),
+                                serviceClient
+                            ).orThrow().wallets
                         }
                         is GrantApplication.Recipient.PersonalWorkspace -> {
-                            Wallets.browse.call(WalletBrowseRequest(), normalUser.client).orThrow().items
+                            Wallets.retrieveWalletsInternal.call(
+                                WalletsInternalRetrieveRequest(WalletOwner.User(normalUser.username)),
+                                serviceClient
+                            ).orThrow().wallets
                         }
                     }
                    // while (true) {delay(50)}
-                    val grantWallets = Wallets.browse.call(
-                        WalletBrowseRequest(),
-                        grantPi.client.withProject(createdProject)
-                    ).orThrow().items
+                    val grantWallets = Wallets.retrieveWalletsInternal.call(
+                            WalletsInternalRetrieveRequest(WalletOwner.Project(createdProject)),
+                            serviceClient
+                        ).orThrow().wallets
 
                     Out(
                         outputApplication,

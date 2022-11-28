@@ -638,7 +638,8 @@ data class RootDepositRequestItem(
     var startDate: Long? = null,
     val endDate: Long? = null,
     var transactionId: String = Random.nextLong().toString() + Time.now(),
-    val providerGeneratedId: String? = null
+    val providerGeneratedId: String? = null,
+    val forcedSync: Boolean = false
 )
 
 object Accounting : CallDescriptionContainer("accounting") {

@@ -123,6 +123,7 @@ class AccountingService(
                 deposit.recipient.toProcessorOwner(),
                 deposit.categoryId,
                 deposit.amount,
+                forcedSync = deposit.forcedSync
             ))
         }
     }
