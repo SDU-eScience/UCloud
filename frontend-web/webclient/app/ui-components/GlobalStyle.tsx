@@ -823,12 +823,11 @@ div.tooltip-content {
     display: none;
     color: var(--black);
     background-color: var(--white);
+    z-index: 1;
 }
 
 div.tooltip-content.centered {
     justify-content: center;
-
-    z-index: 1;
 
     .user-box {
         width: 350px;

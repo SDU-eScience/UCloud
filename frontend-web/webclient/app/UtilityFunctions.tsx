@@ -318,6 +318,7 @@ export function errorMessageOrDefault(
 ): string {
     if (!navigator.onLine) return "You seem to be offline.";
     try {
+        if (err instanceof Error) return err.toString();
         if (typeof err === "string") return err;
         if ("status" in err) {
             return err.response;
