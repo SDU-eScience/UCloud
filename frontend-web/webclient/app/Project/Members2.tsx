@@ -262,9 +262,10 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
     if (!project) return;
     switch (action.type) {
         case "RemoveMember": {
-            const success = await callAPIWithErrorHandler(
-                Api.deleteMember(bulkRequestOf(...action.members.map(it => ({username: it}))))
-            );
+            const success = await callAPIWithErrorHandler({
+                ...Api.deleteMember(bulkRequestOf(...action.members.map(it => ({username: it})))),
+                projectOverride: project.id
+            });
 
             // NOTE(Dan): Something is probably really wrong if this happens. Just reload the entire thing.
             if (!success) cb.requestReload();
@@ -275,9 +276,10 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
             // NOTE(Dan): We can only change our own role, if we are promoting someone else to a PI. As a result,
             // such a change is meant only for the frontend, and not the backend. The backend will implicitly perform
             // this change for us, since there can be only one PI.
-            const success = await callAPIWithErrorHandler(
-                Api.changeRole(bulkRequestOf(...action.changes.filter(it => it.username != Client.username!)))
-            );
+            const success = await callAPIWithErrorHandler({
+                ...Api.changeRole(bulkRequestOf(...action.changes.filter(it => it.username != Client.username!))),
+                projectOverride: project.id
+            });
 
             if (!success) {
                 const oldRoles: {username: string, role: ProjectRole}[] = [];
@@ -294,9 +296,10 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
         }
 
         case "AddToGroup": {
-            const success = await callAPIWithErrorHandler(
-                Api.createGroupMember(bulkRequestOf({group: action.group, username: action.member}))
-            ) != null;
+            const success = await callAPIWithErrorHandler({
+                ...Api.createGroupMember(bulkRequestOf({group: action.group, username: action.member})),
+                projectOverride: project.id
+            }) != null;
 
             if (!success) {
                 cb.pureDispatch({type: "RemoveFromGroup", group: action.group, member: action.member});
@@ -305,9 +308,10 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
         }
 
         case "RemoveFromGroup": {
-            const success = await callAPIWithErrorHandler(
-                Api.deleteGroupMember(bulkRequestOf({group: action.group, username: action.member}))
-            ) != null;
+            const success = await callAPIWithErrorHandler({
+                ...Api.deleteGroupMember(bulkRequestOf({group: action.group, username: action.member})),
+                projectOverride: project.id
+            }) != null;
 
             if (!success) {
                 cb.pureDispatch({type: "AddToGroup", group: action.group, member: action.member});
@@ -319,9 +323,10 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
             const currentTitle = state.project?.status?.groups
                 ?.find(it => it.id === action.group)?.specification?.title;
 
-            const success = await callAPIWithErrorHandler(
-                Api.renameGroup(bulkRequestOf({group: action.group, newTitle: action.newTitle}))
-            );
+            const success = await callAPIWithErrorHandler({
+                ...Api.renameGroup(bulkRequestOf({group: action.group, newTitle: action.newTitle})),
+                projectOverride: project.id
+            });
 
             if (!success && currentTitle) {
                 cb.pureDispatch({type: "RenameGroup", group: action.group, newTitle: currentTitle});
@@ -330,9 +335,10 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
         }
 
         case "CreateGroup": {
-            const ids = await callAPIWithErrorHandler<BulkResponse<FindByStringId>>(
-                Api.createGroup(bulkRequestOf({project: project.id, title: action.title}))
-            );
+            const ids = await callAPIWithErrorHandler<BulkResponse<FindByStringId>>({
+                ...Api.createGroup(bulkRequestOf({project: project.id, title: action.title})),
+                projectOverride: project.id
+            });
 
             if (!ids || ids.responses.length === 0) {
                 cb.pureDispatch({type: "RemoveGroup", ids: [placeholderPrefix + action.placeholderId]});
@@ -344,9 +350,10 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
         }
 
         case "RemoveGroup": {
-            const success = await callAPIWithErrorHandler(
-                Api.deleteGroup(bulkRequestOf(...action.ids.map(id => ({id}))))
-            );
+            const success = await callAPIWithErrorHandler({
+                ...Api.deleteGroup(bulkRequestOf(...action.ids.map(id => ({id})))),
+                projectOverride: project.id
+            });
 
             if (!success) {
                 cb.requestReload();
@@ -360,9 +367,10 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
         }
 
         case "InviteMember": {
-            const success = await callAPIWithErrorHandler(
-                Api.createInvite(bulkRequestOf(...action.members.map(it => ({recipient: it}))))
-            ) != null;
+            const success = await callAPIWithErrorHandler({
+                ...Api.createInvite(bulkRequestOf(...action.members.map(it => ({recipient: it})))),
+                projectOverride: project.id
+            }) != null;
 
             if (!success) {
                 cb.pureDispatch({type: "FailedInvite", members: action.members});
@@ -371,9 +379,10 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
         }
 
         case "RemoveInvite": {
-            await callAPIWithErrorHandler(
-                Api.deleteInvite(bulkRequestOf(...action.members.map(it => ({username: it, project: project.id}))))
-            );
+            await callAPIWithErrorHandler({
+                ...Api.deleteInvite(bulkRequestOf(...action.members.map(it => ({username: it, project: project.id})))),
+                projectOverride: project.id
+            });
         }
     }
 }
