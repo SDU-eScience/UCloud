@@ -1,7 +1,6 @@
 import { PageV2, compute } from "@/UCloud";
 import { api as JobsApi, Job, isJobStateFinal } from "@/UCloud/JobsApi";
-import { callAPI, apiRetrieve, apiUpdate, useCloudAPI } from "@/Authentication/DataHook";
-import {Product} from "@/Accounting";
+import { callAPI, apiRetrieve, apiUpdate } from "@/Authentication/DataHook";
 
 export interface SyncthingConfig {
     devices: SyncthingDevice[];

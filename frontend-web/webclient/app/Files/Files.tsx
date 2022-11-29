@@ -21,20 +21,19 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {Box, Button, Flex, Icon, Link, List, Text} from "@/ui-components";
-import {PageV2, compute, provider, accounting} from "@/UCloud";
-import {ListV2, List as ListV1} from "@/Pagination";
+import {PageV2, compute } from "@/UCloud";
+import {ListV2} from "@/Pagination";
 import styled from "styled-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
-import {SyncthingConfig, SyncthingConfigResponse} from "@/Syncthing/api";
+import {SyncthingConfig} from "@/Syncthing/api";
 import * as Sync from "@/Syncthing/api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {setLoading} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import ProjectAPI, {Project} from "@/Project/Api";
 
 export const FilesBrowse: React.FunctionComponent<{
