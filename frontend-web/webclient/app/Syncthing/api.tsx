@@ -31,36 +31,6 @@ export async function fetchProducts(provider: string): Promise<compute.ComputePr
     return resp.productsByProvider[provider];
 }
 
-export function fetchServersFake(): Promise<Job[]> {
-    const servers: Job[] = [{
-        id: "1",
-        createdAt: 0,
-        owner: {
-            createdBy: "user",
-        },
-        specification: {
-            name: "Syncthing Default Server",
-            application: { name: "syncthing", version: "1.2.3" },
-            replicas: 1,
-            parameters: {},
-            resources: [],
-            product: {
-                category: "syncthing",
-                id: "syncthing",
-                provider: "development"
-            }
-        },
-        permissions: { myself: ["ADMIN"], others: [] },
-        updates: [],
-        status: {
-            state: "RUNNING",
-            jobParametersJson: null,
-        }
-    }];
-
-    return new Promise((resolve) => resolve(servers));
-}
-
 export async function fetchServers(): Promise<Job[]> {
     const resp = await callAPI<PageV2<Job>>(
         {
