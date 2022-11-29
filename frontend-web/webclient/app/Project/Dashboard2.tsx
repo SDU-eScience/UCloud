@@ -157,7 +157,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                         {!isAdmin ? null :
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => navigate(`/subprojects?subproject=${projectId}`)}
+                                onClick={() => navigate(`/subprojects/${projectId}`)}
                                 title="Subprojects"
                                 icon="projects"
                                 color="green"

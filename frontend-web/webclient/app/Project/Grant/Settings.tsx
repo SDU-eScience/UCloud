@@ -27,7 +27,7 @@ import {inSuccessRange} from "@/UtilityFunctions";
 import {Logo} from "@/Project/Grant/ProjectBrowser";
 import Divider from "@/ui-components/Divider";
 import {bulkRequestOf} from "@/DefaultObjects";
-import {useProjectId} from "../Api";
+import {useProjectIdFromParams} from "../Api";
 
 export interface UploadLogoProps {
     file: File;
@@ -70,7 +70,7 @@ export async function uploadProjectLogo(props: UploadLogoProps): Promise<boolean
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
 export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
-    const projectId = useProjectId();
+    const projectId = useProjectIdFromParams();
     const [, runWork] = useCloudCommand();
     const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
         {noop: true},
@@ -140,7 +140,7 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
 }
 
 export const GrantProjectSettings: React.FunctionComponent = () => {
-    const projectId = useProjectId() ?? "";
+    const projectId = useProjectIdFromParams();
     const [, runWork] = useCloudCommand();
     const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
         {noop: true},
@@ -335,8 +335,7 @@ const UserCriteriaEditor: React.FunctionComponent<{
                 </> : null}
 
                 {props.criteria.map((it, idx) =>
-                    /* TODO(Jonas): Missing key  */
-                    <TableRow>
+                    <TableRow key={keyFromCriteria(it)}>
                         <TableCell textAlign={"left"}>{userCriteriaTypePrettifier(it.type)}</TableCell>
                         <TableCell textAlign={"left"}>
                             {it.type === "wayf" ? it.org : null}
@@ -369,6 +368,20 @@ const UserCriteriaEditor: React.FunctionComponent<{
         </Flex>
     </>;
 };
+
+function keyFromCriteria(userCriteria: UserCriteria): string {
+    switch (userCriteria.type) {
+        case "anyone": {
+            return "anyone";
+        }
+        case "email": {
+            return userCriteria.domain;
+        }
+        case "wayf": {
+            return userCriteria.org;
+        }
+    }
+}
 
 
 function userCriteriaTypePrettifier(t: string): string {
