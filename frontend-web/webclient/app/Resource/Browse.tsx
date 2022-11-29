@@ -733,7 +733,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
 
 function UserBox(props: { username: string }) {
     const avatars = useAvatars();
-    const avatar = avatars.cache[props.username] ?? defaultAvatar;
+    const avatar = avatars.avatar(props.username);
     return <div className="user-box" style={{ display: "relative" }}>
         <div className="centered"><Avatar style={{ marginTop: "-70px", width: "150px", marginBottom: "-70px" }}
             avatarStyle="circle" {...avatar} /></div>

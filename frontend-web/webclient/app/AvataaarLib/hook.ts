@@ -1,46 +1,33 @@
-import {AvatarType} from "@/UserSettings/Avataaar";
-import {useCallback, useState} from "react";
-import {useCloudCommand} from "@/Authentication/DataHook";
-import {fetchBulkAvatars, FetchBulkAvatarsResponse} from "@/AvataaarLib/index";
-import { useSelector } from "react-redux";
+import { AvatarType, defaultAvatar } from "@/UserSettings/Avataaar";
+import { callAPI } from "@/Authentication/DataHook";
+import { fetchBulkAvatars, FetchBulkAvatarsResponse } from "@/AvataaarLib/index";
+import { useUState, UState } from "@/Utilities/UState";
 
-// Hack: It is really hard for these kind of global caches to avoid double loading if we go through the
-// React/Redux way of thinking. Instead we keep an actual global reference, which is more or less what we do with redux,
-// but this way we can at least check if someone loaded the avatar while we were waiting for the last request to finish.
+class AvatarState extends UState<AvatarState> {
+    cache: Record<string, AvatarType> = {};
 
-let avatarCache: Record<string, AvatarType> = {};
-let frontOfQueue: Promise<any> | null = null;
+    updateCache(usernames: string[]): Promise<void> {
+        const usernamesToUse = usernames.filter(it => !this.cache.hasOwnProperty(it));
+        if (usernamesToUse.length === 0) return Promise.resolve();
 
-export function useAvatars(): AvatarHook {
-    // Hack: This dummy value is used to force a refresh in clients using this hook.
-    const [, forceRefresh] = useState<number>(42);
+        return this.run(async () => {
+            const response = await callAPI<FetchBulkAvatarsResponse>(fetchBulkAvatars({ usernames: usernamesToUse }));
 
-    const [, invokeCommand] = useCloudCommand();
-    const updateCache = useCallback(async (usernames: string[]) => {
-        {
-            // eslint-disable-next-line no-prototype-builtins
-            const usernamesToUse = usernames.filter(it => !avatarCache.hasOwnProperty(it));
-            if (usernamesToUse.length === 0) return;
-        }
+            const newCache = response !== null ? { ...this.cache, ...response.avatars } : this.cache;
+            if (response !== null) {
+                this.cache = newCache;
+            }
+        });
+    }
 
-        if (frontOfQueue !== null) await frontOfQueue;
-        // eslint-disable-next-line no-prototype-builtins
-        const usernamesToUse = usernames.filter(it => !avatarCache.hasOwnProperty(it));
-        if (usernamesToUse.length === 0) return;
-        frontOfQueue = invokeCommand<FetchBulkAvatarsResponse>(fetchBulkAvatars({usernames: usernamesToUse}));
-
-        const response = await frontOfQueue;
-        const newCache = response !== null ? {...avatarCache, ...response.avatars} : avatarCache;
-        if (response !== null) {
-            avatarCache = newCache;
-        }
-        forceRefresh(Math.random());
-    }, []);
-    return {cache: avatarCache, updateCache};
+    avatar(username: string): AvatarType {
+        this.updateCache([username]);
+        return this.cache[username] ?? defaultAvatar;
+    }
 }
 
-export interface AvatarHook {
-    cache: Record<string, AvatarType>;
-    updateCache: (usernames: string[]) => Promise<void>;
-}
+export const avatarState = new AvatarState();
 
+export function useAvatars(): AvatarState {
+    return useUState(avatarState);
+}
