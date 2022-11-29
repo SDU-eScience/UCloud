@@ -22,6 +22,7 @@ import dk.sdu.cloud.utils.doesCallRequireSignature
 import dk.sdu.cloud.utils.doesIntentMatchCall
 import io.ktor.server.application.*
 import io.ktor.server.request.*
+import kotlinx.coroutines.delay
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -30,6 +31,15 @@ import java.security.interfaces.RSAPublicKey
 import java.security.spec.X509EncodedKeySpec
 import java.util.*
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.random.Random
+
+private suspend fun failInvalidSignature(): Nothing {
+    // NOTE(Dan): Avoid leaking too much information about where we failed by introducing a random delay. If you really,
+    // want to do a timing attack then this probably isn't enough. But it is still some roadblock making it harder to
+    // perform a timing attack.
+    delay(Random.nextLong(100, 500))
+    throw RPCException.fromStatusCode(HttpStatusCode(482, "Invalid signature"))
+}
 
 suspend fun loadE2EValidation(rpcServer: RpcServer, pluginContext: PluginContext) {
     val config = pluginContext.config
@@ -39,7 +49,6 @@ suspend fun loadE2EValidation(rpcServer: RpcServer, pluginContext: PluginContext
     if (!signingRequired) return
 
     rpcServer.attachFilter(object : IngoingCallFilter.AfterParsing() {
-        val invalidSignature = HttpStatusCode(482, "Invalid signature")
         val certCache = CertificateCache(pluginContext.ipcClient)
 
         override fun canUseContext(ctx: IngoingCall): Boolean = true
@@ -59,12 +68,12 @@ suspend fun loadE2EValidation(rpcServer: RpcServer, pluginContext: PluginContext
                 else -> error("Unexpected server context of type $sctx")
             } ?: run {
                 debugSystem.detailD("Invalid signature: No signed intent found", Unit.serializer(), Unit)
-                throw RPCException.fromStatusCode(invalidSignature)
+                failInvalidSignature()
             }
 
             val validIntent = certCache.validate(signedIntent) ?: run {
                 debugSystem.detailD("Invalid signature: Metadata did not validate", Unit.serializer(), Unit)
-                throw RPCException.fromStatusCode(invalidSignature)
+                failInvalidSignature()
             }
             if (!doesIntentMatchCall(providerId, validIntent, call)) {
                 debugSystem.detailD(
@@ -77,7 +86,7 @@ suspend fun loadE2EValidation(rpcServer: RpcServer, pluginContext: PluginContext
                         )
                     )
                 )
-                throw RPCException.fromStatusCode(invalidSignature)
+                failInvalidSignature()
             }
 
             // TODO(Dan): Should we try to verify user/project? This is probably not needed and unlikely to make much

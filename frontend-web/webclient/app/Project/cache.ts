@@ -17,7 +17,8 @@ export function emptyProject(): Project {
         id: "",
         createdAt: new Date().getTime(),
         specification: {
-            title: ""
+            title: "",
+            canConsumeResources: true
         },
         status: {
             archived: false,

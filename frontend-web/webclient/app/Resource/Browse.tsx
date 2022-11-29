@@ -16,7 +16,7 @@ import { bulkRequestOf } from "@/DefaultObjects";
 import { useLoading, useTitle } from "@/Navigation/Redux/StatusActions";
 import { useToggleSet } from "@/Utilities/ToggleSet";
 import { PageRenderer } from "@/Pagination/PaginationV2";
-import { Box, Checkbox, Flex, Icon, Label, List, Tooltip, Truncate } from "@/ui-components";
+import { Box, Checkbox, Flex, Icon, Label, Link, List, Tooltip, Truncate } from "@/ui-components";
 import { Spacer } from "@/ui-components/Spacer";
 import { ListRowStat } from "@/ui-components/List";
 import { Operations } from "@/ui-components/Operation";
@@ -48,6 +48,8 @@ import { Feature, hasFeature } from "@/Features";
 import { ProviderTitle } from "@/Providers/ProviderTitle";
 import { isAdminOrPI, useProjectId } from "@/Project/Api";
 import { useProject } from "@/Project/cache";
+import { useUState } from "@/Utilities/UState";
+import { connectionState } from "@/Providers/ConnectionState";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -139,12 +141,13 @@ function setStoredFilters(title: string, filters: Record<string, string>) {
     localStorage.setItem(`${title}:filters`, JSON.stringify(filters));
 }
 
-export function ResourceBrowse<Res extends Resource, CB = undefined>({
-                                                                         onSelect, api, ...props
-                                                                     }: PropsWithChildren<ResourceBrowseProps<Res, CB>> & {/* HACK(Jonas) */disableSearch?: boolean/* HACK(Jonas): End */ }): ReactElement | null {
+export function ResourceBrowse<Res extends Resource, CB = undefined>(
+    {
+        onSelect, api, ...props
+    }: PropsWithChildren<ResourceBrowseProps<Res, CB>> & {/* HACK(Jonas) */disableSearch?: boolean/* HACK(Jonas): End */ }): ReactElement | null {
     const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>(
-        {noop: true},
-        {productsByProvider: {}}
+        { noop: true },
+        { productsByProvider: {} }
     );
 
     const [headerSize] = useGlobal("mainContainerHeaderSize", 0);
@@ -173,7 +176,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const canConsumeResources = api.isCoreResource ||
         projectId === undefined ||
         project.loading ||
-        project.fetch().specification.canConsumeResources;
+        project.fetch().specification.canConsumeResources !== false;
+    const providerConnection = useUState(connectionState);
 
     useEffect(() => toggleSet.uncheckAll(), [props.additionalFilters]);
     useEffectSkipMount(() => {
@@ -239,14 +243,14 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 
     const generateFetch = useCallback((next?: string): APICallParameters => {
         if (props.resources != null) {
-            return {noop: true};
+            return { noop: true };
         } else if (props.shouldFetch && !props.shouldFetch()) {
-            return {noop: true};
+            return { noop: true };
         }
 
         if (props.isSearch) {
             return api.search({
-                itemsPerPage: 100, flags: {includeOthers, ...filters}, query,
+                itemsPerPage: 100, flags: { includeOthers, ...filters }, query,
                 next, sortDirection, sortBy: sortColumn, ...props.additionalFilters
             });
         } else {
@@ -352,7 +356,26 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         setIsCreating(false);
     }, [props.onInlineCreation, inlineInputRef, callbacks, setIsCreating, selectedProduct]);
 
-    const operations = useMemo(() => api.retrieveOperations(), [callbacks, api]);
+    const operations = useMemo(() => {
+        return api.retrieveOperations()
+            .map(it => {
+                const copy = {...it};
+                copy.enabled = (selected, cb, all) => {
+                    const needsConnection = selected.some(r => 
+                        providerConnection.canConnectToProvider(r.specification.product.provider)
+                    );
+
+                    const defaultAnswer = it.enabled(selected, cb, all);
+
+                    if (defaultAnswer && needsConnection) {
+                        return "You must connect to the provider before you can consume resources";
+                    }
+
+                    return defaultAnswer;
+                };
+                return copy;
+            });
+    }, [callbacks, api, providerConnection.lastRefresh]);
 
     const onSortUpdated = useCallback((dir: "ascending" | "descending", column?: string) => {
         setSortColumn(column);
@@ -362,14 +385,14 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     }, []);
 
     const modifiedRenderer = useMemo((): ItemRenderer<Res> => {
-        const renderer: ItemRenderer<Res> = {...api.renderer};
+        const renderer: ItemRenderer<Res> = { ...api.renderer };
         const RemainingStats = renderer.Stats;
         const NormalMainTitle = renderer.MainTitle;
         const RemainingImportantStats = renderer.ImportantStats;
-        renderer.MainTitle = function mainTitle({resource}) {
+        renderer.MainTitle = function mainTitle({ resource }) {
             if (resource === undefined) {
                 return !selectedProduct ?
-                    <ProductSelector products={products} onProductSelected={onProductSelected}/>
+                    <ProductSelector products={products} onProductSelected={onProductSelected} />
                     :
                     <NamingField
                         confirmText={"Create"}
@@ -384,10 +407,10 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     />;
             } else {
                 return NormalMainTitle ?
-                    <NormalMainTitle browseType={props.browseType} resource={resource} callbacks={callbacks}/> : null;
+                    <NormalMainTitle browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null;
             }
         };
-        renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
+        renderer.Stats = props.withDefaultStats !== false ? ({ resource }) => (<>
             {!resource ? <>
                 {props.showCreatedAt === false ? null :
                     <ListRowStat icon="calendar">{dateToString(timestampUnixMs())}</ListRowStat>}
@@ -403,7 +426,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     <div className="tooltip">
                         <ListRowStat icon={"user"}>{" "}{resource.owner.createdBy}</ListRowStat>
                         <div className="tooltip-content centered">
-                            <UserBox username={resource.owner.createdBy}/>
+                            <UserBox username={resource.owner.createdBy} />
                         </div>
                     </div>
                 }
@@ -413,7 +436,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             {" "}{resource.specification.product.id} / {resource.specification.product.category}
                         </ListRowStat>
                         <div className="tooltip-content">
-                            <ProductBox resource={resource} productType={api.productType}/>
+                            <ProductBox resource={resource} productType={api.productType} />
                         </div>
                     </div>
                 }
@@ -427,24 +450,35 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 }
             </>}
             {RemainingStats ?
-                <RemainingStats browseType={props.browseType} resource={resource} callbacks={callbacks}/> : null}
+                <RemainingStats browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null}
         </>) : renderer.Stats;
-        renderer.ImportantStats = ({resource, callbacks, browseType}) => {
+        renderer.ImportantStats = ({ resource, callbacks, browseType }) => {
             return <>
                 {RemainingImportantStats ?
-                    <RemainingImportantStats resource={resource} callbacks={callbacks} browseType={browseType}/> :
+                    <RemainingImportantStats resource={resource} callbacks={callbacks} browseType={browseType} /> :
                     null
+                }
+
+                {
+                    !hasFeature(Feature.PROVIDER_CONNECTION) || !resource ? null :
+                        !providerConnection.canConnectToProvider(resource.specification.product.provider) ? null :
+                        <Link to="/providers/connect">
+                            <Tooltip trigger={<Icon name="warning" size={40} color="orange" mx={16} />}>
+                                Connection required! You must connect with this provider before you can consume
+                                resources.
+                            </Tooltip>
+                        </Link>
                 }
 
                 {
                     hasFeature(Feature.PROVIDER_CONNECTION) ?
                         <Tooltip
                             trigger={
-                                <ProviderLogo providerId={resource?.specification?.product?.provider ?? "?"} size={40}/>
+                                <ProviderLogo providerId={resource?.specification?.product?.provider ?? "?"} size={40} />
                             }
                         >
                             This resource is provided by{" "}
-                            <ProviderTitle providerId={resource?.specification?.product?.provider ?? "?"}/>
+                            <ProviderTitle providerId={resource?.specification?.product?.provider ?? "?"} />
                         </Tooltip> : null
                 }
             </>;
@@ -452,21 +486,26 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
         onInlineCreate, inlineInputRef, selectedProductWithSupport, props.showCreatedAt, props.showCreatedBy,
-        props.showProduct, props.showGroups]);
+        props.showProduct, props.showGroups, providerConnection.lastRefresh]);
 
     const sortOptions = useMemo(() =>
-            api.sortEntries.map(it => ({
-                icon: it.icon,
-                title: it.title,
-                value: it.column,
-                helpText: it.helpText
-            })),
+        api.sortEntries.map(it => ({
+            icon: it.icon,
+            title: it.title,
+            value: it.column,
+            helpText: it.helpText
+        })),
         [api.sortEntries]
     );
 
     const pageSize = useRef(0);
 
     const navigateCallback = useCallback((item: Res) => {
+        if (providerConnection.canConnectToProvider(item.specification.product.provider)) {
+            snackbarStore.addFailure("You must connect to the provider before you can consume resources", true);
+            return;
+        }
+
         if (props.navigateToChildren) {
             const result = props.navigateToChildren?.(navigate, item)
             if (result === "properties") {
@@ -475,10 +514,10 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         } else {
             viewProperties(item);
         }
-    }, [props.navigateToChildren, viewProperties]);
+    }, [props.navigateToChildren, viewProperties, providerConnection.lastRefresh]);
 
     const listItem = useCallback<(p: { style, index, data: Res[], isScrolling?: boolean }) => JSX.Element>(
-        ({style, index, data}) => {
+        ({ style, index, data }) => {
             const it = data[index];
             return <div style={style} className={"list-item"}>
                 <ItemRowMemo
@@ -491,7 +530,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 />
             </div>
         },
-        [navigateCallback, modifiedRenderer, callbacks, operations, api.title, api.titlePlural, toggleSet, renaming]
+        [navigateCallback, modifiedRenderer, callbacks, operations, api.title, api.titlePlural, toggleSet, renaming, 
+            providerConnection.lastRefresh]
     );
 
     const pageRenderer = useCallback<PageRenderer<Res>>((items, opts) => {
@@ -502,9 +542,9 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         return <>
             {pageSize.current > 0 ? (
                 <Spacer mr="8px" left={
-                    <Label style={{cursor: "pointer"}} width={"102px"}>
+                    <Label style={{ cursor: "pointer" }} width={"102px"}>
                         <Checkbox
-                            style={{marginTop: "-2px"}}
+                            style={{ marginTop: "-2px" }}
                             onChange={() => allChecked ? toggleSet.uncheckAll() : toggleSet.checkAll()}
                             checked={allChecked}
                         />
@@ -525,7 +565,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             onPropertiesUpdated={updated => onSortUpdated(sortDirection, updated.column)}
                             icon="properties"
                         />}
-                        <Box mx="8px"/>
+                        <Box mx="8px" />
                         <EnumFilterWidget
                             expanded={false}
                             browseType={BrowseType.Card}
@@ -540,7 +580,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             icon={sortDirection === "ascending" ? "sortAscending" : "sortDescending"}
                         />
                     </Flex>
-                }/>) : <Box height="27px"/>}
+                } />) : <Box height="27px" />}
             <List onContextMenu={preventDefault}>
                 {!isCreating ? null :
                     <ItemRow
@@ -569,10 +609,10 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                       global value.
                 */}
                 <div style={props.browseType == BrowseType.MainContent ?
-                    {height: `calc(100vh - 48px - 45px - ${opts.hasNext ? 48 : 0}px - ${headerSize}px - var(--termsize, 0px) - 6px)`} :
-                    {height: `${sizeAllocationForEmbeddedAndCard}px`}}
+                    { height: `calc(100vh - 48px - 45px - ${opts.hasNext ? 48 : 0}px - ${headerSize}px - var(--termsize, 0px) - 6px)` } :
+                    { height: `${sizeAllocationForEmbeddedAndCard}px` }}
                 >
-                    <AutoSizer children={({width, height}) => (
+                    <AutoSizer children={({ width, height }) => (
                         <FixedSizeList
                             itemData={items}
                             itemCount={items.length}
@@ -582,12 +622,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             children={listItem}
                             overscanCount={32}
                         />
-                    )}/>
+                    )} />
                 </div>
             </List>
         </>
     }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport, renaming,
-        viewProperties, operations]);
+        viewProperties, operations, providerConnection.lastRefresh]);
 
     if (!isEmbedded) {
         useTitle(api.titlePlural);
@@ -598,12 +638,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 
     const main = !inlineInspecting ? <>
         <StandardBrowse isSearch={props.isSearch} browseType={props.browseType} pageSizeRef={pageSize}
-                        generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
-                        setRefreshFunction={isEmbedded != true} onLoad={props.onResourcesLoaded}
-                        preloadedResources={props.resources}/>
+            generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
+            setRefreshFunction={isEmbedded != true} onLoad={props.onResourcesLoaded}
+            preloadedResources={props.resources} />
     </> : <>
         <api.Properties api={api} resource={inlineInspecting} reload={reloadRef.current} embedded={true}
-                        closeProperties={closeProperties} {...props.propsForInlineResources} />
+            closeProperties={closeProperties} {...props.propsForInlineResources} />
     </>;
 
     const allPills = useMemo(() => {
@@ -617,7 +657,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     if (!canConsumeResources) {
         const main = <Flex height={"400px"} alignItems={"center"} justifyContent={"center"}>
             <div>
-                <Heading.h3 style={{textAlign: "center"}}>This project cannot consume resources</Heading.h3>
+                <Heading.h3 style={{ textAlign: "center" }}>This project cannot consume resources</Heading.h3>
                 <p>
                     This property is set for certain projects which are only meant for allocating resources. If you wish
                     to consume any of these resources for testing purposes, then please allocate resources to a small
@@ -652,14 +692,14 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 <Heading.h3 flexGrow={1}>{api.titlePlural}</Heading.h3> :
                 <>
                     <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
-                                entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                                extra={callbacks} operations={operations}/>
+                        entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                        extra={callbacks} operations={operations} />
                     {props.header}
                     <ResourceFilter
                         pills={allPills} filterWidgets={api.filterWidgets} browseType={props.browseType}
                         sortEntries={api.sortEntries} sortDirection={sortDirection}
                         onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                        readOnlyProperties={props.additionalFilters}/>
+                        readOnlyProperties={props.additionalFilters} />
                 </>
             }
             {/* </StickyBox> */}
@@ -674,14 +714,14 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 {inlineInspecting ? null :
                     <>
                         <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
-                                    entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                                    extra={callbacks} operations={operations}/>
+                            entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                            extra={callbacks} operations={operations} />
 
                         <ResourceFilter pills={allPills} filterWidgets={api.filterWidgets}
-                                        sortEntries={api.sortEntries} sortDirection={sortDirection}
-                                        onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                                        browseType={props.browseType}
-                                        readOnlyProperties={props.additionalFilters}/>
+                            sortEntries={api.sortEntries} sortDirection={sortDirection}
+                            onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
+                            browseType={props.browseType}
+                            readOnlyProperties={props.additionalFilters} />
                     </>
                 }
 
@@ -694,10 +734,10 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 function UserBox(props: { username: string }) {
     const avatars = useAvatars();
     const avatar = avatars.cache[props.username] ?? defaultAvatar;
-    return <div className="user-box" style={{display: "relative"}}>
-        <div className="centered"><Avatar style={{marginTop: "-70px", width: "150px", marginBottom: "-70px"}}
-                                          avatarStyle="circle" {...avatar} /></div>
-        <div className="centered" style={{display: "flex", justifyContent: "center"}}>
+    return <div className="user-box" style={{ display: "relative" }}>
+        <div className="centered"><Avatar style={{ marginTop: "-70px", width: "150px", marginBottom: "-70px" }}
+            avatarStyle="circle" {...avatar} /></div>
+        <div className="centered" style={{ display: "flex", justifyContent: "center" }}>
             <Truncate mt="18px" fontSize="2em" mx="24px" width="100%">{props.username}</Truncate>
         </div>
         {/* Re-add when we know what to render below  */}
@@ -715,10 +755,10 @@ function ProductBox<T extends Resource<ResourceUpdate, ResourceStatus, ResourceS
         productType?: ProductType
     }
 ) {
-    const {resource} = props;
-    const {product} = resource.specification;
+    const { resource } = props;
+    const { product } = resource.specification;
     return <div className="product-box">
-        {props.productType ? <Icon size="36px" mr="4px" name={productTypeToIcon(props.productType)}/> : null}
+        {props.productType ? <Icon size="36px" mr="4px" name={productTypeToIcon(props.productType)} /> : null}
         <span>{product.id} / {product.category}</span>
         <div><b>ID:</b> {product.id}</div>
         <div><b>Category:</b> {product.category}</div>
