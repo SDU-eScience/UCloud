@@ -189,12 +189,12 @@ export const sideBarMenuElements: {
     },
     general: {
         items: [
-            {icon: "files", label: "Files", to: "/drives"},
-            {icon: "projects", label: "Projects", to: "/projects", show: () => Client.hasActiveProject},
+            {icon: "files", label: "Files", to: "/drives/"},
+            {icon: "projects", label: "Projects", to: "/projects/", show: () => Client.hasActiveProject},
             {icon: "shareMenu", label: "Shares", to: "/shares/", show: () => !Client.hasActiveProject},
-            {icon: "dashboard", label: "Resources", to: "/public-ips"},
-            {icon: "appStore", label: "Apps", to: "/applications/overview"},
-            {icon: "results", label: "Runs", to: "/jobs"}
+            {icon: "dashboard", label: "Resources", to: "/public-ips/"},
+            {icon: "appStore", label: "Apps", to: "/applications/overview/"},
+            {icon: "results", label: "Runs", to: "/jobs/"}
         ], predicate: () => Client.isLoggedIn
     },
     auditing: {items: [], predicate: () => Client.isLoggedIn},
@@ -212,10 +212,6 @@ interface SidebarProps extends SidebarStateProps {
 }
 
 const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: SidebarProps): JSX.Element | null => {
-    if (!loggedIn) return null;
-
-    if (useFrameHidden()) return null;
-
     const project = useProject();
     const projectId = useProjectId();
 
@@ -226,6 +222,10 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
     const copyProjectPath = useCallback(() => {
         copyToClipboard({value: projectPath, message: "Project copied to clipboard!"});
     }, [projectPath]);
+    
+    if (useFrameHidden()) return null;
+    if (!loggedIn) return null;
+
 
     const sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])

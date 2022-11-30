@@ -6,7 +6,13 @@ import Icon from "@/ui-components/Icon";
 import Text from "@/ui-components/Text";
 import {ErrorWrapper} from "./Error";
 
-interface WarningProps {clearWarning?: () => void; warning?: string; width?: string | number}
+interface WarningProps {
+    clearWarning?: () => void;
+    warning?: string;
+    width?: string | number;
+    children?: React.ReactNode
+}
+
 const Warning: React.FunctionComponent<WarningProps> = props => {
     if (!props.warning && !props.children) return null;
 

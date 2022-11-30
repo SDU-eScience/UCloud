@@ -43,12 +43,14 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
                     case "video":
                     case "pdf":
                         setData(URL.createObjectURL(await content.blob()));
+                        setError(null);
                         break;
                     case "code":
                     case "text":
                     case "application":
                     case "markdown":
                         setData(await content.text());
+                        setError(null);
                         break;
                     default:
                         setError(`Preview not support for '${extensionFromPath(file.id)}'.`);
@@ -104,7 +106,7 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
             node = <div />
             break;
     }
-
+    
     if (error !== null) {
         node = <div>{error}</div>;
     }

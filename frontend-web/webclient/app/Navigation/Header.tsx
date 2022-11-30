@@ -7,7 +7,7 @@ import Notification from "@/Notifications";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
-import {useHistory} from "react-router";
+import {useLocation, useNavigate} from "react-router";
 import {Dispatch} from "redux";
 import styled from "styled-components";
 import * as ui from "@/ui-components";
@@ -177,7 +177,7 @@ function Header(props: HeaderProps): JSX.Element | null {
             const result = await promises.makeCancelable(Client.get<Page<NewsPost>>("/news/listDowntimes")).promise;
             if (result.response.items.length > 0) setUpcomingDowntime(result.response.items[0].id);
         } catch (err) {
-            displayErrorMessageOrDefault(err, "Could not fetch upcoming downtimes.");
+            // Ignored
         }
     }
 }
@@ -299,11 +299,12 @@ const _Search = (props: SearchProps): JSX.Element => {
     const [searchPlaceholder] = useGlobal("searchPlaceholder", defaultSearchPlaceholder);
     const [onSearch] = useGlobal("onSearch", defaultSearch);
     const hasSearch = onSearch !== doNothing;
-    const history = useHistory();
+    const navigate = useNavigate();
+    const location = useLocation();
 
     useEffect(() => {
         const search = searchRef.current;
-        const query = getQueryParamOrElse(history.location.search, "q", "");
+        const query = getQueryParamOrElse(location.search, "q", "");
         if (search) search.value = query;
     }, [onSearch]);
 
@@ -326,7 +327,7 @@ const _Search = (props: SearchProps): JSX.Element => {
                         onKeyDown={e => {
                             if (e.keyCode === KeyCode.ENTER) {
                                 if (hasSearch) {
-                                    onSearch(searchRef.current!.value, history);
+                                    onSearch(searchRef.current!.value, navigate);
                                 }
                             }
                         }}
@@ -347,7 +348,7 @@ const _Search = (props: SearchProps): JSX.Element => {
                 color={hasSearch ? "#FFF" : "gray"}
                 cursor={hasSearch ? "pointer" : undefined}
                 /* HACK(Jonas): To circumvent the `q === ""` check */
-                onClick={() => onSearch(undefined as unknown as string, history)}
+                onClick={() => onSearch(undefined as unknown as string, navigate)}
             />
         </ui.Hide>
     </>
@@ -358,10 +359,10 @@ export function SmallScreenSearchField(): JSX.Element {
     const [searchPlaceholder] = useGlobal("searchPlaceholder", defaultSearchPlaceholder);
     const [onSearch] = useGlobal("onSearch", defaultSearch);
     const ref = React.useRef<HTMLInputElement>(null);
-    const history = useHistory();
+    const navigate = useNavigate();
 
     return <ui.Hide xl xxl>
-        <form onSubmit={e => (e.preventDefault(), onSearch(ref.current?.value ?? "", history))}>
+        <form onSubmit={e => (e.preventDefault(), onSearch(ref.current?.value ?? "", navigate))}>
             <ui.Text fontSize="20px" mt="4px">Search</ui.Text>
             <ui.Input
                 required

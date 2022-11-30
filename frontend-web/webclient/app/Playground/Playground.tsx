@@ -11,7 +11,6 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import { FileSearch } from "./FileSearch";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
@@ -73,7 +72,6 @@ export const Playground: React.FunctionComponent = () => {
             </Grid>
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
             <ProjectPlayground />
-            <FileSearch />
         </>
     );
     return <MainContainer main={main} />;

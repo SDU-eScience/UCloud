@@ -24,7 +24,7 @@ import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
 import {doNothing} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {useHistory} from "react-router";
+import {NavigateFunction} from "react-router";
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
@@ -147,12 +147,13 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                 // so this should be correct, unless I'm missing something.
                 let anySupported = false;
                 Object.keys(cb.supportByProvider.productsByProvider).forEach(it => {
-                    cb.supportByProvider.productsByProvider[it].forEach(({support}) => {
-                        const fsSupport = support as FileCollectionSupport;
-                        if (fsSupport && fsSupport.collection) {
-                            anySupported = anySupported || !!(fsSupport?.collection?.usersCanCreate);
+                    const supports = cb.supportByProvider.productsByProvider[it];
+                    for (const entry of supports) {
+                        const support = entry.support as FileCollectionSupport;
+                        if (support.collection) {
+                            anySupported = anySupported || !!support.collection?.usersCanCreate;
                         }
-                    });
+                    }
                 });
                 if (!anySupported) return false;
 
@@ -235,8 +236,8 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         ]
     }
 
-    navigateToChildren(history: ReturnType<typeof useHistory>, resource: FileCollection) {
-        history.push(buildQueryString("/files", {path: `/${resource.id}`}))
+    navigateToChildren(navigate: NavigateFunction, resource: FileCollection) {
+        navigate(buildQueryString("/files", {path: `/${resource.id}`}))
     }
 
     rename(request: BulkRequest<{id: string; newTitle: string;}>): APICallParameters {

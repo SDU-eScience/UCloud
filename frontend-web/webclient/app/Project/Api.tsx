@@ -46,6 +46,7 @@ export interface ProjectStatus {
 export interface ProjectSpecification {
     parent?: string | null;
     title: string;
+    canConsumeResources?: boolean;
 }
 
 export interface ProjectSettings {
@@ -294,9 +295,13 @@ interface UseProjectFromParams {
     breadcrumbs: {title: string, link?: string}[];
 }
 
-export function useProjectFromParams(pageTitle: string): UseProjectFromParams {
+export function useProjectIdFromParams(): string {
     const params = useParams<{project: string}>();
-    const projectId = params.project;
+    return params.project ?? "";
+}
+
+export function useProjectFromParams(pageTitle: string): UseProjectFromParams {
+    const projectId = useProjectIdFromParams();
 
     const [projectFromApi, fetchProject] = useCloudAPI<Project | null>({noop: true}, null);
     const isPersonalWorkspace = projectId === "My Workspace"

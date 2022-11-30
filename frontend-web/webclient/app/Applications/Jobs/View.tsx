@@ -1,6 +1,6 @@
 import * as React from "react";
 import {SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {useHistory, useParams} from "react-router";
+import {useLocation, useNavigate, useParams} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
@@ -228,12 +228,13 @@ function getBackend(job?: Job): string {
 }
 
 export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
-    const {id} = props.id ? {id: props.id} : useParams<{id: string}>();
-    const history = useHistory();
+    const id = props.id ?? useParams<{id: string}>().id!;
 
     // Note: This might not match the real app name
-    const appNameHint = getQueryParamOrElse(history.location.search, "app", "");
-    const action = getQueryParamOrElse(history.location.search, "action", "view");
+    const location = useLocation();
+    const navigate = useNavigate();
+    const appNameHint = getQueryParamOrElse(location.search, "app", "");
+    const action = getQueryParamOrElse(location.search, "action", "view");
     const delayInitialAnim = action === "start";
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
@@ -250,10 +251,8 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     }
 
     useEffect(() => {
-        fetchJob(compute.jobs.retrieve({
+        fetchJob(JobsApi.retrieve({
             id,
-            includeParameters: true,
-            includeProduct: true,
             includeApplication: true,
             includeUpdates: true,
             includeSupport: true,
@@ -300,7 +299,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
 
                 // NOTE(Dan): Remove action to avoid getting delay if the user refreshes their browser
                 if (!props.embedded) {
-                    history.replace(buildQueryString(history.location.pathname, {app: appNameHint}));
+                    navigate(buildQueryString(location.pathname, {app: appNameHint}), {replace: true});
                 }
             }, delayInitialAnim ? 3000 : 400);
 
@@ -326,10 +325,8 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     useEffect(() => {
         // Used to fetch creditsCharged when job finishes.
         if (isJobStateTerminal(status?.state ?? "RUNNING") && job?.status.state !== status?.state) {
-            fetchJob(compute.jobs.retrieve({
+            fetchJob(JobsApi.retrieve({
                 id,
-                includeParameters: true,
-                includeProduct: true,
                 includeApplication: true,
                 includeUpdates: true
             }));
@@ -484,7 +481,7 @@ function PeerEntry(props: {peer: AppParameterValueNS.Peer}): JSX.Element {
 function IngressEntry({id}: {id: string}): JSX.Element {
     const [ingress] = useCloudAPI<Ingress | null>(IngressApi.retrieve({id}), null);
     if (ingress.data == null) return <div />
-    const {domain} =  ingress.data.specification;
+    const {domain} = ingress.data.specification;
     return <Truncate width={1}>
         <ExternalLink title={domain} href={domain}>{domain}</ExternalLink>
     </Truncate>
@@ -503,7 +500,7 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
             (appType === "DOCKER" && support.docker.utilization === true) ||
             (appType === "VIRTUAL_MACHINE" && support.virtualMachine.utilization === true)
         ) {
-            setUtilization(compute.jobs.retrieveUtilization({jobId: job.id}))
+            setUtilization(JobsApi.retrieveUtilization({jobId: job.id}))
         }
     }, [job]);
 
@@ -711,6 +708,7 @@ const InfoCard: React.FunctionComponent<{
     stat: string,
     statTitle: string,
     icon: IconName,
+    children: React.ReactNode;
 }> = props => {
     return <HighlightedCard color={"purple"} isLoading={false}>
         <InfoCardContainer>
@@ -885,7 +883,7 @@ const RunningContent: React.FunctionComponent<{
         if (!commandLoading && expiresAt) {
             setExpiresAt(expiresAt + (3600 * 1000 * duration));
             try {
-                await invokeCommand(compute.jobs.extend(bulkRequestOf({
+                await invokeCommand(JobsApi.extend(bulkRequestOf({
                     jobId: job.id,
                     requestedTime: {hours: duration, minutes: 0, seconds: 0}
                 })));

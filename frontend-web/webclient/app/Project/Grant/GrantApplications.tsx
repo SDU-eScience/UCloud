@@ -14,7 +14,7 @@ import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {dateToString} from "@/Utilities/DateUtilities";
 import Icon, {IconName} from "@/ui-components/Icon";
@@ -25,10 +25,9 @@ import {EnumFilter, ResourceFilter} from "@/Resource/Filter";
 import {BrowseType} from "@/Resource/BrowseType";
 import {browseGrantApplications, GrantApplication, State} from "@/Project/Grant/GrantApplicationTypes";
 import {PageV2} from "@/UCloud";
-import {useProjectFromParams, useProjectId} from "../Api";
+import {useProjectFromParams} from "../Api";
 
 export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (props) => {
-    const projectId = useProjectId();
     const [scrollGeneration, setScrollGeneration] = useState(0);
     const [applications, fetchApplications] = useCloudAPI<PageV2<GrantApplication>>(
         {noop: true},
@@ -54,8 +53,7 @@ export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (p
     useTitle(`${baseName} Applications`);
 
     const paramProject = useProjectFromParams(`${baseName} Applications`);
-    const useFromParams = !!paramProject.projectId;
-    const projectIdToUse = paramProject.projectId ?? projectId;
+    const projectIdToUse = !paramProject.isPersonalWorkspace ? paramProject.projectId : undefined;
 
     useEffect(() => {
         setScrollGeneration(prev => prev + 1);
@@ -94,9 +92,9 @@ export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (p
 
     return <MainContainer
         header={<ProjectBreadcrumbs
-            allowPersonalProject={!useFromParams}
-            omitActiveProject={useFromParams}
-            crumbs={useFromParams ? paramProject.breadcrumbs : [{title: `${baseName} Applications`}]}
+            allowPersonalProject={false}
+            omitActiveProject
+            crumbs={paramProject.breadcrumbs}
         />}
         sidebar={<VerticalButtonGroup>
             <ResourceFilter
@@ -128,7 +126,7 @@ export const GrantApplicationList: React.FunctionComponent<{
     applications: GrantApplication[],
     slim?: boolean
 }> = ({applications, slim = false}) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const avatars = useAvatars();
     useEffect(() => {
         avatars.updateCache(applications.map(it => it.createdBy));
@@ -156,7 +154,7 @@ export const GrantApplicationList: React.FunctionComponent<{
 
                 return <ListRow
                     key={app.id}
-                    navigate={() => history.push(`/project/grants/view/${app.id}`)}
+                    navigate={() => navigate(`/project/grants/view/${app.id}`)}
                     icon={
                         slim ? null : (
                             <UserAvatar

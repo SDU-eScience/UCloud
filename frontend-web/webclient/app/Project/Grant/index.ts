@@ -1,7 +1,9 @@
-import {BulkRequest, PageV2} from "@/UCloud";
-import {GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
+import { BulkRequest, PageV2 } from "@/UCloud";
+import { GrantApplication } from "@/Project/Grant/GrantApplicationTypes";
 import * as UCloud from "@/UCloud";
-import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
+import { apiRetrieve, apiUpdate } from "@/Authentication/DataHook";
+import { WalletAllocation } from "@/Accounting";
+import { timestampUnixMs } from "@/UtilityFunctions";
 
 export interface ReadTemplatesRequest {
     projectId: string;
@@ -145,3 +147,10 @@ export function uploadDescription(request: BulkRequest<UploadDescriptionRequest>
 }
 
 export type GrantsRetrieveAffiliationsResponse = PageV2<UCloud.grant.ProjectWithTitle>;
+
+export function isAllocationSuitableForSubAllocation(alloc: WalletAllocation): boolean {
+    const now = timestampUnixMs();
+    return (alloc.endDate == null || alloc.endDate < now) &&
+        alloc.localBalance > 0 &&
+        alloc.canAllocate;
+}

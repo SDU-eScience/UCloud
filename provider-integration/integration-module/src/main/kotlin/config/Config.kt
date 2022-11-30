@@ -105,8 +105,11 @@ data class ConfigSchema(
             @SerialName("Embedded")
             data class Embedded(
                 val directory: String,
+                // NOTE(Dan): Listen address. Default is localhost.
+                val host: String? = null,
                 // NOTE(Dan): Set to 0 for a random port
-                val port: Int = 5432
+                val port: Int = 5432,
+                val password: String? = null,
             ) : Database()
 
             @Serializable
@@ -301,8 +304,10 @@ data class ConfigSchema(
             ) : ConfigSchema.Plugins.Allocations() {
                 @Serializable
                 data class Extensions(
-                    val onAllocation: String,
-                    val onSynchronization: String,
+                    val onAllocationTotal: String,
+                    val onAllocationSingle: String,
+                    val onSynchronizationTotal: String,
+                    val onSynchronizationSingle: String,
                 )
             }
 

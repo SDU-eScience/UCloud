@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useHistory} from "react-router";
+import {useLocation, useNavigate} from "react-router";
 import {useCallback} from "react";
 import * as UCloud from "@/UCloud";
 import {MainContainer} from "@/MainContainer/MainContainer";
@@ -25,16 +25,17 @@ export const Applications: React.FunctionComponent = () => {
     useTitle("Applications");
     useSidebarPage(SidebarPages.AppStore);
     usePrioritizedSearch("applications");
+    const location = useLocation();
 
     const [appResp, fetchApps] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
         {noop: true},
         emptyPage
     );
 
-    const history = useHistory();
-    const page = parseInt(getQueryParamOrElse(history.location.search, "page", "0"), 10);
-    const itemsPerPage = parseInt(getQueryParamOrElse(history.location.search, "itemsPerPage", "25"), 10);
-    const tag = getQueryParam(history.location.search, "tag");
+    const navigate = useNavigate();
+    const page = parseInt(getQueryParamOrElse(location.search, "page", "0"), 10);
+    const itemsPerPage = parseInt(getQueryParamOrElse(location.search, "itemsPerPage", "25"), 10);
+    const tag = getQueryParam(location.search, "tag");
 
     const fetch = useCallback(() => {
         if (tag != null) {
@@ -42,13 +43,13 @@ export const Applications: React.FunctionComponent = () => {
         } else {
             fetchApps(UCloud.compute.apps.listAll({itemsPerPage, page}));
         }
-    }, [history.location.search]);
+    }, [location.search]);
 
     const goToPage = useCallback((page: number, itemsPerPage: number) => {
         if (tag === null) {
-            history.push(Pages.browse(itemsPerPage, page));
+            navigate(Pages.browse(itemsPerPage, page));
         } else {
-            history.push(Pages.browseByTag(tag, itemsPerPage, page));
+            navigate(Pages.browseByTag(tag, itemsPerPage, page));
         }
     }, [tag, history]);
 
@@ -56,7 +57,7 @@ export const Applications: React.FunctionComponent = () => {
 
     React.useEffect(() => {
         fetch();
-    }, [history.location]);
+    }, [location]);
 
     const [, invokeCommand] = useCloudCommand();
     const toggleFavorite = useCallback(async (appName: string, appVersion: string) => {

@@ -5,7 +5,7 @@ import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ItemRenderer, ItemRow, StandardBrowse} from "@/ui-components/Browse";
 import {PageRenderer} from "@/Pagination/PaginationV2";
 import {BrowseType} from "@/Resource/BrowseType";
-import {useHistory} from "react-router";
+import {NavigateFunction, useNavigate} from "react-router";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -34,7 +34,7 @@ const title = "Project";
 
 export const ProjectList2: React.FunctionComponent = () => {
     const projectId = useProjectId();
-    const history = useHistory();
+    const navigate = useNavigate();
     const toggleSet = useToggleSet<Project>([]);
     const [, invokeCommand] = useCloudCommand();
     const [filters, setFilters] = useState<Record<string, string>>({});
@@ -74,7 +74,7 @@ export const ProjectList2: React.FunctionComponent = () => {
     const callbacks: Callbacks = useMemo(() => {
         return {
             invokeCommand,
-            history,
+            navigate,
             reload,
             rerender
         };
@@ -162,7 +162,7 @@ const filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [widget];
 // Operations
 interface Callbacks {
     invokeCommand: InvokeCommand;
-    history: ReturnType<typeof useHistory>;
+    navigate: NavigateFunction;
     reload: () => void;
     rerender: () => void;
 }
@@ -174,7 +174,7 @@ const operations: Operation<Project, Callbacks>[] = [
         primary: true,
         enabled: () => true,
         onClick: (projects, cb) => {
-            cb.history.push("/project/grants/new");
+            cb.navigate("/project/grants/new");
         }
     },
     {
@@ -242,7 +242,7 @@ const operations: Operation<Project, Callbacks>[] = [
         icon: "properties",
         enabled: projects => projects.length === 1,
         onClick: ([project], cb) => {
-            cb.history.push(`/projects/${project.id}`);
+            cb.navigate(`/projects/${project.id}`);
         }
     }
 ];
@@ -332,7 +332,7 @@ const ProjectRenderer: ItemRenderer<Project> = {
 };
 
 // Utility components
-const ProjectTooltip: React.FunctionComponent<{text: string}> = props => {
+const ProjectTooltip: React.FunctionComponent<{text: string; children?: React.ReactNode;}> = props => {
     return <Tooltip
         tooltipContentWidth="80px"
         wrapperOffsetLeft="0"

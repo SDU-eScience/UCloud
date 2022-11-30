@@ -41,7 +41,9 @@ interface JobsOpenInteractiveSessionResponse {
 }
 
 export const Web: React.FunctionComponent = () => {
-    const {jobId, rank} = useParams<{jobId: string, rank: string}>();
+    const params = useParams<{jobId: string, rank: string}>();
+    const jobId = params.jobId!;
+    const rank = params.rank!;
     const [sessionResp] = useCloudAPI<JobsOpenInteractiveSessionResponse | null>(
         jobs.openInteractiveSession(bulkRequestOf({sessionType: "WEB", id: jobId, rank: parseInt(rank, 10)})),
         null

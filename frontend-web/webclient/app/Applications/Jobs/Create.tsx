@@ -2,10 +2,10 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import * as UCloud from "@/UCloud";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {useHistory} from "react-router";
+import {useLocation, useNavigate} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {AppHeader, Information} from "@/Applications/View";
-import {Box, Button, ContainerForText, ExternalLink, Grid, Icon, Markdown, VerticalButtonGroup} from "@/ui-components";
+import {Box, Button, ContainerForText, ExternalLink, Grid, Icon, Link, Markdown, VerticalButtonGroup} from "@/ui-components";
 import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
@@ -33,6 +33,10 @@ import {BulkResponse, FindByStringId} from "@/UCloud";
 import {Product, usageExplainer} from "@/Accounting";
 import styled from "styled-components";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
+import { connectionState } from "@/Providers/ConnectionState";
+import { Feature, hasFeature } from "@/Features";
+import { useUState } from "@/Utilities/UState";
+import {getItem} from "localforage";
 
 interface InsufficientFunds {
     why?: string;
@@ -40,12 +44,13 @@ interface InsufficientFunds {
 }
 
 export const Create: React.FunctionComponent = () => {
-    const history = useHistory();
-    const appName = getQueryParam(history.location.search, "app");
-    const appVersion = getQueryParam(history.location.search, "version");
+    const navigate = useNavigate();
+    const location = useLocation();
+    const appName = getQueryParam(location.search, "app");
+    const appVersion = getQueryParam(location.search, "version");
 
     if (!appName || !appVersion) {
-        history.push("/");
+        navigate("/");
         return null;
     }
 
@@ -86,14 +91,18 @@ export const Create: React.FunctionComponent = () => {
     const [importDialogOpen, setImportDialogOpen] = useState(false);
     const jobBeingLoaded = useRef<Partial<JobSpecification> | null>(null);
 
+    useUState(connectionState);
+
     useEffect(() => {
-        console.log(localStorage.getItem("syncthingRedirect"));
         if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
-            history.push("/drives"); // NOTE(Brian): There might be a better location
+            console.log(provider);
+            if (provider) {
+                navigate(`/syncthing?provider=${provider}`);
+            }
         }
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
         fetchPrevious(UCloud.compute.apps.findByName({appName}));
-    }, [appName, appVersion]);
+    }, [appName, appVersion, provider]);
 
     const application = applicationResp.data;
 
@@ -214,7 +223,7 @@ export const Create: React.FunctionComponent = () => {
                     return;
                 }
 
-                history.push(`/jobs/properties/${ids[0]?.id}?app=${application.metadata.name}`);
+                navigate(`/jobs/properties/${ids[0]?.id}?app=${application.metadata.name}`);
             } catch (e) {
                 const code = extractErrorCode(e);
                 if (code === 409) {
@@ -263,6 +272,9 @@ export const Create: React.FunctionComponent = () => {
         !(!it.optional || activeOptParams.indexOf(it.name) !== -1)
     );
 
+    const isMissingConnection = hasFeature(Feature.PROVIDER_CONNECTION) && estimatedCost.product != null &&
+        connectionState.canConnectToProvider(estimatedCost.product.category.provider);
+
     return <MainContainer
         headerSize={92}
         header={
@@ -278,11 +290,20 @@ export const Create: React.FunctionComponent = () => {
                 <Button
                     type={"button"}
                     color={"blue"}
-                    disabled={isLoading || !sshValid}
+                    disabled={isLoading || !sshValid || isMissingConnection}
                     onClick={() => submitJob(false)}
                 >
                     Submit
                 </Button>
+
+                {!isMissingConnection ? null :
+                    <Box mt={32}>
+                        <Link to={"/providers/connect"}>
+                            <Icon name="warning" color="orange" mx={8} />
+                            Connection required!
+                        </Link>
+                    </Box>
+                }
 
                 <Box mt={32} color={estimatedCost.balance >= estimatedCost.cost ? "black" : "red"} textAlign="center">
                     {estimatedCost.balance === 0 || estimatedCost.product == null ? null : (

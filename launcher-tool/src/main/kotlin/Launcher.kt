@@ -601,7 +601,8 @@ fun registerProvider(providerId: String, domain: String, port: Int): ProviderCre
                 "items": [
                   {
                     "parent": null,
-                    "title": "Provider $providerId"
+                    "title": "Provider $providerId",
+                    "canConsumeResources": false
                   }
                 ]
               }

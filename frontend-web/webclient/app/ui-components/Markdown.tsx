@@ -3,7 +3,7 @@ import ReactMarkdown, {Options} from "react-markdown";
 import ExternalLink from "./ExternalLink";
 import SyntaxHighlighter from "react-syntax-highlighter";
 
-function CodeBlock(props: {children: any; lang?: string; inline?: boolean}) {
+function CodeBlock(props: {lang?: string; inline?: boolean; children: React.ReactNode & React.ReactNode[]}) {
     if (props.inline === true) return <code>{props.children}</code>;
 
     return (
@@ -13,8 +13,8 @@ function CodeBlock(props: {children: any; lang?: string; inline?: boolean}) {
     );
 }
 
-const LinkBlock: React.FunctionComponent<{href?: string}> = props => {
-    return <ExternalLink color={"darkBlue"} href={props.href}>{props.children}</ExternalLink>;
+const LinkBlock: React.FunctionComponent<{href?: string; children: React.ReactNode & React.ReactNode[]}> = props => {
+return <ExternalLink color={"darkBlue"} href={props.href}>{props.children}</ExternalLink>;
 };
 
 const Markdown: React.FunctionComponent<Options> = props => {

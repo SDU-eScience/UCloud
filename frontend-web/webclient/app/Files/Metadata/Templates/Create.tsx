@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useHistory} from "react-router";
+import {useLocation, useNavigate} from "react-router";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
@@ -26,8 +26,9 @@ enum Stage {
 }
 
 const Create: React.FunctionComponent = () => {
-    const history = useHistory();
-    const id = getQueryParam(history.location.search, "namespace");
+    const navigate = useNavigate();
+    const location = useLocation();
+    const id = getQueryParam(location.search, "namespace");
     const [schema, setSchema] = useState<string>("{}");
     const [uiSchema, setUiSchema] = useState<string>("{}");
     const [namespace, fetchNamespace] = useCloudAPI<FileMetadataTemplateNamespace | null>({noop: true}, null);
@@ -129,7 +130,7 @@ const Create: React.FunctionComponent = () => {
         ) != null;
 
         if (success) {
-            history.push("/" + templateApi.routingNamespace);
+            navigate("/" + templateApi.routingNamespace);
         }
     }, [schema, uiSchema]);
 

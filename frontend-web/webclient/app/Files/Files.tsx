@@ -4,7 +4,7 @@ import {api as FilesApi, UFile, UFileIncludeFlags} from "@/UCloud/FilesApi";
 import {ResourceBrowse} from "@/Resource/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
 import {ResourceRouter} from "@/Resource/Router";
-import {useHistory, useLocation} from "react-router";
+import {NavigateFunction, useLocation, useNavigate} from "react-router";
 import {buildQueryString, getQueryParam, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
@@ -52,7 +52,7 @@ export const FilesBrowse: React.FunctionComponent<{
     const lightTheme = isLightThemeStored();
 
     const location = useLocation();
-    const history = useHistory();
+    const navigate = useNavigate();
     const dispatch = useDispatch();
 
     const browseType = props.browseType ?? BrowseType.MainContent;
@@ -108,17 +108,17 @@ export const FilesBrowse: React.FunctionComponent<{
         []
     );
 
-    const navigateToPath = useCallback((history: ReturnType<typeof useHistory>, path: string) => {
+    const navigateToPath = useCallback((navigate: NavigateFunction, path: string) => {
         if (browseType === BrowseType.Embedded && !props.forceNavigationToPage) {
             setPathFromState(path);
         } else {
-            history.push(buildQueryString("/files", {path}));
+            navigate(buildQueryString("/files", {path}));
         }
     }, [browseType, props.forceNavigationToPage]);
 
-    const navigateToFile = useCallback((history: ReturnType<typeof useHistory>, file: UFile): "properties" | void => {
+    const navigateToFile = useCallback((navigate: NavigateFunction, file: UFile): "properties" | void => {
         if (file.status.type === "DIRECTORY") {
-            navigateToPath(history, file.id);
+            navigateToPath(navigate, file.id);
         } else {
             return "properties";
         }
@@ -274,7 +274,7 @@ export const FilesBrowse: React.FunctionComponent<{
     useEffect(() => {
         if (!props.isSearch) return;
         if (!searchContext && uploadPath) {
-            history.replace(`${location.pathname}${location.search}&searchContext=${encodeURIComponent(uploadPath)}`);
+            navigate(`${location.pathname}${location.search}&searchContext=${encodeURIComponent(uploadPath)}`, {replace: true});
         }
     }, [props.isSearch, location.search, location.pathname]);
 
@@ -395,7 +395,7 @@ export const FilesBrowse: React.FunctionComponent<{
                                     <DriveInDropdown
                                         key={drive.id}
                                         className="expandable-row-child"
-                                        onClick={() => navigateToPath(history, `/${drive.id}`)}
+                                        onClick={() => navigateToPath(navigate, `/${drive.id}`)}
                                     >
                                         {drive.specification?.title}
                                     </DriveInDropdown>
@@ -410,7 +410,7 @@ export const FilesBrowse: React.FunctionComponent<{
                         <span data-component={"crumb"} key={it} test-tag={it} title={it}
                             onClick={() => {
                                 navigateToPath(
-                                    history,
+                                    navigate,
                                     "/" + joinToString(components.slice(0, idx + 1), "/")
                                 );
                             }}
@@ -476,7 +476,7 @@ const Router: React.FunctionComponent = () => {
     />;
 };
 
-const DriveDropdown: React.FunctionComponent<{iconName: "hdd" | "projects"}> = props => {
+const DriveDropdown: React.FunctionComponent<{iconName: "hdd" | "projects"; children: React.ReactNode}> = props => {
     return (
         <ClickableDropdown
             colorOnHover={false}

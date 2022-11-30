@@ -16,7 +16,7 @@ import * as Heading from "@/ui-components/Heading";
 import styled from "styled-components";
 import {addStandardDialog} from "@/UtilityComponents";
 import {callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {useHistory, useParams} from "react-router";
+import { useNavigate, useParams} from "react-router";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
@@ -101,7 +101,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
         fetchEnabled((externalApplicationsEnabled({projectId})));
     }, [projectId]);
 
-    const history = useHistory();
+    const navigate = useNavigate();
 
     if (!projectId || !project) return null;
 
@@ -132,7 +132,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             />
                             <Divider />
                             <LeaveProject
-                                onSuccess={() => history.push("/")}
+                                onSuccess={() => navigate("/")}
                                 projectTitle={project.specification.title}
                                 projectId={projectId}
                                 projectRole={status.myRole!}

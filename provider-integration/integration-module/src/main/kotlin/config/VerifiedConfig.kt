@@ -513,6 +513,12 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             when (database) {
                 is ConfigSchema.Server.Database.Embedded -> {
                     val workDir = File(database.directory)
+                    val staticPassword = database.password
+                    if (staticPassword != null) {
+                        workDir.mkdir()
+                        File(workDir, EmbeddedPostgres.POSTGRES_PASSWORD_FILE).writeText(staticPassword)
+                    }
+
                     workDir.mkdirs()
                     verifyFile(workDir.absolutePath, FileType.DIRECTORY)
                     val dataDir = File(workDir, "data")
@@ -522,6 +528,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                         setDataDirectory(dataDir.also { it.mkdirs() })
                         setOverrideWorkingDirectory(workDir)
                         setUseUnshare(clib.getuid() == 0)
+                        setHost(database.host)
                         setPort(database.port)
                     }.start()
 

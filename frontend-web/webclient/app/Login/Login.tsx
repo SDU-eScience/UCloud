@@ -8,7 +8,7 @@ import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Lin
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {DropdownContent, Dropdown} from "@/ui-components/Dropdown";
 import {TextSpan} from "@/ui-components/Text";
-import {getQueryParamOrElse, RouterLocationProps, getQueryParam} from "@/Utilities/URIUtilities";
+import {getQueryParamOrElse, getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
 import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
 import {BG1} from "./BG1";
@@ -17,6 +17,7 @@ import bg2 from "@/Assets/Images/bg2.svg";
 import wayfLogo from "@/Assets/Images/WAYFLogo.svg";
 import aarhusu_logo from "@/Assets/Images/aarhusu_logo.png";
 import aalborgu_logo from "@/Assets/Images/aalborgu_logo.png";
+import {useLocation, useNavigate} from "react-router";
 
 const BackgroundImage = styled.div<{image: string}>`
     background: url(${({image}) => image}) no-repeat 40% 0%;
@@ -24,11 +25,13 @@ const BackgroundImage = styled.div<{image: string}>`
     overflow: hidden;
 `;
 
+export const LOGIN_REDIRECT_KEY = "redirect_on_login";
+
 const inDevEnvironment = DEVELOPMENT_ENV;
 const enabledWayf = true;
 const wayfService = inDevEnvironment ? "dev-web" : "web";
 
-export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = props => {
+export const LoginPage: React.FC<{initialState?: any}> = props => {
     const [challengeId, setChallengeID] = useState("");
     const verificationInput = useRef<HTMLInputElement>(null);
     const usernameInput = useRef<HTMLInputElement>(null);
@@ -45,14 +48,18 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
             handleAuthState(props.initialState);
         }
     }, []);
+    
 
-    const isPasswordReset = getQueryParamOrElse(props, "password-reset", "false") === "true";
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const isPasswordReset = getQueryParamOrElse({location, navigate}, "password-reset", "false") === "true";
     const service = inDevEnvironment ? "dev-web" : "web";
-    const resetToken = getQueryParam(props, "token");
+    const resetToken = getQueryParam({location, navigate}, "token");
 
     React.useEffect(() => {
         if (Client.isLoggedIn) {
-            props.history.push("/");
+            navigate("/");
         }
     }, [Client.isLoggedIn]);
 
@@ -147,7 +154,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                 15_000
             );
 
-            props.history.push("/login");
+            navigate("/login");
         } catch (err) {
             setLoading(false);
 
@@ -162,7 +169,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
 
     function handleCompleteLogin(result: any): void {
         Client.setTokens(result.accessToken, result.csrfToken);
-        props.history.push("/loginSuccess");
+        navigate("/loginSuccess");
     }
 
     function handleAuthState(result: any): void {

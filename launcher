@@ -38,5 +38,5 @@ $repo_root/launcher-tool/build/install/launcher-tool/bin/launcher-tool $post_exe
 if test -f $post_exec; then
     bash $post_exec
 fi
-rm -f $post_exec
+#rm -f $post_exec
 

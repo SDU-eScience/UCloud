@@ -6,7 +6,7 @@ import {default as Api, isAdminOrPI, Project, useProjectFromParams} from "./Api"
 import {GridCardGroup} from "@/ui-components/Grid";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import styled from "styled-components";
-import {useHistory} from "react-router";
+import {useNavigate} from "react-router";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "@/ui-components/Sidebar";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
@@ -22,7 +22,7 @@ import {GrantApplicationFilter} from "./Grant";
 // ================================================================================
 const ProjectDashboard: React.FunctionComponent = () => {
     // Input "parameters"
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const {project, projectId, reload, isPersonalWorkspace} = useProjectFromParams("");
 
@@ -73,7 +73,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                     <ProjectDashboardGrid minmax={330}>
                         {isPersonalWorkspace ? null : <HighlightedCard
                             subtitle={<RightArrow />}
-                            onClick={() => history.push(`/projects/${projectId}/members`)}
+                            onClick={() => navigate(`/projects/${projectId}/members`)}
                             title="Members"
                             icon="user"
                             color="blue"
@@ -97,7 +97,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                             title={"Resources and Usage"}
                             icon="grant"
                             color="purple"
-                            onClick={() => history.push(`/project/resources/${projectId ?? ""}`)}
+                            onClick={() => navigate(`/project/resources/${projectId ?? ""}`)}
                             subtitle={<RightArrow />}
                         >
                         </HighlightedCard>
@@ -107,7 +107,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                             icon="grant"
                             color="darkGreen"
                             isLoading={false}
-                            onClick={() => history.push(`/project/allocations/${projectId ?? ""}`)}
+                            onClick={() => navigate(`/project/allocations/${projectId ?? ""}`)}
                             subtitle={<RightArrow />}
                         >
                         </HighlightedCard>
@@ -115,7 +115,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                         {isPersonalWorkspace ? null : <>
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => history.push(`/project/grants/ingoing/${projectId ?? ""}`)}
+                                onClick={() => navigate(`/project/grants/ingoing/${projectId ?? ""}`)}
                                 title="Grant Applications"
                                 icon="mail"
                                 color="red"
@@ -135,7 +135,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                             {!isAdmin ? null : (
                                 <HighlightedCard
                                     subtitle={<RightArrow />}
-                                    onClick={() => history.push(`/project/settings/${projectId}`)}
+                                    onClick={() => navigate(`/project/settings/${projectId}`)}
                                     title="Settings"
                                     icon="properties"
                                     color="orange"
@@ -157,7 +157,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                         {!isAdmin ? null :
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => history.push(`/subprojects?subproject=${projectId}`)}
+                                onClick={() => navigate(`/subprojects/${projectId}`)}
                                 title="Subprojects"
                                 icon="projects"
                                 color="green"

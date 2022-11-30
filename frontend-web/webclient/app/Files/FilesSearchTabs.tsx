@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useHistory} from "react-router";
+import {useLocation, useNavigate} from "react-router";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useCallback} from "react";
 import {SelectableText, SelectableTextWrapper} from "@/ui-components";
@@ -7,19 +7,20 @@ import {SelectableText, SelectableTextWrapper} from "@/ui-components";
 type ActiveTab = "FILES" | "COLLECTIONS" | "APPLICATIONS";
 
 export const FilesSearchTabs: React.FunctionComponent<{active: ActiveTab}> = props => {
-    const history = useHistory();
-    const query = getQueryParamOrElse(history.location.search, "q", "");
+    const location = useLocation();
+    const navigate = useNavigate();
+    const query = getQueryParamOrElse(location.search, "q", "");
 
     const goToApplications = useCallback(() => {
-        history.push(buildQueryString("/applications/search", {q: query}));
+        navigate(buildQueryString("/applications/search", {q: query}));
     }, [query]);
 
     const goToFiles = useCallback(() => {
-        history.push(buildQueryString("/files/search", {q: query}));
+        navigate(buildQueryString("/files/search", {q: query}));
     }, [query]);
 
     const goToCollections = useCallback(() => {
-        history.push(buildQueryString("/drives/search", {q: query}));
+        navigate(buildQueryString("/drives/search", {q: query}));
     }, [query]);
 
     return <SelectableTextWrapper>

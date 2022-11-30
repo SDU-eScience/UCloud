@@ -5,7 +5,7 @@ import * as UCloud from "@/UCloud";
 import {Flex} from "@/ui-components";
 import Loading from "@/LoadingIcon/LoadingIcon";
 import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
-import {useHistory, useParams} from "react-router";
+import {useNavigate, useParams} from "react-router";
 import RS from "@/Products/CreateProduct";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {buildQueryString} from "@/Utilities/URIUtilities";
@@ -23,7 +23,7 @@ function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> 
 function Save(): JSX.Element | null {
     const {id} = useParams<{id: string}>();
     const [provider, setParams, params] = useCloudAPI<Provider | null, {id: string}>({noop: true}, null);
-    const history = useHistory();
+    const navigate = useNavigate();
 
     React.useEffect(() => {
         if (id) {
@@ -65,7 +65,7 @@ function Save(): JSX.Element | null {
                 }}
                 onSubmitSucceded={(res, data) => {
                     if (res) {
-                        history.push(`/providers`);
+                        navigate(`/providers`);
                     }
                 }}
                 onSubmitError={(error) => {

@@ -63,7 +63,7 @@ public class EmbeddedPostgres implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(EmbeddedPostgres.class);
     private static final String JDBC_FORMAT = "jdbc:postgresql://localhost:%s/%s?user=%s";
 
-    private static final String POSTGRES_PASSWORD_FILE = "postgres_password.txt";
+    public static final String POSTGRES_PASSWORD_FILE = "postgres_password.txt";
 
     private static final String PG_STOP_MODE = "fast";
     private static final String PG_STOP_WAIT_S = "5";
@@ -77,6 +77,7 @@ public class EmbeddedPostgres implements Closeable {
     private final File dataDirectory, lockFile, workingDirectory;
     private final UUID instanceId = UUID.randomUUID();
     private final int port;
+    private final String host;
     private final AtomicBoolean started = new AtomicBoolean();
     private final AtomicBoolean closed = new AtomicBoolean();
 
@@ -98,7 +99,7 @@ public class EmbeddedPostgres implements Closeable {
                      Map<String, String> postgresConfig, Map<String, String> localeConfig, int port, Map<String, String> connectConfig,
                      PgBinaryResolver pgBinaryResolver, ProcessBuilder.Redirect errorRedirector,
                      ProcessBuilder.Redirect outputRedirector, Duration pgStartupWait,
-                     File overrideWorkingDirectory, boolean useUnshare) throws IOException {
+                     File overrideWorkingDirectory, boolean useUnshare, String host) throws IOException {
         this.cleanDataDirectory = cleanDataDirectory;
         this.postgresConfig = new HashMap<>(postgresConfig);
         this.localeConfig = new HashMap<>(localeConfig);
@@ -110,6 +111,7 @@ public class EmbeddedPostgres implements Closeable {
         this.outputRedirector = outputRedirector;
         this.pgStartupWait = pgStartupWait;
         this.useUnshare = useUnshare;
+        this.host = host;
         Objects.requireNonNull(this.pgStartupWait, "Wait time cannot be null");
 
         if (parentDirectory != null) {
@@ -255,6 +257,16 @@ public class EmbeddedPostgres implements Closeable {
         args.addAll(createLocaleOptions());
         system(INIT_DB, args);
         LOG.info("{} initdb completed in {}", instanceId, watch);
+
+        PrintWriter writer;
+        try {
+            writer = new PrintWriter(new FileWriter(new File(dataDirectory, "pg_hba.conf"), true));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        writer.println("host all all samenet scram-sha-256");
+        writer.close();
+        System.out.println(new File(dataDirectory, "pg_hba.conf").getAbsolutePath());
     }
 
     private void startPostmaster() throws IOException {
@@ -292,6 +304,11 @@ public class EmbeddedPostgres implements Closeable {
         initOptions.addAll(Arrays.asList(
                 "-p", Integer.toString(port),
                 "-F"));
+
+        if (host != null) {
+            initOptions.add("-h");
+            initOptions.add(host);
+        }
 
         for (final Entry<String, String> config : postgresConfig.entrySet()) {
             initOptions.add("-c");
@@ -477,6 +494,7 @@ public class EmbeddedPostgres implements Closeable {
         private final Map<String, String> localeConfig = new HashMap<>();
         private boolean builderCleanDataDirectory = true;
         private int builderPort = 0;
+        private String builderHost = null;
         private final Map<String, String> connectConfig = new HashMap<>();
         private PgBinaryResolver pgBinaryResolver = DefaultPostgresBinaryResolver.INSTANCE;
         private Duration pgStartupWait = DEFAULT_PG_STARTUP_WAIT;
@@ -544,6 +562,11 @@ public class EmbeddedPostgres implements Closeable {
             return this;
         }
 
+        public Builder setHost(String host) {
+            builderHost= host;
+            return this;
+        }
+
         public Builder setErrorRedirector(ProcessBuilder.Redirect errRedirector) {
             this.errRedirector = errRedirector;
             return this;
@@ -573,7 +596,7 @@ public class EmbeddedPostgres implements Closeable {
             }
             return new EmbeddedPostgres(parentDirectory, builderDataDirectory, builderCleanDataDirectory, config,
                     localeConfig, builderPort, connectConfig, pgBinaryResolver, errRedirector, outRedirector,
-                    pgStartupWait, overrideWorkingDirectory, useUnshare);
+                    pgStartupWait, overrideWorkingDirectory, useUnshare, builderHost);
         }
 
         @Override

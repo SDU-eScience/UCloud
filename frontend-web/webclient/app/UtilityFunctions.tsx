@@ -199,7 +199,7 @@ export function extractErrorCode(e: unknown): number {
     if (typeof e === "object") {
         if (e != null && "request" in e) {
             const req = e["request"];
-            if ("status" in req) {
+            if (hasStatus(req)) {
                 const status = req.status;
                 if (typeof status === "number") {
                     return status;
@@ -209,6 +209,10 @@ export function extractErrorCode(e: unknown): number {
     }
 
     return 500;
+}
+
+function hasStatus(req: unknown): req is {status: any} {
+    return "status" in (req as any);
 }
 
 export function extractErrorMessage(
@@ -314,6 +318,7 @@ export function errorMessageOrDefault(
 ): string {
     if (!navigator.onLine) return "You seem to be offline.";
     try {
+        if (err instanceof Error) return err.toString();
         if (typeof err === "string") return err;
         if ("status" in err) {
             return err.response;

@@ -38,7 +38,8 @@ import {AllocationViewer, resultAsPercent, SubAllocation, allocationText} from "
 import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
-import ProjectAPI, {useProjectId} from "@/Project/Api";
+import ProjectAPI, {useProjectIdFromParams} from "@/Project/Api";
+import { isAllocationSuitableForSubAllocation } from "@/Project/Grant";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider) + ` [${getParentAllocationFromSuballocation(alloc)}]`;
@@ -119,7 +120,7 @@ interface Recipient {
 
 function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}): JSX.Element {
     const [newRecipients, setRecipients] = useState<Recipient[]>([]);
-    const projectId = useProjectId();
+    const projectId = useProjectIdFromParams();
 
     const newRecipientId = useRef(0);
 
@@ -380,13 +381,13 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                 iconColor2="white"
                 title={<Flex>
                     <Flex width="170px" mt="7px">
-                        <ClickableDropdown width="250px" chevron trigger={<><Icon mr="4px" color2="white" name={recipient.isProject ? "projects" : "user"} />{!recipient.isProject ? "User" : recipient.asNewProject ? "New" : "Existing"}</>}>
+                        <ClickableDropdown useMousePositioning width="250px" chevron trigger={<><Icon mr="4px" color2="white" name={recipient.isProject ? "projects" : "user"} />{!recipient.isProject ? "User" : recipient.asNewProject ? "New" : "Existing"}</>}>
                             <Flex onClick={() => toggleIsProject(recipient.id, true)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> Existing project</Flex>
                             <Flex onClick={() => toggleAsNewProject(recipient.id)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> New project</Flex>
                             <Flex onClick={() => toggleIsProject(recipient.id, false)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"user"} /> User</Flex>
                         </ClickableDropdown>
                     </Flex>
-                    <Input ref={recipient.ref} placeholder={recipient.isProject ? "Projectname..." : "Username..."} />
+                    <Input ml="10px" ref={recipient.ref} placeholder={recipient.isProject ? "Projectname..." : "Username..."} />
                 </Flex>}
                 titleContent={
                     <Button ml="8px" mt="4px" height="32px" color="red" onClick={() => removeNewRecipientRow(recipient.id)}>Discard</Button>
@@ -640,12 +641,14 @@ function ResourceBarByProductType(props: {rows: SubAllocation[]; productType: Pr
     return <Flex>
         {Object.keys(storages).flatMap((s: ChargeType) =>
             storages[s].map(e =>
-                <ResourceProgress
-                    key={`${e.initialBalance}-${e.remaining}`}
-                    width={e.resourceText.length * 7.2 + "px"}
-                    value={e.asPercent}
-                    text={e.resourceText}
-                />
+                <React.Fragment key={`${e.initialBalance}-${e.remaining}`}>
+                    <ResourceProgress
+                        width={e.resourceText.length * 7.2 + "px"}
+                        value={e.asPercent}
+                        text={e.resourceText}
+                    />
+                    <Box mx="1px" />
+                </React.Fragment>
             ))}
     </Flex>;
 }
@@ -840,8 +843,8 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                 </UsageRowsWithMargin>
             </>}
             titleContentOnOpened={<>
-                {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" width="98px" onClick={addNewRow}>New row</Button> :
-                    <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" width="98px" disabled>New row</Button>}>
+                {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" width="100px" onClick={addNewRow}>New row</Button> :
+                    <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" width="100px" disabled>New row</Button>}>
                         No allocations available for use.
                     </Tooltip>
                 }
@@ -935,10 +938,7 @@ function findValidAllocations(wallets: Wallet[], productType: ProductType): {wal
 
     return wallets.filter(it => it.productType === productType).flatMap(w => ({
         wallet: w,
-        allocations: w.allocations.filter(it =>
-            (it.endDate == null || it.endDate < now) &&
-            it.localBalance > 0
-        )
+        allocations: w.allocations.filter(it => isAllocationSuitableForSubAllocation(it))
     }));
 }
 
