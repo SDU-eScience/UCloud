@@ -15,10 +15,7 @@ import dk.sdu.cloud.app.orchestrator.api.JobsProviderUtilizationResponse
 import dk.sdu.cloud.app.orchestrator.api.NetworkIP
 import dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport
 import dk.sdu.cloud.app.orchestrator.api.ShellRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.controllers.ComputeSessionIpc
@@ -212,8 +209,8 @@ class UCloudComputePlugin : ComputePlugin {
         }
     }
 
-    override suspend fun RequestContext.verify(jobs: List<Job>) {
-        jobManagement.verifyJobs(jobs)
+    override suspend fun RequestContext.verify(request: BulkRequest<Job>) {
+        jobManagement.verifyJobs(request.items)
     }
 
     override suspend fun RequestContext.openInteractiveSession(job: JobsProviderOpenInteractiveSessionRequestItem): ComputeSession {

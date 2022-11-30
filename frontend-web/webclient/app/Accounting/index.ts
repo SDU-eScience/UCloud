@@ -282,6 +282,10 @@ export interface ProductCompute extends ProductBase {
     cpu?: number | null;
     memoryInGigs?: number | null;
     gpu?: number | null;
+
+    cpuModel?: string | null;
+    memoryModel?: string | null;
+    gpuModel?: string | null;
 }
 
 export interface ProductIngress extends ProductBase {
