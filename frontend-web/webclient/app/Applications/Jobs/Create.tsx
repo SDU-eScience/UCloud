@@ -95,10 +95,7 @@ export const Create: React.FunctionComponent = () => {
 
     useEffect(() => {
         if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
-            console.log(provider);
-            if (provider) {
-                navigate(`/syncthing?provider=${provider}`);
-            }
+            navigate("/drives");
         }
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
         fetchPrevious(UCloud.compute.apps.findByName({appName}));
