@@ -145,8 +145,8 @@ export const FilesBrowse: React.FunctionComponent<{
             if (!collection.data?.specification.product.provider) return config;
 
             invokeCommand(Sync.api.updateConfiguration({
-                providerId: collection.data?.specification.product.provider,
-                category: "syncthing",
+                provider: collection.data?.specification.product.provider,
+                product: "syncthing",
                 config: newConfig
             })).catch(e => {
                 if (didUnmount.current) return;

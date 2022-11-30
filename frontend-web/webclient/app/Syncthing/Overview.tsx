@@ -205,7 +205,7 @@ async function onAction(_: UIState, action: UIAction, cb: ActionCallbacks): Prom
         }
 
         case "ResetAll": {
-            callAPIWithErrorHandler(Sync.api.resetConfiguration({providerId: cb.provider, category: cb.productCategory}));
+            callAPIWithErrorHandler(Sync.api.resetConfiguration({provider: cb.provider, product: cb.product}));
             break;
         }
     }
@@ -217,7 +217,7 @@ interface ActionCallbacks {
     requestReload: () => void; // NOTE(Dan): use when it is difficult to rollback a change
     requestJobReloader: () => void;
     provider: string;
-    productCategory: string;
+    product: string;
 }
 
 interface OperationCallbacks {
@@ -226,7 +226,7 @@ interface OperationCallbacks {
     requestReload: () => void;
     permissionProblems: string[];
     provider: string;
-    productCategory: string;
+    product: string;
 }
 
 // Primary user interface
@@ -332,7 +332,7 @@ export const Overview: React.FunctionComponent = () => {
         requestReload: reload,
         requestJobReloader,
         provider,
-        productCategory: selectedProduct?.product.category.name ?? "syncthing"
+        product: selectedProduct?.product.id ?? "syncthing"
     }), [history, pureDispatch, reload]);
 
     const dispatch = useCallback((action: UIAction) => {
@@ -346,7 +346,7 @@ export const Overview: React.FunctionComponent = () => {
         requestReload: reload,
         permissionProblems,
         provider,
-        productCategory: selectedProduct?.product.category.name ?? "syncthing"
+        product: selectedProduct?.product.id ?? "syncthing"
     }), [history, dispatch, reload, permissionProblems]);
 
     const openWizard = useCallback(() => {
@@ -407,8 +407,8 @@ export const Overview: React.FunctionComponent = () => {
 
     useEffectSkipMount(() => {
         callAPI(Sync.api.updateConfiguration({
-            providerId: provider,
-            category: selectedProduct?.product.category.name ?? "syncthing",
+            provider: provider,
+            product: selectedProduct?.product.id ?? "syncthing",
             config: {devices, folders}
         })).catch(() => reload());
     }, [folders.length, devices.length, selectedProduct]);
@@ -730,7 +730,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         enabled: selected => selected.length === 1,
         onClick: (_, cb) => {
             cb.dispatch({type: "ExpectServerUpdate"});
-            callAPIWithErrorHandler(Sync.api.restart({providerId: cb.provider, category: cb.productCategory}));
+            callAPIWithErrorHandler(Sync.api.restart({provider: cb.provider, product: cb.product}));
         }
     },
     {

@@ -29,11 +29,9 @@ abstract class BaseResourceController<
     protected abstract fun retrieveApi(providerId: String): Api
     override fun configureIpc(server: IpcServer) {}
 
-    protected fun lookupPluginByCategory(category: String): Plugin? {
-        log.debug("category: $category")
-        log.debug("plugins: ${retrievePlugins()}")
+    protected fun lookupPluginByProduct(productId: String): Plugin? {
         return retrievePlugins()?.find { plugin ->
-            plugin.productAllocation.any { it.category == category }
+            plugin.productAllocation.any { it.id == productId }
         }
     }
 

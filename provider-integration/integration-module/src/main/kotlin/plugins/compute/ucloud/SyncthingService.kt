@@ -19,7 +19,6 @@ import dk.sdu.cloud.plugins.storage.ucloud.*
 import dk.sdu.cloud.provider.api.Permission
 import kotlinx.coroutines.runBlocking
 import java.util.*
-import dk.sdu.cloud.file.orchestrator.api.joinPath
 
 class SyncthingService(
     private val providerId: String,

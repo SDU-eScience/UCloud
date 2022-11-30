@@ -5,6 +5,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -253,6 +254,13 @@ class ComputeController(
             ok(result)
         }
 
+        implement(api.unsuspend) {
+            dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
+                with(plugin) { createBulk(BulkRequest(request.items.map { it.job })) }
+            }
+            ok(BulkResponse(request.items.map { null }))
+        }
+
         implement(api.terminate) {
             if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
@@ -342,10 +350,14 @@ class ComputeController(
 
         val syncthingProvider = SyncthingProvider(controllerContext.configuration.core.providerId)
         implement(syncthingProvider.retrieveConfiguration) {
-            val plugin = lookupPluginByCategory(request.category)
+            val plugin = lookupPluginByProduct(request.product)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-            if (plugin !is SyncthingPlugin) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Not a Syncthing plugin: ${request.category} ${plugin.pluginTitle} ${plugin.pluginName} $plugin")
+            if (plugin !is SyncthingPlugin)
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.BadRequest,
+                    "Not a Syncthing plugin"
+                )
 
             ok(
                 with(requestContext(controllerContext)) {
@@ -357,10 +369,14 @@ class ComputeController(
         }
 
         implement(syncthingProvider.updateConfiguration) {
-            val plugin = lookupPluginByCategory(request.category)
+            val plugin = lookupPluginByProduct(request.product)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-            if (plugin !is SyncthingPlugin) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            if (plugin !is SyncthingPlugin)
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.BadRequest,
+                    "Not a Syncthing plugin"
+                )
 
             ok(
                 with(requestContext(controllerContext)) {
@@ -372,29 +388,41 @@ class ComputeController(
         }
 
         implement(syncthingProvider.resetConfiguration) {
-            val plugin = lookupPluginByCategory(request.category)
+            val plugin = lookupPluginByProduct(request.product)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-            if (plugin !is SyncthingPlugin) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            if (plugin !is SyncthingPlugin)
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.BadRequest,
+                    "Not a Syncthing plugin"
+                )
 
-            with(requestContext(controllerContext)) {
-                with(plugin) {
-                    resetSyncthingConfiguration(request)
+            ok(
+                with(requestContext(controllerContext)) {
+                    with(plugin) {
+                        resetSyncthingConfiguration(request)
+                    }
                 }
-            }
+            )
         }
 
         implement(syncthingProvider.restart) {
-            val plugin = lookupPluginByCategory(request.category)
+            val plugin = lookupPluginByProduct(request.product)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-            if (plugin !is SyncthingPlugin) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            if (plugin !is SyncthingPlugin)
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.BadRequest,
+                    "Not a Syncthing plugin"
+                )
 
-            with(requestContext(controllerContext)) {
-                with(plugin) {
-                    restartSyncthing(request)
+            ok(
+                with(requestContext(controllerContext)) {
+                    with(plugin) {
+                        restartSyncthing(request)
+                    }
                 }
-            }
+            )
         }
     }
 

@@ -37,8 +37,6 @@ export async function fetchServers(): Promise<Job[]> {
             ...JobsApi.browse({
                 filterApplication: "syncthing",
                 filterProductId: "syncthing",
-                filterProductCategory: "syncthing",
-
                 sortBy: "createdAt",
                 sortDirection: "descending",
                 itemsPerPage: 250
@@ -54,8 +52,8 @@ export async function fetchServers(): Promise<Job[]> {
 class Api {
     baseContext = "/api/iapps/syncthing";
 
-    retrieveConfiguration(providerId: string, category: string): APICallParameters {
-        return apiRetrieve({ providerId, category }, this.baseContext);
+    retrieveConfiguration(provider: string, product: string): APICallParameters {
+        return apiRetrieve({ provider, product }, this.baseContext);
     }
 
     updateConfiguration(request: UpdateConfigRequest): APICallParameters {
@@ -78,21 +76,21 @@ export interface SyncthingConfigResponse {
 }
 
 export interface UpdateConfigRequest {
-    providerId: string;
-    category: string;
+    provider: string;
+    product: string;
     config: SyncthingConfig;
     expectedETag?: string | null;
 }
 
 export interface ResetConfigRequest {
-    providerId: string;
-    category: string;
+    provider: string;
+    product: string;
     expectedETag?: string | null;
 }
 
 export interface RestartRequest {
-    providerId: string;
-    category: string;
+    provider: string;
+    product: string;
 }
 
 export const api = new Api();
