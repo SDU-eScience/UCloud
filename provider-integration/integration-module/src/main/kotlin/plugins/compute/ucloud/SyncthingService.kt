@@ -254,8 +254,6 @@ class SyncthingService(
             username
         )
 
-        println(newJob)
-
         return SyncthingJobStatus(newJob, wasCreated = true)
     }
 
