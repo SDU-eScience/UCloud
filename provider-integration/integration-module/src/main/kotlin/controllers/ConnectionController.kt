@@ -226,9 +226,10 @@ class ConnectionController(
                                     // NOTE(Dan): This gives UCloud/Core a valid session for uploading a public key, thus
                                     // it is a direct requirement that UCloud/Core isn't able to authenticate itself with
                                     // the redirect which follows the key upload!
+                                    val selfHost = config.core.hosts.self?.toStringOmitDefaultPort() ?: ""
                                     ok(
                                         IntegrationProviderConnectResponse(
-                                            "/ucloud/$providerId/integration/redirect?session=${redirectToken}"
+                                            "$selfHost/ucloud/$providerId/integration/redirect?session=${redirectToken}"
                                         )
                                     )
                                 } else {

@@ -584,6 +584,7 @@ class ProjectService(
         request: BulkRequest<Project.Specification>,
         ctx: DBContext = db,
         piOverride: String? = null,
+        addSelfWithPiOverride: Boolean = false,
     ): BulkResponse<FindByStringId> {
         return ctx.withSession(remapExceptions = true) { session ->
             // NOTE(Dan): First we check if the actor is allowed to create _all_ of the requested projects. The system
@@ -661,11 +662,12 @@ class ProjectService(
                     request.items.split {
                         into("titles") { it.title }
                         into("parents") { it.parent }
+                        into("can_consume_resources") { it.canConsumeResources }
                     }
                 },
                 """
-                    insert into project.projects (id, created_at, modified_at, title, parent, dmp) 
-                    select unnest(:ids::text[]), now(), now(), unnest(:titles::text[]), unnest(:parents::text[]), null
+                    insert into project.projects (id, created_at, modified_at, title, parent, dmp, can_consume_resources) 
+                    select unnest(:ids::text[]), now(), now(), unnest(:titles::text[]), unnest(:parents::text[]), null, unnest(:can_consume_resources::bool[])
                 """
             )
 
@@ -679,6 +681,19 @@ class ProjectService(
                     select now(), now(), 'PI', :username, unnest(:ids::text[])
                 """
             )
+
+            if (piOverride != null && addSelfWithPiOverride) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("ids", ids)
+                        setParameter("username", actor.safeUsername())
+                    },
+                    """
+                        insert into project.project_members (created_at, modified_at, role, username, project_id) 
+                        select now(), now(), 'ADMIN', :username, unnest(:ids::text[])
+                    """
+                )
+            }
 
             projectCache.invalidate(actor.safeUsername())
 
@@ -775,7 +790,7 @@ class ProjectService(
         }
 
         ctx.withSession(remapExceptions = true) { session ->
-            requireAdmin(actorAndProject.actor, request.items.map {it.id}, session)
+            requireAdmin(actorAndProject.actor, request.items.map { it.id }, session)
             request.items.forEach {
                 session.sendPreparedStatement(
                     {
@@ -1793,7 +1808,7 @@ class ProjectService(
             ).rows.map { it.getString(0)!! to it.getString(1)!! }
 
             if (affectedProjectsAndGroupTitles.any { it.second == ALL_USERS_GROUP_TITLE }) {
-                 throw RPCException(
+                throw RPCException(
                     "The group '$ALL_USERS_GROUP_TITLE' is special. You cannot remove a member from this group.",
                     HttpStatusCode.BadRequest
                 )

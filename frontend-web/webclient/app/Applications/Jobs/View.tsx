@@ -251,10 +251,8 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     }
 
     useEffect(() => {
-        fetchJob(compute.jobs.retrieve({
+        fetchJob(JobsApi.retrieve({
             id,
-            includeParameters: true,
-            includeProduct: true,
             includeApplication: true,
             includeUpdates: true,
             includeSupport: true,
@@ -327,10 +325,8 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     useEffect(() => {
         // Used to fetch creditsCharged when job finishes.
         if (isJobStateTerminal(status?.state ?? "RUNNING") && job?.status.state !== status?.state) {
-            fetchJob(compute.jobs.retrieve({
+            fetchJob(JobsApi.retrieve({
                 id,
-                includeParameters: true,
-                includeProduct: true,
                 includeApplication: true,
                 includeUpdates: true
             }));
@@ -504,7 +500,7 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
             (appType === "DOCKER" && support.docker.utilization === true) ||
             (appType === "VIRTUAL_MACHINE" && support.virtualMachine.utilization === true)
         ) {
-            setUtilization(compute.jobs.retrieveUtilization({jobId: job.id}))
+            setUtilization(JobsApi.retrieveUtilization({jobId: job.id}))
         }
     }, [job]);
 
@@ -887,7 +883,7 @@ const RunningContent: React.FunctionComponent<{
         if (!commandLoading && expiresAt) {
             setExpiresAt(expiresAt + (3600 * 1000 * duration));
             try {
-                await invokeCommand(compute.jobs.extend(bulkRequestOf({
+                await invokeCommand(JobsApi.extend(bulkRequestOf({
                     jobId: job.id,
                     requestedTime: {hours: duration, minutes: 0, seconds: 0}
                 })));

@@ -11,7 +11,7 @@ import io.ktor.server.websocket.*
 import kotlinx.html.*
 import kotlinx.html.stream.createHTML
 
-const val developmentBuild = true
+var developmentBuild = true
 
 fun template(head: HEAD.() -> Unit = {}, body: BODY.() -> Unit = {}): String {
     return createHTML().html {
@@ -32,6 +32,7 @@ fun template(head: HEAD.() -> Unit = {}, body: BODY.() -> Unit = {}): String {
             // When developmentBuild = true, then you can just run the frontend with
             // `gradle jsBrowserDistribution --continuous`. This should work, but you will need to add
             // any new packages here.
+            /*
             script(src = "/static/js/packages_imported/kotlin/1.7.10/kotlin.js") {}
             script(src = "/static/js/packages/debugger/kotlin/kotlin-kotlin-stdlib-js-ir.js") {}
             script(src = "/static/js/packages/debugger/kotlin/kotlin_kotlin.js") {}
@@ -40,6 +41,8 @@ fun template(head: HEAD.() -> Unit = {}, body: BODY.() -> Unit = {}): String {
             script(src = "/static/js/packages/debugger/kotlin/kotlin_org_jetbrains_kotlinx_kotlinx_serialization_json.js") {}
             script(src = "/static/js/packages/debugger/kotlin/kotlinx-serialization-kotlinx-serialization-core-js-ir.js") {}
             script(src = "/static/js/packages/debugger/kotlin/kotlinx-serialization-kotlinx-serialization-json-js-ir.js") {}
+            */
+            script(src = "/static/debugger.js") {}
 
             body()
         }
@@ -50,6 +53,7 @@ fun main(args: Array<String>) {
     val host = args.getOrNull(0) ?: "127.0.0.1"
     val port = args.getOrNull(1)?.toIntOrNull() ?: 42999
     val logFolder = args.getOrNull(2) ?: "./logs"
+    developmentBuild = !args.contains("--static")
     println(args.toList())
     val sessionManager = SessionManager(listOf(logFolder))
     sessionManager.start()
@@ -62,7 +66,6 @@ fun main(args: Array<String>) {
                 call.respondText(ContentType.Text.Html, HttpStatusCode.OK) {
                     template(
                         body = {
-                            script(src = "/static/js/packages/debugger/kotlin/debugger.js") {}
                         }
                     )
                 }
@@ -81,9 +84,9 @@ fun main(args: Array<String>) {
             static("/static") {
                 files("./assets")
                 if (!developmentBuild) {
+                    files("./build/distributions")
                     resources()
                 } else {
-                    files("./build")
                     resources()
                 }
             }

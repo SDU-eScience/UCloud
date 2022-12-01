@@ -6,8 +6,7 @@
         "plaintext"
     ],
     "spellright.language": [
-        "en",
-        "da"
+        "en"
     ],
     "telemetry.enableTelemetry": false,
     "typescript.tsdk": "node_modules/typescript/lib",

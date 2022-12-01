@@ -81,6 +81,13 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
                 },
                 "/ucloud/": sharedProxySetting,
                 "/AppVersion.txt": sharedProxySetting
+            },
+            watch: {
+                usePolling: true,
+                interval: 1000,
+                binaryInterval: 3000,
+                alwaysStat: true,
+                depth: 99,
             }
         }
     });

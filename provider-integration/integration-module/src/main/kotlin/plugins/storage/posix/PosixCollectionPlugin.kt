@@ -90,7 +90,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         }
     }
 
-    override suspend fun PluginContext.onAllocationCompleteInServerMode(notification: AllocationNotification) {
+    override suspend fun PluginContext.onAllocationCompleteInServerModeTotal(notification: AllocationNotificationTotal) {
         locateAndRegisterCollections(notification.owner)
     }
 

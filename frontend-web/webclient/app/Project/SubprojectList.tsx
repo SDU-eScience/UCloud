@@ -1,26 +1,25 @@
 import MainContainer from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import { NavigateFunction, useLocation, useNavigate} from "react-router";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {NavigateFunction, useNavigate} from "react-router";
 import {Box, Button, ButtonGroup, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
 import List, {ListRow, ListRowStat} from "@/ui-components/List";
 import {errorMessageOrDefault, preventDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Operations, Operation} from "@/ui-components/Operation";
 import {ItemRenderer, ItemRow, StandardBrowse} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {useCloudCommand} from "@/Authentication/DataHook";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useDispatch} from "react-redux";
 import {dispatchSetProjectAction} from "./Redux";
 import {Toggle} from "@/ui-components/Toggle";
 import {ProjectBreadcrumbs} from "./Breadcrumbs";
-import {isAdminOrPI, OldProjectRole, Project, projectRoleToString, projectRoleToStringIcon, useProjectFromParams, useProjectId} from "./Api";
+import {isAdminOrPI, OldProjectRole, projectRoleToString, projectRoleToStringIcon, useProjectFromParams, useProjectId} from "./Api";
 import ProjectAPI from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {PaginationRequestV2} from "@/UCloud";
-import {emptyProject} from "./cache";
 
 interface MemberInProjectCallbacks {
     startCreation: () => void;
@@ -126,18 +125,8 @@ const projectOperations: ProjectOperation[] = [
 
 export default function SubprojectList(): JSX.Element | null {
     useTitle("Subproject");
-    const location = useLocation();
-    const subprojectFromQuery = getQueryParamOrElse(location.search, "subproject", "");
     const navigate = useNavigate();
-
-    const [project, fetchProject] = useCloudAPI<Project>(
-        {noop: true},
-        emptyProject()
-    );
-
-    React.useEffect(() => {
-        if (subprojectFromQuery) fetchProject(ProjectAPI.retrieve({id: subprojectFromQuery}));
-    }, [subprojectFromQuery]);
+    const {project, projectId, breadcrumbs, isPersonalWorkspace} = useProjectFromParams("Subprojects");
 
     const dispatch = useDispatch();
     const setProject = React.useCallback((id: string, title: string) => {
@@ -179,14 +168,14 @@ export default function SubprojectList(): JSX.Element | null {
         try {
             const [result] = (await invokeCommand(ProjectAPI.create(bulkRequestOf({
                 title: subprojectName,
-                parent: subprojectFromQuery
+                parent: projectId
             })))).responses;
             dispatchSetProjectAction(dispatch, result.id);
             navigate("/project/grants/existing/");
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, "Invalid subproject name"), false);
         }
-    }, [creationRef, subprojectFromQuery]);
+    }, [creationRef, projectId]);
 
     const onRenameProject = React.useCallback(async (id: string) => {
         const newProjectName = renameRef.current?.value;
@@ -206,12 +195,13 @@ export default function SubprojectList(): JSX.Element | null {
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, "Invalid subproject name"), false);
         }
-    }, [subprojectFromQuery]);
+    }, [projectId]);
 
     const onSetArchivedStatus = React.useCallback(async (id: string, archive: boolean) => {
         try {
-            const call = archive ? ProjectAPI.archive : ProjectAPI.unarchive;
-            await invokeCommand(call(bulkRequestOf({id})));
+            const bulk = bulkRequestOf({id});
+            const req = archive ? ProjectAPI.archive(bulk) : ProjectAPI.unarchive(bulk);
+            await invokeCommand(req);
             toggleSet.uncheckAll();
             reloadRef.current();
         } catch (e) {
@@ -227,9 +217,9 @@ export default function SubprojectList(): JSX.Element | null {
                 itemsPerPage: 50,
                 next,
             }),
-            projectOverride: subprojectFromQuery
+            projectOverride: projectId
         });
-    }, [subprojectFromQuery]);
+    }, [projectId]);
 
     const extra: MemberInProjectCallbacks = {
         startCreation,
@@ -237,16 +227,15 @@ export default function SubprojectList(): JSX.Element | null {
         onSetArchivedStatus,
         startRename: setRenameId,
         setActiveProject: setProject,
-        isAdminOrPIForParent: isAdminOrPI(project.data.status.myRole),
+        isAdminOrPIForParent: isAdminOrPI(project?.status.myRole),
     };
 
-    const crumbs = [{title: project.data.specification.title ?? ""}].concat([{title: "Subprojects"}]);
-
+    if (isPersonalWorkspace) return null;
     return <MainContainer
         main={
-            !subprojectFromQuery ? <Text fontSize={"24px"}>Missing subproject</Text> :
+            isPersonalWorkspace || !projectId ? <Text fontSize={"24px"}>Missing subproject</Text> :
                 <>
-                    <ProjectBreadcrumbs omitActiveProject crumbs={crumbs} />
+                    <ProjectBreadcrumbs omitActiveProject allowPersonalProject={false} crumbs={breadcrumbs} />
                     <StandardBrowse
                         reloadRef={reloadRef}
                         generateCall={generateCall}

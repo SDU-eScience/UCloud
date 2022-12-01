@@ -480,7 +480,7 @@ class GrantApplicationService(
             document.allocationRequests
         }
 
-        val allocationsApproved = session.sendPreparedStatement(
+        val requestIsValid = session.sendPreparedStatement(
             {
                 setParameter("id", applicationId)
                 allocationRequests.split {
@@ -508,7 +508,9 @@ class GrantApplicationService(
                         join accounting.wallet_owner wo on w.owned_by = wo.id
                         left join accounting.wallet_allocations wall on w.id = wall.associated_wallet 
                         join "grant".applications app on req.application_id = app.id
-                    where req.grant_giver = wo.project_id
+                    where
+                        req.grant_giver = wo.project_id and
+                        wall.can_allocate = true
                 )
                 
                 select (select count(*) from requests) - (select count(*) from requested_inserts) as totalCount
@@ -517,7 +519,7 @@ class GrantApplicationService(
             .single()
             .getLong(0) != 0L
 
-        if (allocationsApproved) {
+        if (requestIsValid) {
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Allocations does not match products")
         }
 

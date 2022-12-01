@@ -233,7 +233,7 @@ fun ExtensionsCli(controllerContext: ControllerContext) {
                 session.prepareStatement(
                     """
                         delete from extension_log
-                        where timestamp timestamp < now() - '7 days'::interval
+                        where timestamp < now() - '7 days'::interval
                     """
                 ).useAndInvokeAndDiscard()
             }

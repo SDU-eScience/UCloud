@@ -576,6 +576,9 @@ sealed class OpenSession : DebugSensitive {
     abstract val jobId: String
     abstract val rank: Int
 
+    @UCloudApiDoc("Domain override, which will be forwarded to the end-user. This overrides the domain used by UCloud/Core. Must contain scheme (e.g. https://).")
+    abstract val domainOverride: String?
+
     override fun removeSensitiveInformation(): JsonElement = JsonNull
 
     @Serializable
@@ -584,6 +587,7 @@ sealed class OpenSession : DebugSensitive {
         override val jobId: String,
         override val rank: Int,
         val sessionIdentifier: String,
+        override val domainOverride: String? = null,
     ) : OpenSession()
 
     @Serializable
@@ -592,6 +596,7 @@ sealed class OpenSession : DebugSensitive {
         override val jobId: String,
         override val rank: Int,
         val redirectClientTo: String,
+        override val domainOverride: String? = null,
     ) : OpenSession()
 
     @Serializable
@@ -601,6 +606,7 @@ sealed class OpenSession : DebugSensitive {
         override val rank: Int,
         val url: String,
         val password: String? = null,
+        override val domainOverride: String? = null,
     ) : OpenSession()
 }
 

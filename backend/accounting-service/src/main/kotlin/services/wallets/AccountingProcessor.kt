@@ -80,7 +80,9 @@ private data class WalletAllocation(
     var isDirty: Boolean = false,
 
     var grantedIn: Long?,
-    val maxUsableBalance: Long?
+    val maxUsableBalance: Long?,
+    val canAllocate: Boolean,
+    val allowSubAllocationsToAllocate: Boolean
 ) {
     var inProgress: Boolean = false
         private set
@@ -590,7 +592,9 @@ class AccountingProcessor(
                         alloc.initial_balance,
                         alloc.balance,
                         alloc.local_balance,
-                        alloc.granted_in
+                        alloc.granted_in,
+                        alloc.can_allocate,
+                        alloc.allow_sub_allocations_to_allocate
                     from
                         accounting.wallet_allocations alloc
                     order by
@@ -611,6 +615,8 @@ class AccountingProcessor(
                     val currentBalance = row.getLong(6)!!
                     val localBalance = row.getLong(7)!!
                     val grantedIn = row.getLong(8)
+                    val canAllocate = row.getBoolean(9)!!
+                    val allowSubAllocationsToAllocate = row.getBoolean(10)!!
 
                     val emptySlots = id - allocations.size
                     require(emptySlots >= 0) { "Duplicate allocations detected (or bad logic): $id" }
@@ -631,7 +637,9 @@ class AccountingProcessor(
                             currentBalance,
                             localBalance,
                             grantedIn = grantedIn,
-                            maxUsableBalance = null
+                            maxUsableBalance = null,
+                            canAllocate = canAllocate,
+                            allowSubAllocationsToAllocate = allowSubAllocationsToAllocate
                         ).also { it.verifyIntegrity() }
                     )
                 }
@@ -971,6 +979,8 @@ class AccountingProcessor(
         notBefore: Long,
         notAfter: Long?,
         grantedIn: Long?,
+        canAllocate: Boolean,
+        allowSubAllocationsToAllocate: Boolean
     ): WalletAllocation {
         val alloc = WalletAllocation(
             allocationIdGenerator++,
@@ -983,7 +993,9 @@ class AccountingProcessor(
             balance,
             isDirty = true,
             grantedIn = grantedIn,
-            maxUsableBalance = null
+            maxUsableBalance = null,
+            canAllocate = canAllocate,
+            allowSubAllocationsToAllocate = allowSubAllocationsToAllocate
         )
 
         allocations.add(alloc)
@@ -1030,7 +1042,9 @@ class AccountingProcessor(
             notBefore,
             notAfter,
             grantedIn,
-            maxUsableBalance = calculateMaxUsableBalance(this)
+            maxUsableBalance = calculateMaxUsableBalance(this),
+            canAllocate = canAllocate,
+            allowSubAllocationsToAllocate = allowSubAllocationsToAllocate
         )
     }
 
@@ -1119,7 +1133,9 @@ class AccountingProcessor(
             null,
             start,
             null,
-            null
+            null,
+            canAllocate = !existingWallet.owner.contains("#"),
+            allowSubAllocationsToAllocate = existingWallet.owner.contains("#") //TODO GET better way of identifying users
         ).id
         val transactionId = transactionId()
         dirtyTransactions.add(
@@ -1175,7 +1191,9 @@ class AccountingProcessor(
             request.parentAllocation,
             request.notBefore,
             request.notAfter,
-            request.grantedIn
+            request.grantedIn,
+            canAllocate = parent.allowSubAllocationsToAllocate,
+            allowSubAllocationsToAllocate = existingWallet.owner.contains("#") //TODO GET better way of identifying users
         ).id
 
         val now = System.currentTimeMillis()

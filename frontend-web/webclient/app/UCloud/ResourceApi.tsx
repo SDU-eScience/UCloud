@@ -2,9 +2,8 @@ import * as UCloud from ".";
 import * as React from "react";
 import {accounting, BulkRequest, BulkResponse, PageV2, PaginationRequestV2} from ".";
 import ProductReference = accounting.ProductReference;
-import {buildQueryString} from "@/Utilities/URIUtilities";
 import {SidebarPages} from "@/ui-components/Sidebar";
-import {apiUpdate, InvokeCommand} from "@/Authentication/DataHook";
+import {apiBrowse, apiCreate, apiDelete, apiRetrieve, apiSearch, apiUpdate, InvokeCommand} from "@/Authentication/DataHook";
 import {Operation} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
@@ -141,6 +140,7 @@ export abstract class ResourceApi<Res extends Resource,
     public abstract routingNamespace;
     public abstract title: string;
     public abstract page: SidebarPages;
+    public isCoreResource: boolean = false;
     public defaultSortDirection: "ascending" | "descending" = "ascending";
 
     public filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [];
@@ -272,7 +272,7 @@ export abstract class ResourceApi<Res extends Resource,
                     await cb.invokeCommand(cb.api.remove(bulkRequestOf(...selected.map(it => ({id: it.id})))));
                     cb.reload();
                     cb.closeProperties?.();
-                    
+
                     if (!cb.viewProperties && !cb.embedded) {
                         cb.navigate(`/${cb.api.routingNamespace}`)
                     }
@@ -301,71 +301,33 @@ export abstract class ResourceApi<Res extends Resource,
     }
 
     browse(req: PaginationRequestV2 & Flags & SortFlags): APICallParameters<PaginationRequestV2 & Flags, PageV2<Res>> {
-        return {
-            context: "",
-            method: "GET",
-            path: buildQueryString(this.baseContext + "browse", req),
-            parameters: req
-        };
+        return apiBrowse(req, this.baseContext);
     }
 
     retrieve(req: FindById & Flags): APICallParameters<FindById & Flags, Res> {
-        return {
-            context: "",
-            method: "GET",
-            path: buildQueryString(this.baseContext + "retrieve", req),
-            parameters: req
-        };
+        return apiRetrieve(req, this.baseContext);
     }
 
     create(req: BulkRequest<Spec>): APICallParameters<BulkRequest<Spec>, BulkResponse<Record<string, never> | null>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext,
-            payload: req,
-            parameters: req
-        };
+        return apiCreate(req, this.baseContext);
     }
 
     remove(req: BulkRequest<FindById>): APICallParameters<BulkRequest<FindById>, BulkResponse<Record<string, never> | null>> {
-        return {
-            context: "",
-            method: "DELETE",
-            path: this.baseContext,
-            payload: req,
-            parameters: req
-        };
+        return apiDelete(req, this.baseContext);
     }
 
     retrieveProducts(): APICallParameters<Record<string, never>, SupportByProvider<Prod, Support>> {
-        return {
-            context: "",
-            method: "GET",
-            path: this.baseContext + "retrieveProducts",
-        };
+        return apiRetrieve({}, this.baseContext, "products");
     }
 
     updateAcl(req: BulkRequest<UpdatedAcl>): APICallParameters<BulkRequest<UpdatedAcl>, BulkResponse<{} | null>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "updateAcl",
-            payload: req,
-            parameters: req
-        };
+        return apiUpdate(req, this.baseContext, "updateAcl");
     }
 
     search(
         req: {query: string; flags: Flags;} & PaginationRequestV2 & SortFlags
     ): APICallParameters<{query: string; flags: Flags;} & PaginationRequestV2, PageV2<Res>> {
-        return {
-            context: "",
-            method: "POST",
-            path: this.baseContext + "search",
-            payload: req,
-            parameters: req
-        };
+        return apiSearch(req, this.baseContext);
     }
 }
 

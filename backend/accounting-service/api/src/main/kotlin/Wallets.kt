@@ -186,7 +186,11 @@ data class WalletAllocation(
         "ID reference to which grant application this allocation was granted in"
     )
     val grantedIn: Long?,
-    val maxUsableBalance: Long? = null
+    val maxUsableBalance: Long? = null,
+    @UCloudApiDoc("A property which indicates if this allocation can be used to create sub-allocations")
+    val canAllocate: Boolean = false,
+    @UCloudApiDoc("A property which indicates that new sub-allocations of this allocation by default should have canAllocate = true")
+    val allowSubAllocationsToAllocate: Boolean = true,
 )
 
 @Serializable
@@ -607,6 +611,7 @@ data class DepositToWalletRequestItem(
     val endDate: Long? = null,
     @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
     var transactionId: String = Random.nextLong().toString() + Time.now(),
+    val dry: Boolean = false
 )
 
 typealias DepositToWalletResponse = Unit

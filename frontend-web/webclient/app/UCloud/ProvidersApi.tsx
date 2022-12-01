@@ -80,6 +80,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
     title = "Provider";
     page = SidebarPages.Admin;
     productType = undefined;
+    isCoreResource = true;
 
     renderer: ItemRenderer<Provider> = {
         Icon({resource, size}) {

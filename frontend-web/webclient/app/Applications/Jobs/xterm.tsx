@@ -12,7 +12,7 @@ export interface XtermHook {
 }
 
 export function useXTerm(props: { autofit?: boolean } = {}): XtermHook {
-    const [didMount, setDidMount] = useState(false);
+    const didMount = useRef(false);
 
     const [term] = useState(() => new Terminal({
         theme: getTheme(),
@@ -26,14 +26,14 @@ export function useXTerm(props: { autofit?: boolean } = {}): XtermHook {
 
     useEffect(() => {
         if (elem.current) {
-            if (!didMount) {
+            if (!didMount.current) {
                 term.loadAddon(fitAddon);
                 term.open(elem.current);
-                setDidMount(true);
+                didMount.current = true;
             }
             fitAddon.fit();
         } else if (elem.current === null) {
-            setDidMount(false);
+            didMount.current = false;
         }
     }, []);
 

@@ -149,7 +149,7 @@ fun main(args: Array<String>) {
                 }
 
                 if (runInstaller) {
-                    runInstaller(ownExecutable)
+                    runInstaller()
                     exitProcess(0)
                 }
 

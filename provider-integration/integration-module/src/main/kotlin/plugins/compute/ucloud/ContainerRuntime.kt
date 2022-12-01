@@ -52,7 +52,10 @@ interface ContainerRuntime {
     suspend fun retrieve(jobId: String, rank: Int): Container?
     suspend fun list(): List<Container>
     suspend fun listNodes(): List<ComputeNode>
+    suspend fun openTunnel(jobId: String, rank: Int, port: Int): Tunnel
 }
+
+data class Tunnel(val hostnameOrIpAddress: String, val port: Int, val close: suspend () -> Unit)
 
 interface ContainerBuilder {
     val jobId: String

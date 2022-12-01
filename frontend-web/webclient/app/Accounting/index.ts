@@ -151,6 +151,7 @@ export interface WalletAllocation {
     endDate?: number | null;
     grantedIn?: number
     maxUsableBalance?: number
+    canAllocate: boolean;
 }
 
 export interface Wallet {

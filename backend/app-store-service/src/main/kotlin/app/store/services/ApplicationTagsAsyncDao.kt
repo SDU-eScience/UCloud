@@ -1,20 +1,14 @@
 package dk.sdu.cloud.app.store.services
 
-import com.github.jasync.sql.db.RowData
-import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.allocateId
-import dk.sdu.cloud.service.db.async.getField
-import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 
 class ApplicationTagsAsyncDao() {
     suspend fun createTags(
         ctx: DBContext,
-        user: SecurityPrincipal,
         applicationName: String,
         tags: List<String>
     ) {
@@ -52,7 +46,6 @@ class ApplicationTagsAsyncDao() {
 
     suspend fun deleteTags(
         ctx: DBContext,
-        user: SecurityPrincipal,
         applicationName: String,
         tags: List<String>
     ) {

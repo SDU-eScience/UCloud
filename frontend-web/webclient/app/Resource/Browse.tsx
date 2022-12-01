@@ -1,5 +1,5 @@
 import * as React from "react";
-import {PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import { PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     ResolvedSupport,
     Resource,
@@ -11,43 +11,45 @@ import {
     SupportByProvider,
     UCLOUD_CORE
 } from "@/UCloud/ResourceApi";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {bulkRequestOf} from "@/DefaultObjects";
-import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import {useToggleSet} from "@/Utilities/ToggleSet";
-import {PageRenderer} from "@/Pagination/PaginationV2";
-import {Box, Checkbox, Flex, Icon, Label, List, Tooltip, Truncate} from "@/ui-components";
-import {Spacer} from "@/ui-components/Spacer";
-import {ListRowStat} from "@/ui-components/List";
-import {Operations} from "@/ui-components/Operation";
-import {dateToString} from "@/Utilities/DateUtilities";
+import { useCloudAPI, useCloudCommand } from "@/Authentication/DataHook";
+import { bulkRequestOf } from "@/DefaultObjects";
+import { useLoading, useTitle } from "@/Navigation/Redux/StatusActions";
+import { useToggleSet } from "@/Utilities/ToggleSet";
+import { PageRenderer } from "@/Pagination/PaginationV2";
+import { Box, Checkbox, Flex, Icon, Label, Link, List, Tooltip, Truncate } from "@/ui-components";
+import { Spacer } from "@/ui-components/Spacer";
+import { ListRowStat } from "@/ui-components/List";
+import { Operations } from "@/ui-components/Operation";
+import { dateToString } from "@/Utilities/DateUtilities";
 import MainContainer from "@/MainContainer/MainContainer";
-import {NamingField} from "@/UtilityComponents";
-import {ProductSelector} from "@/Resource/ProductSelector";
-import {doNothing, preventDefault, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
-import {Client} from "@/Authentication/HttpClientInstance";
-import {useSidebarPage} from "@/ui-components/Sidebar";
+import { NamingField } from "@/UtilityComponents";
+import { ProductSelector } from "@/Resource/ProductSelector";
+import { doNothing, preventDefault, timestampUnixMs, useEffectSkipMount } from "@/UtilityFunctions";
+import { Client } from "@/Authentication/HttpClientInstance";
+import { useSidebarPage } from "@/ui-components/Sidebar";
 import * as Heading from "@/ui-components/Heading";
-import {NavigateFunction, useLocation, useNavigate} from "react-router";
-import {EnumFilterWidget, EnumOption, ResourceFilter, StaticPill} from "@/Resource/Filter";
-import {useResourceSearch} from "@/Resource/Search";
-import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {useDispatch} from "react-redux";
-import {ItemRenderer, ItemRow, ItemRowMemo, StandardBrowse, useRenamingState} from "@/ui-components/Browse";
-import {useAvatars} from "@/AvataaarLib/hook";
-import {Avatar} from "@/AvataaarLib";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
-import {Product, ProductType, productTypeToIcon} from "@/Accounting";
-import {BrowseType} from "./BrowseType";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {FixedSizeList} from "react-window";
-import {default as AutoSizer} from "react-virtualized-auto-sizer";
-import {useGlobal} from "@/Utilities/ReduxHooks";
-import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {Feature, hasFeature} from "@/Features";
-import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {isAdminOrPI, useProjectId} from "@/Project/Api";
-import {useProject} from "@/Project/cache";
+import { NavigateFunction, useLocation, useNavigate } from "react-router";
+import { EnumFilterWidget, EnumOption, ResourceFilter, StaticPill } from "@/Resource/Filter";
+import { useResourceSearch } from "@/Resource/Search";
+import { getQueryParamOrElse } from "@/Utilities/URIUtilities";
+import { useDispatch } from "react-redux";
+import { ItemRenderer, ItemRow, ItemRowMemo, StandardBrowse, useRenamingState } from "@/ui-components/Browse";
+import { useAvatars } from "@/AvataaarLib/hook";
+import { Avatar } from "@/AvataaarLib";
+import { defaultAvatar } from "@/UserSettings/Avataaar";
+import { Product, ProductType, productTypeToIcon } from "@/Accounting";
+import { BrowseType } from "./BrowseType";
+import { snackbarStore } from "@/Snackbar/SnackbarStore";
+import { FixedSizeList } from "react-window";
+import { default as AutoSizer } from "react-virtualized-auto-sizer";
+import { useGlobal } from "@/Utilities/ReduxHooks";
+import { ProviderLogo } from "@/Providers/ProviderLogo";
+import { Feature, hasFeature } from "@/Features";
+import { ProviderTitle } from "@/Providers/ProviderTitle";
+import { isAdminOrPI, useProjectId } from "@/Project/Api";
+import { useProject } from "@/Project/cache";
+import { useUState } from "@/Utilities/UState";
+import { connectionState } from "@/Providers/ConnectionState";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -115,6 +117,7 @@ function getStoredSortColumn(title: string): string | null {
 function setStoredSortColumn(title: string, column?: string): void {
     if (column) localStorage.setItem(`${title}:sortColumn`, column);
 }
+
 function setStoredSortDirection(title: string, order: "ascending" | "descending"): void {
     localStorage.setItem(`${title}:sortDirection`, order);
 }
@@ -138,12 +141,13 @@ function setStoredFilters(title: string, filters: Record<string, string>) {
     localStorage.setItem(`${title}:filters`, JSON.stringify(filters));
 }
 
-export function ResourceBrowse<Res extends Resource, CB = undefined>({
-    onSelect, api, ...props
-}: PropsWithChildren<ResourceBrowseProps<Res, CB>> & {/* HACK(Jonas) */disableSearch?: boolean/* HACK(Jonas): End */}): ReactElement | null {
+export function ResourceBrowse<Res extends Resource, CB = undefined>(
+    {
+        onSelect, api, ...props
+    }: PropsWithChildren<ResourceBrowseProps<Res, CB>> & {/* HACK(Jonas) */disableSearch?: boolean/* HACK(Jonas): End */ }): ReactElement | null {
     const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>(
-        {noop: true},
-        {productsByProvider: {}}
+        { noop: true },
+        { productsByProvider: {} }
     );
 
     const [headerSize] = useGlobal("mainContainerHeaderSize", 0);
@@ -169,6 +173,11 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const projectId = useProjectId();
     const project = useProject();
     const isWorkspaceAdmin = projectId === undefined ? true : !project.loading && isAdminOrPI(project.fetch().status.myRole);
+    const canConsumeResources = api.isCoreResource ||
+        projectId === undefined ||
+        project.loading ||
+        project.fetch().specification.canConsumeResources !== false;
+    const providerConnection = useUState(connectionState);
 
     useEffect(() => toggleSet.uncheckAll(), [props.additionalFilters]);
     useEffectSkipMount(() => {
@@ -177,7 +186,9 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 
     const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
-    useEffect(() => {fetchProductsWithSupport(api.retrieveProducts())}, []);
+    useEffect(() => {
+        fetchProductsWithSupport(api.retrieveProducts())
+    }, []);
     const renaming = useRenamingState<Res>(
         () => renamingValue, [renamingValue],
         (a, b) => a.id === b.id, [],
@@ -232,14 +243,14 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 
     const generateFetch = useCallback((next?: string): APICallParameters => {
         if (props.resources != null) {
-            return {noop: true};
+            return { noop: true };
         } else if (props.shouldFetch && !props.shouldFetch()) {
-            return {noop: true};
+            return { noop: true };
         }
 
         if (props.isSearch) {
             return api.search({
-                itemsPerPage: 100, flags: {includeOthers, ...filters}, query,
+                itemsPerPage: 100, flags: { includeOthers, ...filters }, query,
                 next, sortDirection, sortBy: sortColumn, ...props.additionalFilters
             });
         } else {
@@ -345,7 +356,26 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         setIsCreating(false);
     }, [props.onInlineCreation, inlineInputRef, callbacks, setIsCreating, selectedProduct]);
 
-    const operations = useMemo(() => api.retrieveOperations(), [callbacks, api]);
+    const operations = useMemo(() => {
+        return api.retrieveOperations()
+            .map(it => {
+                const copy = {...it};
+                copy.enabled = (selected, cb, all) => {
+                    const needsConnection = selected.some(r => 
+                        providerConnection.canConnectToProvider(r.specification.product.provider)
+                    );
+
+                    const defaultAnswer = it.enabled(selected, cb, all);
+
+                    if (defaultAnswer && needsConnection) {
+                        return "You must connect to the provider before you can consume resources";
+                    }
+
+                    return defaultAnswer;
+                };
+                return copy;
+            });
+    }, [callbacks, api, providerConnection.lastRefresh]);
 
     const onSortUpdated = useCallback((dir: "ascending" | "descending", column?: string) => {
         setSortColumn(column);
@@ -355,11 +385,11 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     }, []);
 
     const modifiedRenderer = useMemo((): ItemRenderer<Res> => {
-        const renderer: ItemRenderer<Res> = {...api.renderer};
+        const renderer: ItemRenderer<Res> = { ...api.renderer };
         const RemainingStats = renderer.Stats;
         const NormalMainTitle = renderer.MainTitle;
         const RemainingImportantStats = renderer.ImportantStats;
-        renderer.MainTitle = function mainTitle({resource}) {
+        renderer.MainTitle = function mainTitle({ resource }) {
             if (resource === undefined) {
                 return !selectedProduct ?
                     <ProductSelector products={products} onProductSelected={onProductSelected} />
@@ -376,10 +406,11 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             props.inlineSuffix(selectedProductWithSupport) : null}
                     />;
             } else {
-                return NormalMainTitle ? <NormalMainTitle browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null;
+                return NormalMainTitle ?
+                    <NormalMainTitle browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null;
             }
         };
-        renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
+        renderer.Stats = props.withDefaultStats !== false ? ({ resource }) => (<>
             {!resource ? <>
                 {props.showCreatedAt === false ? null :
                     <ListRowStat icon="calendar">{dateToString(timestampUnixMs())}</ListRowStat>}
@@ -413,17 +444,30 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     !resource.permissions.myself.includes("ADMIN") || resource.owner.project == null ? null :
                         (props.showGroups === false ||
                             resource.permissions.others == null ||
-                            resource.permissions.others.length <= 1) ? <ListRowStat>Not shared with any group</ListRowStat> :
+                            resource.permissions.others.length <= 1) ?
+                            <ListRowStat>Not shared with any group</ListRowStat> :
                             <ListRowStat>{resource.permissions.others.length == 1 ? "" : resource.permissions.others.length - 1} {resource.permissions.others.length > 2 ? "groups" : "group"}</ListRowStat>
                 }
             </>}
-            {RemainingStats ? <RemainingStats browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null}
+            {RemainingStats ?
+                <RemainingStats browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null}
         </>) : renderer.Stats;
-        renderer.ImportantStats = ({resource, callbacks, browseType}) => {
+        renderer.ImportantStats = ({ resource, callbacks, browseType }) => {
             return <>
                 {RemainingImportantStats ?
                     <RemainingImportantStats resource={resource} callbacks={callbacks} browseType={browseType} /> :
                     null
+                }
+
+                {
+                    !hasFeature(Feature.PROVIDER_CONNECTION) || !resource ? null :
+                        !providerConnection.canConnectToProvider(resource.specification.product.provider) ? null :
+                        <Link to="/providers/connect">
+                            <Tooltip trigger={<Icon name="warning" size={40} color="orange" mx={16} />}>
+                                Connection required! You must connect with this provider before you can consume
+                                resources.
+                            </Tooltip>
+                        </Link>
                 }
 
                 {
@@ -442,7 +486,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
         onInlineCreate, inlineInputRef, selectedProductWithSupport, props.showCreatedAt, props.showCreatedBy,
-        props.showProduct, props.showGroups]);
+        props.showProduct, props.showGroups, providerConnection.lastRefresh]);
 
     const sortOptions = useMemo(() =>
         api.sortEntries.map(it => ({
@@ -457,6 +501,11 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const pageSize = useRef(0);
 
     const navigateCallback = useCallback((item: Res) => {
+        if (providerConnection.canConnectToProvider(item.specification.product.provider)) {
+            snackbarStore.addFailure("You must connect to the provider before you can consume resources", true);
+            return;
+        }
+
         if (props.navigateToChildren) {
             const result = props.navigateToChildren?.(navigate, item)
             if (result === "properties") {
@@ -465,10 +514,10 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         } else {
             viewProperties(item);
         }
-    }, [props.navigateToChildren, viewProperties]);
+    }, [props.navigateToChildren, viewProperties, providerConnection.lastRefresh]);
 
-    const listItem = useCallback<(p: {style, index, data: Res[], isScrolling?: boolean}) => JSX.Element>(
-        ({style, index, data}) => {
+    const listItem = useCallback<(p: { style, index, data: Res[], isScrolling?: boolean }) => JSX.Element>(
+        ({ style, index, data }) => {
             const it = data[index];
             return <div style={style} className={"list-item"}>
                 <ItemRowMemo
@@ -481,7 +530,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 />
             </div>
         },
-        [navigateCallback, modifiedRenderer, callbacks, operations, api.title, api.titlePlural, toggleSet, renaming]
+        [navigateCallback, modifiedRenderer, callbacks, operations, api.title, api.titlePlural, toggleSet, renaming, 
+            providerConnection.lastRefresh]
     );
 
     const pageRenderer = useCallback<PageRenderer<Res>>((items, opts) => {
@@ -492,9 +542,9 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         return <>
             {pageSize.current > 0 ? (
                 <Spacer mr="8px" left={
-                    <Label style={{cursor: "pointer"}} width={"102px"}>
+                    <Label style={{ cursor: "pointer" }} width={"102px"}>
                         <Checkbox
-                            style={{marginTop: "-2px"}}
+                            style={{ marginTop: "-2px" }}
                             onChange={() => allChecked ? toggleSet.uncheckAll() : toggleSet.checkAll()}
                             checked={allChecked}
                         />
@@ -559,10 +609,10 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                       global value.
                 */}
                 <div style={props.browseType == BrowseType.MainContent ?
-                    {height: `calc(100vh - 48px - 45px - ${opts.hasNext ? 48 : 0}px - ${headerSize}px - var(--termsize, 0px) - 6px)`} :
-                    {height: `${sizeAllocationForEmbeddedAndCard}px`}}
+                    { height: `calc(100vh - 48px - 45px - ${opts.hasNext ? 48 : 0}px - ${headerSize}px - var(--termsize, 0px) - 6px)` } :
+                    { height: `${sizeAllocationForEmbeddedAndCard}px` }}
                 >
-                    <AutoSizer children={({width, height}) => (
+                    <AutoSizer children={({ width, height }) => (
                         <FixedSizeList
                             itemData={items}
                             itemCount={items.length}
@@ -577,7 +627,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             </List>
         </>
     }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport, renaming,
-        viewProperties, operations]);
+        viewProperties, operations, providerConnection.lastRefresh]);
 
     if (!isEmbedded) {
         useTitle(api.titlePlural);
@@ -603,6 +653,36 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         }
         return result;
     }, [api.filterPills, query, props.isSearch]);
+
+    if (!canConsumeResources) {
+        const main = <Flex height={"400px"} alignItems={"center"} justifyContent={"center"}>
+            <div>
+                <Heading.h3 style={{ textAlign: "center" }}>This project cannot consume resources</Heading.h3>
+                <p>
+                    This property is set for certain projects which are only meant for allocating resources. If you wish
+                    to consume any of these resources for testing purposes, then please allocate resources to a small
+                    separate test project. This can be done from the "Resource Allocations" menu in the project
+                    management interface.
+                </p>
+
+                <p>
+                    <b>NOTE:</b> All resources created prior to this update are still available. If you need to transfer
+                    old resources to a new project, then please contact support.
+                </p>
+            </div>
+        </Flex>;
+        if (isEmbedded) {
+            return <Box minWidth="700px">
+                {main}
+            </Box>;
+        } else {
+            return <MainContainer
+                header={props.header}
+                headerSize={props.headerSize}
+                main={main}
+            />;
+        }
+    }
 
     if (isEmbedded) {
         return <Box minWidth="700px" ref={scrollingContainerRef}>
@@ -651,12 +731,13 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     }
 }
 
-function UserBox(props: {username: string}) {
+function UserBox(props: { username: string }) {
     const avatars = useAvatars();
-    const avatar = avatars.cache[props.username] ?? defaultAvatar;
-    return <div className="user-box" style={{display: "relative"}}>
-        <div className="centered"><Avatar style={{marginTop: "-70px", width: "150px", marginBottom: "-70px"}} avatarStyle="circle" {...avatar} /></div>
-        <div className="centered" style={{display: "flex", justifyContent: "center"}}>
+    const avatar = avatars.avatar(props.username);
+    return <div className="user-box" style={{ display: "relative" }}>
+        <div className="centered"><Avatar style={{ marginTop: "-70px", width: "150px", marginBottom: "-70px" }}
+            avatarStyle="circle" {...avatar} /></div>
+        <div className="centered" style={{ display: "flex", justifyContent: "center" }}>
             <Truncate mt="18px" fontSize="2em" mx="24px" width="100%">{props.username}</Truncate>
         </div>
         {/* Re-add when we know what to render below  */}
@@ -674,8 +755,8 @@ function ProductBox<T extends Resource<ResourceUpdate, ResourceStatus, ResourceS
         productType?: ProductType
     }
 ) {
-    const {resource} = props;
-    const {product} = resource.specification;
+    const { resource } = props;
+    const { product } = resource.specification;
     return <div className="product-box">
         {props.productType ? <Icon size="36px" mr="4px" name={productTypeToIcon(props.productType)} /> : null}
         <span>{product.id} / {product.category}</span>

@@ -1,5 +1,6 @@
 package dk.sdu.cloud
 
+import com.fasterxml.jackson.databind.JsonNode
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.projects.*
@@ -96,6 +97,7 @@ enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Bool
             PasswordResetService,
             SupportService,
             TaskService -> true
+
             else -> false
         }
     }),
@@ -111,6 +113,7 @@ enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Bool
         when (svc) {
             AppOrchestratorService,
             FileOrchestratorService -> true
+
             else -> false
         }
     }),
@@ -119,14 +122,14 @@ enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Bool
         when (svc) {
             AppKubernetesService,
             FileUcloudService -> true
+
             else -> false
         }
     }),
 }
 
-@OptIn(DelicateCoroutinesApi::class)
 suspend fun main(args: Array<String>) {
-    val loadedConfig = Micro().apply {
+    val initialConfig = Micro().apply {
         commandLineArguments = args.toList()
         isEmbeddedService = false
         serviceDescription = PlaceholderServiceDescription
@@ -134,9 +137,12 @@ suspend fun main(args: Array<String>) {
         install(ConfigurationFeature)
     }.configuration
 
-    if (args.contains("--run-script") && args.contains("spring-gen")) {
-        generateSpringMvcCode()
-        exitProcess(0)
+    val isInstalling = args.contains("--dev") && runCatching {
+        initialConfig.requestChunkAtOrNull<JsonNode>("tokenValidation") == null
+    }.getOrElse { true }
+
+    if (isInstalling) {
+        runInstaller(initialConfig.configDirs.first())
     }
 
     if (args.contains("--run-script") && args.contains("api-gen")) {
@@ -154,7 +160,7 @@ suspend fun main(args: Array<String>) {
 
     val presetArg = args.getOrNull(0)?.takeIf { !it.startsWith("--") }
     val preset = if (presetArg == null) {
-        LauncherPreset.Full
+        LauncherPreset.FullNoProviders
     } else {
         LauncherPreset.values().find { it.flag == presetArg }
             ?: error(
@@ -163,14 +169,11 @@ suspend fun main(args: Array<String>) {
                 })")
     }
 
-    val shouldInstall = loadedConfig.tree.elements().asSequence().toList().isEmpty() ||
-            loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true
-
-    if (args.contains("--dev") && shouldInstall && preset == LauncherPreset.Full) {
-        println("UCloud is now ready to be installed!")
-        println("Visit http://localhost:8080/i in your browser")
-        runInstaller(loadedConfig.configDirs.first())
-        exitProcess(0)
+    if (args.contains("--dev") && !isInstalling) {
+        val reg = ServiceRegistry(args + "--no-server", PlaceholderServiceDescription)
+        reg.rootMicro.install(DatabaseConfigurationFeature)
+        reg.rootMicro.install(FlywayFeature)
+        reg.rootMicro.databaseConfig.migrateAll()
     }
 
     val reg = ServiceRegistry(args, PlaceholderServiceDescription)
@@ -191,9 +194,8 @@ suspend fun main(args: Array<String>) {
         )
     )
 
-    if (loadedConfig.requestChunkAtOrNull<Boolean>("postInstalling") == true) {
+    if (isInstalling) {
         GlobalScope.launch {
-            val configDir = loadedConfig.configDirs.first()
             while (!ucloudIsReady.get()) {
                 delay(100)
             }
@@ -201,7 +203,7 @@ suspend fun main(args: Array<String>) {
             val m = Micro(reg.rootMicro)
             m.install(AuthenticatorFeature)
             val client = m.authenticator.authenticateClient(OutgoingHttpCall)
-            val newUser = UserDescriptions.createNewUser.call(
+            UserDescriptions.createNewUser.call(
                 listOf(
                     CreateSingleUserRequest(
                         "user",
@@ -212,279 +214,12 @@ suspend fun main(args: Array<String>) {
                 ),
                 client
             ).orThrow()
-
-            val userClient = RefreshingJWTAuthenticator(
-                reg.rootMicro.client,
-                JwtRefresher.Normal(newUser[0].refreshToken, OutgoingHttpCall)
-            ).authenticateClient(OutgoingHttpCall)
-
-            val project = Projects.create.call(
-                CreateProjectRequest(
-                    "UCloud",
-                    principalInvestigator = "user"
-                ),
-                client
-            ).orThrow().id
-
-            GrantsEnabled.setEnabledStatus.call(
-                bulkRequestOf(SetEnabledStatusRequest(project, true)),
-                userClient
-            ).orThrow()
-
-            GrantSettings.uploadRequestSettings.call(
-                bulkRequestOf(UploadRequestSettingsRequest(
-                    automaticApproval = AutomaticApprovalSettings(
-                        from = emptyList(),
-                        maxResources = emptyList()
-                    ),
-                    allowRequestsFrom = listOf<UserCriteria>(UserCriteria.Anyone()),
-                    excludeRequestsFrom = emptyList(),
-                    projectId = project
-                )),
-                userClient.withProject(project)
-            )
-
-            val providerId = "ucloud"
-            val createdId = Providers.create.call(
-                bulkRequestOf(
-                    ProviderSpecification(
-                        providerId,
-                        "localhost",
-                        false,
-                        8080
-                    )
-                ),
-                userClient.withProject(project)
-            ).orThrow().responses.singleOrNull() ?: error("Bad response from Providers.create")
-
-            val provider = Providers.retrieve.call(
-                ResourceRetrieveRequest(ProviderIncludeFlags(), createdId.id),
-                userClient
-            ).orThrow()
-
-            File(configDir, "ucloud-compute-config.yaml").writeText(
-                """
-                    app:
-                        kubernetes:
-                            providerRefreshToken: ${provider.refreshToken}
-                            ucloudCertificate: ${provider.publicKey}
-                """.trimIndent()
-            )
-
-            File(configDir, "ucloud-storage-config.yaml").writeText(
-                """
-                    files:
-                        ucloud:
-                            providerRefreshToken: ${provider.refreshToken}
-                            ucloudCertificate: ${provider.publicKey}
-                """.trimIndent()
-            )
-
-            Products.create.call(
-                bulkRequestOf(
-                    Product.Compute(
-                        "u1-standard-1",
-                        1000L,
-                        ProductCategoryId("u1-standard", providerId),
-                        cpu = 1,
-                        memoryInGigs = 1,
-                        gpu = 0,
-                        unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE,
-                        freeToUse = false,
-                        description = "An example product for development use",
-                    ),
-                    Product.Compute(
-                        "syncthing",
-                        1L,
-                        ProductCategoryId("syncthing", providerId),
-                        cpu = 1,
-                        memoryInGigs = 1,
-                        gpu = 0,
-                        unitOfPrice = ProductPriceUnit.PER_UNIT,
-                        freeToUse = true,
-                        description = "Product used for file synchronization",
-                    ),
-                    Product.Storage(
-                        "u1-cephfs",
-                        1L,
-                        ProductCategoryId("u1-cephfs", providerId),
-                        unitOfPrice = ProductPriceUnit.PER_UNIT,
-                        freeToUse = false,
-                        description = "An example product for development use",
-                        chargeType = ChargeType.DIFFERENTIAL_QUOTA
-                    ),
-                    Product.Storage(
-                        "home",
-                        1L,
-                        ProductCategoryId("u1-cephfs", providerId),
-                        unitOfPrice = ProductPriceUnit.PER_UNIT,
-                        freeToUse = false,
-                        description = "An example product for development use",
-                        chargeType = ChargeType.DIFFERENTIAL_QUOTA
-                    ),
-                    Product.Storage(
-                        "project-home",
-                        1L,
-                        ProductCategoryId("u1-cephfs", providerId),
-                        unitOfPrice = ProductPriceUnit.PER_UNIT,
-                        freeToUse = false,
-                        description = "An example product for development use",
-                        chargeType = ChargeType.DIFFERENTIAL_QUOTA
-                    ),
-                    Product.Storage(
-                        "share",
-                        1,
-                        ProductCategoryId("u1-cephfs", providerId),
-                        "Shares for UCloud (personal workspaces only)",
-                        chargeType = ChargeType.DIFFERENTIAL_QUOTA,
-                        unitOfPrice = ProductPriceUnit.PER_UNIT
-                    )
-                ),
-                userClient
-            ).orThrow()
-
-            Accounting.rootDeposit.call(
-                bulkRequestOf(
-                    RootDepositRequestItem(
-                        ProductCategoryId("u1-cephfs", providerId),
-                        WalletOwner.Project(project),
-                        1_000_000L,
-                        "Root deposit"
-                    ),
-                    RootDepositRequestItem(
-                        ProductCategoryId("u1-standard", providerId),
-                        WalletOwner.Project(project),
-                        1_000_000L * 1000_000L,
-                        "Root deposit"
-                    ),
-                    RootDepositRequestItem(
-                        ProductCategoryId("u1-cephfs", providerId),
-                        WalletOwner.User("user"),
-                        1_000,
-                        "Root deposit"
-                    ),
-                    RootDepositRequestItem(
-                        ProductCategoryId("u1-standard", providerId),
-                        WalletOwner.User("user"),
-                        1_000_000L * 1000_000L,
-                        "Root deposit"
-                    ),
-                ),
-                client
-            ).orThrow()
-
-            ToolStore.create.call(
-                Unit,
-                client.withHttpBody(
-                    //language=yaml
-                    """
-                        ---
-                        tool: v1
-
-                        title: Alpine
-                        name: alpine
-                        version: 1
-
-                        container: alpine:3
-
-                        authors:
-                        - Dan
-                          
-                        defaultTimeAllocation:
-                          hours: 1
-                          minutes: 0
-                          seconds: 0
-
-                        description: All
-                                   
-                        defaultNumberOfNodes: 1 
-                        defaultTasksPerNode: 1
-
-                        backend: DOCKER                        
-                    """.trimIndent(),
-                    ContentType("text", "yaml")
-                )
-            ).orThrow()
-
-            AppStore.create.call(
-                Unit,
-                client.withHttpBody(
-                    //language=yaml
-                    """
-                        application: v1
-
-                        title: Alpine
-                        name: alpine
-                        version: 3
-
-                        applicationType: BATCH
-
-                        allowMultiNode: true
-
-                        tool:
-                          name: alpine
-                          version: 1
-
-                        authors:
-                        - Dan
-
-                        container:
-                          runAsRoot: true
-                         
-                        description: >
-                          Alpine!
-                         
-                        invocation:
-                        - sh
-                        - -c
-                        - >
-                          echo "Hello, World!";
-                          sleep 2;
-                          echo "How are you doing?";
-                          sleep 1;
-                          echo "This is just me writing some stuff for testing purposes!";
-                          sleep 1;
-                          seq 0 7200 | xargs -n 1 -I _ sh -c 'echo _; sleep 1';
-
-                        outputFileGlobs:
-                          - "*"
-                        
-                    """.trimIndent(),
-                    ContentType("text", "yaml")
-                )
-            ).orThrow()
-
-            AppStore.createTag.call(
-                CreateTagsRequest(
-                    listOf("Featured"),
-                    "alpine"
-                ),
-                client
-            ).orThrow()
-
-            File(configDir, installerFile).delete()
-
-            repeat(30) { println() }
-            println("Please restart UCloud if this doesn't happen automatically.")
-            println("After the restart, UCloud will be available on: http://localhost:9000 (If using docker-compose)")
-            exitProcess(0)
         }
     }
 
     reg.rootMicro.feature(ServerFeature).ktorApplicationEngine!!.application.routing {
         get("/i") {
             call.respondRedirect("http://localhost:9000/app", permanent = false)
-        }
-    }
-
-    if (args.contains("--simulation") && args.contains("--dev")) {
-        GlobalScope.launch {
-            delay(3_000)
-
-            val m = Micro(reg.rootMicro)
-            m.install(AuthenticatorFeature)
-            val client = m.authenticator.authenticateClient(OutgoingHttpCall)
-            Simulator(client, 60, 600).start()
         }
     }
 

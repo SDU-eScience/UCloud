@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
@@ -95,11 +96,51 @@ class AccountingService(
         return BulkResponse(result)
     }
 
+    suspend fun checkIfSubAllocationIsAllowed(allocs: List<String>, ctx: DBContext = db) {
+        ctx.withSession { session ->
+            val allowedToTransferFromCount = session.sendPreparedStatement(
+                {
+                    setParameter("source_allocs", allocs.mapNotNull { it.toLongOrNull() })
+                },
+                """
+                    select count(*)
+                    from
+                        accounting.wallet_allocations alloc
+                    where
+                        alloc.id = some(:source_allocs::bigint[]) and
+                        alloc.can_allocate
+                """
+            ).rows.firstOrNull()?.getLong(0) ?: 0L
+
+            if (allowedToTransferFromCount.toInt() != allocs.size) {
+                throw RPCException(
+                    "One or more of your allocations do not allow sub-allocations. Try a different source allocation.",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+    }
+
+    class DryRunException : RuntimeException("Dry run - Aborting")
+
     suspend fun deposit(
         actorAndProject: ActorAndProject,
         request: BulkRequest<DepositToWalletRequestItem>,
     ) {
+        var isDry: Boolean? = null
+        for (item in request.items) {
+            if (isDry != null && item.dry != isDry) {
+                throw RPCException(
+                    "The entire transaction must be either dry or wet. You cannot mix items in a single transaction.",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            isDry = item.dry
+        }
+
         request.items.map { deposit ->
+            checkIfSubAllocationIsAllowed(listOf(deposit.sourceAllocation), db)
             processor.deposit(
                 AccountingRequest.Deposit(
                     actorAndProject.actor,
@@ -111,6 +152,30 @@ class AccountingService(
                 )
             )
         }
+            val providerIds = db.withSession { session ->
+
+            session.sendPreparedStatement(
+                {
+                    request.items.split {
+                        into("source_allocation") { it.sourceAllocation.toLongOrNull() ?: -1 }
+                    }
+                },
+                """
+                    select distinct pc.provider
+                    from
+                        accounting.wallet_allocations alloc join
+                        accounting.wallets w on alloc.associated_wallet = w.id join
+                        accounting.product_categories pc on w.category = pc.id
+                    where
+                        alloc.id = some(:source_allocation::bigint[])
+                """
+                ).rows.map { it.getString(0)!! }
+            }
+
+            providerIds.forEach { provider ->
+                val comms = providers.prepareCommunication(provider)
+                DepositNotificationsProvider(provider).pullRequest.call(Unit, comms.client)
+            }
     }
 
     suspend fun rootDeposit(
@@ -133,7 +198,36 @@ class AccountingService(
         request: BulkRequest<RegisterWalletRequestItem>
     ) {
         val providerId = actorAndProject.actor.safeUsername().removePrefix(AuthProviders.PROVIDER_PREFIX)
-        TODO()
+
+        db.withSession { session ->
+            val duplicateTransactions = session.sendPreparedStatement(
+                {
+                    setParameter("transaction_ids", request.items.map { providerId + it.uniqueAllocationId })
+                },
+                """
+                    select transaction_id
+                    from accounting.transactions
+                    where transaction_id = some(:transaction_ids::text[])
+                """
+            ).rows.map { it.getString(0)!! }.toSet()
+
+            val requestsToFulfill =
+                request.items.filter { (providerId + it.uniqueAllocationId) !in duplicateTransactions }
+
+            rootDeposit(
+                ActorAndProject(Actor.System, null),
+                BulkRequest(requestsToFulfill.map { reqItem ->
+                    RootDepositRequestItem(
+                        ProductCategoryId(reqItem.categoryId, providerId),
+                        reqItem.owner,
+                        reqItem.balance,
+                        "Allocation registered outside of UCloud",
+                        transactionId = providerId + reqItem.uniqueAllocationId,
+                        providerGeneratedId = reqItem.providerGeneratedId
+                    )
+                })
+            )
+        }
     }
 
     suspend fun updateAllocation(

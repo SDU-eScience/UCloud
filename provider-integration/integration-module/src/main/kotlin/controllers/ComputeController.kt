@@ -194,7 +194,8 @@ class ComputeController(
                             OpenSession.Web(
                                 request.job.id,
                                 request.rank,
-                                "http://${target.ingress}/ucloud/$providerId/authorize-app?token=${sessionId}"
+                                "http://${target.ingress}/ucloud/$providerId/authorize-app?token=${sessionId}",
+                                config.core.hosts.self?.toStringOmitDefaultPort()
                             )
                         }
                     }
@@ -205,13 +206,14 @@ class ComputeController(
                         OpenSession.Vnc(
                             request.job.id,
                             request.rank,
-                            "/ucloud/$providerId/vnc?token=${sessionId}",
-                            password
+                            "${config.core.hosts.self?.toStringOmitDefaultPort() ?: ""}/ucloud/$providerId/vnc?token=${sessionId}",
+                            password,
+                            config.core.hosts.self?.toStringOmitDefaultPort()
                         )
                     }
 
                     InteractiveSessionType.SHELL -> {
-                        OpenSession.Shell(request.job.id, request.rank, sessionId)
+                        OpenSession.Shell(request.job.id, request.rank, sessionId, config.core.hosts.self?.toStringOmitDefaultPort())
                     }
                 }
 
