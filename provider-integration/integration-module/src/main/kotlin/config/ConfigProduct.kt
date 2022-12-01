@@ -177,6 +177,9 @@ sealed class ConfigProduct<T : Product> {
         val cpu: Int,
         val memoryInGigs: Int,
         val gpu: Int? = null,
+        val cpuModel: String? = null,
+        val gpuModel: String? = null,
+        val memoryModel: String? = null,
     ) : ConfigProduct<Product.Compute>() {
         override fun toProduct(category: String, provider: String): Product.Compute {
             return Product.Compute(
@@ -191,6 +194,10 @@ sealed class ConfigProduct<T : Product> {
                 cpu = cpu,
                 memoryInGigs = memoryInGigs,
                 gpu = gpu,
+
+                cpuModel = cpuModel,
+                gpuModel = gpuModel,
+                memoryModel = memoryModel,
             )
         }
 

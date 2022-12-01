@@ -23,7 +23,6 @@ import { Operations } from "@/ui-components/Operation";
 import { dateToString } from "@/Utilities/DateUtilities";
 import MainContainer from "@/MainContainer/MainContainer";
 import { NamingField } from "@/UtilityComponents";
-import { ProductSelector } from "@/Resource/ProductSelector";
 import { doNothing, preventDefault, timestampUnixMs, useEffectSkipMount } from "@/UtilityFunctions";
 import { Client } from "@/Authentication/HttpClientInstance";
 import { useSidebarPage } from "@/ui-components/Sidebar";
@@ -36,7 +35,6 @@ import { useDispatch } from "react-redux";
 import { ItemRenderer, ItemRow, ItemRowMemo, StandardBrowse, useRenamingState } from "@/ui-components/Browse";
 import { useAvatars } from "@/AvataaarLib/hook";
 import { Avatar } from "@/AvataaarLib";
-import { defaultAvatar } from "@/UserSettings/Avataaar";
 import { Product, ProductType, productTypeToIcon } from "@/Accounting";
 import { BrowseType } from "./BrowseType";
 import { snackbarStore } from "@/Snackbar/SnackbarStore";
@@ -50,6 +48,7 @@ import { isAdminOrPI, useProjectId } from "@/Project/Api";
 import { useProject } from "@/Project/cache";
 import { useUState } from "@/Utilities/UState";
 import { connectionState } from "@/Providers/ConnectionState";
+import { ProductSelector } from "@/Products/Selector";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -392,7 +391,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
         renderer.MainTitle = function mainTitle({ resource }) {
             if (resource === undefined) {
                 return !selectedProduct ?
-                    <ProductSelector products={products} onProductSelected={onProductSelected} />
+                    <ProductSelector products={products} onSelect={onProductSelected} selected={null} slim />
                     :
                     <NamingField
                         confirmText={"Create"}
