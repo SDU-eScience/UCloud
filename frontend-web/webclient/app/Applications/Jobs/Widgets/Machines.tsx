@@ -1,18 +1,10 @@
 import * as React from "react";
-import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import Icon from "@/ui-components/Icon";
-import Box from "@/ui-components/Box";
-import {Button, Link, theme} from "@/ui-components";
-import {useEffect, useState} from "react";
-import {accounting} from "@/UCloud";
+import { useEffect, useMemo, useState } from "react";
+import { accounting } from "@/UCloud";
 import ComputeProductReference = accounting.ProductReference;
-import styled from "styled-components";
-import {NoResultsCardBody} from "@/Dashboard/Dashboard";
-import {priceExplainer, productCategoryEquals, ProductCompute} from "@/Accounting";
+import { Product, productCategoryEquals, ProductCompute } from "@/Accounting";
 import * as UCloud from "@/UCloud";
-import {grantsLink} from "@/UtilityFunctions";
-import {Client} from "@/Authentication/HttpClientInstance";
+import { ProductSelector } from "@/Products/Selector";
 
 export const reservationMachine = "reservation-machine";
 
@@ -56,6 +48,9 @@ export const Machines: React.FunctionComponent<{
     onMachineChange?: (product: ProductCompute) => void;
 }> = props => {
     const [selected, setSelectedOnlyByListener] = useState<ProductCompute | null>(null);
+    const filteredMachines = useMemo(() => {
+        return props.machines.filter(it => it.name !== "syncthing");
+    }, [props.machines]);
 
     useEffect(() => {
         let listener: (() => void) | null = null;
@@ -89,135 +84,27 @@ export const Machines: React.FunctionComponent<{
     }, [props.machines, props.onMachineChange]);
 
     return (
-        <ClickableDropdown
-            fullWidth
-            colorOnHover={false}
-            trigger={(
-                <MachineDropdown data-component={"machines"}>
-                    <input type="hidden" id={reservationMachine} />
-                    <MachineBox machine={selected} />
-
-                    <Icon name="chevronDown" />
-                </MachineDropdown>
-            )}
-        >
-            <Wrapper>
-                {props.machines.length === 0 ? null :
-                    <Table data-component={"machine-table"}>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHeaderCell pl="6px">Name</TableHeaderCell>
-                                <TableHeaderCell>vCPU</TableHeaderCell>
-                                <TableHeaderCell>RAM (GB)</TableHeaderCell>
-                                <TableHeaderCell>GPU</TableHeaderCell>
-                                <TableHeaderCell>Price</TableHeaderCell>
-                            </TableRow>
-                        </TableHeader>
-                        <tbody>
-                            {props.machines.map(machine => {
-                                if (machine === null) return null;
-                                if (machine.name === "syncthing") return null;
-                                return <TableRow key={machine.name} onClick={() => setMachineReservation(machine)}>
-                                    <TableCell pl="6px">{machine.name}</TableCell>
-                                    <TableCell>{machine.cpu ?? "Unspecified"}</TableCell>
-                                    <TableCell>{machine.memoryInGigs ?? "Unspecified"}</TableCell>
-                                    <TableCell>{machine.gpu ?? 0}</TableCell>
-                                    <TableCell>{priceExplainer(machine)}</TableCell>
-                                </TableRow>;
-                            })}
-                        </tbody>
-                    </Table>
-                }
-
-                {props.machines.length !== 0 ? null : (<>
-                    <NoResultsCardBody title={"No machines available for use"}>
-                        You do not currently have credits for any machine which this application is able to use. If you
-                        are trying to run a virtual machine, please make sure you have applied for the correct credits
-                        in your grant application.
-
-                        <Link to={grantsLink(Client)}>
-                            <Button fullWidth mb={"4px"}>Apply for resources</Button>
-                        </Link>
-                    </NoResultsCardBody>
-                </>)}
-            </Wrapper>
-        </ClickableDropdown>
+        <>
+            <input type="hidden" id={reservationMachine} />
+            <ProductSelector
+                type={"COMPUTE"}
+                products={filteredMachines}
+                selected={selected}
+                onSelect={setMachineReservation}
+            />
+        </>
     )
 };
 
-const Wrapper = styled.div`
-  & > table {
-    margin-left: -9px;
-  }
 
-  & > table > tbody > ${TableRow}:hover {
-    cursor: pointer;
-    background-color: var(--lightGray, #f00);
-    color: var(--black, #f00);
-  }
-`;
-
-const MachineBoxWrapper = styled.div`
-  cursor: pointer;
-  padding: 16px;
-
-  ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  li {
-    display: inline-block;
-    margin-right: 16px;
-  }
-`;
-
-const MachineBox: React.FunctionComponent<{machine: ProductCompute | null}> = ({machine}) => (
-    <MachineBoxWrapper>
-        {machine ? null : (
-            <b>No machine selected</b>
-        )}
-
-        {!machine ? null : (
-            <>
-                <b>{machine.name}</b><br />
-                <ul>
-                    <li>{machine.cpu ? <>vCPU: {machine.cpu}</> : <>vCPU: Unspecified</>}</li>
-                    <li>{machine.memoryInGigs ? <>Memory: {machine.memoryInGigs}GB</> : <>Memory: Unspecified</>}</li>
-                    {machine.gpu ? <li>GPU: {machine.gpu}</li> : null}
-                    <li>Price: {priceExplainer(machine)}</li>
-                </ul>
-            </>
-        )}
-    </MachineBoxWrapper>
-);
-
-const MachineDropdown = styled(Box)`
-  cursor: pointer;
-  border-radius: 5px;
-  border: ${theme.borderWidth} solid var(--midGray, #f00);
-  width: 100%;
-
-  & p {
-    margin: 0;
-  }
-
-  & ${Icon} {
-    position: absolute;
-    bottom: 15px;
-    right: 15px;
-    height: 8px;
-  }
-`;
-
-export function setMachineReservation(compute: ProductCompute | null): void {
+export function setMachineReservation(compute: Product | null): void {
     const valueInput = document.getElementById(reservationMachine) as HTMLInputElement | null;
     if (valueInput === null) throw "Component is no longer mounted but setSelected was called";
     if (compute === null) {
         valueInput.value = "";
         valueInput.dispatchEvent(new Event("change"));
     } else {
+        if (compute.productType !== "COMPUTE") return;
         setMachineReservationFromRef({
             provider: compute.category.provider,
             category: compute.category.name,

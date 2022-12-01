@@ -64,6 +64,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     visibility: ${props => props.visible ? "visible" : "hidden"};
     opacity: ${props => props.visible ? 1 : 0};
     pointer-events: ${props => props.visible ? "auto" : "none"};
+    border: 1px solid var(--borderGray);
 
     ${props => props.colorOnHover ? `
         & > *:hover:not(${Button}) {
@@ -73,9 +74,10 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     ${p => p.paddingControlledByContent ? null : `
         padding: 12px 16px;
         & > div {
-                margin-left: -17px;
-                margin-right: -17px;
-                padding-left: 17px;
+            margin-left: -17px;
+            margin-right: -17px;
+            padding-left: 17px;
+            padding-right: 17px;
         }
     `}
 

@@ -1047,6 +1047,7 @@ class ProjectService(
                     insert into project.invites (project_id, username, invited_by) 
                     select :project, invited_user, :username
                     from relevant_invites
+                    on conflict do nothing
                     returning username
                 """
             ).rows.map { it.getString(0)!! }

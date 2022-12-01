@@ -282,6 +282,10 @@ export interface ProductCompute extends ProductBase {
     cpu?: number | null;
     memoryInGigs?: number | null;
     gpu?: number | null;
+
+    cpuModel?: string | null;
+    memoryModel?: string | null;
+    gpuModel?: string | null;
 }
 
 export interface ProductIngress extends ProductBase {
@@ -424,17 +428,15 @@ function explainPrice(type: ProductType, unit: ProductPriceUnit): {readableUnit:
         case "UNITS_PER_DAY": {
             switch (type) {
                 case "INGRESS":
-                    return {readableUnit: "Days of public link", durationInMinutes: DAY};
+                    return {readableUnit: "Link days", durationInMinutes: DAY};
                 case "NETWORK_IP":
-                    return {readableUnit: "Days of public IP", durationInMinutes: DAY};
+                    return {readableUnit: "IP days", durationInMinutes: DAY};
                 case "LICENSE":
-                    return {readableUnit: "Days of license", durationInMinutes: DAY};
+                    return {readableUnit: "License days", durationInMinutes: DAY};
                 case "STORAGE":
-                    // TODO Someone should come up with a better name for this. I don't see _why_ you would want to
-                    //  bill like this, but I also don't know what to call it.
-                    return {readableUnit: "Days of GB", durationInMinutes: DAY};
+                    return {readableUnit: "GB days", durationInMinutes: DAY};
                 case "COMPUTE":
-                    return {readableUnit: "Core hour(s)", durationInMinutes: HOUR};
+                    return {readableUnit: "Core hour(s)/hour", durationInMinutes: HOUR};
             }
         }
     }
@@ -632,6 +634,10 @@ function addThousandSeparators(numberOrString: string | number): string {
 
 // TODO(Dan): This interface is completely insane. Re-do this at some point.
 export function priceExplainer(product: Product): string {
+    if (product.chargeType === "DIFFERENTIAL_QUOTA") {
+        return "Quota based";
+    }
+
     const {readableUnit, durationInMinutes} = explainPrice(product.productType, product.unitOfPrice);
 
     const amount = normalizeBalanceForFrontend(

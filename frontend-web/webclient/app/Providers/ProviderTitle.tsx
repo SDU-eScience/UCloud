@@ -9,9 +9,11 @@ interface ProviderInfo {
 }
 
 export const ProviderTitle: React.FunctionComponent<{providerId: string}> = ({providerId}) => {
+    return <>{getProviderTitle(providerId)}</>;
+};
+
+export function getProviderTitle(providerId: string): string {
     const providers: ProviderInfo[] = ProviderInfo.providers;
     const myInfo = providers.find(p => p.id === providerId);
-
-    if (myInfo) return <>{myInfo.title}</>;
-    return <>{capitalized(providerId.replace("_", " ").replace("-", " "))}</>;
-};
+    return myInfo?.title ?? capitalized(providerId.replace("_", " ").replace("-", " "));
+}
