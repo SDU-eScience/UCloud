@@ -837,14 +837,6 @@ div.tooltip-content.centered {
             justify-content: center;
         }
     }
-    
-    .product-box {
-        margin-left: 2px;
-        text-align: left;
-        span {
-            word-break: keep-all;
-        }
-    }   
 }
 
 div.tooltip:hover {
