@@ -222,9 +222,6 @@ export const FilesBrowse: React.FunctionComponent<{
         Sync.fetchConfig(syncthingProduct.product.category.provider).then(config => {
             setSyncthingConfig(config);
         });
-        /*if (!syncthingConfig.loading) {
-            fetchSyncthingConfig(Sync.api.retrieveConfiguration(syncthingProduct.product.category.provider, "syncthing"));
-        }*/
     }, [collection.data, path, localActiveProject, syncthingProduct]);
 
     useEffect(() => {
