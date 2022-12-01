@@ -434,9 +434,6 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
                         <ListRowStat icon={"cubeSolid"}>
                             {" "}{resource.specification.product.id} / {resource.specification.product.category}
                         </ListRowStat>
-                        <div className="tooltip-content">
-                            <ProductBox resource={resource} productType={api.productType} />
-                        </div>
                     </div>
                 }
                 {
@@ -746,21 +743,4 @@ function UserBox(props: { username: string }) {
             <div><b>INFO:</b> A fox living in a forest, usually lives 12-15 years.</div>
         </div> */}
     </div>;
-}
-
-function ProductBox<T extends Resource<ResourceUpdate, ResourceStatus, ResourceSpecification>>(
-    props: {
-        resource: T;
-        productType?: ProductType
-    }
-) {
-    const { resource } = props;
-    const { product } = resource.specification;
-    return <div className="product-box">
-        {props.productType ? <Icon size="36px" mr="4px" name={productTypeToIcon(props.productType)} /> : null}
-        <span>{product.id} / {product.category}</span>
-        <div><b>ID:</b> {product.id}</div>
-        <div><b>Category:</b> {product.category}</div>
-        <div><b>Provider:</b> {product.provider}</div>
-    </div>
 }
