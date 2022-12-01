@@ -2,7 +2,7 @@
     "providers": [
         {
             "id": "aau",
-            "title": "DeiC Interactive HPC (\"CLAAUDIA\")",
+            "title": "DeiC Interactive HPC (AAU)",
             "logo": "ucloud.png",
             "shortDescription": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
             "description": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
@@ -20,7 +20,7 @@
         },
         {
             "id": "ucloud",
-            "title": "DeiC Interactive HPC (\"YouGene\")",
+            "title": "DeiC Interactive HPC (SDU)",
             "logo": "ucloud.png",
             "shortDescription": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
             "description": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
@@ -38,7 +38,7 @@
         },
         {
             "id": "hippo",
-            "title": "DeiC Large Memory HPC (\"Hippo\")",
+            "title": "DeiC Large Memory HPC (SDU)",
             "logo": "hippo.png",
             "shortDescription": "The DeiC Large Memory HPC system is a system consisting of large memory nodes (up to 4 TB RAM per node).",
             "description": "The DeiC Large Memory HPC system is a system consisting of large memory nodes (between 1 and 4 TB RAM per node) configured as a traditional Slurm cluster.",
@@ -56,7 +56,7 @@
         },
         {
             "id": "sophia",
-            "title": "DeiC Throughput HPC (\"Sophia\")",
+            "title": "DeiC Throughput HPC (DTU)",
             "logo": "sophia.png",
             "shortDescription": "The Sophia cluster is a collaboration between DTU, DTU Wind Energy and DTU Mechanics.",
             "description": "The Sophia cluster is a collaboration between DTU, DTU Wind Energy and DTU Mechanics.",

@@ -61,6 +61,9 @@ class ProductService(
                     val cpus by parameterList<Int?>()
                     val gpus by parameterList<Int?>()
                     val memoryInGigs by parameterList<Int?>()
+                    val cpuModel by parameterList<String?>()
+                    val memoryModel by parameterList<String?>()
+                    val gpuModel by parameterList<String?>()
                     val licenseTags by parameterList<String?>()
                     val categories by parameterList<String>()
                     val providers by parameterList<String>()
@@ -70,14 +73,21 @@ class ProductService(
                     for (req in request.items) {
                         names.add(req.name)
                         pricesPerUnit.add(req.pricePerUnit)
-                        cpus.add(if (req is Product.Compute) req.cpu else null)
-                        gpus.add(if (req is Product.Compute) req.gpu else null)
-                        memoryInGigs.add(if (req is Product.Compute) req.memoryInGigs else null)
                         categories.add(req.category.name)
                         providers.add(req.category.provider)
                         freeToUse.add(req.freeToUse)
                         licenseTags.add(if (req is Product.License) defaultMapper.encodeToString(req.tags) else null)
                         description.add(req.description)
+
+                        run {
+                            cpus.add(if (req is Product.Compute) req.cpu else null)
+                            gpus.add(if (req is Product.Compute) req.gpu else null)
+                            memoryInGigs.add(if (req is Product.Compute) req.memoryInGigs else null)
+
+                            cpuModel.add(if (req is Product.Compute) req.cpuModel else null)
+                            gpuModel.add(if (req is Product.Compute) req.gpuModel else null)
+                            memoryModel.add(if (req is Product.Compute) req.memoryModel else null)
+                        }
                     }
                 },
                 """
@@ -92,14 +102,17 @@ class ProductService(
                             unnest(:providers::text[]) provider,
                             unnest(:free_to_use::boolean[]) free_to_use,
                             unnest(:license_tags::jsonb[]) license_tags,
-                            unnest(:description::text[]) description
+                            unnest(:description::text[]) description,
+                            unnest(:cpu_model::text[]) cpu_model,
+                            unnest(:gpu_model::text[]) gpu_model,
+                            unnest(:memory_model::text[]) memory_model
                     )
                     insert into accounting.products
                         (name, price_per_unit, cpu, gpu, memory_in_gigs, license_tags, category,
-                         free_to_use, version, description) 
+                         free_to_use, version, description, cpu_model, gpu_model, memory_model) 
                     select
                         req.uname, req.price_per_unit, req.cpu, req.gpu, req.memory_in_gigs, req.license_tags,
-                        pc.id, req.free_to_use, 1, req.description
+                        pc.id, req.free_to_use, 1, req.description, req.cpu_model, req.gpu_model, req.memory_model
                     from
                         requests req join
                         accounting.product_categories pc on
@@ -116,8 +129,10 @@ class ProductService(
                         memory_in_gigs = excluded.memory_in_gigs,
                         license_tags = excluded.license_tags,
                         free_to_use = excluded.free_to_use,
-                        description = excluded.description
-                    
+                        description = excluded.description,
+                        cpu_model = excluded.cpu_model,
+                        gpu_model = excluded.gpu_model,
+                        memory_model = excluded.memory_model
                 """
             )
         }

@@ -262,6 +262,9 @@ sealed class Product : DocVisualizable {
         val cpu: Int? = null,
         val memoryInGigs: Int? = null,
         val gpu: Int? = null,
+        val cpuModel: String? = null,
+        val memoryModel: String? = null,
+        val gpuModel: String? = null,
         override val version: Int = 1,
         override val freeToUse: Boolean = false,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.CREDITS_PER_MINUTE,
@@ -276,6 +279,9 @@ sealed class Product : DocVisualizable {
             if (gpu != null) checkMinimumValue(::gpu, gpu, 0)
             if (cpu != null) checkMinimumValue(::cpu, cpu, 0)
             if (memoryInGigs != null) checkMinimumValue(::memoryInGigs, memoryInGigs, 0)
+            if (cpuModel != null) checkSingleLine(::cpuModel, cpuModel, maximumSize = 128)
+            if (gpuModel != null) checkSingleLine(::gpuModel, gpuModel, maximumSize = 128)
+            if (memoryModel != null) checkSingleLine(::memoryModel, memoryModel, maximumSize = 128)
         }
 
         @OptIn(ExperimentalStdlibApi::class)

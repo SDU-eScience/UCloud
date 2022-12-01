@@ -503,6 +503,9 @@ fun main(args: Array<String>) {
                                     is Product.Compute -> {
                                         b is Product.Compute && a.cpu == b.cpu && a.gpu == b.gpu
                                                 && a.memoryInGigs == b.memoryInGigs
+                                                && a.cpuModel == b.cpuModel
+                                                && a.gpuModel == b.gpuModel
+                                                && a.memoryModel == b.memoryModel
                                     }
 
                                     is Product.Ingress -> b is Product.Ingress
