@@ -272,7 +272,7 @@ class UCloudFilePlugin : FilePlugin {
 
         return BulkResponse(
             knownProducts.map { product ->
-                if (product.id == "project-home") {
+                if (product.id == driveProjectHomeName || product.id == driveShareName) {
                     defaultFsSupport.copy(
                         product = product,
                         collection = FSCollectionSupport(
