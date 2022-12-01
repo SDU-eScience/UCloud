@@ -14,7 +14,9 @@ import * as React from "react";
 import styled from "styled-components";
 import { boxShadow, BoxShadowProps } from "styled-system";
 
-export const Selector: React.FunctionComponent<{
+const NEED_CONNECT = "need-connection";
+
+export const ProductSelector: React.FunctionComponent<{
     products: Product[];
     selected: Product | null;
     type?: ProductType;
@@ -53,7 +55,7 @@ export const Selector: React.FunctionComponent<{
                 p.category.name.toLowerCase().indexOf(query) !== -1 ||
                 p.category.provider.toLowerCase().indexOf(query) !== -1;
         }));
-    }, [props.products]);
+    }, [props.products, props.onSelect]);
 
     const categorizedProducts: (Product | string)[] = React.useMemo(() => {
         const result: (Product | string)[] = [];
@@ -89,7 +91,7 @@ export const Selector: React.FunctionComponent<{
                 lastCategory = categoryName;
 
                 if (connectionState.canConnectToProvider(product.category.provider)) {
-                    result.push("need-connection");
+                    result.push(NEED_CONNECT);
                 }
             }
 
@@ -102,9 +104,42 @@ export const Selector: React.FunctionComponent<{
 
     const boxRef = React.useRef<HTMLDivElement>(null);
     const boxRect = boxRef?.current?.getBoundingClientRect() ?? { x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0 };
-    const dialogX = boxRect.x;
-    const dialogY = boxRect.y + boxRect.height;
-    const dialogWidth = window.innerWidth - boxRect.x - 16;
+    let dialogX = boxRect.x;
+    let dialogY = boxRect.y + boxRect.height;
+    let dialogHeight = 500;
+    const minimumWidth = 500 + headers.length * 90;
+    let dialogWidth = Math.min(Math.max(minimumWidth, boxRect.width), window.innerWidth - boxRect.x - 16);
+    {
+        const dialogOutOfBounds = (): boolean => dialogX <= 0 || dialogY <= 0 || 
+            dialogY + dialogHeight >= window.innerHeight || dialogHeight < 200;
+
+        // Attempt to move the dialog box up a bit
+        if (dialogOutOfBounds()) dialogY = boxRect.y + 30;
+
+        // Try making it smaller
+        if (dialogOutOfBounds()) dialogHeight = window.innerHeight - dialogY - 50;
+
+        // What if we try putting it directly above?
+        if (dialogOutOfBounds()) {
+            dialogY = boxRect.y - 500;
+            dialogHeight = 500;
+        }
+
+        // What about a smaller version?
+        if (dialogOutOfBounds()) {
+            dialogY = boxRect.y - 300;
+            dialogHeight = 300;
+        }
+
+        // Display a modal, we cannot find any space for it.
+        if (dialogOutOfBounds()) {
+            dialogX = 50;
+            dialogY = 50;
+            dialogWidth = window.innerWidth - 50 * 2;
+            dialogHeight = window.innerHeight - 50 * 2;
+        }
+    }
+
 
     const [isOpen, setIsOpen] = React.useState(false);
     const onClose = React.useCallback(() => {
@@ -137,55 +172,82 @@ export const Selector: React.FunctionComponent<{
         setFilteredProducts(props.products);
     }, [props.products]);
 
-    React.useEffect(() => {
+    React.useLayoutEffect(() => {
+        const wrapper = boxRef.current!;
+        const scrollingParentFn = (elem: HTMLElement): HTMLElement => {
+            let parent = elem.parentElement;
+            while (parent) {
+                const {overflow} = window.getComputedStyle(parent);
+                if (overflow.split(" ").every(it => it === "auto" || it === "scroll")) {
+                    return parent;
+                } else {
+                    parent = parent.parentElement;
+                }
+            }
+            return document.documentElement;
+        };
+        const scrollingParent = scrollingParentFn(wrapper);
+
+        const noScroll = (e) => {
+            onClose();
+        };
+
         document.body.addEventListener("click", onClose);
+        if (isOpen) scrollingParent.addEventListener("scroll", noScroll);
 
         return () => {
             document.body.removeEventListener("click", onClose);
+            if (isOpen) scrollingParent.removeEventListener("scroll", noScroll);
         };
-    }, [onClose]);
+    }, [isOpen]);
+
+    const showHeadings = filteredProducts.length >= 5 || categorizedProducts.some(it => it === NEED_CONNECT);
 
     return <>
         <SelectorBox className={props.slim === true ? "slim" : undefined} onClick={onToggle} ref={boxRef}>
             <div className="selected">
-                {selected ? null : <b>No {productName} selected</b>}
-                {!selected ? null : <>
-                    <b>{selected.name}</b><br />
-                    <table>
-                        <thead>
-                            <tr>
-                                {headers.map(it =>
-                                    <th key={it} style={{ width: `${(1 / (headers.length + 1)) * 100}%` }}>
-                                        {it}
-                                    </th>
-                                )}
-                                <th>Price</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
+                <b>{selected ? selected.name : <>No {productName} selected</>}</b><br />
+                <table>
+                    <thead>
+                        <tr>
+                            {headers.map(it =>
+                                <th key={it} style={{ width: `${(1 / (headers.length + 1)) * 100}%` }}>
+                                    {it}
+                                </th>
+                            )}
+                            <th>Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            {selected ? <>
                                 <ProductStats product={selected} />
                                 <td>{priceExplainer(selected)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <ProviderLogo className={"provider-logo"} providerId={selected.category.provider} size={32} />
-                </>}
+                            </> : <>
+                                {headers.map((it, i) => <td key={i}>-</td>)}
+                                <td>-</td>
+                            </>}
+                        </tr>
+                    </tbody>
+                </table>
+                <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={32} />
             </div>
 
             <Icon name="chevronDown" />
         </SelectorBox>
 
         {!isOpen ? null : <>
-            <SelectorDialog style={{ left: dialogX, top: dialogY, width: dialogWidth }} onClick={stopPropagation}>
+            <SelectorDialog style={{ left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight }} onClick={stopPropagation}>
                 {props.loading && props.products.length === 0 ? <>
                     <HexSpin />
                 </> : props.products.length === 0 ?
                     <>
                         <NoResultsCardBody title={`No machines available for use`}>
-                            You do not currently have credits for any machine which this application is able to use. If you
-                            are trying to run a virtual machine, please make sure you have applied for the correct credits
-                            in your grant application.
+                            You do not currently have credits for any {productName} which you are able to use for this purpose. 
+                            {type !== "COMPUTE" ? null : <>
+                                If you are trying to run a virtual machine, please make sure you have applied for the correct credits
+                                in your grant application.
+                            </>}
 
                             <Link to={grantsLink(Client)}>
                                 <Button fullWidth mb={"4px"}>Apply for resources</Button>
@@ -214,8 +276,10 @@ export const Selector: React.FunctionComponent<{
                             <tbody>
                                 {categorizedProducts.map((p, i) => {
                                     if (typeof p === "string") {
+                                        if (!showHeadings) return null;
+
                                         return <tr key={i} className="table-info">
-                                            {p === "need-connection" ?
+                                            {p === NEED_CONNECT ?
                                                 <td colSpan={3 + headers.length}>
                                                     <div>
                                                         <Link to="/providers/connect">
@@ -273,8 +337,7 @@ const SelectorDialog = styled.div<BoxShadowProps>`
     background: var(--white);
     padding: 16px;
     padding-top: 0;
-
-    .inner {    }
+    z-index: 1000;
 
     .input-wrapper {
         padding-top: 16px;
@@ -288,6 +351,11 @@ const SelectorDialog = styled.div<BoxShadowProps>`
         position: sticky;
         top: 74px;
         background: var(--white);
+    }
+
+    th, td {
+        text-align: left;
+        overflow: hidden;
     }
 
     table {
@@ -361,6 +429,8 @@ const SelectorBox = styled(Box)`
     border: ${theme.borderWidth} solid var(--midGray, #f00);
     width: 100%;
     user-select: none;
+    min-width: 500px;
+    font-size: initial;
 
     & p {
         margin: 0;
@@ -420,16 +490,23 @@ const SelectorBox = styled(Box)`
     }
 `;
 
-export const Foo: React.FunctionComponent = () => {
+export const ProductSelectorPlayground: React.FunctionComponent = () => {
     const [selected, setSelected] = React.useState<Product | null>(null);
-    return <Box height={50} width={400}>
-        <Selector
+    return <>
+        <Box height={50} width={400}>
+            <ProductSelector
+                products={products}
+                selected={selected}
+                onSelect={setSelected}
+                slim
+            />
+        </Box>
+        <ProductSelector
             products={products}
             selected={selected}
             onSelect={setSelected}
-            slim
         />
-    </Box>
+    </>
 };
 
 const products: ProductCompute[] = (() => {
