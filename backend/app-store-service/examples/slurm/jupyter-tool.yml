@@ -1,0 +1,17 @@
+---
+tool: v1
+
+title: jupyterlab-hippo
+name: jupyterlab-hippo
+version: 3.1.6
+description: All
+
+backend: NATIVE
+
+authors: ["SDU eScience"]
+defaultNumberOfNodes: 1 
+defaultTasksPerNode: 1
+supportedProviders: ["hippo"]
+requiredModules:
+  - "GCCcore/11.2.0"
+  - "JupyterLab/3.1.6"
