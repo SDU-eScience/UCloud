@@ -53,16 +53,16 @@ export function addStandardDialog({
             <div>
                 <Heading.h3>{title}</Heading.h3>
                 {title ? <Divider /> : null}
-                <div>{message}</div>
+                <div style={{ height: "350px", display: "flex", flexDirection: "column", overflowY: "auto" }}>{message}</div>
             </div>
-            <Flex mt="20px">
-                <Button onClick={dialogStore.failure} color={cancelButtonColor} mr="5px">{cancelText}</Button>
+            <Flex mt="20px" style={{ justifyContent: "end", gap: "8px" }}>
                 <Button
                     onClick={validate}
                     color={confirmButtonColor}
                 >
                     {confirmText}
                 </Button>
+                <Button onClick={dialogStore.failure} color={cancelButtonColor}>{cancelText}</Button>
             </Flex>
         </div>
     ), onCancel, addToFront);

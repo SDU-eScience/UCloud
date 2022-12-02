@@ -87,7 +87,7 @@ import {
     updateState,
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 import {Accordion} from "@/ui-components/Accordion";
@@ -1115,6 +1115,20 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
     const recipientName = getRecipientName(grantApplication);
     const isProject = recipient.type !== "personalWorkspace";
 
+    const newProjectWarningOnClick = React.useCallback(() => {
+        addStandardDialog({
+            title: "Delete application?",
+            message: `
+                This will delete your current application and switch to a new project application instead. You might
+                wish to save your work before doing so.
+            `.trim(),
+            confirmText: "Switch to a new project",
+            onConfirm: () => navigate("/project/grants/new"),
+            addToFront: true,
+            onCancel: doNothing,
+        });
+    }, []);
+
     return (
         <MainContainer
             header={target === RequestTarget.EXISTING_PROJECT ?
@@ -1126,11 +1140,9 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                         Submit Application
                     </Button>
                     {target === RequestTarget.NEW_PROJECT ? null : (
-                        <Link to="/project/grants/new">
-                            <Button mt="8px" fullWidth>
-                                New project
-                            </Button>
-                        </Link>
+                        <Button mt="8px" fullWidth onClick={newProjectWarningOnClick}>
+                            Apply for new project instead
+                        </Button>
                     )}
                 </>) : null}
                 {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
