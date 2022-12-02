@@ -47,11 +47,6 @@ import org.slf4j.LoggerFactory
 import java.sql.DriverManager
 
 fun main(args: Array<String>) {
-    if (true) {
-        // Run my code
-        exitProcess(0)
-    }
-
     try {
         // NOTE(Dan): The integration module of UCloud can start in one of three modes. What the integration module
         // does and starts depends heavily on the mode we are started in. We present a short summary of the modes here,
