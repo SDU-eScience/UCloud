@@ -19,6 +19,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+const val driveProjectHomeName = "project-home"
+const val driveShareName = "share"
 
 class PathConverter(
     providerId: String,
@@ -27,8 +29,8 @@ class PathConverter(
     private val serviceClient: AuthenticatedClient,
 ) {
     val productReference = ProductReference(productCategory, productCategory, providerId)
-    val projectHomeProductReference = ProductReference("project-home", productCategory, providerId)
-    val shareProductReference = ProductReference("share", productCategory, providerId)
+    val projectHomeProductReference = ProductReference(driveProjectHomeName, productCategory, providerId)
+    val shareProductReference = ProductReference(driveShareName, productCategory, providerId)
 
     val collectionCache = SimpleCache<String, FileCollection>(
         maxAge = 60_000 * 10L,

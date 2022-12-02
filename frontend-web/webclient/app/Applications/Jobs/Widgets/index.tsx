@@ -136,7 +136,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                             <>
                                 <Box ml="auto" />
                                 <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
-                                      data-component={"param-remove"}>
+                                    data-component={"param-remove"}>
                                     Remove
                                     <Icon ml="6px" size={16} name="close" />
                                 </Text>

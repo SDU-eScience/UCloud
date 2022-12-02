@@ -93,7 +93,6 @@ interface JobSelectorProps {
 }
 
 const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
-    const [selectedPeer, setSelectedPeer] = useState<string>("");
     const [allowAutoConfigure, setAllowAutoConfigure] = useState<boolean>(true);
     const [open, setOpen] = useState(false);
     const doOpen = useCallback(() => {
@@ -102,15 +101,6 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
     const doClose = useCallback(() => {
         setOpen(false)
     }, [setOpen]);
-
-    const [suggestedApplicationApi] = useCloudAPI<Page<UCloud.compute.Job>>(
-        props.suggestedApplication ?
-            UCloud.compute.apps.findByName({appName: props.suggestedApplication, itemsPerPage: 50, page: 0}) :
-            {noop: true},
-        {...emptyPage, itemsPerPage: -1}
-    );
-
-    const [suggestedApplication] = suggestedApplicationApi.data.items;
 
     React.useEffect(() => {
         if (props.suggestedApplication === null && allowAutoConfigure) {
@@ -125,11 +115,9 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
             id={widgetId(props.parameter) + "job"}
             placeholder={"No selected run"}
             onClick={doOpen}
-            value={selectedPeer}
             style={{height: "39px"}}
             readOnly
         />
-        <input type="hidden" id={widgetId(props.parameter)}/>
         <ReactModal
             isOpen={open}
             ariaHideApp={false}
@@ -141,7 +129,10 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
             <JobBrowse
                 additionalFilters={filters}
                 onSelect={job => {
-                    setSelectedPeer(job.id);
+                    const el = document.getElementById(widgetId(props.parameter) + "job");
+                    if (el) {
+                        (el as HTMLInputElement).value = job.id;
+                    }
                     setAllowAutoConfigure(false);
                     doClose();
                 }}

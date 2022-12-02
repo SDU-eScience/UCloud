@@ -2,8 +2,12 @@ import { useForcedRender } from "@/Utilities/ReactUtilities";
 import * as React from "react";
 
 export abstract class UState<Self extends UState<Self>> {
-    protected defaultDispatcher = new QueuedAsyncDispatcher(1);
+    protected defaultDispatcher: QueuedAsyncDispatcher;
     private listeners: ((data: Self) => void)[] = [];
+
+    constructor(defaultDispatcherSize: number = 1) {
+        this.defaultDispatcher = new QueuedAsyncDispatcher(defaultDispatcherSize);
+    }
 
     protected notifyChange() {
         const self = this as unknown as Self;

@@ -18,7 +18,7 @@ import {
     setReservation,
     validateReservation
 } from "@/Applications/Jobs/Widgets/Reservation";
-import {displayErrorMessageOrDefault, doNothing, extractErrorCode} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing, extractErrorCode, requestFullScreen} from "@/UtilityFunctions";
 import {addStandardDialog, WalletWarning} from "@/UtilityComponents";
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
@@ -33,9 +33,10 @@ import {BulkResponse, FindByStringId} from "@/UCloud";
 import {Product, usageExplainer} from "@/Accounting";
 import styled from "styled-components";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
-import { connectionState } from "@/Providers/ConnectionState";
-import { Feature, hasFeature } from "@/Features";
-import { useUState } from "@/Utilities/UState";
+import {connectionState} from "@/Providers/ConnectionState";
+import {Feature, hasFeature} from "@/Features";
+import {useUState} from "@/Utilities/UState";
+import {flushSync} from "react-dom";
 
 interface InsufficientFunds {
     why?: string;
@@ -109,6 +110,10 @@ export const Create: React.FunctionComponent = () => {
         const values = importedJob.parameters ?? {};
         const resources = importedJob.resources ?? [];
 
+        flushSync(() => {
+            setActiveOptParams(() => []);
+        });
+
         {
             // Find optional parameters and make sure the widgets are initialized
             const optionalParameters: string[] = [];
@@ -125,16 +130,11 @@ export const Create: React.FunctionComponent = () => {
             if (needsToRenderParams) {
                 // Not all widgets have been initialized. Trigger an initialization and start over after render.
                 jobBeingLoaded.current = importedJob;
-                setActiveOptParams(optionalParameters);
-                return;
+                flushSync(() => {
+                    setActiveOptParams(() => optionalParameters);
+                });
             }
         }
-
-        // Find resources and render if needed
-        if (createSpaceForLoadedResources(folders, resources, "file", jobBeingLoaded, importedJob)) return;
-        if (createSpaceForLoadedResources(peers, resources, "peer", jobBeingLoaded, importedJob)) return;
-        if (createSpaceForLoadedResources(ingress, resources, "ingress", jobBeingLoaded, importedJob)) return;
-        if (createSpaceForLoadedResources(networks, resources, "network", jobBeingLoaded, importedJob)) return;
 
         // Load reservation
         setReservation(importedJob);
@@ -156,18 +156,23 @@ export const Create: React.FunctionComponent = () => {
         // Load resources
         // Note(Jonas): An older version could have run with one of these resources while a newer might not allow them.
         // Therefore, check to see if allowed!
-        if (folderResourceAllowed(application)) injectResources(folders, resources, "file");
-        if (peerResourceAllowed(application)) injectResources(peers, resources, "peer");
-        if (ingressResourceAllowed(application)) injectResources(ingress, resources, "ingress");
-        if (networkIPResourceAllowed(application)) injectResources(networks, resources, "network");
-
-    }, [application, activeOptParams, folders, peers]);
-
-    useLayoutEffect(() => {
-        if (jobBeingLoaded.current !== null) {
-            onLoadParameters(jobBeingLoaded.current);
+        if (folderResourceAllowed(application)) {
+            const newSpace = createSpaceForLoadedResources(folders, resources, "file");
+            injectResources(newSpace, resources, "file");
         }
-    });
+        if (peerResourceAllowed(application)) {
+            const newSpace = createSpaceForLoadedResources(peers, resources, "peer");
+            injectResources(newSpace, resources, "peer");
+        }
+        if (ingressResourceAllowed(application)) {
+            const newSpace = createSpaceForLoadedResources(ingress, resources, "ingress");
+            injectResources(newSpace, resources, "ingress");
+        }
+        if (networkIPResourceAllowed(application)) {
+            const newSpace = createSpaceForLoadedResources(networks, resources, "network");
+            injectResources(newSpace, resources, "network");
+        }
+    }, [application, activeOptParams, folders, peers, networks, ingress]);
 
     const submitJob = useCallback(async (allowDuplicateJob: boolean) => {
         if (!application) return;
@@ -394,7 +399,7 @@ export const Create: React.FunctionComponent = () => {
 
                         {/* SSH */}
                         <SshWidget application={application} onSshStatusChanged={setSshEnabled}
-                                   onSshKeysValid={setSshValid} initialEnabledStatus={initialSshEnabled} />
+                            onSshKeysValid={setSshValid} initialEnabledStatus={initialSshEnabled} />
 
                         {/* Resources */}
 

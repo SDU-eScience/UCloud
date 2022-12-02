@@ -60,8 +60,6 @@ interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, C
         val emitStderr: suspend (rank: Int, message: String) -> Unit,
     ) : RequestContext by delegate
 
-    suspend fun RequestContext.verify(jobs: List<Job>) {}
-
     suspend fun RequestContext.retrieveClusterUtilization(categoryId: String): JobsProviderUtilizationResponse
 
     suspend fun RequestContext.openInteractiveSessionBulk(request: BulkRequest<JobsProviderOpenInteractiveSessionRequestItem>): BulkResponse<ComputeSession> {
@@ -111,8 +109,6 @@ abstract class EmptyComputePlugin : ComputePlugin {
     override suspend fun RequestContext.createBulk(request: BulkRequest<Job>): BulkResponse<FindByStringId?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.create(resource: Job): FindByStringId? = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.deleteBulk(request: BulkRequest<Job>): BulkResponse<Unit?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-
-    override suspend fun RequestContext.verify(jobs: List<Job>) {}
 
     override suspend fun RequestContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<ComputeSupport> {
         return BulkResponse(knownProducts.map { ComputeSupport(it) })
