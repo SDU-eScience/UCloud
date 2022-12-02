@@ -1397,9 +1397,15 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                         {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverEntries}
                         {/* Note(Jonas): This is for the grant givers that are part of an existing grant application */}
                         {target !== RequestTarget.VIEW_APPLICATION ? null : (
-                            grantGivers.data.items.sort(grantGiverSortFn)
-                                .filter(it => grantApplication.status.stateBreakdown
-                                    .map(it => it.projectId).includes(it.projectId)).map(grantGiver =>
+                            grantApplication.status.stateBreakdown
+                                .map(it => ({ projectId: it.projectId, title: it.projectTitle}))
+                                .sort(grantGiverSortFn)
+                                .filter(grantGiver => {
+                                    return grantApplication.status.stateBreakdown
+                                        .map(it => it.projectId)
+                                        .includes(grantGiver.projectId);
+                                })
+                                .map(grantGiver =>
                                         <GrantGiver
                                             key={grantGiver.projectId}
                                             target={target}
