@@ -5,8 +5,8 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {AppHeader, Information} from "@/Applications/View";
-import {Box, Button, ContainerForText, ExternalLink, Grid, Icon, Link, Markdown, VerticalButtonGroup} from "@/ui-components";
-import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
+import {Box, Button, ContainerForText, ExternalLink, Grid, Icon, Link, Markdown, Tooltip, VerticalButtonGroup} from "@/ui-components";
+import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget, widgetId} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
 import {getProviderField, IngressResource, ingressResourceAllowed} from "@/Applications/Jobs/Resources/Ingress";
@@ -42,6 +42,13 @@ interface InsufficientFunds {
     why?: string;
     errorCode?: string;
 }
+
+/* 
+    TODO:
+        - Ensure that `submit`-button appears clickable again when fixing issues shown.
+        - Ensure that remove `error` entry when selecting new file.
+        - Ensure that removing the error removes red outline.
+*/
 
 export const Create: React.FunctionComponent = () => {
     const navigate = useNavigate();
@@ -89,6 +96,7 @@ export const Create: React.FunctionComponent = () => {
     const [reservationErrors, setReservationErrors] = useState<ReservationErrors>({});
 
     const [importDialogOpen, setImportDialogOpen] = useState(false);
+    // Note(Jonas): Should be safe to remove.
     const jobBeingLoaded = useRef<Partial<JobSpecification> | null>(null);
 
     useUState(connectionState);
@@ -102,6 +110,22 @@ export const Create: React.FunctionComponent = () => {
     }, [appName, appVersion]);
 
     const application = applicationResp.data;
+
+    React.useEffect(() => {
+        if (application && provider) {
+            const fileParams = application.invocation.parameters.filter(it =>
+                ["input_directory", "input_file"].includes(it.type)
+            );
+
+            if (findProviderMismatches(provider, fileParams, errors)) {
+                setErrors({...errors});
+            }
+
+            if (findProviderMismatches(provider, folders.params, folders.errors)) {
+                folders.setErrors({...folders.errors});
+            }
+        }
+    }, [provider, application]);
 
     const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
         if (application == null) return;
@@ -276,6 +300,8 @@ export const Create: React.FunctionComponent = () => {
     const isMissingConnection = hasFeature(Feature.PROVIDER_CONNECTION) && estimatedCost.product != null &&
         connectionState.canConnectToProvider(estimatedCost.product.category.provider);
 
+    const anyError = checkForAnyErrors(errors, folders.errors, ingress.errors, peers.errors, networks.errors);
+
     return <MainContainer
         headerSize={92}
         header={
@@ -288,14 +314,21 @@ export const Create: React.FunctionComponent = () => {
                         <Button fullWidth color={"blue"}>Documentation</Button>
                     </ExternalLink>
                 )}
-                <Button
-                    type={"button"}
-                    color={"blue"}
-                    disabled={isLoading || !sshValid || isMissingConnection}
-                    onClick={() => submitJob(false)}
-                >
-                    Submit
-                </Button>
+                {anyError ?
+                    <Tooltip trigger={
+                        <Button type="button" color="blue" disabled>
+                            Submit
+                        </Button>
+                    }>
+                        {Object.values(errors).length + Object.values(folders.errors).length} parameter errors to resolve before submitting.
+                    </Tooltip> : <Button
+                        type={"button"}
+                        color={"blue"}
+                        disabled={isLoading || !sshValid || isMissingConnection}
+                        onClick={() => submitJob(false)}
+                    >
+                        Submit
+                    </Button>}
 
                 {!isMissingConnection ? null :
                     <Box mt={32}>
@@ -430,6 +463,13 @@ export const Create: React.FunctionComponent = () => {
     />;
 }
 
+function checkForAnyErrors(...objects: Object[]): boolean {
+    for (const obj of objects) {
+        if (Object.values(obj).length > 0) return true;
+    }
+    return false;
+}
+
 export const GrayBox = styled.div`
     padding: 12px 12px 12px 12px;
     background-color: var(--lightGray);
@@ -440,5 +480,21 @@ export const GrayBox = styled.div`
         margin-bottom: auto;
     }
 `;
+
+
+function findProviderMismatches(provider: string, parameters: UCloud.compute.ApplicationParameter[], errors: Record<string, string>): boolean {
+    var anyErrors = false;
+    for (const param of parameters) {
+        const el = document.getElementById(widgetId(param)) as HTMLInputElement | null;
+        if (el) {
+            const elementProvider = el.getAttribute("data-provider");
+            if (provider !== elementProvider) {
+                errors[param.name] = "The file is not possible to use with the selected provider.";
+                anyErrors = true;
+            }
+        }
+    }
+    return anyErrors;
+}
 
 export default Create;
