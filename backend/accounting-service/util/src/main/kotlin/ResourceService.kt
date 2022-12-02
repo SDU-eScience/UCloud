@@ -243,7 +243,7 @@ abstract class ResourceService<
                 .toList()
 
             if (requireAll && result.size != ids.size) {
-                throw RPCException("Unable to use all requested resources", HttpStatusCode.BadRequest)
+                throw RPCException("Permission denied. Try to reload the page and try again.", HttpStatusCode.BadRequest)
             }
 
             result.attachExtra(

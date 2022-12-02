@@ -162,6 +162,9 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
             snackbarStore.addFailure("No allocations to get resources from.", false);
             return;
         }
+        const internalEntryToUse = allocationsByProductTypes[firstProductTypeWithEntries]
+            .findIndex(it => it.allocations.length > 0);
+
         setRecipients(existing => {
             existing.push({
                 id: newRecipientId.current++,
@@ -174,8 +177,8 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                     amount: undefined,
                     endDate: undefined,
                     startDate: startOfDay(new Date()).getTime(),
-                    wallet: allocationsByProductTypes[firstProductTypeWithEntries][0].wallet,
-                    allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id,
+                    wallet: allocationsByProductTypes[firstProductTypeWithEntries][internalEntryToUse].wallet,
+                    allocationId: allocationsByProductTypes[firstProductTypeWithEntries][internalEntryToUse].allocations[0].id,
                 }],
             });
             return [...existing];
@@ -203,6 +206,9 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
             return newRecipients;
         }
 
+        const internalEntryToUse = allocationsByProductTypes[firstProductTypeWithEntries]
+            .findIndex(it => it.allocations.length > 0);
+
         const recipientIndex = newRecipients.findIndex(it => it.id === id);
         newRecipients[recipientIndex].suballocations.push({
             id: newRecipientId.current++,
@@ -210,7 +216,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
             amount: undefined,
             endDate: undefined,
             startDate: startOfDay(new Date()).getTime(),
-            wallet: allocationsByProductTypes[firstProductTypeWithEntries][0].wallet,
+            wallet: allocationsByProductTypes[firstProductTypeWithEntries][internalEntryToUse].wallet,
             allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id,
         });
         return setRecipients([...newRecipients]);
@@ -417,7 +423,10 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                                             const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
                                             return allowProductSelect ?
                                                 <Flex height="32px" key={pt} color="text" style={{alignItems: "center"}} onClick={() => {
-                                                    const {wallet, allocations} = allocationsByProductTypes[pt][0];
+                                                    const internalEntryToUse = allocationsByProductTypes[pt]
+                                                        .findIndex(it => it.allocations.length > 0);
+
+                                                    const {wallet, allocations} = allocationsByProductTypes[pt][internalEntryToUse];
                                                     newRecipients[recipientId].suballocations[suballocationId].productType = pt;
                                                     newRecipients[recipientId].suballocations[suballocationId].wallet = wallet;
                                                     newRecipients[recipientId].suballocations[suballocationId].allocationId = allocations[0].id;
@@ -774,14 +783,17 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             return rows;
         }
 
+        const internalEntryToUse = allocationsByProductTypes[firstProductTypeWithEntries]
+            .findIndex(it => it.allocations.length > 0);
+
         rows.push({
             id: idRef.current++,
             productType: firstProductTypeWithEntries,
             amount: undefined,
             endDate: undefined,
             startDate: startOfDay(new Date()).getTime(),
-            wallet: allocationsByProductTypes[firstProductTypeWithEntries][0].wallet,
-            allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id,
+            wallet: allocationsByProductTypes[firstProductTypeWithEntries][internalEntryToUse].wallet,
+            allocationId: allocationsByProductTypes[firstProductTypeWithEntries][internalEntryToUse].allocations[0].id,
         });
         return [...rows];
     }), [props.wallets]);
@@ -870,6 +882,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                         const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
                                         return allowProductSelect ?
                                             <Flex height="32px" key={pt} color="text" style={{alignItems: "center"}} onClick={() => {
+
                                                 const {wallet, allocations} = allocationsByProductTypes[pt][0];
                                                 creationRows[index].productType = pt;
                                                 creationRows[index].wallet = wallet;
@@ -944,7 +957,7 @@ function findValidAllocations(wallets: Wallet[], productType: ProductType): {wal
 
 function hasValidAllocations(walletAllocations?: {wallet: Wallet, allocations: WalletAllocation[]}[]): boolean {
     if (!walletAllocations) return false;
-    return walletAllocations.some(({allocations}) => allocations.length > 0);
+    return walletAllocations.some(({allocations}) => allocations.some(it => isAllocationSuitableForSubAllocation(it)));
 }
 
 function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean; editEntries: MutableRefObject<Record<string, SubAllocation>>}): JSX.Element {
