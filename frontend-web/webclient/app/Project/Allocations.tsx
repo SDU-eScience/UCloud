@@ -21,6 +21,7 @@ import formatDistance from "date-fns/formatDistance";
 import {Spacer} from "@/ui-components/Spacer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {isAdminOrPI, useProjectFromParams} from "./Api";
+import { ProviderTitle } from "@/Providers/ProviderTitle";
 
 export interface SubAllocation {
     id: string;
@@ -267,7 +268,7 @@ function SimpleWalletView(props: {wallets: Wallet[];}): JSX.Element {
             return (
                 <Accordion
                     key={wallet.paysFor.name + wallet.paysFor.provider + wallet.paysFor.title}
-                    title={<Text color="text">{wallet.paysFor.name} @ {wallet.paysFor.provider}</Text>}
+                    title={<Text color="text">{wallet.paysFor.name} @ <ProviderTitle providerId={wallet.paysFor.provider} /></Text>}
                     titleContent={<>
                         <Text color="text" mt="-2px" mr="12px">{expirationText}</Text>
                         <ResourceProgress width={mapped.resourceText.length * 7.3 + "px"} value={mapped.asPercent} text={mapped.resourceText} />
@@ -340,7 +341,7 @@ export const AllocationViewer: React.FunctionComponent<{
                     <div><b>Allocation ID: {allocation.id}</b></div>
                     <Box flexGrow={1} />
                 </Flex> : <Flex alignItems={"center"} mr={"-16px"}>
-                    <div><b>{wallet.paysFor.name} @ {wallet.paysFor.provider} [{allocation.id}]</b></div>
+                    <div><b>{wallet.paysFor.name} @ <ProviderTitle providerId={wallet.paysFor.provider} /> [{allocation.id}]</b></div>
                     <Box flexGrow={1} />
                 </Flex>}
                 <div>{usageExplainer(allocation.initialBalance - allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} used</div>
