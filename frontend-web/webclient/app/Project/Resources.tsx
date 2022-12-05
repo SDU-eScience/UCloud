@@ -35,6 +35,7 @@ import {BrowseType} from "@/Resource/BrowseType";
 import {format} from "date-fns/esm";
 import {Spacer} from "@/ui-components/Spacer";
 import {useProjectFromParams} from "./Api";
+import { getProviderTitle } from "@/Providers/ProviderTitle";
 
 
 const ANIMATION_DURATION = 1000;
@@ -246,12 +247,13 @@ const UsageChartViewer: React.FunctionComponent<{
         const names: string[] = [];
         const work: Record<string, Record<string, any>> = {};
         for (const line of c.chart.lines) {
-            names.push(line.name);
+            const lineName = normalizeNameToString(line.name);
+            names.push(lineName);
             for (const point of line.points) {
                 const key = point.timestamp.toString();
                 const entry: Record<string, any> = work[key] ?? {};
                 entry["timestamp"] = point.timestamp;
-                entry[line.name] = point.value;
+                entry[lineName] = point.value;
                 work[key] = entry;
             }
         }
@@ -373,13 +375,53 @@ const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
 }
 
 function ChartPointName({name}: {name: string}): JSX.Element {
-    const [first, second, third] = name.split(" / ");
+    const { productName, category, provider } = normalizeName(name);
+
     return (
         <div>
-            <Text fontSize="14px">{first}</Text>
-            <SubText>{second}{third ? ` / ${third}` : null}</SubText>
+            <Text fontSize="14px">{productName ?? category}</Text>
+            <SubText>
+                {productName ? <>
+                    {category} / {provider}
+                </>: <>
+                    {provider}
+                </>}
+            </SubText>
         </div>
     );
+}
+
+function normalizeName(name: string): { productName: string | null, category: string, provider: string} {
+    const [first, second, third] = name.split(" / ");
+    let productName: string | null = null;
+    let category: string;
+    let provider: string;
+
+    if (third) {
+        productName = first;
+        category = second;
+        provider = third;
+    } else {
+        category = first;
+        provider = second;
+    }
+
+    provider = getProviderTitle(provider);
+
+    return { productName, category, provider };
+}
+
+function normalizeNameToString(name: string): string {
+    const {productName, category, provider} = normalizeName(name);
+    let builder = "";
+    if (productName) {
+        builder += productName;
+        builder += " / ";
+    }
+    builder += category;
+    builder += " / ";
+    builder += provider;
+    return builder;
 }
 
 const SubText = styled.div`
