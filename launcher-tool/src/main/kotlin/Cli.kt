@@ -112,6 +112,11 @@ fun cliIntercept(args: List<String>) {
         "import-apps" -> {
             Commands.importApps()
         }
+
+        "add-provider" -> {
+            val provider = args.getOrNull(1) ?: printHelp()
+            Commands.createProvider(provider)
+        }
     }
     exitProcess(0)
 }
