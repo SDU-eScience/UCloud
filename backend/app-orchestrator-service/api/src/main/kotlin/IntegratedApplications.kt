@@ -117,7 +117,7 @@ abstract class IntegratedApplicationApi<ConfigType>(
 @Serializable
 class IAppsRetrieveConfigRequest<ConfigType>(
     val provider: String,
-    val product: String,
+    val productId: String,
 )
 
 @Serializable
@@ -129,7 +129,7 @@ data class IAppsRetrieveConfigResponse<ConfigType>(
 @Serializable
 data class IAppsUpdateConfigRequest<ConfigType>(
     val provider: String,
-    val product: String,
+    val productId: String,
     val config: ConfigType,
     val expectedETag: String? = null,
 )
@@ -140,7 +140,7 @@ class IAppsUpdateConfigResponse<ConfigType>()
 @Serializable
 data class IAppsResetConfigRequest<ConfigType>(
     val provider: String,
-    val product: String,
+    val productId: String,
     val expectedETag: String? = null,
 )
 
@@ -150,7 +150,7 @@ class IAppsResetConfigResponse<ConfigType>()
 @Serializable
 data class IAppsRestartRequest<ConfigType>(
     val provider: String,
-    val product: String,
+    val productId: String,
 )
 
 @Serializable
@@ -272,7 +272,7 @@ abstract class IntegratedApplicationProviderApi<ConfigType>(
 
 @Serializable
 class IAppsProviderRetrieveConfigRequest<ConfigType>(
-    val product: String,
+    val productId: String,
     val principal: ResourceOwner,
 )
 
@@ -280,7 +280,7 @@ typealias IAppsProviderRetrieveConfigResponse<ConfigType> = IAppsRetrieveConfigR
 
 @Serializable
 data class IAppsProviderUpdateConfigRequest<ConfigType>(
-    val product: String,
+    val productId: String,
     val principal: ResourceOwner,
     val config: ConfigType,
     val expectedETag: String? = null,
@@ -290,7 +290,7 @@ typealias IAppsProviderUpdateConfigResponse<ConfigType> = IAppsUpdateConfigRespo
 
 @Serializable
 data class IAppsProviderResetConfigRequest<ConfigType>(
-    val product: String,
+    val productId: String,
     val principal: ResourceOwner,
     val expectedETag: String? = null,
 )
@@ -299,7 +299,7 @@ typealias IAppsProviderResetConfigResponse<ConfigType> = IAppsResetConfigRespons
 
 @Serializable
 data class IAppsProviderRestartRequest<ConfigType>(
-    val product: String,
+    val productId: String,
     val principal: ResourceOwner,
 )
 

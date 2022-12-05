@@ -205,7 +205,7 @@ async function onAction(_: UIState, action: UIAction, cb: ActionCallbacks): Prom
         }
 
         case "ResetAll": {
-            callAPIWithErrorHandler(Sync.api.resetConfiguration({provider: cb.provider, product: cb.product}));
+            callAPIWithErrorHandler(Sync.api.resetConfiguration({provider: cb.provider, productId: cb.productId}));
             break;
         }
     }
@@ -217,7 +217,7 @@ interface ActionCallbacks {
     requestReload: () => void; // NOTE(Dan): use when it is difficult to rollback a change
     requestJobReloader: () => void;
     provider: string;
-    product: string;
+    productId: string;
 }
 
 interface OperationCallbacks {
@@ -226,7 +226,7 @@ interface OperationCallbacks {
     requestReload: () => void;
     permissionProblems: string[];
     provider: string;
-    product: string;
+    productId: string;
 }
 
 // Primary user interface
@@ -332,7 +332,7 @@ export const Overview: React.FunctionComponent = () => {
         requestReload: reload,
         requestJobReloader,
         provider,
-        product: selectedProduct?.product.id ?? "syncthing"
+        productId: selectedProduct?.product.id ?? "syncthing"
     }), [navigate, pureDispatch, reload]);
 
     const dispatch = useCallback((action: UIAction) => {
@@ -346,7 +346,7 @@ export const Overview: React.FunctionComponent = () => {
         requestReload: reload,
         permissionProblems,
         provider,
-        product: selectedProduct?.product.id ?? "syncthing"
+        productId: selectedProduct?.product.id ?? "syncthing"
     }), [navigate, dispatch, reload, permissionProblems]);
 
     const openWizard = useCallback(() => {
@@ -408,7 +408,7 @@ export const Overview: React.FunctionComponent = () => {
     useEffectSkipMount(() => {
         callAPI(Sync.api.updateConfiguration({
             provider: provider,
-            product: selectedProduct?.product.id ?? "syncthing",
+            productId: selectedProduct?.product.id ?? "syncthing",
             config: {devices, folders}
         })).catch(() => reload());
     }, [folders.length, devices.length, selectedProduct]);
@@ -730,7 +730,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         enabled: selected => selected.length === 1,
         onClick: (_, cb) => {
             cb.dispatch({type: "ExpectServerUpdate"});
-            callAPIWithErrorHandler(Sync.api.restart({provider: cb.provider, product: cb.product}));
+            callAPIWithErrorHandler(Sync.api.restart({provider: cb.provider, productId: cb.productId}));
         }
     },
     {

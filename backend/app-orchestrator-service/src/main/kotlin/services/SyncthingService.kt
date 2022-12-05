@@ -50,7 +50,7 @@ class SyncthingService(
             actorAndProject,
             { SyncthingProvider(request.provider).retrieveConfiguration },
             IAppsProviderRetrieveConfigRequest(
-                request.product,
+                request.productId,
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
             ),
             actorAndProject.signedIntentFromUser,
@@ -103,7 +103,7 @@ class SyncthingService(
             actorAndProject,
             { SyncthingProvider(request.provider).updateConfiguration },
             IAppsProviderUpdateConfigRequest(
-                request.product,
+                request.productId,
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
                 newConfig,
                 request.expectedETag,
@@ -121,7 +121,7 @@ class SyncthingService(
             actorAndProject,
             { SyncthingProvider(request.provider).resetConfiguration },
             IAppsProviderResetConfigRequest(
-                request.product,
+                request.productId,
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
                 request.expectedETag,
             ),
@@ -138,7 +138,7 @@ class SyncthingService(
             actorAndProject,
             { SyncthingProvider(request.provider).restart },
             IAppsProviderRestartRequest(
-                request.product,
+                request.productId,
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
             ),
             actorAndProject.signedIntentFromUser,

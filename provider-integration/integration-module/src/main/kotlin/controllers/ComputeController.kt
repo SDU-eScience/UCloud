@@ -350,7 +350,7 @@ class ComputeController(
 
         val syncthingProvider = SyncthingProvider(controllerContext.configuration.core.providerId)
         implement(syncthingProvider.retrieveConfiguration) {
-            val plugin = lookupPluginByProduct(request.product)
+            val plugin = lookupPluginByProduct(request.productId)
 
             if (plugin == null) {
                 log.error("Unable to find Syncthing product in configuration")
@@ -377,7 +377,7 @@ class ComputeController(
         }
 
         implement(syncthingProvider.updateConfiguration) {
-            val plugin = lookupPluginByProduct(request.product)
+            val plugin = lookupPluginByProduct(request.productId)
 
             if (plugin == null) {
                 log.error("Unable to find Syncthing product in configuration")
@@ -404,7 +404,7 @@ class ComputeController(
         }
 
         implement(syncthingProvider.resetConfiguration) {
-            val plugin = lookupPluginByProduct(request.product)
+            val plugin = lookupPluginByProduct(request.productId)
 
             if (plugin == null) {
                 log.error("Unable to find Syncthing product in configuration")
@@ -431,7 +431,7 @@ class ComputeController(
         }
 
         implement(syncthingProvider.restart) {
-            val plugin = lookupPluginByProduct(request.product)
+            val plugin = lookupPluginByProduct(request.productId)
 
             if (plugin == null) {
                 log.error("Unable to find Syncthing product in configuration")

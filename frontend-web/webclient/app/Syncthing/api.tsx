@@ -52,8 +52,8 @@ export async function fetchServers(): Promise<Job[]> {
 class Api {
     baseContext = "/api/iapps/syncthing";
 
-    retrieveConfiguration(provider: string, product: string): APICallParameters {
-        return apiRetrieve({ provider, product }, this.baseContext);
+    retrieveConfiguration(provider: string, productId: string): APICallParameters {
+        return apiRetrieve({ provider, productId }, this.baseContext);
     }
 
     updateConfiguration(request: UpdateConfigRequest): APICallParameters {
@@ -77,20 +77,20 @@ export interface SyncthingConfigResponse {
 
 export interface UpdateConfigRequest {
     provider: string;
-    product: string;
+    productId: string;
     config: SyncthingConfig;
     expectedETag?: string | null;
 }
 
 export interface ResetConfigRequest {
     provider: string;
-    product: string;
+    productId: string;
     expectedETag?: string | null;
 }
 
 export interface RestartRequest {
     provider: string;
-    product: string;
+    productId: string;
 }
 
 export const api = new Api();
