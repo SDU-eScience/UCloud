@@ -351,13 +351,21 @@ class ComputeController(
         val syncthingProvider = SyncthingProvider(controllerContext.configuration.core.providerId)
         implement(syncthingProvider.retrieveConfiguration) {
             val plugin = lookupPluginByProduct(request.product)
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-            if (plugin !is SyncthingPlugin)
+            if (plugin == null) {
+                log.error("Unable to find Syncthing product in configuration")
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.BadRequest,
-                    "Not a Syncthing plugin"
+                    "Syncthing is not supported by this provider"
                 )
+            }
+
+            if (plugin !is SyncthingPlugin) {
+                log.error("Plugin ${plugin.pluginTitle} does not support Syncthing")
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.InternalServerError
+                )
+            }
 
             ok(
                 with(requestContext(controllerContext)) {
@@ -370,13 +378,21 @@ class ComputeController(
 
         implement(syncthingProvider.updateConfiguration) {
             val plugin = lookupPluginByProduct(request.product)
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-            if (plugin !is SyncthingPlugin)
+            if (plugin == null) {
+                log.error("Unable to find Syncthing product in configuration")
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.BadRequest,
-                    "Not a Syncthing plugin"
+                    "Syncthing is not supported by this provider"
                 )
+            }
+
+            if (plugin !is SyncthingPlugin) {
+                log.error("Plugin ${plugin.pluginTitle} does not support Syncthing")
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.InternalServerError
+                )
+            }
 
             ok(
                 with(requestContext(controllerContext)) {
@@ -389,13 +405,21 @@ class ComputeController(
 
         implement(syncthingProvider.resetConfiguration) {
             val plugin = lookupPluginByProduct(request.product)
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-            if (plugin !is SyncthingPlugin)
+            if (plugin == null) {
+                log.error("Unable to find Syncthing product in configuration")
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.BadRequest,
-                    "Not a Syncthing plugin"
+                    "Syncthing is not supported by this provider"
                 )
+            }
+
+            if (plugin !is SyncthingPlugin) {
+                log.error("Plugin ${plugin.pluginTitle} does not support Syncthing")
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.InternalServerError
+                )
+            }
 
             ok(
                 with(requestContext(controllerContext)) {
@@ -408,13 +432,21 @@ class ComputeController(
 
         implement(syncthingProvider.restart) {
             val plugin = lookupPluginByProduct(request.product)
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-            if (plugin !is SyncthingPlugin)
+            if (plugin == null) {
+                log.error("Unable to find Syncthing product in configuration")
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.BadRequest,
-                    "Not a Syncthing plugin"
+                    "Syncthing is not supported by this provider"
                 )
+            }
+
+            if (plugin !is SyncthingPlugin) {
+                log.error("Plugin ${plugin.pluginTitle} does not support Syncthing")
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.InternalServerError
+                )
+            }
 
             ok(
                 with(requestContext(controllerContext)) {

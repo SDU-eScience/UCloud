@@ -333,7 +333,8 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
         }
 
-        return syncthingService!!.retrieveConfiguration(request)
+        return syncthingService?.retrieveConfiguration(request)
+            ?: throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
     }
 
     override suspend fun RequestContext.updateSyncthingConfiguration(
@@ -343,7 +344,8 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
         }
 
-        return syncthingService!!.updateConfiguration(request)
+        return syncthingService?.updateConfiguration(request)
+            ?: throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
     }
 
     override suspend fun RequestContext.resetSyncthingConfiguration(
@@ -353,7 +355,8 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
         }
 
-        return syncthingService!!.resetConfiguration(request)
+        return syncthingService?.resetConfiguration(request)
+            ?: throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
     }
 
     override suspend fun RequestContext.restartSyncthing(
@@ -363,7 +366,8 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
         }
 
-        return syncthingService!!.restart(request)
+        return syncthingService?.restart(request)
+            ?: throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
     }
 }
 
