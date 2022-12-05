@@ -300,7 +300,8 @@ export const Create: React.FunctionComponent = () => {
     const isMissingConnection = hasFeature(Feature.PROVIDER_CONNECTION) && estimatedCost.product != null &&
         connectionState.canConnectToProvider(estimatedCost.product.category.provider);
 
-    const anyError = checkForAnyErrors(errors, folders.errors, ingress.errors, peers.errors, networks.errors);
+    const anyError = checkForAnyErrors(errors, folders.errors, ingress.errors, networks.errors, peers.errors);
+    const errorCount = Object.values(errors).length + Object.values(folders.errors).length;
 
     return <MainContainer
         headerSize={92}
@@ -320,7 +321,7 @@ export const Create: React.FunctionComponent = () => {
                             Submit
                         </Button>
                     }>
-                        {Object.values(errors).length + Object.values(folders.errors).length} parameter errors to resolve before submitting.
+                        {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve before submitting.
                     </Tooltip> : <Button
                         type={"button"}
                         color={"blue"}
@@ -397,6 +398,7 @@ export const Create: React.FunctionComponent = () => {
                                 <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
                                     {mandatoryParameters.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                            setErrors={setErrors}
                                             active />
                                     ))}
                                 </Grid>
@@ -407,7 +409,9 @@ export const Create: React.FunctionComponent = () => {
                                 <Heading.h4>Additional Parameters</Heading.h4>
                                 <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
                                     {activeParameters.map(param => (
-                                        <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                        <Widget
+                                            key={param.name} parameter={param} errors={errors} provider={provider}
+                                            setErrors={setErrors}
                                             active
                                             onRemove={() => {
                                                 setActiveOptParams(activeOptParams.filter(it => it !== param.name));
@@ -421,6 +425,7 @@ export const Create: React.FunctionComponent = () => {
                             <GrayBox>
                                 <OptionalWidgetSearch pool={inactiveParameters} mapper={param => (
                                     <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                        setErrors={setErrors}
                                         active={false}
                                         onActivate={() => {
                                             setActiveOptParams([...activeOptParams, param.name]);

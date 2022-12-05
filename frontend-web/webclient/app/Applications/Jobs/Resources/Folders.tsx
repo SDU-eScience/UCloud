@@ -26,11 +26,12 @@ export const FolderResource: React.FunctionComponent<{
     application: UCloud.compute.Application;
     params: ApplicationParameter[];
     errors: Record<string, string>;
+    setErrors: (errors: Record<string, string>) => void;
     warning: string;
     setWarning: (warning: string) => void;
     onAdd: () => void;
     onRemove: (id: string) => void;
-}> = ({application, params, errors, onAdd, onRemove, warning, setWarning}) => {
+}> = ({application, params, errors, onAdd, onRemove, warning, setWarning, setErrors}) => {
     return !folderResourceAllowed(application) ? null : (
         <GrayBox>
             <Box>
@@ -83,6 +84,7 @@ export const FolderResource: React.FunctionComponent<{
                             parameter={entry}
                             errors={errors}
                             setWarning={setWarning}
+                            setErrors={setErrors}
                             onRemove={() => {
                                 onRemove(entry.name);
                                 if (!anyFolderDuplicates()) {

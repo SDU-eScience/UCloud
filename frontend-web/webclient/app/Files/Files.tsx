@@ -35,6 +35,7 @@ import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {setLoading} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
 import ProjectAPI, {Project} from "@/Project/Api";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -75,6 +76,7 @@ export const FilesBrowse: React.FunctionComponent<{
 
     const [searchResults, setSearchResults] = useState<UFile[] | undefined>(undefined);
 
+    const [activeProviderId, setActiveProviderId] = useState("");
     const [localActiveProject, setLocalActiveProject] = useState(Client.projectId ?? "");
     const [pathFromState, setPathFromState] = useState(browseType !== BrowseType.Embedded ?
         pathFromQuery :
@@ -216,6 +218,7 @@ export const FilesBrowse: React.FunctionComponent<{
         if (browseType !== BrowseType.MainContent) {
             if (path === "" && drives.items.length > 0) {
                 setPathFromState("/" + drives.items[0].id);
+                setActiveProviderId(drives.items[0].specification.product.provider);
             }
         }
     }, [browseType, path, drives.items]);
@@ -321,7 +324,7 @@ export const FilesBrowse: React.FunctionComponent<{
         }
 
         return <Box backgroundColor={getCssVar("white")}>
-            {browseType !== BrowseType.Embedded ? null : <Flex>
+            {browseType !== BrowseType.Embedded ? (console.log("not embedded"), null) : <Flex>
                 <DriveDropdown iconName="projects">
                     <ListV2
                         loading={projects.loading}
@@ -342,7 +345,7 @@ export const FilesBrowse: React.FunctionComponent<{
                                             className="expandable-row-child"
                                             onClick={() => selectLocalProject(project.id)}
                                         >
-                                            {project.specification.title}
+                                            {project.specification.title}Some additional text
                                         </DriveInDropdown>
 
                                     ))}
@@ -371,9 +374,15 @@ export const FilesBrowse: React.FunctionComponent<{
                                     <DriveInDropdown
                                         key={drive.id}
                                         className="expandable-row-child"
-                                        onClick={() => navigateToPath(navigate, `/${drive.id}`)}
+                                        onClick={() => {
+                                            navigateToPath(navigate, `/${drive.id}`);
+                                            setActiveProviderId(drive.specification.product.provider);
+                                        }}
                                     >
-                                        {drive.specification?.title}
+                                        {drive.specification.title}
+                                        <Box ml="auto" my="auto">
+                                            <ProviderLogo size={24} providerId={drive.specification.product.provider} />
+                                        </Box>
                                     </DriveInDropdown>
                                 ))}
                             </List>
@@ -394,6 +403,7 @@ export const FilesBrowse: React.FunctionComponent<{
                             {it}
                         </span>
                     ))}
+                    <Flex my="auto" ml="12px"><ProviderLogo size={32} providerId={activeProviderId} /></Flex>
                 </BreadCrumbsBase>
             </Flex>
         </Box>;
@@ -476,13 +486,14 @@ const DriveDropdown: React.FunctionComponent<{iconName: "hdd" | "projects"; chil
 }
 
 const DriveInDropdown = styled.div`
-  padding: 0 17px;
-  width: 450px;
-  overflow-x: hidden;
+    display: flex;
+    padding: 0 17px;
+    width: 450px;
+    overflow-x: hidden;
 
-  &:hover {
-    background-color: var(--lightBlue);
-  }
+    &:hover {
+        background-color: var(--lightBlue);
+    }
 `;
 
 export default Router;

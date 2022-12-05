@@ -19,9 +19,10 @@ export const PeerResource: React.FunctionComponent<{
     application: UCloud.compute.Application;
     params: ApplicationParameter[];
     errors: Record<string, string>;
+    setErrors: (errors: Record<string, string>) => void;
     onAdd: () => void;
     onRemove: (id: string) => void;
-}> = ({application, params, errors, onAdd, onRemove}) => {
+}> = ({application, params, errors, onAdd, onRemove, setErrors}) => {
     return !peerResourceAllowed(application) ? null : (
         <GrayBox>
             <Box>
@@ -64,6 +65,7 @@ export const PeerResource: React.FunctionComponent<{
                             <Widget
                                 parameter={entry}
                                 errors={errors}
+                                setErrors={setErrors}
                                 onRemove={() => {
                                     onRemove(entry.name);
                                 }}

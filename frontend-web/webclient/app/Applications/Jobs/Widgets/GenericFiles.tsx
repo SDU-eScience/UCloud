@@ -26,12 +26,10 @@ interface FilesProps extends WidgetProps {
 export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     const isDirectoryInput = props.parameter.type === "input_directory";
 
-    const valueInput = () => {
-        return document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
-    }
-    const visualInput = () => {
-        return document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null
-    };
+    const valueInput = () =>
+        document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
+    const visualInput = () =>
+        document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null;
 
     useLayoutEffect(() => {
         const value = valueInput();
@@ -69,6 +67,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
                     if (props.errors[props.parameter.name]) {
                         delete props.errors[props.parameter.name];
+                        props.setErrors?.({...props.errors});
                     }
                     FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
                     FilesSetProvider(props.parameter, res.specification.product.provider);
@@ -108,6 +107,8 @@ export function FilesSetProvider(param: {name: string}, provider: string): void 
         } else {
             elem.setAttribute("data-provider", provider);
         }
+    } else {
+        console.log("failed to find element", param);
     }
 }
 
