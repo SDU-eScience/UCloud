@@ -64,7 +64,6 @@ export const FilesBrowse: React.FunctionComponent<{
 
     // UI state
     const didUnmount = useDidUnmount();
-    //const [syncthingConfig, fetchSyncthingConfig] = useCloudAPI<SyncthingConfigResponse | null>({noop: true}, null);
     const [syncthingConfig, setSyncthingConfig] = useState<SyncthingConfig | null>(null);
     const [syncthingProduct, setSyncthingProduct] = useState<compute.ComputeProductSupportResolved | null>(null);
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
