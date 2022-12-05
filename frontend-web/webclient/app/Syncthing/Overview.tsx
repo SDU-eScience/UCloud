@@ -249,19 +249,12 @@ export const Overview: React.FunctionComponent = () => {
 
     const provider = getQueryParam(location.search, "provider");
 
-    const [products, fetchProducts] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
-        {noop: true},
-        {productsByProvider: {}}
-    );
-
     const [selectedProduct, setSelectedProduct] = useState<UCloud.compute.ComputeProductSupportResolved|null>(null);
 
     if (!provider) {
         navigate("/drives");
         return null;
     }
-
-    // TODO(Brian): Check if provider and productCategory exist
 
     // UI callbacks and state manipulation
     const reload = useCallback(() => {
@@ -277,7 +270,7 @@ export const Overview: React.FunctionComponent = () => {
 
         Sync.fetchProducts(provider).then(products => {
             setSelectedProduct(
-                products[provider]?.find(it => it.product.category.name === "syncthing") ?? null
+                products[provider]?.find(it => it.product.id === "syncthing") ?? null
             );
         });
 
