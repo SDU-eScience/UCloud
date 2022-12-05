@@ -3,19 +3,47 @@ package dk.sdu.cloud.accounting.rpc
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
+import dk.sdu.cloud.accounting.util.accountingPerformanceMitigations
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.actorAndProject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.sync.Mutex
+
 
 class AccountingController(
     private val accounting: AccountingService,
     private val notifications: DepositNotificationService,
 ) : Controller {
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        val chargeMutex = Mutex()
+
         implement(Accounting.charge) {
-            ok(accounting.charge(actorAndProject, request))
+            if (accountingPerformanceMitigations) {
+                select {
+                    chargeMutex.onLock {
+                        try {
+                            ok(accounting.charge(actorAndProject, request))
+                        } finally {
+                            chargeMutex.unlock()
+                        }
+                    }
+
+                    onTimeout(30_000) {
+                        log.info("Failed to start charge within 60 seconds")
+                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                    }
+                }
+            } else {
+                ok(accounting.charge(actorAndProject, request))
+            }
         }
 
         implement(Accounting.deposit) {
@@ -107,5 +135,9 @@ class AccountingController(
         }
 
         return@with
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

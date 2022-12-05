@@ -37,7 +37,7 @@ export function useXTerm(props: { autofit?: boolean } = {}): XtermHook {
         }
     }, []);
 
-    useEffect(() => {
+    React.useLayoutEffect(() => {
         const listener = (): void => {
             if (props.autofit) {
                 fitAddon.fit();

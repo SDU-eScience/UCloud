@@ -40,6 +40,7 @@ import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
 import ProjectAPI, {useProjectIdFromParams} from "@/Project/Api";
 import { isAllocationSuitableForSubAllocation } from "@/Project/Grant";
+import { getProviderTitle, ProviderTitle } from "@/Providers/ProviderTitle";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider) + ` [${getParentAllocationFromSuballocation(alloc)}]`;
@@ -50,7 +51,7 @@ function getParentAllocationFromSuballocation(alloc: SubAllocation): string {
 }
 
 function rawAllocationTitleInRow(category: string, provider: string) {
-    return `${category} @ ${provider}`;
+    return `${category} @ ${getProviderTitle(provider)}`;
 }
 
 export const SubAllocationViewer: React.FunctionComponent<{
@@ -410,7 +411,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                         left={null}
                     />
                     {recipient.suballocations.map(row => {
-                        const productAndProvider = row.wallet ? <Flex>{row.wallet.paysFor.name} @ {row.wallet.paysFor.provider}<TextSpan pl="0.3em" title="Allocation ID">[{row.allocationId}]</TextSpan></Flex> : null;
+                        const productAndProvider = row.wallet ? <Flex>{row.wallet.paysFor.name} @ <ProviderTitle providerId={row.wallet.paysFor.provider} /><TextSpan pl="0.3em" title="Allocation ID">[{row.allocationId}]</TextSpan></Flex> : null;
                         const remainingProductTypes = productTypes.filter(it => it !== row.productType);
                         const recipientId = newRecipients.findIndex(it => it.id === recipient.id);
                         const suballocationId = newRecipients[recipientId].suballocations.findIndex(it => it.id === row.id);
@@ -870,7 +871,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             <Box px="12px">
                 {creationRows.length === 0 ? null : <Spacer my="4px" right={<Button ml="8px" mt="2px" disabled={loading} height="32px" onClick={e => submitNewRows(creationRows)}>Submit new rows</Button>} left={null} />}
                 {creationRows.map((row, index) => {
-                    const productAndProvider = row.wallet ? <Text>{row.wallet.paysFor.name} @ {row.wallet.paysFor.provider}<TextSpan pl="0.3em" title="Allocation ID">[{row.allocationId}]</TextSpan></Text> : null;
+                    const productAndProvider = row.wallet ? <Text>{row.wallet.paysFor.name} @ <ProviderTitle providerId={row.wallet.paysFor.provider} /><TextSpan pl="0.3em" title="Allocation ID">[{row.allocationId}]</TextSpan></Text> : null;
                     const remainingProductTypes = productTypes.filter(it => it !== row.productType);
 
                     return (
