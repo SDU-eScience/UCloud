@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidationAnswer} from "./index";
+import {widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidationAnswer} from "./index";
 import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "@/ui-components/Flex";
@@ -10,8 +10,6 @@ import styled from "styled-components";
 import Input from "@/ui-components/Input";
 import Label from "@/ui-components/Label";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {emptyPage} from "@/DefaultObjects";
-import {useCloudAPI} from "@/Authentication/DataHook";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {JobBrowse} from "@/Applications/Jobs/Browse";
@@ -22,7 +20,6 @@ interface PeerProps extends WidgetProps {
 }
 
 export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
-    const error = props.errors[props.parameter.name] != null;
     return <Flex mb={8}>
         <div>
             <Label>
@@ -43,7 +40,8 @@ export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
             <JobSelector
                 parameter={props.parameter}
                 suggestedApplication={props.parameter.suggestedApplication}
-                error={error}
+                errors={props.errors}
+                setErrors={props.setErrors}
             />
         </Box>
     </Flex>;
@@ -89,7 +87,8 @@ function findElementJob(param: ApplicationParameterNS.Peer): HTMLInputElement | 
 interface JobSelectorProps {
     parameter: ApplicationParameterNS.Peer;
     suggestedApplication?: string;
-    error: boolean;
+    errors: Record<string, string>;
+    setErrors: (errors: Record<string, string>) => void;
 }
 
 const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
@@ -132,6 +131,11 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
                     const el = document.getElementById(widgetId(props.parameter) + "job");
                     if (el) {
                         (el as HTMLInputElement).value = job.id;
+                    }
+                    WidgetSetProvider({name: props.parameter.name + "job"}, job.specification.product.provider);
+                    if (props.errors[props.parameter.name]) {
+                        delete props.errors[props.parameter.name];
+                        props.setErrors({...props.errors});
                     }
                     setAllowAutoConfigure(false);
                     doClose();

@@ -189,6 +189,21 @@ const OptionalWidgetSearchWrapper = styled(Box)`
     overflow-y: auto;
 `;
 
+export function findElement<HTMLElement = HTMLInputElement>(param: {name: string}): HTMLElement | null {
+    return document.getElementById(widgetId(param)) as HTMLElement | null;
+}
+
+export function WidgetSetProvider(param: {name: string}, provider: string): void {
+    const elem = findElement(param);
+    if (elem) {
+        if (provider.length === 0) {
+            elem.removeAttribute("data-provider");
+        } else {
+            elem.setAttribute("data-provider", provider);
+        }
+    }
+}
+
 export const OptionalWidgetSearch: React.FunctionComponent<{
     pool: UCloud.compute.ApplicationParameter[];
     mapper: (p: UCloud.compute.ApplicationParameter) => React.ReactNode;

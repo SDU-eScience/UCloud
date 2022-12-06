@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
+import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "./index";
 import {Input} from "@/ui-components";
 import {useCallback, useLayoutEffect} from "react";
 import styled from "styled-components";
@@ -70,7 +70,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                         props.setErrors?.({...props.errors});
                     }
                     FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
-                    FilesSetProvider(props.parameter, res.specification.product.provider);
+                    WidgetSetProvider(props.parameter, res.specification.product.provider);
                     dialogStore.success();
                     if (anyFolderDuplicates()) {
                         props.setWarning?.("Duplicate folders selected. This is not always supported.");
@@ -99,19 +99,6 @@ const FileSelectorInput = styled(Input)`
     cursor: pointer;
 `;
 
-export function FilesSetProvider(param: {name: string}, provider: string): void {
-    const elem = findElement(param);
-    if (elem) {
-        if (provider.length === 0) {
-            elem.removeAttribute("data-provider");
-        } else {
-            elem.setAttribute("data-provider", provider);
-        }
-    } else {
-        console.log("failed to find element", param);
-    }
-}
-
 export const FilesValidator: WidgetValidator = (param) => {
     if (param.type === "input_directory" || param.type === "input_file") {
         const elem = findElement(param);
@@ -130,6 +117,7 @@ export const FilesSetter: WidgetSetter = (param, value) => {
     const file = value as AppParameterValueNS.File;
 
     const selector = findElement(param);
+    if (!selector) return;
     if (file.path.length === 0) {
         selector.removeAttribute("value");
     } else {
@@ -137,10 +125,6 @@ export const FilesSetter: WidgetSetter = (param, value) => {
     }
     selector.dispatchEvent(new Event("change"));
 };
-
-function findElement(param: {name: string}): HTMLSelectElement {
-    return document.getElementById(widgetId(param)) as HTMLSelectElement;
-}
 
 function findAllFolderNames(): string[] {
     const result: string[] = [];

@@ -6,19 +6,19 @@ import {useLocation, useNavigate} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {AppHeader, Information} from "@/Applications/View";
 import {Box, Button, ContainerForText, ExternalLink, Grid, Icon, Link, Markdown, Tooltip, VerticalButtonGroup} from "@/ui-components";
-import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget, widgetId} from "@/Applications/Jobs/Widgets";
+import {findElement, OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget, widgetId} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
 import {getProviderField, IngressResource, ingressResourceAllowed} from "@/Applications/Jobs/Resources/Ingress";
 import {PeerResource, peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
-import {createSpaceForLoadedResources, injectResources, useResource} from "@/Applications/Jobs/Resources";
+import {createSpaceForLoadedResources, injectResources, ResourceHook, useResource} from "@/Applications/Jobs/Resources";
 import {
     ReservationErrors,
     ReservationParameter,
     setReservation,
     validateReservation
 } from "@/Applications/Jobs/Widgets/Reservation";
-import {displayErrorMessageOrDefault, doNothing, extractErrorCode, requestFullScreen} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, extractErrorCode, prettierString} from "@/UtilityFunctions";
 import {addStandardDialog, WalletWarning} from "@/UtilityComponents";
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
@@ -37,6 +37,7 @@ import {connectionState} from "@/Providers/ConnectionState";
 import {Feature, hasFeature} from "@/Features";
 import {useUState} from "@/Utilities/UState";
 import {flushSync} from "react-dom";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
 
 interface InsufficientFunds {
     why?: string;
@@ -45,9 +46,9 @@ interface InsufficientFunds {
 
 /* 
     TODO:
-        - Ensure that `submit`-button appears clickable again when fixing issues shown.
-        - Ensure that remove `error` entry when selecting new file.
-        - Ensure that removing the error removes red outline.
+        - Add error message like:
+            - You are attempting to use a {resource} from {provider} with a machine from {}
+            - {resource} needs to be prettified
 */
 
 export const Create: React.FunctionComponent = () => {
@@ -113,17 +114,13 @@ export const Create: React.FunctionComponent = () => {
 
     React.useEffect(() => {
         if (application && provider) {
-            const fileParams = application.invocation.parameters.filter(it =>
-                ["input_directory", "input_file"].includes(it.type)
+            const params = application.invocation.parameters.filter(it =>
+                ["input_directory", "input_file", "ingress", "peer", "license_server", "network_ip"].includes(it.type)
             );
 
-            if (findProviderMismatches(provider, fileParams, errors)) {
-                setErrors({...errors});
-            }
-
-            if (findProviderMismatches(provider, folders.params, folders.errors)) {
-                folders.setErrors({...folders.errors});
-            }
+            findProviderMismatches(
+                provider, {errors, params, setErrors}, networks, folders, peers, ingress
+            );
         }
     }, [provider, application]);
 
@@ -486,20 +483,35 @@ export const GrayBox = styled.div`
     }
 `;
 
+function getParameterName(param: Pick<UCloud.compute.ApplicationParameter, "type" | "name">): string {
+    switch (param.type) {
+        case "peer": {
+            return param.name + "job";
+        }
+        default: return param.name;
+    }
+}
 
-function findProviderMismatches(provider: string, parameters: UCloud.compute.ApplicationParameter[], errors: Record<string, string>): boolean {
-    var anyErrors = false;
-    for (const param of parameters) {
-        const el = document.getElementById(widgetId(param)) as HTMLInputElement | null;
-        if (el) {
-            const elementProvider = el.getAttribute("data-provider");
-            if (provider !== elementProvider) {
-                errors[param.name] = "The file is not possible to use with the selected provider.";
-                anyErrors = true;
+function findProviderMismatches(
+    provider: string,
+    ...parameterResources: Pick<ResourceHook, "params" | "errors" | "setErrors">[]
+): void {
+    for (const group of parameterResources) {
+        var anyErrors = false;
+        for (const param of group.params) {
+            const el = findElement({name: getParameterName(param)});
+            if (el) {
+                const elementProvider = el.getAttribute("data-provider");
+                if (elementProvider != null && provider !== elementProvider) {
+                    group.errors[param.name] = `This ${prettierString(param.type).toLowerCase()} from ${getProviderTitle(elementProvider)} is not possible to use with the machine from ${getProviderTitle(provider)}.`;
+                    anyErrors = true;
+                }
             }
         }
+        if (anyErrors) {
+            group.setErrors({...group.errors});
+        }
     }
-    return anyErrors;
 }
 
 export default Create;

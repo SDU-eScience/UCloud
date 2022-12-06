@@ -3,7 +3,7 @@ import {Flex} from "@/ui-components";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
+import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
 import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
@@ -31,6 +31,11 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
 
     const onUse = useCallback((network: Ingress) => {
         IngressSetter(props.parameter, {type: "ingress", id: network.id});
+        WidgetSetProvider(props.parameter, network.specification.product.provider);
+        if (props.errors[props.parameter.name]) {
+            delete props.errors[props.parameter.name];
+            props.setErrors({...props.errors});
+        }
         setOpen(false);
     }, [props.parameter, setOpen]);
 
@@ -118,7 +123,3 @@ export const IngressSetter: WidgetSetter = (param, value) => {
     selector.value = (value as AppParameterValueNS.Ingress).id;
     selector.dispatchEvent(new Event("change"));
 };
-
-function findElement(param: ApplicationParameterNS.Ingress): HTMLSelectElement | null {
-    return document.getElementById(widgetId(param)) as HTMLSelectElement | null;
-}

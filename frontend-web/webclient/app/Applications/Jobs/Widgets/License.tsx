@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
+import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "./index";
 import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "@/ui-components/Flex";
@@ -29,6 +29,11 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
 
     const onUse = useCallback((license: License) => {
         LicenseSetter(props.parameter, {type: "license_server", id: license.id});
+        WidgetSetProvider(props.parameter, license.specification.product.provider);
+        if (props.errors[props.parameter.name]) {
+            delete props.errors[props.parameter.name];
+            props.setErrors({...props.errors});
+        }
         setOpen(false);
     }, [props.parameter, setOpen]);
 
@@ -77,7 +82,3 @@ export const LicenseSetter: WidgetSetter = (param, value) => {
     if (selector === null) throw "Missing element for: " + param.name;
     selector.value = (value as AppParameterValueNS.License).id;
 };
-
-function findElement(param: ApplicationParameterNS.LicenseServer): HTMLSelectElement | null {
-    return document.getElementById(widgetId(param)) as HTMLSelectElement | null;
-}

@@ -5,7 +5,7 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {NetworkIPBrowse} from "@/Applications/NetworkIP/Browse";
 import {default as NetworkIPApi, NetworkIPFlags} from "@/UCloud/NetworkIPApi";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
+import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
 import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
@@ -31,6 +31,11 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
 
     const onUse = useCallback((network: NetworkIP) => {
         NetworkIPSetter(props.parameter, {type: "network", id: network.id});
+        WidgetSetProvider(props.parameter, network.specification.product.provider);
+        if (props.errors[props.parameter.name]) {
+            delete props.errors[props.parameter.name];
+            props.setErrors({...props.errors});
+        }
         setOpen(false);
     }, [props.parameter, setOpen]);
 
@@ -111,7 +116,3 @@ export const NetworkIPSetter: WidgetSetter = (param, value) => {
     selector.value = (value as AppParameterValueNS.Network).id;
     selector.dispatchEvent(new Event("change"));
 };
-
-function findElement(param: ApplicationParameterNS.NetworkIP): HTMLSelectElement | null {
-    return document.getElementById(widgetId(param)) as HTMLSelectElement | null;
-}

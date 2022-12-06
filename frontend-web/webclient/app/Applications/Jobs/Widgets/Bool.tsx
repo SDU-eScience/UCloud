@@ -1,9 +1,8 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidationAnswer} from "./index";
+import {findElement, widgetId, WidgetProps, WidgetSetter, WidgetValidationAnswer} from "./index";
 import {Select} from "@/ui-components";
 import {compute} from "@/UCloud";
-import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "@/ui-components/Flex";
 import AppParameterValueNS = compute.AppParameterValueNS;
 
@@ -44,8 +43,3 @@ export function BoolSetter(param: compute.ApplicationParameter, value: compute.A
     if (!selector) throw "Missing element for: " + param.name;
     selector.value = (value as AppParameterValueNS.Bool).value ? "true" : "false";
 }
-
-function findElement(param: ApplicationParameterNS.Bool): HTMLSelectElement | null {
-    return document.getElementById(widgetId(param)) as HTMLSelectElement | null;
-}
-
