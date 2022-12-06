@@ -24,11 +24,10 @@ export async function fetchConfig(provider: string): Promise<SyncthingConfig> {
 }
 
 export async function fetchProducts(provider: string): Promise<compute.ComputeProductSupportResolved[]> {
-    const resp = await callAPI<compute.JobsRetrieveProductsResponse>(compute.jobs.retrieveProducts({
+    const products = await callAPI<compute.JobsRetrieveProductsResponse>(compute.jobs.retrieveProducts({
         providers: provider
     }));
-
-    return resp.productsByProvider[provider];
+    return products.productsByProvider[provider]?.filter(it => it.product.name === "syncthing") ?? [];
 }
 
 export async function fetchServers(): Promise<Job[]> {

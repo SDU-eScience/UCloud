@@ -39,6 +39,7 @@ import syncthingScreen2 from "@/Assets/Images/syncthing/syncthing-2.png";
 import syncthingScreen3 from "@/Assets/Images/syncthing/syncthing-3.png";
 import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import Products from "@/Products/Products";
 
 // UI state management
 // ================================================================================
@@ -268,12 +269,11 @@ export const Overview: React.FunctionComponent = () => {
             pureDispatch({type: "ReloadServers", servers});
         });
 
-        Sync.fetchProducts(provider).then(products => {
-            setSelectedProduct(
-                products[provider]?.find(it => it.product.id === "syncthing") ?? null
-            );
+        Sync.fetchProducts(provider).then(product => {
+            if (product.length > 0) {
+                setSelectedProduct(product[0]);
+            }
         });
-
     }, [pureDispatch]);
 
     const requestJobReloader = useCallback((awaitUpdatingAttemptsRemaining: number = 40) => {
@@ -325,7 +325,7 @@ export const Overview: React.FunctionComponent = () => {
         requestReload: reload,
         requestJobReloader,
         provider,
-        productId: selectedProduct?.product.id ?? "syncthing"
+        productId: selectedProduct?.product.name ?? "syncthing"
     }), [navigate, pureDispatch, reload]);
 
     const dispatch = useCallback((action: UIAction) => {
@@ -339,7 +339,7 @@ export const Overview: React.FunctionComponent = () => {
         requestReload: reload,
         permissionProblems,
         provider,
-        productId: selectedProduct?.product.id ?? "syncthing"
+        productId: selectedProduct?.product.name ?? "syncthing"
     }), [navigate, dispatch, reload, permissionProblems]);
 
     const openWizard = useCallback(() => {
@@ -401,7 +401,7 @@ export const Overview: React.FunctionComponent = () => {
     useEffectSkipMount(() => {
         callAPI(Sync.api.updateConfiguration({
             provider: provider,
-            productId: selectedProduct?.product.id ?? "syncthing",
+            productId: selectedProduct?.product.name ?? "syncthing",
             config: {devices, folders}
         })).catch(() => reload());
     }, [folders.length, devices.length, selectedProduct]);

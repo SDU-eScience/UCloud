@@ -201,21 +201,22 @@ export const FilesBrowse: React.FunctionComponent<{
     }, []);
 
     useEffect(() => {
-        // NOTE(Dan): Load relevant synchronization configuration. We don't currently reload any of this information,
-        // but maybe we should.
+        //NOTE(Brian): Load relevant Syncthing product
+
         if (!collection.data?.specification.product.provider) return;
 
         Sync.fetchProducts(collection.data.specification.product.provider).then(products => {
-            if (!products) return;
-            if (!collection.data?.specification.product.provider) return;
-            const product = products.find(it => it.product.category.name === "syncthing") ?? null;
-            if (!product) return;
-            setSyncthingProduct(product);
+            if (products.length > 0) {
+                setSyncthingProduct(products[0]);
+            }
         });
     }, [collection.data, localActiveProject]);
 
 
     useEffect(() => {
+        // NOTE(Dan): Load relevant synchronization configuration. We don't currently reload any of this information,
+        // but maybe we should.
+
         if (!syncthingProduct) return;
         if (didUnmount.current) return;
         Sync.fetchConfig(syncthingProduct.product.category.provider).then(config => {
