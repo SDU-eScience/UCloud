@@ -553,7 +553,7 @@ class GrantApplicationService(
                         unnest(:grant_givers::text[]) grant_giver
                 )
                 select
-                    req.application_id, req.credits_requested, null, pc.id, req.source_allocation, to_timestamp(req.start_date/1000), to_timestamp(req.end_date/1000), req.grant_giver, :revision_number
+                    req.application_id, req.credits_requested, null, pc.id, req.source_allocation, to_timestamp(req.start_date / 1000), to_timestamp(req.end_date / 1000), req.grant_giver, :revision_number
                 from
                     requests req join
                     accounting.product_categories pc on

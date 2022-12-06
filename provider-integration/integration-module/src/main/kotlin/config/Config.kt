@@ -304,10 +304,10 @@ data class ConfigSchema(
             ) : ConfigSchema.Plugins.Allocations() {
                 @Serializable
                 data class Extensions(
-                    val onAllocationTotal: String,
-                    val onAllocationSingle: String,
-                    val onSynchronizationTotal: String,
-                    val onSynchronizationSingle: String,
+                    val onAllocationTotal: String? = null,
+                    val onAllocationSingle: String? = null,
+                    val onSynchronizationTotal: String? = null,
+                    val onSynchronizationSingle: String? = null,
                 )
             }
 

@@ -28,6 +28,7 @@ export type FlexCProps =
     ZIndexProps &
     MinHeightProps &
     MaxHeightProps &
+    {gap?: string} &
     {cursor?: Cursor};
 
 
@@ -38,6 +39,7 @@ const Flex = styled.div<FlexCProps>`
   ${color} ${alignItems} ${justifyContent}
   ${flexDirection} ${flexWrap} ${flex} ${flexGrow} ${flexShrink}
   ${minHeight} ${maxHeight}
+  ${p => p.gap ? `gap: ${p.gap};` : ""}
 `;
 
 

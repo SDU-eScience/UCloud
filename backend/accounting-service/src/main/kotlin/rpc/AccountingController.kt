@@ -5,21 +5,33 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
+<<<<<<< HEAD
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.CallHandler
+=======
+import dk.sdu.cloud.accounting.util.accountingPerformanceMitigations
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
+>>>>>>> master
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.actorAndProject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.sync.Mutex
+
 
 class AccountingController(
     private val accounting: AccountingService,
     private val notifications: DepositNotificationService,
     private val client: AuthenticatedClient,
 ) : Controller {
+
     private fun <R : Any, S : Any, E : Any> RpcServer.implementOrDispatch(
         call: CallDescription<R, S, E>,
         handler: suspend CallHandler<R, S, E>.() -> Unit,
@@ -143,5 +155,9 @@ class AccountingController(
         }
 
         return@with
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

@@ -54,6 +54,8 @@ import {NotificationDashboardCard} from "@/Notifications";
 import {grantsLink} from "@/UtilityFunctions";
 import {isAdminOrPI, useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
+import { ProviderTitle } from "@/Providers/ProviderTitle";
+import { ProviderLogo } from "@/Providers/ProviderLogo";
 
 const MY_WORKSPACE = "My Workspace";
 
@@ -400,7 +402,12 @@ function DashboardResources({products}: {
                                 <tbody>
                                     {wallets.slice(0, 7).map((n, i) => (
                                         <TableRow key={i}>
-                                            <TableCell>{n.category.provider} / {n.category.name}</TableCell>
+                                            <TableCell>
+                                                <Flex alignItems="center" gap="8px">
+                                                    <ProviderLogo providerId={n.category.provider} size={24} />
+                                                    <ProviderTitle providerId={n.category.provider} /> / {n.category.name}
+                                                </Flex>
+                                            </TableCell>
                                             <TableCell textAlign={"right"}>
                                                 {usageExplainer(n.balance, n.productType, n.chargeType, n.unitOfPrice)}
                                             </TableCell>

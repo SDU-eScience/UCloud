@@ -147,4 +147,7 @@ suspend fun <Req, Resp> TypedExtensionWithExecutable<Req, Resp>?.optionalInvoke(
 ): Resp? =
     this?.invoke(context, request)
 
+suspend fun <Req, Resp> TypedExtension<Req, Resp>.optionalInvoke(context: PluginContext, exe: String?, req: Req): Resp? =
+    if (exe != null) this.invoke(context, exe, req) else null
+
 class ExtensionException(message: String) : RuntimeException(message)

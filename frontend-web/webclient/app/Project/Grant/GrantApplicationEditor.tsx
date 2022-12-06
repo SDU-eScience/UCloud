@@ -94,6 +94,7 @@ import {Accordion} from "@/ui-components/Accordion";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI, OldProjectRole, useProjectId} from "../Api";
 import {useProject} from "../cache";
+import { getProviderTitle, ProviderTitle } from "@/Providers/ProviderTitle";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing_project",
@@ -304,7 +305,7 @@ const GenericRequestCard: React.FunctionComponent<{
                         <tr>
                             <th>Product</th>
                             <td>
-                                {wb.metadata.category.provider} / {wb.metadata.category.name}
+                                <ProviderTitle providerId={wb.metadata.category.provider} /> / {wb.metadata.category.name}
                                 <Icon name={productTypeToIcon(wb.metadata.productType)} size={40} />
                             </td>
                         </tr>
@@ -421,7 +422,7 @@ function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllo
     }, [allocation, allocationRequest])
 
     const allocationText = allocation ?
-        `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name} [${allocation.allocation.id}]` : "";
+        `${getProviderTitle(allocation.wallet.paysFor.provider)} @ ${allocation.wallet.paysFor.name} [${allocation.allocation.id}]` : "";
 
     React.useEffect(() => {
         if (!allocationRequest || allocation != null || !showAllocationSelection) return;
@@ -493,7 +494,7 @@ function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: 
     return <>
         {wallet.allocations.filter(it => isAllocationSuitableForSubAllocation(it)).map(a =>
             <TableRow key={a.id} onClick={() => onClick(wallet, a)} cursor="pointer">
-                <TableCell width="200px">{wallet.paysFor.provider}</TableCell>
+                <TableCell width="200px"><ProviderTitle providerId={wallet.paysFor.provider} /></TableCell>
                 <TableCell width="200px">{wallet.paysFor.name}</TableCell>
                 <TableCell width="200px">
                     {normalizeBalanceForFrontend(a.balance, wallet.productType, wallet.unit)}
@@ -1397,9 +1398,15 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                         {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverEntries}
                         {/* Note(Jonas): This is for the grant givers that are part of an existing grant application */}
                         {target !== RequestTarget.VIEW_APPLICATION ? null : (
-                            grantGivers.data.items.sort(grantGiverSortFn)
-                                .filter(it => grantApplication.status.stateBreakdown
-                                    .map(it => it.projectId).includes(it.projectId)).map(grantGiver =>
+                            grantApplication.status.stateBreakdown
+                                .map(it => ({ projectId: it.projectId, title: it.projectTitle}))
+                                .sort(grantGiverSortFn)
+                                .filter(grantGiver => {
+                                    return grantApplication.status.stateBreakdown
+                                        .map(it => it.projectId)
+                                        .includes(grantGiver.projectId);
+                                })
+                                .map(grantGiver =>
                                         <GrantGiver
                                             key={grantGiver.projectId}
                                             target={target}

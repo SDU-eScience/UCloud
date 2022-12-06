@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "task"
-    version = "2022.2.11"
+    version = "2022.2.76"
 
     withAmbassador("/api/tasks") {}
 

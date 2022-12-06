@@ -37,7 +37,7 @@ export function useXTerm(props: { autofit?: boolean } = {}): XtermHook {
         }
     }, []);
 
-    useEffect(() => {
+    React.useLayoutEffect(() => {
         const listener = (): void => {
             if (props.autofit) {
                 fitAddon.fit();
@@ -45,8 +45,20 @@ export function useXTerm(props: { autofit?: boolean } = {}): XtermHook {
         };
         window.addEventListener("resize", listener);
 
+        // HACK(Dan): Component is not auto-fitting correctly after upgrading to React 18. No doubt this is related to 
+        // the fact that react doesn't like us using non-react components in this way. There is definitely a proper 
+        // way fixing this. This is without a doubt not the proper way to fix it, but it is broken in production and
+        // we don't have time to make a 'real' fix. So this fix, which works, will have to be our current solution.
+        const intervals: number[] = [];
+        intervals.push(window.setInterval(listener, 100));
+        intervals.push(window.setInterval(listener, 500));
+        intervals.push(window.setInterval(listener, 1000));
+        intervals.push(window.setInterval(listener, 2000));
+        intervals.push(window.setInterval(listener, 5000));
+
         return () => {
             window.removeEventListener("resize", listener);
+            for (const interval of intervals) window.clearInterval(interval);
         };
     }, [props.autofit]);
 

@@ -33,6 +33,7 @@ import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.forEachGraal
+import dk.sdu.cloud.utils.whileGraal
 import kotlin.math.min
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -666,7 +667,8 @@ class EventController(
         var next: String? = null
 
         val trackedProjects = HashSet<String>()
-        while (currentCoroutineContext().isActive) {
+        var isActive = true
+        whileGraal({ currentCoroutineContext().isActive && isActive }) {
             val providerSummaryResponse = Wallets.retrieveProviderSummary.call(
                 WalletsRetrieveProviderSummaryRequest(next = next),
                 controllerContext.pluginContext.rpcClient
@@ -676,7 +678,10 @@ class EventController(
 
             val providerSummary = providerSummaryResponse.items
             allocationsScanned += providerSummaryResponse.items.size
-            if (providerSummary.isEmpty()) break
+            if (providerSummary.isEmpty()) {
+                isActive = false
+                return@whileGraal
+            }
 
             // NOTE(Dan): Before we synchronize the allocations, attempt to synchronize the project. This will solve
             // issues when the project has failed the synchronization earlier.
