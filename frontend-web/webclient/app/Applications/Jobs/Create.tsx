@@ -44,13 +44,6 @@ interface InsufficientFunds {
     errorCode?: string;
 }
 
-/* 
-    TODO:
-        - Add error message like:
-            - You are attempting to use a {resource} from {provider} with a machine from {}
-            - {resource} needs to be prettified
-*/
-
 export const Create: React.FunctionComponent = () => {
     const navigate = useNavigate();
     const location = useLocation();
