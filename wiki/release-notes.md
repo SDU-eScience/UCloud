@@ -7,6 +7,19 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+# 06-12-22
+
+```
+✅  Deployment(app-store, 2022.2.76) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2022.2.76) (UP-TO-DATE)
+✅  Deployment(file-orchestrator, 2022.2.76) (UP-TO-DATE)
+✅  Deployment(accounting, 2022.2.76) (UP-TO-DATE)
+✅  Deployment(auth, 2022.2.76) (UP-TO-DATE)
+✅  Deployment(notification, 2022.2.76) (UP-TO-DATE)
+✅  Deployment(task, 2022.2.76) (UP-TO-DATE)
+✅  Deployment(frontend, 2022.2.77) (UP-TO-DATE)
+```
+
 ## 16-11-22
 
 ```

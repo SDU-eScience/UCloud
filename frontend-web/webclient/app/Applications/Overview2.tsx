@@ -113,7 +113,7 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
                         rows={section.rows}
                         favoriteStatus={favoriteStatus}
                         onFavorite={onFavorite}
-                        tagBanList={['Engineering']}
+                        tagBanList={[]}
                         refreshId={refreshId}
                     />
                     :
