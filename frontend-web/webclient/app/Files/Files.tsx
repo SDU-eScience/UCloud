@@ -345,7 +345,7 @@ export const FilesBrowse: React.FunctionComponent<{
                                             className="expandable-row-child"
                                             onClick={() => selectLocalProject(project.id)}
                                         >
-                                            {project.specification.title}Some additional text
+                                            {project.specification.title}
                                         </DriveInDropdown>
 
                                     ))}

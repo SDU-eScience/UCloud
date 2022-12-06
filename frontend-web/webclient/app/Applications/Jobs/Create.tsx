@@ -503,7 +503,7 @@ function findProviderMismatches(
             if (el) {
                 const elementProvider = el.getAttribute("data-provider");
                 if (elementProvider != null && provider !== elementProvider) {
-                    group.errors[param.name] = `This ${prettierString(param.type).toLowerCase()} from ${getProviderTitle(elementProvider)} is not possible to use with the machine from ${getProviderTitle(provider)}.`;
+                    group.errors[param.name] = `This ${prettierType(param.type)} from ${getProviderTitle(elementProvider)} is not possible to use with the machine from ${getProviderTitle(provider)}.`;
                     anyErrors = true;
                 }
             }
@@ -511,6 +511,24 @@ function findProviderMismatches(
         if (anyErrors) {
             group.setErrors({...group.errors});
         }
+    }
+}
+
+function prettierType(type: string): string {
+    switch (type) {
+        case "peer":
+            return "job";
+        case "network_ip":
+            return "public IP";
+        case "ingress":
+            return "link"
+        case "license_server":
+            return "license";
+        case "input_file":
+            return "file";
+        case "input_directory":
+            return "folder";
+        default: return prettierString(type).toLocaleLowerCase();
     }
 }
 
