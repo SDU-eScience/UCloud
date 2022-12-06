@@ -17,7 +17,7 @@ For details look in the `k8.kts` folders of each microservice.
 ✅  Deployment(auth, 2022.2.76) (UP-TO-DATE)
 ✅  Deployment(notification, 2022.2.76) (UP-TO-DATE)
 ✅  Deployment(task, 2022.2.76) (UP-TO-DATE)
-✅  Deployment(frontend, 2022.2.77) (UP-TO-DATE)
+✅  Deployment(frontend, 2022.2.80) (UP-TO-DATE)
 ```
 
 ## 16-11-22
