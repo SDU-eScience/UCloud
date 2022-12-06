@@ -94,7 +94,7 @@ import {Accordion} from "@/ui-components/Accordion";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI, OldProjectRole, useProjectId} from "../Api";
 import {useProject} from "../cache";
-import { getProviderTitle, ProviderTitle } from "@/Providers/ProviderTitle";
+import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing_project",
@@ -653,7 +653,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
     const isApprover = activeStateBreakDown != null;
 
     const [templates, fetchTemplates] = useCloudAPI<Templates | undefined>({noop: true}, undefined);
-    
+
     React.useEffect(() => {
         const {parentProjectId} = getDocument(grantApplication);
         if (parentProjectId && target !== RequestTarget.VIEW_APPLICATION) {
@@ -1399,7 +1399,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                         {/* Note(Jonas): This is for the grant givers that are part of an existing grant application */}
                         {target !== RequestTarget.VIEW_APPLICATION ? null : (
                             grantApplication.status.stateBreakdown
-                                .map(it => ({ projectId: it.projectId, title: it.projectTitle}))
+                                .map(it => ({projectId: it.projectId, title: it.projectTitle}))
                                 .sort(grantGiverSortFn)
                                 .filter(grantGiver => {
                                     return grantApplication.status.stateBreakdown
@@ -1407,21 +1407,21 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                                         .includes(grantGiver.projectId);
                                 })
                                 .map(grantGiver =>
-                                        <GrantGiver
-                                            key={grantGiver.projectId}
-                                            target={target}
-                                            isLocked={isLocked}
-                                            isApprover={Client.projectId === grantGiver.projectId}
-                                            project={grantGiver}
-                                            setParentProject={parentProjectId =>
-                                                dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})
-                                            }
-                                            isParentProject={grantGiver.projectId === getDocument(grantApplication).parentProjectId}
-                                            grantApplication={grantApplication}
-                                            setGrantProductCategories={setGrantProductCategories}
-                                            wallets={wallets.data.items}
-                                            isRecipient={isRecipient}
-                                        />))}
+                                    <GrantGiver
+                                        key={grantGiver.projectId}
+                                        target={target}
+                                        isLocked={isLocked}
+                                        isApprover={Client.projectId === grantGiver.projectId}
+                                        project={grantGiver}
+                                        setParentProject={parentProjectId =>
+                                            dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})
+                                        }
+                                        isParentProject={grantGiver.projectId === getDocument(grantApplication).parentProjectId}
+                                        grantApplication={grantApplication}
+                                        setGrantProductCategories={setGrantProductCategories}
+                                        wallets={wallets.data.items}
+                                        isRecipient={isRecipient}
+                                    />))}
 
                         <CommentApplicationWrapper style={{display: target === RequestTarget.VIEW_APPLICATION || grantGiversInUse.length > 0 ? undefined : "none"}}>
                             <RequestFormContainer>
@@ -1731,7 +1731,7 @@ function GrantGiver(props: {
                 right={right}
             /> : null}
             {creatingOrApproverOrRecipient ? products :
-                <Accordion noBorder title={<Flex mt="-12px">{left}</Flex>} titleContent={right} panelProps={{mx: "-8px", pl: "8px"}}>
+                <Accordion noBorder title={left} titleContent={right} panelProps={{mx: "3px"}}>
                     {products}
                 </Accordion>
             }
