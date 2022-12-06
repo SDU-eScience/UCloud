@@ -61,6 +61,8 @@ class ConnectionState extends UState<ConnectionState> {
     }
 
     public canConnectToProvider(providerId: string): boolean {
+        if (providerId === "ucloud" || providerId === "aau" || providerId === "aau-test") return false;
+
         this.fetch();
         const data = this.connectionInfo[providerId];
         if (!data) return false;
