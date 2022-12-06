@@ -57,13 +57,13 @@ data class ExeCommand(
 
         if (exitCode != 0) {
             if (allowFailure) return Pair(null, outputBuilder.toString() + errBuilder.toString())
-
             println("Command failed!")
             println("Command: " + args.joinToString(" ") { "'$it'" })
             println("Directory: $workingDir")
             println("Exit code: ${exitCode}")
             println("Stdout: ${outputBuilder}")
             println("Stderr: ${errBuilder}")
+
             exitProcess(exitCode)
         }
         return Pair(outputBuilder.toString(), errBuilder.toString())

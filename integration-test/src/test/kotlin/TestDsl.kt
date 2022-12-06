@@ -14,6 +14,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 data class UCloudTestSuite<In, Out>(
@@ -21,12 +22,16 @@ data class UCloudTestSuite<In, Out>(
     val execution: suspend (In) -> Out,
     val cleanup: suspend (In) -> Unit,
     val cases: List<UCloudTestCase<In, Out>>
-)
+) {
+    var numberOfTests: Int = 0
+    var completedTests = AtomicInteger(0)
+}
 
 data class UCloudTestCase<In, Out>(
     val subtitle: String,
     val input: In,
-    val checks: List<suspend (output: Out?, exception: Throwable?) -> Unit>
+    val checks: List<suspend (output: Out?, exception: Throwable?) -> Unit>,
+    val forceCleanup: Boolean
 )
 
 lateinit var rpcClient: RpcClient
@@ -34,6 +39,8 @@ lateinit var serviceClient: AuthenticatedClient
 lateinit var serviceClientWs: AuthenticatedClient
 lateinit var adminClient: AuthenticatedClient
 lateinit var adminClientWs: AuthenticatedClient
+
+val didInitialRestore = AtomicBoolean(false)
 
 typealias IntegrationTest = UCloudTest
 abstract class UCloudTest {
@@ -51,7 +58,7 @@ abstract class UCloudTest {
     private fun restoreSnapshot() {
         ExeCommand(
             listOf(
-                "./launcher",
+                System.getenv("UCLOUD_LAUNCHER") ?: error("Could not find UCLOUD_LAUNCHER env variable"),
                 "restore",
                 System.getenv("UCLOUD_TEST_SNAPSHOT") ?: error("Unable to find UCLOUD_TEST_SNAPSHOT env variable")
             )
@@ -183,7 +190,11 @@ abstract class UCloudTest {
         for (suite in allTests) {
             for (case in suite.cases) {
                 if (testFilter(suite.title, case.subtitle)) {
+                    suite.numberOfTests++
+
                     definedTests.add(DynamicTest.dynamicTest("${suite.title}/${case.subtitle}") {
+                        if (didInitialRestore.compareAndSet(false, true)) restoreSnapshot()
+
                         runBlocking {
                             repeat(3) { println() }
                             println(String(CharArray(80) { '=' }))
@@ -197,8 +208,6 @@ abstract class UCloudTest {
                             case as UCloudTestCase<Any?, Any?>
 
                             try {
-//                                restoreSnapshot()
-
                                 try {
                                     perCasePreparation()
                                 } catch (ex: Throwable) {
@@ -221,6 +230,11 @@ abstract class UCloudTest {
                             } finally {
                                 perCaseCleanup()
                                 suite.cleanup(case.input)
+                                val completed = suite.completedTests.incrementAndGet()
+
+                                if (suite.numberOfTests == completed || case.forceCleanup) {
+                                    restoreSnapshot()
+                                }
                             }
                         }
                     })
@@ -273,18 +287,19 @@ data class UCloudTestCaseBuilder<In, Out>(private val parentTitle: String, val s
 
     data class ExceptionContext(val exception: Throwable)
     data class OutputContext<In, Out>(val input: In, val output: Out)
+    var forceCleanup = false
 
     fun build(): UCloudTestCase<In, Out> {
         if (input == null) error("input() was never called in $parentTitle/$subtitle")
         if (checks.isEmpty()) error("missing check(), expectSuccess() or expectFailure() in $parentTitle/$subtitle")
-        return UCloudTestCase(subtitle, input!!, checks)
+        return UCloudTestCase(subtitle, input!!, checks, forceCleanup)
     }
 
     fun input(input: In) {
         this.input = input
     }
 
-    fun expectFailure(message: String? = null, fn: suspend ExceptionContext.() -> Unit) {
+    fun expectFailure(message: String? = null, fn: suspend ExceptionContext.() -> Unit = {}) {
         checks.add { _, throwable ->
             if (throwable == null) {
                 error("$parentTitle/$subtitle: Is not supposed to succeed. ${message ?: ""}")
@@ -311,10 +326,7 @@ data class UCloudTestCaseBuilder<In, Out>(private val parentTitle: String, val s
     fun check(message: String? = null, fn: suspend OutputContext<In, Out>.() -> Unit) {
         checks.add { out, throwable ->
             if (throwable != null) {
-//                throw IllegalStateException(
-//                    "$parentTitle/$subtitle: Is not supposed to fail. ${message ?: ""}",
                 throw throwable
-//                )
             }
 
             @Suppress("UNCHECKED_CAST")
