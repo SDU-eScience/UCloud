@@ -22,6 +22,7 @@ dependencies {
         ucloud("service-lib-lib")
     }
 
+    implementation("org.slf4j:slf4j-nop:2.0.3")
     testImplementation(kotlin("test"))
 }
 
