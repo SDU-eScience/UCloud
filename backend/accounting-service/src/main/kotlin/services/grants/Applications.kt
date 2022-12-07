@@ -1251,15 +1251,14 @@ class GrantApplicationService(
         }
 
         val requestItems = application.currentRevision.document.allocationRequests.map {
-            println(it.period.start)
-            println(it.period.end)
             DepositToWalletRequestItem(
                 recipient = if (type == GrantApplication.Recipient.PersonalWorkspace) WalletOwner.User(workspaceId) else WalletOwner.Project(workspaceId),
                 sourceAllocation = it.sourceAllocation.toString(),
                 amount = it.balanceRequested!!,
                 description = "Granted In $applicationId",
                 startDate = it.period.start,
-                endDate = it.period.end
+                endDate = it.period.end,
+                isProject = type != GrantApplication.Recipient.PersonalWorkspace
             )
         }
 

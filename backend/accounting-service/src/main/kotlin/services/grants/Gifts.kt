@@ -106,7 +106,8 @@ class GiftService(
                         WalletOwner.User(actorAndProject.actor.safeUsername()),
                         sourceAllocation.id,
                         balance,
-                        "Gift for ${category.name} / ${category.provider}"
+                        "Gift for ${category.name} / ${category.provider}",
+                        isProject = actorAndProject.project != null
                     ))
                 )
             }

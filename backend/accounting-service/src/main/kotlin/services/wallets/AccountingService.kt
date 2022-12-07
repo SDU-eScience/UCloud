@@ -138,7 +138,6 @@ class AccountingService(
 
             isDry = item.dry
         }
-
         request.items.map { deposit ->
             checkIfSubAllocationIsAllowed(listOf(deposit.sourceAllocation), db)
             processor.deposit(
@@ -148,7 +147,8 @@ class AccountingService(
                     deposit.sourceAllocation.toIntOrNull() ?: return@map,
                     deposit.amount,
                     deposit.startDate ?: Time.now(),
-                    deposit.endDate
+                    deposit.endDate,
+                    isProject = deposit.isProject
                 )
             )
         }

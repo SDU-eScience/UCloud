@@ -611,7 +611,8 @@ data class DepositToWalletRequestItem(
     val endDate: Long? = null,
     @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
     var transactionId: String = Random.nextLong().toString() + Time.now(),
-    val dry: Boolean = false
+    val dry: Boolean = false,
+    val isProject: Boolean
 )
 
 typealias DepositToWalletResponse = Unit
@@ -1595,7 +1596,8 @@ object Accounting : CallDescriptionContainer("accounting") {
                             leafOwner,
                             "42",
                             100,
-                            "Create sub-allocation"
+                            "Create sub-allocation",
+                            isProject = true
                         )
                     ),
                     Unit,

@@ -169,6 +169,7 @@ sealed class AccountingRequest {
         val notAfter: Long?,
         override var id: Long = -1,
         val grantedIn: Long? = null,
+        val isProject: Boolean
     ) : AccountingRequest()
 
     sealed class Charge() : AccountingRequest() {
@@ -668,7 +669,7 @@ class AccountingProcessor(
                 }
 
             unresolvedApplications.forEach { application ->
-                val owner = when (val recipient = application.currentRevision.document.recipient) {
+                val (owner,type) = when (val recipient = application.currentRevision.document.recipient) {
                     is GrantApplication.Recipient.NewProject -> {
                         //Attempt to create project and PI. In case of conflict nothing is created but id returned
                         val createdProject = session.sendPreparedStatement(
@@ -700,15 +701,15 @@ class AccountingProcessor(
                                 "Error in creating project and PI"
                             )
 
-                        createdProject
+                        Pair(createdProject, GrantApplication.Recipient.NewProject)
                     }
 
                     is GrantApplication.Recipient.ExistingProject -> {
-                        recipient.id
+                        Pair(recipient.id, GrantApplication.Recipient.ExistingProject)
                     }
 
                     is GrantApplication.Recipient.PersonalWorkspace ->
-                        recipient.username
+                        Pair(recipient.username, GrantApplication.Recipient.PersonalWorkspace)
                 }
                 application.currentRevision.document.allocationRequests.forEach { allocRequest ->
                     val granterOfResource =
@@ -732,7 +733,8 @@ class AccountingProcessor(
                             amount = allocRequest.balanceRequested!!,
                             notBefore = allocRequest.period.start ?: Time.now(),
                             notAfter = allocRequest.period.end,
-                            grantedIn = application.id.toLong()
+                            grantedIn = application.id.toLong(),
+                            isProject = type != GrantApplication.Recipient.PersonalWorkspace
                         )
                     )
                 }
@@ -804,7 +806,8 @@ class AccountingProcessor(
                             sourceAllocation.id.toInt(),
                             balance,
                             notBefore = now,
-                            notAfter = null
+                            notAfter = null,
+                            isProject = false //TODO Can gifts be given to other than users?
                         )
                     )
                 }
@@ -1134,8 +1137,8 @@ class AccountingProcessor(
             start,
             null,
             null,
-            canAllocate = !existingWallet.owner.contains("#"),
-            allowSubAllocationsToAllocate = existingWallet.owner.contains("#") //TODO GET better way of identifying users
+            canAllocate = true, //TODO: IS ALWAYS PROJECT?
+            allowSubAllocationsToAllocate = true //TODO: IS ALWAYS PROJECT?
         ).id
         val transactionId = transactionId()
         dirtyTransactions.add(
@@ -1192,8 +1195,8 @@ class AccountingProcessor(
             request.notBefore,
             request.notAfter,
             request.grantedIn,
-            canAllocate = parent.allowSubAllocationsToAllocate,
-            allowSubAllocationsToAllocate = existingWallet.owner.contains("#") //TODO GET better way of identifying users
+            canAllocate = if(request.isProject) parent.allowSubAllocationsToAllocate else false,
+            allowSubAllocationsToAllocate = if(request.isProject) parent.allowSubAllocationsToAllocate else false,
         ).id
 
         val now = System.currentTimeMillis()
@@ -1609,7 +1612,6 @@ class AccountingProcessor(
 
     private suspend fun retrieveWalletsInternal(request: AccountingRequest.RetrieveWalletsInternal): AccountingResponse {
         val wallets = wallets.filter { it?.owner == request.owner }
-        println(wallets)
         return AccountingResponse.RetrieveWalletsInternal(
             wallets
                 .asSequence()
@@ -1787,12 +1789,14 @@ class AccountingProcessor(
                                 into("start_dates") { it.notBefore }
                                 into("end_dates") { it.notAfter }
                                 into("granted_ins") { it.grantedIn }
+                                into("can_allocates") { it.canAllocate }
+                                into("allow_subs") { it.allowSubAllocationsToAllocate }
                             }
                         },
                         """
                         insert into accounting.wallet_allocations 
                             (id, allocation_path, associated_wallet, balance, initial_balance, local_balance, start_date, 
-                             end_date, granted_in, provider_generated_id) 
+                             end_date, granted_in, provider_generated_id, can_allocate, allow_sub_allocations_to_allocate) 
                         select
                             unnest(:ids::bigint[]),
                             unnest(:allocation_paths::ltree[]),
@@ -1803,7 +1807,9 @@ class AccountingProcessor(
                             to_timestamp(unnest(:start_dates::bigint[]) / 1000),
                             to_timestamp(unnest(:end_dates::bigint[]) / 1000),
                             unnest(:granted_ins::bigint[]),
-                            null
+                            null,
+                            unnest(:can_allocates::bool[]),
+                            unnest(:allow_subs::bool[])
                         on conflict (id) do update set
                             balance = excluded.balance,
                             initial_balance = excluded.initial_balance,
@@ -2127,7 +2133,7 @@ private class ProjectCache(private val db: DBContext) {
     }
 
     suspend fun retrieveProjectInfoFromTitle(title: String, allowCacheRefill: Boolean = true): Pair<ProjectWithTitle, String> {
-        val project = projects.get().find { it.first.projectId == title }
+        val project = projects.get().find { it.first.title == title }
         if (project == null && allowCacheRefill) {
             fillCache()
             return retrieveProjectInfoFromTitle(title, false)

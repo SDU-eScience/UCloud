@@ -5,7 +5,7 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {PageV2, PaginationRequestV2} from "@/UCloud";
-import {Box, Flex, Grid, Icon, Link, Text} from "@/ui-components";
+import {Box, Flex, Grid, Icon, Link, Text, Tooltip} from "@/ui-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import * as React from "react";
 import {useCallback, useState} from "react";
@@ -338,7 +338,7 @@ function availableBalance(allocation: WalletAllocation, wallet: Wallet) :JSX.Ele
                 bottom="1"
                 tooltipContentWidth="115px"
                 wrapperOffsetLeft="10px"
-                trigger={<ui.Icon color="black" name="warning" />}
+                trigger={<Icon color="black" name="warning" />}
             >
                 Allocation giver does not have enough resources to fulfil allocation
             </Tooltip>
