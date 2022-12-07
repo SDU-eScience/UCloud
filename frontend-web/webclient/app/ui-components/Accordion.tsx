@@ -1,14 +1,10 @@
 import * as React from "react";
 import styled from "styled-components";
-import {margin, MarginProps, padding, PaddingProps} from "styled-system";
-import Box, {BoxProps} from "./Box";
-import Flex from "./Flex";
+import {MarginProps, PaddingProps} from "styled-system";
+import Box from "./Box";
 import Icon, {IconName} from "./Icon";
 import {ListRow} from "./List";
-import {Spacer} from "./Spacer";
-import Text from "./Text";
 import {ThemeColor} from "./theme";
-import Truncate from "./Truncate";
 
 /* https://www.w3schools.com/howto/tryit.asp?filename=tryhow_js_accordion_symbol */
 export function Accordion(props: React.PropsWithChildren<{
@@ -37,14 +33,16 @@ export function Accordion(props: React.PropsWithChildren<{
                     leftSub={props.titleSub}
                     icon={
                         props.icon ? <Icon color2={props.iconColor2} color={color} name={props.icon} /> :
-                            Math.random() ? null : <RotatingIcon color="text" size={15} mt="6px" name="chevronDown" rotation={open ? 0 : -90} />
+                           props.omitChevron ? null : <RotatingIcon color="text" size={15} mt="6px" name="chevronDown" rotation={open || props.forceOpen ? 0 : -90} />
                     }
 
                     right={<>{props.titleContent}{isOpen ? props.titleContentOnOpened : null}</>}
                 />
             </AccordionStyle>
-            <Panel active={isOpen} noBorder={props.noBorder ?? false} {...props.panelProps}>
-                {props.children}
+            <Panel active={isOpen} noBorder={props.noBorder ?? false}>
+                <Box {...props.panelProps}>
+                    {props.children}
+                </Box>
             </Panel>
         </>
     );
@@ -64,14 +62,12 @@ const AccordionStyle = styled.div <{active: boolean; noBorder: boolean; borderCo
 `;
 
 /* FIXME(Jonas): `noBorder` is a workaround that should be handled purely by CSS. :last-child, for example. */
-const Panel = styled.div<{active: boolean; noBorder: boolean;} & MarginProps & PaddingProps>`
+const Panel = styled.div<{active: boolean; noBorder: boolean;}>`
     display: ${props => props.active ? "block" : "hidden"};
     ${props => props.active && !props.noBorder ? "border-bottom: 1px solid lightGray;" : null}
     max-height: ${props => props.active ? "auto" : 0};
     overflow: hidden;
     transition: all 0.2s ease-out;
-    ${margin}
-    ${padding}
 `;
 
 const RotatingIcon = styled(Icon)`
