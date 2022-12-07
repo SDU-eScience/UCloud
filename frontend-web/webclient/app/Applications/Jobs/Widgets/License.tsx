@@ -12,6 +12,8 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {LicenseBrowse} from "@/Applications/Licenses";
 import {License} from "@/UCloud/LicenseApi";
 import {BrowseType} from "@/Resource/BrowseType";
+import {getProviderField} from "../Resources/Ingress";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
 
 interface LicenseProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;
@@ -51,7 +53,14 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
                 tagged={props.parameter.tagged}
                 // TODO(Dan) Provider
                 additionalFilters={filters}
-                onSelectRestriction={() => true}
+                onSelectRestriction={res => {
+                    const provider = getProviderField();
+                    const ingressProvider = res.specification.product.provider;
+                    if (provider && provider !== ingressProvider) {
+                        return `License from ${getProviderTitle(ingressProvider)} cannot be used with machines from ${getProviderTitle(provider)}`;
+                    }
+                    return true;
+                }}
                 browseType={BrowseType.Embedded}
                 onSelect={onUse}
             />

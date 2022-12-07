@@ -14,6 +14,8 @@ import AppParameterValueNS = compute.AppParameterValueNS;
 import {callAPI} from "@/Authentication/DataHook";
 import {NetworkIP} from "@/UCloud/NetworkIPApi";
 import {BrowseType} from "@/Resource/BrowseType";
+import {getProviderField} from "../Resources/Ingress";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
 
 interface NetworkIPProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.NetworkIP;
@@ -91,7 +93,15 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
                 additionalFilters={filters}
                 onSelect={onUse}
                 browseType={BrowseType.Embedded}
-                onSelectRestriction={res => res.status.boundTo.length === 0}
+                onSelectRestriction={res => {
+                    if (res.status.boundTo.length === 0) return true;
+                    const provider = getProviderField();
+                    const publicIPProvider = res.specification.product.provider;
+                    if (provider && provider !== publicIPProvider) {
+                        return `Public IPs from ${getProviderTitle(publicIPProvider)} cannot be used with machines from ${getProviderTitle(provider)}`;
+                    }
+                    return false;
+                }}
             />
         </ReactModal>
     </Flex>);

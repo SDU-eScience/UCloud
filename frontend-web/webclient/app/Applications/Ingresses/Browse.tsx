@@ -10,7 +10,7 @@ const Browse: React.FunctionComponent<{
     onSelect?: (selection: Ingress) => void;
     isSearch?: boolean;
     browseType?: BrowseType;
-    onSelectRestriction?: (res: Ingress) => boolean;
+    onSelectRestriction?: (res: Ingress) => boolean | string;
     additionalFilters: Record<string, string>;
 }> = props => {
     const browseType = props.browseType ?? BrowseType.MainContent;

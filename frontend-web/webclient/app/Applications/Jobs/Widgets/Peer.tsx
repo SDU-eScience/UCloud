@@ -14,6 +14,8 @@ import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {JobBrowse} from "@/Applications/Jobs/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
+import {getProviderField} from "../Resources/Ingress";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
 
 interface PeerProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Peer;
@@ -127,6 +129,14 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
         >
             <JobBrowse
                 additionalFilters={filters}
+                onSelectRestriction={job => {
+                    const provider = getProviderField();
+                    const jobProvider = job.specification.product.provider;
+                    if (provider && provider !== jobProvider) {
+                        return `Jobs from ${getProviderTitle(jobProvider)} cannot be used with machines from ${getProviderTitle(provider)}`;
+                    }
+                    return true;
+                }}
                 onSelect={job => {
                     const el = document.getElementById(widgetId(props.parameter) + "job");
                     if (el) {

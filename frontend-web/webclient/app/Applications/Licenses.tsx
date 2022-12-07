@@ -11,7 +11,7 @@ export const LicenseBrowse: React.FunctionComponent<{
     isSearch?: boolean;
     browseType?: BrowseType;
     additionalFilters?: Record<string, string>;
-    onSelectRestriction?: (res: License) => boolean;
+    onSelectRestriction?: (res: License) => boolean | string;
 }> = props => {
     const browseType = props.browseType ?? BrowseType.MainContent;
     return <ResourceBrowse
