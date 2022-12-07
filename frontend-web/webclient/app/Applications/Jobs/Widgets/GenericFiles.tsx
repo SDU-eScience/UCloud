@@ -13,9 +13,8 @@ import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
 import {prettyFilePath} from "@/Files/FilePath";
 import {BrowseType} from "@/Resource/BrowseType";
 import {FolderResourceNS} from "../Resources";
-import {getProviderField} from "../Resources/Ingress";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {Resource} from "@/UCloud/ResourceApi";
+import {getProviderField, providerMismatchError} from "../Create";
 
 type GenericFileParam =
     UCloud.compute.ApplicationParameterNS.InputFile |
@@ -64,9 +63,9 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                     const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
                     if (provider && provider !== fileProvider) {
                         if (isCorrectlyDir) {
-                            return providerErrorMessage(file, provider);
+                            return providerMismatchError("Folders", fileProvider);
                         } else if (isCorrectlyFile) {
-                            return providerErrorMessage(file, provider);
+                            return providerMismatchError("Files", fileProvider)
                         }
                     }
                     return isCorrectlyDir || isCorrectlyFile;

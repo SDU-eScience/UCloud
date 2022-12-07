@@ -9,7 +9,7 @@ import {Box, Button, ContainerForText, ExternalLink, Grid, Icon, Link, Markdown,
 import {findElement, OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget, widgetId} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
-import {getProviderField, IngressResource, ingressResourceAllowed} from "@/Applications/Jobs/Resources/Ingress";
+import {IngressResource, ingressResourceAllowed} from "@/Applications/Jobs/Resources/Ingress";
 import {PeerResource, peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
 import {createSpaceForLoadedResources, injectResources, ResourceHook, useResource} from "@/Applications/Jobs/Resources";
 import {
@@ -38,6 +38,8 @@ import {Feature, hasFeature} from "@/Features";
 import {useUState} from "@/Utilities/UState";
 import {flushSync} from "react-dom";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {validateMachineReservation} from "./Widgets/Machines";
+import {Resource} from "@/UCloud/ResourceApi";
 
 interface InsufficientFunds {
     why?: string;
@@ -523,6 +525,29 @@ function prettierType(type: string): string {
             return "folder";
         default: return prettierString(type).toLocaleLowerCase();
     }
+}
+
+export function getProviderField(): string | undefined {
+    try {
+        const validatedMachineReservation = validateMachineReservation();
+        return validatedMachineReservation?.provider;
+    } catch (e) {
+        return undefined;
+    }
+}
+
+export function checkProviderMismatch(resource: Resource, resourceType: string): string | false {
+    const provider = getProviderField();
+    const resourceProvider = resource.specification.product.provider;
+    if (provider && provider !== resourceProvider) {
+        return providerMismatchError(resourceProvider, resourceType);
+    }
+    return false;
+}
+
+export function providerMismatchError(resourceProvider: string, resourceType: string): string {
+    const selectedProvider = getProviderField() ?? "";
+    return `${resourceType} from ${getProviderTitle(resourceProvider)} cannot be used with machines from ${getProviderTitle(selectedProvider)}`; 
 }
 
 export default Create;

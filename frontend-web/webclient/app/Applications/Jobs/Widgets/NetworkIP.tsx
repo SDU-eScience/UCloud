@@ -9,13 +9,12 @@ import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, Wid
 import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
-import ApplicationParameterNS = compute.ApplicationParameterNS;
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {callAPI} from "@/Authentication/DataHook";
 import {NetworkIP} from "@/UCloud/NetworkIPApi";
 import {BrowseType} from "@/Resource/BrowseType";
-import {getProviderField} from "../Resources/Ingress";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {checkProviderMismatch, getProviderField} from "../Create";
 
 interface NetworkIPProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.NetworkIP;
@@ -97,10 +96,7 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
                     if (res.status.boundTo.length === 0) return true;
                     const provider = getProviderField();
                     const publicIPProvider = res.specification.product.provider;
-                    if (provider && provider !== publicIPProvider) {
-                        return `Public IPs from ${getProviderTitle(publicIPProvider)} cannot be used with machines from ${getProviderTitle(provider)}`;
-                    }
-                    return false;
+                    return checkProviderMismatch(res, "Public IPs");
                 }}
             />
         </ReactModal>

@@ -2,7 +2,6 @@ import * as React from "react";
 import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "./index";
 import {compute} from "@/UCloud";
-import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "@/ui-components/Flex";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
@@ -12,8 +11,8 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {LicenseBrowse} from "@/Applications/Licenses";
 import {License} from "@/UCloud/LicenseApi";
 import {BrowseType} from "@/Resource/BrowseType";
-import {getProviderField} from "../Resources/Ingress";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {checkProviderMismatch, getProviderField} from "../Create";
 
 interface LicenseProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;
@@ -51,14 +50,10 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
         >
             <LicenseBrowse
                 tagged={props.parameter.tagged}
-                // TODO(Dan) Provider
                 additionalFilters={filters}
                 onSelectRestriction={res => {
-                    const provider = getProviderField();
-                    const ingressProvider = res.specification.product.provider;
-                    if (provider && provider !== ingressProvider) {
-                        return `License from ${getProviderTitle(ingressProvider)} cannot be used with machines from ${getProviderTitle(provider)}`;
-                    }
+                    const errorMessage = checkProviderMismatch(res, "Licenses");
+                    if (errorMessage) return errorMessage;
                     return true;
                 }}
                 browseType={BrowseType.Embedded}

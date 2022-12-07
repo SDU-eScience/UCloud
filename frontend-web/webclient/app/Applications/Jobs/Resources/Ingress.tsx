@@ -79,12 +79,3 @@ export const IngressResource: React.FunctionComponent<{
         </Box>
     </GrayBox>;
 }
-
-export function getProviderField(): string | undefined {
-    try {
-        const validatedMachineReservation = validateMachineReservation();
-        return validatedMachineReservation?.provider;
-    } catch (e) {
-        return undefined;
-    }
-}
