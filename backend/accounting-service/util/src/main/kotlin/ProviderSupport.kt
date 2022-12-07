@@ -12,6 +12,9 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
+import kotlinx.coroutines.*
+import kotlinx.coroutines.selects.select
+import kotlin.coroutines.coroutineContext
 
 class ProviderSupport<Communication : ProviderComms, P : Product, Support : ProductSupport>(
     private val providers: Providers<Communication>,
@@ -69,11 +72,31 @@ class ProviderSupport<Communication : ProviderComms, P : Product, Support : Prod
         }
     )
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun retrieveProducts(providerIds: Collection<String>): Map<String, List<ResolvedSupport<P, Support>>> {
         if (providerIds.isEmpty()) return emptyMap()
-        return providerIds.map { provider ->
-            provider to (providerProductCache.get(provider) ?: emptyList())
-        }.toMap()
+        return coroutineScope {
+            providerIds.map { provider ->
+                async {
+                    val retrievalJob = async {
+                        runCatching {
+                            providerProductCache.get(provider)
+                        }.getOrNull()
+                    }
+
+                    provider to select<List<ResolvedSupport<P, Support>>> {
+                        retrievalJob.onAwait {
+                            it ?: emptyList()
+                        }
+
+                        onTimeout(2000) {
+                            retrievalJob.cancel()
+                            emptyList()
+                        }
+                    }
+                }
+            }.awaitAll().toMap()
+        }
     }
 
     suspend fun retrieveProductSupport(product: ProductReference): ResolvedSupport<P, Support> {

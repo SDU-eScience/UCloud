@@ -387,7 +387,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                 key={recipient.id}
                 iconColor2="white"
                 title={<Flex>
-                    <Flex width="170px" mt="7px">
+                    <Flex width="170px" ml="8px" mt="7px">
                         <ClickableDropdown useMousePositioning width="250px" chevron trigger={<><Icon mr="4px" color2="white" name={recipient.isProject ? "projects" : "user"} />{!recipient.isProject ? "User" : recipient.asNewProject ? "New" : "Existing"}</>}>
                             <Flex onClick={() => toggleIsProject(recipient.id, true)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> Existing project</Flex>
                             <Flex onClick={() => toggleAsNewProject(recipient.id)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> New project</Flex>
