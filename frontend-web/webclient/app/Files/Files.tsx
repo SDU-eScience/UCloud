@@ -369,7 +369,7 @@ export const FilesBrowse: React.FunctionComponent<{
                         } as any)).then(page => setDrives(page)).catch(e => console.log(e))}
                         page={drives}
                         pageRenderer={items => (
-                            <List childPadding={"8px"} bordered={false}>
+                            <List maxHeight={"200px"} overflowX="hidden" overflowY={"scroll"} childPadding={"8px"} bordered={false}>
                                 {items.map(drive => (
                                     <DriveInDropdown
                                         key={drive.id}
