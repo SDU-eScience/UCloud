@@ -26,6 +26,7 @@ const Browse: React.FunctionComponent<{
                 <ResourceTab active={ResourceTabOptions.PUBLIC_LINKS} />) : undefined
         }
         headerSize={48}
+        onSelectRestriction={props.onSelectRestriction}
         additionalFilters={props.additionalFilters}
         inlinePrefix={p => (p.support as IngressSupport).domainPrefix}
         inlineSuffix={p => (p.support as IngressSupport).domainSuffix}

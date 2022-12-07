@@ -292,8 +292,8 @@ export const Create: React.FunctionComponent = () => {
     const isMissingConnection = hasFeature(Feature.PROVIDER_CONNECTION) && estimatedCost.product != null &&
         connectionState.canConnectToProvider(estimatedCost.product.category.provider);
 
-    const anyError = checkForAnyErrors(errors, folders.errors, ingress.errors, networks.errors, peers.errors);
-    const errorCount = Object.values(errors).length + Object.values(folders.errors).length;
+    const errorCount = countErrors(errors, folders.errors, ingress.errors, networks.errors, peers.errors);
+    const anyError = errorCount > 0;
 
     return <MainContainer
         headerSize={92}
@@ -406,6 +406,10 @@ export const Create: React.FunctionComponent = () => {
                                             setErrors={setErrors}
                                             active
                                             onRemove={() => {
+                                                if (errors[param.name]) {
+                                                    delete errors[param.name];
+                                                    setErrors({...errors});
+                                                }
                                                 setActiveOptParams(activeOptParams.filter(it => it !== param.name));
                                             }}
                                         />
@@ -458,13 +462,6 @@ export const Create: React.FunctionComponent = () => {
                 </ContainerForText>
             </>}
     />;
-}
-
-function checkForAnyErrors(...objects: Object[]): boolean {
-    for (const obj of objects) {
-        if (Object.values(obj).length > 0) return true;
-    }
-    return false;
 }
 
 export const GrayBox = styled.div`
@@ -547,7 +544,11 @@ export function checkProviderMismatch(resource: Resource, resourceType: string):
 
 export function providerMismatchError(resourceProvider: string, resourceType: string): string {
     const selectedProvider = getProviderField() ?? "";
-    return `${resourceType} from ${getProviderTitle(resourceProvider)} cannot be used with machines from ${getProviderTitle(selectedProvider)}`; 
+    return `${resourceType} from ${getProviderTitle(resourceProvider)} cannot be used with machines from ${getProviderTitle(selectedProvider)}`;
+}
+
+function countErrors(...objects: Record<string, string>[]): number {
+    return objects.reduce((acc, cur) => acc + Object.values(cur).length, 0);
 }
 
 export default Create;

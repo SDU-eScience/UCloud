@@ -34,7 +34,7 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {setLoading} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
-import ProjectAPI, {Project} from "@/Project/Api";
+import ProjectAPI, {Project, projectRoleToString} from "@/Project/Api";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 
 export const FilesBrowse: React.FunctionComponent<{

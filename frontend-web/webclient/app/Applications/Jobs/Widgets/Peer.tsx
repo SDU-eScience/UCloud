@@ -14,8 +14,7 @@ import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {JobBrowse} from "@/Applications/Jobs/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
-import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {checkProviderMismatch, getProviderField} from "../Create";
+import {checkProviderMismatch} from "../Create";
 
 interface PeerProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Peer;

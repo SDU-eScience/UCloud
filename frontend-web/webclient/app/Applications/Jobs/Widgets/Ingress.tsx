@@ -13,8 +13,7 @@ import IngressBrowse from "@/Applications/Ingresses/Browse";
 import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 import {BrowseType} from "@/Resource/BrowseType";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {checkProviderMismatch, getProviderField} from "../Create";
+import {checkProviderMismatch} from "../Create";
 
 interface IngressProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Ingress;
@@ -99,8 +98,9 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
                 onSelect={onUse}
                 additionalFilters={filters}
                 onSelectRestriction={res => {
-                    if (res.status.boundTo.length === 0) return true;
-                    return checkProviderMismatch(res, "Public links");
+                    const errorMessage = checkProviderMismatch(res, "Public links");
+                    if (errorMessage) return errorMessage;
+                    return res.status.boundTo.length === 0;
                 }}
                 browseType={BrowseType.Embedded}
             />

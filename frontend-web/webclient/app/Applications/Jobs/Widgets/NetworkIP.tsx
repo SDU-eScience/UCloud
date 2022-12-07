@@ -93,10 +93,9 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
                 onSelect={onUse}
                 browseType={BrowseType.Embedded}
                 onSelectRestriction={res => {
-                    if (res.status.boundTo.length === 0) return true;
-                    const provider = getProviderField();
-                    const publicIPProvider = res.specification.product.provider;
-                    return checkProviderMismatch(res, "Public IPs");
+                    const errorMessage = checkProviderMismatch(res, "Public IPs");
+                    if (errorMessage) return errorMessage;
+                    return res.status.boundTo.length === 0;
                 }}
             />
         </ReactModal>
