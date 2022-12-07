@@ -10,6 +10,7 @@ sealed class DBContext {
         abstract suspend fun close()
         abstract suspend fun openTransaction()
         abstract suspend fun commit()
+        abstract suspend fun isReady(): Boolean
         open suspend fun rollback() {}
         @Suppress("EmptyFunctionBlock")
         open fun flush() {}

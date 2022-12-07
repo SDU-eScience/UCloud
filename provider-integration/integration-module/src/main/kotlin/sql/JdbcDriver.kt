@@ -1,7 +1,5 @@
 package dk.sdu.cloud.sql
 
-import dk.sdu.cloud.DB_CONNECTION_POOL_SIZE
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.debug.DebugContext
 import dk.sdu.cloud.debug.DebugMessage
 import dk.sdu.cloud.debug.MessageImportance
@@ -15,12 +13,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.*
-import org.sqlite.SQLiteConfig
-import org.sqlite.SQLiteException
-import org.sqlite.SQLiteOpenMode
 import java.sql.Connection as JavaSqlConnection
 import java.sql.PreparedStatement as JavaSqlPreparedStatement
-import java.sql.DriverManager
 import java.sql.ResultSet
 import java.sql.SQLException
 
@@ -50,28 +44,19 @@ class SimpleConnectionPool(val size: Int, private val constructor: (pool: Simple
 
         if (firstFree == -1) error("Could not find a free connection")
 
-        return connections[firstFree].also {
+        var connection = connections[firstFree]
+        if (!connection.isReady()) {
+            connections[firstFree] = constructor(this).also { it._connectionTicket = firstFree }
+            connection = connections[firstFree]
+        }
+
+        return connection.also {
             it.debugContext = DebugContext.create()
         }
     }
 
     suspend fun recycle(instance: JdbcConnection) {
         isFree[instance._connectionTicket] = true
-    }
-}
-
-class SqliteJdbcDriver(private val file: String) : JdbcDriver() {
-    override val pool: SimpleConnectionPool = SimpleConnectionPool(DB_CONNECTION_POOL_SIZE) { pool ->
-        JdbcConnection(
-            DriverManager.getConnection("jdbc:sqlite:$file", SQLiteConfig().apply {
-                setJournalMode(SQLiteConfig.JournalMode.WAL)
-                setOpenMode(SQLiteOpenMode.FULLMUTEX)
-                setOpenMode(SQLiteOpenMode.READWRITE)
-                setOpenMode(SQLiteOpenMode.CREATE)
-                setOpenMode(SQLiteOpenMode.OPEN_URI)
-            }.toProperties()),
-            pool
-        )
     }
 }
 
@@ -97,6 +82,10 @@ class JdbcConnection(
 
     init {
         connection.autoCommit = false
+    }
+
+    override suspend fun isReady(): Boolean {
+        return !connection.isClosed
     }
 
     override suspend fun close() {
@@ -168,7 +157,7 @@ class JdbcPreparedStatement(
 
         try {
             statement = conn.prepareStatement(preparedStatement)
-        } catch (ex: SQLiteException) {
+        } catch (ex: Throwable) {
             throw IllegalArgumentException(buildString {
                 appendLine("Unable to prepare statement.")
                 appendLine("Raw statement:")
@@ -179,7 +168,7 @@ class JdbcPreparedStatement(
                 appendLine()
                 appendLine("Reason: ")
                 appendLine((ex.message ?: "None").prependIndent("    "))
-            })
+            }, ex)
         }
     }
 

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.integration.backend.compute
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
@@ -8,14 +9,20 @@ import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.file.orchestrator.api.FileCollection
+import dk.sdu.cloud.file.orchestrator.api.Files
+import dk.sdu.cloud.file.orchestrator.api.FilesCreateFolderRequestItem
+import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.integration.IntegrationTest
-import dk.sdu.cloud.integration.utils.ApplicationTestData
+import dk.sdu.cloud.integration.assertThatInstance
+import dk.sdu.cloud.integration.backend.ResourceUsageTestContext
+import dk.sdu.cloud.integration.backend.initializeResourceTestContext
+import dk.sdu.cloud.integration.rpcClient
+import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.service.Time
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
+import kotlinx.coroutines.selects.select
 
 fun Product.toReference(): ProductReference = ProductReference(name, category.name, category.provider)
 
@@ -106,45 +113,38 @@ class ComputeTest : IntegrationTest() {
             emptyList()
         }
     ): TestContext {
-        case.initialization()
         ApplicationTestData.create()
         with(initializeResourceTestContext(case.products, emptyList())) {
-            val rpcClient = adminClient.withProject(project)
-            val (collection) = initializeCollection(project, rpcClient, case.storage)
+            val rpcClient = piClient.withProject(project)
+            val initializedCollection = initializeCollection(project, rpcClient, product.category.provider)
+                ?: error("Unable to initialize drive")
 
-            val resources = resourceInitialization(collection)
+            val resources = resourceInitialization(initializedCollection.collection)
 
             val (id, lastKnownState) = startJob(parameters.copy(resources = resources), product, rpcClient)
 
-            return TestContext(this, collection, id, rpcClient, lastKnownState)
+            return TestContext(this, initializedCollection.collection, id, rpcClient, lastKnownState)
         }
     }
 
     data class TestCase(
         val title: String,
-        val initialization: suspend () -> Unit,
         val products: List<Product>,
-        val storage: Product.Storage,
-        val ingress: Product.Ingress?,
     )
 
     override fun defineTests() {
-        val cases: List<TestCase> = listOfNotNull(
-            runBlocking {
-                UCloudProvider.globalInitialize(micro)
-                if (UCloudProvider.runComputeTests) {
-                    TestCase(
-                        "UCloud/Compute",
-                        { UCloudProvider.testInitialize(serviceClient) },
-                        UCloudProvider.products,
-                        UCloudProvider.storageProduct,
-                        UCloudProvider.ingress
-                    )
-                } else {
-                    null
-                }
+        testFilter = { a, b -> a.contains("k8") || a.contains("kubernetes") }
+        val cases: List<TestCase> = runBlocking {
+            val allProducts = findProducts(findProviderIds())
+            val productsByProviders = allProducts.groupBy { it.category.provider }
+
+            productsByProviders.map { (provider, products) ->
+                TestCase(
+                    provider,
+                    products
+                )
             }
-        )
+        }
 
         for (case in cases) {
             for (product in case.products.filterIsInstance<Product.Compute>()) {
@@ -221,7 +221,7 @@ class ComputeTest : IntegrationTest() {
                         }
 
                         val wsClient = AuthenticatedClient(
-                            micro.client,
+                            rpcClient,
                             OutgoingWSCall,
                             ctx.rpcClient.afterHook,
                             ctx.rpcClient.authenticator
@@ -291,7 +291,7 @@ class ComputeTest : IntegrationTest() {
                                     bulkRequestOf(
                                         FilesCreateFolderRequestItem(inputFolder, WriteConflictPolicy.REJECT)
                                     ),
-                                    adminClient.withProject(project)
+                                    piClient.withProject(project)
                                 )
 
                                 listOf(AppParameterValue.File(inputFolder))
@@ -310,16 +310,6 @@ class ComputeTest : IntegrationTest() {
                     case("No input") {
                         input(Unit)
                         check {}
-                    }
-                }
-
-                if (case.ingress != null) {
-                    test<Unit, Unit>("$titlePrefix Batch application with ingress") {
-                        execute { }
-                        case("No input") {
-                            input(Unit)
-                            check {}
-                        }
                     }
                 }
 

@@ -7,11 +7,8 @@ import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.api.OutgoingShareGroup
 import dk.sdu.cloud.prettyMapper
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.encodeToString
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
 import java.util.concurrent.atomic.AtomicBoolean
@@ -37,6 +34,7 @@ data class UCloudTestCase<In, Out>(
 lateinit var rpcClient: RpcClient
 lateinit var serviceClient: AuthenticatedClient
 lateinit var serviceClientWs: AuthenticatedClient
+const val adminUsername = "admin@dev"
 lateinit var adminClient: AuthenticatedClient
 lateinit var adminClientWs: AuthenticatedClient
 
@@ -88,6 +86,7 @@ abstract class UCloudTest {
                         callDescription: CallDescription<*, *, *>,
                         request: Any?
                     ) {
+                        @Suppress("UNCHECKED_CAST")
                         callDescription as CallDescription<Any, Any, Any>
                         val allocatedId = callId.getAndIncrement()
                         context.attributes[debugKey] = allocatedId
@@ -123,6 +122,7 @@ abstract class UCloudTest {
                         response: IngoingCallResponse<*, *>,
                         responseTimeMs: Long
                     ) {
+                        @Suppress("UNCHECKED_CAST")
                         callDescription as CallDescription<Any, Any, Any>
 
                         val allocatedId = context.attributes[debugKey]
@@ -260,12 +260,6 @@ class UCloudTestSuiteBuilder<In, Out>(val title: String) {
         }
     }
 
-    fun cleanup(fn: suspend InputContext<In>.() -> Unit) {
-        cleanup = {
-            InputContext(it, testIds.get()).fn()
-        }
-    }
-
     fun case(subtitle: String, builder: UCloudTestCaseBuilder<In, Out>.() -> Unit) {
         cases.add(UCloudTestCaseBuilder<In, Out>(title, subtitle).also(builder).build())
     }
@@ -309,6 +303,7 @@ data class UCloudTestCaseBuilder<In, Out>(private val parentTitle: String, val s
         }
     }
 
+    @Suppress("unused")
     fun expectStatusCode(statusCode: HttpStatusCode) {
         expectFailure {
             assertThatInstance(exception, "should have status code $statusCode") {
@@ -323,7 +318,7 @@ data class UCloudTestCaseBuilder<In, Out>(private val parentTitle: String, val s
         }
     }
 
-    fun check(message: String? = null, fn: suspend OutputContext<In, Out>.() -> Unit) {
+    fun check(fn: suspend OutputContext<In, Out>.() -> Unit) {
         checks.add { out, throwable ->
             if (throwable != null) {
                 throw throwable

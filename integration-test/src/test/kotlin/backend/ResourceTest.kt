@@ -3,7 +3,6 @@ package dk.sdu.cloud.integration.backend
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
@@ -13,7 +12,9 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.integration.IntegrationTest
-import dk.sdu.cloud.integration.utils.createUser
+import dk.sdu.cloud.integration.UCloudTestSuiteBuilder
+import dk.sdu.cloud.integration.assertThatInstance
+import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.provider.api.*
 
@@ -28,7 +29,7 @@ data class GroupAndPermission(val groupName: String, val permissions: List<Permi
 data class PartialAclUpdate(val added: List<GroupAndPermission>, val removed: List<String>)
 
 class ResourceUsageTestInput<Prod : Product, Supp : ProductSupport, Resc : Resource<Prod, Supp>, Spec : ResourceSpecification>(
-    val specs: List<Spec>,
+    val specs: suspend ResourceUsageTestContext.() -> List<Spec>,
     val groups: List<String> = emptyList(),
     val aclUpdates: List<PartialAclUpdate> = emptyList(),
     val delete: List<Boolean> = emptyList(),
@@ -36,28 +37,23 @@ class ResourceUsageTestInput<Prod : Product, Supp : ProductSupport, Resc : Resou
 )
 
 class ResourceUsageTestOutput<Prod : Product, Supp : ProductSupport, Resc : Resource<Prod, Supp>, Spec : ResourceSpecification>(
-    val page: PageV2<Resc>?
+    @Suppress("unused") val page: PageV2<Resc>?
 )
 
 open class ResourceUsageTestContext(
     val project: String,
-    val projectTitle: String,
 
     val piClient: AuthenticatedClient,
     val piUsername: String,
-    val piPassword: String,
 
     val adminClient: AuthenticatedClient,
     val adminUsername: String,
-    val adminPassword: String,
 
     val memberClient: AuthenticatedClient,
     val memberUsername: String,
-    val memberPassword: String,
 
     val otherUserClient: AuthenticatedClient,
     val otherUserUsername: String,
-    val otherUserPassword: String,
 
     val groupNamesToId: Map<String, String>
 ) {
@@ -70,6 +66,7 @@ open class ResourceUsageTestContext(
         }
     }
 
+    @Suppress("unused")
     fun username(type: UserType): String {
         return when (type) {
             UserType.PI -> piUsername
@@ -84,36 +81,28 @@ suspend fun initializeResourceTestContext(
     products: List<Product>,
     groups: List<String>,
 ): ResourceUsageTestContext {
-    val (piClient, piUsername, piPassword) = createUser()
-    val (adminClient, adminUsername, adminPassword) = createUser()
-    val (memberClient, memberUsername, memberPassword) = createUser()
-    val (otherUserClient, otherUserUsername, otherUserPassword) = createUser()
+    val (adminClient, adminUsername) = createUser()
+    val (memberClient, memberUsername) = createUser()
+    val (otherUserClient, otherUserUsername) = createUser()
 
-    val (project, title) = initializeRootProjectWithTitle(piUsername, initializeWallet = false)
-    initializeWallets(
-        WalletOwner.Project(project),
-        products = products
-    )
-    addMemberToProject(project, piClient, adminClient, adminUsername)
+    val providers = products.map { it.category.provider }.toSet()
+
+    val root = initializeRootProject(providers)
+    val ourProject = initializeNormalProject(root)
+    val (piClient, piUsername, project) = ourProject
+    addMemberToProject(project, piClient, adminClient, adminUsername, ProjectRole.ADMIN)
     addMemberToProject(project, piClient, memberClient, memberUsername)
-    Projects.changeUserRole.call(
-        ChangeUserRoleRequest(project, adminUsername, ProjectRole.ADMIN),
-        piClient
-    ).orThrow()
 
     val groupNamesToId = groups.associateWith { groupName ->
-        ProjectGroups.create.call(
-            CreateGroupRequest(groupName),
-            piClient.withProject(project)
-        ).orThrow().id
+        createGroup(ourProject, groupName = groupName).groupId
     }
 
     return ResourceUsageTestContext(
-        project, title,
-        piClient, piUsername, piPassword,
-        adminClient, adminUsername, adminPassword,
-        memberClient, memberUsername, memberPassword,
-        otherUserClient, otherUserUsername, otherUserPassword,
+        project,
+        piClient, piUsername,
+        adminClient, adminUsername,
+        memberClient, memberUsername,
+        otherUserClient, otherUserUsername,
         groupNamesToId
     )
 }
@@ -143,9 +132,11 @@ fun <Prod : Product, Supp : ProductSupport, Resc : Resource<Prod, Supp>, Spec : 
                         UserType.SOME_OTHER_USER -> otherUserClient
                     }
 
+                    val specs = input.specs(context)
+
                     if (createResource == null) {
                         val response = api.create!!.call(
-                            BulkRequest(input.specs),
+                            BulkRequest(specs),
                             clientForRpc.withProject(project)
                         )
 
@@ -173,7 +164,7 @@ fun <Prod : Product, Supp : ProductSupport, Resc : Resource<Prod, Supp>, Spec : 
                         assertThatInstance(page, "should contain the resources") {
                             if (page == null) return@assertThatInstance false
 
-                            input.specs.all { createdSpec ->
+                            specs.all { createdSpec ->
                                 page.items.any { returned -> returned.specification == createdSpec }
                             }
                         }
@@ -182,7 +173,7 @@ fun <Prod : Product, Supp : ProductSupport, Resc : Resource<Prod, Supp>, Spec : 
                     }
 
                     if (page != null && page.items.isNotEmpty()) {
-                        val resources = input.specs.map { spec ->
+                        val resources = specs.map { spec ->
                             page.items.find { it.specification == spec }!!
                         }
 

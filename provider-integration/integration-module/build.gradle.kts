@@ -51,7 +51,6 @@ dependencies {
 
     implementation("ch.qos.logback:logback-classic:1.4.1")
     implementation("com.auth0:java-jwt:4.0.0")
-    implementation("org.xerial:sqlite-jdbc:3.36.0.3")
     implementation("com.charleskorn.kaml:kaml:0.47.0")
 
     implementation(project(":embedded-postgres"))
