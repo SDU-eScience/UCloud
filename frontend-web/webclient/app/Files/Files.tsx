@@ -40,7 +40,7 @@ import {ProviderLogo} from "@/Providers/ProviderLogo";
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
     additionalFilters?: UFileIncludeFlags;
-    onSelectRestriction?: (res: UFile) => boolean;
+    onSelectRestriction?: (res: UFile) => boolean | string;
     isSearch?: boolean;
     browseType?: BrowseType;
     pathRef?: React.MutableRefObject<string>;

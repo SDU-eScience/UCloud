@@ -102,7 +102,7 @@ export interface BaseResourceBrowseProps<Res extends Resource> {
     isSearch?: boolean;
 
     onSelect?: (resource: Res) => void;
-    onSelectRestriction?: (resource: Res) => boolean;
+    onSelectRestriction?: (resource: Res) => boolean | string;
 }
 
 function getStoredSortDirection(title: string): "ascending" | "descending" | null {

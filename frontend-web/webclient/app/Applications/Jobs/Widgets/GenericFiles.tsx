@@ -9,11 +9,13 @@ import AppParameterValueNS = compute.AppParameterValueNS;
 import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {FilesBrowse} from "@/Files/Files";
-import {api as FilesApi} from "@/UCloud/FilesApi";
+import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
 import {prettyFilePath} from "@/Files/FilePath";
 import {BrowseType} from "@/Resource/BrowseType";
 import {FolderResourceNS} from "../Resources";
 import {getProviderField} from "../Resources/Ingress";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {Resource} from "@/UCloud/ResourceApi";
 
 type GenericFileParam =
     UCloud.compute.ApplicationParameterNS.InputFile |
@@ -56,14 +58,20 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             <FilesBrowse
                 browseType={BrowseType.Embedded}
                 pathRef={pathRef}
-                additionalFilters={provider ? {
-                    filterProvider: provider
-                } : undefined}
-                onSelectRestriction={file =>
-                    (isDirectoryInput && file.status.type === "DIRECTORY") ||
-                    (!isDirectoryInput && file.status.type === "FILE")
-                }
-                onSelect={async (res) => {
+                onSelectRestriction={file => {
+                    const fileProvider = file.specification.product.provider;
+                    const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
+                    const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
+                    if (provider && provider !== fileProvider) {
+                        if (isCorrectlyDir) {
+                            return providerErrorMessage(file, provider);
+                        } else if (isCorrectlyFile) {
+                            return providerErrorMessage(file, provider);
+                        }
+                    }
+                    return isCorrectlyDir || isCorrectlyFile;
+                }}
+                onSelect={async res => {
                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
                     if (props.errors[props.parameter.name]) {
                         delete props.errors[props.parameter.name];
@@ -111,6 +119,20 @@ export const FilesValidator: WidgetValidator = (param) => {
 
     return {valid: true};
 };
+
+function providerErrorMessage(file: UFile, provider: string): string {
+    let typeText = "";
+    switch (file.status.type) {
+        case "DIRECTORY": {
+            typeText = "Folders"
+        } break;
+        case "FILE": {
+            typeText = "Files";
+        } break;
+    } 
+    const fileProvider = file.specification.product.provider;
+    return `${typeText} from ${getProviderTitle(fileProvider)} cannot be used with machines from ${getProviderTitle(provider)}`;
+}
 
 export const FilesSetter: WidgetSetter = (param, value) => {
     if (param.type !== "input_directory" && param.type !== "input_file") return;
