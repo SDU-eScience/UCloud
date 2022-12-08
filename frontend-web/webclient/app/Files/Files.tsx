@@ -324,7 +324,7 @@ export const FilesBrowse: React.FunctionComponent<{
         }
 
         return <Box backgroundColor={getCssVar("white")}>
-            {browseType !== BrowseType.Embedded ? (console.log("not embedded"), null) : <Flex>
+            {browseType !== BrowseType.Embedded ? null : <Flex>
                 <DriveDropdown iconName="projects">
                     <ListV2
                         loading={projects.loading}
