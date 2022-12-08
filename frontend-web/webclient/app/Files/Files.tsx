@@ -34,7 +34,7 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {setLoading} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
-import ProjectAPI, {Project, projectRoleToString} from "@/Project/Api";
+import ProjectAPI, {Project} from "@/Project/Api";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 
 export const FilesBrowse: React.FunctionComponent<{
@@ -151,6 +151,12 @@ export const FilesBrowse: React.FunctionComponent<{
             return newConf;
         });
     }, []);
+    
+    React.useEffect(() => {
+        if (drives.items.length > 0) {
+            setActiveProviderId(drives.items[0].specification.product.provider);
+        }
+    }, [drives.items]);
 
     const selectLocalProject = useCallback(async (projectOverride: string) => {
         const result = await invokeCommand<PageV2<FileCollection>>({
@@ -180,6 +186,18 @@ export const FilesBrowse: React.FunctionComponent<{
             conflictPolicy: "RENAME"
         }));
     }, [path]);
+
+    const onSelectRestriction = useCallback((file: UFile): string | boolean => {
+        if (props.onSelectRestriction) {
+            return props.onSelectRestriction(file);
+        }
+        const provider = activeProviderId;
+        const resourceProvider = file.specification.product.provider;
+        if (provider && provider !== resourceProvider) {
+            return `Files from ${resourceProvider} cannot be used with files from ${provider}`;
+        }
+        return true;
+    }, [props.onSelectRestriction, activeProviderId]);
 
     const callbacks = useMemo(() => ({
         collection: collection?.data ?? undefined,
@@ -218,7 +236,6 @@ export const FilesBrowse: React.FunctionComponent<{
         if (browseType !== BrowseType.MainContent) {
             if (path === "" && drives.items.length > 0) {
                 setPathFromState("/" + drives.items[0].id);
-                setActiveProviderId(drives.items[0].specification.product.provider);
             }
         }
     }, [browseType, path, drives.items]);
@@ -407,14 +424,14 @@ export const FilesBrowse: React.FunctionComponent<{
                 </BreadCrumbsBase>
             </Flex>
         </Box>;
-    }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject, props.isSearch]);
+    }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject, props.isSearch, activeProviderId]);
 
     const hasSyncCookie = true;
 
     return <ResourceBrowse
         api={FilesApi}
         onSelect={props.onSelect}
-        onSelectRestriction={props.onSelectRestriction}
+        onSelectRestriction={onSelectRestriction}
         browseType={browseType}
         inlineProduct={collection.data?.status.resolvedSupport?.product}
         onInlineCreation={onInlineCreation}

@@ -544,6 +544,10 @@ export function checkProviderMismatch(resource: Resource, resourceType: string):
 
 export function providerMismatchError(resourceProvider: string, resourceType: string): string {
     const selectedProvider = getProviderField() ?? "";
+    return providerError(resourceType, resourceProvider, selectedProvider);
+}
+
+function providerError(resourceType: string, resourceProvider: string, selectedProvider: string) {
     return `${resourceType} from ${getProviderTitle(resourceProvider)} cannot be used with machines from ${getProviderTitle(selectedProvider)}`;
 }
 
