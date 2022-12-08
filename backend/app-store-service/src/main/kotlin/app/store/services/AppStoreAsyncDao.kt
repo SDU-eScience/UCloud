@@ -193,10 +193,10 @@ class AppStoreAsyncDao(
         val cacheKey = NameAndVersion(appName, appVersion)
         val (cached, expiry) = byNameAndVersionCache[cacheKey] ?: Pair(null, 0L)
         if (cached != null && expiry > Time.now()) {
-            val hasPermission = ctx.withSession { session ->
+            val hasPermission = user == null || ctx.withSession { session ->
                     internalHasPermission(
                         session,
-                        user!!,
+                        user,
                         currentProject,
                         projectGroups,
                         cached.metadata.name,
@@ -214,10 +214,10 @@ class AppStoreAsyncDao(
         val result = ctx.withSession { session -> internalByNameAndVersion(session, appName, appVersion)}
             ?.toApplicationWithInvocation() ?: throw ApplicationException.NotFound()
 
-        val hasPermission = ctx.withSession { session ->
+        val hasPermission = user == null || ctx.withSession { session ->
                 internalHasPermission(
                     session,
-                    user!!,
+                    user,
                     currentProject,
                     projectGroups,
                     result.metadata.name,
