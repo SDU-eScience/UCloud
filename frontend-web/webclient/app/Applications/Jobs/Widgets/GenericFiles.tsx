@@ -119,20 +119,6 @@ export const FilesValidator: WidgetValidator = (param) => {
     return {valid: true};
 };
 
-function providerErrorMessage(file: UFile, provider: string): string {
-    let typeText = "";
-    switch (file.status.type) {
-        case "DIRECTORY": {
-            typeText = "Folders"
-        } break;
-        case "FILE": {
-            typeText = "Files";
-        } break;
-    } 
-    const fileProvider = file.specification.product.provider;
-    return `${typeText} from ${getProviderTitle(fileProvider)} cannot be used with machines from ${getProviderTitle(provider)}`;
-}
-
 export const FilesSetter: WidgetSetter = (param, value) => {
     if (param.type !== "input_directory" && param.type !== "input_file") return;
     const file = value as AppParameterValueNS.File;
