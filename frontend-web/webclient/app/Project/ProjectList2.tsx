@@ -81,6 +81,10 @@ export const ProjectList2: React.FunctionComponent = () => {
     }, []);
 
     const pageRenderer = useCallback<PageRenderer<Project>>((items) => {
+        if (items.length === 0) {
+            return <Heading.h4>You are not a member of any project.</Heading.h4>;
+        }
+
         const itemToComponent = (it: Project) =>
             it["frontendHide"] == true ? null :
                 <ItemRow
