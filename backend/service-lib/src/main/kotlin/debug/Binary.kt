@@ -15,10 +15,8 @@ import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import java.nio.file.Files
 import java.nio.file.StandardOpenOption
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
@@ -328,9 +326,11 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
 val oomCount = AtomicInteger(0)
 
 class BinaryFrameReader(val file: File) {
-    private val raf = RandomAccessFile(file, "r")
-    private val fc = raf.channel
-    private val buf = fc.map(FileChannel.MapMode.READ_ONLY, 0, fc.size())
+    private val logChannel = RandomAccessFile(file, "r").channel
+    private val buf = logChannel.map(FileChannel.MapMode.READ_ONLY, 0, logChannel.size())
+
+    private val blobChannel = RandomAccessFile(file.absolutePath.replace(".log.bin", ".blob"), "r").channel
+    private val blobBuf = blobChannel.map(FileChannel.MapMode.READ_ONLY, 0, blobChannel.size())
 
     fun retrieve(idx: Int): BinaryDebugMessage<*>? {
         val offset = idx * FRAME_SIZE
@@ -349,14 +349,37 @@ class BinaryFrameReader(val file: File) {
             else -> null
         }
     }
+
+    fun decodeText(largeText: LargeText): String {
+        val decoded = largeText.value.decodeToString()
+        if (decoded.startsWith(LargeText.OVERFLOW_PREFIX)) {
+            val suffix = decoded.substringAfter(LargeText.OVERFLOW_PREFIX)
+            val pos = suffix.toIntOrNull() ?: return "INVALID BLOB DETECTED"
+            val size = blobBuf.getInt(pos)
+            val buffer = ByteArray(size)
+            blobBuf.get(pos + 4, buffer)
+            return buffer.decodeToString()
+        } else {
+            return decoded
+        }
+    }
+
+    fun close() {
+        logChannel.close()
+    }
 }
 
 const val FRAME_SIZE = 256
 const val LOG_FILE_SIZE = 1024 * 1024 * 16L
 
-class BinaryFrameAllocator(file: File) {
-    private val randomAccess = RandomAccessFile(file, "rw")
-    private val channel = randomAccess.channel
+class BinaryFrameAllocator(val file: File) {
+    private val channel = FileChannel.open(
+        file.toPath(),
+        StandardOpenOption.CREATE,
+        StandardOpenOption.READ,
+        StandardOpenOption.WRITE,
+        StandardOpenOption.SPARSE
+    )
 
     @PublishedApi
     internal val buf = channel.map(FileChannel.MapMode.READ_WRITE, 0, LOG_FILE_SIZE)
@@ -388,7 +411,6 @@ class BinaryFrameAllocator(file: File) {
 
     fun close() {
         runCatching { channel.close() }
-        runCatching { randomAccess.close() }
     }
 
     val clientRequest = BinaryDebugMessage.ClientRequest(ByteBuffer.allocate(0))
@@ -425,8 +447,10 @@ class BinaryDebugSystem(
     private val bufferCount = Runtime.getRuntime().availableProcessors()
     private val locks = Array(bufferCount) { Mutex() }
     private val buffers = Array(bufferCount) { BinaryFrameAllocator(logFile()) }
+    private val blobs = Array(bufferCount) {
+        BlobSystem(File(buffers[it].file.absolutePath.replace(".log.bin", ".blob")))
+    }
     private val closeSignal = Channel<Int>(bufferCount, BufferOverflow.SUSPEND)
-    private lateinit var blobStorage: BlobSystem
 
     private suspend fun lock(): Int {
         for (attempt in 0 until 5) {
@@ -441,24 +465,24 @@ class BinaryDebugSystem(
 
     private fun logFile() = File(directory, "$id-${fileIdAcc.incrementAndGet()}.log.bin")
 
-    suspend fun text(text: String, field: BinaryFrameField.Text): LargeText {
+    fun text(idx: Int, text: String, field: BinaryFrameField.Text): LargeText {
         val encoded = text.encodeToByteArray()
         return if (encoded.size >= field.maxSize) {
-            val id = blobStorage.storeBlob(encoded)
-            LargeText("\$\$\$overflow-$id".encodeToByteArray())
+            val id = blobs[idx].storeBlob(encoded)
+            LargeText((LargeText.OVERFLOW_PREFIX + id).encodeToByteArray())
         } else {
             return LargeText(encoded)
         }
     }
 
-    suspend fun emit(fn: suspend BinaryFrameAllocator.() -> Boolean) {
+    suspend fun emit(fn: suspend BinaryFrameAllocator.(idx: Int) -> Boolean) {
         while (coroutineContext.isActive) {
             val idx = lock()
             val lock = locks[idx]
             var requestFlush = false
             try {
                 val buffer = buffers[idx]
-                if (fn(buffer)) break
+                if (fn(buffer, idx)) break
                 requestFlush = buffer.isFull()
             } finally {
                 lock.unlock()
@@ -468,17 +492,18 @@ class BinaryDebugSystem(
     }
 
     fun start(scope: CoroutineScope): Job {
-        blobStorage = BlobSystem(scope)
-        blobStorage.start()
-
         return scope.launch(Dispatchers.IO) {
             try {
                 while (isActive) {
                     select {
                         closeSignal.onReceive {
                             locks[it].withLock {
+                                blobs[it].close()
                                 buffers[it].close()
-                                buffers[it] = BinaryFrameAllocator(logFile())
+
+                                val file = logFile()
+                                buffers[it] = BinaryFrameAllocator(file)
+                                blobs[it] = BlobSystem(File(file.absolutePath.replace(".log.bin", ".blob")))
                             }
                         }
 
@@ -499,7 +524,7 @@ class BinaryDebugSystem(
                 }
             } finally {
                 runCatching { buffers.forEach { it.close() } }
-                runCatching { blobStorage.close() }
+                runCatching { blobs.forEach { it.close() } }
             }
         }
     }
@@ -542,8 +567,8 @@ suspend fun BinaryDebugSystem.clientRequest(
         message.importance = importance
         message.id = BinaryDebugSystem.id()
 
-        message.call = text(call ?: "", BinaryDebugMessage.ClientRequest.call)
-        message.payload = text(payloadEncoded, BinaryDebugMessage.ClientRequest.payload)
+        message.call = text(it, call ?: "", BinaryDebugMessage.ClientRequest.call)
+        message.payload = text(it, payloadEncoded, BinaryDebugMessage.ClientRequest.payload)
         true
     }
 }
@@ -569,8 +594,8 @@ suspend fun BinaryDebugSystem.clientResponse(
         message.importance = importance
         message.id = BinaryDebugSystem.id()
 
-        message.call = text(call ?: "", BinaryDebugMessage.ClientResponse.call)
-        message.response = text(responseEncoded, BinaryDebugMessage.ClientResponse.response)
+        message.call = text(it, call ?: "", BinaryDebugMessage.ClientResponse.call)
+        message.response = text(it, responseEncoded, BinaryDebugMessage.ClientResponse.response)
         message.responseCode = responseCode.value.toByte()
         message.responseTime = responseTime.toInt()
         true
@@ -595,8 +620,8 @@ suspend fun BinaryDebugSystem.serverRequest(
         message.importance = importance
         message.id = BinaryDebugSystem.id()
 
-        message.call = text(call ?: "", BinaryDebugMessage.ServerRequest.call)
-        message.payload = text(payloadEncoded, BinaryDebugMessage.ServerRequest.payload)
+        message.call = text(it, call ?: "", BinaryDebugMessage.ServerRequest.call)
+        message.payload = text(it, payloadEncoded, BinaryDebugMessage.ServerRequest.payload)
         true
     }
 }
@@ -622,8 +647,8 @@ suspend fun BinaryDebugSystem.serverResponse(
         message.importance = importance
         message.id = BinaryDebugSystem.id()
 
-        message.call = text(call ?: "", BinaryDebugMessage.ServerResponse.call)
-        message.response = text(responseEncoded, BinaryDebugMessage.ServerResponse.response)
+        message.call = text(it, call ?: "", BinaryDebugMessage.ServerResponse.call)
+        message.response = text(it, responseEncoded, BinaryDebugMessage.ServerResponse.response)
         message.responseCode = responseCode.value.toByte()
         message.responseTime = responseTime.toInt()
         true
@@ -691,8 +716,8 @@ suspend fun BinaryDebugSystem.databaseQuery(
         message.importance = importance
         message.id = BinaryDebugSystem.id()
 
-        message.parameters = text(parametersEncoded, BinaryDebugMessage.DatabaseQuery.parameters)
-        message.query = text(query, BinaryDebugMessage.DatabaseQuery.query)
+        message.parameters = text(it, parametersEncoded, BinaryDebugMessage.DatabaseQuery.parameters)
+        message.query = text(it, query, BinaryDebugMessage.DatabaseQuery.query)
         true
     }
 }
@@ -736,51 +761,34 @@ suspend fun BinaryDebugSystem.log(
         message.importance = importance
         message.id = BinaryDebugSystem.id()
 
-        message.message = text(log, BinaryDebugMessage.Log.message)
-        message.extra = text(extraEncoded, BinaryDebugMessage.Log.extra)
+        message.message = text(it, log, BinaryDebugMessage.Log.message)
+        message.extra = text(it, extraEncoded, BinaryDebugMessage.Log.extra)
         true
     }
 }
 
-class BlobSystem(private val scope: CoroutineScope) {
-    private val mutex = Mutex()
-    private val channel = Files.newByteChannel(
-        File("/tmp/blob-${BinaryDebugSystem.generation}").toPath(),
+class BlobSystem(private val file: File) {
+    private val channel = FileChannel.open(
+        file.toPath(),
+        StandardOpenOption.READ,
         StandardOpenOption.WRITE,
-        StandardOpenOption.CREATE
+        StandardOpenOption.CREATE,
+        StandardOpenOption.SPARSE,
     )
+    private val buf = channel.map(FileChannel.MapMode.READ_WRITE, 0, 1024 * 1024 * 512)
 
-    private data class WriteCommand(val position: Long, val data: ByteArray)
-    private val writeChannel = Channel<WriteCommand>(32)
-    private val position = AtomicLong(0)
+    fun storeBlob(blob: ByteArray): String {
+        if (buf.position() + blob.size + 4 > buf.capacity()) return "invalid"
 
-    suspend fun storeBlob(blob: ByteArray): String {
-        while (true) {
-            val pos = position.get()
-            if (!position.compareAndSet(pos, pos + blob.size)) continue
-
-            writeChannel.send(WriteCommand(pos, blob))
-            return pos.toString()
-        }
+        val pos = buf.position()
+        buf.putInt(blob.size)
+        buf.put(blob)
+        return pos.toString()
     }
 
-    fun start() {
-        scope.launch(Dispatchers.IO) {
-            while (isActive) {
-                val command = writeChannel.receive()
-                channel.position(command.position)
-
-                channel.write(ByteBuffer.allocate(4).putInt(command.data.size).flip())
-                val buffer = ByteBuffer.wrap(command.data)
-                while (buffer.hasRemaining()) {
-                    channel.write(buffer)
-                }
-            }
-        }
-    }
-
-    suspend fun close() {
-        mutex.withLock { channel.close() }
+    fun close() {
+        channel.truncate(buf.position().toLong())
+        channel.close()
     }
 }
 
@@ -792,8 +800,15 @@ fun main() {
         var idx = 0
         while (true) {
             val message = reader.retrieve(idx++) ?: break
-            println(message)
+            when (message) {
+                is BinaryDebugMessage.Log -> {
+                    println(reader.decodeText(message.message))
+                }
+
+                else -> {}
+            }
         }
+        println(idx)
 
         exitProcess(0)
     }
@@ -817,7 +832,7 @@ fun main() {
             val long = CharArray(1024) { 'b' }.concatToString()
             (0 until 8).map {
                 GlobalScope.launch {
-                    repeat(10_000) {
+                    repeat(100_000) {
                         debug.log(MessageImportance.THIS_IS_NORMAL, "$long $it")
                     }
                 }
@@ -857,5 +872,8 @@ fun main() {
 
 @JvmInline
 value class LargeText internal constructor(val value: ByteArray) {
+    companion object {
+        const val OVERFLOW_PREFIX = "\$\$\$overflow-"
+    }
     override fun toString(): String = value.decodeToString()
 }
