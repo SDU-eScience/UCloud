@@ -16,9 +16,9 @@ import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.Files
-import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
@@ -39,7 +39,7 @@ abstract class BinaryFrameSchema(parent: BinaryFrameSchema? = null) {
     protected fun float8() = BinaryFrameField.Float8(size).also { size += 8 }
     protected fun bool() = BinaryFrameField.Bool(size).also { size += 1 }
     protected fun bytes(size: Short) = BinaryFrameField.Bytes(this.size, size).also { this.size += size.toInt() + 2 }
-    protected fun text() = BinaryFrameField.Text(this.size).also { this.size += LargeText.SIZE }
+    protected fun text(maxSize: Int = 128) = BinaryFrameField.Text(this.size, maxSize).also { this.size += maxSize }
     protected inline fun <reified E : Enum<E>> enum() = BinaryFrameField.Enumeration(this.size, enumValues<E>())
         .also { this.size += 1 }
 }
@@ -48,7 +48,7 @@ abstract class BinaryFrame(val buf: ByteBuffer, val offset: Int = 0, val type: B
     abstract val schema: BinaryFrameSchema
 
     init {
-        if (buf.capacity() != 0 && type != (-1).toByte()) buf.put(offset, type)
+        if (!buf.isReadOnly && buf.capacity() != 0 && type != (-1).toByte()) buf.put(offset, type)
     }
 }
 
@@ -138,8 +138,8 @@ sealed class BinaryFrameField(val offset: Int) {
         }
     }
 
-    class Text(offset: Int) : BinaryFrameField(offset) {
-        private val delegate = Bytes(offset, LargeText.SIZE.toShort())
+    class Text(offset: Int, val maxSize: Int = 128) : BinaryFrameField(offset) {
+        private val delegate = Bytes(offset, (maxSize - 2).toShort())
 
         operator fun getValue(thisRef: BinaryFrame, property: KProperty<*>): LargeText {
             return LargeText(delegate.getValue(thisRef, property))
@@ -178,17 +178,21 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
     private var rsv2 by Schema.rsv2
     private var rsv3 by Schema.rsv3
 
-    companion object Schema : BinaryFrameSchema() {
-        private val ctxGeneration = int8()
-        private val ctxParent = int4()
-        private val ctxId = int4()
-        private val timestamp = int8()
-        private val importance = enum<MessageImportance>()
-        private val id = int4()
+    override fun toString(): String {
+        return "(ctxGeneration=$ctxGeneration, ctxParent=$ctxParent, ctxId=$ctxId, timestamp=$timestamp, importance=$importance, id=$id)"
+    }
 
-        private val rsv1 = int2()
-        private val rsv2 = int4()
-        private val rsv3 = int4()
+    companion object Schema : BinaryFrameSchema() {
+        val ctxGeneration = int8()
+        val ctxParent = int4()
+        val ctxId = int4()
+        val timestamp = int8()
+        val importance = enum<MessageImportance>()
+        val id = int4()
+
+        val rsv1 = int2()
+        val rsv2 = int4()
+        val rsv3 = int4()
     }
 
     abstract fun create(buf: ByteBuffer, offset: Int): Self
@@ -202,12 +206,13 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
         override fun create(buf: ByteBuffer, offset: Int): ClientRequest = ClientRequest(buf, offset)
 
         companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
-            private val call = text()
-            private val payload = text()
+            val call = text(64)
+            val payload = text(64)
         }
     }
 
-    class ClientResponse(buf: ByteBuffer, offset: Int = 0) : BinaryDebugMessage<ClientResponse>(2.toByte(), buf, offset) {
+    class ClientResponse(buf: ByteBuffer, offset: Int = 0) :
+        BinaryDebugMessage<ClientResponse>(2.toByte(), buf, offset) {
         var responseCode by Schema.responseCode
         var responseTime by Schema.responseTime
         var call by Schema.call
@@ -217,10 +222,10 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
         override fun create(buf: ByteBuffer, offset: Int): ClientResponse = ClientResponse(buf, offset)
 
         companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
-            private val responseCode = int1()
-            private val responseTime = int4()
-            private val call = text()
-            private val response = text()
+            val responseCode = int1()
+            val responseTime = int4()
+            val call = text(64)
+            val response = text(64)
         }
     }
 
@@ -232,12 +237,13 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
         override fun create(buf: ByteBuffer, offset: Int): ServerRequest = ServerRequest(buf, offset)
 
         companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
-            private val call = text()
-            private val payload = text()
+            val call = text(64)
+            val payload = text(64)
         }
     }
 
-    class ServerResponse(buf: ByteBuffer, offset: Int = 0) : BinaryDebugMessage<ServerResponse>(4.toByte(), buf, offset) {
+    class ServerResponse(buf: ByteBuffer, offset: Int = 0) :
+        BinaryDebugMessage<ServerResponse>(4.toByte(), buf, offset) {
         var responseCode by Schema.responseCode
         var responseTime by Schema.responseTime
         var call by Schema.call
@@ -247,32 +253,34 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
         override fun create(buf: ByteBuffer, offset: Int): ServerResponse = ServerResponse(buf, offset)
 
         companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
-            private val responseCode = int1()
-            private val responseTime = int4()
-            private val call = text()
-            private val response = text()
+            val responseCode = int1()
+            val responseTime = int4()
+            val call = text(64)
+            val response = text(64)
         }
     }
 
-     class DatabaseConnection(buf: ByteBuffer, offset: Int = 0) : BinaryDebugMessage<DatabaseConnection>(5.toByte(), buf, offset) {
+    class DatabaseConnection(buf: ByteBuffer, offset: Int = 0) :
+        BinaryDebugMessage<DatabaseConnection>(5.toByte(), buf, offset) {
         var isOpen by Schema.isOpen
 
-         override val schema = Schema
+        override val schema = Schema
         override fun create(buf: ByteBuffer, offset: Int): DatabaseConnection = DatabaseConnection(buf, offset)
 
-         companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
-             private val isOpen = bool()
-         }
+        companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
+            val isOpen = bool()
+        }
     }
 
-    class DatabaseTransaction(buf: ByteBuffer, offset: Int = 0) : BinaryDebugMessage<DatabaseTransaction>(6.toByte(), buf, offset) {
+    class DatabaseTransaction(buf: ByteBuffer, offset: Int = 0) :
+        BinaryDebugMessage<DatabaseTransaction>(6.toByte(), buf, offset) {
         var event by Schema.event
 
         override val schema = Schema
         override fun create(buf: ByteBuffer, offset: Int): DatabaseTransaction = DatabaseTransaction(buf, offset)
 
         companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
-            private val event = enum<DebugMessage.DBTransactionEvent>()
+            val event = enum<DebugMessage.DBTransactionEvent>()
         }
     }
 
@@ -284,19 +292,20 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
         override fun create(buf: ByteBuffer, offset: Int): DatabaseQuery = DatabaseQuery(buf, offset)
 
         companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
-            private val parameters = text()
-            private val query = text()
+            val parameters = text(64)
+            val query = text(128)
         }
     }
 
-    class DatabaseResponse(buf: ByteBuffer, offset: Int = 0) : BinaryDebugMessage<DatabaseResponse>(8.toByte(), buf, offset) {
+    class DatabaseResponse(buf: ByteBuffer, offset: Int = 0) :
+        BinaryDebugMessage<DatabaseResponse>(8.toByte(), buf, offset) {
         var responseTime by Schema.responseTime
 
         override val schema = Schema
         override fun create(buf: ByteBuffer, offset: Int): DatabaseResponse = DatabaseResponse(buf, offset)
 
         companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
-            private val responseTime = int4()
+            val responseTime = int4()
         }
     }
 
@@ -307,9 +316,11 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
         override val schema = Schema
         override fun create(buf: ByteBuffer, offset: Int): Log = Log(buf, offset)
 
+        override fun toString(): String = "Log($message, $extra, ${super.toString()})"
+
         companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
-            private val message = text()
-            private val extra = text()
+            val message = text(128)
+            val extra = text(32)
         }
     }
 }
@@ -317,75 +328,104 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
 val oomCount = AtomicInteger(0)
 
 class BinaryFrameReader(val file: File) {
-    val raf = RandomAccessFile(file, "r")
-    val fc = raf.channel
-    val buf = fc.map(FileChannel.MapMode.READ_ONLY, 0, fc.size())
+    private val raf = RandomAccessFile(file, "r")
+    private val fc = raf.channel
+    private val buf = fc.map(FileChannel.MapMode.READ_ONLY, 0, fc.size())
 
-    fun retrieve(idx: Int) {
-
+    fun retrieve(idx: Int): BinaryDebugMessage<*>? {
+        val offset = idx * FRAME_SIZE
+        if (offset >= buf.capacity()) return null
+        val type = buf.get(offset)
+        return when (type.toInt()) {
+            1 -> BinaryDebugMessage.ClientRequest(buf, offset)
+            2 -> BinaryDebugMessage.ClientResponse(buf, offset)
+            3 -> BinaryDebugMessage.ServerRequest(buf, offset)
+            4 -> BinaryDebugMessage.ServerResponse(buf, offset)
+            5 -> BinaryDebugMessage.DatabaseConnection(buf, offset)
+            6 -> BinaryDebugMessage.DatabaseTransaction(buf, offset)
+            7 -> BinaryDebugMessage.DatabaseQuery(buf, offset)
+            8 -> BinaryDebugMessage.DatabaseResponse(buf, offset)
+            9 -> BinaryDebugMessage.Log(buf, offset)
+            else -> null
+        }
     }
 }
 
+const val FRAME_SIZE = 256
+const val LOG_FILE_SIZE = 1024 * 1024 * 16L
 
-class BinaryFrameAllocator {
+class BinaryFrameAllocator(file: File) {
+    private val randomAccess = RandomAccessFile(file, "rw")
+    private val channel = randomAccess.channel
+
     @PublishedApi
-    internal val buf = ByteBuffer.allocateDirect(Short.MAX_VALUE.toInt() * 3)
+    internal val buf = channel.map(FileChannel.MapMode.READ_WRITE, 0, LOG_FILE_SIZE)
 
     @PublishedApi
     internal var ptr = 0
 
-    inline fun <reified T : BinaryDebugMessage<T>> allocateOrNull(): T? {
-        for (stub in stubs) {
-            if (stub::class == T::class) {
-                if (ptr + stub.schema.size >= buf.capacity()) {
-                    oomCount.incrementAndGet()
-                    return null
-                }
+    private var lastFlushPtr = 0
 
-                val result = stub.create(buf, ptr) as T
-                ptr += stub.schema.size
-                return result
-            }
+    fun <T : BinaryDebugMessage<T>> allocateOrNull(stub: T): T? {
+        if (ptr + FRAME_SIZE >= buf.capacity()) {
+            oomCount.incrementAndGet()
+            return null
         }
 
-        error("unknown type ${T::class}. please add it to stubs in BinaryFrameAllocator")
+        val result = stub.create(buf, ptr) as T
+        ptr += FRAME_SIZE
+        return result
     }
 
-    inline fun flush(fn: (buf: ByteBuffer) -> Unit) {
-        if (ptr == 0) return
+    fun flush() {
+        if (lastFlushPtr != ptr) buf.force(lastFlushPtr, ptr)
+        lastFlushPtr = ptr
+    }
 
-        buf.position(0)
-        buf.limit(ptr)
-        try {
-            fn(buf)
-        } finally {
-            buf.position(0)
-            buf.limit(buf.capacity())
-            ptr = 0
+    fun isFull(): Boolean {
+        return ptr + FRAME_SIZE > LOG_FILE_SIZE
+    }
+
+    fun close() {
+        runCatching { channel.close() }
+        runCatching { randomAccess.close() }
+    }
+
+    val clientRequest = BinaryDebugMessage.ClientRequest(ByteBuffer.allocate(0))
+    val clientResponse = BinaryDebugMessage.ClientResponse(ByteBuffer.allocate(0))
+    val serverRequest = BinaryDebugMessage.ServerRequest(ByteBuffer.allocate(0))
+    val serverResponse = BinaryDebugMessage.ServerResponse(ByteBuffer.allocate(0))
+    val databaseConnection = BinaryDebugMessage.DatabaseConnection(ByteBuffer.allocate(0))
+    val databaseTransaction = BinaryDebugMessage.DatabaseTransaction(ByteBuffer.allocate(0))
+    val databaseQuery = BinaryDebugMessage.DatabaseQuery(ByteBuffer.allocate(0))
+    val databaseResponse = BinaryDebugMessage.DatabaseResponse(ByteBuffer.allocate(0))
+    val log = BinaryDebugMessage.Log(ByteBuffer.allocate(0))
+
+    init {
+        listOf(
+            clientRequest,
+            clientResponse,
+            serverRequest,
+            serverResponse,
+            databaseConnection,
+            databaseTransaction,
+            databaseQuery,
+            databaseResponse,
+            log
+        ).forEach {
+            check(it.schema.size <= FRAME_SIZE) { "${it::class} size exceeds frame (${it.schema.size})" }
         }
-    }
-
-    companion object {
-        @PublishedApi
-        internal val stubs = listOf(
-            BinaryDebugMessage.ClientRequest(ByteBuffer.allocate(0)),
-            BinaryDebugMessage.ClientResponse(ByteBuffer.allocate(0)),
-            BinaryDebugMessage.ServerRequest(ByteBuffer.allocate(0)),
-            BinaryDebugMessage.ServerResponse(ByteBuffer.allocate(0)),
-            BinaryDebugMessage.DatabaseConnection(ByteBuffer.allocate(0)),
-            BinaryDebugMessage.DatabaseTransaction(ByteBuffer.allocate(0)),
-            BinaryDebugMessage.DatabaseQuery(ByteBuffer.allocate(0)),
-            BinaryDebugMessage.DatabaseResponse(ByteBuffer.allocate(0)),
-            BinaryDebugMessage.Log(ByteBuffer.allocate(0)),
-        )
     }
 }
 
-class BinaryDebugSystem {
+class BinaryDebugSystem(
+    private val id: String,
+    private val directory: String,
+) {
     private val bufferCount = Runtime.getRuntime().availableProcessors()
     private val locks = Array(bufferCount) { Mutex() }
-    private val buffers = Array(bufferCount) { BinaryFrameAllocator() }
-    private val flushSignal = Channel<Int>(bufferCount, BufferOverflow.DROP_LATEST)
+    private val buffers = Array(bufferCount) { BinaryFrameAllocator(logFile()) }
+    private val closeSignal = Channel<Int>(bufferCount, BufferOverflow.SUSPEND)
     private lateinit var blobStorage: BlobSystem
 
     private suspend fun lock(): Int {
@@ -399,9 +439,11 @@ class BinaryDebugSystem {
         return idx
     }
 
-    suspend fun text(text: String): LargeText {
+    private fun logFile() = File(directory, "$id-${fileIdAcc.incrementAndGet()}.log.bin")
+
+    suspend fun text(text: String, field: BinaryFrameField.Text): LargeText {
         val encoded = text.encodeToByteArray()
-        return if (encoded.size >= LargeText.SIZE) {
+        return if (encoded.size >= field.maxSize) {
             val id = blobStorage.storeBlob(encoded)
             LargeText("\$\$\$overflow-$id".encodeToByteArray())
         } else {
@@ -413,36 +455,37 @@ class BinaryDebugSystem {
         while (coroutineContext.isActive) {
             val idx = lock()
             val lock = locks[idx]
+            var requestFlush = false
             try {
                 val buffer = buffers[idx]
                 if (fn(buffer)) break
+                requestFlush = buffer.isFull()
             } finally {
                 lock.unlock()
             }
-            flushSignal.send(idx)
+            if (requestFlush) closeSignal.send(idx)
         }
     }
 
     fun start(scope: CoroutineScope): Job {
         blobStorage = BlobSystem(scope)
+        blobStorage.start()
+
         return scope.launch(Dispatchers.IO) {
-            val outputLog = File("/tmp/log-${generation}.log").toPath()
-            val out = Files.newByteChannel(outputLog, StandardOpenOption.WRITE, StandardOpenOption.APPEND)
             try {
                 while (isActive) {
                     select {
-                        flushSignal.onReceive {
+                        closeSignal.onReceive {
                             locks[it].withLock {
-                                buffers[it].flush { buf -> out.write(buf) }
+                                buffers[it].close()
+                                buffers[it] = BinaryFrameAllocator(logFile())
                             }
                         }
 
                         onTimeout(500) {
                             for (i in 0 until bufferCount) {
                                 locks[i].withLock {
-                                    buffers[i].flush { buf ->
-                                        out.write(buf)
-                                    }
+                                    buffers[i].flush()
                                 }
                             }
                         }
@@ -451,19 +494,19 @@ class BinaryDebugSystem {
 
                 for (i in 0 until bufferCount) {
                     locks[i].withLock {
-                        buffers[i].flush { buf ->
-                            out.write(buf)
-                        }
+                        buffers[i].close()
                     }
                 }
             } finally {
-                runCatching { out.close() }
+                runCatching { buffers.forEach { it.close() } }
                 runCatching { blobStorage.close() }
             }
         }
     }
 
     companion object {
+        private val fileIdAcc = AtomicInteger(0)
+
         val generation = Time.now()
         private val idAcc = AtomicInteger(0)
         fun id(): Int {
@@ -491,7 +534,7 @@ suspend fun BinaryDebugSystem.clientRequest(
     val payloadEncoded = if (payload == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), payload)
 
     emit {
-        val message = allocateOrNull<BinaryDebugMessage.ClientRequest>() ?: return@emit false
+        val message = allocateOrNull(clientRequest) ?: return@emit false
         message.ctxGeneration = BinaryDebugSystem.generation
         message.ctxParent = ctx.parent
         message.ctxId = ctx.id
@@ -499,8 +542,8 @@ suspend fun BinaryDebugSystem.clientRequest(
         message.importance = importance
         message.id = BinaryDebugSystem.id()
 
-        message.call = text(call ?: "")
-        message.payload = text(payloadEncoded)
+        message.call = text(call ?: "", BinaryDebugMessage.ClientRequest.call)
+        message.payload = text(payloadEncoded, BinaryDebugMessage.ClientRequest.payload)
         true
     }
 }
@@ -518,7 +561,7 @@ suspend fun BinaryDebugSystem.clientResponse(
     val responseEncoded = if (response == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), response)
 
     emit {
-        val message = allocateOrNull<BinaryDebugMessage.ClientResponse>() ?: return@emit false
+        val message = allocateOrNull(clientResponse) ?: return@emit false
         message.ctxGeneration = BinaryDebugSystem.generation
         message.ctxParent = ctx.parent
         message.ctxId = ctx.id
@@ -526,8 +569,8 @@ suspend fun BinaryDebugSystem.clientResponse(
         message.importance = importance
         message.id = BinaryDebugSystem.id()
 
-        message.call = text(call ?: "")
-        message.response = text(responseEncoded)
+        message.call = text(call ?: "", BinaryDebugMessage.ClientResponse.call)
+        message.response = text(responseEncoded, BinaryDebugMessage.ClientResponse.response)
         message.responseCode = responseCode.value.toByte()
         message.responseTime = responseTime.toInt()
         true
@@ -544,7 +587,7 @@ suspend fun BinaryDebugSystem.serverRequest(
     val payloadEncoded = if (payload == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), payload)
 
     emit {
-        val message = allocateOrNull<BinaryDebugMessage.ServerRequest>() ?: return@emit false
+        val message = allocateOrNull(serverRequest) ?: return@emit false
         message.ctxGeneration = BinaryDebugSystem.generation
         message.ctxParent = ctx.parent
         message.ctxId = ctx.id
@@ -552,8 +595,8 @@ suspend fun BinaryDebugSystem.serverRequest(
         message.importance = importance
         message.id = BinaryDebugSystem.id()
 
-        message.call = text(call ?: "")
-        message.payload = text(payloadEncoded)
+        message.call = text(call ?: "", BinaryDebugMessage.ServerRequest.call)
+        message.payload = text(payloadEncoded, BinaryDebugMessage.ServerRequest.payload)
         true
     }
 }
@@ -571,7 +614,7 @@ suspend fun BinaryDebugSystem.serverResponse(
     val responseEncoded = if (response == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), response)
 
     emit {
-        val message = allocateOrNull<BinaryDebugMessage.ServerResponse>() ?: return@emit false
+        val message = allocateOrNull(serverResponse) ?: return@emit false
         message.ctxGeneration = BinaryDebugSystem.generation
         message.ctxParent = ctx.parent
         message.ctxId = ctx.id
@@ -579,8 +622,8 @@ suspend fun BinaryDebugSystem.serverResponse(
         message.importance = importance
         message.id = BinaryDebugSystem.id()
 
-        message.call = text(call ?: "")
-        message.response = text(responseEncoded)
+        message.call = text(call ?: "", BinaryDebugMessage.ServerResponse.call)
+        message.response = text(responseEncoded, BinaryDebugMessage.ServerResponse.response)
         message.responseCode = responseCode.value.toByte()
         message.responseTime = responseTime.toInt()
         true
@@ -595,7 +638,7 @@ suspend fun BinaryDebugSystem.databaseConnection(
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
 
     emit {
-        val message = allocateOrNull<BinaryDebugMessage.DatabaseConnection>() ?: return@emit false
+        val message = allocateOrNull(databaseConnection) ?: return@emit false
         message.ctxGeneration = BinaryDebugSystem.generation
         message.ctxParent = ctx.parent
         message.ctxId = ctx.id
@@ -616,7 +659,7 @@ suspend fun BinaryDebugSystem.databaseTransaction(
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
 
     emit {
-        val message = allocateOrNull<BinaryDebugMessage.DatabaseTransaction>() ?: return@emit false
+        val message = allocateOrNull(databaseTransaction) ?: return@emit false
         message.ctxGeneration = BinaryDebugSystem.generation
         message.ctxParent = ctx.parent
         message.ctxId = ctx.id
@@ -636,10 +679,11 @@ suspend fun BinaryDebugSystem.databaseQuery(
     query: String,
 ) {
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
-    val parametersEncoded = if (parameters == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), parameters)
+    val parametersEncoded =
+        if (parameters == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), parameters)
 
     emit {
-        val message = allocateOrNull<BinaryDebugMessage.DatabaseQuery>() ?: return@emit false
+        val message = allocateOrNull(databaseQuery) ?: return@emit false
         message.ctxGeneration = BinaryDebugSystem.generation
         message.ctxParent = ctx.parent
         message.ctxId = ctx.id
@@ -647,8 +691,8 @@ suspend fun BinaryDebugSystem.databaseQuery(
         message.importance = importance
         message.id = BinaryDebugSystem.id()
 
-        message.parameters = text(parametersEncoded)
-        message.query = text(query)
+        message.parameters = text(parametersEncoded, BinaryDebugMessage.DatabaseQuery.parameters)
+        message.query = text(query, BinaryDebugMessage.DatabaseQuery.query)
         true
     }
 }
@@ -661,7 +705,7 @@ suspend fun BinaryDebugSystem.databaseResponse(
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
 
     emit {
-        val message = allocateOrNull<BinaryDebugMessage.DatabaseResponse>() ?: return@emit false
+        val message = allocateOrNull(databaseResponse) ?: return@emit false
         message.ctxGeneration = BinaryDebugSystem.generation
         message.ctxParent = ctx.parent
         message.ctxId = ctx.id
@@ -684,7 +728,7 @@ suspend fun BinaryDebugSystem.log(
     val extraEncoded = if (extra == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), extra)
 
     emit {
-        val message = allocateOrNull<BinaryDebugMessage.Log>() ?: return@emit false
+        val message = allocateOrNull(this.log) ?: return@emit false
         message.ctxGeneration = BinaryDebugSystem.generation
         message.ctxParent = ctx.parent
         message.ctxId = ctx.id
@@ -692,8 +736,8 @@ suspend fun BinaryDebugSystem.log(
         message.importance = importance
         message.id = BinaryDebugSystem.id()
 
-        message.message = text(log)
-        message.extra = text(extraEncoded)
+        message.message = text(log, BinaryDebugMessage.Log.message)
+        message.extra = text(extraEncoded, BinaryDebugMessage.Log.extra)
         true
     }
 }
@@ -702,24 +746,37 @@ class BlobSystem(private val scope: CoroutineScope) {
     private val mutex = Mutex()
     private val channel = Files.newByteChannel(
         File("/tmp/blob-${BinaryDebugSystem.generation}").toPath(),
-        StandardOpenOption.WRITE
+        StandardOpenOption.WRITE,
+        StandardOpenOption.CREATE
     )
 
+    private data class WriteCommand(val position: Long, val data: ByteArray)
+    private val writeChannel = Channel<WriteCommand>(32)
+    private val position = AtomicLong(0)
+
     suspend fun storeBlob(blob: ByteArray): String {
-       return withContext(scope.coroutineContext + Dispatchers.IO) {
-           mutex.withLock {
-               if (!channel.isOpen) error("channel has been closed")
+        while (true) {
+            val pos = position.get()
+            if (!position.compareAndSet(pos, pos + blob.size)) continue
 
-               val pos = channel.position()
-               channel.write(ByteBuffer.allocate(4).putInt(4).flip())
-               val buffer = ByteBuffer.wrap(blob)
-               while (buffer.hasRemaining()) {
-                   channel.write(buffer)
-               }
+            writeChannel.send(WriteCommand(pos, blob))
+            return pos.toString()
+        }
+    }
 
-               pos.toString()
-           }
-       }
+    fun start() {
+        scope.launch(Dispatchers.IO) {
+            while (isActive) {
+                val command = writeChannel.receive()
+                channel.position(command.position)
+
+                channel.write(ByteBuffer.allocate(4).putInt(command.data.size).flip())
+                val buffer = ByteBuffer.wrap(command.data)
+                while (buffer.hasRemaining()) {
+                    channel.write(buffer)
+                }
+            }
+        }
     }
 
     suspend fun close() {
@@ -727,22 +784,23 @@ class BlobSystem(private val scope: CoroutineScope) {
     }
 }
 
+@Suppress("OPT_IN_USAGE")
 fun main() {
+    val logFolder = File("/tmp/logs")
     if (true) {
-        val raf = RandomAccessFile("/tmp/mm", "r")
-        val buf = raf.channel.map(FileChannel.MapMode.READ_ONLY, 0, 1024 * 1024 * 64)
-        println(Char(buf.get(300_000).toInt()))
-    }
-    if (true) {
-        val raf = RandomAccessFile("/tmp/mm", "rw")
-        val buf = raf.channel.map(FileChannel.MapMode.READ_WRITE, 0, 1024 * 1024 * 64)
-        println(buf.limit())
-        println(buf.capacity())
-        buf.put(400_000, 'b'.code.toByte())
+        val reader = BinaryFrameReader(File(logFolder, "test-1.log.bin"))
+        var idx = 0
+        while (true) {
+            val message = reader.retrieve(idx++) ?: break
+            println(message)
+        }
 
         exitProcess(0)
     }
-    val debug = BinaryDebugSystem()
+    runCatching { logFolder.deleteRecursively() }
+    logFolder.mkdirs()
+
+    val debug = BinaryDebugSystem("test", logFolder.absolutePath)
     val j = debug.start(GlobalScope)
 
     runBlocking {
@@ -756,7 +814,7 @@ fun main() {
             }.joinAll()
         }
         val time = measureTime {
-            val long = CharArray(125) { 'b' }.concatToString()
+            val long = CharArray(1024) { 'b' }.concatToString()
             (0 until 8).map {
                 GlobalScope.launch {
                     repeat(10_000) {
@@ -765,6 +823,32 @@ fun main() {
                 }
             }.joinAll()
         }
+
+        /*
+        val baseLineStrings = measureTime {
+            val long = CharArray(125) { 'b' }.concatToString()
+            (0 until 8).map {
+                GlobalScope.launch {
+                    repeat(10_000) {
+                        Pair(MessageImportance.THIS_IS_NORMAL, "$long $it")
+                    }
+                }
+            }.joinAll()
+        }
+
+        val baselineLogs = measureTime {
+            val long = CharArray(32) { 'b' }.concatToString()
+            val log = Logger("test")
+            (0 until 8).map {
+                GlobalScope.launch {
+                    repeat(10_000) {
+                        println("$long $it")
+                    }
+                }
+            }.joinAll()
+        }
+         */
+
         println("All are done! ${oomCount.get()} $warmup $time")
         j.cancelAndJoin()
         println("last sync done")
@@ -773,8 +857,5 @@ fun main() {
 
 @JvmInline
 value class LargeText internal constructor(val value: ByteArray) {
-    companion object {
-        const val SIZE = 126
-    }
+    override fun toString(): String = value.decodeToString()
 }
-
