@@ -55,7 +55,7 @@ class IngressService(
                 .sendPreparedStatement(
                     {
                         setParameter("resource", id)
-                        setParameter("domain", spec.domain)
+                        setParameter("domain", spec.domain.lowercase())
                     },
                     """
                         insert into app_orchestrator.ingresses (domain, resource) values (:domain, :resource) 
