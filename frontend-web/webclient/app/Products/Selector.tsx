@@ -256,7 +256,7 @@ export const ProductSelector: React.FunctionComponent<{
                     </> : props.products.length === 0 ?
                         <>
                             <NoResultsCardBody title={`No machines available for use`}>
-                                You do not currently have credits for any {productName} which you are able to use for this purpose. 
+                                You do not currently have credits for any {productName} which you are able to use for this purpose.{" "}
                                 {type !== "COMPUTE" ? null : <>
                                     If you are trying to run a virtual machine, please make sure you have applied for the correct credits
                                     in your grant application.

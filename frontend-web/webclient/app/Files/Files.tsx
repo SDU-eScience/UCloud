@@ -35,11 +35,12 @@ import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {setLoading} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
 import ProjectAPI, {Project} from "@/Project/Api";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
     additionalFilters?: UFileIncludeFlags;
-    onSelectRestriction?: (res: UFile) => boolean;
+    onSelectRestriction?: (res: UFile) => boolean | string;
     isSearch?: boolean;
     browseType?: BrowseType;
     pathRef?: React.MutableRefObject<string>;
@@ -75,6 +76,7 @@ export const FilesBrowse: React.FunctionComponent<{
 
     const [searchResults, setSearchResults] = useState<UFile[] | undefined>(undefined);
 
+    const [activeProviderId, setActiveProviderId] = useState("");
     const [localActiveProject, setLocalActiveProject] = useState(Client.projectId ?? "");
     const [pathFromState, setPathFromState] = useState(browseType !== BrowseType.Embedded ?
         pathFromQuery :
@@ -149,6 +151,12 @@ export const FilesBrowse: React.FunctionComponent<{
             return newConf;
         });
     }, []);
+    
+    React.useEffect(() => {
+        if (drives.items.length > 0) {
+            setActiveProviderId(drives.items[0].specification.product.provider);
+        }
+    }, [drives.items]);
 
     const selectLocalProject = useCallback(async (projectOverride: string) => {
         const result = await invokeCommand<PageV2<FileCollection>>({
@@ -178,6 +186,18 @@ export const FilesBrowse: React.FunctionComponent<{
             conflictPolicy: "RENAME"
         }));
     }, [path]);
+
+    const onSelectRestriction = useCallback((file: UFile): string | boolean => {
+        if (props.onSelectRestriction) {
+            return props.onSelectRestriction(file);
+        }
+        const provider = activeProviderId;
+        const resourceProvider = file.specification.product.provider;
+        if (provider && provider !== resourceProvider) {
+            return `Files from ${resourceProvider} cannot be used with files from ${provider}`;
+        }
+        return true;
+    }, [props.onSelectRestriction, activeProviderId]);
 
     const callbacks = useMemo(() => ({
         collection: collection?.data ?? undefined,
@@ -366,14 +386,20 @@ export const FilesBrowse: React.FunctionComponent<{
                         } as any)).then(page => setDrives(page)).catch(e => console.log(e))}
                         page={drives}
                         pageRenderer={items => (
-                            <List childPadding={"8px"} bordered={false}>
+                            <List maxHeight={"200px"} overflowX="hidden" overflowY={"scroll"} childPadding={"8px"} bordered={false}>
                                 {items.map(drive => (
                                     <DriveInDropdown
                                         key={drive.id}
                                         className="expandable-row-child"
-                                        onClick={() => navigateToPath(navigate, `/${drive.id}`)}
+                                        onClick={() => {
+                                            navigateToPath(navigate, `/${drive.id}`);
+                                            setActiveProviderId(drive.specification.product.provider);
+                                        }}
                                     >
-                                        {drive.specification?.title}
+                                        {drive.specification.title}
+                                        <Box ml="auto" my="auto">
+                                            <ProviderLogo size={24} providerId={drive.specification.product.provider} />
+                                        </Box>
                                     </DriveInDropdown>
                                 ))}
                             </List>
@@ -394,17 +420,18 @@ export const FilesBrowse: React.FunctionComponent<{
                             {it}
                         </span>
                     ))}
+                    <Flex my="auto" ml="12px"><ProviderLogo size={32} providerId={activeProviderId} /></Flex>
                 </BreadCrumbsBase>
             </Flex>
         </Box>;
-    }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject, props.isSearch]);
+    }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject, props.isSearch, activeProviderId]);
 
     const hasSyncCookie = true;
 
     return <ResourceBrowse
         api={FilesApi}
         onSelect={props.onSelect}
-        onSelectRestriction={props.onSelectRestriction}
+        onSelectRestriction={onSelectRestriction}
         browseType={browseType}
         inlineProduct={collection.data?.status.resolvedSupport?.product}
         onInlineCreation={onInlineCreation}
@@ -476,13 +503,14 @@ const DriveDropdown: React.FunctionComponent<{iconName: "hdd" | "projects"; chil
 }
 
 const DriveInDropdown = styled.div`
-  padding: 0 17px;
-  width: 450px;
-  overflow-x: hidden;
+    display: flex;
+    padding: 0 17px;
+    width: 450px;
+    overflow-x: hidden;
 
-  &:hover {
-    background-color: var(--lightBlue);
-  }
+    &:hover {
+        background-color: var(--lightBlue);
+    }
 `;
 
 export default Router;

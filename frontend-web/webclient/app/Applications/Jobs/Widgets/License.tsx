@@ -1,8 +1,7 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
+import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "./index";
 import {compute} from "@/UCloud";
-import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "@/ui-components/Flex";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
@@ -12,6 +11,8 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {LicenseBrowse} from "@/Applications/Licenses";
 import {License} from "@/UCloud/LicenseApi";
 import {BrowseType} from "@/Resource/BrowseType";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {checkProviderMismatch, getProviderField} from "../Create";
 
 interface LicenseProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;
@@ -29,6 +30,11 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
 
     const onUse = useCallback((license: License) => {
         LicenseSetter(props.parameter, {type: "license_server", id: license.id});
+        WidgetSetProvider(props.parameter, license.specification.product.provider);
+        if (props.errors[props.parameter.name]) {
+            delete props.errors[props.parameter.name];
+            props.setErrors({...props.errors});
+        }
         setOpen(false);
     }, [props.parameter, setOpen]);
 
@@ -44,9 +50,12 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
         >
             <LicenseBrowse
                 tagged={props.parameter.tagged}
-                // TODO(Dan) Provider
                 additionalFilters={filters}
-                onSelectRestriction={() => true}
+                onSelectRestriction={res => {
+                    const errorMessage = checkProviderMismatch(res, "Licenses");
+                    if (errorMessage) return errorMessage;
+                    return true;
+                }}
                 browseType={BrowseType.Embedded}
                 onSelect={onUse}
             />
@@ -77,7 +86,3 @@ export const LicenseSetter: WidgetSetter = (param, value) => {
     if (selector === null) throw "Missing element for: " + param.name;
     selector.value = (value as AppParameterValueNS.License).id;
 };
-
-function findElement(param: ApplicationParameterNS.LicenseServer): HTMLSelectElement | null {
-    return document.getElementById(widgetId(param)) as HTMLSelectElement | null;
-}

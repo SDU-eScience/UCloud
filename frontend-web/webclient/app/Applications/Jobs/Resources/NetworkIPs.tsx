@@ -22,10 +22,11 @@ export const NetworkIPResource: React.FunctionComponent<{
     application: UCloud.compute.Application;
     params: ApplicationParameter[];
     errors: Record<string, string>;
+    setErrors: (errors: Record<string, string>) => void;
     onAdd: () => void;
     onRemove: (id: string) => void;
     provider?: string;
-}> = ({application, params, errors, onAdd, onRemove, provider}) => {
+}> = ({application, params, errors, onAdd, onRemove, provider, setErrors}) => {
     if (!networkIPResourceAllowed(application)) return null;
 
     return <GrayBox>
@@ -69,6 +70,7 @@ export const NetworkIPResource: React.FunctionComponent<{
                         provider={provider}
                         parameter={entry}
                         errors={errors}
+                        setErrors={setErrors}
                         onRemove={() => {
                             onRemove(entry.name);
                         }}
@@ -77,13 +79,4 @@ export const NetworkIPResource: React.FunctionComponent<{
             ))}
         </Box>
     </GrayBox>;
-}
-
-export function getProviderField(): string | undefined {
-    try {
-        const validatedMachineReservation = validateMachineReservation();
-        return validatedMachineReservation?.provider;
-    } catch (e) {
-        return undefined;
-    }
 }

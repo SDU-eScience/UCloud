@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
+import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "./index";
 import {Input} from "@/ui-components";
 import {useCallback, useLayoutEffect} from "react";
 import styled from "styled-components";
@@ -9,10 +9,12 @@ import AppParameterValueNS = compute.AppParameterValueNS;
 import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {FilesBrowse} from "@/Files/Files";
-import {api as FilesApi} from "@/UCloud/FilesApi";
+import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
 import {prettyFilePath} from "@/Files/FilePath";
 import {BrowseType} from "@/Resource/BrowseType";
 import {FolderResourceNS} from "../Resources";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {getProviderField, providerMismatchError} from "../Create";
 
 type GenericFileParam =
     UCloud.compute.ApplicationParameterNS.InputFile |
@@ -25,19 +27,17 @@ interface FilesProps extends WidgetProps {
 export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     const isDirectoryInput = props.parameter.type === "input_directory";
 
-    const valueInput = () => {
-        return document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
-    }
-    const visualInput = () => {
-        return document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null
-    };
+    const valueInput = () =>
+        document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
+    const visualInput = () =>
+        document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null;
 
     useLayoutEffect(() => {
         const value = valueInput();
         const visual = visualInput();
         const listener = async () => {
             if (value && visual) {
-                const path = await prettyFilePath(value!.value);
+                const path = await (value.value ? prettyFilePath(value.value) : "");
                 const visual2 = visualInput();
                 if (visual2) {
                     visual2.value = path;
@@ -52,17 +52,32 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
 
     const onActivate = useCallback(() => {
         const pathRef = {current: ""};
+        const provider = getProviderField();
         dialogStore.addDialog(
             <FilesBrowse
                 browseType={BrowseType.Embedded}
                 pathRef={pathRef}
-                onSelectRestriction={file =>
-                    (isDirectoryInput && file.status.type === "DIRECTORY") ||
-                    (!isDirectoryInput && file.status.type === "FILE")
-                }
-                onSelect={async (res) => {
+                onSelectRestriction={file => {
+                    const fileProvider = file.specification.product.provider;
+                    const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
+                    const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
+                    if (provider && provider !== fileProvider) {
+                        if (isCorrectlyDir) {
+                            return providerMismatchError("Folders", fileProvider);
+                        } else if (isCorrectlyFile) {
+                            return providerMismatchError("Files", fileProvider)
+                        }
+                    }
+                    return isCorrectlyDir || isCorrectlyFile;
+                }}
+                onSelect={async res => {
                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                    if (props.errors[props.parameter.name]) {
+                        delete props.errors[props.parameter.name];
+                        props.setErrors?.({...props.errors});
+                    }
                     FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
+                    WidgetSetProvider(props.parameter, res.specification.product.provider);
                     dialogStore.success();
                     if (anyFolderDuplicates()) {
                         props.setWarning?.("Duplicate folders selected. This is not always supported.");
@@ -109,13 +124,14 @@ export const FilesSetter: WidgetSetter = (param, value) => {
     const file = value as AppParameterValueNS.File;
 
     const selector = findElement(param);
-    selector.value = file.path;
+    if (!selector) return;
+    if (file.path.length === 0) {
+        selector.removeAttribute("value");
+    } else {
+        selector.value = file.path;
+    }
     selector.dispatchEvent(new Event("change"));
 };
-
-function findElement(param: {name: string}): HTMLSelectElement {
-    return document.getElementById(widgetId(param)) as HTMLSelectElement;
-}
 
 function findAllFolderNames(): string[] {
     const result: string[] = [];
