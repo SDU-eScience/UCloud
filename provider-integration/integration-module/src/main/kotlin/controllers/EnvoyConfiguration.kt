@@ -67,13 +67,14 @@ class EnvoyConfigurationService(
     }
 
     fun start(
+        listenAddress: String,
         port: Int?,
         initClusters: Collection<EnvoyCluster>? = null,
         initRoutes: Collection<EnvoyRoute>? = null,
     ) {
         require((initClusters == null && initRoutes == null) || (initClusters != null && initRoutes != null))
 
-        writeConfigurationFile(port ?: 8889)
+        writeConfigurationFile(listenAddress, port ?: 8889)
 
         val logFile = "/${logDirectory}/envoy.log"
 
@@ -138,7 +139,7 @@ class EnvoyConfigurationService(
             log.warn("We will attempt to restart Envoy now!")
             job.cancel()
             while (job.isActive) delay(50)
-            start(port, clusters.values, routes)
+            start(listenAddress, port, clusters.values, routes)
         }
     }
 
@@ -184,7 +185,7 @@ class EnvoyConfigurationService(
         renameFile(tempClusterFile, "$configDir/$clustersFile")
     }
 
-    private fun writeConfigurationFile(port: Int) {
+    private fun writeConfigurationFile(listenAddress: String, port: Int) {
         val tlsDefaultDownstream = if (!downstreamTls) "" else """
           transport_socket:
             name: envoy.transport_sockets.tls
@@ -276,7 +277,7 @@ static_resources:
   listeners:
     - address:
         socket_address:
-          address: 0.0.0.0
+          address: $listenAddress
           port_value: $port
       filter_chains:
         - filters:
