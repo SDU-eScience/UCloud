@@ -67,14 +67,14 @@ class EnvoyConfigurationService(
     }
 
     fun start(
-        listenAddress: String,
+        listenAddress: String?,
         port: Int?,
         initClusters: Collection<EnvoyCluster>? = null,
         initRoutes: Collection<EnvoyRoute>? = null,
     ) {
         require((initClusters == null && initRoutes == null) || (initClusters != null && initRoutes != null))
 
-        writeConfigurationFile(listenAddress, port ?: 8889)
+        writeConfigurationFile(listenAddress ?: "0.0.0.0", port ?: 8889)
 
         val logFile = "/${logDirectory}/envoy.log"
 
