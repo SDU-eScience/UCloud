@@ -45,6 +45,7 @@ import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
+import { ProviderTitle } from "@/Providers/ProviderTitle";
 
 const enterAnimation = keyframes`
     from {
@@ -647,7 +648,7 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             statTitle={job.specification.replicas === 1 ? "Node" : "Nodes"}
             icon={"cpu"}
         >
-            <b>{job.specification.product.provider} / {job.specification.product.id}</b><br />
+            <b><ProviderTitle providerId={job.specification.product.provider} /> / {job.specification.product.id}</b><br />
             {!machine?.cpu ? null : <>{machine?.cpu}x vCPU </>}
 
             {machine?.cpu && (machine.memoryInGigs || machine.gpu) ? <>&mdash;</> : null}
@@ -967,7 +968,13 @@ const RunningContent: React.FunctionComponent<{
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                     {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
-                    <Box><b>Reservation:</b> {job.specification.product.provider} / {job.specification.product.id} (x{job.specification.replicas})</Box>
+                    <Box>
+                        <b>Reservation:</b>{" "}
+                        <ProviderTitle providerId={job.specification.product.provider} />
+                        {" "}/{" "}
+                        {job.specification.product.id}{" "}
+                        (x{job.specification.replicas})
+                    </Box>
                     <Box><b>Input:</b> {fileInfo}</Box>
                     <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
                     <Box flexGrow={1} />

@@ -73,9 +73,9 @@ suspend fun createSbatchFile(
     }.joinToString(separator = " ")
 
     val memoryAllocation = if (pluginConfig.useFakeMemoryAllocations) {
-        "50M"
+        "50"
     } else {
-        "${resolvedProduct.memoryInGigs ?: 1}G"
+        "${(resolvedProduct.memoryInGigs ?: 1) * 1000}"
     }
 
     /*

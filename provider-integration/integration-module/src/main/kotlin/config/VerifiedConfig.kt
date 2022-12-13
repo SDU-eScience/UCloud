@@ -440,7 +440,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
         val network: VerifiedConfig.Server.Network = run {
             VerifiedConfig.Server.Network(
-                config.server.network?.listenAddress ?: "127.0.0.1",
+                config.server.network?.listenAddress ?: "0.0.0.0",
                 config.server.network?.listenPort ?: 8889
             )
         }
