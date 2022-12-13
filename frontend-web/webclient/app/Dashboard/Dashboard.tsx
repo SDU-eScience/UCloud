@@ -372,7 +372,20 @@ function DashboardResources({products}: {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
-    wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
+    wallets.sort((a, b) => {
+        let compare: number = 0;
+
+        compare = a.category.provider.localeCompare(b.category.provider);
+        if (compare !== 0) return compare;
+
+        compare = a.productType.localeCompare(b.productType);
+        if (compare !== 0) return compare;
+
+        compare = a.category.name.localeCompare(b.category.name);
+        if (compare !== 0) return compare;
+
+        return (a.balance < b.balance) ? 1 : -1;
+    });
     const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"}>
         <Button fullWidth mb={"4px"}>Apply for resources</Button>
     </Link>;
@@ -396,14 +409,14 @@ function DashboardResources({products}: {
                 <>
                     {/* height is 100% - height of Heading 36px  */}
                     <Flex flexDirection="column" height={"calc(100% - 36px)"}>
-                        <Box mx="8px" my="5px">
+                        <Box my="5px">
                             <Table>
                                 <tbody>
                                     {wallets.slice(0, 7).map((n, i) => (
                                         <TableRow key={i}>
                                             <TableCell>
                                                 <Flex alignItems="center" gap="8px">
-                                                    <ProviderLogo providerId={n.category.provider} size={24} />
+                                                    <ProviderLogo providerId={n.category.provider} size={32} />
                                                     <ProviderTitle providerId={n.category.provider} /> / {n.category.name}
                                                 </Flex>
                                             </TableCell>
