@@ -9,11 +9,10 @@ import AppParameterValueNS = compute.AppParameterValueNS;
 import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {FilesBrowse} from "@/Files/Files";
-import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
+import {api as FilesApi} from "@/UCloud/FilesApi";
 import {prettyFilePath} from "@/Files/FilePath";
 import {BrowseType} from "@/Resource/BrowseType";
 import {FolderResourceNS} from "../Resources";
-import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {getProviderField, providerMismatchError} from "../Create";
 
 type GenericFileParam =
@@ -74,7 +73,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
                     if (props.errors[props.parameter.name]) {
                         delete props.errors[props.parameter.name];
-                        props.setErrors?.({...props.errors});
+                        props.setErrors({...props.errors});
                     }
                     FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
                     WidgetSetProvider(props.parameter, res.specification.product.provider);
@@ -88,7 +87,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             true,
             FilesApi.fileSelectorModalStyle
         );
-    }, []);
+    }, [props.errors]);
 
     const error = props.errors[props.parameter.name] != null;
     return <>
