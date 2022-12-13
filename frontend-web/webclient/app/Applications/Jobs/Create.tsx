@@ -46,6 +46,8 @@ interface InsufficientFunds {
     errorCode?: string;
 }
 
+const PARAMETER_TYPE_FILTER = ["input_directory", "input_file", "ingress", "peer", "license_server", "network_ip"];
+
 export const Create: React.FunctionComponent = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -110,7 +112,7 @@ export const Create: React.FunctionComponent = () => {
     React.useEffect(() => {
         if (application && provider) {
             const params = application.invocation.parameters.filter(it =>
-                ["input_directory", "input_file", "ingress", "peer", "license_server", "network_ip"].includes(it.type)
+                PARAMETER_TYPE_FILTER.includes(it.type)
             );
 
             findProviderMismatches(
@@ -292,7 +294,9 @@ export const Create: React.FunctionComponent = () => {
     const isMissingConnection = hasFeature(Feature.PROVIDER_CONNECTION) && estimatedCost.product != null &&
         connectionState.canConnectToProvider(estimatedCost.product.category.provider);
 
-    const errorCount = countErrors(errors, folders.errors, ingress.errors, networks.errors, peers.errors);
+    const errorCount = countMandatoryAndOptionalErrors(application.invocation.parameters.filter(it =>
+        PARAMETER_TYPE_FILTER.includes(it.type)
+    ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors);
     const anyError = errorCount > 0;
 
     return <MainContainer
@@ -553,6 +557,14 @@ function providerError(resourceType: string, resourceProvider: string, selectedP
 
 function countErrors(...objects: Record<string, string>[]): number {
     return objects.reduce((acc, cur) => acc + Object.values(cur).length, 0);
+}
+
+function countMandatoryAndOptionalErrors(params: string[], errors: Record<string, string>): number {
+    var count = 0;
+    for (const param of params) {
+        if (errors[param]) count++;
+    }
+    return count;
 }
 
 export default Create;
