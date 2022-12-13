@@ -37,7 +37,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             props.setErrors({...props.errors});
         }
         setOpen(false);
-    }, [props.parameter, setOpen]);
+    }, [props.parameter, setOpen, props.errors]);
 
     const valueInput = () => {
         return document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;

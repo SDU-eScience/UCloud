@@ -36,7 +36,7 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
             props.setErrors({...props.errors});
         }
         setOpen(false);
-    }, [props.parameter, setOpen]);
+    }, [props.parameter, setOpen, props.errors]);
 
     const filters = React.useMemo(() => ({filterState: "READY"}), []);
 

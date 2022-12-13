@@ -13,8 +13,7 @@ import AppParameterValueNS = compute.AppParameterValueNS;
 import {callAPI} from "@/Authentication/DataHook";
 import {NetworkIP} from "@/UCloud/NetworkIPApi";
 import {BrowseType} from "@/Resource/BrowseType";
-import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {checkProviderMismatch, getProviderField} from "../Create";
+import {checkProviderMismatch} from "../Create";
 
 interface NetworkIPProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.NetworkIP;
@@ -38,7 +37,7 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             props.setErrors({...props.errors});
         }
         setOpen(false);
-    }, [props.parameter, setOpen]);
+    }, [props.parameter, setOpen, props.errors]);
 
     const valueInput = () => {
         return document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
