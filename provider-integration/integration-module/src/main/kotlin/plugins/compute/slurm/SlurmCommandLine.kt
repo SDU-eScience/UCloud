@@ -35,7 +35,9 @@ class SlurmCommandLine(
                 )
             }
 
-            if (combinedMessage.contains("Node count specification invalid")) {
+            if (combinedMessage.contains("Node count specification invalid") ||
+                combinedMessage.contains("More processors") ||
+                combinedMessage.contains("Requested node config")) {
                 throw RPCException(
                     "Too many nodes requested. Try with a smaller amount of nodes.",
                     HttpStatusCode.BadRequest

@@ -245,7 +245,9 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                     .filter { it.product.category == category }
 
                                 if (colls.isNotEmpty()) {
-                                    val bytesUsed = colls.sumOf { calculateUsage(it) }
+                                    val bytesUsed = colls.sumOf {
+                                        runCatching { calculateUsage(it) }.getOrElse { 0 }
+                                    }
                                     val unitsUsed = bytesUsed / 1_000_000_000L
                                     val coll = pathConverter.ucloudToCollection(
                                         pathConverter.internalToUCloud(InternalFile(colls.first().localPath))
