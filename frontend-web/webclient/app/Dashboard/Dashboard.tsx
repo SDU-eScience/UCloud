@@ -270,7 +270,7 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string; children
 function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[]}>}): JSX.Element | null {
     return (
         <HighlightedCard
-            title={<Link to={`/project/resources/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource Usage</Heading.h3></Link>}
+            title={<Link to={`/project/resources/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource usage</Heading.h3></Link>}
             icon="hourglass"
             color="yellow"
         >
@@ -308,7 +308,7 @@ function DashboardRuns({runs}: {
     const toggle = useToggleSet([]);
     return <HighlightedCard
         color="gray"
-        title={<Link to={"/jobs"}><Heading.h3>Recent Runs</Heading.h3></Link>}
+        title={<Link to={"/jobs"}><Heading.h3>Recent runs</Heading.h3></Link>}
         icon="results"
         isLoading={runs.loading}
         error={runs.error?.why}
@@ -392,7 +392,7 @@ function DashboardResources({products}: {
 
     return (
         <HighlightedCard
-            title={<Link to={`/project/allocations/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource Allocations</Heading.h3></Link>}
+            title={<Link to={`/project/allocations/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource allocations</Heading.h3></Link>}
             color="red"
             isLoading={products.loading}
             icon={"grant"}
@@ -444,7 +444,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
     const both = outgoingApps.data.items.length > 0 && ingoingApps.data.items.length > 0;
     const anyOutgoing = outgoingApps.data.items.length > 0;
 
-    const title = (none ? <Link to={`/project/grants/outgoing/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Grant Applications</Heading.h3></Link>
+    const title = (none ? <Link to={`/project/grants/outgoing/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Grant applications</Heading.h3></Link>
         : both ? <Heading.h3>Grant Applications</Heading.h3>
             : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}/${Client.projectId ?? MY_WORKSPACE}`}>
                 <Heading.h3>Grant Applications</Heading.h3>
