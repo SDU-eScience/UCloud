@@ -22,7 +22,7 @@ import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {Box, Button, Flex, Icon, Link, List, Text} from "@/ui-components";
 import {PageV2} from "@/UCloud";
-import {ListV2, List as ListV1} from "@/Pagination";
+import {ListV2} from "@/Pagination";
 import styled from "styled-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
@@ -151,12 +151,12 @@ export const FilesBrowse: React.FunctionComponent<{
             return newConf;
         });
     }, []);
-    
+
     React.useEffect(() => {
-        if (drives.items.length > 0) {
-            setActiveProviderId(drives.items[0].specification.product.provider);
+        if (collection.data) {
+            setActiveProviderId(collection.data.specification.product.provider);
         }
-    }, [drives.items]);
+    }, [collection]);
 
     const selectLocalProject = useCallback(async (projectOverride: string) => {
         const result = await invokeCommand<PageV2<FileCollection>>({
