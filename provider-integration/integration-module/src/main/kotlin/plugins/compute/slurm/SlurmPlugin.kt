@@ -14,9 +14,12 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
+import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.ComputeSessionIpc
 import dk.sdu.cloud.controllers.RequestContext
+import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
@@ -26,6 +29,7 @@ import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Logger
+import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.*
@@ -62,6 +66,8 @@ class SlurmPlugin : ComputePlugin {
         private set
     private val didInitKeys = AtomicBoolean(false)
     private lateinit var ctx: PluginContext
+    var constraintMatchers: List<VerifiedConfig.Plugins.ProductMatcher> = emptyList()
+        private set
 
     override fun configure(config: ConfigSchema.Plugins.Jobs) {
         this.pluginConfig = config as SlurmConfig
@@ -70,6 +76,16 @@ class SlurmPlugin : ComputePlugin {
 
     override suspend fun PluginContext.initialize() {
         ctx = this
+
+        val matchers = ArrayList<VerifiedConfig.Plugins.ProductMatcher>()
+        for (constraint in pluginConfig.constraints) {
+            val matcher = handleVerificationResultStrict(
+                VerifiedConfig.Plugins.ProductMatcher.parse(constraint.matches)
+            )
+            matchers.add(matcher)
+        }
+        constraintMatchers = matchers
+
         if (config.shouldRunServerCode()) {
             if (accountMapperOrNull == null) accountMapperOrNull = AccountMapper(this)
             if (productEstimatorOrNull == null) productEstimatorOrNull = ProductEstimator(config)
@@ -240,7 +256,22 @@ class SlurmPlugin : ComputePlugin {
     override suspend fun RequestContext.terminate(resource: Job) {
         // NOTE(Dan): Everything else should be handled by the monitoring loop
         val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(resource.id))
-        cli.cancelJob(slurmJob.partition, slurmJob.slurmId)
+        if (!cli.cancelJob(slurmJob.partition, slurmJob.slurmId)) {
+            JobsControl.update.call(
+                bulkRequestOf(
+                    ResourceUpdateAndId(
+                        resource.id,
+                        JobUpdate(state = JobState.SUCCESS)
+                    )
+                ),
+                rpcClient
+            ).orRethrowAs {
+                throw RPCException(
+                    "Something went wrong while attempting to cancel the job. Please try again.",
+                    HttpStatusCode.BadGateway
+                )
+            }
+        }
     }
 
     override suspend fun RequestContext.extend(request: JobsProviderExtendRequestItem) {
@@ -299,7 +330,7 @@ class SlurmPlugin : ComputePlugin {
                     emitStdout(
                         rank,
                         "Unable to read logs. If the job was submitted outside of UCloud, then we might not be " +
-                            "able to read the logs automatically."
+                                "able to read the logs automatically."
                     )
                 }
 
@@ -429,15 +460,7 @@ class SlurmPlugin : ComputePlugin {
                         }
 
                         add(nodeToUse)
-                        add(buildString {
-                            append("([ -x /bin/bash ] && exec /bin/bash) || ")
-                            append("([ -x /usr/bin/bash ] && exec /usr/bin/bash) || ")
-                            append("([ -x /bin/zsh ] && exec /bin/zsh) || ")
-                            append("([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || ")
-                            append("([ -x /bin/fish ] && exec /bin/fish) || ")
-                            append("([ -x /usr/bin/fish ] && exec /usr/bin/fish) || ")
-                            append("exec /bin/sh")
-                        })
+                        add("bash --login")
                     }
 
                     is SlurmConfig.Terminal.Slurm -> {
@@ -449,6 +472,7 @@ class SlurmPlugin : ComputePlugin {
                         add("-w")
                         add(nodeToUse)
                         add("bash")
+                        add("--login")
                     }
                 }
             }.also { shellTracer { "Command is $it" } }.toTypedArray(),
@@ -774,7 +798,25 @@ class SlurmPlugin : ComputePlugin {
         )
     }
 
+    private val uidToUsernameCache = SimpleCache<Int, String>(
+        maxAge = SimpleCache.DONT_EXPIRE,
+        lookup = { uid ->
+            val process = executeCommandToText("/bin/getent") {
+                addArg("passwd")
+                addArg("$uid")
+            }
+
+            if (process.statusCode != 0) {
+                null
+            } else {
+                process.stdout.split(":").getOrNull(0)
+            }
+        }
+    )
+
     private suspend fun PluginContext.monitorStates() {
+        require(config.shouldRunServerCode())
+
         val jobs = SlurmDatabase.browse(SlurmBrowseFlags(filterIsActive = true))
         if (jobs.isEmpty()) return
 
@@ -788,13 +830,51 @@ class SlurmPlugin : ComputePlugin {
             val uState = SlurmStateToUCloudState.slurmToUCloud[job.state] ?: continue
 
             if (uState.state.name != dbState) {
+                val sshConfig = pluginConfig.ssh
+
                 updatesSent++
                 val updateResponse = JobsControl.update.call(
-                    bulkRequestOf(
-                        ResourceUpdateAndId(
-                            ucloudId,
-                            JobUpdate(uState.state, status = uState.message)
-                        )
+                    BulkRequest(
+                        buildList {
+                            add(
+                                ResourceUpdateAndId(
+                                    ucloudId,
+                                    JobUpdate(uState.state, status = uState.message)
+                                )
+                            )
+
+                            if (uState.state == JobState.RUNNING && sshConfig != null) {
+                                val createdBy = runCatching { jobCache.findJob(ucloudId)?.owner?.createdBy }.getOrNull()
+                                if (createdBy != null) {
+                                    val localUid = UserMapping.ucloudIdToLocalId(createdBy)
+                                    if (localUid != null) {
+                                        val localUsername = uidToUsernameCache.get(localUid)
+                                        if (localUsername != null) {
+                                            add(
+                                                ResourceUpdateAndId(
+                                                    ucloudId,
+                                                    JobUpdate(
+                                                        status = buildString {
+                                                            append("SSH: ")
+                                                            append("Connected! ")
+                                                            append("Available at: ")
+                                                            append("ssh ")
+                                                            append(localUsername)
+                                                            append('@')
+                                                            append(sshConfig.publicHost)
+                                                            if (sshConfig.port != null) {
+                                                                append(" -p ")
+                                                                append(sshConfig.port)
+                                                            }
+                                                        }
+                                                    )
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     ),
                     rpcClient,
                 )
@@ -821,7 +901,7 @@ class SlurmPlugin : ComputePlugin {
             ComputeSupport(
                 ref,
                 docker = ComputeSupport.Docker(
-                    enabled = true,
+                    enabled = pluginConfig.udocker.enabled,
                     logs = true,
                     timeExtension = false,
                     terminal = pluginConfig.terminal.enabled,

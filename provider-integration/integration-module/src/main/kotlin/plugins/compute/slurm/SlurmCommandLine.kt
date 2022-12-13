@@ -36,7 +36,7 @@ class SlurmCommandLine(
         return stdout.trim()
     }
 
-    suspend fun cancelJob(partition: String, jobId: String) {
+    suspend fun cancelJob(partition: String, jobId: String): Boolean {
         val resp = executeCommandToText(SCANCEL_EXE) {
             addArg("--partition", partition)
             addArg("--full")
@@ -44,12 +44,7 @@ class SlurmCommandLine(
             configureSlurm()
         }
 
-        if (resp.statusCode != 0) {
-            throw RPCException(
-                "Failed to cancel job. You can only cancel a job which you have started.",
-                HttpStatusCode.BadRequest
-            )
-        }
+        return resp.statusCode == 0
     }
 
     suspend fun browseJobAllocations(

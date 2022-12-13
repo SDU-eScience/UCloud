@@ -162,8 +162,9 @@ export const Operations: OperationsType = props => {
 
     if (props.location === "IN_ROW") {
         // Don't render anything if we are in row and we have selected something
-        if (!props.row) return <Box width="43px" />;
-        if (props.selected.length > 0 && !props.selected.includes(props.row)) return <Box width="43px" />;
+        const WIDTH = "51px";
+        if (!props.row) return <Box width={WIDTH} />;
+        if (props.selected.length > 0 && !props.selected.includes(props.row)) return <Box width={WIDTH} />;
     }
 
     const selected = props.location === "IN_ROW" && props.selected.length === 0 ? [props.row!] : props.selected;

@@ -813,6 +813,7 @@ interface ParsedSshAccess {
     success: boolean;
     command: string | null;
     message: string | null;
+    aauLegacy: boolean;
 }
 
 function parseUpdatesForAccess(updates: JobUpdate[]): ParsedSshAccess | null {
@@ -829,7 +830,8 @@ function parseUpdatesForAccess(updates: JobUpdate[]): ParsedSshAccess | null {
                 return {
                     success: true,
                     command: message.substring(aauPrefix.length),
-                    message: null
+                    message: null,
+                    aauLegacy: true,
                 };
             } else if (message.startsWith("SSH:")) {
                 // Standardized SSH access update
@@ -860,7 +862,7 @@ function parseUpdatesForAccess(updates: JobUpdate[]): ParsedSshAccess | null {
                     }
                 }
 
-                return {success, command, message: sshMessage};
+                return {success, command, message: sshMessage, aauLegacy: false};
             }
         }
     }
@@ -1080,6 +1082,10 @@ const RunningContent: React.FunctionComponent<{
                             <pre><code>{sshAccess.command}</code></pre>
                         </>}
                         {!sshAccess.message ? null : <>{sshAccess.message}</>}
+                        {sshAccess.aauLegacy ? null : <p>
+                            This requires an SSH key to be uploaded. You can upload one{" "}
+                            <Link to={"/ssh-keys"} target="_blank">here</Link>.
+                        </p>}
                     </Text>
                 </HighlightedCard>
             }

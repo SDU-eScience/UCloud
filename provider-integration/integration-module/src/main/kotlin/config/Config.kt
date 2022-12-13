@@ -328,7 +328,9 @@ data class ConfigSchema(
                 val modifySlurmConf: String? = "/etc/slurm/slurm.conf",
                 val web: Web = Web.None(),
                 val udocker: UDocker = UDocker(),
-                val terminal: Terminal = Terminal.Ssh()
+                val terminal: Terminal = Terminal.Ssh(),
+                val ssh: Ssh?,
+                val constraints: List<Constraint> = emptyList(),
             ) : Jobs() {
                 @Serializable
                 sealed class AccountMapper {
@@ -393,6 +395,18 @@ data class ConfigSchema(
                         override val enabled: Boolean = true
                     ) : Terminal()
                 }
+
+                @Serializable
+                data class Ssh(
+                    val publicHost: String,
+                    val port: Int? = null,
+                )
+
+                @Serializable
+                data class Constraint(
+                    val matches: String,
+                    val constraint: String,
+                )
             }
 
             @Serializable
