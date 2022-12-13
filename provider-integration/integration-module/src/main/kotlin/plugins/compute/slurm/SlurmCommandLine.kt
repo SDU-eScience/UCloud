@@ -27,8 +27,23 @@ class SlurmCommandLine(
         }
 
         if (code != 0) {
+            val combinedMessage = "$stdout $stderr"
+            if (combinedMessage.contains("Requested time limit is invalid")) {
+                throw RPCException(
+                    "The requested time limit is larger than what the system allows. Try with a smaller time allocation.",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            if (combinedMessage.contains("Node count specification invalid")) {
+                throw RPCException(
+                    "Too many nodes requested. Try with a smaller amount of nodes.",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
             throw RPCException(
-                "Unhandled exception when creating job: $code $stdout $stderr",
+                "Failed to create a job: $stdout $stderr ($code)",
                 HttpStatusCode.BadRequest
             )
         }

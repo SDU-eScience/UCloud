@@ -341,11 +341,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 <>{file.specification.product.id} / {file.specification.product.category}</>
                             }
                         </div>
-                        <div>
+                        <Flex gap="8px">
                             <b>Provider: </b>
-                            <ProviderLogo providerId={file.specification.product.provider} size="32" />{" "}
                             <ProviderTitle providerId={file.specification.product.provider} />
-                        </div>
+                        </Flex>
                         <Box mt={"16px"} mb={"8px"}>
                             <Link to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
                                 <Button fullWidth>View in folder</Button>

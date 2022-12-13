@@ -329,7 +329,7 @@ data class ConfigSchema(
                 val web: Web = Web.None(),
                 val udocker: UDocker = UDocker(),
                 val terminal: Terminal = Terminal.Ssh(),
-                val ssh: Ssh?,
+                val ssh: Ssh? = null,
                 val constraints: List<Constraint> = emptyList(),
             ) : Jobs() {
                 @Serializable

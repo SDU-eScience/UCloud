@@ -18,6 +18,7 @@ import dk.sdu.cloud.debug.logD
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
+import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.provider.api.ResourceOwner
@@ -129,6 +130,13 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         }
 
         return collections
+    }
+
+    override suspend fun RequestContext.initInUserMode(owner: ResourceOwner) {
+        ipcClient.sendRequest(
+            PosixCollectionIpc.retrieveCollections,
+            owner
+        )
     }
 
     override suspend fun RequestContext.retrieveProducts(
