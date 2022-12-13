@@ -74,7 +74,7 @@ class SnackbarStore {
                     return;
                 }
 
-                const lifetime = next.lifetime ?? 5000;
+                const lifetime = next.lifetime ?? (next.message.length > 80 ? 10_000 : 5000);
                 this.activeExpiresAt = now + lifetime;
                 this.subscribers.forEach(it => it(next));
             }
