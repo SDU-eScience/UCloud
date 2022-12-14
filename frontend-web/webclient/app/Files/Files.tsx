@@ -376,52 +376,55 @@ export const FilesBrowse: React.FunctionComponent<{
                 </Text>
             </Flex>}
             <Flex>
-                <DriveDropdown iconName="hdd">
-                    <ListV2
-                        loading={loading}
-                        onLoadMore={() => invokeCommand(FileCollectionsApi.browse({
-                            itemsPerPage: 25,
-                            next: drives.next,
-                            filterMemberFiles: "all"
-                        } as any)).then(page => setDrives(page)).catch(e => console.log(e))}
-                        page={drives}
-                        pageRenderer={items => (
-                            <List maxHeight={"200px"} overflowX="hidden" overflowY={"scroll"} childPadding={"8px"} bordered={false}>
-                                {items.map(drive => (
-                                    <DriveInDropdown
-                                        key={drive.id}
-                                        className="expandable-row-child"
-                                        onClick={() => {
-                                            navigateToPath(navigate, `/${drive.id}`);
-                                            setActiveProviderId(drive.specification.product.provider);
-                                        }}
-                                    >
-                                        {drive.specification.title}
-                                        <Box ml="auto" my="auto">
-                                            <ProviderLogo size={24} providerId={drive.specification.product.provider} />
-                                        </Box>
-                                    </DriveInDropdown>
-                                ))}
-                            </List>
-                        )}
-                    />
-                </DriveDropdown>
-                <BreadCrumbsBase embedded={browseType === BrowseType.Embedded}
-                    className={browseType == BrowseType.MainContent ? "isMain" : undefined}>
-                    {breadcrumbs.map((it, idx) => (
-                        <span data-component={"crumb"} key={it} test-tag={it} title={it}
-                            onClick={() => {
-                                navigateToPath(
-                                    navigate,
-                                    "/" + joinToString(components.slice(0, idx + 1), "/")
-                                );
-                            }}
-                        >
-                            {it}
-                        </span>
-                    ))}
-                    <Flex my="auto" ml="12px"><ProviderLogo size={32} providerId={activeProviderId} /></Flex>
-                </BreadCrumbsBase>
+                {collection.data ? <>
+                    <DriveDropdown iconName="hdd">
+                        <ListV2
+                            loading={loading}
+                            onLoadMore={() => invokeCommand(FileCollectionsApi.browse({
+                                itemsPerPage: 25,
+                                next: drives.next,
+                                filterMemberFiles: "all"
+                            } as any)).then(page => setDrives(page)).catch(e => console.log(e))}
+                            page={drives}
+                            pageRenderer={items => (
+                                <List maxHeight={"200px"} overflowX="hidden" overflowY={"scroll"} childPadding={"8px"} bordered={false}>
+                                    {items.map(drive => (
+                                        <DriveInDropdown
+                                            key={drive.id}
+                                            className="expandable-row-child"
+                                            onClick={() => {
+                                                navigateToPath(navigate, `/${drive.id}`);
+                                                setActiveProviderId(drive.specification.product.provider);
+                                            }}
+                                        >
+                                            {drive.specification.title}
+                                            <Box ml="auto" my="auto">
+                                                <ProviderLogo size={24} providerId={drive.specification.product.provider} />
+                                            </Box>
+                                        </DriveInDropdown>
+                                    ))}
+                                </List>
+                            )}
+                        />
+                    </DriveDropdown>
+
+                    <BreadCrumbsBase embedded={browseType === BrowseType.Embedded}
+                        className={browseType == BrowseType.MainContent ? "isMain" : undefined}>
+                        {breadcrumbs.map((it, idx) => (
+                            <span data-component={"crumb"} key={it} test-tag={it} title={it}
+                                onClick={() => {
+                                    navigateToPath(
+                                        navigate,
+                                        "/" + joinToString(components.slice(0, idx + 1), "/")
+                                    );
+                                }}
+                            >
+                                {it}
+                            </span>
+                        ))}
+                        <Flex my="auto" ml="12px"><ProviderLogo size={32} providerId={activeProviderId} /></Flex>
+                    </BreadCrumbsBase>
+                </> : null}
             </Flex>
         </Box>;
     }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject, props.isSearch, activeProviderId]);
@@ -437,18 +440,18 @@ export const FilesBrowse: React.FunctionComponent<{
         onInlineCreation={onInlineCreation}
         onRename={onRename}
         emptyPage={
-            <>
-                {props.isSearch ?
-                    <>
-                        UCloud is currently searching for files. This search may use your current folder as a starting
-                        point. If you do not get any results, try to select a different folder before starting your
-                        search.
-                    </> :
-                    <>
-                        No files found. Click &quot;Create folder&quot; or &quot;Upload files&quot;.
-                    </>
-                }
-            </>
+            props.isSearch ?
+                <>
+                    UCloud is currently searching for files. This search may use your current folder as a starting
+                    point. If you do not get any results, try to select a different folder before starting your
+                    search.
+                </> :
+                <>
+                    {collection.data ?
+                        <>No files found. Click &quot;Create folder&quot; or &quot;Upload files&quot;.</> :
+                        `${localActiveProject ? "This project" : "Your workspace"} has no drives. Select a different project/workspace to select a file.`
+                    }
+                </>
         }
         isSearch={props.isSearch}
         additionalFilters={additionalFilters}

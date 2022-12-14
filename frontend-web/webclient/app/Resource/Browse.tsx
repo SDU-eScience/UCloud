@@ -185,7 +185,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
     useEffect(() => {
         fetchProductsWithSupport(api.retrieveProducts())
-    }, []);
+    }, [Client.projectId]);
     const renaming = useRenamingState<Res>(
         () => renamingValue, [renamingValue],
         (a, b) => a.id === b.id, [],
