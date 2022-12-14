@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.controllers.ResourceOwnerWithId
+import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.enterContext
@@ -38,6 +39,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
+import libc.clib
 import java.util.Date
 import kotlin.math.floor
 
@@ -137,6 +139,14 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             PosixCollectionIpc.retrieveCollections,
             owner
         )
+
+        runCatching {
+            val ucloudUsername = owner.createdBy
+            ipcClient.sendRequest(
+                PosixCollectionIpc.retrieveCollections,
+                ResourceOwner(ucloudUsername, project = null)
+            )
+        }
     }
 
     override suspend fun RequestContext.retrieveProducts(
