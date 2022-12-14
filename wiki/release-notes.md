@@ -1,11 +1,17 @@
 # UCloud Release Notes
 
 This page tracks a high-level overview of changes to the version of UCloud
-hosted at ucloud.dk (cloud.sdu.dk). This page is intended for internal
+hosted at cloud.sdu.dk. This page is intended for internal
 use.
 
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
+
+# 14-12-22
+
+```
+✅  Deployment(accounting, 2022.2.96) (UP-TO-DATE)
+```
 
 # 08-12-22
 
