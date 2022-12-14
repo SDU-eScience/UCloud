@@ -3,6 +3,7 @@ import {PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useRef
 import {
     ResolvedSupport,
     Resource,
+    ResourceAclEntry,
     ResourceApi,
     ResourceBrowseCallbacks,
     SupportByProvider,
@@ -406,45 +407,46 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
                     <NormalMainTitle browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null;
             }
         };
-        renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
-            {!resource ? <>
-                {props.showCreatedAt === false ? null :
-                    <ListRowStat icon="calendar">{dateToString(timestampUnixMs())}</ListRowStat>}
-                {props.showCreatedBy === false ? null : <ListRowStat icon={"user"}>{Client.username}</ListRowStat>}
-                {props.showProduct === false || !selectedProduct ? null : <>
-                    <ListRowStat
-                        icon="cubeSolid">{selectedProduct.name} / {selectedProduct.category.name}</ListRowStat>
-                </>}
-            </> : <>
-                {props.showCreatedAt === false ? null :
-                    <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>}
-                {props.showCreatedBy === false || resource.owner.createdBy === "_ucloud" ? null :
-                    <div className="tooltip">
-                        <ListRowStat icon={"user"}>{" "}{resource.owner.createdBy}</ListRowStat>
-                        <div className="tooltip-content centered">
-                            <UserBox username={resource.owner.createdBy} />
+        renderer.Stats = props.withDefaultStats !== false ? ({resource}) => {
+            const filteredPermissions = filterPermissionOwner(resource?.owner.createdBy, resource?.permissions.others);
+            return (<>
+                {!resource ? <>
+                    {props.showCreatedAt === false ? null :
+                        <ListRowStat icon="calendar">{dateToString(timestampUnixMs())}</ListRowStat>}
+                    {props.showCreatedBy === false ? null : <ListRowStat icon={"user"}>{Client.username}</ListRowStat>}
+                    {props.showProduct === false || !selectedProduct ? null : <>
+                        <ListRowStat
+                            icon="cubeSolid">{selectedProduct.name} / {selectedProduct.category.name}</ListRowStat>
+                    </>}
+                </> : <>
+                    {props.showCreatedAt === false ? null :
+                        <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>}
+                    {props.showCreatedBy === false || resource.owner.createdBy === "_ucloud" ? null :
+                        <div className="tooltip">
+                            <ListRowStat icon={"user"}>{" "}{resource.owner.createdBy}</ListRowStat>
+                            <div className="tooltip-content centered">
+                                <UserBox username={resource.owner.createdBy} />
+                            </div>
                         </div>
-                    </div>
-                }
-                {props.showProduct === false || resource.specification.product.provider === UCLOUD_CORE ? null :
-                    <div className="tooltip">
-                        <ListRowStat icon={"cubeSolid"}>
-                            {" "}{resource.specification.product.id} / {resource.specification.product.category}
-                        </ListRowStat>
-                    </div>
-                }
-                {
-                    !resource.permissions.myself.includes("ADMIN") || resource.owner.project == null ? null :
-                        (props.showGroups === false ||
-                            resource.permissions.others == null ||
-                            resource.permissions.others.length <= 1) ?
-                            <ListRowStat>Not shared with any group</ListRowStat> :
-                            <ListRowStat>{resource.permissions.others.length == 1 ? "" : resource.permissions.others.length - 1} {resource.permissions.others.length > 2 ? "groups" : "group"}</ListRowStat>
-                }
-            </>}
-            {RemainingStats ?
-                <RemainingStats browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null}
-        </>) : renderer.Stats;
+                    }
+                    {props.showProduct === false || resource.specification.product.provider === UCLOUD_CORE ? null :
+                        <div className="tooltip">
+                            <ListRowStat icon={"cubeSolid"}>
+                                {" "}{resource.specification.product.id} / {resource.specification.product.category}
+                            </ListRowStat>
+                        </div>
+                    }
+                    {
+                        !resource.permissions.myself.includes("ADMIN") || resource.owner.project == null ? null :
+                            (props.showGroups === false || filteredPermissions.length === 0) ?
+                                <ListRowStat>Not shared with any group</ListRowStat> :
+                                <ListRowStat>{filteredPermissions.length === 0 ? "" : filteredPermissions.length} {filteredPermissions.length > 1 ? "groups" : "group"}</ListRowStat>
+                    }
+                </>}
+                {RemainingStats ?
+                    <RemainingStats browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null}
+            </>)
+        } : renderer.Stats;
         renderer.ImportantStats = ({resource, callbacks, browseType}) => {
             return <>
                 {RemainingImportantStats ?
@@ -722,6 +724,13 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
             </Flex>}
         />
     }
+}
+
+function filterPermissionOwner(owner?: string, entries?: ResourceAclEntry[]): ResourceAclEntry[] {
+    if (!entries) return [];
+    return entries.filter(it => {
+        return !(it.entity.type === "user" && it.entity.username === owner);
+    });
 }
 
 function UserBox(props: {username: string}) {
