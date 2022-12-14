@@ -41,7 +41,7 @@ export const FileCollectionBrowse: React.FunctionComponent<{
         productFilterForCreate={productFilterForCreate}
         navigateToChildren={FileCollectionsApi.navigateToChildren}
         isSearch={props.isSearch}
-        showGroups={true}
+        showGroups
     />;
 };
 
