@@ -61,6 +61,7 @@ import {useNavigate} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import { ProviderTitle } from "@/Providers/ProviderTitle";
+import { ProviderLogo } from "@/Providers/ProviderLogo";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -335,9 +336,15 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         <div><b>Path:</b> <PrettyFilePath path={file.id} /></div>
                         <div>
                             <b>Product: </b>
-                            {file.specification.product.id} / {file.specification.product.category}
+                            {file.specification.product.id === file.specification.product.category ?
+                                <>{file.specification.product.id}</> :
+                                <>{file.specification.product.id} / {file.specification.product.category}</>
+                            }
                         </div>
-                        <div><b>Provider: </b> {file.specification.product.provider}</div>
+                        <Flex gap="8px">
+                            <b>Provider: </b>
+                            <ProviderTitle providerId={file.specification.product.provider} />
+                        </Flex>
                         <Box mt={"16px"} mb={"8px"}>
                             <Link to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
                                 <Button fullWidth>View in folder</Button>

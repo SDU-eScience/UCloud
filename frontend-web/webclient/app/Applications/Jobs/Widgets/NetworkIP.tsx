@@ -5,15 +5,15 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {NetworkIPBrowse} from "@/Applications/NetworkIP/Browse";
 import {default as NetworkIPApi, NetworkIPFlags} from "@/UCloud/NetworkIPApi";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
+import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
 import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
-import ApplicationParameterNS = compute.ApplicationParameterNS;
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {callAPI} from "@/Authentication/DataHook";
 import {NetworkIP} from "@/UCloud/NetworkIPApi";
 import {BrowseType} from "@/Resource/BrowseType";
+import {checkProviderMismatch} from "../Create";
 
 interface NetworkIPProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.NetworkIP;
@@ -31,8 +31,13 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
 
     const onUse = useCallback((network: NetworkIP) => {
         NetworkIPSetter(props.parameter, {type: "network", id: network.id});
+        WidgetSetProvider(props.parameter, network.specification.product.provider);
+        if (props.errors[props.parameter.name]) {
+            delete props.errors[props.parameter.name];
+            props.setErrors({...props.errors});
+        }
         setOpen(false);
-    }, [props.parameter, setOpen]);
+    }, [props.parameter, setOpen, props.errors]);
 
     const valueInput = () => {
         return document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
@@ -86,7 +91,11 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
                 additionalFilters={filters}
                 onSelect={onUse}
                 browseType={BrowseType.Embedded}
-                onSelectRestriction={res => res.status.boundTo.length === 0}
+                onSelectRestriction={res => {
+                    const errorMessage = checkProviderMismatch(res, "Public IPs");
+                    if (errorMessage) return errorMessage;
+                    return res.status.boundTo.length === 0;
+                }}
             />
         </ReactModal>
     </Flex>);
@@ -111,7 +120,3 @@ export const NetworkIPSetter: WidgetSetter = (param, value) => {
     selector.value = (value as AppParameterValueNS.Network).id;
     selector.dispatchEvent(new Event("change"));
 };
-
-function findElement(param: ApplicationParameterNS.NetworkIP): HTMLSelectElement | null {
-    return document.getElementById(widgetId(param)) as HTMLSelectElement | null;
-}

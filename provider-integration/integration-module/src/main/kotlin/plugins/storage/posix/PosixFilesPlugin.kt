@@ -20,6 +20,7 @@ import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.debug.detailD
 import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.UCloudFile
+import dk.sdu.cloud.plugins.components
 import dk.sdu.cloud.plugins.fileName
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.service.Loggable
@@ -32,6 +33,7 @@ import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.delay
@@ -52,6 +54,7 @@ import java.nio.file.attribute.PosixFileAttributes
 import java.nio.file.attribute.PosixFilePermission
 import kotlin.io.path.absolutePathString
 import kotlin.math.min
+import kotlin.system.exitProcess
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 import java.nio.file.Files as NioFiles
@@ -263,82 +266,103 @@ class PosixFilesPlugin : FilePlugin {
         path: UCloudFile,
         request: FilesProviderBrowseRequest
     ): PageV2<PartialUFile> {
-        initializeTasksIfNeeded(request.resolvedCollection)
+        try {
+            initializeTasksIfNeeded(request.resolvedCollection)
 
-        val itemsPerPage = request.browse.itemsPerPage ?: 50
-        fun paginateFiles(files: List<PartialUFile>, offset: Int, token: String): PageV2<PartialUFile> {
-            try {
-                return PageV2(
-                    itemsPerPage,
-                    files.subList(offset, min(files.size, offset + itemsPerPage)),
-                    if (files.size >= offset + itemsPerPage) "${offset + itemsPerPage}-${token}" else null
-                )
-            } catch (ex: IndexOutOfBoundsException) {
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
-        }
-
-        var offset = 0
-        browseCache.cleanup()
-        val next = request.browse.next
-        if (next != null) {
-            val offsetText = next.substringBefore('-')
-            val token = next.substringAfter('-')
-            val parsedOffset = offsetText.toIntOrNull()
-            if (parsedOffset != null) {
-                offset = parsedOffset
-                val files = browseCache.get(token)
-                if (files != null) {
-                    return paginateFiles(files, offset, token)
+            val itemsPerPage = request.browse.itemsPerPage ?: 50
+            fun paginateFiles(files: List<PartialUFile>, offset: Int, token: String): PageV2<PartialUFile> {
+                try {
+                    return PageV2(
+                        itemsPerPage,
+                        files.subList(offset, min(files.size, offset + itemsPerPage)),
+                        if (files.size >= offset + itemsPerPage) "${offset + itemsPerPage}-${token}" else null
+                    )
+                } catch (ex: IndexOutOfBoundsException) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
                 }
             }
-        }
 
-        val token = path.path
-        val items = listFiles(pathConverter.ucloudToInternal(path).path).filter {
-            val fileName = it.fileName()
-            (!request.browse.flags.filterHiddenFiles || !fileName.startsWith(".")) &&
-                fileName != PosixTaskSystem.TASK_FOLDER
-        }
+            var offset = 0
+            browseCache.cleanup()
+            val next = request.browse.next
+            if (next != null) {
+                val offsetText = next.substringBefore('-')
+                val token = next.substringAfter('-')
+                val parsedOffset = offsetText.toIntOrNull()
+                if (parsedOffset != null) {
+                    offset = parsedOffset
+                    val files = browseCache.get(token)
+                    if (files != null) {
+                        return paginateFiles(files, offset, token)
+                    }
+                }
+            }
 
-        val shouldSort = items.size <= 10_000
-        if (shouldSort) {
-            val files = items.mapNotNull { runCatching { nativeStat(InternalFile(it)) }.getOrNull() }
-            val pathComparator = compareBy(String.CASE_INSENSITIVE_ORDER, PartialUFile::id)
-            var comparator = when (FilesSortBy.values().find { it.name == request.browse.sortBy } ?: FilesSortBy.PATH) {
-                FilesSortBy.PATH -> pathComparator
-                FilesSortBy.SIZE -> Comparator<PartialUFile> { a, b ->
-                    val aSize = a.status.sizeInBytes ?: 0L
-                    val bSize = b.status.sizeInBytes ?: 0L
-                    when {
-                        aSize < bSize -> -1
-                        aSize > bSize ->  1
-                        else -> 0
-                    }
-                }.thenComparator { a, b -> pathComparator.compare(a, b) }
-                FilesSortBy.MODIFIED_AT -> Comparator<PartialUFile> { a, b ->
-                    val aModifiedAt = a.status.modifiedAt ?: 0L
-                    val bModifiedAt = b.status.modifiedAt ?: 0L
-                    when {
-                        aModifiedAt < bModifiedAt -> -1
-                        aModifiedAt > bModifiedAt ->  1
-                        else -> 0
-                    }
-                }.thenComparator { a, b -> pathComparator.compare(a, b) }
+            val token = path.path
+            val items = listFiles(pathConverter.ucloudToInternal(path).path).filter {
+                val fileName = it.fileName()
+                (!request.browse.flags.filterHiddenFiles || !fileName.startsWith(".")) &&
+                        fileName != PosixTaskSystem.TASK_FOLDER
             }
-            if (request.browse.sortDirection != SortDirection.ascending) comparator = comparator.reversed()
-            val sortedFiles = files.sortedWith(comparator)
-            browseCache.insert(token, sortedFiles)
-            return paginateFiles(sortedFiles, offset, token)
-        } else {
-            val files = items.subList(offset, min(items.size, offset + itemsPerPage)).mapNotNull {
-                runCatching { nativeStat(InternalFile(it)) }.getOrNull()
+
+            val shouldSort = items.size <= 10_000
+            if (shouldSort) {
+                val files = items.mapNotNull { runCatching { nativeStat(InternalFile(it)) }.getOrNull() }
+                val pathComparator = compareBy(String.CASE_INSENSITIVE_ORDER, PartialUFile::id)
+                var comparator =
+                    when (FilesSortBy.values().find { it.name == request.browse.sortBy } ?: FilesSortBy.PATH) {
+                        FilesSortBy.PATH -> pathComparator
+                        FilesSortBy.SIZE -> Comparator<PartialUFile> { a, b ->
+                            val aSize = a.status.sizeInBytes ?: 0L
+                            val bSize = b.status.sizeInBytes ?: 0L
+                            when {
+                                aSize < bSize -> -1
+                                aSize > bSize -> 1
+                                else -> 0
+                            }
+                        }.thenComparator { a, b -> pathComparator.compare(a, b) }
+
+                        FilesSortBy.MODIFIED_AT -> Comparator<PartialUFile> { a, b ->
+                            val aModifiedAt = a.status.modifiedAt ?: 0L
+                            val bModifiedAt = b.status.modifiedAt ?: 0L
+                            when {
+                                aModifiedAt < bModifiedAt -> -1
+                                aModifiedAt > bModifiedAt -> 1
+                                else -> 0
+                            }
+                        }.thenComparator { a, b -> pathComparator.compare(a, b) }
+                    }
+                if (request.browse.sortDirection != SortDirection.ascending) comparator = comparator.reversed()
+                val sortedFiles = files.sortedWith(comparator)
+                browseCache.insert(token, sortedFiles)
+                return paginateFiles(sortedFiles, offset, token)
+            } else {
+                val files = items.subList(offset, min(items.size, offset + itemsPerPage)).mapNotNull {
+                    runCatching { nativeStat(InternalFile(it)) }.getOrNull()
+                }
+                return PageV2(
+                    itemsPerPage,
+                    files,
+                    if (items.size >= offset + itemsPerPage) "${offset + itemsPerPage}-${token}" else null
+                )
             }
-            return PageV2(
-                itemsPerPage,
-                files,
-                if (items.size >= offset + itemsPerPage) "${offset + itemsPerPage}-${token}" else null
-            )
+        } catch (ex: Throwable) {
+            if ((ex is RPCException && ex.httpStatusCode == HttpStatusCode.NotFound) || ex is AccessDeniedException) {
+                // NOTE(Dan): Fail-safe which triggers only if we get a permission denied on a top-level drive. We
+                // use this as an indication that the IM did not correctly restart after a group membership change.
+                if (path.components().size == 1) {
+                    Thread {
+                        @Suppress("BlockingMethodInNonBlockingContext")
+                        Thread.sleep(500)
+                        log.warn("SHUTTING DOWN SERVICE. FAIL-SAFE FOR GROUP MEMBERSHIP PERMISSIONS HAS BEEN TRIGGERED.")
+                        log.warn("IF THIS TRIGGERS IN A LOOP, THEN YOU HAVE A PERMISSION ERROR FOR $path")
+                        exitProcess(0)
+                    }.start()
+                    throw RPCException("Unable to open folder. Please try again.", HttpStatusCode.Forbidden)
+                }
+            }
+
+            throw ex
         }
     }
 

@@ -10,7 +10,7 @@ export const NetworkIPBrowse: React.FunctionComponent<{
     isSearch?: boolean;
     browseType?: BrowseType;
     additionalFilters?: any;
-    onSelectRestriction?: (res: NetworkIP) => boolean;
+    onSelectRestriction?: (res: NetworkIP) => boolean | string;
 }> = props => {
     const browseType = props.browseType ?? BrowseType.MainContent;
     return <ResourceBrowse
