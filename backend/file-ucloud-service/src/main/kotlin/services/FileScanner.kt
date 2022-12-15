@@ -1,5 +1,15 @@
 package dk.sdu.cloud.file.ucloud.services
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch._types.Conflicts
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
+import co.elastic.clients.elasticsearch._types.query_dsl.RangeQuery
+import co.elastic.clients.elasticsearch.core.BulkRequest
+import co.elastic.clients.elasticsearch.core.DeleteByQueryRequest
+import co.elastic.clients.elasticsearch.core.IndexRequest
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
+import co.elastic.clients.elasticsearch.core.bulk.CreateOperation
+import co.elastic.clients.json.JsonData
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -20,14 +30,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
-import org.elasticsearch.ElasticsearchException
-import org.elasticsearch.action.bulk.BulkRequest
-import org.elasticsearch.action.index.IndexRequest
-import org.elasticsearch.client.RequestOptions
-import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.index.query.QueryBuilders
-import org.elasticsearch.index.reindex.DeleteByQueryRequest
-import org.elasticsearch.xcontent.XContentType
 import java.net.SocketTimeoutException
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -36,7 +38,7 @@ import java.util.*
 import kotlin.collections.ArrayDeque
 
 class FileScanner(
-    private val elastic: RestHighLevelClient,
+    private val elastic: ElasticsearchClient,
     private val authenticatedService: AuthenticatedClient,
     private val db: DBContext,
     private val fs: NativeFS,
@@ -111,23 +113,18 @@ class FileScanner(
             // Insert the current file or folder into index
             var stat: NativeStat
             try {
-                val insert = IndexRequest(FILES_INDEX).apply {
+                val insert = CreateOperation.Builder<ElasticIndexedFile>().index(FILES_INDEX).apply {
                     val beforestat = System.currentTimeMillis()
                     stat = fs.stat(nextItem.file)
                     val afterStat = System.currentTimeMillis()
                     bulkRunner.timespentOnStat += afterStat - beforestat
                     if (LocalDateTime.ofInstant(Date(stat.modifiedAt).toInstant(), ZoneId.from(ZoneOffset.UTC)) > lastScan) {
-                        val writeValueAsBytes =
-                            defaultMapper.encodeToString(
-                                stat.toElasticIndexedFile(nextItem.file, nextItem.collection, scanTime)
-                            )
-                                .encodeToByteArray()
-                        source(writeValueAsBytes, XContentType.JSON)
+                        this.document(stat.toElasticIndexedFile(nextItem.file, nextItem.collection, scanTime))
                     } else {
                         bulkRunner.filesSkipped++
                     }
-                }
-                if (insert.source() != null) {
+                }.build()
+                if (insert.document() != null) {
                     bulkRunner.add(insert)
                 }
             } catch (ex: FSException) {
@@ -196,20 +193,22 @@ class FileScanner(
 
         println("Start deletion")
     //DELETE FILES THAT DO NOT EXISTS ANYMORE
-        val queryDeleteRequest = DeleteByQueryRequest(FILES_INDEX)
-        queryDeleteRequest.setConflicts("proceed")
-        queryDeleteRequest.setQuery(
-            QueryBuilders.rangeQuery(
-                ElasticIndexedFileConstants.SCAN_TIME
-            ).lt(scanTime)
-        )
-        queryDeleteRequest.batchSize = 100
+        val queryDeleteRequest = DeleteByQueryRequest.Builder()
+            .index(FILES_INDEX)
+            .conflicts(Conflicts.Proceed)
+            .query(
+                RangeQuery.Builder()
+                    .field(ElasticIndexedFileConstants.SCAN_TIME)
+                    .lt(JsonData.of(scanTime))
+                    .build()._toQuery()
+            )
+            .build()
         try {
             var moreToDelete = true
             while (moreToDelete) {
                 try {
-                    val response = elastic.deleteByQuery(queryDeleteRequest, RequestOptions.DEFAULT)
-                    if (response.deleted == 0L) moreToDelete = false
+                    val response = elastic.deleteByQuery(queryDeleteRequest)
+                    if (response.deleted() == 0L) moreToDelete = false
                 } catch (ex: SocketTimeoutException) {
                     log.warn(ex.message)
                     log.warn("Socket Timeout: Delay and try again")
@@ -237,19 +236,16 @@ class FileScanner(
             // Insert the current file or folder into index
             var stat: NativeStat
             try {
-                val insert = IndexRequest(FILES_INDEX).apply {
+                val insert = CreateOperation.Builder<ElasticIndexedFile>().index(FILES_INDEX).apply {
                     val beforestat = System.currentTimeMillis()
                     stat = fs.stat(nextItem.file)
                     val afterStat = System.currentTimeMillis()
                     bulkRunner.timespentOnStat += afterStat - beforestat
-                    val writeValueAsBytes =
-                        defaultMapper.encodeToString(
-                            stat.toElasticIndexedFile(nextItem.file, nextItem.collection, scanTime)
-                        )
-                            .encodeToByteArray()
-                    source(writeValueAsBytes, XContentType.JSON)
+
+                    this.document(stat.toElasticIndexedFile(nextItem.file, nextItem.collection, scanTime))
+
                 }
-                bulkRunner.add(insert)
+                bulkRunner.add(insert.build())
             } catch (ex: FSException) {
                 if (ex.httpStatusCode == HttpStatusCode.NotFound) {
                     continue
@@ -397,7 +393,7 @@ class FileScanner(
 
     inner class BulkRequestBuilder {
         private var bulkCount = 0
-        private var bulk = BulkRequest()
+        private var bulk = BulkRequest.Builder()
 
         private var docCount = 0L
         private var timespentInElastic = 0L
@@ -408,15 +404,16 @@ class FileScanner(
         var totalDocCount = 0L
         var foldersSkipped = 0L
         var filesSkipped = 0L
+        private var operations = mutableListOf<BulkOperation>()
 
         fun flush() {
             if (bulkCount > 0) {
                 val start = System.currentTimeMillis()
-                val response = elastic.bulk(bulk, RequestOptions.DEFAULT)
-                if (response.hasFailures()) {
-                    response.items.forEach {
-                        if (it.isFailed)
-                            log.warn(it.failure.toString())
+                val response = elastic.bulk(bulk.build())
+                if (response.errors()) {
+                    response.items().forEach {
+                        if (it.error() != null)
+                            log.warn(it.error().toString())
                     }
                 }
                 val end = System.currentTimeMillis()
@@ -425,7 +422,7 @@ class FileScanner(
                 docCount += bulkCount
                 totalDocCount += bulkCount
                 bulkCount = 0
-                bulk = BulkRequest()
+                bulk = BulkRequest.Builder()
             }
         }
 
@@ -442,6 +439,7 @@ class FileScanner(
             timespentInElastic = 0
             timespentOnStorage = 0
             timespentOnStat = 0
+            operations = mutableListOf<BulkOperation>()
         }
 
         private fun flushIfNeeded() {
@@ -450,9 +448,9 @@ class FileScanner(
             }
         }
 
-        fun add(indexRequest: IndexRequest) {
+        fun add(createOperationRequest: CreateOperation<ElasticIndexedFile>) {
             bulkCount++
-            bulk.add(indexRequest)
+            operations.add(BulkOperation.Builder().create(createOperationRequest).build())
             flushIfNeeded()
         }
 

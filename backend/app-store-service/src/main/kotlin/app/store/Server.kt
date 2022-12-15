@@ -57,7 +57,7 @@ class Server(override val micro: Micro) : CommonServer {
 
     override fun start() {
         val elasticClientOrNull = runCatching {
-            micro.elasticHighLevelClient
+            micro.elasticClient
         }.getOrNull()
 
         val elasticDAO = if (elasticClientOrNull != null) ElasticDao(elasticClientOrNull) else null

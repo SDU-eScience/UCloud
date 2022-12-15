@@ -1,14 +1,9 @@
 package dk.sdu.cloud.elastic.management.services
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch.snapshot.*
 import dk.sdu.cloud.service.Loggable
 import org.elasticsearch.ElasticsearchStatusException
-import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest
-import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryRequest
-import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest
-import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotRequest
-import org.elasticsearch.client.RequestOptions
-import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.repositories.fs.FsRepository
 import org.slf4j.Logger
 import java.time.LocalDate
@@ -16,12 +11,15 @@ import java.time.LocalDate
 private const val REPO_NAME = "backup"
 
 
-class BackupService(private val elastic: RestHighLevelClient, private val mountLocation: String) {
+class BackupService(private val elastic: ElasticsearchClient, private val mountLocation: String) {
 
     fun start() {
         val exists = try {
-            !elastic.snapshot().verifyRepository(
-                VerifyRepositoryRequest(REPO_NAME), RequestOptions.DEFAULT).nodes.isEmpty()
+            elastic.snapshot().verifyRepository(
+                VerifyRepositoryRequest.Builder()
+                    .name(REPO_NAME)
+                    .build()
+            ).nodes().isNotEmpty()
         } catch (ex: ElasticsearchStatusException) {
             log.warn(ex.stackTraceToString())
             false
@@ -32,42 +30,40 @@ class BackupService(private val elastic: RestHighLevelClient, private val mountL
         }
         val date = LocalDate.now().toString().replace("-","." )
 
-        val request = CreateSnapshotRequest()
-        request.repository(REPO_NAME)
-
         val snapshotName = "snapshot_$date"
-        request.snapshot(snapshotName)
 
-        elastic.snapshot().create(request, RequestOptions.DEFAULT)
+        val request = CreateSnapshotRequest.Builder()
+            .repository(REPO_NAME)
+            .snapshot(snapshotName)
+            .build()
+
+        elastic.snapshot().create(request)
     }
 
     private fun setupRepo() {
-        val request = PutRepositoryRequest()
-
-        request.name(REPO_NAME)
-        request.type(FsRepository.TYPE)
-
-        val locationKey = FsRepository.LOCATION_SETTING.key
-        val locationValue = mountLocation
-        val compressKey = FsRepository.COMPRESS_SETTING.key
-        val compressValue = true
-
-        val settings = Settings.builder()
-            .put(locationKey, locationValue)
-            .put(compressKey, compressValue)
+        val request = CreateRepositoryRequest.Builder()
+            .name(REPO_NAME)
+            .type(FsRepository.TYPE)
+            .settings(
+                RepositorySettings.Builder()
+                    .location(mountLocation)
+                    .compress(true)
+                    .build()
+            )
             .build()
 
-        request.settings(settings)
-
-        elastic.snapshot().createRepository(request, RequestOptions.DEFAULT)
+        elastic.snapshot().createRepository(request)
     }
 
     fun deleteBackup() {
         //Always generate a date in the format YYYY.MM.dd
         val date = LocalDate.now().toString().replace("-","." )
 
-        val request = DeleteSnapshotRequest(REPO_NAME, "snapshot_$date")
-        elastic.snapshot().delete(request, RequestOptions.DEFAULT)
+        val request = DeleteSnapshotRequest.Builder()
+            .repository(REPO_NAME)
+            .snapshot("snapshot_$date")
+            .build()
+        elastic.snapshot().delete(request)
     }
 
 

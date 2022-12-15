@@ -1,5 +1,12 @@
 package dk.sdu.cloud.elastic.management.services
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch._types.SlicedScroll
+import co.elastic.clients.elasticsearch._types.Time
+import co.elastic.clients.elasticsearch._types.TimeBuilders
+import co.elastic.clients.elasticsearch.core.ReindexRequest
+import co.elastic.clients.elasticsearch.core.reindex.Destination
+import co.elastic.clients.elasticsearch.core.reindex.Source
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -11,15 +18,14 @@ import kotlinx.coroutines.runBlocking
 import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestClient
-import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.core.TimeValue
-import org.elasticsearch.index.reindex.ReindexRequest
+import org.elasticsearch.search.slice.SliceBuilder
 import org.slf4j.Logger
 import java.io.IOException
 import java.time.LocalDate
 
 class ReindexService(
-    private val elastic: RestHighLevelClient
+    private val elastic: ElasticsearchClient
 ) {
 
     fun reindexSpecificIndices(fromIndices: List<String>, toIndices: List<String>, lowLevelClient: RestClient) {
@@ -33,14 +39,25 @@ class ReindexService(
                 createIndex(toIndex, elastic)
             }
 
-            val request = ReindexRequest()
-            request.setSourceIndices(fromIndex)
-            request.setDestIndex(toIndex)
-            request.setSourceBatchSize(2500)
-            request.setTimeout(TimeValue.timeValueMinutes(2))
+            val request = ReindexRequest.Builder()
+                .source(
+                    Source.Builder()
+                        .index(fromIndex)
+                        .size(2500)
+                        .build()
+                )
+                .dest(
+                    Destination.Builder()
+                        .index(toIndex)
+                        .build()
+                )
+                .timeout(Time.Builder().time("2m").build())
+                .build()
 
             try {
-                elastic.reindex(request, RequestOptions.DEFAULT)
+                elastic.reindex(
+                    request
+                )
             } catch (ex: Exception) {
                 when (ex) {
                     is IOException -> {
@@ -77,7 +94,7 @@ class ReindexService(
         }
     }
 
-    fun reindex(fromIndices: List<String>, toIndex: String, lowLevelClient: RestClient) {
+    fun reindex(fromIndices: List<String>, toIndex: String) {
         //Should always be lowercase
         val destinationIndex = toIndex.toLowerCase()
 
@@ -102,16 +119,28 @@ class ReindexService(
             createIndex(destinationIndex, elastic)
         }
 
-        val request = ReindexRequest()
-
-        request.setSourceIndices(*fromIndices.toTypedArray())
-        request.setDestIndex(destinationIndex)
-        request.setSourceBatchSize(2500)
-        request.setTimeout(TimeValue.timeValueMinutes(2))
-        request.setSlices(10)
+        val request = ReindexRequest.Builder()
+            .source(
+                Source.Builder()
+                    .index(fromIndices)
+                    .size(2500)
+                    .slice(
+                        SlicedScroll.Builder()
+                            .max(10)
+                            .build()
+                    )
+                    .build()
+            )
+            .dest(
+                Destination.Builder()
+                    .index(toIndex)
+                    .build()
+            )
+            .timeout(Time.Builder().time("2m").build())
+            .build()
 
         try {
-            elastic.reindex(request, RequestOptions.DEFAULT)
+            elastic.reindex(request)
         } catch (ex: Exception) {
             when (ex) {
                 is IOException -> {
@@ -169,7 +198,7 @@ class ReindexService(
             val fromIndex = logIndex
             val toIndex = logIndex.substring(0, logIndex.indexOf("-")+1) +
                 LocalDate.now().minusDays(minusDays).toString().dropLast(3).replace("-",".")
-            reindex(listOf(fromIndex), toIndex, lowLevelClient)
+            reindex(listOf(fromIndex), toIndex)
         }
         runBlocking {
             SlackDescriptions.sendAlert.call(

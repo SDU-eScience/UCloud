@@ -1,8 +1,11 @@
 package dk.sdu.cloud.app.store.services
 
+import co.elastic.clients.elasticsearch.core.search.Hit
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.mapItems
@@ -103,7 +106,8 @@ class ApplicationSearchService (
         val queryTerms = normalizedQuery.split(" ").filter { it.isNotBlank() }
 
         val results = elasticDao?.search(queryTerms, normalizedTags)
-        val hits = results?.hits?.hits ?: emptyArray()
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Missing elasticDao")
+        val hits = results
         if (hits.isEmpty()) {
             return Page(
                 0,
@@ -121,8 +125,8 @@ class ApplicationSearchService (
 
         if (showAllVersions) {
             val embeddedNameAndVersionList = hits.map {
-                val result = defaultMapper.decodeFromString<ElasticIndexedApplication>(it.sourceAsString)
-                EmbeddedNameAndVersion(result.name, result.version)
+                val result = it.source()
+                EmbeddedNameAndVersion(result!!.name, result!!.version)
             }
 
             val applications = db.withSession { session ->
@@ -133,8 +137,8 @@ class ApplicationSearchService (
 
         } else {
             val titles = hits.map {
-                val result = defaultMapper.decodeFromString<ElasticIndexedApplication>(it.sourceAsString)
-                result.title
+                val result = it.source()
+                result!!.title
             }
 
             val applications = db.withSession { session ->
@@ -147,7 +151,7 @@ class ApplicationSearchService (
 
     private suspend fun sortAndCreatePageByScore(
         applications: List<Application>,
-        results: SearchResponse?,
+        results: List<Hit<ElasticIndexedApplication>>?,
         user: SecurityPrincipal,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
@@ -160,9 +164,9 @@ class ApplicationSearchService (
 
         val sortedList = mutableListOf<Application>()
 
-        results?.hits?.hits?.forEach {
+        results?.forEach {
             val foundEntity =
-                map[EmbeddedNameAndVersion(it.sourceAsMap["name"].toString(), it.sourceAsMap["version"].toString())]
+                map[EmbeddedNameAndVersion(it.source()?.name.toString(), it.source()?.version.toString())]
             if (foundEntity != null) {
                 sortedList.add(foundEntity)
             }

@@ -63,7 +63,7 @@ class Server(override val micro: Micro) : CommonServer {
     }
 
     override fun start() {
-        val elasticHighLevelClient = micro.elasticHighLevelClient
+        val elasticHighLevelClient = micro.elasticClient
         val elasticLowLevelClient = micro.elasticLowLevelClient
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val db = AsyncDBSessionFactory(micro.databaseConfig)
@@ -73,7 +73,7 @@ class Server(override val micro: Micro) : CommonServer {
         val args = micro.commandLineArguments
 
         val postgresDataService = PostgresDataService(db)
-        val elasticDataService = ElasticDataService(elasticHighLevelClient, elasticLowLevelClient, db)
+        val elasticDataService = ElasticDataService(elasticHighLevelClient, db)
         val deicReportService = DeicReportService(postgresDataService)
         val userActivityReport = UserActivityReport(elasticDataService, postgresDataService)
         val testService = TestService()

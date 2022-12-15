@@ -57,11 +57,6 @@ class ElasticFeature : MicroFeature {
 
         ctx.elasticLowLevelClient = lowLevelClient.build()
 
-        ctx.elasticHighLevelClient = RestHighLevelClientBuilder(
-            ctx.elasticLowLevelClient
-        ).setApiCompatibilityMode(true)
-            .build()
-
         val transport = RestClientTransport(
             ctx.elasticLowLevelClient,
             JacksonJsonpMapper()
@@ -120,15 +115,6 @@ var Micro.elasticClient: ElasticsearchClient
     }
     internal set(value) {
         attributes[ElasticFeature.CLIENT] = value
-    }
-
-	var Micro.elasticHighLevelClient: RestHighLevelClient
-    get() {
-        requireFeature(ElasticFeature)
-        return attributes[ElasticFeature.HIGH_LEVEL]
-    }
-    internal set(value) {
-        attributes[ElasticFeature.HIGH_LEVEL] = value
     }
 
 var Micro.elasticLowLevelClient: RestClient

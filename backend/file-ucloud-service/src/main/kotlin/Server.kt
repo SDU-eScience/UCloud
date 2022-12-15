@@ -118,10 +118,10 @@ class Server(
         // ===========================================================================================================
         var elasticQueryService: ElasticQueryService? = null
         if ( micro.featureOrNull(ElasticFeature) != null) {
-            elasticQueryService = ElasticQueryService(micro.elasticHighLevelClient, nativeFs, pathConverter)
+            elasticQueryService = ElasticQueryService(micro.elasticClient, nativeFs, pathConverter)
         }
         if (configuration.indexing.enabled && micro.featureOrNull(ElasticFeature) != null) {
-            FilesIndex.create(micro.elasticHighLevelClient, numberOfShards = 4, numberOfReplicas = 0)
+            FilesIndex.create(micro.elasticClient, numberOfShards = 4, numberOfReplicas = 0)
 
             scriptManager.register(
                 Script(
@@ -132,7 +132,7 @@ class Server(
                     ),
                     script = {
                         FileScanner(
-                            micro.elasticHighLevelClient,
+                            micro.elasticClient,
                             authenticatedClient,
                             db,
                             nativeFs,
@@ -152,7 +152,7 @@ class Server(
                     ),
                     script = {
                         FileScanner(
-                            micro.elasticHighLevelClient,
+                            micro.elasticClient,
                             authenticatedClient,
                             db,
                             nativeFs,

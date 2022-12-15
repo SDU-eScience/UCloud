@@ -23,14 +23,14 @@ class Server(
     override fun start() {
         if (micro.featureOrNull(ElasticFeature) == null) return
 
-        val elasticHighLevelClient = micro.elasticHighLevelClient
+        val elasticClient = micro.elasticClient
         val elasticLowLevelClient = micro.elasticLowLevelClient
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         startServices(wait = false)
 
         if (micro.commandLineArguments.contains("--reindex")) {
             try {
-                val reindexService = ReindexService(elasticHighLevelClient)
+                val reindexService = ReindexService(elasticClient)
                 reindexService.reindexToMonthly("http_logs", elasticLowLevelClient, serviceClient)
                 exitProcess(0)
             } catch (ex: Exception) {
@@ -42,7 +42,7 @@ class Server(
         if (micro.commandLineArguments.contains("--grafanaAliases")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                val grafana = Grafana(elasticHighLevelClient)
+                val grafana = Grafana(elasticClient)
                 grafana.createAlias("grafana", "http_logs")
                 exitProcess(0)
             } catch (ex: Exception) {
@@ -54,7 +54,7 @@ class Server(
         if (micro.commandLineArguments.contains("--entryDelete")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                val eecService = ElasticEntryCleanupService(elasticHighLevelClient)
+                val eecService = ElasticEntryCleanupService(elasticClient)
                 eecService.removeEntriesContaining(listOf("STATEMENT"), "stolon")
                 exitProcess(0)
             } catch (ex: Exception) {
@@ -66,7 +66,7 @@ class Server(
         if (micro.commandLineArguments.contains("--setup")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                val settingService = AutoSettingsService(elasticHighLevelClient)
+                val settingService = AutoSettingsService(elasticClient)
                 settingService.setup()
                 exitProcess(0)
             } catch (ex: Exception) {
@@ -79,7 +79,7 @@ class Server(
             @Suppress("TooGenericExceptionCaught")
             try {
                 log.info("removing flood limitation")
-                val settingService = AutoSettingsService(elasticHighLevelClient)
+                val settingService = AutoSettingsService(elasticClient)
                 settingService.removeFloodLimitationOnAll()
                 exitProcess(0)
             } catch (ex: Exception) {
@@ -91,9 +91,9 @@ class Server(
         if (micro.commandLineArguments.contains("--cleanup")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                val deleteService = ExpiredEntriesDeleteService(elasticHighLevelClient)
+                val deleteService = ExpiredEntriesDeleteService(elasticClient)
                 deleteService.deleteExpiredAllIndices()
-                val shrinkService = ShrinkService(elasticHighLevelClient, config.gatherNode)
+                val shrinkService = ShrinkService(elasticClient, elasticLowLevelClient, config.gatherNode)
                 shrinkService.shrink()
                 deleteService.deleteOldRancherLogs()
                 deleteService.deleteOldFileBeatLogs()
@@ -108,9 +108,9 @@ class Server(
         if (micro.commandLineArguments.contains("--reindexSpecific")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                val reindexService = ReindexService(elasticHighLevelClient)
+                val reindexService = ReindexService(elasticClient)
                 //SPECIFY HERE WHAT TO REINDEX NOT IN ARGS
-                val fromIndices = getListOfIndices(elasticHighLevelClient, "*2021.12*")
+                val fromIndices = getListOfIndices(elasticClient, "*2021.12*")
                 val toIndices = fromIndices.map { it.replace("-2021.", "-2020.") }
                 println(fromIndices)
                 println(toIndices)
@@ -126,8 +126,8 @@ class Server(
         if (micro.commandLineArguments.contains("--deleteEmptyIndices")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                getAllEmptyIndicesWithRegex(elasticHighLevelClient, elasticLowLevelClient, "*").forEach {
-                    deleteIndex(it, elasticHighLevelClient)
+                getAllEmptyIndicesWithRegex(elasticClient, elasticLowLevelClient, "*").forEach {
+                    deleteIndex(it, elasticClient)
                 }
                 exitProcess(0)
             } catch (ex: Exception) {
@@ -139,7 +139,7 @@ class Server(
         if (micro.commandLineArguments.contains("--backup")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                val backupService = BackupService(elasticHighLevelClient, config.mount)
+                val backupService = BackupService(elasticClient, config.mount)
                 backupService.start()
                 exitProcess(0)
             } catch (ex: Exception) {

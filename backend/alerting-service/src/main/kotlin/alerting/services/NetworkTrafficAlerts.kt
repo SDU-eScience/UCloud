@@ -1,7 +1,11 @@
 package dk.sdu.cloud.alerting.services
 
-import com.fasterxml.jackson.module.kotlin.readValue
+import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch._types.query_dsl.*
+import co.elastic.clients.elasticsearch.core.SearchRequest
+import co.elastic.clients.json.JsonData
 import dk.sdu.cloud.alerting.Configuration
+import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -13,17 +17,13 @@ import dk.sdu.cloud.slack.api.SlackDescriptions
 import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
-import org.elasticsearch.action.search.SearchRequest
-import org.elasticsearch.client.RequestOptions
-import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.index.query.QueryBuilders
-import org.elasticsearch.search.builder.SearchSourceBuilder
 import java.net.ConnectException
 import java.time.LocalDate
 import java.util.*
 
+
 class NetworkTrafficAlerts(
-    private val elastic: RestHighLevelClient,
+    private val elastic: ElasticsearchClient,
     private val client: AuthenticatedClient
 ) {
     private suspend fun sendAlert(message: String){
@@ -44,53 +44,69 @@ class NetworkTrafficAlerts(
             //Period Format = YYYY.MM.dd
             val yesterdayPeriodFormat = LocalDate.now().minusDays(1).toString().replace("-", ".")
             val todayPeriodFormat = LocalDate.now().toString().replace("-", ".")
-            val requestFor5xxCodes = SearchRequest()
-
-            requestFor5xxCodes.indices("http_logs_*$yesterdayPeriodFormat*", "http_logs_*$todayPeriodFormat*")
-            requestFor5xxCodes.source(
-                SearchSourceBuilder().query(
-                    QueryBuilders.boolQuery()
-                        .must(
-                            QueryBuilders.matchAllQuery()
-                        )
-                        .filter(
-                            QueryBuilders.rangeQuery("@timestamp")
-                                .gte(Date(Time.now() - FIFTEEN_MIN))
-                                .lt(Date(Time.now()))
-                        )
-                        .filter(
-                            QueryBuilders.rangeQuery("responseCode")
-                                .gte(500)
-                        )
+            val requestFor5xxCodes = SearchRequest.Builder()
+                .index(listOf("http_logs_*$yesterdayPeriodFormat*", "http_logs_*$todayPeriodFormat*"))
+                .query(
+                    Query(
+                        BoolQuery.Builder()
+                            .must(
+                                MatchAllQuery.Builder().build()._toQuery()
+                            )
+                            .filter(
+                                RangeQuery.Builder()
+                                    .field("@timestamp")
+                                    .gte(JsonData.of(Date(Time.now() - FIFTEEN_MIN)))
+                                    .lt(JsonData.of(Date(Time.now())))
+                                    .build()._toQuery()
+                            )
+                            .filter(
+                                RangeQuery.Builder()
+                                    .field("responseCode")
+                                    .gte(JsonData.of(500))
+                                    .build()._toQuery()
+                            )
+                            .build()
+                    )
                 )
-            )
+                .build()
+
+
             val numberOf5XXStatusCodes = try {
-                elastic.search(requestFor5xxCodes, RequestOptions.DEFAULT).hits.totalHits.value.toDouble()
+                elastic.search(requestFor5xxCodes, CallDescription::class.java)
+                    .hits()
+                    .total()?.value()?.toDouble() ?: 0.0
             } catch (ex: ConnectException) {
                 numberOfRetries++
                 delay(FIFTEEN_SEC)
                 continue
             }
 
-            val totalNumberOfEntriesRequest = SearchRequest()
 
-            totalNumberOfEntriesRequest.indices("http_logs_*$yesterdayPeriodFormat*", "http_logs_*$todayPeriodFormat*")
-            totalNumberOfEntriesRequest.source(
-                SearchSourceBuilder().query(
-                    QueryBuilders.boolQuery()
-                        .must(
-                            QueryBuilders.matchAllQuery()
-                        )
-                        .filter(
-                            QueryBuilders.rangeQuery("@timestamp")
-                                .gte(Date(Time.now() - FIFTEEN_MIN))
-                                .lt(Date(Time.now()))
-                        )
+            val totalNumberOfEntriesRequest = SearchRequest.Builder()
+                .index(mutableListOf("http_logs_*$yesterdayPeriodFormat*", "http_logs_*$todayPeriodFormat*"))
+                .query(
+                    Query(
+                        BoolQuery.Builder()
+                            .must(
+                                MatchAllQuery.Builder().build()._toQuery()
+                            )
+                            .filter(
+                                RangeQuery.Builder()
+                                    .field("@timestamp")
+                                    .gte(JsonData.of(Date(Time.now() - FIFTEEN_MIN)))
+                                    .lt(JsonData.of(Date(Time.now())))
+                                    .build()._toQuery()
+                            )
+                            .build()
+                    )
                 )
-            )
+                .build()
+
 
             val totalNumberOfEntries = try {
-                elastic.search(totalNumberOfEntriesRequest, RequestOptions.DEFAULT).hits.totalHits.value.toDouble()
+                elastic.search(totalNumberOfEntriesRequest, CallDescription::class.java)
+                    .hits()
+                    .total()?.value()?.toDouble() ?: 0.0
             } catch (ex: ConnectException) {
                 numberOfRetries++
                 delay(FIFTEEN_SEC)
@@ -101,7 +117,7 @@ class NetworkTrafficAlerts(
                 delay(FIVE_MIN)
                 continue
             }
-            val percentage = numberOf5XXStatusCodes / totalNumberOfEntries * 100
+            val percentage = (numberOf5XXStatusCodes / totalNumberOfEntries) * 100
             ElasticAlerting.log.debug(
                 "Current percentage is: $percentage, with limit: $limit5xxPercentage." +
                         " Number of entries: $totalNumberOfEntries"
@@ -166,7 +182,7 @@ class NetworkTrafficAlerts(
     )
 
     suspend fun ambassadorResponseAlert(
-        elastic: RestHighLevelClient,
+        elastic: ElasticsearchClient,
         configuration: Configuration
     ) {
         val whitelistedIPs = configuration.omissions?.whiteListedIPs ?: emptyList()
@@ -177,34 +193,37 @@ class NetworkTrafficAlerts(
             val today = LocalDate.now()
             val yesterday = LocalDate.now().minusDays(1)
 
-            val searchRequest = SearchRequest()
+            val searchRequest = SearchRequest.Builder()
+                .index(listOf("$index-*", "$index-$today*", "$index-$yesterday*"))
+                .query(
+                    Query(
+                        BoolQuery.Builder()
+                            .must(
+                                MatchAllQuery.Builder().build()._toQuery()
+                            )
+                            .filter(
+                                RangeQuery.Builder()
+                                    .gte(JsonData.of(Date(Time.now() - THIRTY_MIN)))
+                                    .lt(JsonData.of(Date(Time.now())))
+                                    .build()._toQuery()
+                            )
+                            .filter(
+                                MultiMatchQuery.Builder()
+                                    .query("ambassador")
+                                    .build()._toQuery()
+                            )
+                            .build()
+                    )
+                ).size(500)
+                .build()
 
-            searchRequest.indices("$index-*", "$index-$today*", "$index-$yesterday*")
-            searchRequest.source(
-                SearchSourceBuilder().query(
-                    QueryBuilders.boolQuery()
-                        .must(
-                            QueryBuilders.matchAllQuery()
-                        )
-                        .filter(
-                            QueryBuilders.rangeQuery("@timestamp")
-                                .gte(Date(Time.now() - THIRTY_MIN))
-                                .lt(Date(Time.now()))
-                        )
-                        .filter(
-                            QueryBuilders.multiMatchQuery("ambassador")
-                        )
-                )
-                    .size(5000)
-            )
-
-            val results = elastic.search(searchRequest, RequestOptions.DEFAULT)
+            val results = elastic.search(searchRequest, LogEntry::class.java)
             val numberOfRequestsPerIP = hashMapOf<String, Int>()
             var numberOf5xx = 0
-            results.hits.forEach {
-                val log = defaultMapper.decodeFromString<LogEntry>(it.sourceAsString)
-                if (log.message.contains("ACCESS")) {
-                    if (log.message.contains(
+            results.hits().hits().forEach {
+                val message = it.fields()["message"].toString()
+                if (message.contains("ACCESS")) {
+                    if (message.contains(
                             Regex(
                                 """
                             "\s4[0-9]{2}\s
@@ -212,7 +231,7 @@ class NetworkTrafficAlerts(
                             )
                         )
                     ) {
-                        val ips = log.message.split(" ")[14]
+                        val ips = message.split(" ")[14]
                         val ip = ips.dropLast(1).drop(1).split(",").first()
                         if (ip in whitelistedIPs) {
                             return@forEach
@@ -226,7 +245,7 @@ class NetworkTrafficAlerts(
                             }
                         }
                     }
-                    if (log.message.contains(
+                    if (message.contains(
                             Regex(
                                 """
                                     "\s5[0-9]{2}\s

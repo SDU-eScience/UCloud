@@ -36,7 +36,7 @@ class Server(
         startServices(false)
 
         if (hasElastic && !micro.developmentModeEnabled) {
-            val elasticHighLevelClient = micro.elasticHighLevelClient
+            val elasticHighLevelClient = micro.elasticClient
             val elasticLowLevelClient = micro.elasticLowLevelClient
 
             GlobalScope.launch {
