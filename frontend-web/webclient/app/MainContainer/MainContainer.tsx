@@ -113,6 +113,7 @@ export const LoadingMainContainer: React.FunctionComponent<LoadingMainContainerP
     );
 };
 
+/* abandon hope all ye who enter here */
 function SidebarScroll(props: {children: React.ReactNode}): JSX.Element {
     React.useEffect(() => {
         const element = document.querySelector<HTMLInputElement>(
@@ -123,7 +124,6 @@ function SidebarScroll(props: {children: React.ReactNode}): JSX.Element {
         element.onwheel = scrollMainContainer;
         return () => {
             element.onwheel = old;
-            console.log("resetting");
         }
     });
 
