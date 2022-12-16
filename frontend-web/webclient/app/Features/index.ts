@@ -7,6 +7,9 @@ export enum Feature {
 }
 
 export function hasFeature(feature: Feature): boolean {
+    if (feature == Feature.SSH) return true;
+    if (feature == Feature.PROVIDER_CONNECTION) return true;
+
     if (localStorage.getItem("no-features") != null) return false;
 
     switch (feature) {
