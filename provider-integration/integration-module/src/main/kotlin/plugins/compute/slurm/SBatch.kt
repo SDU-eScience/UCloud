@@ -137,7 +137,7 @@ suspend fun createSbatchFile(
         }
 
         val appMetadata = job.status.resolvedApplication!!.metadata
-        if (appMetadata.name.startsWith(slurmRawScriptPrefix)) {
+        if (appMetadata.name.startsWith(slurmRawScriptPrefix) || appMetadata.name == "slurm-script") {
             val script = (parameters["script"] as? AppParameterValue.Text)?.value
                 ?: "echo 'No script found'"
             appendLine(script)
