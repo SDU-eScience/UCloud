@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.store
 
 import app.store.services.Importer
+import co.elastic.clients.elasticsearch.core.IndexRequest
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.jsontype.NamedType
@@ -17,21 +18,8 @@ import dk.sdu.cloud.app.store.rpc.AppSearchController
 import dk.sdu.cloud.app.store.rpc.AppStoreController
 import dk.sdu.cloud.app.store.rpc.AppTagController
 import dk.sdu.cloud.app.store.rpc.ToolController
-import dk.sdu.cloud.app.store.services.AppStoreAsyncDao
+import dk.sdu.cloud.app.store.services.*
 import dk.sdu.cloud.app.store.services.AppStoreService
-import dk.sdu.cloud.app.store.services.ApplicationLogoAsyncDao
-import dk.sdu.cloud.app.store.services.ApplicationPublicAsyncDao
-import dk.sdu.cloud.app.store.services.ApplicationPublicService
-import dk.sdu.cloud.app.store.services.ApplicationSearchAsyncDao
-import dk.sdu.cloud.app.store.services.ApplicationSearchService
-import dk.sdu.cloud.app.store.services.ApplicationTable
-import dk.sdu.cloud.app.store.services.ApplicationTagsAsyncDao
-import dk.sdu.cloud.app.store.services.ApplicationTagsService
-import dk.sdu.cloud.app.store.services.ElasticDao
-import dk.sdu.cloud.app.store.services.FavoriteAsyncDao
-import dk.sdu.cloud.app.store.services.FavoriteService
-import dk.sdu.cloud.app.store.services.LogoService
-import dk.sdu.cloud.app.store.services.ToolAsyncDao
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.auth.api.authenticator
@@ -45,6 +33,7 @@ import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.startServices
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import java.io.File
