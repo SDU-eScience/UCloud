@@ -1,6 +1,7 @@
 package dk.sdu.cloud.contact.book.services
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch._types.analysis.WhitespaceAnalyzer
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
@@ -11,6 +12,7 @@ import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
 import co.elastic.clients.elasticsearch.core.bulk.CreateOperation
 import co.elastic.clients.elasticsearch.core.bulk.IndexOperation
 import co.elastic.clients.elasticsearch.core.msearch.MultisearchBody
+import co.elastic.clients.elasticsearch.core.msearch.MultisearchHeader
 import co.elastic.clients.elasticsearch.core.msearch.RequestItem
 import co.elastic.clients.elasticsearch.core.search.Hit
 import co.elastic.clients.elasticsearch.indices.*
@@ -35,19 +37,12 @@ class ContactBookElasticDao(private val elasticClient: ElasticsearchClient) {
                 .index(CONTACT_BOOK_INDEX)
                 .settings(
                     IndexSettings.Builder()
-                        .withJson(
-                            ByteArrayInputStream(
-                                """
-                                    {
-                                        "number_of_shards": 2,
-                                        "number_of_replicas": 2,
-                                        "analysis": {
-                                            "analyzer": "whitespace",
-                                            "tokenizer": "whitespace"
-                                        }
-                                    }
-                                """.toByteArray()
-                            )
+                        .numberOfShards("2")
+                        .numberOfReplicas("2")
+                        .analysis(
+                            IndexSettingsAnalysis.Builder()
+                                .analyzer("whitespace", WhitespaceAnalyzer.Builder().build()._toAnalyzer())
+                                .build()
                         ).build()
                 )
                 .mappings(
@@ -134,6 +129,11 @@ class ContactBookElasticDao(private val elasticClient: ElasticsearchClient) {
             .searches(
                 toUser.map { shareReciever ->
                     RequestItem.Builder()
+                        .header(
+                            MultisearchHeader.Builder()
+                                .index(CONTACT_BOOK_INDEX)
+                                .build()
+                        )
                         .body(
                             MultisearchBody.Builder()
                                 .query(
