@@ -42,9 +42,10 @@ class Server(
             GlobalScope.launch {
                 try {
                     log.info("Alert on shard docs - starting up")
-                    ElasticAlerting(elasticHighLevelClient, authenticatedClient).alertOnNumberOfDocs(
-                        elasticLowLevelClient
-                    )
+                    ElasticAlerting(elasticHighLevelClient, authenticatedClient)
+                        .alertOnNumberOfDocs(
+                            elasticLowLevelClient
+                        )
                 } catch (ex: Exception) {
                     log.warn(ex.stackTraceToString())
                     SlackDescriptions.sendAlert.call(
@@ -58,7 +59,8 @@ class Server(
             GlobalScope.launch {
                 try {
                     log.info("Alert on clusterhealth - starting up")
-                    ElasticAlerting(elasticHighLevelClient, authenticatedClient).alertOnClusterHealth()
+                    ElasticAlerting(elasticHighLevelClient, authenticatedClient)
+                        .alertOnClusterHealth()
                 } catch (ex: Exception) {
                     log.warn(ex.stackTraceToString())
                     SlackDescriptions.sendAlert.call(
@@ -71,8 +73,9 @@ class Server(
 
             GlobalScope.launch {
                 try {
-                    log.info("Alert on 500 statuscodes - starting up")
-                    NetworkTrafficAlerts(elasticHighLevelClient, authenticatedClient).alertOnStatusCode(config)
+                    log.info("Alert on 500 status codes - starting up")
+                    NetworkTrafficAlerts(elasticHighLevelClient, authenticatedClient)
+                        .alertOnStatusCode(config)
                 } catch (ex: Exception) {
                     log.warn("WARNING: Alert on StatusCode caught exception: ${ex.message}.")
                     SlackDescriptions.sendAlert.call(
@@ -91,10 +94,11 @@ class Server(
                             "mid:${config.limits?.storageWarnLimit ?: "NaN"}%, " +
                             "high:${config.limits?.storageCriticalLimit ?: "NaN"}%"
                     )
-                    ElasticAlerting(elasticHighLevelClient, authenticatedClient).alertOnStorage(
-                        elasticLowLevelClient,
-                        config
-                    )
+                    ElasticAlerting(elasticHighLevelClient, authenticatedClient)
+                        .alertOnStorage(
+                            elasticLowLevelClient,
+                            config
+                        )
                 } catch (ex: Exception) {
                     log.warn("WARNING: Alert on elastic storage caught exception: ${ex}.")
                     SlackDescriptions.sendAlert.call(
@@ -109,7 +113,8 @@ class Server(
             GlobalScope.launch {
                 try {
                     log.info("Alert on elastic indices count - starting up")
-                    ElasticAlerting(elasticHighLevelClient, authenticatedClient).alertOnIndicesCount(config)
+                    ElasticAlerting(elasticHighLevelClient, authenticatedClient)
+                        .alertOnIndicesCount(config)
                 } catch (ex: Exception) {
                     log.warn("WARNING: Alert on elastic indices count caught exception: ${ex}.")
                     SlackDescriptions.sendAlert.call(

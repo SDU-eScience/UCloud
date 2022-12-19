@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.server.ElasticAudit
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -72,7 +73,7 @@ class NetworkTrafficAlerts(
 
 
             val numberOf5XXStatusCodes = try {
-                elastic.search(requestFor5xxCodes, CallDescription::class.java)
+                elastic.search(requestFor5xxCodes, ElasticAudit::class.java)
                     .hits()
                     .total()?.value()?.toDouble() ?: 0.0
             } catch (ex: ConnectException) {
@@ -104,7 +105,7 @@ class NetworkTrafficAlerts(
 
 
             val totalNumberOfEntries = try {
-                elastic.search(totalNumberOfEntriesRequest, CallDescription::class.java)
+                elastic.search(totalNumberOfEntriesRequest, ElasticAudit::class.java)
                     .hits()
                     .total()?.value()?.toDouble() ?: 0.0
             } catch (ex: ConnectException) {
@@ -203,6 +204,7 @@ class NetworkTrafficAlerts(
                             )
                             .filter(
                                 RangeQuery.Builder()
+                                    .field("@timestamp")
                                     .gte(JsonData.of(Date(Time.now() - THIRTY_MIN)))
                                     .lt(JsonData.of(Date(Time.now())))
                                     .build()._toQuery()
@@ -216,8 +218,9 @@ class NetworkTrafficAlerts(
                     )
                 ).size(500)
                 .build()
-
-            val results = elastic.search(searchRequest, LogEntry::class.java)
+            println(searchRequest.query())
+            val results = elastic.search(searchRequest, ElasticAudit::class.java)
+            println(results.hits().total()?.value())
             val numberOfRequestsPerIP = hashMapOf<String, Int>()
             var numberOf5xx = 0
             results.hits().hits().forEach {

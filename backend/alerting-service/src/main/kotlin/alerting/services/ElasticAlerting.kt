@@ -78,15 +78,15 @@ class ElasticAlerting(
             try {
                 val clusterResponse = elastic.cluster().health(HealthRequest.Builder().build())
                 log.debug("Current Status: $status, errorCount = $errorCount")
-                if (clusterResponse.status().toString() == Status.RED.name) {
+                if (clusterResponse.status().toString().uppercase() == Status.RED.name) {
                     status = Status.RED
                     return
                 }
-                if (clusterResponse.status().toString() == Status.YELLOW.name) {
+                if (clusterResponse.status().toString().uppercase() == Status.YELLOW.name) {
                     status = Status.YELLOW
                     return
                 }
-                if (clusterResponse.status().toString() == Status.GREEN.name) {
+                if (clusterResponse.status().toString().uppercase() == Status.GREEN.name) {
                     status = Status.GREEN
                     errorCount = 0
                     if (alertSent) {

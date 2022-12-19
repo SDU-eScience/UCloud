@@ -18,6 +18,9 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.server.AuditEvent
+import dk.sdu.cloud.calls.server.ElasticAudit
+import dk.sdu.cloud.calls.server.HttpCallLogEntry
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.extract.data.api.UCloudUser
 import dk.sdu.cloud.service.db.async.DBContext
@@ -111,7 +114,7 @@ class ElasticDataService(
                 CardinalityAggregation.Builder().field("token.principal.username.keyword").build()._toAggregation()
             )
             .build()
-        val searchResponse = elasticHighLevelClient.search(searchRequest, CallDescription::class.java)
+        val searchResponse = elasticHighLevelClient.search(searchRequest, ElasticAudit::class.java)
         return searchResponse.aggregations()["UserCount"]?.cardinality()?.value() ?: 0L
     }
 

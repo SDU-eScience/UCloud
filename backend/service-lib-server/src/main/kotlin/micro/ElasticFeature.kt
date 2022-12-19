@@ -77,7 +77,6 @@ class ElasticFeature : MicroFeature {
         override val log = logger()
 
         internal val CLIENT = MicroAttributeKey<ElasticsearchClient>("elastic-client")
-        internal val HIGH_LEVEL = MicroAttributeKey<RestHighLevelClient>("elastic-high-level-client")
         internal val LOW_LEVEL = MicroAttributeKey<RestClient>("elastic-low-level-client")
 
         private fun testHostname(hostname: String): Boolean {
