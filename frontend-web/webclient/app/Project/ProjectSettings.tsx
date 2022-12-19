@@ -16,7 +16,7 @@ import * as Heading from "@/ui-components/Heading";
 import styled from "styled-components";
 import {addStandardDialog} from "@/UtilityComponents";
 import {callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import { useNavigate, useParams} from "react-router";
+import {useNavigate, useParams} from "react-router";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
@@ -184,7 +184,7 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
         {noop: true},
         {allowed: false}
     );
-    
+
     const project = useProject();
 
     useEffect(() => {
@@ -387,7 +387,6 @@ export const ArchiveSingleProject: React.FC<ArchiveSingleProjectProps> = props =
                     <Button
                         color={"orange"}
                         onClick={() => {
-                            const operation = props.isArchived ? ProjectAPI.unarchive : ProjectAPI.archive;
                             addStandardDialog({
                                 title: "Are you sure?",
                                 message: `Are you sure you wish to ` +
