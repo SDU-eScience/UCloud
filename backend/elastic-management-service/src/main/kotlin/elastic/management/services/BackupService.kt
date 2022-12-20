@@ -12,7 +12,7 @@ private const val REPO_NAME = "backup"
 
 
 class BackupService(private val elastic: ElasticsearchClient, private val mountLocation: String) {
-
+//TODO() NOT TESTED SINCE NOT USED, BUT KEPT IN CASE OF FUTURE CASES
     fun start() {
         val exists = try {
             elastic.snapshot().verifyRepository(
