@@ -35,7 +35,6 @@ class IpcPingPong(
 
             ipcServer.addHandler(PingPongIpc.ping.handler { user: IpcUser, request ->
                 val shouldClose = ipcServer.clientShouldRestart(user.uid)
-                if (shouldClose) ipcServer.closeClientIds.remove(user.uid)
                 PingResponse(generation, shouldClose)
             })
         } else if (ipcClient != null) {

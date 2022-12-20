@@ -93,7 +93,7 @@ const Core = (): JSX.Element => (
         <Snackbars />
         <Uploader />
         <Sidebar />
-        <div style={{height: "calc(100vh - var(--termsize, 0px))", overflowX: "auto", overflowY: "auto"}}>
+        <div data-component="router-wrapper" style={{height: "calc(100vh - var(--termsize, 0px))", overflowX: "auto", overflowY: "auto"}}>
             <ErrorBoundary>
                 <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>
                     <Routes>

@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
+import {findElement, widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
 import {TextArea, Input} from "@/ui-components";
 import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
@@ -45,8 +45,6 @@ export const GenericTextAreaAppParameter: React.FunctionComponent<GenericTextPro
         id={widgetId(props.parameter)}
         placeholder={placeholder}
         error={error}
-
-
     />;
 };
 
@@ -86,7 +84,3 @@ export const GenericTextSetter: WidgetSetter = (param, value) => {
     if (selector == null) throw "Missing element for " + param.name;
     selector.value = value["value"];
 };
-
-function findElement(param: ApplicationParameter): HTMLInputElement | null {
-    return document.getElementById(widgetId(param)) as HTMLInputElement | null;
-}

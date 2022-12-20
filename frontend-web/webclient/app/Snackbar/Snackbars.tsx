@@ -1,10 +1,11 @@
 import * as React from "react";
 import {useEffect, useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Flex, Icon} from "@/ui-components";
+import {Box, Flex, Icon, Text} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {Snackbar} from "@/ui-components/Snackbar";
 import {ThemeColor} from "@/ui-components/theme";
+import {copyToClipboard} from "@/UtilityFunctions";
 
 interface IconColorAndName {
     name: IconName;
@@ -23,13 +24,40 @@ const iconNameAndColorFromSnack = (type: Exclude<SnackType, SnackType.Custom>): 
     }
 };
 
-const CustomSnack: React.FunctionComponent<{snack: CustomSnack}> = ({snack}) =>
-    <Flex><Icon color="white" color2="white" name={snack.icon} pr="10px" />{snack.message}</Flex>;
+interface SnackProps<SnackType> {
+    snack: SnackType;
+    onCancel(): void;
+}
 
-const DefaultSnack: React.FunctionComponent<{snack: DefaultSnack}> = ({snack}) => {
+const CustomSnack: React.FC<SnackProps<CustomSnack>> = ({snack, onCancel}) => {
+    return <SnackBody snack={snack} onCancel={onCancel}>
+        <Icon color="white" color2="white" name={snack.icon} pr="10px" />
+    </SnackBody>;
+}
+
+const DefaultSnack: React.FC<SnackProps<DefaultSnack>> = ({snack, onCancel}) => {
     const icon = iconNameAndColorFromSnack(snack.type);
-    return <Flex><Icon pr="10px" {...icon} />{snack.message}</Flex>;
+    return <SnackBody snack={snack} onCancel={onCancel}>
+        <Icon pr="10px" {...icon} />
+    </SnackBody>
 };
+
+const SnackBody: React.FC<SnackProps<Exclude<Snack, "icon">> & {children: React.ReactNode}> = ({
+    snack,
+    onCancel,
+    children
+}): JSX.Element => {
+    const [didCopy, setDidCopy] = useState(false);
+    return <Flex mb="-12px" my="auto">
+        {children}
+        <div>
+            <div>{snack.message}</div>
+            <Text cursor="pointer" onClick={() => (copyToClipboard({value: snack.message, message: ""}), setDidCopy(true))} fontSize="8px" color="var(--gray)">{didCopy ? "Copied!" : "Click to copy"}</Text>
+        </div>
+        <Box ml="auto" />
+        <Icon mt="-8px" ml="8px" mr="-8px" size="12px" cursor="pointer" name="close" onClick={onCancel} />
+    </Flex>;
+}
 
 const Snackbars: React.FunctionComponent = () => {
     const [activeSnack, setActiveSnack] = useState<Snack | undefined>(undefined);
@@ -49,9 +77,10 @@ const Snackbars: React.FunctionComponent = () => {
     }
 
     const snackElement = activeSnack.type === SnackType.Custom ?
-        <CustomSnack snack={activeSnack} /> : <DefaultSnack snack={activeSnack} />;
+        <CustomSnack onCancel={onCancellation} snack={activeSnack} /> :
+        <DefaultSnack onCancel={onCancellation} snack={activeSnack} />;
 
-    return <Snackbar onClick={onCancellation} visible={true}>{snackElement}</Snackbar>;
+    return <Snackbar key={activeSnack.message} visible>{snackElement}</Snackbar>;
 
     function onCancellation(): void {
         snackbarStore.requestCancellation();

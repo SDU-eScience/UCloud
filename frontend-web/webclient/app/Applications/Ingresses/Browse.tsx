@@ -10,7 +10,7 @@ const Browse: React.FunctionComponent<{
     onSelect?: (selection: Ingress) => void;
     isSearch?: boolean;
     browseType?: BrowseType;
-    onSelectRestriction?: (res: Ingress) => boolean;
+    onSelectRestriction?: (res: Ingress) => boolean | string;
     additionalFilters: Record<string, string>;
 }> = props => {
     const browseType = props.browseType ?? BrowseType.MainContent;
@@ -26,6 +26,7 @@ const Browse: React.FunctionComponent<{
                 <ResourceTab active={ResourceTabOptions.PUBLIC_LINKS} />) : undefined
         }
         headerSize={48}
+        onSelectRestriction={props.onSelectRestriction}
         additionalFilters={props.additionalFilters}
         inlinePrefix={p => (p.support as IngressSupport).domainPrefix}
         inlineSuffix={p => (p.support as IngressSupport).domainSuffix}

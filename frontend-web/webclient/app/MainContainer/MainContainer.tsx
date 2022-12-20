@@ -56,18 +56,20 @@ export const MainContainer = ({
             )}
             {sidebar && (
                 <Hide sm xs md>
-                    <SidebarContainer
-                        data-component={"sidebar"}
-                        height="calc(100% - var(--termsize, 0px))"
-                        data-tag="sidebar"
-                        pt={topMenuSize + mainYpad}
-                        top="0"
-                        right="0"
-                        px={pad}
-                        width={sidebarSize}
-                    >
-                        {sidebar}
-                    </SidebarContainer>
+                    <SidebarScroll>
+                        <SidebarContainer
+                            data-component={"sidebar"}
+                            height="calc(100% - var(--termsize, 0px))"
+                            data-tag="sidebar"
+                            pt={topMenuSize + mainYpad}
+                            top="0"
+                            right="0"
+                            px={pad}
+                            width={sidebarSize}
+                        >
+                            {sidebar}
+                        </SidebarContainer>
+                    </SidebarScroll>
                 </Hide>
             )}
             <Box pt={mainYpad} pr={mainXpad}>
@@ -110,6 +112,30 @@ export const LoadingMainContainer: React.FunctionComponent<LoadingMainContainerP
         />
     );
 };
+
+/* abandon hope all ye who enter here */
+function SidebarScroll(props: {children: React.ReactNode}): JSX.Element {
+    React.useEffect(() => {
+        const element = document.querySelector<HTMLInputElement>(
+            `div[data-component="sidebar"]`
+        );
+        if (!element) return;
+        const old = element.onwheel;
+        element.onwheel = scrollMainContainer;
+        return () => {
+            element.onwheel = old;
+        }
+    });
+
+    function scrollMainContainer(e) {
+        var elmnt = document.querySelector<HTMLInputElement>(
+            `div[data-component="router-wrapper"]`
+        );
+        if (!elmnt) return;
+        elmnt.scrollBy(0, -e.wheelDeltaY);
+    }
+    return <Box>{props.children}</Box>;
+}
 
 const HeaderContainer = styled(Absolute)`
     position: fixed;

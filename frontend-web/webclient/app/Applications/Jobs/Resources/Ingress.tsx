@@ -6,7 +6,6 @@ import {
     Flex,
 } from "@/ui-components";
 import Warning from "@/ui-components/Warning";
-import {validateMachineReservation} from "../Widgets/Machines";
 import {Widget} from "@/Applications/Jobs/Widgets";
 import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
@@ -25,7 +24,8 @@ export const IngressResource: React.FunctionComponent<{
     onAdd: () => void;
     onRemove: (id: string) => void;
     provider?: string;
-}> = ({application, params, errors, onAdd, onRemove, provider}) => {
+    setErrors: (errors: Record<string, string>) => void;
+}> = ({application, params, errors, onAdd, onRemove, provider, setErrors}) => {
     if (!ingressResourceAllowed(application)) return null;
 
     return <GrayBox>
@@ -68,6 +68,7 @@ export const IngressResource: React.FunctionComponent<{
                         provider={provider}
                         parameter={entry}
                         errors={errors}
+                        setErrors={setErrors}
                         onRemove={() => {
                             onRemove(entry.name);
                         }}
@@ -76,13 +77,4 @@ export const IngressResource: React.FunctionComponent<{
             ))}
         </Box>
     </GrayBox>;
-}
-
-export function getProviderField(): string | undefined {
-    try {
-        const validatedMachineReservation = validateMachineReservation();
-        return validatedMachineReservation?.provider;
-    } catch (e) {
-        return undefined;
-    }
 }

@@ -180,10 +180,10 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                 <NoResultsCardBody title={"No favorites"}>
                     <Text textAlign="center" width="100%">
                         As you as add favorites, they will appear here.
-                        <Link to={"/drives"} mt={8}>
-                            <Button fullWidth mt={8}>Explore files</Button>
-                        </Link>
                     </Text>
+                    <Link to={"/drives"} mt={8}>
+                        <Button mt={8}>Explore files</Button>
+                    </Link>
                 </NoResultsCardBody>
             )}
             <List childPadding="8px">
@@ -270,7 +270,7 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string; children
 function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[]}>}): JSX.Element | null {
     return (
         <HighlightedCard
-            title={<Link to={`/project/resources/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource Usage</Heading.h3></Link>}
+            title={<Link to={`/project/resources/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource usage</Heading.h3></Link>}
             icon="hourglass"
             color="yellow"
         >
@@ -308,18 +308,16 @@ function DashboardRuns({runs}: {
     const toggle = useToggleSet([]);
     return <HighlightedCard
         color="gray"
-        title={<Link to={"/jobs"}><Heading.h3>Recent Runs</Heading.h3></Link>}
+        title={<Link to={"/jobs"}><Heading.h3>Recent runs</Heading.h3></Link>}
         icon="results"
         isLoading={runs.loading}
         error={runs.error?.why}
     >
         {runs.data.items.length === 0 ? (
             <NoResultsCardBody title={"No previous jobs found"}>
-                <Text>
-                    <Link to="/applications/overview">
-                        View applications
-                    </Link>
-                </Text>
+                <Link to="/applications/overview" mt={8}>
+                    <Button mt={8}>View applications</Button>
+                </Link>
             </NoResultsCardBody>
         ) :
             <List>
@@ -372,14 +370,28 @@ function DashboardResources({products}: {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
-    wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
-    const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"}>
-        <Button fullWidth mb={"4px"}>Apply for resources</Button>
+    wallets.sort((a, b) => {
+        let compare: number = 0;
+
+        compare = a.category.provider.localeCompare(b.category.provider);
+        if (compare !== 0) return compare;
+
+        compare = a.productType.localeCompare(b.productType);
+        if (compare !== 0) return compare;
+
+        compare = a.category.name.localeCompare(b.category.name);
+        if (compare !== 0) return compare;
+
+        return (a.balance < b.balance) ? 1 : -1;
+    });
+
+    const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"} mt={8}>
+        <Button mt={8}>Apply for resources</Button>
     </Link>;
 
     return (
         <HighlightedCard
-            title={<Link to={`/project/allocations/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource Allocations</Heading.h3></Link>}
+            title={<Link to={`/project/allocations/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource allocations</Heading.h3></Link>}
             color="red"
             isLoading={products.loading}
             icon={"grant"}
@@ -389,21 +401,21 @@ function DashboardResources({products}: {
                 <NoResultsCardBody title={"No available resources"}>
                     {!canApply ? null : <Text>
                         Apply for resources to use storage and compute on UCloud.
-                        {applyLinkButton}
                     </Text>}
+                    {applyLinkButton}
                 </NoResultsCardBody>
             ) :
                 <>
                     {/* height is 100% - height of Heading 36px  */}
                     <Flex flexDirection="column" height={"calc(100% - 36px)"}>
-                        <Box mx="8px" my="5px">
+                        <Box my="5px">
                             <Table>
                                 <tbody>
                                     {wallets.slice(0, 7).map((n, i) => (
                                         <TableRow key={i}>
                                             <TableCell>
                                                 <Flex alignItems="center" gap="8px">
-                                                    <ProviderLogo providerId={n.category.provider} size={24} />
+                                                    <ProviderLogo providerId={n.category.provider} size={32} />
                                                     <ProviderTitle providerId={n.category.provider} /> / {n.category.name}
                                                 </Flex>
                                             </TableCell>
@@ -431,7 +443,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
     const both = outgoingApps.data.items.length > 0 && ingoingApps.data.items.length > 0;
     const anyOutgoing = outgoingApps.data.items.length > 0;
 
-    const title = (none ? <Link to={`/project/grants/outgoing/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Grant Applications</Heading.h3></Link>
+    const title = (none ? <Link to={`/project/grants/outgoing/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Grant applications</Heading.h3></Link>
         : both ? <Heading.h3>Grant Applications</Heading.h3>
             : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}/${Client.projectId ?? MY_WORKSPACE}`}>
                 <Heading.h3>Grant Applications</Heading.h3>
@@ -468,7 +480,12 @@ const DashboardGrantApplications: React.FunctionComponent<{
                 {outgoingApps.data.items.length !== 0 || ingoingApps.data.items.length > 0 ? null : (
                     <>
                         <NoResultsCardBody title={"No recent outgoing applications"}>
-                            Apply for resources to use storage and compute on UCloud.
+                            <Text>
+                                Apply for resources to use storage and compute on UCloud.
+                            </Text>
+                            <Link to={grantsLink(Client)} mt={8}>
+                                <Button mt={8}>Apply for resources</Button>
+                            </Link>
                         </NoResultsCardBody>
                     </>
                 )}
@@ -478,9 +495,11 @@ const DashboardGrantApplications: React.FunctionComponent<{
                 )}
             </>
         )}
-        <Link to={grantsLink(Client)} width={"100%"}>
-            <Button fullWidth my={8}>Apply for resources</Button>
-        </Link>
+        {outgoingApps.error || (outgoingApps.data.items.length === 0 && ingoingApps.data.items.length <= 0) ? null : (
+            <Link to={grantsLink(Client)} width={"100%"}>
+                <Button fullWidth my={8}>Apply for resources</Button>
+            </Link>
+        )}
     </HighlightedCard>;
 };
 

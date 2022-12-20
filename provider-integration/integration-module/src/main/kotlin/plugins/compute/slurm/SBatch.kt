@@ -14,6 +14,8 @@ import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.app.store.api.VariableInvocationParameter
 import dk.sdu.cloud.app.store.api.WordInvocationParameter
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.UCloudFile
@@ -71,9 +73,9 @@ suspend fun createSbatchFile(
     }.joinToString(separator = " ")
 
     val memoryAllocation = if (pluginConfig.useFakeMemoryAllocations) {
-        "50M"
+        "50"
     } else {
-        "${resolvedProduct.memoryInGigs ?: 1}G"
+        "${(resolvedProduct.memoryInGigs ?: 1) * 1000}"
     }
 
     /*
@@ -85,9 +87,30 @@ suspend fun createSbatchFile(
     return buildString {
         appendLine("#!/usr/bin/env bash")
 
+        val parameters = job.specification.parameters ?: emptyMap()
+        val nTasksPerNode = (parameters["nTasksPerNode"] as? AppParameterValue.Integer)?.value ?: 1
+        val cpusPerNode = resolvedProduct.cpu ?: 1
+        val cpusPerTask = cpusPerNode / nTasksPerNode
+
+        if (nTasksPerNode <= 0) {
+            throw RPCException(
+                "You cannot supply a negative number of tasks per node. Please provide a positive value of at least 1.",
+                HttpStatusCode.BadRequest
+            )
+        }
+
+        if (cpusPerTask <= 0) {
+            throw RPCException(
+                "You have granted too many CPUs per task. You only have $cpusPerNode available for each node and " +
+                        "your allocation would have required at least $nTasksPerNode CPUs.",
+                HttpStatusCode.BadRequest
+            )
+        }
+
         run {
             if (jobFolder != null) appendLine("#SBATCH --chdir \"$jobFolder\"")
-            appendLine("#SBATCH --cpus-per-task ${resolvedProduct.cpu ?: 1}")
+            appendLine("#SBATCH --cpus-per-task $cpusPerTask")
+            appendLine("#SBATCH --ntasks-per-node $nTasksPerNode")
             appendLine("#SBATCH --mem $memoryAllocation")
             appendLine("#SBATCH --gpus-per-node ${resolvedProduct.gpu ?: 0}")
             appendLine("#SBATCH --time $formattedTime")
@@ -95,18 +118,27 @@ suspend fun createSbatchFile(
             appendLine("#SBATCH --job-name ${job.id}")
             appendLine("#SBATCH --partition ${pluginConfig.partition}")
             appendLine("#SBATCH --parsable")
-            appendLine("#SBATCH --output=std.out")
-            appendLine("#SBATCH --error=std.err")
+            appendLine("#SBATCH --output=stdout.txt")
+            appendLine("#SBATCH --error=stderr.txt")
             // TODO(Dan): This definitely doesn't do anything meaningful on a real system, and I am not sure it
             //  does anything on any system. It sounds like from the documentation that this only works if sbatch is
             //  executed as root and run with --uid.
             appendLine("#SBATCH --get-user-env")
             if (account != null) appendLine("#SBATCH --account=$account")
+
+            for ((index, constraintMatcher) in pluginConfig.constraints.withIndex()) {
+                val productMatcher = plugin.constraintMatchers[index]
+                val matches = productMatcher.match(job.specification.product.removeProvider()) >= 0
+                if (matches) {
+                    appendLine("#SBATCH --constraint=${constraintMatcher.constraint}")
+                    break
+                }
+            }
         }
 
         val appMetadata = job.status.resolvedApplication!!.metadata
-        if (appMetadata.name.startsWith(slurmRawScriptPrefix)) {
-            val script = ((job.specification.parameters ?: emptyMap())["script"] as? AppParameterValue.Text)?.value
+        if (appMetadata.name.startsWith(slurmRawScriptPrefix) || appMetadata.name == "slurm-script") {
+            val script = (parameters["script"] as? AppParameterValue.Text)?.value
                 ?: "echo 'No script found'"
             appendLine(script)
             return@buildString
@@ -180,7 +212,8 @@ suspend fun createSbatchFile(
             cliInvocation += oldCli
         }
 
-        appendLine("srun --output='std-%n.out' --error='std-%n.err' $cliInvocation")
+        // appendLine("srun --output='std-%n.out' --error='std-%n.err' $cliInvocation")
+        appendLine(cliInvocation)
     }
 }
 

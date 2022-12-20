@@ -171,6 +171,14 @@ data class VerifiedConfig(
                 }
             }
 
+            data class PrefixAny(val prefix: String) : ProductMatcher() {
+                override fun match(product: ProductReferenceWithoutProvider): Int {
+                    if (product.id.startsWith(prefix)) return 3
+                    if (product.category.startsWith(prefix)) return 2
+                    return -1
+                }
+            }
+
             object Any : ProductMatcher() {
                 override fun match(product: ProductReferenceWithoutProvider): Int = 1
             }
@@ -184,6 +192,7 @@ data class VerifiedConfig(
                     }
 
                     if (trimmed == "*") return VerifyResult.Ok(Any)
+                    if (trimmed.endsWith("*")) return VerifyResult.Ok(PrefixAny(trimmed.removeSuffix("*")))
 
                     return if (trimmed.contains("/")) {
                         val category = trimmed.substringBefore('/').trim()
@@ -431,7 +440,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
         val network: VerifiedConfig.Server.Network = run {
             VerifiedConfig.Server.Network(
-                config.server.network?.listenAddress ?: "127.0.0.1",
+                config.server.network?.listenAddress ?: "0.0.0.0",
                 config.server.network?.listenPort ?: 8889
             )
         }
@@ -950,11 +959,11 @@ sealed class VerifyResult<T> {
     data class Error<T>(val message: String, val ref: ConfigurationReference? = null) : VerifyResult<T>()
 }
 
-private fun <T> handleVerificationResultStrict(result: VerifyResult<T>): T {
+fun <T> handleVerificationResultStrict(result: VerifyResult<T>): T {
     return handleVerificationResult(result, errorsAreWarnings = false)!!
 }
 
-private fun <T> handleVerificationResultWeak(result: VerifyResult<T>): T? {
+fun <T> handleVerificationResultWeak(result: VerifyResult<T>): T? {
     return handleVerificationResult(result, errorsAreWarnings = true)
 }
 
