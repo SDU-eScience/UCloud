@@ -385,12 +385,8 @@ function DashboardResources({products}: {
         return (a.balance < b.balance) ? 1 : -1;
     });
 
-    const applyLinkButtonSmall = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"} mt={8}>
+    const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"} mt={8}>
         <Button mt={8}>Apply for resources</Button>
-    </Link>;
-
-    const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"}>
-        <Button fullWidth mb={"4px"}>Apply for resources</Button>
     </Link>;
 
     return (
@@ -406,7 +402,7 @@ function DashboardResources({products}: {
                     {!canApply ? null : <Text>
                         Apply for resources to use storage and compute on UCloud.
                     </Text>}
-                    {applyLinkButtonSmall}
+                    {applyLinkButton}
                 </NoResultsCardBody>
             ) :
                 <>
