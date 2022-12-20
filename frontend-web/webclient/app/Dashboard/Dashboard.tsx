@@ -180,10 +180,10 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                 <NoResultsCardBody title={"No favorites"}>
                     <Text textAlign="center" width="100%">
                         As you as add favorites, they will appear here.
-                        <Link to={"/drives"} mt={8}>
-                            <Button fullWidth mt={8}>Explore files</Button>
-                        </Link>
                     </Text>
+                    <Link to={"/drives"} mt={8}>
+                        <Button mt={8}>Explore files</Button>
+                    </Link>
                 </NoResultsCardBody>
             )}
             <List childPadding="8px">
@@ -315,11 +315,9 @@ function DashboardRuns({runs}: {
     >
         {runs.data.items.length === 0 ? (
             <NoResultsCardBody title={"No previous jobs found"}>
-                <Text>
-                    <Link to="/applications/overview">
-                        View applications
-                    </Link>
-                </Text>
+                <Link to="/applications/overview" mt={8}>
+                    <Button mt={8}>View applications</Button>
+                </Link>
             </NoResultsCardBody>
         ) :
             <List>
@@ -386,8 +384,9 @@ function DashboardResources({products}: {
 
         return (a.balance < b.balance) ? 1 : -1;
     });
-    const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"}>
-        <Button fullWidth mb={"4px"}>Apply for resources</Button>
+
+    const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"} mt={8}>
+        <Button mt={8}>Apply for resources</Button>
     </Link>;
 
     return (
@@ -402,8 +401,8 @@ function DashboardResources({products}: {
                 <NoResultsCardBody title={"No available resources"}>
                     {!canApply ? null : <Text>
                         Apply for resources to use storage and compute on UCloud.
-                        {applyLinkButton}
                     </Text>}
+                    {applyLinkButton}
                 </NoResultsCardBody>
             ) :
                 <>
@@ -481,7 +480,12 @@ const DashboardGrantApplications: React.FunctionComponent<{
                 {outgoingApps.data.items.length !== 0 || ingoingApps.data.items.length > 0 ? null : (
                     <>
                         <NoResultsCardBody title={"No recent outgoing applications"}>
-                            Apply for resources to use storage and compute on UCloud.
+                            <Text>
+                                Apply for resources to use storage and compute on UCloud.
+                            </Text>
+                            <Link to={grantsLink(Client)} mt={8}>
+                                <Button mt={8}>Apply for resources</Button>
+                            </Link>
                         </NoResultsCardBody>
                     </>
                 )}
@@ -491,9 +495,11 @@ const DashboardGrantApplications: React.FunctionComponent<{
                 )}
             </>
         )}
-        <Link to={grantsLink(Client)} width={"100%"}>
-            <Button fullWidth my={8}>Apply for resources</Button>
-        </Link>
+        {outgoingApps.error || (outgoingApps.data.items.length === 0 && ingoingApps.data.items.length <= 0) ? null : (
+            <Link to={grantsLink(Client)} width={"100%"}>
+                <Button fullWidth my={8}>Apply for resources</Button>
+            </Link>
+        )}
     </HighlightedCard>;
 };
 
