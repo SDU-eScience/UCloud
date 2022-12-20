@@ -1397,7 +1397,12 @@ const ProviderUpdates: React.FunctionComponent<{
     const appendUpdate = useCallback((update: JobUpdate) => {
         if (update.status && update.status.startsWith("SSH:")) return;
 
-        if (update.status) {
+        if (!update.status && !update.state) {
+            appendToXterm(
+                terminal,
+                `[${dateToTimeOfDayString(update.timestamp)}] Job is preparing\n`
+            );
+        } else if (update.status) {
             appendToXterm(
                 terminal,
                 `[${dateToTimeOfDayString(update.timestamp)}] ${update.status}\n`
