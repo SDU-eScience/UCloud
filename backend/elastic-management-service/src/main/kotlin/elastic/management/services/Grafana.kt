@@ -62,6 +62,7 @@ class Grafana(val elastic: ElasticsearchClient) {
                     action.remove(
                         RemoveAction.Builder()
                             .indices(oldIndices)
+                            .alias(alias)
                             .build()
                     )
                 }

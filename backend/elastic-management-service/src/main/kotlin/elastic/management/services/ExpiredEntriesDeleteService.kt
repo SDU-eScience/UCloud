@@ -2,12 +2,9 @@ package dk.sdu.cloud.elastic.management.services
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient
 import co.elastic.clients.elasticsearch._types.query_dsl.MatchAllQuery
-import co.elastic.clients.elasticsearch._types.query_dsl.MatchQuery
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders
 import co.elastic.clients.elasticsearch._types.query_dsl.RangeQuery
 import co.elastic.clients.elasticsearch.core.CountRequest
 import co.elastic.clients.elasticsearch.core.DeleteByQueryRequest
-import co.elastic.clients.elasticsearch.indices.DeleteIndexRequest
 import co.elastic.clients.json.JsonData
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -73,40 +70,49 @@ class ExpiredEntriesDeleteService(
         val currentDate = LocalDate.now()
         val daysToSave = 180
 
-        val indexToDelete = if (indexExists("development_default-*", elastic))
-            "development_default-${currentDate.minusDays(daysToSave.toLong())}*"
+        val indicesToDelete = if (indexExists("development_default-*", elastic))
+            listOf("development_default-${currentDate.minusDays(daysToSave.toLong())}", "development_default-${currentDate.minusDays(daysToSave.toLong())}_small")
         else
-            "kubernetes-production-${currentDate.minusDays(daysToSave.toLong())}*"
+            listOf("kubernetes-production-${currentDate.minusDays(daysToSave.toLong())}", "kubernetes-production-${currentDate.minusDays(daysToSave.toLong())}_small")
 
-        if (!indexExists(indexToDelete, elastic)) {
-            log.info("no index with the name $indexToDelete")
-            return
+        val existingIndices = indicesToDelete.mapNotNull {
+            if (!indexExists(it, elastic)) {
+                log.info("no index with the name $it")
+                null
+            } else it
         }
-        deleteIndex(indexToDelete, elastic)
+        if (existingIndices.isEmpty()) return
+        deleteIndices(existingIndices, elastic)
     }
 
     fun deleteOldFileBeatLogs() {
         val datePeriodFormat = LocalDate.now().minusDays(180).toString().replace("-","." )
 
-        val indexToDelete = "filebeat-${datePeriodFormat}*"
+        val indicesToDelete = listOf("filebeat-${datePeriodFormat}","filebeat-${datePeriodFormat}_small")
 
-        if (!indexExists(indexToDelete, elastic)) {
-            log.info("no index with the name $indexToDelete")
-            return
+        val existingIndices = indicesToDelete.mapNotNull {
+            if (!indexExists(it, elastic)) {
+                log.info("no index with the name $it")
+                null
+            } else it
         }
-        deleteIndex(indexToDelete, elastic)
+        if (existingIndices.isEmpty()) return
+        deleteIndices(existingIndices, elastic)
     }
 
     fun deleteOldInfrastructureLogs() {
         val datePeriodFormat = LocalDate.now().minusDays(180).toString().replace("-","." )
 
-        val indexToDelete = "infrastructure-${datePeriodFormat}*"
+        val indicesToDelete = listOf("infrastructure-${datePeriodFormat}","infrastructure-${datePeriodFormat}_small")
 
-        if (!indexExists(indexToDelete, elastic)) {
-            log.info("no index with the name $indexToDelete")
-            return
+        val existingIndices = indicesToDelete.mapNotNull {
+            if (!indexExists(it, elastic)) {
+                log.info("no index with the name $it")
+                null
+            } else it
         }
-        deleteIndex(indexToDelete, elastic)
+        if (existingIndices.isEmpty()) return
+        deleteIndices(existingIndices, elastic)
     }
 
     fun deleteExpiredAllIndices() {

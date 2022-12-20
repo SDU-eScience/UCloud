@@ -1,6 +1,7 @@
 package dk.sdu.cloud.elastic.management.services
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch.cluster.HealthRequest
 import co.elastic.clients.elasticsearch.indices.ExistsRequest
 import co.elastic.clients.elasticsearch.indices.GetIndexRequest
@@ -64,7 +65,7 @@ class ShrinkService(
                         //Slower search, but less space usage
                         put("index.codec", JsonData.of("best_compression"))
                         //Should have access to all nodes again
-                        put("index.routing.allocation.require._name", JsonData.of(null))
+                        put("index.routing.allocation.require._name", JsonData.of("*"))
                     }
                 )
                 .build()
@@ -80,7 +81,7 @@ class ShrinkService(
                     }
                     //usually an index-already-exists error due to previous failure having created the resized
                     // index but failed before it could delete the original index
-                    is ElasticsearchStatusException -> {
+                    is ElasticsearchException -> {
                         log.warn(ex.stackTraceToString())
                         //If both exists
                         if (elastic.indices().exists(ExistsRequest.Builder().index(sourceIndex).build()).value()
@@ -130,7 +131,7 @@ class ShrinkService(
             //"index.blocks.write"
             //true
 
-            val r = Request("PUT", "/_settings")
+            val r = Request("PUT", "/$index/_settings")
 
             r.setJsonEntity("""
                 {

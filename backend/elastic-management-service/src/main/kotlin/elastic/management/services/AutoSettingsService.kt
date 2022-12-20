@@ -1,6 +1,7 @@
 package dk.sdu.cloud.elastic.management.services
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch._types.Time
 import co.elastic.clients.elasticsearch.cluster.PutClusterSettingsRequest
 import co.elastic.clients.elasticsearch.indices.IndexSettingBlocks
 import co.elastic.clients.elasticsearch.indices.IndexSettings
@@ -12,6 +13,8 @@ import co.elastic.clients.elasticsearch.indices.put_index_template.IndexTemplate
 import co.elastic.clients.json.JsonData
 import dk.sdu.cloud.defaultMapper
 import org.elasticsearch.client.RequestOptions
+import org.elasticsearch.cluster.metadata.ComposableIndexTemplate
+import org.elasticsearch.cluster.metadata.Template
 import org.elasticsearch.xcontent.XContentType
 
 class AutoSettingsService(
@@ -37,7 +40,8 @@ class AutoSettingsService(
                     // on nodes with less than the specified amount of free space available
                     // Sets the indicies to read/delete only. Should be manually changed using the
                     // "removeFloodLimitation" function below.
-                    put("cluster.routing.allocation.disk.watermark.flood_stage", JsonData.of("25GB"))                }
+                    put("cluster.routing.allocation.disk.watermark.flood_stage", JsonData.of("25GB"))
+                }
             )
             .build()
 
@@ -47,77 +51,97 @@ class AutoSettingsService(
     private fun createLoggingTemplates() {
         //create template for development_default and http_logs
         val developmentTemplateRequest =
-            PutTemplateRequest.Builder()
+            PutIndexTemplateRequest.Builder()
                 .name("development-template")
                 .indexPatterns(listOf("development_default*"))
-                .settings(
-                    mutableMapOf<String?, JsonData?>().apply {
-                        put("index.number_of_shards", JsonData.of(1))
-                        put("index.number_of_replicas", JsonData.of(1))
-                    }
+                .template(
+                    IndexTemplateMapping.Builder()
+                        .settings(
+                            IndexSettings.Builder()
+                                .numberOfShards("1")
+                                .numberOfReplicas("1")
+                                .build()
+                        )
+                        .build()
                 )
                 .build()
 
-        elastic.indices().putTemplate(developmentTemplateRequest)
+        elastic.indices().putIndexTemplate(developmentTemplateRequest)
 
         val productionTemplateRequest =
-            PutTemplateRequest.Builder()
+            PutIndexTemplateRequest.Builder()
                 .name("production-template")
                 .indexPatterns(listOf("kubernetes-production*"))
-                .settings(
-                    mutableMapOf<String?, JsonData?>().apply {
-                        put("index.number_of_shards", JsonData.of(3))
-                        put("index.number_of_replicas", JsonData.of(1))
-                        put("index.refresh_interval", JsonData.of("30s"))
-                    }
+                .template(
+                    IndexTemplateMapping.Builder()
+                        .settings(
+                            IndexSettings.Builder()
+                                .numberOfShards("3")
+                                .numberOfReplicas("1")
+                                .refreshInterval(Time.Builder().time("30s").build())
+                                .build()
+                        )
+                        .build()
                 )
                 .build()
 
-        elastic.indices().putTemplate(productionTemplateRequest)
+        elastic.indices().putIndexTemplate(productionTemplateRequest)
 
         val httpTemplateRequest =
-            PutTemplateRequest.Builder()
+            PutIndexTemplateRequest.Builder()
                 .name("httplogs-template")
                 .indexPatterns(listOf("http_logs_*"))
-                .settings(
-                    mutableMapOf<String?, JsonData?>().apply {
-                        put("index.number_of_shards", JsonData.of(2))
-                        put("index.number_of_replicas", JsonData.of(2))
-                    }
+                .template(
+                    IndexTemplateMapping.Builder()
+                        .settings(
+                            IndexSettings.Builder()
+                                .numberOfShards("1")
+                                .numberOfReplicas("1")
+                                .build()
+                        )
+                        .build()
                 )
                 .build()
 
-        elastic.indices().putTemplate(httpTemplateRequest)
+        elastic.indices().putIndexTemplate(httpTemplateRequest)
 
         val filebeatTemplate =
-            PutTemplateRequest.Builder()
+            PutIndexTemplateRequest.Builder()
                 .name("filebeat-template")
                 .indexPatterns(listOf("filebeat*"))
-                .settings(
-                    mutableMapOf<String?, JsonData?>().apply {
-                        put("index.number_of_shards", JsonData.of(3))
-                        put("index.number_of_replicas", JsonData.of(1))
-                        put("index.refresh_interval", JsonData.of("30s"))
-                    }
+                .template(
+                    IndexTemplateMapping.Builder()
+                        .settings(
+                            IndexSettings.Builder()
+                                .numberOfShards("3")
+                                .numberOfReplicas("1")
+                                .refreshInterval(Time.Builder().time("30s").build())
+                                .build()
+                        )
+                        .build()
                 )
                 .build()
 
-        elastic.indices().putTemplate(filebeatTemplate)
+        elastic.indices().putIndexTemplate(filebeatTemplate)
 
         val infrastructureTemplate =
-            PutTemplateRequest.Builder()
+            PutIndexTemplateRequest.Builder()
                 .name("infrastructure-template")
                 .indexPatterns(listOf("infrastructure*"))
-                .settings(
-                    mutableMapOf<String?, JsonData?>().apply {
-                        put("index.number_of_shards", JsonData.of(3))
-                        put("index.number_of_replicas", JsonData.of(1))
-                        put("index.refresh_interval", JsonData.of("30s"))
-                    }
+                .template(
+                    IndexTemplateMapping.Builder()
+                        .settings(
+                            IndexSettings.Builder()
+                                .numberOfShards("3")
+                                .numberOfReplicas("1")
+                                .refreshInterval(Time.Builder().time("30s").build())
+                                .build()
+                        )
+                        .build()
                 )
                 .build()
 
-        elastic.indices().putTemplate(infrastructureTemplate)
+        elastic.indices().putIndexTemplate(infrastructureTemplate)
     }
 
     fun removeFloodLimitationOnAll() {

@@ -1,9 +1,7 @@
 package dk.sdu.cloud.elastic.management.services
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient
-import co.elastic.clients.elasticsearch._types.SlicedScroll
 import co.elastic.clients.elasticsearch._types.Time
-import co.elastic.clients.elasticsearch._types.TimeBuilders
 import co.elastic.clients.elasticsearch.core.ReindexRequest
 import co.elastic.clients.elasticsearch.core.reindex.Destination
 import co.elastic.clients.elasticsearch.core.reindex.Source
@@ -16,10 +14,7 @@ import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import kotlinx.coroutines.runBlocking
 import org.elasticsearch.ElasticsearchStatusException
-import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestClient
-import org.elasticsearch.core.TimeValue
-import org.elasticsearch.search.slice.SliceBuilder
 import org.slf4j.Logger
 import java.io.IOException
 import java.time.LocalDate
@@ -96,7 +91,7 @@ class ReindexService(
 
     fun reindex(fromIndices: List<String>, toIndex: String) {
         //Should always be lowercase
-        val destinationIndex = toIndex.toLowerCase()
+        val destinationIndex = toIndex.lowercase()
 
         if (fromIndices.isEmpty()) {
             //Nothing to reindex
@@ -124,11 +119,6 @@ class ReindexService(
                 Source.Builder()
                     .index(fromIndices)
                     .size(2500)
-                    .slice(
-                        SlicedScroll.Builder()
-                            .max(10)
-                            .build()
-                    )
                     .build()
             )
             .dest(
@@ -201,14 +191,16 @@ class ReindexService(
             reindex(listOf(fromIndex), toIndex)
         }
         runBlocking {
-            SlackDescriptions.sendAlert.call(
-                SendAlertRequest(
-                    "Following indices have been attempted merged, but due to issues have stopped. " +
-                        "Original indices have been left intact for follow up." +
-                        "${reindexErrors.joinToString()}"
-                ),
-                serviceClient
-            )
+            if(reindexErrors.isNotEmpty()) {
+                SlackDescriptions.sendAlert.call(
+                    SendAlertRequest(
+                        "Following indices have been attempted merged, but due to issues have stopped. " +
+                            "Original indices have been left intact for follow up." +
+                            "${reindexErrors.joinToString()}"
+                    ),
+                    serviceClient
+                )
+            }
         }
     }
 

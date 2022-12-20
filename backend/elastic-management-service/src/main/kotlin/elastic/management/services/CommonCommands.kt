@@ -2,9 +2,6 @@ package dk.sdu.cloud.elastic.management.services
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient
 import co.elastic.clients.elasticsearch._types.query_dsl.MatchAllQuery
-import co.elastic.clients.elasticsearch._types.query_dsl.Query
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryVariant
 import co.elastic.clients.elasticsearch.core.CountRequest
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
 import co.elastic.clients.elasticsearch.indices.DeleteIndexRequest
@@ -21,12 +18,23 @@ import org.elasticsearch.client.Request
 import org.elasticsearch.client.RestClient
 
 internal fun deleteIndex(index: String, elastic: ElasticsearchClient) {
+    if(index.contains("*")) throw IllegalArgumentException("Cannot delete with wildcard. Index given: $index")
     elastic.indices().delete(
         DeleteIndexRequest.Builder()
             .index(index)
             .build()
     )
     ExpiredEntriesDeleteService.log.info("Index: $index deleted")
+}
+
+internal fun deleteIndices(indices: List<String>, elastic: ElasticsearchClient) {
+    if(indices.any { it.contains("*")}) throw IllegalArgumentException("Cannot delete with wildcard. Index given: $indices")
+    elastic.indices().delete(
+        DeleteIndexRequest.Builder()
+            .index(indices)
+            .build()
+    )
+    ExpiredEntriesDeleteService.log.info("Index: $indices deleted")
 }
 
 internal fun createIndex(
@@ -133,7 +141,7 @@ internal fun getShardCount(index: String, elastic: ElasticsearchClient): Int {
         GetIndicesSettingsRequest.Builder()
             .index(index)
             .build()
-    )[index]?.settings()?.numberOfShards()?.toInt() ?: throw IllegalStateException("No setting found for number of shards for index $index")
+    )[index]?.settings()?.index()?.numberOfShards()?.toInt() ?: throw IllegalStateException("No setting found for number of shards for index $index")
 }
 
 internal fun getAllEmptyIndicesWithRegex(elastic: ElasticsearchClient, lowClient: RestClient, regex: String): List<String> {
@@ -165,10 +173,7 @@ internal fun isSameSize(index: String, otherIndex: String, elastic: Elasticsearc
         CountRequest.Builder()
             .index(otherIndex)
             .query(
-                Query.Builder()
-                    .apply {
-                        MatchAllQuery.Builder().build()
-                    }.build()
+                MatchAllQuery.Builder().build()._toQuery()
             )
             .build()
     ).count()
@@ -177,10 +182,7 @@ internal fun isSameSize(index: String, otherIndex: String, elastic: Elasticsearc
         CountRequest.Builder()
             .index(index)
             .query(
-                Query.Builder()
-                    .apply {
-                        MatchAllQuery.Builder().build()
-                    }.build()
+                MatchAllQuery.Builder().build()._toQuery()
             )
             .build()
     ).count()
