@@ -256,7 +256,28 @@ class JobOrchestrator(
             """
         )
 
-        // Update ingresses?
+        // Update ingresses
+        val ingressIds = resources.flatMap { job ->
+            job.ingressPoints.map {
+                it.id
+            }
+        }
+
+        session.sendPreparedStatement(
+            {
+                setParameter("job_ids", resourceIds)
+                setParameter("ingress_ids", ingressIds)
+            },
+            """
+                update app_orchestrator.ingresses set status_bound_to = (
+                    select array(select unnest(status_bound_to) except select unnest(:job_ids::bigint[]))
+                ) where resource = some(:ingress_ids::bigint[])
+            """
+        )
+
+
+
+
 
         // Delete from job_input_parameters
 
