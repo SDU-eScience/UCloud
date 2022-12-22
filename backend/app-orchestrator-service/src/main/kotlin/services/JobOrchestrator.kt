@@ -256,7 +256,17 @@ class JobOrchestrator(
             """
         )
 
-        // Update ingresses
+        session.sendPreparedStatement(
+            {
+                setParameter("job_ids", resourceIds)
+            },
+            """
+                delete from app_orchestrator.job_input_parameters
+                where job_id = some(:job_ids::bigint[])
+            """
+        )
+
+        // update ingresses
         val ingressIds = resources.flatMap { job ->
             job.ingressPoints.map {
                 it.id
@@ -275,13 +285,9 @@ class JobOrchestrator(
             """
         )
 
+        // TODO Update licenses
 
-
-
-
-        // Delete from job_input_parameters
-
-
+        // TODO update network ips
 
         super.deleteSpecification(resourceIds, resources, session)
     }
