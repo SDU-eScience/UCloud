@@ -548,7 +548,6 @@ abstract class ResourceService<
                     cause: Throwable,
                     mappedRequestIfAny: BulkRequest<Res>?
                 ) {
-                    if (true) return
                     if (mappedRequestIfAny != null && shouldCloseEarly) {
                         db.withTransaction { session ->
                             deleteFromDatabaseSkipProvider(

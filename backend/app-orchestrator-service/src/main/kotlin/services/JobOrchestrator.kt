@@ -241,6 +241,30 @@ class JobOrchestrator(
         }
     }
 
+    override suspend fun deleteSpecification(
+        resourceIds: List<Long>,
+        resources: List<Job>,
+        session: AsyncDBConnection
+    ) {
+        session.sendPreparedStatement(
+            {
+                setParameter("job_ids", resourceIds)
+            },
+            """
+                delete from app_orchestrator.job_resources
+                where job_id = some(:job_ids::bigint[])
+            """
+        )
+
+        // Update ingresses?
+
+        // Delete from job_input_parameters
+
+
+
+        super.deleteSpecification(resourceIds, resources, session)
+    }
+
     suspend fun insertResources(
         idWithSpec: List<Pair<Long, JobSpecification>>,
         resetExistingResources: Boolean = false,
