@@ -157,7 +157,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                     icon={
                         slim ? null : (
                             <UserAvatar
-                                avatar={avatars.cache[app.createdBy] ?? defaultAvatar}
+                                avatar={avatars.avatar(app.createdBy)}
                                 width={"45px"}
                             />
                         )

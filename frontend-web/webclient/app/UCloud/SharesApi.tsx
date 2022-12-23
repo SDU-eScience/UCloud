@@ -91,7 +91,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             const avatars = useAvatars();
             if (resource?.owner?.createdBy === Client.username) {
                 return <UserAvatar
-                    avatar={avatars.cache[resource!.specification.sharedWith] ?? defaultAvatar}
+                    avatar={avatars.avatar(resource!.specification.sharedWith)}
                     width={size}
                     height={size}
                     mx={"0"}

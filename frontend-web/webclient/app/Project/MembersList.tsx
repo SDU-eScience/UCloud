@@ -49,7 +49,7 @@ export function MembersList(props: Readonly<{
         {props.members.map(member =>
             <React.Fragment key={member.username}>
                 <Flex alignItems="center" mb="16px" mt="16px">
-                    <UserAvatar avatar={avatars.cache[member.username] ?? defaultAvatar} mr="10px" />
+                    <UserAvatar avatar={avatars.avatar(member.username)} mr="10px" />
                     {!props.isOutgoingInvites ?
                         <div>
                             <Text bold>{member.username}</Text>

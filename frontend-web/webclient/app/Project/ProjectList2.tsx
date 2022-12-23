@@ -391,7 +391,7 @@ const ProjectInvite: React.FunctionComponent<{
                 {invite.projectTitle}
             </BorderedFlex>
             <ProjectInviteBody>
-                <UserAvatar avatar={avatars.cache[invite.invitedBy] ?? defaultAvatar} mr={"10px"} />
+                <UserAvatar avatar={avatars.avatar(invite.invitedBy)} mr={"10px"} />
                 <div>Invited by {invite.invitedBy}</div>
                 <div style={{flexGrow: 1}} />
                 <Button color={"green"} height={"42px"} onClick={acceptInvite}>Accept</Button>
