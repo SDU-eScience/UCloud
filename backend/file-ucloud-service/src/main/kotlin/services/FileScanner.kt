@@ -113,18 +113,20 @@ class FileScanner(
             // Insert the current file or folder into index
             var stat: NativeStat
             try {
-                val insert = CreateOperation.Builder<ElasticIndexedFile>().index(FILES_INDEX).apply {
-                    val beforestat = System.currentTimeMillis()
-                    stat = fs.stat(nextItem.file)
-                    val afterStat = System.currentTimeMillis()
-                    bulkRunner.timespentOnStat += afterStat - beforestat
-                    if (LocalDateTime.ofInstant(Date(stat.modifiedAt).toInstant(), ZoneId.from(ZoneOffset.UTC)) > lastScan) {
-                        this.document(stat.toElasticIndexedFile(nextItem.file, nextItem.collection, scanTime))
+                val beforestat = System.currentTimeMillis()
+                stat = fs.stat(nextItem.file)
+                val afterStat = System.currentTimeMillis()
+                bulkRunner.timespentOnStat += afterStat - beforestat
+                val insert = if (LocalDateTime.ofInstant(Date(stat.modifiedAt).toInstant(), ZoneId.from(ZoneOffset.UTC)) > lastScan) {
+                    CreateOperation.Builder<ElasticIndexedFile>()
+                        .index(FILES_INDEX)
+                        .document(stat.toElasticIndexedFile(nextItem.file, nextItem.collection, scanTime))
+                        .build()
                     } else {
                         bulkRunner.filesSkipped++
+                        null
                     }
-                }.build()
-                if (insert.document() != null) {
+                if (insert != null) {
                     bulkRunner.add(insert)
                 }
             } catch (ex: FSException) {
