@@ -10,8 +10,6 @@ import org.apache.http.auth.AuthScope
 import org.apache.http.auth.UsernamePasswordCredentials
 import org.apache.http.impl.client.BasicCredentialsProvider
 import org.elasticsearch.client.RestClient
-import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.client.RestHighLevelClientBuilder
 import java.net.InetAddress
 import java.net.UnknownHostException
 import java.util.concurrent.atomic.AtomicBoolean

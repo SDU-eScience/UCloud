@@ -15,8 +15,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
-import org.elasticsearch.client.RequestOptions
 import java.util.*
 
 private object HealthCheckDescriptions : CallDescriptionContainer("healthcheck") {
