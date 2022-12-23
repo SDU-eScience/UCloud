@@ -26,7 +26,6 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import styled from "styled-components";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {ListRowStat, ListStatContainer} from "@/ui-components/List";
 

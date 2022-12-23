@@ -20,7 +20,6 @@ import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "@/UC
 import {apiBrowse, apiUpdate} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {fileName} from "@/Utilities/FileUtilities";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {preventDefault, stopPropagation, useEffectSkipMount} from "@/UtilityFunctions";
 import {useCallback, useState} from "react";

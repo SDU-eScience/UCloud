@@ -3,7 +3,6 @@ import {useAvatars} from "@/AvataaarLib/hook";
 import * as React from "react";
 import {useEffect} from "react";
 import styled from "styled-components";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {Flex, Icon, Text, Box, Button, RadioTile, RadioTilesContainer} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";

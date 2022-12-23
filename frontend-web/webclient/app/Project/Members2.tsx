@@ -28,7 +28,6 @@ import {addStandardDialog, addStandardInputDialog, NamingField} from "@/UtilityC
 import {preventDefault} from "@/UtilityFunctions";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {IconName} from "@/ui-components/Icon";
 import {bulkRequestOf} from "@/DefaultObjects";
 import * as Heading from "@/ui-components/Heading";
