@@ -21,6 +21,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import Fuse from "fuse.js";
 import {addStandardDialog} from "@/UtilityComponents";
+import AppRoutes from "@/Routes";
 
 export const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 
@@ -279,7 +280,7 @@ export function NewsList(props: NewsListProps): JSX.Element | null {
 
 function SingleNewsPost(props: {post: NewsPost, toggleHidden?: (id: number) => void}): JSX.Element {
     return (
-        <Link to={`/news/detailed/${props.post.id}`}>
+        <Link to={AppRoutes.news.detailed(props.post.id)}>
             <Heading.h4>{props.post.title}</Heading.h4>
             <Text>{props.post.subtitle}</Text>
             <Flex>

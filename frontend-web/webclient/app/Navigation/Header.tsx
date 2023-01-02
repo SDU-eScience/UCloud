@@ -20,7 +20,6 @@ import {ThemeToggler} from "@/ui-components/ThemeToggle";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {
-    displayErrorMessageOrDefault,
     inDevEnvironment,
     isLightThemeStored,
     useFrameHidden,
@@ -35,6 +34,7 @@ import {useGlobal} from "@/Utilities/ReduxHooks";
 import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
 import {useEffect, useRef} from "react";
 import {ResourceInit} from "@/Services/ResourceInit";
+import AppRoutes from "@/Routes";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -84,7 +84,7 @@ function Header(props: HeaderProps): JSX.Element | null {
             <Search />
             <ui.Box mr="auto" />
             {upcomingDowntime !== -1 ? (
-                <Link to={`/news/detailed/${upcomingDowntime}`}>
+                <Link to={AppRoutes.news.detailed(upcomingDowntime)}>
                     <ui.Tooltip
                         right="0"
                         bottom="1"
@@ -134,7 +134,7 @@ function Header(props: HeaderProps): JSX.Element | null {
                     </>
                 )}
                 <ui.Box>
-                    <Link color="black" to="/users/settings">
+                    <Link color="black" to={AppRoutes.users.settings()}>
                         <ui.Flex color="black">
                             <ui.Icon name="properties" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
                             <TextSpan>Settings</TextSpan>
