@@ -46,6 +46,7 @@ import {emptyPageV2} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
 
 // UI state management
 // ================================================================================
@@ -599,8 +600,9 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                                 title: "Bulk invite",
                                                 type: "textarea",
                                                 confirmText: "Invite users",
-                                                width: "450px",
-                                                help: (<>Enter usernames in the box below. One username per line.</>)
+                                                rows: 8,
+                                                width: "460px",
+                                                help: (<>Enter usernames in the box below. One username per line.</>),
                                             });
 
                                             const usernames = res.result

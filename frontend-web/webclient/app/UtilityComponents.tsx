@@ -53,9 +53,9 @@ export function addStandardDialog({
             <div>
                 <Heading.h3>{title}</Heading.h3>
                 {title ? <Divider /> : null}
-                <div style={{ height: "350px", display: "flex", flexDirection: "column", overflowY: "auto" }}>{message}</div>
+                <StandardDialogFlex>{message}</StandardDialogFlex>
             </div>
-            <Flex mt="20px" style={{ justifyContent: "end", gap: "8px" }}>
+            <Flex mt="20px" style={{justifyContent: "end", gap: "8px"}}>
                 <Button
                     onClick={validate}
                     color={confirmButtonColor}
@@ -67,6 +67,13 @@ export function addStandardDialog({
         </div>
     ), onCancel, addToFront);
 }
+
+const StandardDialogFlex = styled.div`
+    display: flex;
+    flex-direction: column;
+    min-height: 200px;
+    overflow-y: auto;
+`;
 
 interface InputDialog {
     title: string;
@@ -83,6 +90,7 @@ interface InputDialog {
     rows?: number;
     confirmButtonColor?: ThemeColor;
     cancelButtonColor?: ThemeColor;
+    style?: Record<string, any>;
 }
 
 export async function addStandardInputDialog({
@@ -97,9 +105,10 @@ export async function addStandardInputDialog({
     validationFailureMessage = "error",
     resize = "none",
     type = "input",
-    width = "300px",
+    width = "100%",
     confirmButtonColor = "green",
     cancelButtonColor = "red",
+    style,
 }: InputDialog): Promise<{result: string}> {
     if (type === "input" && rows != undefined) console.warn("Rows has no function if type = input.");
     return new Promise((resolve, reject) => dialogStore.addDialog(
@@ -133,7 +142,7 @@ export async function addStandardInputDialog({
                     {confirmText}
                 </Button>
             </Flex>
-        </form>, () => reject({cancelled: true}), addToFront));
+        </form>, () => reject({cancelled: true}), addToFront, style));
 }
 
 interface ConfirmCancelButtonsProps {
@@ -191,7 +200,7 @@ export const NamingField: React.FunctionComponent<{
     }, [props.onCancel]);
 
     return (
-        props.disabled ? <LoadingIcon /> : <form onSubmit={submit}>
+        props.disabled ? <LoadingIcon /> : <form style={{width: "100%"}} onSubmit={submit}>
             <Flex onClick={stopPropagationAndPreventDefault}>
                 <div style={{transform: "translateY(2px)", marginBottom: "2px"}}>
                     <ConfirmCancelButtons

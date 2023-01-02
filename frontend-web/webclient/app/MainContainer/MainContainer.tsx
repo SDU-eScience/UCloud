@@ -125,14 +125,14 @@ function SidebarScroll(props: {children: React.ReactNode}): JSX.Element {
         return () => {
             element.onwheel = old;
         }
-    });
+    }, []);
 
-    function scrollMainContainer(e) {
+    function scrollMainContainer(this: GlobalEventHandlers, e: WheelEvent) {
         var elmnt = document.querySelector<HTMLInputElement>(
             `div[data-component="router-wrapper"]`
         );
         if (!elmnt) return;
-        elmnt.scrollBy(0, -e.wheelDeltaY);
+        elmnt.scrollBy(0, e.deltaY);
     }
     return <Box>{props.children}</Box>;
 }
