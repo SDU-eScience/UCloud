@@ -1516,14 +1516,14 @@ function Comments(props: CommentsProps) {
                     key={it.id}
                     grantId={props.appId}
                     comment={it}
-                    avatar={avatars.cache[it.username] ?? defaultAvatar}
+                    avatar={avatars.avatar(it.username)}
                     reload={props.reload}
                 />
             ))}
             {!props.appId ? null :
                 <PostCommentWidget
                     grantId={props.appId}
-                    avatar={avatars.cache[Client.username!] ?? defaultAvatar}
+                    avatar={avatars.avatar(Client.username!)}
                     onPostedComment={comment => props.dispatch({type: "POSTED_COMMENT", payload: comment})}
                     disabled={props.target !== RequestTarget.VIEW_APPLICATION}
                 />
