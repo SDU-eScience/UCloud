@@ -1,16 +1,18 @@
 package elastic.management.services
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch.indices.GetIndexRequest
+import co.elastic.clients.elasticsearch.indices.UpdateAliasesRequest
+import co.elastic.clients.elasticsearch.indices.update_aliases.AddAction
+import co.elastic.clients.elasticsearch.indices.update_aliases.RemoveAction
 import dk.sdu.cloud.service.Loggable
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest
 import org.elasticsearch.client.RequestOptions
-import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.client.indices.GetIndexRequest
 import org.slf4j.Logger
 import java.time.LocalDate
 
 const val DAYS_IN_PAST = 7L
 
-class Grafana(val elastic: RestHighLevelClient) {
+class Grafana(val elastic: ElasticsearchClient) {
 
     fun createAlias(alias: String, prefix: String) {
         val indicesSearchList = mutableListOf<String>()
@@ -21,44 +23,53 @@ class Grafana(val elastic: RestHighLevelClient) {
         val newIndices = elastic
             .indices()
             .get(
-                GetIndexRequest(indicesSearchList.joinToString(",")),
-                RequestOptions.DEFAULT
-            ).indices.toList()
+                GetIndexRequest.Builder()
+                    .index(indicesSearchList)
+                    .build()
+            ).result().keys.toList()
 
-        val indicesAddAliasesRequest = IndicesAliasesRequest()
-        val aliasAddAction = IndicesAliasesRequest
-            .AliasActions(IndicesAliasesRequest.AliasActions.Type.ADD)
-            .indices(*newIndices.toTypedArray())
-            .alias(alias)
-
-        indicesAddAliasesRequest.addAliasAction(aliasAddAction)
+        val indicesAddAliasesRequest = UpdateAliasesRequest.Builder()
+            .actions { action ->
+                action.add(
+                    AddAction.Builder()
+                        .alias(alias)
+                        .indices(newIndices)
+                        .build()
+                )
+            }
+            .build()
 
         log.info("Adding Alias: $alias to $newIndices")
-        elastic.indices().updateAliases(indicesAddAliasesRequest, RequestOptions.DEFAULT)
+        elastic.indices().updateAliases(
+            indicesAddAliasesRequest
+        )
 
         val grafanaIndices = elastic
             .indices()
             .get(
-                GetIndexRequest(alias),
-                RequestOptions.DEFAULT
-            ).indices.toList()
+                GetIndexRequest.Builder()
+                    .index(alias)
+                    .build()
+            ).result().keys.toList()
 
         val oldIndices = grafanaIndices.filter { index ->
             index.contains(LocalDate.now().minusDays(DAYS_IN_PAST+1).toString().replace("-","." ))
         }
 
         if (oldIndices.isNotEmpty()) {
-            val indicesRemoveAliasesRequest = IndicesAliasesRequest()
-
-            val aliasRemoveAction = IndicesAliasesRequest
-                .AliasActions(IndicesAliasesRequest.AliasActions.Type.REMOVE)
-                .indices(*oldIndices.toTypedArray())
-                .alias(alias)
-
-            indicesRemoveAliasesRequest.addAliasAction(aliasRemoveAction)
+            val indicesRemoveAliasesRequest = UpdateAliasesRequest.Builder()
+                .actions { action ->
+                    action.remove(
+                        RemoveAction.Builder()
+                            .indices(oldIndices)
+                            .alias(alias)
+                            .build()
+                    )
+                }
+                .build()
 
             log.info("Removing Alias: $alias from $oldIndices")
-            elastic.indices().updateAliases(indicesRemoveAliasesRequest, RequestOptions.DEFAULT)
+            elastic.indices().updateAliases(indicesRemoveAliasesRequest)
         }
     }
 

@@ -12,7 +12,6 @@ import {ListRow, ListRowStat} from "@/ui-components/List";
 import {Flex, List, VerticalButtonGroup} from "@/ui-components";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {useNavigate} from "react-router";
 import {dateToString} from "@/Utilities/DateUtilities";
@@ -157,7 +156,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                     icon={
                         slim ? null : (
                             <UserAvatar
-                                avatar={avatars.cache[app.createdBy] ?? defaultAvatar}
+                                avatar={avatars.avatar(app.createdBy)}
                                 width={"45px"}
                             />
                         )

@@ -10,8 +10,6 @@ import org.apache.http.auth.AuthScope
 import org.apache.http.auth.UsernamePasswordCredentials
 import org.apache.http.impl.client.BasicCredentialsProvider
 import org.elasticsearch.client.RestClient
-import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.client.RestHighLevelClientBuilder
 import java.net.InetAddress
 import java.net.UnknownHostException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -57,11 +55,6 @@ class ElasticFeature : MicroFeature {
 
         ctx.elasticLowLevelClient = lowLevelClient.build()
 
-        ctx.elasticHighLevelClient = RestHighLevelClientBuilder(
-            ctx.elasticLowLevelClient
-        ).setApiCompatibilityMode(true)
-            .build()
-
         val transport = RestClientTransport(
             ctx.elasticLowLevelClient,
             JacksonJsonpMapper()
@@ -82,7 +75,6 @@ class ElasticFeature : MicroFeature {
         override val log = logger()
 
         internal val CLIENT = MicroAttributeKey<ElasticsearchClient>("elastic-client")
-        internal val HIGH_LEVEL = MicroAttributeKey<RestHighLevelClient>("elastic-high-level-client")
         internal val LOW_LEVEL = MicroAttributeKey<RestClient>("elastic-low-level-client")
 
         private fun testHostname(hostname: String): Boolean {
@@ -120,15 +112,6 @@ var Micro.elasticClient: ElasticsearchClient
     }
     internal set(value) {
         attributes[ElasticFeature.CLIENT] = value
-    }
-
-	var Micro.elasticHighLevelClient: RestHighLevelClient
-    get() {
-        requireFeature(ElasticFeature)
-        return attributes[ElasticFeature.HIGH_LEVEL]
-    }
-    internal set(value) {
-        attributes[ElasticFeature.HIGH_LEVEL] = value
     }
 
 var Micro.elasticLowLevelClient: RestClient
