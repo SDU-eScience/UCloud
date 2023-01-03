@@ -1,0 +1,173 @@
+/* TODO: move css into respective component folders. */
+
+body,
+h3 {
+    margin: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+        monospace;
+}
+
+.flex {
+    display: flex;
+}
+
+html {
+    --black: #000;
+    --white: #fff;
+    --textBlack: #1e252e;
+    --lightGray: #f5f7f9;
+    --midGray: #c9d3df;
+    --gray: #8393A7;
+    --darkGray: #53657d;
+    --lightBlue: #D9E9FF;
+    --lightBlue2: #cdf;
+    --blue: #006aff;
+    --darkBlue: #049;
+    --lightGreen: #00ff77;
+    --green: #00C05A;
+    --darkGreen: #00823c;
+    --lightRed: #fcc;
+    --red: #c00;
+    --darkRed: #800;
+    --orange: #ff6400;
+    --darkOrange: #ff5722;
+    --lightPurple: #ecf;
+    --purple: #70b;
+    --yellow: #ffed33;
+    --text: var(--textBlack, #f00);
+    --textHighlight: var(--blue, #f00);
+    --headerText: var(--white, #f00);
+    --headerBg: #006aff;
+    --headerIconColor: #fff;
+    --headerIconColor2: #c9d3df;
+    --borderGray: var(--midGray, #f00);
+    --paginationHoverColor: var(--lightBlue, #f00);
+    --paginationDisabled: var(--lightGray, #f00);
+    --iconColor: var(--darkGray, #f00);
+    --iconColor2: var(--gray, #f00);
+    --FtIconColor: #f5f7f9;
+    --FtIconColor2: #c9d3df;
+    --FtFolderColor: var(--gray, #f00);
+    --FtFolderColor2: var(--midGray, #f00);
+    --spinnerColor: var(--blue, #f00);
+    --tableRowHighlight: var(--lightBlue, #f00);
+    --appCard: #ebeff3;
+    --wayfGreen: #66b340;
+    --appStoreFavBg: #e8f1fc --invertedThemeColor: #fff;
+    --fixedBlack: #000;
+    --activeSpreadsheet: #dcebf6;
+    --lightOrange: #ffc107;
+
+    /* TODO This is not currently enforced in the header */
+    --headerHeight: 48px;
+    /* TODO This is not currently enforced in the sidebar */
+    --sidebarWidth: 68px;
+
+    font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;
+}
+
+html.light {
+    --white: #fff;
+    --tableRowHighlight: var(--lightBlue, #f00);
+    --black: #000;
+    --text: #1e252e;
+    --lightGray: #f5f7f9;
+    --lightBlue: #E6F1FF;
+    --midGray: #c9d3df;
+    --paginationDisabled: var(--lightGray, #f00);
+    --paginationHoverColor: var(--lightBlue, #f00);
+    --appCard: #ebeff3;
+    --borderGray: var(--midGray, #f00);
+    --invertedThemeColor: #000;
+    --projectHighlight: #dfffee;
+    --appStoreFavBg: #e8f1fc;
+    --activeSpreadsheet: #dcebf6;
+    --modalShadow: rgba(255, 255, 255, 0.75);
+}
+
+html.dark {
+    --white: #282c35;
+    --tableRowHighlight: #000;
+    --black: #a4a5a9;
+    --text: #e5e5e6;
+    --lightGray: #111;
+    --lightBlue: #000;
+    --midGray: #555;
+    --paginationDisabled: #111;
+    --paginationHoverColor: #444;
+    --appCard: #131616;
+    --borderGray: #111;
+    --invertedThemeColor: #fff;
+    --projectHighlight: #00c05a;
+    --appStoreFavBg: #00204d;
+    --activeSpreadsheet: #000;
+    --modalShadow: rgba(0, 0, 0, 0.75);
+}
+
+.header {
+    height: 48px;
+    background-color: var(--headerBg);
+    width: 100%;
+    display: flex;
+    position: static;
+    z-index: 500;
+}
+
+.sidebar > div {
+    margin-top: 4px;
+}
+
+.sidebar {
+    height: calc(100vh - 48px);
+    width: 190px;
+    position: static;
+    padding-top: 8px;
+    padding-left: 12px;
+    background-color: var(--lightGray);
+}
+
+.vertically-centered {
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+.ucloud-title {
+    padding-left: 12px;
+    font-size: 18px;
+}
+
+.header-input {
+    height: calc(var(--headerHeight) - 12px);
+    border-radius: 4px;
+    margin: 0;
+    margin-right: 8px;
+    border: none;
+    border-width: 0px;
+}
+
+.header-search {
+    width: 550px;
+}
+
+.header-input:not(:focus) {
+    background-color: #3b8cfc;
+}
+
+.header-input:focus+.input-description {
+    color: transparent;
+}
+
+.white-text {
+    color: #FFF;
+}
