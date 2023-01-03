@@ -1,3 +1,5 @@
+# Introduction to Procedures
+
 This document is created to link relevant documentation so it can be referred to from within the ISMS.
 
 The eScience Center Steering committee authorises new Projects. The Project are then split into activities.
@@ -26,7 +28,7 @@ creation of this document. Each Project Leader have the responsibility for valid
 
 ## The Development Cycle
 
-UCloud uses an __agile methodology__ for development and deployment, which will also be used for this project The method
+UCloud uses an __agile methodology__ for development and deployment, which will also be used for this project. The method
 is commonly used for complex projects like this one, and it emphasizes collaboration, flexibility, continuous
 improvement, and high-quality results.
 
@@ -110,7 +112,7 @@ it will be provided in collaboration with the back-offices at the national HPC c
 
 ### Internal Artifact Repositories
 
-We use a number of internal repositories for storing software artifacts. The details are discussed 
+We use a number of internal repositories for storing software artifacts. The details are discussed
 [here](./deployment.md).
 
 ### External Libraries
@@ -196,3 +198,4 @@ SDU. This test is performed automatically by tools.
 Each month https://cloud.sdu.dk is scanned and penetration tested by the security department at SDU.
 
 We also perform internal audits at SDU. These are performed periodically and at least once a year.
+
