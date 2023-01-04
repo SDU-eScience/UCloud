@@ -124,7 +124,7 @@ html.dark {
     z-index: 500;
 }
 
-.sidebar > div {
+.sidebar>div {
     margin-top: 4px;
 }
 
@@ -170,4 +170,32 @@ html.dark {
 
 .white-text {
     color: #FFF;
+}
+
+.ml-10px {
+    margin-left: 10px;
+}
+
+.mb-12px {
+    margin-bottom: 12px;
+}
+
+div[data-active="true"] {
+    font-weight: bold;
+}
+
+div[data-onechild="true"] {
+    display: flex;
+}
+div[data-onechildindent="true"] {
+    margin-left: 10px;
+}
+  
+.main-content {
+    width: 100px;
+}
+
+.breadcrumb-line::after {
+    display: inline;
+    border: solid #000 1px;
 }
