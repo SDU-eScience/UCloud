@@ -7,6 +7,14 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+# 04-01-23
+
+Note that this was a DB migration change, as a result the service version didn't change.
+
+```
+✅  Deployment(accounting, 2022.3.1) (UP-TO-DATE)
+```
+
 # 16-12-22
 
 ```
