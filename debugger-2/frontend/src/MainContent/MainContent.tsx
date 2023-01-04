@@ -3,7 +3,7 @@ import * as React from "react";
 export function MainContent({activeService, query, filters, levels}: {activeService: string, query: string, filters: string, levels: string;}): JSX.Element {
     const [routeComponents, setRouteComponents] = React.useState(activeService);
     React.useEffect(() => {
-        setRouteComponents("/" + activeService);
+        setRouteComponents(activeService);
     }, [activeService]);
 
     const doFetch = React.useCallback((query: string, filters: string, levels: string) => {
@@ -34,13 +34,9 @@ function RequestView() {
 }
 
 function BreadCrumbs({routeComponents, setRouteComponents}: {routeComponents: string; setRouteComponents: (route: string) => void;}): JSX.Element {
-    console.log(routeComponents);
-    const routes = routeComponents.split("/").filter(it => it);
     if (!routeComponents) return <div />
-    const [first, ...remaining] = routes;
-    return <div className="flex breadcrumb">
-        <span onClick={() => setRouteComponents(first)}>/ Root</span>
-        {remaining.map((r, index) => <span key={r} onClick={() => setRouteComponents(routes.slice(0, index + 1).join("/"))}>{r}</span>)}
+    return <div className="flex breadcrumb" style={{width: "100%"}}>
+        <span>/ Root</span>
         <div className="breadcrumb-line" />
     </div>;
 }
