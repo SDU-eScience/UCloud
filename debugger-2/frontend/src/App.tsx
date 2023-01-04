@@ -68,7 +68,7 @@ function ServiceList({services, activeService, setActiveService, depth}: {active
     if (services.length === 0) return <div />;
     return <div className="mb-12px" style={{marginBottom: "12px"}}>
         {services.map(it => {
-            const isActive = it.absolutePath === activeService;
+            const isActive = it.absolutePath === activeService || activeService.includes(it.absolutePath);
 
             if (isLeaf(it)) {
                 return <div key={it.absolutePath} data-active={isActive} onClick={() => setActiveService(it.absolutePath)}>{it.serviceName}</div>
@@ -76,7 +76,7 @@ function ServiceList({services, activeService, setActiveService, depth}: {active
                 const oneChild = hasOneChild(it);
                 return <div data-onechild={oneChild} key={it.absolutePath}>
                     <div data-active={isActive}> {it.serviceName}/</div>
-                    <div data-onechildindent={!oneChild}>
+                    <div data-omitindent={!oneChild}>
                         <ServiceList services={it.children} activeService={activeService} setActiveService={setActiveService} depth={depth + 1} />
                     </div>
                 </div>

@@ -187,12 +187,12 @@ div[data-active="true"] {
 div[data-onechild="true"] {
     display: flex;
 }
-div[data-onechildindent="true"] {
+div[data-omitindent="true"] {
     margin-left: 10px;
 }
   
 .main-content {
-    width: 100px;
+    width: 100%;
 }
 
 .breadcrumb-line::after {
