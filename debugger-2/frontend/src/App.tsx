@@ -66,7 +66,7 @@ function App(): JSX.Element {
 
 function ServiceList({services, activeService, setActiveService, depth}: {activeService: string, services: ServiceNode[], setActiveService: (s: string) => void; depth: number;}): JSX.Element {
     if (services.length === 0) return <div />;
-    return <div className="mb-12px" style={{marginBottom: "12px"}}>
+    return <div className="mb-12px">
         {services.map(it => {
             const isActive = it.absolutePath === activeService || activeService.includes(it.absolutePath);
 

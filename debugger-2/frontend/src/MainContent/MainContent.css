@@ -1,0 +1,50 @@
+.main-content {
+    padding: 15px 13px 25px 18px;
+    width: 100%;
+    overflow-y: scroll;
+}
+
+div.card {
+    width: 100%;
+    border: 1px solid black;
+    border-radius: 6px; 
+    margin-bottom: 4px;
+    margin-top: 4px;
+}
+
+div.card.details {
+    height: 200px;
+}
+
+div.card.query {
+    width: 66%;
+    margin: 5px 5px 5px 5px;
+    overflow-y: scroll;
+}
+
+div.card.query-details {
+    width: 33%;
+    margin: 5px 5px 5px 0;
+    overflow-y: scroll;
+}
+
+div.card.list {
+    height: 100%;
+    padding-top: 6px;
+}
+
+div.request-list-row {
+    border-top: 1px solid black;
+    height: 20px;
+    color: black;
+    background-color: white;
+}
+
+div.request-list-row[data-has-error="true"] {
+    color: white;
+    background-color: var(--red);
+}
+
+div.request-list-row:last-child {
+    border-bottom: 1px solid black;
+}
