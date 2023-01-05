@@ -19,13 +19,15 @@ div.card.details {
 div.card.query {
     width: 66%;
     margin: 5px 5px 5px 5px;
-    overflow-y: scroll;
+    overflow-y: auto;
+    padding: 5px 5px 5px 5px;
 }
 
 div.card.query-details {
     width: 33%;
     margin: 5px 5px 5px 0;
-    overflow-y: scroll;
+    overflow-y: auto;
+    padding: 5px 5px 5px 5px;
 }
 
 div.card.list {
@@ -38,6 +40,7 @@ div.request-list-row {
     height: 20px;
     color: black;
     background-color: white;
+    cursor: pointer;
 }
 
 div.request-list-row[data-has-error="true"] {
@@ -47,4 +50,9 @@ div.request-list-row[data-has-error="true"] {
 
 div.request-list-row:last-child {
     border-bottom: 1px solid black;
+}
+
+.leaf {
+    width: auto;
+    cursor: pointer;
 }

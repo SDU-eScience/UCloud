@@ -1,7 +1,8 @@
 /* TODO: move css into respective component folders. */
 
 body,
-h3 {
+h3,
+pre {
     margin: 0;
 }
 
@@ -180,7 +181,7 @@ html.dark {
     margin-bottom: 12px;
 }
 
-div[data-active="true"] {
+[data-active="true"] {
     font-weight: bold;
 }
 

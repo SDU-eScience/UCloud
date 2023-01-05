@@ -67,6 +67,7 @@ function RequestDetails({request}: {request: UCloudRequest | null}): JSX.Element
     if (!request) return <div />;
     return <div className="card details flex">
         <div className="card query">
+            <pre>{request.name}</pre>
         </div>
         <div className="card query-details">
         </div>
