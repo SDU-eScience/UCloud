@@ -42,16 +42,17 @@ function App(): JSX.Element {
     const [services, setServices] = useState<ServiceNode[]>([]);
 
     useEffect(() => {
-        const s: ServiceNode[] = [];
-        addServiceFromRootNode("UCloud/Core", s);
-        addServiceFromRootNode("K8/Server", s);
-        addServiceFromRootNode("Slurm/Server", s);
-        addServiceFromRootNode("Slurm/User/1000", s);
-        addServiceFromRootNode("Slurm/User/1100", s);
-        addServiceFromRootNode("Slurm/User/1140", s);
-        addServiceFromRootNode("Slurm/User/11141", s);
-        addServiceFromRootNode("Slurm/User/15121", s);
-        setServices(s);
+        setServices(s => {
+            addServiceFromRootNode("UCloud/Core", s);
+            addServiceFromRootNode("K8/Server", s);
+            addServiceFromRootNode("Slurm/Server", s);
+            addServiceFromRootNode("Slurm/User/1000", s);
+            addServiceFromRootNode("Slurm/User/1100", s);
+            addServiceFromRootNode("Slurm/User/1140", s);
+            addServiceFromRootNode("Slurm/User/11141", s);
+            addServiceFromRootNode("Slurm/User/15121", s);
+            return [...s];
+        });
     }, [])
 
     return <>
@@ -72,7 +73,7 @@ function ServiceList({services, activeService, setActiveService, depth}: {active
             const isActive = it.absolutePath === activeService || activeService.startsWith(it.absolutePath);
 
             if (isLeaf(it)) {
-                return <div><span key={it.absolutePath} className="leaf" data-active={isActive} onClick={() => setActiveService(it.absolutePath)}>{it.serviceName}</span></div>
+                return <div key={it.absolutePath}><span className="leaf" data-active={isActive} onClick={() => setActiveService(it.absolutePath)}>{it.serviceName}</span></div>
             } else {
                 const oneChild = hasOneChild(it);
                 return <div data-onechild={oneChild} key={it.absolutePath}>

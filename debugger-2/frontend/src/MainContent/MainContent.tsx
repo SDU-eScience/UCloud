@@ -34,7 +34,16 @@ export function MainContent({activeService, query, filters, levels}: {activeServ
                 <BreadCrumbs routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
                 <RequestDetails request={activeRequest} />
                 <RequestView>
-                    {[requestExample1, requestExample2].map(it => <div onClick={() => setActiveRequest(it)} className="request-list-row" data-has-error={it.importance === RequestImportance.THIS_IS_WRONG}>{it.name}</div>)}
+                    {[requestExample1, requestExample2].map(it =>
+                        <div
+                            key={it.name}
+                            className="request-list-row"
+                            onClick={() => setActiveRequest(it)}
+                            data-has-error={it.importance === RequestImportance.THIS_IS_WRONG}
+                        >
+                            {it.name}
+                        </div>
+                    )}
                 </RequestView>
             </>
         }
@@ -53,7 +62,7 @@ const requestExample1: UCloudRequest = {
 const requestExample2: UCloudRequest = {
     id: 1,
     importance: RequestImportance.THIS_IS_WRONG,
-    name: "❌ Just something to think about.",
+    name: "❌ Just something to think about, too.",
     parent: 1,
     type: RequestType.BACKGROUND_TASK,
 }
@@ -73,6 +82,9 @@ function RequestDetails({request}: {request: UCloudRequest | null}): JSX.Element
             <pre>{request.name}</pre>
         </div>
         <div className="card query-details">
+            <pre>
+               {request.importance} 
+            </pre>
         </div>
     </div>;
 }
