@@ -20,13 +20,16 @@ export function MainContent({activeService, query, filters, levels}: {activeServ
 
     const [activeRequest, setActiveRequest] = React.useState<UCloudRequest | null>(null);
 
+    React.useEffect(() => {
+        setActiveRequest(null);
+    }, [activeService])
 
     React.useEffect(() => {
         doFetch(query, filters, levels);
     }, [query, filters, levels, doFetch]);
 
     return <div className="main-content">
-        {!activeService ? "Select a service to view requests" :
+        {!activeService ? <h3>Select a service to view requests</h3> :
             <>
                 <BreadCrumbs routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
                 <RequestDetails request={activeRequest} />
