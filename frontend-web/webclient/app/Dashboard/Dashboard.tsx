@@ -56,6 +56,7 @@ import {isAdminOrPI, useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import { ProviderTitle } from "@/Providers/ProviderTitle";
 import { ProviderLogo } from "@/Providers/ProviderLogo";
+import AppRoutes from "@/Routes";
 
 const MY_WORKSPACE = "My Workspace";
 
@@ -522,7 +523,7 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
             <Box>
                 {news.data.items.slice(0, 1).map(post => (
                     <Box key={post.id} mb={32}>
-                        <Link to={`/news/detailed/${post.id}`}>
+                        <Link to={AppRoutes.news.detailed(post.id)}>
                             <Heading.h3>{post.title} </Heading.h3>
                         </Link>
 
