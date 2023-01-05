@@ -4,14 +4,14 @@ import java.io.File
 import java.nio.channels.FileChannel
 import java.nio.file.StandardOpenOption
 
-class ContextReader(private val directory: File, private val generation: String, private val idx: Int) {
+class ContextReader(val directory: File, val generation: Long, val idx: Int) {
     private val channel = FileChannel.open(
         File(directory, "$generation-$idx.ctx").toPath(),
         StandardOpenOption.READ,
     )
 
     @PublishedApi
-    internal val buf = channel.map(FileChannel.MapMode.READ_WRITE, 0, 1024 * 1024 * 16)
+    internal val buf = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size())
 
     private val descriptor = DebugContextDescriptor(buf, 4096)
 
@@ -23,8 +23,7 @@ class ContextReader(private val directory: File, private val generation: String,
     }
 
     fun retrieve(idx: Int = cursor): DebugContextDescriptor? {
-        if (descriptor.offset + DebugContextDescriptor.size >= buf.capacity()) return null
-        descriptor.offset += DebugContextDescriptor.size
+        descriptor.offset = idx * DebugContextDescriptor.size + 4096
         if (descriptor.id == 0) return null
         return descriptor
     }
@@ -64,6 +63,16 @@ class ContextReader(private val directory: File, private val generation: String,
             } else {
                 max = cursor - 1
             }
+        }
+    }
+
+    fun close() {
+        channel.close()
+    }
+
+    companion object {
+        fun exists(directory: File, generation: Long, idx: Int): Boolean {
+            return File(directory, "$generation-$idx.ctx").exists()
         }
     }
 }

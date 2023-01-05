@@ -673,13 +673,11 @@ fun exampleProducer(logFolder: File) {
             GlobalScope.launch {
                 while (isActive) {
                     debug.useContext(DebugContextType.BACKGROUND_TASK, "Context $it") {
-                        repeat(1000) {
+                        repeat(10) {
                             debug.log(MessageImportance.THIS_IS_NORMAL, "Log $it")
                             delay(50)
                         }
                     }
-
-                    delay(1000)
                 }
             }
         }.joinAll()

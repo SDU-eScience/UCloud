@@ -22,8 +22,6 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
     }
 
     private var rsv1 by Schema.rsv1
-    private var rsv2 by Schema.rsv2
-    private var rsv3 by Schema.rsv3
 
     override fun toString(): String {
         return "(ctxGeneration=$ctxGeneration, ctxParent=$ctxParent, ctxId=$ctxId, timestamp=$timestamp, importance=$importance, id=$id)"
@@ -38,9 +36,7 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
         val importance = enum<MessageImportance>()
         val id = int4()
 
-        val rsv1 = int1()
-        val rsv2 = int4()
-        val rsv3 = int4()
+        val rsv1 = int2()
     }
 
     abstract fun create(buf: ByteBuffer, offset: Int): Self

@@ -4,7 +4,7 @@ import java.io.File
 import java.io.RandomAccessFile
 import java.nio.channels.FileChannel
 
-class LogFileReader(val directory: File, val generation: String, val idx: Int) {
+class LogFileReader(val directory: File, val generation: Long, val idx: Int) {
     private val file = File(directory, "$generation-$idx.log")
     private val logChannel = RandomAccessFile(file, "r").channel
     private val buf = logChannel.map(FileChannel.MapMode.READ_ONLY, 0, logChannel.size())
@@ -116,7 +116,7 @@ class LogFileReader(val directory: File, val generation: String, val idx: Int) {
     }
 
     companion object {
-        fun exists(directory: File, generation: String, idx: Int): Boolean {
+        fun exists(directory: File, generation: Long, idx: Int): Boolean {
             return File(directory, "$generation-$idx.log").exists()
         }
     }
