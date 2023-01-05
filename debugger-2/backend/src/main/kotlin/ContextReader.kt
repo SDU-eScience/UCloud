@@ -20,7 +20,7 @@ class ContextReader(val directory: File, val generation: Long, val idx: Int) {
 
     fun isValid(idx: Int = cursor): Boolean {
         return retrieve(idx) != null
-    }
+    }   
 
     fun retrieve(idx: Int = cursor): DebugContextDescriptor? {
         descriptor.offset = idx * DebugContextDescriptor.size + 4096

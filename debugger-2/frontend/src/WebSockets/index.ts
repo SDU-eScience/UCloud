@@ -1,3 +1,3 @@
-import { initializeConnection } from "./Socket";
+import {initializeConnection} from "./Socket";
 
-export { initializeConnection };
+export {initializeConnection};

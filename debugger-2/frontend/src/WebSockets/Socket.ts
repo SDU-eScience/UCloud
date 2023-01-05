@@ -13,7 +13,7 @@ interface SocketOptions {
 }
 
 export function initializeConnection(opts: SocketOptions) {
-    if (socket != null) throw "initializeConnection has already been called!";
+    if (socket != null) throw Error("initializeConnection has already been called!");
     options = opts;
     initializeSocket();
 }

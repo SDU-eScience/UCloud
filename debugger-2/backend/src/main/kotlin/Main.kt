@@ -184,7 +184,7 @@ fun main(args: Array<String>) {
                             }
 
                             if (shouldOpen) {
-                                println("Opening context $directory ${service} ${idx}")
+                                println("Opening context $directory $service $idx")
                                 val openFile = ContextReader(directory, service.value.generation, idx)
 //                                openFile.seekToEnd()
                                 openContextFiles.add(openFile)

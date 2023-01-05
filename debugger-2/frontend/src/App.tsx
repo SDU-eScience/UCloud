@@ -73,7 +73,11 @@ function ServiceList({services, activeService, setActiveService, depth}: {active
             const isActive = it.absolutePath === activeService || activeService.startsWith(it.absolutePath);
 
             if (isLeaf(it)) {
-                return <div key={it.absolutePath}><span className="leaf" data-active={isActive} onClick={() => setActiveService(it.absolutePath)}>{it.serviceName}</span></div>
+                return <div key={it.absolutePath}>
+                    <span className="leaf" data-active={isActive} onClick={() => setActiveService(it.absolutePath)}>
+                        {it.serviceName}
+                    </span>
+                </div>
             } else {
                 const oneChild = hasOneChild(it);
                 return <div data-onechild={oneChild} key={it.absolutePath}>

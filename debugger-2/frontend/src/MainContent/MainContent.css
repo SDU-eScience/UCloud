@@ -41,6 +41,7 @@ div.request-list-row {
     color: black;
     background-color: white;
     cursor: pointer;
+    padding-left: 8px;
 }
 
 div.request-list-row[data-has-error="true"] {

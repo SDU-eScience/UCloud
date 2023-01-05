@@ -15,7 +15,7 @@ function readInt8(buffer: DataView, offset: number) {
 }
 
 function readBool(buffer: DataView, offset: number) {
-    return buffer.getInt8(offset) != 0;
+    return buffer.getInt8(offset) !== 0;
 }
 
 function readBytes(buffer: DataView, offset: number, size: number): Uint8Array {
@@ -39,15 +39,15 @@ function readText(buffer: DataView, offset: number, maxSize: number): LargeText 
         const withoutPrefix = decodedSlice.substring(4);
         const posIdx = withoutPrefix.indexOf("#");
         if (posIdx <= -1) {
-            return { previewOrContent: "Invalid blob" };
+            return {previewOrContent: "Invalid blob"};
         }
 
         const overflowIdentifier = decodedSlice.substring(0, posIdx);
         const previewOrContent = decodedSlice.substring(posIdx + 1);
-        return { previewOrContent, overflowIdentifier };
+        return {previewOrContent, overflowIdentifier};
     }
 
-    return { previewOrContent: decodedSlice };
+    return {previewOrContent: decodedSlice};
 }
 
 export enum BinaryDebugMessageType {
