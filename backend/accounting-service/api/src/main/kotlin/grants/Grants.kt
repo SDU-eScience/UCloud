@@ -331,14 +331,14 @@ storage. There are only two ways of receiving any credits, either through an adm
 credits or by receiving them from a project.
 
 Grants acts as a more user-friendly gateway to receiving resources from a project. Every
-`Application` goes through the following steps:
+`GrantApplication` goes through the following steps:
 
 1. User submits application to relevant project using `Grants.submitApplication`
 2. Project administrator of `Application.resourcesOwnedBy` reviews the application
-   - User and reviewer can comment on the application via `Grants.commentOnApplication`
+   - User and reviewer can comment on the application via `GrantComments.createComment`
    - User and reviewer can perform edits to the application via `Grants.editApplication`
 3. Reviewer either performs `Grants.closeApplication` or `Grants.approveApplication`
-4. If the `Application` was approved then resources are granted to the `Application.grantRecipient`
+4. If the `GrantApplication` was approved then resources are granted to the `GrantApplication.recipient`
 
 ${ApiConventions.nonConformingApiWarning}
         """.trimIndent()
@@ -366,7 +366,7 @@ ${ApiConventions.nonConformingApiWarning}
             )
 
             documentation {
-                summary = "Submits an [Application] to a project"
+                summary = "Submits a [GrantApplication] to a project"
                 description = """
                      In order for the user to submit an application they must match any criteria in
                      [ProjectApplicationSettings.allowRequestsFrom]. If they are not the request will fail.
@@ -383,7 +383,7 @@ ${ApiConventions.nonConformingApiWarning}
 
        documentation {
             summary = "Approves or rejects an existing [GrantApplication]. If accepted by all grant givers this will " +
-                "trigger granting of resources to the [GrantApplication.Document.recipient ]. "
+                "trigger granting of resources to the [GrantApplication.Document.recipient]. "
             description = "Only the grant reviewer can perform this action."
         }
     }
@@ -530,9 +530,9 @@ ${ApiConventions.nonConformingApiWarning}
         )
 
         documentation {
-            summary = "Retrieves an active [Application]"
+            summary = "Retrieves an active [GrantApplication]"
             description = """
-                Only the creator and grant reviewers are allowed to view any given [Application].
+                Only the creator and grant reviewers are allowed to view any given [GrantApplication].
             """.trimIndent()
         }
     }
