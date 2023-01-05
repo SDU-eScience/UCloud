@@ -320,7 +320,7 @@ explicitly been added to the "IMADA" project.
 
 All requests in UCloud are executed in a particular context. The header of every request defines the context. For the
 HTTP backend this is done in the `Project` header. The absence of a project implies that the request is executed in the
-personal project context.
+personal project context, also called *My Workspace* on UCloud.
 
 ![](/backend/accounting-service/wiki/context-switcher.png)
 

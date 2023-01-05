@@ -84,30 +84,43 @@ object Visualization : CallDescriptionContainer("accounting.visualization") {
     init {
         title = "Usage Visualization"
         description = """
-            Visualization gives the user the possibility to get an easy overview of their usage during a set period or for a given product category. 
+            Visualization gives the user access to an overview of their usage during a set period or for a given product category. 
             
             There are currently two variations of usage visualization:
             
-            1. Usage Chart: The usage chart shows the usage over time for each product category.
+            1. __Usage Chart:__ The usage chart shows the usage over time for each product category.
             
-            Usage shown fully for product type COMPUTE for the period of week. 
             ![](/backend/accounting-service/wiki/UsageChartFull.png)
-            Usage specifics for each category in the product type.
+            
+            __Figure 1:__ Full usage shown for product type `COMPUTE` for the period of a week. 
+            
             ![](/backend/accounting-service/wiki/UsageChartInfo.png)
+            
+            __Figure 2:__ Usage specifics for each category in the product type.
 
-            2. Breakdown Chart: The breakdown chart shows the usage for the entire period divided into the
-            different products used.
-            Breakdown of different products usage in product type COMPUTE
+            2. __Breakdown Chart:__ The breakdown chart shows the usage for the entire period divided into the
+               different products used.
+               
             ![](/backend/accounting-service/wiki/BreakdownChart.png)
+            
+            __Figure 3:__ Breakdown of different products usage in product type `COMPUTE`.
             
         """.trimIndent()
     }
 
     val retrieveUsage = call("retrieveUsage", VisualizationRetrieveUsageRequest.serializer(), VisualizationRetrieveUsageResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "usage")
+
+        documentation {
+            summary = "Retrieve charts of usage over time."
+        }
     }
 
     val retrieveBreakdown = call("retrieveBreakdown", VisualizationRetrieveBreakdownRequest.serializer(), VisualizationRetrieveBreakdownResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "breakdown")
+
+        documentation {
+            summary = "Retrieve breakdown charts of usage for the entire period."
+        }
     }
 }
