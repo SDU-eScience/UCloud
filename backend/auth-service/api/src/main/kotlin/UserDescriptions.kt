@@ -246,7 +246,7 @@ ${ApiConventions.nonConformingApiWarning}
             summary = "Request reset of password of a $TYPE_REF PASSWORD user."
             description = """
                 This request can only be called by other services, and is used by the `PasswordResetService` to reset a
-                user's password in case they are unable to log in.
+                user's password in case they are unable to log in. Read more in [Password Reset](authentication/password-reset.md).
             """.trimIndent()
         }
     }
