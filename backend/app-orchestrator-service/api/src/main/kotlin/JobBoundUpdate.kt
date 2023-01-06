@@ -4,10 +4,12 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiOwnedBy
+import dk.sdu.cloud.calls.UCloudApiStable
 import dk.sdu.cloud.provider.api.ResourceStatus
 import dk.sdu.cloud.provider.api.ResourceUpdate
 import kotlinx.serialization.Serializable
 
+@UCloudApiStable
 enum class JobBindKind {
     BIND,
     UNBIND
@@ -15,6 +17,7 @@ enum class JobBindKind {
 
 @Serializable
 @UCloudApiOwnedBy(Jobs::class)
+@UCloudApiStable
 data class JobBinding(val kind: JobBindKind, val job: String)
 
 interface JobBoundUpdate<State : Enum<State>> : ResourceUpdate {

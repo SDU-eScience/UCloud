@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / Software Licenses
 # Software Licenses
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Licenses act as a key to certain restricted software._
 
@@ -25,7 +25,7 @@ In most cases, a license is a parameter of an [`Application`](/docs/reference/dk
 
 ---
 
-📝 NOTE: UCloud does not store any information about license keys, servers or any other credentials. It is 
+__📝 NOTE:__ UCloud does not store any information about license keys, servers or any other credentials. It is 
 the responsibility of the provider to store this information.
 
 ---
@@ -268,135 +268,6 @@ License(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example we will see how to create and manage a software license */
-
-// Authenticated as user
-await callAPI(LicensesApi.retrieveProducts(
-    {
-    }
-);
-
-/*
-{
-    "productsByProvider": {
-        "example": [
-            {
-                "product": {
-                    "balance": null,
-                    "name": "example-license",
-                    "pricePerUnit": 1,
-                    "category": {
-                        "name": "example-license",
-                        "provider": "example"
-                    },
-                    "description": "An example license",
-                    "priority": 0,
-                    "tags": [
-                    ],
-                    "version": 1,
-                    "freeToUse": false,
-                    "unitOfPrice": "PER_UNIT",
-                    "chargeType": "ABSOLUTE",
-                    "hiddenInGrantApplications": false,
-                    "productType": "LICENSE"
-                },
-                "support": {
-                    "product": {
-                        "id": "example-license",
-                        "category": "example-license",
-                        "provider": "example"
-                    }
-                }
-            }
-        ]
-    }
-}
-*/
-await callAPI(LicensesApi.create(
-    {
-        "items": [
-            {
-                "product": {
-                    "id": "example-license",
-                    "category": "example-license",
-                    "provider": "example"
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "5123"
-        }
-    ]
-}
-*/
-await callAPI(LicensesApi.retrieve(
-    {
-        "flags": {
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "5123"
-    }
-);
-
-/*
-{
-    "id": "5123",
-    "specification": {
-        "product": {
-            "id": "example-license",
-            "category": "example-license",
-            "provider": "example"
-        }
-    },
-    "owner": {
-        "createdBy": "user",
-        "project": null
-    },
-    "createdAt": 1635170395571,
-    "status": {
-        "state": "READY",
-        "resolvedSupport": null,
-        "resolvedProduct": null,
-        "boundTo": [
-        ]
-    },
-    "updates": [
-    ],
-    "permissions": null
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -515,7 +386,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/licenses/retrieve?
 
 ### `browse`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -529,7 +400,7 @@ _Browses the catalog of available resources_
 
 ### `retrieve`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -543,7 +414,7 @@ _Retrieve a single resource_
 
 ### `retrieveProducts`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -565,7 +436,7 @@ See also:
 
 ### `search`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -579,7 +450,7 @@ _Searches the catalog of available resources_
 
 ### `create`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -593,7 +464,7 @@ _Creates one or more resources_
 
 ### `delete`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -607,7 +478,7 @@ _Deletes one or more resources_
 
 ### `init`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -625,7 +496,7 @@ the request.
 
 ### `updateAcl`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -642,7 +513,7 @@ _Updates the ACL attached to a resource_
 
 ### `License`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A `License` for use in `Job`s_
@@ -766,7 +637,7 @@ A null value indicates that permissions are not supported by this resource type.
 
 ### `LicenseIncludeFlags`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -970,7 +841,7 @@ data class LicenseIncludeFlags(
 
 ### `LicenseSpecification`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1006,7 +877,7 @@ data class LicenseSpecification(
 
 ### `LicenseState`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1067,7 +938,7 @@ This state can be used to indicate downtime or service interruptions by the prov
 
 ### `LicenseStatus`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The status of an `License`_
@@ -1141,7 +1012,7 @@ This attribute is not included by default unless `includeProduct` is specified.
 
 ### `LicenseSupport`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1177,7 +1048,7 @@ data class LicenseSupport(
 
 ### `LicenseUpdate`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

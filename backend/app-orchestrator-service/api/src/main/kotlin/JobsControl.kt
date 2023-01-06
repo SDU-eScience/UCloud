@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 data class JobsControlBrowseSshKeys(
     val jobId: String,
     override val itemsPerPage: Int? = null,
@@ -16,14 +17,13 @@ data class JobsControlBrowseSshKeys(
     override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 object JobsControl : ResourceControlApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
     Product.Compute, ComputeSupport>("jobs") {
     init {
         title = "Job control"
         description = """
-            Internal API between UCloud and compute providers. This API allows compute providers to push state changes
-            to UCloud.
+            Internal API between UCloud and compute providers. This API allows compute providers to push state changes to UCloud.
         """.trimIndent()
     }
 
@@ -45,6 +45,7 @@ object JobsControl : ResourceControlApi<Job, JobSpecification, JobUpdate, JobInc
         typeOfIfPossible<Product.Compute>(),
     )
 
+    @UCloudApiExperimental(ExperimentalLevel.BETA)
     val browseSshKeys = call(
         "browseSshKeys",
         JobsControlBrowseSshKeys.serializer(),

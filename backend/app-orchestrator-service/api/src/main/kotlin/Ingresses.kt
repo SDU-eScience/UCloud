@@ -12,6 +12,8 @@ import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.Serializable
 
 @Serializable
+@UCloudApiOwnedBy(Ingresses::class)
+@UCloudApiStable
 data class IngressSupport(
     val domainPrefix: String,
     val domainSuffix: String,
@@ -19,6 +21,8 @@ data class IngressSupport(
 ) : ProductSupport
 
 @Serializable
+@UCloudApiOwnedBy(Ingresses::class)
+@UCloudApiStable
 data class IngressSpecification(
     @UCloudApiDoc("The domain used for L7 load-balancing for use with this `Ingress`")
     val domain: String,
@@ -31,8 +35,9 @@ data class IngressSpecification(
     }
 }
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 @UCloudApiDoc("An L7 ingress-point (HTTP)")
+@UCloudApiOwnedBy(Ingresses::class)
 @Serializable
 data class Ingress(
     override val id: String,
@@ -55,6 +60,8 @@ data class Ingress(
 ) : Resource<Product.Ingress, IngressSupport>
 
 @UCloudApiDoc("The status of an `Ingress`")
+@UCloudApiOwnedBy(Ingresses::class)
+@UCloudApiStable
 @Serializable
 data class IngressStatus(
     @UCloudApiDoc("The ID of the `Job` that this `Ingress` is currently bound to")
@@ -66,7 +73,9 @@ data class IngressStatus(
 ) : JobBoundStatus<Product.Ingress, IngressSupport>
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiOwnedBy(Ingresses::class)
 @Serializable
+@UCloudApiStable
 enum class IngressState {
     @UCloudApiDoc(
         "A state indicating that the `Ingress` is currently being prepared and is expected to reach `READY` soon."
@@ -83,8 +92,9 @@ enum class IngressState {
     UNAVAILABLE
 }
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiOwnedBy(Ingresses::class)
 @Serializable
+@UCloudApiStable
 data class IngressUpdate(
     @UCloudApiDoc("The new state that the `Ingress` transitioned to (if any)")
     override val state: IngressState? = null,
@@ -99,6 +109,7 @@ data class IngressUpdate(
 ) : JobBoundUpdate<IngressState>
 
 @Serializable
+@UCloudApiStable
 data class IngressIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
@@ -119,7 +130,7 @@ data class IngressIncludeFlags(
 ) : ResourceIncludeFlags
 
 @TSNamespace("compute.ingresses")
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 object Ingresses : ResourceApi<
     Ingress,
     IngressSpecification,
@@ -238,6 +249,7 @@ allows providers to give access to these $Job s through a custom URL.
 }
 
 @TSNamespace("compute.ingresses.control")
+@UCloudApiStable
 object IngressControl : ResourceControlApi<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags,
         IngressStatus, Product.Ingress, IngressSupport>("ingresses") {
 
@@ -260,6 +272,7 @@ object IngressControl : ResourceControlApi<Ingress, IngressSpecification, Ingres
     )
 }
 
+@UCloudApiStable
 open class IngressProvider(provider: String) : ResourceProviderApi<Ingress, IngressSpecification, IngressUpdate,
         IngressIncludeFlags, IngressStatus, Product.Ingress, IngressSupport>("ingresses", provider) {
     @OptIn(ExperimentalStdlibApi::class)

@@ -22,6 +22,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
 @Serializable
+@UCloudApiStable
 @UCloudApiDoc("""
     Providers, the backbone of UCloud, expose compute and storage resources to end-users.
     
@@ -58,6 +59,7 @@ data class Provider(
 
 @Serializable
 @UCloudApiDoc("The specification of a Provider contains basic (network) contact information")
+@UCloudApiStable
 data class ProviderSpecification(
     val id: String,
     val domain: String,
@@ -103,10 +105,12 @@ fun ProviderSpecification.addProviderInfoToRelativeUrl(url: String): String {
 
 @Serializable
 @UCloudApiDoc("A placeholder document used only to conform with the Resources API")
+@UCloudApiStable
 data class ProviderSupport(override val product: ProductReference) : ProductSupport
 
 @Serializable
 @UCloudApiDoc("A placeholder document used only to conform with the Resources API")
+@UCloudApiStable
 data class ProviderStatus(
     @UCloudApiDoc("📝 NOTE: Always null")
     override var resolvedSupport: ResolvedSupport<Product, ProviderSupport>? = null,
@@ -117,6 +121,7 @@ data class ProviderStatus(
 @Serializable
 @UCloudApiOwnedBy(Providers::class)
 @UCloudApiDoc("Updates regarding a Provider, not currently in use")
+@UCloudApiStable
 data class ProviderUpdate(
     override val timestamp: Long,
     override val status: String? = null,
@@ -127,6 +132,7 @@ typealias ProvidersUpdateSpecificationResponse = BulkResponse<FindByStringId>
 
 @Serializable
 @UCloudApiDoc("Request type for renewing the tokens of a Provider")
+@UCloudApiStable
 data class ProvidersRenewRefreshTokenRequestItem(val id: String)
 typealias ProvidersRenewRefreshTokenResponse = Unit
 
@@ -135,6 +141,7 @@ typealias ProvidersRetrieveSpecificationResponse = ProviderSpecification
 
 @Serializable
 @UCloudApiDoc("Flags used to tweak read queries")
+@UCloudApiStable
 data class ProviderIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
@@ -156,38 +163,53 @@ data class ProviderIncludeFlags(
 
 @Serializable
 @UCloudApiDoc("Request type used as part of the approval process")
+@Deprecated("Use the simpler register endpoint instead")
+@UCloudApiStable
 sealed class ProvidersRequestApprovalRequest {
     @Serializable
     @SerialName("information")
     @UCloudApiDoc("Request type used as part of the approval process, provides contact information")
+    @Deprecated("Use the simpler register endpoint instead")
+    @UCloudApiStable
     data class Information(val specification: ProviderSpecification) : ProvidersRequestApprovalRequest()
 
     @Serializable
     @SerialName("sign")
+    @Deprecated("Use the simpler register endpoint instead")
     @UCloudApiDoc("Request type used as part of the approval process, associates a UCloud user to previously uploaded " +
         "information")
+    @UCloudApiStable
     data class Sign(val token: String) : ProvidersRequestApprovalRequest()
 }
 
 @Serializable
 @UCloudApiDoc("Response type used as part of the approval process")
+@Deprecated("Use the simpler register endpoint instead")
+@UCloudApiStable
 sealed class ProvidersRequestApprovalResponse {
     @Serializable
     @SerialName("requires_signature")
     @UCloudApiDoc("Response type used as part of the approval process")
+    @Deprecated("Use the simpler register endpoint instead")
+    @UCloudApiStable
     data class RequiresSignature(val token: String) : ProvidersRequestApprovalResponse()
 
     @Serializable
     @SerialName("awaiting_admin_approval")
     @UCloudApiDoc("Response type used as part of the approval process")
+    @Deprecated("Use the simpler register endpoint instead")
+    @UCloudApiStable
     data class AwaitingAdministratorApproval(val token: String) : ProvidersRequestApprovalResponse()
 }
 
 @Serializable
 @UCloudApiDoc("Request type used as part of the approval process")
+@Deprecated("Use the simpler register endpoint instead")
+@UCloudApiStable
 data class ProvidersApproveRequest(val token: String)
 typealias ProvidersApproveResponse = FindByStringId
 
+@UCloudApiStable
 object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, ProviderIncludeFlags, ProviderStatus,
         Product, ProviderSupport>("providers") {
     init {
@@ -216,7 +238,7 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
             The core isn't a simple proxy. Before passing the request, UCloud performs the following tasks:
 
             - __Authentication:__ UCloud ensures that users have authenticated.
-            - __Authorization:__ The $TYPE_REF dk.sdu.cloud.project.api.Project system of UCloud brings role-based 
+            - __Authorization:__ The $TYPE_REF dk.sdu.cloud.project.api.v2.Project system of UCloud brings role-based 
               authorization to all $TYPE_REF Resource s. The core verifies all actions before forwarding the request.
             - __Resolving references:__ UCloud maintains a catalog of all $TYPE_REF Resource s in the system. All user 
               requests only contain a reference to these $TYPE_REF Resource s. UCloud verifies and resolves all 
@@ -283,6 +305,14 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
                     "example",
                     "provider.example.com",
                     true
+                )
+
+                comment(
+                    """
+                        WARNING: The following flow still works, but is no longer used by the default configuration of
+                        the integration module. Instead, it has been replaced by the much simpler approach of having
+                        a UCloud administrator register the provider manually and then exchange tokens out-of-band.
+                    """.trimIndent()
                 )
 
                 comment("""
@@ -491,6 +521,7 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
         }
     }
 
+    @Deprecated("Use the simpler register endpoint instead")
     val requestApproval = call("requestApproval", ProvidersRequestApprovalRequest.serializer(), ProvidersRequestApprovalResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "requestApproval", roles = Roles.PUBLIC)
 
@@ -504,6 +535,7 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
         }
     }
 
+    @Deprecated("Use the simpler register endpoint instead")
     val approve = call("approve", ProvidersApproveRequest.serializer(), ProvidersApproveResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "approve", roles = Roles.PUBLIC)
 

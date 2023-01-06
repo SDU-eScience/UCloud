@@ -395,7 +395,7 @@ data class DocStatLine(val stats: List<DocStat>) {
         }
     }
 }
-data class DocStat(val name: String, val value: DocVisualization)
+data class DocStat(val name: String, var value: DocVisualization)
 
 interface DocVisualizable {
     fun visualize(): DocVisualization

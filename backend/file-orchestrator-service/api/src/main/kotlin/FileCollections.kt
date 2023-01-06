@@ -26,6 +26,7 @@ import kotlinx.serialization.builtins.serializer
 typealias FileCollectionsRenameRequest = BulkRequest<FileCollectionsRenameRequestItem>
 
 @Serializable
+@UCloudApiStable
 data class FileCollectionsRenameRequestItem(
     val id: String,
     val newTitle: String,
@@ -39,6 +40,7 @@ typealias FileCollectionsRenameResponse = Unit
 typealias FileCollectionsProviderRenameRequest = BulkRequest<FileCollectionsProviderRenameRequestItem>
 
 @Serializable
+@UCloudApiStable
 data class FileCollectionsProviderRenameRequestItem(
     val id: String,
     val newTitle: String,
@@ -50,6 +52,7 @@ data class FileCollectionsProviderRenameRequestItem(
 typealias FileCollectionsProviderRenameResponse = Unit
 
 @Serializable
+@UCloudApiStable
 data class FileCollectionsAclUpdateRequestItem(
     val id: String,
 )
@@ -57,12 +60,14 @@ data class FileCollectionsAclUpdateRequestItem(
 typealias FileCollectionsProviderAclUpdateRequest = BulkRequest<FileCollectionsProviderAclUpdateRequestItem>
 
 @Serializable
+@UCloudApiStable
 data class FileCollectionsProviderAclUpdateRequestItem(
     val id: String,
 )
 
 // ---
 
+@UCloudApiStable
 object FileCollections : ResourceApi<FileCollection, FileCollection.Spec, FileCollection.Update,
     FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>("files.collections") {
 
@@ -276,6 +281,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
     }
 }
 
+@UCloudApiStable
 object FileCollectionsControl : ResourceControlApi<FileCollection, FileCollection.Spec, FileCollection.Update,
     FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport>("files.collections") {
 
@@ -298,6 +304,7 @@ object FileCollectionsControl : ResourceControlApi<FileCollection, FileCollectio
     )
 }
 
+@UCloudApiStable
 open class FileCollectionsProvider(
     provider: String,
 ) : ResourceProviderApi<FileCollection, FileCollection.Spec, FileCollection.Update,

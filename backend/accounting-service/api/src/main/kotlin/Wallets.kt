@@ -11,12 +11,13 @@ import kotlin.random.Random
 @Serializable
 @UCloudApiDoc(
     """
-    Wallets hold allocations which grant access to a provider's resources.
- 
-    You can find more information about WalletAllocations
-    [here](/docs/developer-guide/accounting-and-projects/accounting/wallets.md).
-""", importance = 1000
+        Wallets hold allocations which grant access to a provider's resources.
+     
+        You can find more information about WalletAllocations
+        [here](/docs/developer-guide/accounting-and-projects/accounting/wallets.md).
+    """, importance = 1000
 )
+@UCloudApiInternal(InternalLevel.BETA)
 data class Wallet(
     val owner: WalletOwner,
     val paysFor: ProductCategoryId,
@@ -143,6 +144,7 @@ data class Wallet(
  */
 @Serializable
 @UCloudApiDoc("A policy for how to select a WalletAllocation in a single Wallet")
+@UCloudApiInternal(InternalLevel.BETA)
 enum class AllocationSelectorPolicy {
     @UCloudApiDoc("Use the WalletAllocation which is closest to expiration")
     EXPIRE_FIRST,
@@ -152,12 +154,13 @@ enum class AllocationSelectorPolicy {
 @Serializable
 @UCloudApiDoc(
     """
-    An allocation grants access to resources
-    
-    You can find more information about WalletAllocations
-    [here](/docs/developer-guide/accounting-and-projects/accounting/wallets.md).
-""", importance = 990
+        An allocation grants access to resources
+        
+        You can find more information about WalletAllocations
+        [here](/docs/developer-guide/accounting-and-projects/accounting/wallets.md).
+    """, importance = 990
 )
+@UCloudApiInternal(InternalLevel.BETA)
 data class WalletAllocation(
     @UCloudApiDoc("A unique ID of this allocation")
     val id: String,
@@ -193,12 +196,14 @@ data class WalletAllocation(
 )
 
 @Serializable
+@UCloudApiExperimental(UCloudApiMaturity.Experimental.Level.BETA)
 data class PushWalletChangeRequestItem(
     val allocationId: String,
     val amount: Long,
 )
 
 @Serializable
+@UCloudApiExperimental(UCloudApiMaturity.Experimental.Level.BETA)
 data class RegisterWalletRequestItem(
     val owner: WalletOwner,
     val uniqueAllocationId: String,
@@ -208,6 +213,7 @@ data class RegisterWalletRequestItem(
 )
 
 @Serializable
+@UCloudApiInternal(InternalLevel.BETA)
 data class WalletBrowseRequest(
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -221,6 +227,7 @@ typealias PushWalletChangeResponse = Unit
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("A parent allocator's view of a `WalletAllocation`")
+@UCloudApiInternal(InternalLevel.BETA)
 data class SubAllocation(
     val id: String,
     val path: String,
@@ -246,7 +253,7 @@ interface SubAllocationQuery : WithPaginationRequestV2 {
 }
 
 @Serializable
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiInternal(InternalLevel.BETA)
 data class WalletsSearchSubAllocationsRequest(
     val query: String,
     override val filterType: ProductType? = null,
@@ -257,7 +264,7 @@ data class WalletsSearchSubAllocationsRequest(
 ) : SubAllocationQuery
 
 @Serializable
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiInternal(InternalLevel.BETA)
 data class WalletsBrowseSubAllocationsRequest(
     override val filterType: ProductType? = null,
     override val itemsPerPage: Int? = null,
@@ -269,11 +276,13 @@ data class WalletsBrowseSubAllocationsRequest(
 typealias WalletsBrowseSubAllocationsResponse = PageV2<SubAllocation>
 
 @Serializable
+@UCloudApiInternal(InternalLevel.BETA)
 data class WalletsRetrieveRecipientRequest(
     val query: String,
 )
 
 @Serializable
+@UCloudApiInternal(InternalLevel.BETA)
 data class WalletsRetrieveRecipientResponse(
     val id: String,
     val isProject: Boolean,
@@ -283,6 +292,7 @@ data class WalletsRetrieveRecipientResponse(
 )
 
 @Serializable
+@UCloudApiInternal(InternalLevel.BETA)
 data class WalletsRetrieveProviderSummaryRequest(
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -296,6 +306,7 @@ data class WalletsRetrieveProviderSummaryRequest(
 ) : WithPaginationRequestV2
 
 @Serializable
+@UCloudApiInternal(InternalLevel.BETA)
 data class ProviderWalletSummary(
     val id: String,
     val owner: WalletOwner,
@@ -327,6 +338,7 @@ data class ProviderWalletSummary(
     val notAfter: Long?,
 )
 
+@UCloudApiInternal(InternalLevel.BETA)
 object Wallets : CallDescriptionContainer("accounting.wallets") {
     const val baseContext = "/api/accounting/wallets"
 
@@ -370,23 +382,35 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
             ![](/backend/accounting-service/wiki/allocations.png)
             
             __Figure:__ Allocations create a natural _allocation hierarchy_.
+            
+            ---
+            
+            __📝NOTE:__ The wallet and accounting systems are currently considered internal due to some limitations
+            in the API. We aim to keep the provider API (the control interfaces) stable but the accounting system itself
+            will remain at an internal level until we have resolved the issues at an API level. We plan on making this
+            API stable in the long-term.
+            
+            ---
         """.trimIndent()
     }
 
-    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    @UCloudApiExperimental(ExperimentalLevel.BETA)
     val push = call("push", BulkRequest.serializer(PushWalletChangeRequestItem.serializer()), PushWalletChangeResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "push", roles = Roles.PROVIDER)
 
         documentation {
             summary = "Pushes a Wallet to the catalog"
+            description = "Be careful with using this endpoint as it might go away in a future release."
         }
     }
 
+    @UCloudApiExperimental(ExperimentalLevel.BETA)
     val register = call("register", BulkRequest.serializer(RegisterWalletRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "register", roles = Roles.PROVIDER)
 
         documentation {
             summary = "Registers an allocation created outside of UCloud"
+            description = "Be careful with using this endpoint as it might go away in a future release."
         }
     }
 
@@ -421,7 +445,6 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    @UCloudApiExperimental(ExperimentalLevel.BETA)
     val retrieveRecipient = call("retrieveRecipient", WalletsRetrieveRecipientRequest.serializer(), WalletsRetrieveRecipientResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "recipient")
 
@@ -434,7 +457,6 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     val retrieveProviderSummary = call("retrieveProviderSummary", WalletsRetrieveProviderSummaryRequest.serializer(), PageV2.serializer(ProviderWalletSummary.serializer()), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "providerSummary", roles = Roles.PROVIDER)
 
@@ -449,24 +471,26 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
 }
 
 @Serializable
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiInternal(InternalLevel.BETA)
 @UCloudApiOwnedBy(Wallets::class)
 sealed class WalletOwner : DocVisualizable {
     @Serializable
     @SerialName("user")
+    @UCloudApiInternal(InternalLevel.BETA)
     data class User(val username: String) : WalletOwner() {
         override fun visualize(): DocVisualization = DocVisualization.Inline("$username (User)")
     }
 
     @Serializable
     @SerialName("project")
+    @UCloudApiInternal(InternalLevel.BETA)
     data class Project(val projectId: String) : WalletOwner() {
         override fun visualize(): DocVisualization = DocVisualization.Inline("$projectId (Project)")
     }
 }
 
 @Serializable
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiInternal(InternalLevel.BETA)
 data class ChargeWalletRequestItem(
     @UCloudApiDoc("The payer of this charge")
     val payer: WalletOwner,
@@ -499,7 +523,7 @@ data class ChargeWalletRequestItem(
 typealias ChargeWalletResponse = BulkResponse<Boolean>
 
 @Serializable
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiInternal(InternalLevel.BETA)
 data class DepositToWalletRequestItem(
     @UCloudApiDoc("The recipient of this deposit")
     val recipient: WalletOwner,
@@ -511,20 +535,20 @@ data class DepositToWalletRequestItem(
     val description: String,
     @UCloudApiDoc(
         """
-        A timestamp for when this deposit should become valid
-        
-        This value must overlap with the source allocation. A value of null indicates that the allocation becomes valid
-        immediately.
-    """
+            A timestamp for when this deposit should become valid
+            
+            This value must overlap with the source allocation. A value of null indicates that the allocation becomes valid
+            immediately.
+        """
     )
     var startDate: Long? = null,
     @UCloudApiDoc(
         """
-        A timestamp for when this deposit should become invalid
-        
-        This value must overlap with the source allocation. A value of null indicates that the allocation will never
-        expire.
-    """
+            A timestamp for when this deposit should become invalid
+            
+            This value must overlap with the source allocation. A value of null indicates that the allocation will never
+            expire.
+        """
     )
     val endDate: Long? = null,
     @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
@@ -536,6 +560,7 @@ typealias DepositToWalletResponse = Unit
 
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@Deprecated("Is going away")
 data class TransferToWalletRequestItem(
     @UCloudApiDoc("The category to transfer from")
     val categoryId: ProductCategoryId,
@@ -571,6 +596,7 @@ data class TransferToWalletRequestItem(
 typealias TransferToWalletResponse = Unit
 
 @Serializable
+@UCloudApiInternal(InternalLevel.BETA)
 data class UpdateAllocationRequestItem(
     val id: String,
     val balance: Long,
@@ -583,9 +609,9 @@ data class UpdateAllocationRequestItem(
 
 typealias UpdateAllocationResponse = Unit
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("See `DepositToWalletRequestItem`")
 @Serializable
+@UCloudApiInternal(InternalLevel.BETA)
 data class RootDepositRequestItem(
     val categoryId: ProductCategoryId,
     val recipient: WalletOwner,
@@ -597,6 +623,7 @@ data class RootDepositRequestItem(
     val providerGeneratedId: String? = null
 )
 
+@UCloudApiInternal(InternalLevel.BETA)
 object Accounting : CallDescriptionContainer("accounting") {
     const val baseContext = "/api/accounting"
 
@@ -1779,6 +1806,8 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
+    @Deprecated("Is going away")
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     val transfer = call("transfer", BulkRequest.serializer(TransferToWalletRequestItem.serializer()), TransferToWalletResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "transfer")
 

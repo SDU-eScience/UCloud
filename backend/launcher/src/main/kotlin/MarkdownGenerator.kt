@@ -640,13 +640,6 @@ fun generateMarkdownForExample(useCase: UseCase): String {
 
     outs.appendLine(
         summary(
-            "<b>Communication Flow:</b> TypeScript",
-            useCase.typescript()
-        )
-    )
-
-    outs.appendLine(
-        summary(
             "<b>Communication Flow:</b> Curl",
             useCase.curl()
         )

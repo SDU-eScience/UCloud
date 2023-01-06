@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / Jobs
 # Jobs
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Jobs in UCloud are the core abstraction used to describe units of computation._
 
@@ -205,30 +205,6 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </tr>
 <tr>
 <td><a href='#exportedparameters.resources'><code>ExportedParameters.Resources</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#ingress'><code>Ingress</code></a></td>
-<td>An L7 ingress-point (HTTP)</td>
-</tr>
-<tr>
-<td><a href='#ingressspecification'><code>IngressSpecification</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#ingressstate'><code>IngressState</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#ingressstatus'><code>IngressStatus</code></a></td>
-<td>The status of an `Ingress`</td>
-</tr>
-<tr>
-<td><a href='#ingresssupport'><code>IngressSupport</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#ingressupdate'><code>IngressUpdate</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -489,11 +465,14 @@ machineTypes = PageV2(
         ), 
         chargeType = ChargeType.ABSOLUTE, 
         cpu = 10, 
+        cpuModel = null, 
         description = "An example compute product", 
         freeToUse = false, 
         gpu = 0, 
+        gpuModel = null, 
         hiddenInGrantApplications = false, 
         memoryInGigs = 20, 
+        memoryModel = null, 
         name = "example-compute", 
         pricePerUnit = 1000000, 
         priority = 0, 
@@ -542,259 +521,6 @@ BulkResponse(
         id = "48920", 
     )), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* The user finds an interesting application from the catalog */
-
-// Authenticated as user
-const applications = await callAPI(HpcAppsApi.listAll(
-    {
-        "itemsPerPage": 50,
-        "page": 0
-    }
-);
-
-/*
-applications = {
-    "itemsInTotal": 1,
-    "itemsPerPage": 50,
-    "pageNumber": 0,
-    "items": [
-        {
-            "metadata": {
-                "name": "a-batch-application",
-                "version": "1.0.0",
-                "authors": [
-                    "UCloud"
-                ],
-                "title": "A Batch Application",
-                "description": "This is a batch application",
-                "website": null,
-                "public": true
-            },
-            "favorite": false,
-            "tags": [
-                "very-scientific"
-            ]
-        }
-    ]
-}
-*/
-
-/* The user selects the first application ('batch' in version '1.0.0') */
-
-
-/* The user requests additional information about the application */
-
-const application = await callAPI(HpcAppsApi.findByNameAndVersion(
-    {
-        "appName": "a-batch-application",
-        "appVersion": "1.0.0"
-    }
-);
-
-/*
-application = {
-    "metadata": {
-        "name": "a-batch-application",
-        "version": "1.0.0",
-        "authors": [
-            "UCloud"
-        ],
-        "title": "A Batch Application",
-        "description": "This is a batch application",
-        "website": null,
-        "public": true
-    },
-    "invocation": {
-        "tool": {
-            "name": "batch-tool",
-            "version": "1.0.0",
-            "tool": {
-                "owner": "user",
-                "createdAt": 1632979836013,
-                "modifiedAt": 1632979836013,
-                "description": {
-                    "info": {
-                        "name": "batch-tool",
-                        "version": "1.0.0"
-                    },
-                    "container": null,
-                    "defaultNumberOfNodes": 1,
-                    "defaultTimeAllocation": {
-                        "hours": 1,
-                        "minutes": 0,
-                        "seconds": 0
-                    },
-                    "requiredModules": [
-                    ],
-                    "authors": [
-                        "UCloud"
-                    ],
-                    "title": "Batch tool",
-                    "description": "Batch tool",
-                    "backend": "DOCKER",
-                    "license": "None",
-                    "image": "dreg.cloud.sdu.dk/batch/batch:1.0.0",
-                    "supportedProviders": null
-                }
-            }
-        },
-        "invocation": [
-            {
-                "type": "word",
-                "word": "batch"
-            },
-            {
-                "type": "var",
-                "variableNames": [
-                    "var"
-                ],
-                "prefixGlobal": "",
-                "suffixGlobal": "",
-                "prefixVariable": "",
-                "suffixVariable": "",
-                "isPrefixVariablePartOfArg": false,
-                "isSuffixVariablePartOfArg": false
-            }
-        ],
-        "parameters": [
-            {
-                "type": "text",
-                "name": "var",
-                "optional": false,
-                "defaultValue": null,
-                "title": "",
-                "description": "An example input variable"
-            }
-        ],
-        "outputFileGlobs": [
-            "*"
-        ],
-        "applicationType": "BATCH",
-        "vnc": null,
-        "web": null,
-        "ssh": null,
-        "container": null,
-        "environment": null,
-        "allowAdditionalMounts": null,
-        "allowAdditionalPeers": null,
-        "allowMultiNode": false,
-        "allowPublicIp": false,
-        "allowPublicLink": null,
-        "fileExtensions": [
-        ],
-        "licenseServers": [
-        ]
-    },
-    "favorite": false,
-    "tags": [
-        "very-scientific"
-    ]
-}
-*/
-
-/* The user looks for a suitable machine */
-
-const machineTypes = await callAPI(ProductsApi.browse(
-    {
-        "itemsPerPage": 50,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterName": null,
-        "filterProvider": null,
-        "filterArea": "COMPUTE",
-        "filterCategory": null,
-        "filterVersion": null,
-        "showAllVersions": null,
-        "includeBalance": null
-    }
-);
-
-/*
-machineTypes = {
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "type": "compute",
-            "balance": null,
-            "name": "example-compute",
-            "pricePerUnit": 1000000,
-            "category": {
-                "name": "example-compute",
-                "provider": "example"
-            },
-            "description": "An example compute product",
-            "priority": 0,
-            "cpu": 10,
-            "memoryInGigs": 20,
-            "gpu": 0,
-            "version": 1,
-            "freeToUse": false,
-            "unitOfPrice": "CREDITS_PER_MINUTE",
-            "chargeType": "ABSOLUTE",
-            "hiddenInGrantApplications": false,
-            "productType": "COMPUTE"
-        }
-    ],
-    "next": null
-}
-*/
-
-/* The user starts the Job with input based on previous requests */
-
-await callAPI(JobsApi.create(
-    {
-        "items": [
-            {
-                "application": {
-                    "name": "a-batch-application",
-                    "version": "1.0.0"
-                },
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                },
-                "name": null,
-                "replicas": 1,
-                "allowDuplicateJob": false,
-                "parameters": {
-                    "var": {
-                        "type": "text",
-                        "value": "Example"
-                    }
-                },
-                "resources": null,
-                "timeAllocation": null,
-                "openedFile": null,
-                "restartOnExit": null,
-                "sshEnabled": null
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "48920"
-        }
-    ]
-}
 */
 ```
 
@@ -971,6 +697,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #             "cpu": 10,
 #             "memoryInGigs": 20,
 #             "gpu": 0,
+#             "cpuModel": null,
+#             "memoryModel": null,
+#             "gpuModel": null,
 #             "version": 1,
 #             "freeToUse": false,
 #             "unitOfPrice": "CREDITS_PER_MINUTE",
@@ -1169,17 +898,6 @@ JobsFollowResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -1241,11 +959,14 @@ SupportByProvider(
             ), 
             chargeType = ChargeType.ABSOLUTE, 
             cpu = 1, 
+            cpuModel = null, 
             description = "An example machine", 
             freeToUse = false, 
             gpu = 0, 
+            gpuModel = null, 
             hiddenInGrantApplications = false, 
             memoryInGigs = 2, 
+            memoryModel = null, 
             name = "compute-example", 
             pricePerUnit = 1000000, 
             priority = 0, 
@@ -1311,6 +1032,7 @@ BulkResponse(
         providerDomain = "provider.example.com", 
         providerId = "example", 
         session = OpenSession.Shell(
+            domainOverride = null, 
             jobId = "123", 
             rank = 1, 
             sessionIdentifier = "a81ea644-58f5-44d9-8e94-89f81666c441", 
@@ -1372,122 +1094,6 @@ ShellResponse.Data(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(JobsApi.retrieveProducts(
-    {
-    }
-);
-
-/*
-{
-    "productsByProvider": {
-        "example": [
-            {
-                "product": {
-                    "balance": null,
-                    "name": "compute-example",
-                    "pricePerUnit": 1000000,
-                    "category": {
-                        "name": "compute-example",
-                        "provider": "example"
-                    },
-                    "description": "An example machine",
-                    "priority": 0,
-                    "cpu": 1,
-                    "memoryInGigs": 2,
-                    "gpu": 0,
-                    "version": 1,
-                    "freeToUse": false,
-                    "unitOfPrice": "CREDITS_PER_MINUTE",
-                    "chargeType": "ABSOLUTE",
-                    "hiddenInGrantApplications": false,
-                    "productType": "COMPUTE"
-                },
-                "support": {
-                    "product": {
-                        "id": "compute-example",
-                        "category": "compute-example",
-                        "provider": "example"
-                    },
-                    "docker": {
-                        "enabled": true,
-                        "web": null,
-                        "vnc": null,
-                        "logs": null,
-                        "terminal": true,
-                        "peers": null,
-                        "timeExtension": null,
-                        "utilization": null
-                    },
-                    "virtualMachine": {
-                        "enabled": null,
-                        "logs": null,
-                        "vnc": null,
-                        "terminal": null,
-                        "timeExtension": null,
-                        "suspension": null,
-                        "utilization": null
-                    },
-                    "native": {
-                        "enabled": null,
-                        "logs": null,
-                        "vnc": null,
-                        "terminal": null,
-                        "timeExtension": null,
-                        "utilization": null,
-                        "web": null
-                    }
-                }
-            }
-        ]
-    }
-}
-*/
-
-/* 📝 Note: The machine has support for the 'terminal' feature */
-
-await callAPI(JobsApi.openInteractiveSession(
-    {
-        "items": [
-            {
-                "id": "123",
-                "rank": 1,
-                "sessionType": "SHELL"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "providerDomain": "provider.example.com",
-            "providerId": "example",
-            "session": {
-                "type": "shell",
-                "jobId": "123",
-                "rank": 1,
-                "sessionIdentifier": "a81ea644-58f5-44d9-8e94-89f81666c441"
-            }
-        }
-    ]
-}
-*/
-
-/* The session is now open and we can establish a shell connection directly with provider.example.com */
-
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -1517,6 +1123,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProdu
 #                     "cpu": 1,
 #                     "memoryInGigs": 2,
 #                     "gpu": 0,
+#                     "cpuModel": null,
+#                     "memoryModel": null,
+#                     "gpuModel": null,
 #                     "version": 1,
 #                     "freeToUse": false,
 #                     "unitOfPrice": "CREDITS_PER_MINUTE",
@@ -1586,7 +1195,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 "type": "shell",
 #                 "jobId": "123",
 #                 "rank": 1,
-#                 "sessionIdentifier": "a81ea644-58f5-44d9-8e94-89f81666c441"
+#                 "sessionIdentifier": "a81ea644-58f5-44d9-8e94-89f81666c441",
+#                 "domainOverride": null
 #             }
 #         }
 #     ]
@@ -1710,123 +1320,6 @@ BulkResponse(
         id = "4150", 
     )), 
 )
-*/
-
-/* The web-application can now connect to the database using the 'database' hostname, as specified in
-the JobSpecification. */
-
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example our user wish to deploy a simple web application which connects to a database server */
-
-
-/* The user first provision a database server using an Application */
-
-// Authenticated as user
-await callAPI(JobsApi.create(
-    {
-        "items": [
-            {
-                "application": {
-                    "name": "acme-database",
-                    "version": "1.0.0"
-                },
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                },
-                "name": "my-database",
-                "replicas": 1,
-                "allowDuplicateJob": false,
-                "parameters": {
-                    "dataStore": {
-                        "type": "file",
-                        "path": "/123/acme-database",
-                        "readOnly": false
-                    }
-                },
-                "resources": null,
-                "timeAllocation": null,
-                "openedFile": null,
-                "restartOnExit": null,
-                "sshEnabled": null
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "4101"
-        }
-    ]
-}
-*/
-
-/* The database is now `RUNNING` with the persistent from `/123/acme-database` */
-
-
-/* By default, the UCloud firewall will not allow any ingoing connections to the Job. This firewall
-can be updated by connecting one or more Jobs together. We will now do this using the Application.
-"Peer" feature. This feature is commonly referred to as "Connect to Job". */
-
-
-/* We will now start our web-application and connect it to our existing database Job */
-
-await callAPI(JobsApi.create(
-    {
-        "items": [
-            {
-                "application": {
-                    "name": "acme-web-app",
-                    "version": "1.0.0"
-                },
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                },
-                "name": "my-web-app",
-                "replicas": 1,
-                "allowDuplicateJob": false,
-                "parameters": null,
-                "resources": [
-                    {
-                        "type": "peer",
-                        "hostname": "database",
-                        "jobId": "4101"
-                    }
-                ],
-                "timeAllocation": null,
-                "openedFile": null,
-                "restartOnExit": null,
-                "sshEnabled": null
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "4150"
-        }
-    ]
-}
 */
 
 /* The web-application can now connect to the database using the 'database' hostname, as specified in
@@ -2103,153 +1596,6 @@ Ingress(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, the user will create a Job which exposes a web-interface. This web-interface will
-become available through a publicly accessible link. */
-
-
-/* First, the user creates an Ingress resource (this needs to be done once per ingress) */
-
-// Authenticated as user
-await callAPI(IngressesApi.create(
-    {
-        "items": [
-            {
-                "domain": "app-my-application.provider.example.com",
-                "product": {
-                    "id": "example-ingress",
-                    "category": "example-ingress",
-                    "provider": "example"
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "41231"
-        }
-    ]
-}
-*/
-
-/* This link can now be attached to any Application which support a web-interface */
-
-await callAPI(JobsApi.create(
-    {
-        "items": [
-            {
-                "application": {
-                    "name": "acme-web-app",
-                    "version": "1.0.0"
-                },
-                "product": {
-                    "id": "compute-example",
-                    "category": "compute-example",
-                    "provider": "example"
-                },
-                "name": null,
-                "replicas": 1,
-                "allowDuplicateJob": false,
-                "parameters": null,
-                "resources": [
-                    {
-                        "type": "ingress",
-                        "id": "41231"
-                    }
-                ],
-                "timeAllocation": null,
-                "openedFile": null,
-                "restartOnExit": null,
-                "sshEnabled": null
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "41252"
-        }
-    ]
-}
-*/
-
-/* The Application is now running, and we can access it through the public link */
-
-
-/* The Ingress will also remain exclusively bound to the Job. It will remain like this until the Job
-terminates. You can check the status of the Ingress simply by retrieving it. */
-
-await callAPI(IngressesApi.retrieve(
-    {
-        "flags": {
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "filterState": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "41231"
-    }
-);
-
-/*
-{
-    "id": "41231",
-    "specification": {
-        "domain": "app-my-application.provider.example.com",
-        "product": {
-            "id": "example-ingress",
-            "category": "example-ingress",
-            "provider": "example"
-        }
-    },
-    "owner": {
-        "createdBy": "user",
-        "project": null
-    },
-    "createdAt": 1633087693694,
-    "status": {
-        "boundTo": [
-            "41231"
-        ],
-        "state": "READY",
-        "resolvedSupport": null,
-        "resolvedProduct": null
-    },
-    "updates": [
-    ],
-    "permissions": null
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -2464,91 +1810,6 @@ BulkResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, the user will run a piece of licensed software. */
-
-
-/* First, the user must activate a copy of their license, which has previously been granted to them through the Grant system. */
-
-// Authenticated as user
-await callAPI(LicensesApi.create(
-    {
-        "items": [
-            {
-                "product": {
-                    "id": "example-license",
-                    "category": "example-license",
-                    "provider": "example"
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "56231"
-        }
-    ]
-}
-*/
-
-/* This license can now freely be used in Jobs */
-
-await callAPI(JobsApi.create(
-    {
-        "items": [
-            {
-                "application": {
-                    "name": "acme-licensed-software",
-                    "version": "1.0.0"
-                },
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                },
-                "name": null,
-                "replicas": 1,
-                "allowDuplicateJob": false,
-                "parameters": {
-                    "license": {
-                        "type": "license_server",
-                        "id": "56231"
-                    }
-                },
-                "resources": null,
-                "timeAllocation": null,
-                "openedFile": null,
-                "restartOnExit": null,
-                "sshEnabled": null
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "55123"
-        }
-    ]
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -2705,6 +1966,7 @@ BulkResponse(
         providerDomain = "provider.example.com", 
         providerId = "example", 
         session = OpenSession.Vnc(
+            domainOverride = null, 
             jobId = "51231", 
             password = "e7ccc6e0870250073286c44545e6b41820d1db7f", 
             rank = 0, 
@@ -2712,95 +1974,6 @@ BulkResponse(
         ), 
     )), 
 )
-*/
-
-/* The user can now connect to the remote desktop using the VNC protocol with the above details */
-
-
-/* NOTE: UCloud expects this to support the VNC over WebSockets, as it allows for a connection to be
-established directly from the browser.
-
-You can read more about the protocol here: https://novnc.com */
-
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, the user will create a Job which uses an Application that exposes a VNC interface */
-
-// Authenticated as user
-await callAPI(JobsApi.create(
-    {
-        "items": [
-            {
-                "application": {
-                    "name": "acme-remote-desktop",
-                    "version": "1.0.0"
-                },
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                },
-                "name": null,
-                "replicas": 1,
-                "allowDuplicateJob": false,
-                "parameters": null,
-                "resources": null,
-                "timeAllocation": null,
-                "openedFile": null,
-                "restartOnExit": null,
-                "sshEnabled": null
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "51231"
-        }
-    ]
-}
-*/
-await callAPI(JobsApi.openInteractiveSession(
-    {
-        "items": [
-            {
-                "id": "51231",
-                "rank": 0,
-                "sessionType": "VNC"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "providerDomain": "provider.example.com",
-            "providerId": "example",
-            "session": {
-                "type": "vnc",
-                "jobId": "51231",
-                "rank": 0,
-                "url": "vnc-69521c85-4811-43e6-9de3-2a48614d04ab.provider.example.com",
-                "password": "e7ccc6e0870250073286c44545e6b41820d1db7f"
-            }
-        }
-    ]
-}
 */
 
 /* The user can now connect to the remote desktop using the VNC protocol with the above details */
@@ -2885,7 +2058,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 "jobId": "51231",
 #                 "rank": 0,
 #                 "url": "vnc-69521c85-4811-43e6-9de3-2a48614d04ab.provider.example.com",
-#                 "password": "e7ccc6e0870250073286c44545e6b41820d1db7f"
+#                 "password": "e7ccc6e0870250073286c44545e6b41820d1db7f",
+#                 "domainOverride": null
 #             }
 #         }
 #     ]
@@ -2978,94 +2152,13 @@ BulkResponse(
         providerDomain = "provider.example.com", 
         providerId = "example", 
         session = OpenSession.Web(
+            domainOverride = null, 
             jobId = "62342", 
             rank = 0, 
             redirectClientTo = "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d", 
         ), 
     )), 
 )
-*/
-
-/* The user should now proceed to the link provided in the response */
-
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, the user will create a Job which uses an Application that exposes a web interface */
-
-// Authenticated as user
-await callAPI(JobsApi.create(
-    {
-        "items": [
-            {
-                "application": {
-                    "name": "acme-web-application",
-                    "version": "1.0.0"
-                },
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                },
-                "name": null,
-                "replicas": 1,
-                "allowDuplicateJob": false,
-                "parameters": null,
-                "resources": null,
-                "timeAllocation": null,
-                "openedFile": null,
-                "restartOnExit": null,
-                "sshEnabled": null
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "62342"
-        }
-    ]
-}
-*/
-await callAPI(JobsApi.openInteractiveSession(
-    {
-        "items": [
-            {
-                "id": "62342",
-                "rank": 0,
-                "sessionType": "WEB"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "providerDomain": "provider.example.com",
-            "providerId": "example",
-            "session": {
-                "type": "web",
-                "jobId": "62342",
-                "rank": 0,
-                "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d"
-            }
-        }
-    ]
-}
 */
 
 /* The user should now proceed to the link provided in the response */
@@ -3143,7 +2236,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 "type": "web",
 #                 "jobId": "62342",
 #                 "rank": 0,
-#                 "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d"
+#                 "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d",
+#                 "domainOverride": null
 #             }
 #         }
 #     ]
@@ -3334,184 +2428,6 @@ Job(
     )), 
     providerGeneratedId = "62348", 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, the user will create a Job using shared resources. Later in the example, the user
-will lose access to these resources. */
-
-
-/* When the user starts the Job, they have access to some shared files. These are used in theJob (see the resources section). */
-
-// Authenticated as user
-await callAPI(JobsApi.create(
-    {
-        "items": [
-            {
-                "application": {
-                    "name": "acme-web-application",
-                    "version": "1.0.0"
-                },
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                },
-                "name": null,
-                "replicas": 1,
-                "allowDuplicateJob": false,
-                "parameters": null,
-                "resources": [
-                    {
-                        "type": "file",
-                        "path": "/12512/shared",
-                        "readOnly": false
-                    }
-                ],
-                "timeAllocation": null,
-                "openedFile": null,
-                "restartOnExit": null,
-                "sshEnabled": null
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "62348"
-        }
-    ]
-}
-*/
-
-/* The Job is now running */
-
-
-/* However, a few minutes later the share is revoked. UCloud automatically kills the Job a few minutes
-after this. The status now reflects this. */
-
-await callAPI(JobsApi.retrieve(
-    {
-        "flags": {
-            "filterApplication": null,
-            "filterState": null,
-            "includeParameters": null,
-            "includeApplication": null,
-            "includeProduct": false,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "62348"
-    }
-);
-
-/*
-{
-    "id": "62348",
-    "owner": {
-        "createdBy": "user",
-        "project": null
-    },
-    "updates": [
-        {
-            "state": "IN_QUEUE",
-            "outputFolder": null,
-            "status": "Your job is now waiting in the queue!",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633588976235
-        },
-        {
-            "state": "RUNNING",
-            "outputFolder": null,
-            "status": "Your job is now running!",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633588981235
-        },
-        {
-            "state": "SUCCESS",
-            "outputFolder": null,
-            "status": "Your job has been terminated (Lost permissions)",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633589101235
-        }
-    ],
-    "specification": {
-        "application": {
-            "name": "acme-web-application",
-            "version": "1.0.0"
-        },
-        "product": {
-            "id": "example-compute",
-            "category": "example-compute",
-            "provider": "example"
-        },
-        "name": null,
-        "replicas": 1,
-        "allowDuplicateJob": false,
-        "parameters": null,
-        "resources": [
-            {
-                "type": "file",
-                "path": "/12512/shared",
-                "readOnly": false
-            }
-        ],
-        "timeAllocation": null,
-        "openedFile": null,
-        "restartOnExit": null,
-        "sshEnabled": null
-    },
-    "status": {
-        "state": "SUCCESS",
-        "jobParametersJson": null,
-        "startedAt": null,
-        "expiresAt": null,
-        "resolvedApplication": null,
-        "resolvedSupport": null,
-        "resolvedProduct": null,
-        "allowRestart": false
-    },
-    "createdAt": 1633588976235,
-    "output": null,
-    "permissions": null
-}
 */
 ```
 
@@ -3717,7 +2633,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("1254151"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 500, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 2, 
             id = "1254151", 
@@ -3892,220 +2810,6 @@ Job(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, the user will create a Job and eventually run out of compute credits. */
-
-
-/* When the user creates the Job, they have enough credits */
-
-// Authenticated as user
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "user",
-                "username": "user"
-            },
-            "paysFor": {
-                "name": "example-compute",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "1254151",
-                    "allocationPath": [
-                        "1254151"
-                    ],
-                    "balance": 500,
-                    "initialBalance": 500000000,
-                    "localBalance": 500,
-                    "startDate": 1633329776235,
-                    "endDate": null,
-                    "grantedIn": 2
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "COMPUTE",
-            "chargeType": "ABSOLUTE",
-            "unit": "CREDITS_PER_MINUTE"
-        }
-    ],
-    "next": null
-}
-*/
-
-/* 📝 Note: at this point the user has a very low amount of credits remaining.
-It will only last a couple of minutes. */
-
-await callAPI(JobsApi.create(
-    {
-        "items": [
-            {
-                "application": {
-                    "name": "acme-web-application",
-                    "version": "1.0.0"
-                },
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                },
-                "name": null,
-                "replicas": 1,
-                "allowDuplicateJob": false,
-                "parameters": null,
-                "resources": null,
-                "timeAllocation": null,
-                "openedFile": null,
-                "restartOnExit": null,
-                "sshEnabled": null
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "62348"
-        }
-    ]
-}
-*/
-
-/* The Job is now running */
-
-
-/* However, a few minutes later the Job is automatically killed by UCloud. The status now reflects this. */
-
-await callAPI(JobsApi.retrieve(
-    {
-        "flags": {
-            "filterApplication": null,
-            "filterState": null,
-            "includeParameters": null,
-            "includeApplication": null,
-            "includeProduct": false,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "62348"
-    }
-);
-
-/*
-{
-    "id": "62348",
-    "owner": {
-        "createdBy": "user",
-        "project": null
-    },
-    "updates": [
-        {
-            "state": "IN_QUEUE",
-            "outputFolder": null,
-            "status": "Your job is now waiting in the queue!",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633588976235
-        },
-        {
-            "state": "RUNNING",
-            "outputFolder": null,
-            "status": "Your job is now running!",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633588981235
-        },
-        {
-            "state": "SUCCESS",
-            "outputFolder": null,
-            "status": "Your job has been terminated (No more credits)",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633589101235
-        }
-    ],
-    "specification": {
-        "application": {
-            "name": "acme-web-application",
-            "version": "1.0.0"
-        },
-        "product": {
-            "id": "example-compute",
-            "category": "example-compute",
-            "provider": "example"
-        },
-        "name": null,
-        "replicas": 1,
-        "allowDuplicateJob": false,
-        "parameters": null,
-        "resources": null,
-        "timeAllocation": null,
-        "openedFile": null,
-        "restartOnExit": null,
-        "sshEnabled": null
-    },
-    "status": {
-        "state": "SUCCESS",
-        "jobParametersJson": null,
-        "startedAt": null,
-        "expiresAt": null,
-        "resolvedApplication": null,
-        "resolvedSupport": null,
-        "resolvedProduct": null,
-        "allowRestart": false
-    },
-    "createdAt": 1633588976235,
-    "output": null,
-    "permissions": null
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -4145,7 +2849,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 500,
 #                     "startDate": 1633329776235,
 #                     "endDate": null,
-#                     "grantedIn": 2
+#                     "grantedIn": 2,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -4698,420 +3404,6 @@ Job(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example we will show how a user can extend the duration of a Job. Later in the same
-example, we show how the user can cancel it early. */
-
-// Authenticated as user
-await callAPI(JobsApi.create(
-    {
-        "items": [
-            {
-                "application": {
-                    "name": "acme-web-application",
-                    "version": "1.0.0"
-                },
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                },
-                "name": null,
-                "replicas": 1,
-                "allowDuplicateJob": false,
-                "parameters": null,
-                "resources": null,
-                "timeAllocation": {
-                    "hours": 5,
-                    "minutes": 0,
-                    "seconds": 0
-                },
-                "openedFile": null,
-                "restartOnExit": null,
-                "sshEnabled": null
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "62348"
-        }
-    ]
-}
-*/
-
-/* The Job is initially allocated with a duration of 5 hours. We can check when it expires by retrieving the Job */
-
-await callAPI(JobsApi.retrieve(
-    {
-        "flags": {
-            "filterApplication": null,
-            "filterState": null,
-            "includeParameters": null,
-            "includeApplication": null,
-            "includeProduct": false,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "62348"
-    }
-);
-
-/*
-{
-    "id": "62348",
-    "owner": {
-        "createdBy": "user",
-        "project": null
-    },
-    "updates": [
-        {
-            "state": "IN_QUEUE",
-            "outputFolder": null,
-            "status": "Your job is now waiting in the queue!",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633329776235
-        },
-        {
-            "state": "RUNNING",
-            "outputFolder": null,
-            "status": "Your job is now running!",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633329781235
-        }
-    ],
-    "specification": {
-        "application": {
-            "name": "acme-web-application",
-            "version": "1.0.0"
-        },
-        "product": {
-            "id": "example-compute",
-            "category": "example-compute",
-            "provider": "example"
-        },
-        "name": null,
-        "replicas": 1,
-        "allowDuplicateJob": false,
-        "parameters": null,
-        "resources": null,
-        "timeAllocation": {
-            "hours": 5,
-            "minutes": 0,
-            "seconds": 0
-        },
-        "openedFile": null,
-        "restartOnExit": null,
-        "sshEnabled": null
-    },
-    "status": {
-        "state": "RUNNING",
-        "jobParametersJson": null,
-        "startedAt": null,
-        "expiresAt": 1633347776235,
-        "resolvedApplication": null,
-        "resolvedSupport": null,
-        "resolvedProduct": null,
-        "allowRestart": false
-    },
-    "createdAt": 1633329776235,
-    "output": null,
-    "permissions": null
-}
-*/
-
-/* We can extend the duration quite easily */
-
-await callAPI(JobsApi.extend(
-    {
-        "items": [
-            {
-                "jobId": "62348",
-                "requestedTime": {
-                    "hours": 1,
-                    "minutes": 0,
-                    "seconds": 0
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-        }
-    ]
-}
-*/
-
-/* The new expiration is reflected if we retrieve it again */
-
-await callAPI(JobsApi.retrieve(
-    {
-        "flags": {
-            "filterApplication": null,
-            "filterState": null,
-            "includeParameters": null,
-            "includeApplication": null,
-            "includeProduct": false,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "62348"
-    }
-);
-
-/*
-{
-    "id": "62348",
-    "owner": {
-        "createdBy": "user",
-        "project": null
-    },
-    "updates": [
-        {
-            "state": "IN_QUEUE",
-            "outputFolder": null,
-            "status": "Your job is now waiting in the queue!",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633329776235
-        },
-        {
-            "state": "RUNNING",
-            "outputFolder": null,
-            "status": "Your job is now running!",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633329781235
-        }
-    ],
-    "specification": {
-        "application": {
-            "name": "acme-web-application",
-            "version": "1.0.0"
-        },
-        "product": {
-            "id": "example-compute",
-            "category": "example-compute",
-            "provider": "example"
-        },
-        "name": null,
-        "replicas": 1,
-        "allowDuplicateJob": false,
-        "parameters": null,
-        "resources": null,
-        "timeAllocation": {
-            "hours": 5,
-            "minutes": 0,
-            "seconds": 0
-        },
-        "openedFile": null,
-        "restartOnExit": null,
-        "sshEnabled": null
-    },
-    "status": {
-        "state": "RUNNING",
-        "jobParametersJson": null,
-        "startedAt": null,
-        "expiresAt": 1633351376235,
-        "resolvedApplication": null,
-        "resolvedSupport": null,
-        "resolvedProduct": null,
-        "allowRestart": false
-    },
-    "createdAt": 1633329776235,
-    "output": null,
-    "permissions": null
-}
-*/
-
-/* If the user decides that they are done with the Job early, then they can simply terminate it */
-
-await callAPI(JobsApi.terminate(
-    {
-        "items": [
-            {
-                "id": "62348"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-        }
-    ]
-}
-*/
-
-/* This termination is reflected in the status (and updates) */
-
-await callAPI(JobsApi.retrieve(
-    {
-        "flags": {
-            "filterApplication": null,
-            "filterState": null,
-            "includeParameters": null,
-            "includeApplication": null,
-            "includeProduct": false,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "62348"
-    }
-);
-
-/*
-{
-    "id": "62348",
-    "owner": {
-        "createdBy": "user",
-        "project": null
-    },
-    "updates": [
-        {
-            "state": "IN_QUEUE",
-            "outputFolder": null,
-            "status": "Your job is now waiting in the queue!",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633329776235
-        },
-        {
-            "state": "RUNNING",
-            "outputFolder": null,
-            "status": "Your job is now running!",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633329781235
-        },
-        {
-            "state": "SUCCESS",
-            "outputFolder": null,
-            "status": "Your job has been cancelled!",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633336981235
-        }
-    ],
-    "specification": {
-        "application": {
-            "name": "acme-web-application",
-            "version": "1.0.0"
-        },
-        "product": {
-            "id": "example-compute",
-            "category": "example-compute",
-            "provider": "example"
-        },
-        "name": null,
-        "replicas": 1,
-        "allowDuplicateJob": false,
-        "parameters": null,
-        "resources": null,
-        "timeAllocation": {
-            "hours": 5,
-            "minutes": 0,
-            "seconds": 0
-        },
-        "openedFile": null,
-        "restartOnExit": null,
-        "sshEnabled": null
-    },
-    "status": {
-        "state": "SUCCESS",
-        "jobParametersJson": null,
-        "startedAt": null,
-        "expiresAt": null,
-        "resolvedApplication": null,
-        "resolvedSupport": null,
-        "resolvedProduct": null,
-        "allowRestart": false
-    },
-    "createdAt": 1633329776235,
-    "output": null,
-    "permissions": null
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -5454,7 +3746,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 
 ### `browse`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -5472,7 +3764,7 @@ application or looking at [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.
 
 ### `follow`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -5492,7 +3784,7 @@ Opens a WebSocket subscription to receive updates about a job. These updates inc
 
 ### `retrieve`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -5506,7 +3798,7 @@ _Retrieves a single Job_
 
 ### `retrieveProducts`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -5544,7 +3836,7 @@ informational purposes. UCloud does not use this information for any accounting 
 
 ### `search`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -5558,7 +3850,7 @@ _Searches the catalog of available resources_
 
 ### `create`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -5572,7 +3864,7 @@ _Creates one or more resources_
 
 ### `extend`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -5599,7 +3891,7 @@ more jobs after the first failure.
 
 ### `init`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -5617,7 +3909,7 @@ the request.
 
 ### `openInteractiveSession`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -5631,7 +3923,7 @@ _Opens an interactive session (e.g. terminal, web or VNC)_
 
 ### `suspend`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -5648,7 +3940,7 @@ without deleting any data.
 
 ### `terminate`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -5669,7 +3961,7 @@ be followed using the [`jobs.retrieve`](/docs/reference/jobs.retrieve.md), [`job
 
 ### `unsuspend`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -5685,7 +3977,7 @@ Reverses the effects of suspending a job. The job is expected to return back to 
 
 ### `updateAcl`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -5702,7 +3994,7 @@ _Updates the ACL attached to a resource_
 
 ### `Job`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A `Job` in UCloud is the core abstraction used to describe a unit of computation._
@@ -5869,7 +4161,7 @@ A null value indicates that permissions are not supported by this resource type.
 
 ### `JobSpecification`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A specification of a Job_
@@ -6056,7 +4348,7 @@ an SSH server will be started which allows the end-user direct access to the ass
 
 ### `JobState`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A value describing the current state of a Job_
@@ -6201,7 +4493,7 @@ Unlike SUCCESS and FAILURE a Job can transition from this state to one of the ac
 
 ### `InteractiveSessionType`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A value describing a type of 'interactive' session_
@@ -6262,7 +4554,7 @@ enum class InteractiveSessionType {
 
 ### `JobIncludeFlags`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Flags used to tweak read operations of Jobs_
@@ -6515,7 +4807,7 @@ data class JobIncludeFlags(
 
 ### `ComputeSupport`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -6587,7 +4879,7 @@ data class ComputeSupport(
 
 ### `ComputeSupport.Docker`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -6708,7 +5000,7 @@ All other flags are ignored if this is `false`.
 
 ### `ComputeSupport.Native`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -6817,7 +5109,7 @@ All other flags are ignored if this is `false`.
 
 ### `ComputeSupport.VirtualMachine`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -6926,7 +5218,7 @@ All other flags are ignored if this is `false`.
 
 ### `CpuAndMemory`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -6976,7 +5268,7 @@ Implement as a floating to represent fractions of a virtual core. This is for ex
 
 ### `ExportedParameters`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -7048,7 +5340,7 @@ data class ExportedParameters(
 
 ### `ExportedParameters.Resources`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -7082,448 +5374,9 @@ data class Resources(
 
 ---
 
-### `Ingress`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_An L7 ingress-point (HTTP)_
-
-```kotlin
-data class Ingress(
-    val id: String,
-    val specification: IngressSpecification,
-    val owner: ResourceOwner,
-    val createdAt: Long,
-    val status: IngressStatus,
-    val updates: List<IngressUpdate>?,
-    val permissions: ResourcePermissions?,
-    val providerGeneratedId: String?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A unique identifier referencing the `Resource`
-</summary>
-
-
-
-The ID is unique across a provider for a single resource type.
-
-
-</details>
-
-<details>
-<summary>
-<code>specification</code>: <code><code><a href='#ingressspecification'>IngressSpecification</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceOwner.md'>ResourceOwner</a></code></code> Information about the owner of this resource
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>createdAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Information about when this resource was created
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>status</code>: <code><code><a href='#ingressstatus'>IngressStatus</a></code></code> The current status of this resource
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#ingressupdate'>IngressUpdate</a>&gt;?</code></code> A list of updates for this `Ingress`
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>permissions</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourcePermissions.md'>ResourcePermissions</a>?</code></code> Permissions assigned to this resource
-</summary>
-
-
-
-A null value indicates that permissions are not supported by this resource type.
-
-
-</details>
-
-<details>
-<summary>
-<code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `IngressSpecification`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class IngressSpecification(
-    val domain: String,
-    val product: ProductReference,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>domain</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The domain used for L7 load-balancing for use with this `Ingress`
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>product</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code> The product used for the `Ingress`
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `IngressState`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-enum class IngressState {
-    PREPARING,
-    READY,
-    UNAVAILABLE,
-}
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>PREPARING</code> A state indicating that the `Ingress` is currently being prepared and is expected to reach `READY` soon.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>READY</code> A state indicating that the `Ingress` is ready for use or already in use.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>UNAVAILABLE</code> A state indicating that the `Ingress` is currently unavailable.
-</summary>
-
-
-
-This state can be used to indicate downtime or service interruptions by the provider.
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `IngressStatus`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_The status of an `Ingress`_
-
-```kotlin
-data class IngressStatus(
-    val boundTo: List<String>?,
-    val state: IngressState,
-    val resolvedSupport: ResolvedSupport<Product.Ingress, IngressSupport>?,
-    val resolvedProduct: Product.Ingress?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>boundTo</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code> The ID of the `Job` that this `Ingress` is currently bound to
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>state</code>: <code><code><a href='#ingressstate'>IngressState</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>resolvedSupport</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResolvedSupport.md'>ResolvedSupport</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Ingress.md'>Product.Ingress</a>, <a href='#ingresssupport'>IngressSupport</a>&gt;?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>resolvedProduct</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Ingress.md'>Product.Ingress</a>?</code></code> The resolved product referenced by `product`.
-</summary>
-
-
-
-This attribute is not included by default unless `includeProduct` is specified.
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `IngressSupport`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class IngressSupport(
-    val domainPrefix: String,
-    val domainSuffix: String,
-    val product: ProductReference,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>domainPrefix</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>domainSuffix</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>product</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `IngressUpdate`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class IngressUpdate(
-    val state: IngressState?,
-    val status: String?,
-    val timestamp: Long?,
-    val binding: JobBinding?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>state</code>: <code><code><a href='#ingressstate'>IngressState</a>?</code></code> The new state that the `Ingress` transitioned to (if any)
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>status</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A new status message for the `Ingress` (if any)
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>timestamp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> A timestamp for when this update was registered by UCloud
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>binding</code>: <code><code><a href='#jobbinding'>JobBinding</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
 ### `JobBindKind`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -7571,7 +5424,7 @@ enum class JobBindKind {
 
 ### `JobBinding`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -7619,7 +5472,7 @@ data class JobBinding(
 
 ### `JobOutput`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -7655,7 +5508,7 @@ data class JobOutput(
 
 ### `JobStatus`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Describes the current state of the `Resource`_
@@ -7788,7 +5641,7 @@ This attribute is not included by default unless `includeProduct` is specified.
 
 ### `JobUpdate`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Describes an update to the `Resource`_
@@ -7930,7 +5783,7 @@ An update will typically contain information similar to the `status` field, for 
 
 ### `JobsLog`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -7990,12 +5843,13 @@ data class JobsLog(
 
 ### `OpenSession`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
 sealed class OpenSession {
+    abstract val domainOverride: String?
     abstract val jobId: String
     abstract val rank: Int
 
@@ -8012,9 +5866,22 @@ sealed class OpenSession {
 
 <details>
 <summary>
+<code>domainOverride</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Domain override, which will be forwarded to the end-user. This overrides the domain used by UCloud/Core. Must contain scheme (e.g. https://).
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>jobId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8026,6 +5893,7 @@ sealed class OpenSession {
 <code>rank</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8042,7 +5910,7 @@ sealed class OpenSession {
 
 ### `OpenSession.Shell`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8051,6 +5919,7 @@ data class Shell(
     val jobId: String,
     val rank: Int,
     val sessionIdentifier: String,
+    val domainOverride: String?,
     val type: String /* "shell" */,
 )
 ```
@@ -8095,10 +5964,20 @@ data class Shell(
 
 <details>
 <summary>
+<code>domainOverride</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Domain override, which will be forwarded to the end-user. This overrides the domain used by UCloud/Core. Must contain scheme (e.g. https://).
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>type</code>: <code><code>String /* "shell" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8115,7 +5994,7 @@ data class Shell(
 
 ### `OpenSession.Vnc`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8125,6 +6004,7 @@ data class Vnc(
     val rank: Int,
     val url: String,
     val password: String?,
+    val domainOverride: String?,
     val type: String /* "vnc" */,
 )
 ```
@@ -8180,10 +6060,20 @@ data class Vnc(
 
 <details>
 <summary>
+<code>domainOverride</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Domain override, which will be forwarded to the end-user. This overrides the domain used by UCloud/Core. Must contain scheme (e.g. https://).
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>type</code>: <code><code>String /* "vnc" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8200,7 +6090,7 @@ data class Vnc(
 
 ### `OpenSession.Web`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8209,6 +6099,7 @@ data class Web(
     val jobId: String,
     val rank: Int,
     val redirectClientTo: String,
+    val domainOverride: String?,
     val type: String /* "web" */,
 )
 ```
@@ -8253,10 +6144,20 @@ data class Web(
 
 <details>
 <summary>
+<code>domainOverride</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Domain override, which will be forwarded to the end-user. This overrides the domain used by UCloud/Core. Must contain scheme (e.g. https://).
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>type</code>: <code><code>String /* "web" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8273,7 +6174,7 @@ data class Web(
 
 ### `OpenSessionWithProvider`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8333,7 +6234,7 @@ data class OpenSessionWithProvider(
 
 ### `QueueStatus`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8381,7 +6282,7 @@ data class QueueStatus(
 
 ### `ExportedParametersRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8549,7 +6450,7 @@ data class ExportedParametersRequest(
 
 ### `JobsExtendRequestItem`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8597,7 +6498,7 @@ data class JobsExtendRequestItem(
 
 ### `JobsOpenInteractiveSessionRequestItem`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8657,7 +6558,7 @@ data class JobsOpenInteractiveSessionRequestItem(
 
 ### `JobsRetrieveUtilizationRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8693,7 +6594,7 @@ data class JobsRetrieveUtilizationRequest(
 
 ### `JobsFollowResponse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -8753,7 +6654,7 @@ data class JobsFollowResponse(
 
 ### `JobsRetrieveUtilizationResponse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

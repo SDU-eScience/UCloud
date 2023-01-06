@@ -41,36 +41,6 @@ BulkResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.delete(
-    {
-        "items": [
-            {
-                "id": "/123/folder"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-        }
-    ]
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 

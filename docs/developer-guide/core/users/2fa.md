@@ -156,62 +156,6 @@ TwoFactorStatusResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(AuthTwofactorApi.twoFactorStatus(
-    {
-    }
-);
-
-/*
-{
-    "connected": false
-}
-*/
-await callAPI(AuthTwofactorApi.createCredentials(
-    {
-    }
-);
-
-/*
-{
-    "otpAuthUri": "OTP URI",
-    "qrCodeB64Data": "QR CODE BASE64 ENCODED",
-    "secret": "SECRET",
-    "challengeId": "CHALLENGE ID"
-}
-*/
-await callAPI(AuthTwofactorApi.answerChallenge(
-    {
-        "challengeId": "CHALLENGE ID",
-        "verificationCode": 999999
-    }
-);
-
-/*
-{
-}
-*/
-await callAPI(AuthTwofactorApi.twoFactorStatus(
-    {
-    }
-);
-
-/*
-{
-    "connected": true
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 

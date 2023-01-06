@@ -3,15 +3,14 @@
 # `EditApplicationRequest`
 
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
 data class EditApplicationRequest(
-    val id: Long,
-    val newDocument: String,
-    val newResources: List<ResourceRequest>,
+    val applicationId: Long,
+    val document: GrantApplication.Document,
 )
 ```
 
@@ -22,7 +21,7 @@ data class EditApplicationRequest(
 
 <details>
 <summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>applicationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 
@@ -33,18 +32,7 @@ data class EditApplicationRequest(
 
 <details>
 <summary>
-<code>newDocument</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>newResources</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#resourcerequest'>ResourceRequest</a>&gt;</code></code>
+<code>document</code>: <code><code><a href='#grantapplication.document'>GrantApplication.Document</a></code></code>
 </summary>
 
 

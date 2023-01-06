@@ -40,7 +40,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 1000, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "42", 
@@ -81,7 +83,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42", "52"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 500, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "52", 
@@ -156,7 +160,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 900, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "42", 
@@ -202,7 +208,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42", "52"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 400, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "52", 
@@ -276,7 +284,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 850, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "42", 
@@ -320,7 +330,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42", "52"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 400, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "52", 
@@ -344,400 +356,6 @@ PageV2(
     itemsPerPage = 50, 
     next = null, 
 )
-*/
-
-/* The leaf allocation remains unchanged. Any and all charges will only affect the charged allocation 
-and their ancestors. A descendant is never directly updated by such an operation. */
-
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
-hierarchy we use consists of a single root allocation. The root allocation has a single child, 
-which we will be referring to as the leaf, since it has no children. */
-
-// Authenticated as piRoot
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "root-project"
-            },
-            "paysFor": {
-                "name": "example-storage",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "42",
-                    "allocationPath": [
-                        "42"
-                    ],
-                    "balance": 1000,
-                    "initialBalance": 1000,
-                    "localBalance": 1000,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "STORAGE",
-            "chargeType": "DIFFERENTIAL_QUOTA",
-            "unit": "PER_UNIT"
-        }
-    ],
-    "next": null
-}
-*/
-// Authenticated as piLeaf
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "leaf-project"
-            },
-            "paysFor": {
-                "name": "example-storage",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "52",
-                    "allocationPath": [
-                        "42",
-                        "52"
-                    ],
-                    "balance": 500,
-                    "initialBalance": 500,
-                    "localBalance": 500,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "STORAGE",
-            "chargeType": "DIFFERENTIAL_QUOTA",
-            "unit": "PER_UNIT"
-        }
-    ],
-    "next": null
-}
-*/
-
-/* As we can see, in our initial state, the root has 1000 GB remaining and the leaf has 500. */
-
-
-/* We now perform our charge of 100 GB on the leaf. */
-
-// Authenticated as ucloud
-await callAPI(AccountingApi.charge(
-    {
-        "items": [
-            {
-                "payer": {
-                    "type": "project",
-                    "projectId": "leaf-project"
-                },
-                "units": 100,
-                "periods": 1,
-                "product": {
-                    "id": "example-storage",
-                    "category": "example-storage",
-                    "provider": "example"
-                },
-                "performedBy": "user",
-                "description": "A charge for compute usage",
-                "transactionId": "charge-1"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        true
-    ]
-}
-*/
-
-/* The response, as expected, that we had enough credits for the transaction. This would have been 
-false if _any_ of the allocation in the hierarchy runs out of credits. */
-
-// Authenticated as piRoot
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "root-project"
-            },
-            "paysFor": {
-                "name": "example-storage",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "42",
-                    "allocationPath": [
-                        "42"
-                    ],
-                    "balance": 900,
-                    "initialBalance": 1000,
-                    "localBalance": 1000,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "STORAGE",
-            "chargeType": "DIFFERENTIAL_QUOTA",
-            "unit": "PER_UNIT"
-        }
-    ],
-    "next": null
-}
-*/
-
-/* On the root allocation, we see that this has subtracted 100 GB from the balance. Recall that 
-balance shows the overall balance for the entire subtree. The local balance of the root remains 
-unaffected, since this wasn't consumed by the root. */
-
-// Authenticated as piLeaf
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "leaf-project"
-            },
-            "paysFor": {
-                "name": "example-storage",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "52",
-                    "allocationPath": [
-                        "42",
-                        "52"
-                    ],
-                    "balance": 400,
-                    "initialBalance": 500,
-                    "localBalance": 400,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "STORAGE",
-            "chargeType": "DIFFERENTIAL_QUOTA",
-            "unit": "PER_UNIT"
-        }
-    ],
-    "next": null
-}
-*/
-
-/* In the leaf allocation, we see that this has affected both the balance and the local balance.  */
-
-
-/* We now attempt to perform a similar charge, of 50 GB, but this time on the root allocation. */
-
-// Authenticated as ucloud
-await callAPI(AccountingApi.charge(
-    {
-        "items": [
-            {
-                "payer": {
-                    "type": "project",
-                    "projectId": "root-project"
-                },
-                "units": 50,
-                "periods": 1,
-                "product": {
-                    "id": "example-storage",
-                    "category": "example-storage",
-                    "provider": "example"
-                },
-                "performedBy": "user",
-                "description": "A charge for compute usage",
-                "transactionId": "charge-1"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        true
-    ]
-}
-*/
-
-/* Again, this allocation succeeds. */
-
-// Authenticated as piRoot
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "root-project"
-            },
-            "paysFor": {
-                "name": "example-storage",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "42",
-                    "allocationPath": [
-                        "42"
-                    ],
-                    "balance": 850,
-                    "initialBalance": 1000,
-                    "localBalance": 950,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "STORAGE",
-            "chargeType": "DIFFERENTIAL_QUOTA",
-            "unit": "PER_UNIT"
-        }
-    ],
-    "next": null
-}
-*/
-
-/* This charge has affected the local and current balance of the root by the expected 50 GB. */
-
-// Authenticated as piLeaf
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "leaf-project"
-            },
-            "paysFor": {
-                "name": "example-storage",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "52",
-                    "allocationPath": [
-                        "42",
-                        "52"
-                    ],
-                    "balance": 400,
-                    "initialBalance": 500,
-                    "localBalance": 400,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "STORAGE",
-            "chargeType": "DIFFERENTIAL_QUOTA",
-            "unit": "PER_UNIT"
-        }
-    ],
-    "next": null
-}
 */
 
 /* The leaf allocation remains unchanged. Any and all charges will only affect the charged allocation 
@@ -789,7 +407,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 1000,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -828,7 +448,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 500,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -902,7 +524,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 1000,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -945,7 +569,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 400,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -1018,7 +644,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 950,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -1059,7 +687,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 400,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
