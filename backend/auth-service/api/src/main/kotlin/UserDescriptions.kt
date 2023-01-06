@@ -134,6 +134,10 @@ ${ApiConventions.nonConformingApiWarning}
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Request creation of a new $TYPE_REF PASSWORD user."
+        }
     }
 
     val updateUserInfo = call("updateUserInfo", UpdateUserInfoRequest.serializer(), UpdateUserInfoResponse.serializer(), CommonErrorMessage.serializer()) {
@@ -151,6 +155,10 @@ ${ApiConventions.nonConformingApiWarning}
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Request update of information about the current user."
+        }
     }
 
     val getUserInfo = call("getUserInfo", GetUserInfoRequest.serializer(), GetUserInfoResponse.serializer(), CommonErrorMessage.serializer()) {
@@ -165,6 +173,10 @@ ${ApiConventions.nonConformingApiWarning}
                 using(baseContext)
                 +"userInfo"
             }
+        }
+
+        documentation {
+            summary = "Request information about the current user."
         }
     }
 
@@ -205,6 +217,10 @@ ${ApiConventions.nonConformingApiWarning}
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Request change of the password of the current user (if $TYPE_REF PASSWORD user)."
+        }
     }
 
     val changePasswordWithReset = call("changePasswordWithReset", ChangePasswordWithResetRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
@@ -215,7 +231,7 @@ ${ApiConventions.nonConformingApiWarning}
             access = AccessRight.READ_WRITE
         }
 
-      http {
+        http {
             method = HttpMethod.Post
             path {
                 using(baseContext)
@@ -224,6 +240,14 @@ ${ApiConventions.nonConformingApiWarning}
             }
 
             body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Request reset of password of a $TYPE_REF PASSWORD user."
+            description = """
+                This request can only be called by other services, and is used by the `PasswordResetService` to reset a
+                user's password in case they are unable to log in.
+            """.trimIndent()
         }
     }
 
@@ -259,6 +283,10 @@ ${ApiConventions.nonConformingApiWarning}
             }
 
             body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Request the email of a user."
         }
     }
 
