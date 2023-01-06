@@ -136,42 +136,6 @@ It is absolutely critical that JWT verification is configured correctly. For exa
 having too relaxed defaults, which in the worst case will skip all verification. It is important that the verifier is
 configured to _only_ accept the parameters mentioned above.
 
-## Extending the Protocol to Support Verification of Client
-
----
-
-__📝 NOTE:__ Very informal draft.
-
----
-
-Some quick thoughts about how we can extend the protocol to support verification of the client sending the message. This
-is extremely useful as it would make UCloud incapable of impersonating a user at a different provider.
-
-1. Extend client-side RPC to include a signature of their message
-   - This message should use public-private keypairs
-   - Keypairs are generated in the browser
-   - The public key is transferred to the provider _by_ the user
-   - This will happen when the user connects to the provider
-   - Possible library: https://github.com/kjur/jsrsasign
-   - This will support keygen and signature we need
-   - The signature should be passed in a header
-2. UCloud receives this message, and extends it with additional information
-3. UCloud includes, verbatim, the original request along with the signature
-   - How do we make this developer friendly?
-4. Provider verifies that the JWT is valid (by UCloud)   
-5. Provider verifies that the original request has been signed
-5. Provider verifies that the original request _also_ matches the additional context that UCloud provided
-
-A possible alternative to signing the entire message is to sign a JWT (or any other document, we don't really need the
-header). This JWT would provide similar security, the document should contain:
-
-- `iat`: Issued at
-- `exp`: Expires at
-- `sub`: Username (UCloud)
-- `project`: Project (UCloud)
-- `callName`: Potentially, this could contain the name of the call we are performing. This would allow the provider to
-   verify that the correct call is also being made.
-
 ## Table of Contents
 <details>
 <summary>
@@ -310,40 +274,6 @@ BulkResponse(
         accessToken = "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIjUF9leGFtcGxlIiwicm9sZSI6IlBST1ZJREVSIiwiaWF0IjoxNjMzNTIxMDA5LCJleHAiOjE2MzM1MjE5MTl9.P4zL-LBeahsga4eH0GqKpBmPf-Sa7pU70QhiXB1BchBe0DE9zuJ_6fws9cs9NOIo", 
     )), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* 📝 Note: The tokens shown here are not representative of tokens you will see in practice */
-
-// Authenticated as provider
-await callAPI(AuthProvidersApi.refresh(
-    {
-        "items": [
-            {
-                "refreshToken": "fb69e4367ee0fe4c76a4a926394aee547a41d998"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "accessToken": "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIjUF9leGFtcGxlIiwicm9sZSI6IlBST1ZJREVSIiwiaWF0IjoxNjMzNTIxMDA5LCJleHAiOjE2MzM1MjE5MTl9.P4zL-LBeahsga4eH0GqKpBmPf-Sa7pU70QhiXB1BchBe0DE9zuJ_6fws9cs9NOIo"
-        }
-    ]
-}
 */
 ```
 

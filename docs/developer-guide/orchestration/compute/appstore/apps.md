@@ -119,6 +119,14 @@ changes are expected:
 <td>Lists all Applications</td>
 </tr>
 <tr>
+<td><a href='#listtags'><code>listTags</code></a></td>
+<td>List all application tags</td>
+</tr>
+<tr>
+<td><a href='#overview'><code>overview</code></a></td>
+<td>Returns the application catalog overview</td>
+</tr>
+<tr>
 <td><a href='#retrievefavorites'><code>retrieveFavorites</code></a></td>
 <td>Retrieves the list of favorite Applications for the curent user</td>
 </tr>
@@ -141,6 +149,10 @@ changes are expected:
 <tr>
 <td><a href='#delete'><code>delete</code></a></td>
 <td>Removes an Application from the catalog</td>
+</tr>
+<tr>
+<td><a href='#devimport'><code>devImport</code></a></td>
+<td>An endpoint for importing applications - Only usable in dev environments</td>
 </tr>
 <tr>
 <td><a href='#removetag'><code>removeTag</code></a></td>
@@ -330,6 +342,18 @@ changes are expected:
 <td>A textual value</td>
 </tr>
 <tr>
+<td><a href='#appstoresection'><code>AppStoreSection</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#appstoresection.tag'><code>AppStoreSection.Tag</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#appstoresection.tool'><code>AppStoreSection.Tool</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#applicationaccessright'><code>ApplicationAccessRight</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -402,6 +426,10 @@ changes are expected:
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#devimportrequest'><code>DevImportRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#favoriterequest'><code>FavoriteRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -431,6 +459,10 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#updateaclrequest'><code>UpdateAclRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#appstoreoverviewresponse'><code>AppStoreOverviewResponse</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -578,161 +610,6 @@ ApplicationWithFavoriteAndTags(
     ), 
     tags = emptyList(), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* Applications contain quite a lot of information. The most important pieces of information are
-summarized below:
-
-- This Job will run a `BATCH` application
-  - See `invocation.applicationType`
-  
-- The application should launch the `acme/batch:1.0.0` container
-  - `invocation.tool.tool.description.backend`
-  - `invocation.tool.tool.description.image`
-  
-- The command-line invocation will look like this: `acme-batch --debug "Hello, World!"`. 
-  - The invocation is created from `invocation.invocation`
-  - With parameters defined in `invocation.parameters` */
-
-// Authenticated as user
-await callAPI(HpcAppsApi.findByNameAndVersion(
-    {
-        "appName": "acme-batch",
-        "appVersion": "1.0.0"
-    }
-);
-
-/*
-{
-    "metadata": {
-        "name": "acme-batch",
-        "version": "1.0.0",
-        "authors": [
-            "UCloud"
-        ],
-        "title": "Acme batch",
-        "description": "An example application",
-        "website": null,
-        "public": true
-    },
-    "invocation": {
-        "tool": {
-            "name": "acme-batch",
-            "version": "1.0.0",
-            "tool": {
-                "owner": "_ucloud",
-                "createdAt": 1633329776235,
-                "modifiedAt": 1633329776235,
-                "description": {
-                    "info": {
-                        "name": "acme-batch",
-                        "version": "1.0.0"
-                    },
-                    "container": null,
-                    "defaultNumberOfNodes": 1,
-                    "defaultTimeAllocation": {
-                        "hours": 1,
-                        "minutes": 0,
-                        "seconds": 0
-                    },
-                    "requiredModules": [
-                    ],
-                    "authors": [
-                        "UCloud"
-                    ],
-                    "title": "Acme batch",
-                    "description": "An example tool",
-                    "backend": "DOCKER",
-                    "license": "None",
-                    "image": "acme/batch:1.0.0",
-                    "supportedProviders": null
-                }
-            }
-        },
-        "invocation": [
-            {
-                "type": "word",
-                "word": "acme-batch"
-            },
-            {
-                "type": "var",
-                "variableNames": [
-                    "debug"
-                ],
-                "prefixGlobal": "--debug ",
-                "suffixGlobal": "",
-                "prefixVariable": "",
-                "suffixVariable": "",
-                "isPrefixVariablePartOfArg": false,
-                "isSuffixVariablePartOfArg": false
-            },
-            {
-                "type": "var",
-                "variableNames": [
-                    "value"
-                ],
-                "prefixGlobal": "",
-                "suffixGlobal": "",
-                "prefixVariable": "",
-                "suffixVariable": "",
-                "isPrefixVariablePartOfArg": false,
-                "isSuffixVariablePartOfArg": false
-            }
-        ],
-        "parameters": [
-            {
-                "type": "boolean",
-                "name": "debug",
-                "optional": false,
-                "defaultValue": null,
-                "title": "",
-                "description": "Should debug be enabled?",
-                "trueValue": "true",
-                "falseValue": "false"
-            },
-            {
-                "type": "text",
-                "name": "value",
-                "optional": false,
-                "defaultValue": null,
-                "title": "",
-                "description": "The value for the batch application"
-            }
-        ],
-        "outputFileGlobs": [
-            "*"
-        ],
-        "applicationType": "BATCH",
-        "vnc": null,
-        "web": null,
-        "ssh": null,
-        "container": null,
-        "environment": null,
-        "allowAdditionalMounts": null,
-        "allowAdditionalPeers": null,
-        "allowMultiNode": false,
-        "allowPublicIp": false,
-        "allowPublicLink": null,
-        "fileExtensions": [
-        ],
-        "licenseServers": [
-        ]
-    },
-    "favorite": false,
-    "tags": [
-    ]
-}
 */
 ```
 
@@ -1003,104 +880,6 @@ ApplicationWithFavoriteAndTags(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* This example shows an Application encoding a virtual machine. It will use the
-"acme-operating-system" as its base image, as defined in the Tool.  */
-
-// Authenticated as user
-await callAPI(HpcAppsApi.findByNameAndVersion(
-    {
-        "appName": "acme-os",
-        "appVersion": "1.0.0"
-    }
-);
-
-/*
-{
-    "metadata": {
-        "name": "acme-os",
-        "version": "1.0.0",
-        "authors": [
-            "UCloud"
-        ],
-        "title": "Acme os",
-        "description": "An example application",
-        "website": null,
-        "public": true
-    },
-    "invocation": {
-        "tool": {
-            "name": "acme-os",
-            "version": "1.0.0",
-            "tool": {
-                "owner": "_ucloud",
-                "createdAt": 1633329776235,
-                "modifiedAt": 1633329776235,
-                "description": {
-                    "info": {
-                        "name": "acme-os",
-                        "version": "1.0.0"
-                    },
-                    "container": null,
-                    "defaultNumberOfNodes": 1,
-                    "defaultTimeAllocation": {
-                        "hours": 1,
-                        "minutes": 0,
-                        "seconds": 0
-                    },
-                    "requiredModules": [
-                    ],
-                    "authors": [
-                        "UCloud"
-                    ],
-                    "title": "Acme os",
-                    "description": "An example tool",
-                    "backend": "VIRTUAL_MACHINE",
-                    "license": "None",
-                    "image": "acme-operating-system",
-                    "supportedProviders": null
-                }
-            }
-        },
-        "invocation": [
-        ],
-        "parameters": [
-        ],
-        "outputFileGlobs": [
-            "*"
-        ],
-        "applicationType": "BATCH",
-        "vnc": null,
-        "web": null,
-        "ssh": null,
-        "container": null,
-        "environment": null,
-        "allowAdditionalMounts": null,
-        "allowAdditionalPeers": null,
-        "allowMultiNode": false,
-        "allowPublicIp": false,
-        "allowPublicLink": null,
-        "fileExtensions": [
-        ],
-        "licenseServers": [
-        ]
-    },
-    "favorite": false,
-    "tags": [
-    ]
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -1302,110 +1081,6 @@ ApplicationWithFavoriteAndTags(
     ), 
     tags = emptyList(), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* This example shows an Application with a graphical web interface. The web server, hosting the 
-interface, runs on port 8080 as defined in the `invocation.web` section. */
-
-// Authenticated as user
-await callAPI(HpcAppsApi.findByNameAndVersion(
-    {
-        "appName": "acme-web",
-        "appVersion": "1.0.0"
-    }
-);
-
-/*
-{
-    "metadata": {
-        "name": "acme-web",
-        "version": "1.0.0",
-        "authors": [
-            "UCloud"
-        ],
-        "title": "Acme web",
-        "description": "An example application",
-        "website": null,
-        "public": true
-    },
-    "invocation": {
-        "tool": {
-            "name": "acme-web",
-            "version": "1.0.0",
-            "tool": {
-                "owner": "_ucloud",
-                "createdAt": 1633329776235,
-                "modifiedAt": 1633329776235,
-                "description": {
-                    "info": {
-                        "name": "acme-web",
-                        "version": "1.0.0"
-                    },
-                    "container": null,
-                    "defaultNumberOfNodes": 1,
-                    "defaultTimeAllocation": {
-                        "hours": 1,
-                        "minutes": 0,
-                        "seconds": 0
-                    },
-                    "requiredModules": [
-                    ],
-                    "authors": [
-                        "UCloud"
-                    ],
-                    "title": "Acme web",
-                    "description": "An example tool",
-                    "backend": "DOCKER",
-                    "license": "None",
-                    "image": "acme/web:1.0.0",
-                    "supportedProviders": null
-                }
-            }
-        },
-        "invocation": [
-            {
-                "type": "word",
-                "word": "web-server"
-            }
-        ],
-        "parameters": [
-        ],
-        "outputFileGlobs": [
-            "*"
-        ],
-        "applicationType": "WEB",
-        "vnc": null,
-        "web": {
-            "port": 8080
-        },
-        "ssh": null,
-        "container": null,
-        "environment": null,
-        "allowAdditionalMounts": null,
-        "allowAdditionalPeers": null,
-        "allowMultiNode": false,
-        "allowPublicIp": false,
-        "allowPublicLink": null,
-        "fileExtensions": [
-        ],
-        "licenseServers": [
-        ]
-    },
-    "favorite": false,
-    "tags": [
-    ]
-}
 */
 ```
 
@@ -1630,111 +1305,6 @@ ApplicationWithFavoriteAndTags(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* This example shows an Application with a graphical web interface. The VNC server, hosting the 
-interface, runs on port 5900 as defined in the `invocation.vnc` section. */
-
-// Authenticated as user
-await callAPI(HpcAppsApi.findByNameAndVersion(
-    {
-        "appName": "acme-remote-desktop",
-        "appVersion": "1.0.0"
-    }
-);
-
-/*
-{
-    "metadata": {
-        "name": "acme-remote-desktop",
-        "version": "1.0.0",
-        "authors": [
-            "UCloud"
-        ],
-        "title": "Acme remote desktop",
-        "description": "An example application",
-        "website": null,
-        "public": true
-    },
-    "invocation": {
-        "tool": {
-            "name": "acme-remote-desktop",
-            "version": "1.0.0",
-            "tool": {
-                "owner": "_ucloud",
-                "createdAt": 1633329776235,
-                "modifiedAt": 1633329776235,
-                "description": {
-                    "info": {
-                        "name": "acme-remote-desktop",
-                        "version": "1.0.0"
-                    },
-                    "container": null,
-                    "defaultNumberOfNodes": 1,
-                    "defaultTimeAllocation": {
-                        "hours": 1,
-                        "minutes": 0,
-                        "seconds": 0
-                    },
-                    "requiredModules": [
-                    ],
-                    "authors": [
-                        "UCloud"
-                    ],
-                    "title": "Acme remote desktop",
-                    "description": "An example tool",
-                    "backend": "DOCKER",
-                    "license": "None",
-                    "image": "acme/remote-desktop:1.0.0",
-                    "supportedProviders": null
-                }
-            }
-        },
-        "invocation": [
-            {
-                "type": "word",
-                "word": "vnc-server"
-            }
-        ],
-        "parameters": [
-        ],
-        "outputFileGlobs": [
-            "*"
-        ],
-        "applicationType": "VNC",
-        "vnc": {
-            "password": null,
-            "port": 5900
-        },
-        "web": null,
-        "ssh": null,
-        "container": null,
-        "environment": null,
-        "allowAdditionalMounts": null,
-        "allowAdditionalPeers": null,
-        "allowMultiNode": false,
-        "allowPublicIp": false,
-        "allowPublicLink": null,
-        "fileExtensions": [
-        ],
-        "licenseServers": [
-        ]
-    },
-    "favorite": false,
-    "tags": [
-    ]
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -1948,116 +1518,6 @@ ApplicationWithFavoriteAndTags(
     ), 
     tags = emptyList(), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* This example shows an Application with a graphical web interface. The web server, hosting the 
-interface, runs on port 8080 as defined in the `invocation.web` section. */
-
-
-/* The Application also registers a file handler of all files with the `*.c` extension. This is used as
-a hint for the frontend that files with this extension can be opened with this Application. When
-opened like this, the file's parent folder will be mounted as a resource. */
-
-// Authenticated as user
-await callAPI(HpcAppsApi.findByNameAndVersion(
-    {
-        "appName": "acme-web",
-        "appVersion": "1.0.0"
-    }
-);
-
-/*
-{
-    "metadata": {
-        "name": "acme-web",
-        "version": "1.0.0",
-        "authors": [
-            "UCloud"
-        ],
-        "title": "Acme web",
-        "description": "An example application",
-        "website": null,
-        "public": true
-    },
-    "invocation": {
-        "tool": {
-            "name": "acme-web",
-            "version": "1.0.0",
-            "tool": {
-                "owner": "_ucloud",
-                "createdAt": 1633329776235,
-                "modifiedAt": 1633329776235,
-                "description": {
-                    "info": {
-                        "name": "acme-web",
-                        "version": "1.0.0"
-                    },
-                    "container": null,
-                    "defaultNumberOfNodes": 1,
-                    "defaultTimeAllocation": {
-                        "hours": 1,
-                        "minutes": 0,
-                        "seconds": 0
-                    },
-                    "requiredModules": [
-                    ],
-                    "authors": [
-                        "UCloud"
-                    ],
-                    "title": "Acme web",
-                    "description": "An example tool",
-                    "backend": "DOCKER",
-                    "license": "None",
-                    "image": "acme/web:1.0.0",
-                    "supportedProviders": null
-                }
-            }
-        },
-        "invocation": [
-            {
-                "type": "word",
-                "word": "web-server"
-            }
-        ],
-        "parameters": [
-        ],
-        "outputFileGlobs": [
-            "*"
-        ],
-        "applicationType": "WEB",
-        "vnc": null,
-        "web": {
-            "port": 8080
-        },
-        "ssh": null,
-        "container": null,
-        "environment": null,
-        "allowAdditionalMounts": null,
-        "allowAdditionalPeers": null,
-        "allowMultiNode": false,
-        "allowPublicIp": false,
-        "allowPublicLink": null,
-        "fileExtensions": [
-            ".c"
-        ],
-        "licenseServers": [
-        ]
-    },
-    "favorite": false,
-    "tags": [
-    ]
-}
 */
 ```
 
@@ -2299,134 +1759,6 @@ ApplicationWithFavoriteAndTags(
     ), 
     tags = emptyList(), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* This example shows an Application which has a single input parameter. The parameter contains a 
-textual value. If the user does not provide a specific value, it will default to 'hello'. UCloud 
-passes this value as the first argument on the command-line. */
-
-// Authenticated as user
-await callAPI(HpcAppsApi.findByNameAndVersion(
-    {
-        "appName": "acme-web",
-        "appVersion": "1.0.0"
-    }
-);
-
-/*
-{
-    "metadata": {
-        "name": "acme-web",
-        "version": "1.0.0",
-        "authors": [
-            "UCloud"
-        ],
-        "title": "Acme web",
-        "description": "An example application",
-        "website": null,
-        "public": true
-    },
-    "invocation": {
-        "tool": {
-            "name": "acme-web",
-            "version": "1.0.0",
-            "tool": {
-                "owner": "_ucloud",
-                "createdAt": 1633329776235,
-                "modifiedAt": 1633329776235,
-                "description": {
-                    "info": {
-                        "name": "acme-web",
-                        "version": "1.0.0"
-                    },
-                    "container": null,
-                    "defaultNumberOfNodes": 1,
-                    "defaultTimeAllocation": {
-                        "hours": 1,
-                        "minutes": 0,
-                        "seconds": 0
-                    },
-                    "requiredModules": [
-                    ],
-                    "authors": [
-                        "UCloud"
-                    ],
-                    "title": "Acme web",
-                    "description": "An example tool",
-                    "backend": "DOCKER",
-                    "license": "None",
-                    "image": "acme/web:1.0.0",
-                    "supportedProviders": null
-                }
-            }
-        },
-        "invocation": [
-            {
-                "type": "word",
-                "word": "web-server"
-            },
-            {
-                "type": "var",
-                "variableNames": [
-                    "variable"
-                ],
-                "prefixGlobal": "",
-                "suffixGlobal": "",
-                "prefixVariable": "",
-                "suffixVariable": "",
-                "isPrefixVariablePartOfArg": false,
-                "isSuffixVariablePartOfArg": false
-            }
-        ],
-        "parameters": [
-            {
-                "type": "text",
-                "name": "variable",
-                "optional": true,
-                "defaultValue": {
-                    "type": "text",
-                    "value": "hello"
-                },
-                "title": "My Variable",
-                "description": "A variable passed to the Application (default = 'hello')"
-            }
-        ],
-        "outputFileGlobs": [
-            "*"
-        ],
-        "applicationType": "WEB",
-        "vnc": null,
-        "web": {
-            "port": 8080
-        },
-        "ssh": null,
-        "container": null,
-        "environment": null,
-        "allowAdditionalMounts": null,
-        "allowAdditionalPeers": null,
-        "allowMultiNode": false,
-        "allowPublicIp": false,
-        "allowPublicLink": null,
-        "fileExtensions": [
-        ],
-        "licenseServers": [
-        ]
-    },
-    "favorite": false,
-    "tags": [
-    ]
-}
 */
 ```
 
@@ -2727,6 +2059,34 @@ _Lists all Applications_
 Results are not ordered in any specific fashion
 
 
+### `listTags`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_List all application tags_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `overview`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Returns the application catalog overview_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#appstoreoverviewresponse'>AppStoreOverviewResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `retrieveFavorites`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2808,6 +2168,20 @@ _Removes an Application from the catalog_
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#deleteapprequest'>DeleteAppRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `devImport`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_An endpoint for importing applications - Only usable in dev environments_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#devimportrequest'>DevImportRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -6270,6 +5644,215 @@ When this is used with an `Enumeration` it must match the value of one of the as
 
 ---
 
+### `AppStoreSection`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+sealed class AppStoreSection {
+    abstract val name: String
+
+    class Tag : AppStoreSection()
+    class Tool : AppStoreSection()
+}
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStoreSection.Tag`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Tag(
+    val name: String,
+    val applications: List<ApplicationSummaryWithFavorite>,
+    val columns: Int,
+    val rows: Int,
+    val type: String /* "tag" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>applications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>columns</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>rows</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "tag" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStoreSection.Tool`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Tool(
+    val name: String,
+    val applications: List<ApplicationSummaryWithFavorite>,
+    val columns: Int,
+    val rows: Int,
+    val type: String /* "tool" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>applications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>columns</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>rows</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "tool" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `ApplicationAccessRight`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -7318,6 +6901,54 @@ data class DeleteAppRequest(
 
 ---
 
+### `DevImportRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class DevImportRequest(
+    val endpoint: String,
+    val checksum: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>endpoint</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>checksum</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `FavoriteRequest`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -7722,6 +7353,42 @@ data class UpdateAclRequest(
 <details>
 <summary>
 <code>changes</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#aclentryrequest'>ACLEntryRequest</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStoreOverviewResponse`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class AppStoreOverviewResponse(
+    val sections: List<AppStoreSection>,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>sections</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#appstoresection'>AppStoreSection</a>&gt;</code></code>
 </summary>
 
 

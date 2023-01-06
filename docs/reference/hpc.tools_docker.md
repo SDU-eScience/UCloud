@@ -65,61 +65,6 @@ Tool(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* This example show an example Tool which uses a container backend. This Tool specifies that the 
-container image is "acme/batch:1.0.0". The provider decides how to retrieve these images. We 
-recommend that you follow the standard defined by Docker. */
-
-// Authenticated as user
-await callAPI(HpcToolsApi.findByNameAndVersion(
-    {
-        "name": "acme-batch",
-        "version": "1.0.0"
-    }
-);
-
-/*
-{
-    "owner": "_ucloud",
-    "createdAt": 1633329776235,
-    "modifiedAt": 1633329776235,
-    "description": {
-        "info": {
-            "name": "acme-batch",
-            "version": "1.0.0"
-        },
-        "container": null,
-        "defaultNumberOfNodes": 1,
-        "defaultTimeAllocation": {
-            "hours": 1,
-            "minutes": 0,
-            "seconds": 0
-        },
-        "requiredModules": [
-        ],
-        "authors": [
-            "Acme Inc."
-        ],
-        "title": "Acme Batch",
-        "description": "A batch tool",
-        "backend": "DOCKER",
-        "license": "None",
-        "image": "acme/batch:1.0.0",
-        "supportedProviders": null
-    }
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 

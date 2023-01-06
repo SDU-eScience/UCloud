@@ -47,6 +47,15 @@ exactly one owner, [a workspace](/docs/developer-guide/accounting-and-projects/p
 
 __Figure:__ Allocations create a natural _allocation hierarchy_.
 
+---
+
+__📝NOTE:__ The wallet and accounting systems are currently considered internal due to some limitations
+in the API. We aim to keep the provider API (the control interfaces) stable but the accounting system itself
+will remain at an internal level until we have resolved the issues at an API level. We plan on making this
+API stable in the long-term.
+
+---
+
 ## Table of Contents
 <details>
 <summary>
@@ -205,7 +214,7 @@ accessible [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.Wall
 
 ### `retrieveProviderSummary`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -221,7 +230,7 @@ allocations that a provider currently has.
 
 ### `retrieveRecipient`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -253,7 +262,7 @@ accessible [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.Wall
 
 ### `push`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -263,11 +272,12 @@ _Pushes a Wallet to the catalog_
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#pushwalletchangerequestitem'>PushWalletChangeRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+Be careful with using this endpoint as it might go away in a future release.
 
 
 ### `register`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -277,6 +287,7 @@ _Registers an allocation created outside of UCloud_
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#registerwalletrequestitem'>RegisterWalletRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+Be careful with using this endpoint as it might go away in a future release.
 
 
 
@@ -410,6 +421,8 @@ data class WalletAllocation(
     val startDate: Long,
     val endDate: Long?,
     val grantedIn: Long?,
+    val canAllocate: Boolean?,
+    val allowSubAllocationsToAllocate: Boolean?,
 )
 ```
 You can find more information about WalletAllocations
@@ -501,6 +514,28 @@ Note that this allocation path will always include, as its last element, this al
 <details>
 <summary>
 <code>grantedIn</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> ID reference to which grant application this allocation was granted in
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>canAllocate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> A property which indicates if this allocation can be used to create sub-allocations
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>allowSubAllocationsToAllocate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> A property which indicates that new sub-allocations of this allocation by default should have canAllocate = true
 </summary>
 
 
@@ -897,7 +932,7 @@ data class SubAllocation(
 
 ### `WalletOwner`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -914,7 +949,7 @@ sealed class WalletOwner {
 
 ### `WalletOwner.Project`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -963,7 +998,7 @@ data class Project(
 
 ### `WalletOwner.User`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1012,7 +1047,7 @@ data class User(
 
 ### `PushWalletChangeRequestItem`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1060,7 +1095,7 @@ data class PushWalletChangeRequestItem(
 
 ### `RegisterWalletRequestItem`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1258,7 +1293,7 @@ paginate through the results.
 
 ### `WalletsBrowseSubAllocationsRequest`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1516,7 +1551,7 @@ data class WalletsRetrieveRecipientRequest(
 
 ### `WalletsSearchSubAllocationsRequest`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

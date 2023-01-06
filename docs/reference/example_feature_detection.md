@@ -37,11 +37,14 @@ SupportByProvider(
             ), 
             chargeType = ChargeType.ABSOLUTE, 
             cpu = 1, 
+            cpuModel = null, 
             description = "An example machine", 
             freeToUse = false, 
             gpu = null, 
+            gpuModel = null, 
             hiddenInGrantApplications = false, 
             memoryInGigs = 1, 
+            memoryModel = null, 
             name = "example-compute", 
             pricePerUnit = 1, 
             priority = 0, 
@@ -95,97 +98,6 @@ BulkResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will show how to use the feature detection feature of resources. Recall, that
-providers need to specify if they support counting backwards. */
-
-// Authenticated as user
-await callAPI(ExampleApi.retrieveProducts(
-    {
-    }
-);
-
-/*
-{
-    "productsByProvider": {
-        "example": [
-            {
-                "product": {
-                    "type": "compute",
-                    "balance": null,
-                    "name": "example-compute",
-                    "pricePerUnit": 1,
-                    "category": {
-                        "name": "example-compute",
-                        "provider": "example"
-                    },
-                    "description": "An example machine",
-                    "priority": 0,
-                    "cpu": 1,
-                    "memoryInGigs": 1,
-                    "gpu": null,
-                    "version": 1,
-                    "freeToUse": false,
-                    "unitOfPrice": "UNITS_PER_HOUR",
-                    "chargeType": "ABSOLUTE",
-                    "hiddenInGrantApplications": false,
-                    "productType": "COMPUTE"
-                },
-                "support": {
-                    "product": {
-                        "id": "example-compute",
-                        "category": "example-compute",
-                        "provider": "example"
-                    },
-                    "supportsBackwardsCounting": "SUPPORTED"
-                }
-            }
-        ]
-    }
-}
-*/
-
-/* In this case, the provider supports counting backwards. */
-
-
-/* Creating a resource which counts backwards should succeed. */
-
-await callAPI(ExampleApi.create(
-    {
-        "items": [
-            {
-                "start": 0,
-                "target": -100,
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "1234"
-        }
-    ]
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -219,6 +131,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrievePr
 #                     "cpu": 1,
 #                     "memoryInGigs": 1,
 #                     "gpu": null,
+#                     "cpuModel": null,
+#                     "memoryModel": null,
+#                     "gpuModel": null,
 #                     "version": 1,
 #                     "freeToUse": false,
 #                     "unitOfPrice": "UNITS_PER_HOUR",

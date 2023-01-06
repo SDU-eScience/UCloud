@@ -9,6 +9,7 @@
 
 [![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_## Rationale_
 
 ## Rationale
 
@@ -36,8 +37,8 @@ One or more primary shards have not been allocated
 
 If the state changes to yellow and have not changed back to green within
     5 minutes the service will send an alert. If the state however changes to
-red, it will be alert after 1 minute. We can live without a replica but if
-we are missing a primary shard, then we miss data.
+red, it will alert after 1 minute. We can live without a replica but if
+we are missing a primary shard, then we have unavailable data.
 
 - **Elasticsearch storage**
     Elasticsearch consists of multiple data nodes. Theses nodes are given an
@@ -45,9 +46,9 @@ we are missing a primary shard, then we miss data.
     pre-configured limits it will trigger and send a message.
 SDUCloud uses the following configuration:
 
-- Send a `information` message clarifying which node has used 50% of its
+- Send a `information` message clarifying which node has used 85% of its
 storage.
-- Send a `warning` message clarifying which node has used 80% of its storage.
+- Send a `warning` message clarifying which node has used 88% of its storage.
 - Send a `alert` message clarifying which node has used 90% of its storage.
 
 This gives time to either scale up or clean out in the elastic indices
@@ -71,6 +72,14 @@ Since the number of shards do not change much during a day, this alert is only
 checking every 12 hours. Should an alert have fired, it checks every 30 min to be able to notify
 once the number of available shards are above the limit again.
 
+- **Number of Documents**
+If a shard is containing to many documents (entries in Elasticsearch) then it might
+become to heavy to perform optimal. We have an alert that triggers if a shard 
+exceeds 1.800.000.000 documents and again at 2.000.000.000. Should this trigger
+a reindex would be needed to split the original index into multiple indices or
+delete some data that might have been missed by the timed scan of logs. 
+
+
 - **5XX status codes**
     If request returns a 5XX code, then it could be a sign of something is
 wrong in either our code or our infrastructure.
@@ -90,7 +99,7 @@ If any pods in the kubernetes cluster fails due to some error or if a pod
 pod have failed.
 
 - **4XX detection in Ambassador**
-If an IP has many 4XX requests going through Ambassador there is a risk
+    If an IP has many 4XX requests going through Ambassador there is a risk
 that there might be someone malicious person trying to gain access to SDUCloud by
     sweeping for endpoints.
 
@@ -105,4 +114,19 @@ By doing this the alert will skip a log if the origin IP is contain in the list 
 whitelisted IPs.
 
 This alert is run every 15 minutes.
+
+- **Node monitoring (Kubernetes)**
+    If a node changes status to a know error state, this alert will send a 
+message declaring the node, state and problem. The follow state are monitored:
+
+- **Ready state**
+If state is unknown or not ready it will trigger alert
+- **MemoryPressure**
+Node is low on memory
+- **PIDPressure**
+To many processors are active on the node at the same time
+- **DiskPressure**
+Node is low on disk space.
+- **NetworkUnavailable**
+The nodes network is not configured correctly
 

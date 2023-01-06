@@ -42,7 +42,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 500, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "42", 
@@ -117,7 +119,7 @@ Accounting.deposit.call(
         ), 
         sourceAllocation = "42", 
         startDate = null, 
-        transactionId = "-45008095517124042631662706352560", 
+        transactionId = "-77911231101895076951673000211088", 
     )),
     piRoot
 ).orThrow()
@@ -141,7 +143,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 500, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "42", 
@@ -182,7 +186,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42", "52"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 100, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "52", 
@@ -206,238 +212,6 @@ PageV2(
     itemsPerPage = 50, 
     next = null, 
 )
-*/
-
-/* After inspecting the allocations, we see that the original (root) allocation remains unchanged. 
-However, the leaf workspace now have a new allocation. This allocation has the root allocation as a 
-parent, indicated by the path.  */
-
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will show how a workspace can create a sub-allocation. The new allocation will 
-have an existing allocation as a child. This is the recommended way of creating allocations. 
-Resources are not immediately removed from the parent allocation. In addition, workspaces can 
-over-allocate resources. For example, a workspace can deposit more resources than they have into 
-sub-allocations. This doesn't create more resources in the system. As we saw from the charge 
-examples, all allocations in a hierarchy must be able to carry a charge. */
-
-// Authenticated as piRoot
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "root-project"
-            },
-            "paysFor": {
-                "name": "example-slim",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "42",
-                    "allocationPath": [
-                        "42"
-                    ],
-                    "balance": 500,
-                    "initialBalance": 500,
-                    "localBalance": 500,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "COMPUTE",
-            "chargeType": "ABSOLUTE",
-            "unit": "UNITS_PER_HOUR"
-        }
-    ],
-    "next": null
-}
-*/
-// Authenticated as piLeaf
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "leaf-project"
-            },
-            "paysFor": {
-                "name": "example-slim",
-                "provider": "example"
-            },
-            "allocations": [
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "COMPUTE",
-            "chargeType": "ABSOLUTE",
-            "unit": "UNITS_PER_HOUR"
-        }
-    ],
-    "next": null
-}
-*/
-
-/* Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
-resources at the moment. */
-
-
-/* We now perform a deposit operation with the leaf workspace as the target. */
-
-// Authenticated as piRoot
-await callAPI(AccountingApi.deposit(
-    {
-        "items": [
-            {
-                "recipient": {
-                    "type": "project",
-                    "projectId": "leaf-project"
-                },
-                "sourceAllocation": "42",
-                "amount": 100,
-                "description": "Create sub-allocation",
-                "startDate": null,
-                "endDate": null,
-                "transactionId": "-45008095517124042631662706352560",
-                "dry": false
-            }
-        ]
-    }
-);
-
-/*
-{
-}
-*/
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "root-project"
-            },
-            "paysFor": {
-                "name": "example-slim",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "42",
-                    "allocationPath": [
-                        "42"
-                    ],
-                    "balance": 500,
-                    "initialBalance": 500,
-                    "localBalance": 500,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "COMPUTE",
-            "chargeType": "ABSOLUTE",
-            "unit": "UNITS_PER_HOUR"
-        }
-    ],
-    "next": null
-}
-*/
-// Authenticated as piLeaf
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "leaf-project"
-            },
-            "paysFor": {
-                "name": "example-slim",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "52",
-                    "allocationPath": [
-                        "42",
-                        "52"
-                    ],
-                    "balance": 100,
-                    "initialBalance": 100,
-                    "localBalance": 100,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "COMPUTE",
-            "chargeType": "ABSOLUTE",
-            "unit": "UNITS_PER_HOUR"
-        }
-    ],
-    "next": null
-}
 */
 
 /* After inspecting the allocations, we see that the original (root) allocation remains unchanged. 
@@ -493,7 +267,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 500,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -549,7 +325,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "description": "Create sub-allocation",
             "startDate": null,
             "endDate": null,
-            "transactionId": "-45008095517124042631662706352560",
+            "transactionId": "-77911231101895076951673000211088",
             "dry": false
         }
     ]
@@ -584,7 +360,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 500,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -623,7 +401,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 100,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",

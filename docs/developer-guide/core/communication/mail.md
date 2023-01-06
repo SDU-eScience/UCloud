@@ -1,6 +1,6 @@
 <p align='center'>
 <a href='/docs/developer-guide/core/communication/slack.md'>« Previous section</a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/built-in-provider/storage.md'>Next section »</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/legacy/projects-legacy/README.md'>Next section »</a>
 </p>
 
 
@@ -232,48 +232,6 @@ Unit
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as ucloud
-await callAPI(MailApi.sendToUser(
-    {
-        "items": [
-            {
-                "receiver": "User#1234",
-                "mail": {
-                    "type": "lowFunds",
-                    "categories": [
-                        "u1-standard"
-                    ],
-                    "providers": [
-                        "ucloud"
-                    ],
-                    "projectTitles": [
-                        "Science Project"
-                    ],
-                    "subject": "Wallets low on resource"
-                },
-                "mandatory": false,
-                "receivingEmail": null,
-                "testMail": null
-            }
-        ]
-    }
-);
-
-/*
-{
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -354,30 +312,6 @@ MailDescriptions.sendSupport.call(
 
 /*
 Unit
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as ucloud
-await callAPI(MailApi.sendSupport(
-    {
-        "fromEmail": "foo@bar",
-        "subject": "Subject",
-        "message": "Message"
-    }
-);
-
-/*
-{
-}
 */
 ```
 
@@ -519,103 +453,6 @@ RetrieveEmailSettingsResponse(
         verificationReminder = false, 
     ), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(MailApi.retrieveEmailSettings(
-    {
-        "username": null
-    }
-);
-
-/*
-{
-    "settings": {
-        "newGrantApplication": true,
-        "grantAutoApprove": true,
-        "grantApplicationUpdated": true,
-        "grantApplicationApproved": true,
-        "grantApplicationRejected": true,
-        "grantApplicationWithdrawn": true,
-        "newCommentOnApplication": true,
-        "applicationTransfer": true,
-        "applicationStatusChange": true,
-        "projectUserInvite": true,
-        "projectUserRemoved": true,
-        "verificationReminder": true,
-        "userRoleChange": true,
-        "userLeft": true,
-        "lowFunds": true
-    }
-}
-*/
-await callAPI(MailApi.toggleEmailSettings(
-    {
-        "items": [
-            {
-                "username": null,
-                "settings": {
-                    "newGrantApplication": true,
-                    "grantAutoApprove": true,
-                    "grantApplicationUpdated": true,
-                    "grantApplicationApproved": true,
-                    "grantApplicationRejected": true,
-                    "grantApplicationWithdrawn": true,
-                    "newCommentOnApplication": true,
-                    "applicationTransfer": true,
-                    "applicationStatusChange": true,
-                    "projectUserInvite": true,
-                    "projectUserRemoved": true,
-                    "verificationReminder": false,
-                    "userRoleChange": true,
-                    "userLeft": true,
-                    "lowFunds": true
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-}
-*/
-await callAPI(MailApi.retrieveEmailSettings(
-    {
-        "username": null
-    }
-);
-
-/*
-{
-    "settings": {
-        "newGrantApplication": true,
-        "grantAutoApprove": true,
-        "grantApplicationUpdated": true,
-        "grantApplicationApproved": true,
-        "grantApplicationRejected": true,
-        "grantApplicationWithdrawn": true,
-        "newCommentOnApplication": true,
-        "applicationTransfer": true,
-        "applicationStatusChange": true,
-        "projectUserInvite": true,
-        "projectUserRemoved": true,
-        "verificationReminder": false,
-        "userRoleChange": true,
-        "userLeft": true,
-        "lowFunds": true
-    }
-}
 */
 ```
 

@@ -54,46 +54,6 @@ BulkResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.createUpload(
-    {
-        "items": [
-            {
-                "id": "/123/folder",
-                "supportedProtocols": [
-                    "CHUNKED"
-                ],
-                "conflictPolicy": "REJECT"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "endpoint": "https://provider.example.com/ucloud/example-provider/chunked",
-            "protocol": "CHUNKED",
-            "token": "f1460d47e583653f7723204e5ff3f50bad91a658"
-        }
-    ]
-}
-*/
-
-/* The user can now proceed to upload using the chunked protocol at the provided endpoint */
-
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 

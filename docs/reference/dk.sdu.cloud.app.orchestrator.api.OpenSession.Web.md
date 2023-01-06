@@ -3,7 +3,7 @@
 # `OpenSession.Web`
 
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -12,6 +12,7 @@ data class Web(
     val jobId: String,
     val rank: Int,
     val redirectClientTo: String,
+    val domainOverride: String?,
     val type: String /* "web" */,
 )
 ```
@@ -56,10 +57,20 @@ data class Web(
 
 <details>
 <summary>
+<code>domainOverride</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Domain override, which will be forwarded to the end-user. This overrides the domain used by UCloud/Core. Must contain scheme (e.g. https://).
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>type</code>: <code><code>String /* "web" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

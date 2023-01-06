@@ -26,12 +26,14 @@ data class IntegrationProviderConnectRequest(val username: String)
 data class IntegrationProviderConnectResponse(val redirectTo: String)
 
 @Serializable
+@Deprecated("Use the simpler register endpoint instead")
 data class ProviderWelcomeTokens(val refreshToken: String, val publicKey: String)
 
 @Serializable
 data class IntegrationProviderUnlinkedRequest(val username: String)
 
 @Serializable
+@Deprecated("Use the simpler register endpoint instead")
 data class IntegrationProviderWelcomeRequest(val token: String, val createdProvider: ProviderWelcomeTokens)
 typealias IntegrationProviderWelcomeResponse = Unit
 
@@ -51,6 +53,7 @@ open class IntegrationProvider(namespace: String) : CallDescriptionContainer("$n
         httpUpdate(baseContext, "connect", roles = Roles.PRIVILEGED)
     }
 
+    @Deprecated("Use the simpler register endpoint instead")
     val welcome = call("welcome", IntegrationProviderWelcomeRequest.serializer(), IntegrationProviderWelcomeResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "welcome", roles = Roles.PUBLIC)
     }
