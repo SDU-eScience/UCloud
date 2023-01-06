@@ -82,12 +82,17 @@ working in projects.
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Update the avatar of the current user."
+        }
     }
 
     val findAvatar = call("findAvatar", FindRequest.serializer(), FindResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
+
         http {
             method = HttpMethod.Get
 
@@ -97,6 +102,10 @@ working in projects.
                 +"find"
             }
         }
+
+       documentation {
+           summary = "Request the avatar of the current user."
+       }
     }
 
     val findBulk = call("findBulk", FindBulkRequest.serializer(), FindBulkResponse.serializer(), CommonErrorMessage.serializer()) {
@@ -114,6 +123,10 @@ working in projects.
             }
 
             body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Request the avatars of one or more users by username."
         }
     }
 }
