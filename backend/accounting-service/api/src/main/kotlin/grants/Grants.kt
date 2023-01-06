@@ -337,7 +337,7 @@ Grants acts as a more user-friendly gateway to receiving resources from a projec
 2. Project administrator of `Application.resourcesOwnedBy` reviews the application
    - User and reviewer can comment on the application via `GrantComments.createComment`
    - User and reviewer can perform edits to the application via `Grants.editApplication`
-3. Reviewer either performs `Grants.closeApplication` or `Grants.approveApplication`
+3. Reviewer performs `Grants.updateApplicationState` to approve or reject
 4. If the `GrantApplication` was approved then resources are granted to the `GrantApplication.recipient`
 
 ${ApiConventions.nonConformingApiWarning}
@@ -420,8 +420,8 @@ ${ApiConventions.nonConformingApiWarning}
 
         documentation {
             summary = "Closes an existing [GrantApplication]"
-            description = "This action is identical to [rejectApplication] except it can be performed by the " +
-                "[GrantApplication] creator."
+            description = "This action is identical to rejecting the [GrantApplication] using " +
+                "[updateApplicationState] except it can be performed by the [GrantApplication] creator."
         }
     }
 
