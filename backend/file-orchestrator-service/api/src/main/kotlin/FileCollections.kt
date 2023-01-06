@@ -273,6 +273,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 
     val rename = call("rename", BulkRequest.serializer(FileCollectionsRenameRequestItem.serializer()), FileCollectionsRenameResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "rename")
+
+        documentation {
+            summary = "Request renaming of $TYPE_REF FileCollection"
+        }
     }
 }
 

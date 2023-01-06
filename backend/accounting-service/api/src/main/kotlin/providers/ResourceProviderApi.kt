@@ -73,6 +73,10 @@ abstract class ResourceProviderApi<
             name = "create",
             handler = {
                 httpCreate(BulkRequest.serializer(typeInfo.resSerializer), baseContext, roles = Roles.PRIVILEGED)
+
+                documentation {
+                    summary = "Request creation of resource."
+                }
             },
             requestType = BulkRequest.serializer(typeInfo.resSerializer),
             successType = BulkResponse.serializer(FindByStringId.serializer().nullable),
@@ -87,6 +91,10 @@ abstract class ResourceProviderApi<
             name = "delete",
             handler = {
                 httpDelete(BulkRequest.serializer(typeInfo.resSerializer), baseContext, roles = Roles.PRIVILEGED)
+
+                documentation {
+                    summary = "Request deletion of resource."
+                }
             },
             requestType = BulkRequest.serializer(typeInfo.resSerializer),
             successType = BulkResponse.serializer(Unit.serializer().nullable),
@@ -127,7 +135,7 @@ abstract class ResourceProviderApi<
                 httpRetrieve(Unit.serializer(), typeOfIfPossible<Unit>(), baseContext, "products", roles = Roles.PRIVILEGED)
 
                 documentation {
-                    summary = "Retrieve product support for this providers"
+                    summary = "Retrieve product support for this provider"
                     description = """
                         This endpoint responds with the $TYPE_REF dk.sdu.cloud.accounting.api.Product s supported by
                         this provider along with details for how $TYPE_REF dk.sdu.cloud.accounting.api.Product is
