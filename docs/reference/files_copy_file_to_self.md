@@ -47,39 +47,6 @@ BulkResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.copy(
-    {
-        "items": [
-            {
-                "oldId": "/123/my/file",
-                "newId": "/123/my/file",
-                "conflictPolicy": "RENAME"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "type": "complete"
-        }
-    ]
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 

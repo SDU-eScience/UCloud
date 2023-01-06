@@ -226,105 +226,6 @@ Unit
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as ucloud
-await callAPI(TaskApi.create(
-    {
-        "title": "We are counting to 3",
-        "owner": "User#1234",
-        "initialStatus": null
-    }
-);
-
-/*
-{
-    "jobId": "b06f51d2-88af-487c-bb4c-4cc156cf24fd",
-    "owner": "User#1234",
-    "processor": "_ucloud",
-    "title": "We are counting to 3",
-    "status": null,
-    "complete": false,
-    "startedAt": 0,
-    "modifiedAt": 0
-}
-*/
-await callAPI(TaskApi.postStatus(
-    {
-        "update": {
-            "jobId": "b06f51d2-88af-487c-bb4c-4cc156cf24fd",
-            "newTitle": null,
-            "speeds": [
-            ],
-            "progress": null,
-            "complete": false,
-            "messageToAppend": "Count is now 1",
-            "newStatus": null
-        }
-    }
-);
-
-/*
-{
-}
-*/
-await callAPI(TaskApi.postStatus(
-    {
-        "update": {
-            "jobId": "b06f51d2-88af-487c-bb4c-4cc156cf24fd",
-            "newTitle": null,
-            "speeds": [
-            ],
-            "progress": null,
-            "complete": false,
-            "messageToAppend": "Count is now 2",
-            "newStatus": null
-        }
-    }
-);
-
-/*
-{
-}
-*/
-await callAPI(TaskApi.postStatus(
-    {
-        "update": {
-            "jobId": "b06f51d2-88af-487c-bb4c-4cc156cf24fd",
-            "newTitle": null,
-            "speeds": [
-            ],
-            "progress": null,
-            "complete": false,
-            "messageToAppend": "Count is now 3",
-            "newStatus": null
-        }
-    }
-);
-
-/*
-{
-}
-*/
-await callAPI(TaskApi.markAsComplete(
-    {
-        "id": "b06f51d2-88af-487c-bb4c-4cc156cf24fd"
-    }
-);
-
-/*
-{
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -497,17 +398,6 @@ TaskUpdate(
 )
 */
 
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
 ```
 
 

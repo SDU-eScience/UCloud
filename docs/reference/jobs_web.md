@@ -66,94 +66,13 @@ BulkResponse(
         providerDomain = "provider.example.com", 
         providerId = "example", 
         session = OpenSession.Web(
+            domainOverride = null, 
             jobId = "62342", 
             rank = 0, 
             redirectClientTo = "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d", 
         ), 
     )), 
 )
-*/
-
-/* The user should now proceed to the link provided in the response */
-
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, the user will create a Job which uses an Application that exposes a web interface */
-
-// Authenticated as user
-await callAPI(JobsApi.create(
-    {
-        "items": [
-            {
-                "application": {
-                    "name": "acme-web-application",
-                    "version": "1.0.0"
-                },
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                },
-                "name": null,
-                "replicas": 1,
-                "allowDuplicateJob": false,
-                "parameters": null,
-                "resources": null,
-                "timeAllocation": null,
-                "openedFile": null,
-                "restartOnExit": null,
-                "sshEnabled": null
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "62342"
-        }
-    ]
-}
-*/
-await callAPI(JobsApi.openInteractiveSession(
-    {
-        "items": [
-            {
-                "id": "62342",
-                "rank": 0,
-                "sessionType": "WEB"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "providerDomain": "provider.example.com",
-            "providerId": "example",
-            "session": {
-                "type": "web",
-                "jobId": "62342",
-                "rank": 0,
-                "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d"
-            }
-        }
-    ]
-}
 */
 
 /* The user should now proceed to the link provided in the response */
@@ -231,7 +150,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 "type": "web",
 #                 "jobId": "62342",
 #                 "rank": 0,
-#                 "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d"
+#                 "redirectClientTo": "app-gateway.provider.example.com?token=aa2dd29a-fe83-4201-b28e-fe211f94ac9d",
+#                 "domainOverride": null
 #             }
 #         }
 #     ]

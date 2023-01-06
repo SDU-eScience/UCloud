@@ -13,18 +13,21 @@ import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
 
 @Serializable
+@UCloudApiStable
 data class NetworkIPSpecification(
     @UCloudApiDoc("The product used for the `NetworkIP`")
     override val product: ProductReference,
     val firewall: Firewall? = null,
 ) : ResourceSpecification {
     @Serializable
+    @UCloudApiStable
     data class Firewall(
         val openPorts: List<PortRangeAndProto> = emptyList(),
     )
 }
 
 @Serializable
+@UCloudApiStable
 data class FirewallAndId(
     override val id: String,
     val firewall: NetworkIPSpecification.Firewall,
@@ -65,6 +68,7 @@ data class FirewallAndId(
 }
 
 @Serializable
+@UCloudApiStable
 data class PortRangeAndProto(
     val start: Int,
     val end: Int,
@@ -80,13 +84,14 @@ data class PortRangeAndProto(
 }
 
 @Serializable
+@UCloudApiStable
 enum class IPProtocol {
     TCP,
     UDP,
-    // No support for any of the others. Some one would have to bring a convincing argument for me to add this.
+    // No support for any of the others. Someone would have to bring a convincing argument for me to add this.
 }
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 @UCloudApiDoc("A `NetworkIP` for use in `Job`s")
 @Serializable
 data class NetworkIP(
@@ -112,6 +117,7 @@ data class NetworkIP(
 ) : Resource<Product.NetworkIP, NetworkIPSupport>
 
 @UCloudApiDoc("The status of an `NetworkIP`")
+@UCloudApiStable
 @Serializable
 data class NetworkIPStatus(
     val state: NetworkIPState,
@@ -125,7 +131,7 @@ data class NetworkIPStatus(
     override var resolvedProduct: Product.NetworkIP? = null,
 ) : JobBoundStatus<Product.NetworkIP, NetworkIPSupport>
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 @Serializable
 enum class NetworkIPState {
     @UCloudApiDoc(
@@ -143,7 +149,7 @@ enum class NetworkIPState {
     UNAVAILABLE
 }
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 @Serializable
 data class NetworkIPUpdate(
     @UCloudApiDoc("A timestamp for when this update was registered by UCloud")
@@ -163,6 +169,7 @@ data class NetworkIPUpdate(
 ) : JobBoundUpdate<NetworkIPState>
 
 @Serializable
+@UCloudApiStable
 data class NetworkIPFlags(
     val filterState: NetworkIPState? = null,
     override val includeOthers: Boolean = false,
@@ -183,11 +190,13 @@ data class NetworkIPFlags(
 ) : ResourceIncludeFlags
 
 @Serializable
+@UCloudApiStable
 data class NetworkIPSupport(
     override val product: ProductReference,
     val firewall: Firewall = Firewall(),
 ) : ProductSupport {
     @Serializable
+    @UCloudApiStable
     data class Firewall(
         var enabled: Boolean? = null
     )
@@ -197,13 +206,14 @@ typealias NetworkIPsUpdateFirewallRequest = BulkRequest<FirewallAndId>
 typealias NetworkIPsUpdateFirewallResponse = Unit
 
 @Serializable
+@UCloudApiStable
 data class FirewallAndIP(
     val networkIp: NetworkIP,
     val firewall: NetworkIPSpecification.Firewall
 )
 
 @TSNamespace("compute.networkips")
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 object NetworkIPs : ResourceApi<NetworkIP, NetworkIPSpecification, NetworkIPUpdate, NetworkIPFlags, NetworkIPStatus,
         Product.NetworkIP, NetworkIPSupport>("networkips") {
     @OptIn(ExperimentalStdlibApi::class)
@@ -338,6 +348,7 @@ firewall is controlled by the virtual machine.
 }
 
 @TSNamespace("compute.networkips.control")
+@UCloudApiStable
 object NetworkIPControl : ResourceControlApi<NetworkIP, NetworkIPSpecification, NetworkIPUpdate, NetworkIPFlags,
         NetworkIPStatus, Product.NetworkIP, NetworkIPSupport>("networkips") {
     @OptIn(ExperimentalStdlibApi::class)
@@ -359,6 +370,7 @@ object NetworkIPControl : ResourceControlApi<NetworkIP, NetworkIPSpecification, 
     )
 }
 
+@UCloudApiStable
 open class NetworkIPProvider(provider: String) : ResourceProviderApi<NetworkIP, NetworkIPSpecification,
         NetworkIPUpdate, NetworkIPFlags, NetworkIPStatus, Product.NetworkIP, NetworkIPSupport>("networkips", provider) {
     @OptIn(ExperimentalStdlibApi::class)

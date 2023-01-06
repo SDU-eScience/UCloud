@@ -103,6 +103,7 @@ This means that a metadata document might exist for every user who has/had acces
 }
 
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 data class FileMetadataHistory(
     val templates: Map<String, FileMetadataTemplate>,
     val metadata: Map<String, List<FileMetadataOrDeleted>>

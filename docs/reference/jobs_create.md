@@ -182,11 +182,14 @@ machineTypes = PageV2(
         ), 
         chargeType = ChargeType.ABSOLUTE, 
         cpu = 10, 
+        cpuModel = null, 
         description = "An example compute product", 
         freeToUse = false, 
         gpu = 0, 
+        gpuModel = null, 
         hiddenInGrantApplications = false, 
         memoryInGigs = 20, 
+        memoryModel = null, 
         name = "example-compute", 
         pricePerUnit = 1000000, 
         priority = 0, 
@@ -235,259 +238,6 @@ BulkResponse(
         id = "48920", 
     )), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* The user finds an interesting application from the catalog */
-
-// Authenticated as user
-const applications = await callAPI(HpcAppsApi.listAll(
-    {
-        "itemsPerPage": 50,
-        "page": 0
-    }
-);
-
-/*
-applications = {
-    "itemsInTotal": 1,
-    "itemsPerPage": 50,
-    "pageNumber": 0,
-    "items": [
-        {
-            "metadata": {
-                "name": "a-batch-application",
-                "version": "1.0.0",
-                "authors": [
-                    "UCloud"
-                ],
-                "title": "A Batch Application",
-                "description": "This is a batch application",
-                "website": null,
-                "public": true
-            },
-            "favorite": false,
-            "tags": [
-                "very-scientific"
-            ]
-        }
-    ]
-}
-*/
-
-/* The user selects the first application ('batch' in version '1.0.0') */
-
-
-/* The user requests additional information about the application */
-
-const application = await callAPI(HpcAppsApi.findByNameAndVersion(
-    {
-        "appName": "a-batch-application",
-        "appVersion": "1.0.0"
-    }
-);
-
-/*
-application = {
-    "metadata": {
-        "name": "a-batch-application",
-        "version": "1.0.0",
-        "authors": [
-            "UCloud"
-        ],
-        "title": "A Batch Application",
-        "description": "This is a batch application",
-        "website": null,
-        "public": true
-    },
-    "invocation": {
-        "tool": {
-            "name": "batch-tool",
-            "version": "1.0.0",
-            "tool": {
-                "owner": "user",
-                "createdAt": 1632979836013,
-                "modifiedAt": 1632979836013,
-                "description": {
-                    "info": {
-                        "name": "batch-tool",
-                        "version": "1.0.0"
-                    },
-                    "container": null,
-                    "defaultNumberOfNodes": 1,
-                    "defaultTimeAllocation": {
-                        "hours": 1,
-                        "minutes": 0,
-                        "seconds": 0
-                    },
-                    "requiredModules": [
-                    ],
-                    "authors": [
-                        "UCloud"
-                    ],
-                    "title": "Batch tool",
-                    "description": "Batch tool",
-                    "backend": "DOCKER",
-                    "license": "None",
-                    "image": "dreg.cloud.sdu.dk/batch/batch:1.0.0",
-                    "supportedProviders": null
-                }
-            }
-        },
-        "invocation": [
-            {
-                "type": "word",
-                "word": "batch"
-            },
-            {
-                "type": "var",
-                "variableNames": [
-                    "var"
-                ],
-                "prefixGlobal": "",
-                "suffixGlobal": "",
-                "prefixVariable": "",
-                "suffixVariable": "",
-                "isPrefixVariablePartOfArg": false,
-                "isSuffixVariablePartOfArg": false
-            }
-        ],
-        "parameters": [
-            {
-                "type": "text",
-                "name": "var",
-                "optional": false,
-                "defaultValue": null,
-                "title": "",
-                "description": "An example input variable"
-            }
-        ],
-        "outputFileGlobs": [
-            "*"
-        ],
-        "applicationType": "BATCH",
-        "vnc": null,
-        "web": null,
-        "ssh": null,
-        "container": null,
-        "environment": null,
-        "allowAdditionalMounts": null,
-        "allowAdditionalPeers": null,
-        "allowMultiNode": false,
-        "allowPublicIp": false,
-        "allowPublicLink": null,
-        "fileExtensions": [
-        ],
-        "licenseServers": [
-        ]
-    },
-    "favorite": false,
-    "tags": [
-        "very-scientific"
-    ]
-}
-*/
-
-/* The user looks for a suitable machine */
-
-const machineTypes = await callAPI(ProductsApi.browse(
-    {
-        "itemsPerPage": 50,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterName": null,
-        "filterProvider": null,
-        "filterArea": "COMPUTE",
-        "filterCategory": null,
-        "filterVersion": null,
-        "showAllVersions": null,
-        "includeBalance": null
-    }
-);
-
-/*
-machineTypes = {
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "type": "compute",
-            "balance": null,
-            "name": "example-compute",
-            "pricePerUnit": 1000000,
-            "category": {
-                "name": "example-compute",
-                "provider": "example"
-            },
-            "description": "An example compute product",
-            "priority": 0,
-            "cpu": 10,
-            "memoryInGigs": 20,
-            "gpu": 0,
-            "version": 1,
-            "freeToUse": false,
-            "unitOfPrice": "CREDITS_PER_MINUTE",
-            "chargeType": "ABSOLUTE",
-            "hiddenInGrantApplications": false,
-            "productType": "COMPUTE"
-        }
-    ],
-    "next": null
-}
-*/
-
-/* The user starts the Job with input based on previous requests */
-
-await callAPI(JobsApi.create(
-    {
-        "items": [
-            {
-                "application": {
-                    "name": "a-batch-application",
-                    "version": "1.0.0"
-                },
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                },
-                "name": null,
-                "replicas": 1,
-                "allowDuplicateJob": false,
-                "parameters": {
-                    "var": {
-                        "type": "text",
-                        "value": "Example"
-                    }
-                },
-                "resources": null,
-                "timeAllocation": null,
-                "openedFile": null,
-                "restartOnExit": null,
-                "sshEnabled": null
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "48920"
-        }
-    ]
-}
 */
 ```
 
@@ -664,6 +414,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #             "cpu": 10,
 #             "memoryInGigs": 20,
 #             "gpu": 0,
+#             "cpuModel": null,
+#             "memoryModel": null,
+#             "gpuModel": null,
 #             "version": 1,
 #             "freeToUse": false,
 #             "unitOfPrice": "CREDITS_PER_MINUTE",

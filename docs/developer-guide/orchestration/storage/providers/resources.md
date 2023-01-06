@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / [Provider APIs](/docs/developer-guide/orchestration/storage/providers/README.md) / Introduction to Resources API for Providers
 # Introduction to Resources API for Providers
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Providers deal almost exclusively with UCloud through resource provider APIs._
 
@@ -228,157 +228,6 @@ ExampleResource(
     )), 
     providerGeneratedId = "1234", 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we show a simple creation request. The creation request is always initiated by a 
-user. */
-
-// Authenticated as ucloud
-await callAPI(ExampleProviderPROVIDERIDApi.create(
-    {
-        "items": [
-            {
-                "id": "1234",
-                "specification": {
-                    "start": 0,
-                    "target": 100,
-                    "product": {
-                        "id": "example-compute",
-                        "category": "example-compute",
-                        "provider": "example"
-                    }
-                },
-                "createdAt": 1635170395571,
-                "status": {
-                    "state": "RUNNING",
-                    "value": 10,
-                    "resolvedSupport": null,
-                    "resolvedProduct": null
-                },
-                "updates": [
-                    {
-                        "timestamp": 1635170395571,
-                        "status": "We are about to start counting!",
-                        "newState": "PENDING",
-                        "currentValue": null
-                    },
-                    {
-                        "timestamp": 1635170395571,
-                        "status": "We are now counting!",
-                        "newState": "RUNNING",
-                        "currentValue": 10
-                    }
-                ],
-                "owner": {
-                    "createdBy": "user",
-                    "project": null
-                },
-                "permissions": {
-                    "myself": [
-                        "ADMIN"
-                    ],
-                    "others": [
-                    ]
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        null
-    ]
-}
-*/
-
-/* In this case, the provider decided not to attach a provider generated ID. */
-
-
-/* The provider can, at a later point in time, retrieve this resource from UCloud/Core. */
-
-// Authenticated as provider
-await callAPI(ExampleControlApi.retrieve(
-    {
-        "flags": {
-            "filterState": null,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "1234"
-    }
-);
-
-/*
-{
-    "id": "1234",
-    "specification": {
-        "start": 0,
-        "target": 100,
-        "product": {
-            "id": "example-compute",
-            "category": "example-compute",
-            "provider": "example"
-        }
-    },
-    "createdAt": 1635170395571,
-    "status": {
-        "state": "RUNNING",
-        "value": 10,
-        "resolvedSupport": null,
-        "resolvedProduct": null
-    },
-    "updates": [
-        {
-            "timestamp": 1635170395571,
-            "status": "We are about to start counting!",
-            "newState": "PENDING",
-            "currentValue": null
-        },
-        {
-            "timestamp": 1635170395571,
-            "status": "We are now counting!",
-            "newState": "RUNNING",
-            "currentValue": 10
-        }
-    ],
-    "owner": {
-        "createdBy": "user",
-        "project": null
-    },
-    "permissions": {
-        "myself": [
-            "ADMIN"
-        ],
-        "others": [
-        ]
-    }
-}
 */
 ```
 
@@ -672,160 +521,6 @@ PageV2(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as ucloud
-await callAPI(ExampleProviderPROVIDERIDApi.create(
-    {
-        "items": [
-            {
-                "id": "1234",
-                "specification": {
-                    "start": 0,
-                    "target": 100,
-                    "product": {
-                        "id": "example-compute",
-                        "category": "example-compute",
-                        "provider": "example"
-                    }
-                },
-                "createdAt": 1635170395571,
-                "status": {
-                    "state": "RUNNING",
-                    "value": 10,
-                    "resolvedSupport": null,
-                    "resolvedProduct": null
-                },
-                "updates": [
-                    {
-                        "timestamp": 1635170395571,
-                        "status": "We are about to start counting!",
-                        "newState": "PENDING",
-                        "currentValue": null
-                    },
-                    {
-                        "timestamp": 1635170395571,
-                        "status": "We are now counting!",
-                        "newState": "RUNNING",
-                        "currentValue": 10
-                    }
-                ],
-                "owner": {
-                    "createdBy": "user",
-                    "project": null
-                },
-                "permissions": {
-                    "myself": [
-                        "ADMIN"
-                    ],
-                    "others": [
-                    ]
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "mhxas1"
-        }
-    ]
-}
-*/
-// Authenticated as provider
-await callAPI(ExampleControlApi.browse(
-    {
-        "flags": {
-            "filterState": null,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": "mhxas1",
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "sortBy": null,
-        "sortDirection": "ascending"
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "id": "1234",
-            "specification": {
-                "start": 0,
-                "target": 100,
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                }
-            },
-            "createdAt": 1635170395571,
-            "status": {
-                "state": "RUNNING",
-                "value": 10,
-                "resolvedSupport": null,
-                "resolvedProduct": null
-            },
-            "updates": [
-                {
-                    "timestamp": 1635170395571,
-                    "status": "We are about to start counting!",
-                    "newState": "PENDING",
-                    "currentValue": null
-                },
-                {
-                    "timestamp": 1635170395571,
-                    "status": "We are now counting!",
-                    "newState": "RUNNING",
-                    "currentValue": 10
-                }
-            ],
-            "owner": {
-                "createdBy": "user",
-                "project": null
-            },
-            "permissions": {
-                "myself": [
-                    "ADMIN"
-                ],
-                "others": [
-                ]
-            }
-        }
-    ],
-    "next": null
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -1024,73 +719,7 @@ ResourceProvider.create.call(
 ).orThrow()
 
 /*
-HttpStatusCode(value=500, description=Internal Server Error)
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as ucloud
-await callAPI(ExampleProviderPROVIDERIDApi.create(
-    {
-        "items": [
-            {
-                "id": "1234",
-                "specification": {
-                    "start": 0,
-                    "target": 100,
-                    "product": {
-                        "id": "example-compute",
-                        "category": "example-compute",
-                        "provider": "example"
-                    }
-                },
-                "createdAt": 1635170395571,
-                "status": {
-                    "state": "RUNNING",
-                    "value": 10,
-                    "resolvedSupport": null,
-                    "resolvedProduct": null
-                },
-                "updates": [
-                    {
-                        "timestamp": 1635170395571,
-                        "status": "We are about to start counting!",
-                        "newState": "PENDING",
-                        "currentValue": null
-                    },
-                    {
-                        "timestamp": 1635170395571,
-                        "status": "We are now counting!",
-                        "newState": "RUNNING",
-                        "currentValue": 10
-                    }
-                ],
-                "owner": {
-                    "createdBy": "user",
-                    "project": null
-                },
-                "permissions": {
-                    "myself": [
-                        "ADMIN"
-                    ],
-                    "others": [
-                    ]
-                }
-            }
-        ]
-    }
-);
-
-/*
-HttpStatusCode(value=500, description=Internal Server Error)
+500 Internal Server Error
 */
 ```
 
@@ -1159,7 +788,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 }'
 
 
-# HttpStatusCode(value=500, description=Internal Server Error)
+# 500 Internal Server Error
 
 ```
 
@@ -1278,126 +907,7 @@ ResourceProvider.create.call(
 ).orThrow()
 
 /*
-HttpStatusCode(value=500, description=Internal Server Error)
-*/
-
-/* In this case, imagine that the provider failed to create the second resource. This should
-immediately trigger cleanup on the provider, if the first resource was already created. The provider
-should then respond with an appropriate error message. Providers should not attempt to only
-partially create the resources. */
-
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will discover how a provider should deal with a partial failure. */
-
-// Authenticated as ucloud
-await callAPI(ExampleProviderPROVIDERIDApi.create(
-    {
-        "items": [
-            {
-                "id": "1234",
-                "specification": {
-                    "start": 0,
-                    "target": 100,
-                    "product": {
-                        "id": "example-compute",
-                        "category": "example-compute",
-                        "provider": "example"
-                    }
-                },
-                "createdAt": 1635170395571,
-                "status": {
-                    "state": "RUNNING",
-                    "value": 10,
-                    "resolvedSupport": null,
-                    "resolvedProduct": null
-                },
-                "updates": [
-                    {
-                        "timestamp": 1635170395571,
-                        "status": "We are about to start counting!",
-                        "newState": "PENDING",
-                        "currentValue": null
-                    },
-                    {
-                        "timestamp": 1635170395571,
-                        "status": "We are now counting!",
-                        "newState": "RUNNING",
-                        "currentValue": 10
-                    }
-                ],
-                "owner": {
-                    "createdBy": "user",
-                    "project": null
-                },
-                "permissions": {
-                    "myself": [
-                        "ADMIN"
-                    ],
-                    "others": [
-                    ]
-                }
-            },
-            {
-                "id": "51214",
-                "specification": {
-                    "start": 0,
-                    "target": 100,
-                    "product": {
-                        "id": "example-compute",
-                        "category": "example-compute",
-                        "provider": "example"
-                    }
-                },
-                "createdAt": 1635170395571,
-                "status": {
-                    "state": "RUNNING",
-                    "value": 10,
-                    "resolvedSupport": null,
-                    "resolvedProduct": null
-                },
-                "updates": [
-                    {
-                        "timestamp": 1635170395571,
-                        "status": "We are about to start counting!",
-                        "newState": "PENDING",
-                        "currentValue": null
-                    },
-                    {
-                        "timestamp": 1635170395571,
-                        "status": "We are now counting!",
-                        "newState": "RUNNING",
-                        "currentValue": 10
-                    }
-                ],
-                "owner": {
-                    "createdBy": "user",
-                    "project": null
-                },
-                "permissions": {
-                    "myself": [
-                        "ADMIN"
-                    ],
-                    "others": [
-                    ]
-                }
-            }
-        ]
-    }
-);
-
-/*
-HttpStatusCode(value=500, description=Internal Server Error)
+500 Internal Server Error
 */
 
 /* In this case, imagine that the provider failed to create the second resource. This should
@@ -1518,7 +1028,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 }'
 
 
-# HttpStatusCode(value=500, description=Internal Server Error)
+# 500 Internal Server Error
 
 # In this case, imagine that the provider failed to create the second resource. This should
 # immediately trigger cleanup on the provider, if the first resource was already created. The provider
@@ -1545,7 +1055,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 ### `retrieveProducts`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1563,7 +1073,7 @@ UCloud/Core already.
 
 ### `create`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1576,7 +1086,7 @@ UCloud/Core already.
 
 ### `delete`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1589,7 +1099,7 @@ UCloud/Core already.
 
 ### `init`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1607,7 +1117,7 @@ the request.
 
 ### `updateAcl`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1625,7 +1135,7 @@ not acknowledge the request.
 
 ### `verify`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 

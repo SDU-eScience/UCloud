@@ -3,10 +3,10 @@
 # `ProductReference`
 
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_Contains a unique reference to a [Product](/backend/accounting-service/README.md)_
+_Contains a unique reference to a Product_
 
 ```kotlin
 data class ProductReference(

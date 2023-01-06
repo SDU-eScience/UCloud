@@ -8,8 +8,8 @@ import dk.sdu.cloud.grant.api.Grants
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
-
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class UploadLogoRequest(
     val projectId: String,
 )
@@ -17,6 +17,7 @@ data class UploadLogoRequest(
 typealias UploadLogoResponse = Unit
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class RetrieveLogoRequest(
     val projectId: String
 )
@@ -29,11 +30,10 @@ object ProjectLogo : CallDescriptionContainer("grant.logo") {
     init {
         title = "Project grant logos"
         description = """
-            Project logos are intended as a help for the end users to navigate the list of potential grant givers by 
-            giving them a visual cue.
+Logos help the end users navigate the list of potential grant givers by giving them a visual cue.
 
-            ${ApiConventions.nonConformingApiWarning}
-        """.trimIndent()
+${ApiConventions.nonConformingApiWarning}
+""".trimIndent()
     }
 
     val uploadLogo = call(

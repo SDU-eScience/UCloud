@@ -23,6 +23,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
+@UCloudApiStable
 data class ExportedParametersRequest(
     val application: NameAndVersion,
     val product: ProductReference,
@@ -42,6 +43,7 @@ data class ExportedParametersRequest(
     val sshEnabled: Boolean = false,
 )
 
+@UCloudApiStable
 @Serializable
 data class ExportedParameters(
     val siteVersion: Int,
@@ -53,6 +55,7 @@ data class ExportedParameters(
     val machineType: JsonObject,
 ) {
     @Serializable
+    @UCloudApiStable
     data class Resources(
         val ingress: Map<String, Ingress> = emptyMap()
     )
@@ -60,6 +63,7 @@ data class ExportedParameters(
 
 @UCloudApiDoc("A value describing the current state of a Job", importance = 350)
 @Serializable
+@UCloudApiStable
 enum class JobState {
     @UCloudApiDoc("""
         Any Job which is not yet ready
@@ -149,6 +153,7 @@ enum class JobState {
 
 @UCloudApiDoc("A value describing a type of 'interactive' session", importance = 300)
 @Serializable
+@UCloudApiStable
 enum class InteractiveSessionType {
     WEB,
     VNC,
@@ -188,7 +193,7 @@ stop the $TYPE_REF Job, delete any
 [ephemeral resources](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md#ephemeral-resources) and release
 any [bound resources](/docs/developer-guide/orchestration/compute/providers/jobs/ingoing.md#resources).""", importance = 500
 )
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 @Serializable
 data class Job(
     @UCloudApiDoc(
@@ -243,7 +248,7 @@ data class Job(
     }
 }
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 @Serializable
 data class JobStatus(
     @UCloudApiDoc(
@@ -284,6 +289,7 @@ data class JobStatus(
 
 @Serializable
 @UCloudApiOwnedBy(Jobs::class)
+@UCloudApiStable
 data class JobUpdate(
     val state: JobState? = null,
     val outputFolder: String? = null,
@@ -317,6 +323,7 @@ data class JobUpdate(
 
 @UCloudApiDoc("A specification of a Job", importance = 400)
 @Serializable
+@UCloudApiStable
 data class JobSpecification(
     @UCloudApiDoc("A reference to the application which this job should execute")
     val application: NameAndVersion,
@@ -436,6 +443,7 @@ data class JobSpecification(
 
 typealias ComputeProductReference = ProductReference
 
+@UCloudApiStable
 @Serializable
 data class JobOutput(
     val outputFolder: String? = null,
@@ -443,6 +451,7 @@ data class JobOutput(
 
 @UCloudApiDoc("Flags used to tweak read operations of Jobs", importance = 300)
 @Serializable
+@UCloudApiStable
 data class JobIncludeFlags(
     val filterApplication: String? = null,
 
@@ -474,9 +483,11 @@ data class JobIncludeFlags(
 ) : ResourceIncludeFlags
 
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 data class JobsRetrieveUtilizationRequest(val jobId: String)
 
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 data class JobsRetrieveUtilizationResponse(
     @UCloudApiDoc("The total capacity of the entire compute system")
     val capacity: CpuAndMemory,
@@ -489,6 +500,7 @@ data class JobsRetrieveUtilizationResponse(
 typealias JobsFollowRequest = FindByStringId
 
 @Serializable
+@UCloudApiStable
 data class JobsFollowResponse(
     val updates: List<JobUpdate>,
     val log: List<JobsLog>,
@@ -496,12 +508,14 @@ data class JobsFollowResponse(
 )
 
 @Serializable
+@UCloudApiStable
 data class JobsLog(val rank: Int, val stdout: String? = null, val stderr: String? = null)
 
 typealias JobsExtendRequest = BulkRequest<JobsExtendRequestItem>
 typealias JobsExtendResponse = BulkResponse<Unit?>
 
 @Serializable
+@UCloudApiStable
 data class JobsExtendRequestItem(
     val jobId: String,
     val requestedTime: SimpleDuration,
@@ -554,6 +568,7 @@ val Job.licences: List<AppParameterValue.License>
 typealias JobsOpenInteractiveSessionRequest = BulkRequest<JobsOpenInteractiveSessionRequestItem>
 
 @Serializable
+@UCloudApiStable
 data class JobsOpenInteractiveSessionRequestItem(
     val id: String,
     val rank: Int,
@@ -563,6 +578,7 @@ data class JobsOpenInteractiveSessionRequestItem(
 typealias JobsOpenInteractiveSessionResponse = BulkResponse<OpenSessionWithProvider?>
 
 @Serializable
+@UCloudApiStable
 data class OpenSessionWithProvider(
     val providerDomain: String,
     val providerId: String,
@@ -572,6 +588,7 @@ data class OpenSessionWithProvider(
 }
 
 @Serializable
+@UCloudApiStable
 sealed class OpenSession : DebugSensitive {
     abstract val jobId: String
     abstract val rank: Int
@@ -583,6 +600,7 @@ sealed class OpenSession : DebugSensitive {
 
     @Serializable
     @SerialName("shell")
+    @UCloudApiStable
     data class Shell(
         override val jobId: String,
         override val rank: Int,
@@ -592,6 +610,7 @@ sealed class OpenSession : DebugSensitive {
 
     @Serializable
     @SerialName("web")
+    @UCloudApiStable
     data class Web(
         override val jobId: String,
         override val rank: Int,
@@ -601,6 +620,7 @@ sealed class OpenSession : DebugSensitive {
 
     @Serializable
     @SerialName("vnc")
+    @UCloudApiStable
     data class Vnc(
         override val jobId: String,
         override val rank: Int,
@@ -610,7 +630,7 @@ sealed class OpenSession : DebugSensitive {
     ) : OpenSession()
 }
 
-@UCloudApiExperimental(ExperimentalLevel.BETA)
+@UCloudApiStable
 object Jobs : ResourceApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus, Product.Compute,
     ComputeSupport>("jobs") {
     init {
@@ -1553,6 +1573,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
+    @UCloudApiExperimental(ExperimentalLevel.BETA)
     val retrieveUtilization = call("retrieveUtilization", JobsRetrieveUtilizationRequest.serializer(), JobsRetrieveUtilizationResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "utilization")
 

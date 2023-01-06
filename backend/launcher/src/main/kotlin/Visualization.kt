@@ -1,6 +1,7 @@
 package dk.sdu.cloud
 
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.provider.api.IntegrationProviderWelcomeRequest
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -22,12 +23,12 @@ fun replacePlaceholderVisualization(value: Any?): DocVisualization {
             if (items.isEmpty()) {
                 DocVisualization.Inline("[]")
             } else if (items.size == 1) {
-                visualizeValue(items.first())
+                replacePlaceholderVisualization(items.first())
             } else {
                 DocVisualization.Card(
                     "Collection",
                     emptyList(),
-                    items.map { visualizeValue(it) }
+                    items.map { replacePlaceholderVisualization(it) }
                 )
             }
         }
@@ -38,7 +39,7 @@ fun replacePlaceholderVisualization(value: Any?): DocVisualization {
             DocVisualization.Card(
                 "Json",
                 value
-                    .map { (k, v) -> DocStat(k, visualizeValue(v)) }
+                    .map { (k, v) -> DocStat(k, replacePlaceholderVisualization(v)) }
                     .chunked(1)
                     .map { DocStatLine(it) },
                 emptyList()
@@ -53,7 +54,7 @@ fun replacePlaceholderVisualization(value: Any?): DocVisualization {
             DocVisualization.Card(
                 "BulkRequest",
                 emptyList(),
-                value.items.map { visualizeValue(it) }
+                value.items.map { replacePlaceholderVisualization(it) }
             )
         }
 
@@ -61,7 +62,7 @@ fun replacePlaceholderVisualization(value: Any?): DocVisualization {
             DocVisualization.Card(
                 "BulkResponse",
                 emptyList(),
-                value.responses.map { visualizeValue(it) }
+                value.responses.map { replacePlaceholderVisualization(it) }
             )
         }
 
@@ -73,7 +74,7 @@ fun replacePlaceholderVisualization(value: Any?): DocVisualization {
             DocVisualization.Card(
                 "Map",
                 value
-                    .map { (k, v) -> DocStat(k.toString(), visualizeValue(v)) }
+                    .map { (k, v) -> DocStat(k.toString(), replacePlaceholderVisualization(v)) }
                     .chunked(1)
                     .map { DocStatLine(it) },
                 emptyList()
@@ -103,10 +104,10 @@ fun replacePlaceholderVisualization(value: Any?): DocVisualization {
                                     if (looksLikeADefault) {
                                         null
                                     } else {
-                                        DocStat(member.name, visualizeValue(propertyValue))
+                                        DocStat(member.name, replacePlaceholderVisualization(propertyValue))
                                     }
                                 }
-                                else -> DocStat(member.name, visualizeValue(propertyValue))
+                                else -> DocStat(member.name, replacePlaceholderVisualization(propertyValue))
                             }
                         }
                         .chunked(1)

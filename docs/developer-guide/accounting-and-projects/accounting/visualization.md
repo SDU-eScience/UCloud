@@ -7,25 +7,29 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Accounting](/docs/developer-guide/accounting-and-projects/accounting/README.md) / Visualization of Usage
 # Visualization of Usage
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
-_Visualization gives the user the possibility to get an easy overview of their usage during a set period or for a given product category. _
+_Visualization gives the user the possibility to get an easy overview of their usage_
 
-## Rationale
+## Usage chart
 
-There are currently two variations of usage visualization:
+The usage chart shows the usage over time for each product category.
 
-1. Usage Chart: The usage chart shows the usage over time for each product category.
-
-Usage shown fully for product type COMPUTE for the period of week. 
 ![](/backend/accounting-service/wiki/UsageChartFull.png)
-Usage specifics for each category in the product type.
+
+__Figure 1:__ Usage shown fully for product type `COMPUTE` for the period of week. 
+
 ![](/backend/accounting-service/wiki/UsageChartInfo.png)
 
-2. Breakdown Chart: The breakdown chart shows the usage for the entire period divided into the
-different products used.
-Breakdown of different products usage in product type COMPUTE
+__Figure 2:__ Usage specifics for each category in the product type.
+
+## Breakdown chart
+
+The breakdown chart shows the usage for the entire period divided into the different products used.
+
 ![](/backend/accounting-service/wiki/BreakdownChart.png)
+
+__Figure 3:__ Breakdown of different products usage in product type `COMPUTE`
 
 ## Table of Contents
 <details>
@@ -115,7 +119,7 @@ Breakdown of different products usage in product type COMPUTE
 
 ### `retrieveBreakdown`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -128,7 +132,7 @@ Breakdown of different products usage in product type COMPUTE
 
 ### `retrieveUsage`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -144,7 +148,7 @@ Breakdown of different products usage in product type COMPUTE
 
 ### `BreakdownChart`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -216,7 +220,7 @@ data class BreakdownChart(
 
 ### `LineChart`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -348,7 +352,7 @@ data class Point(
 
 ### `PieChart`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -432,7 +436,7 @@ data class Point(
 
 ### `UsageChart`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -516,7 +520,7 @@ data class UsageChart(
 
 ### `VisualizationRetrieveBreakdownRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -636,7 +640,7 @@ data class VisualizationRetrieveBreakdownRequest(
 
 ### `VisualizationRetrieveUsageRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -756,7 +760,7 @@ data class VisualizationRetrieveUsageRequest(
 
 ### `VisualizationRetrieveBreakdownResponse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -792,7 +796,7 @@ data class VisualizationRetrieveBreakdownResponse(
 
 ### `VisualizationRetrieveUsageResponse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

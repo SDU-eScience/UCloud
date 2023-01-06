@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / Products
 # Products
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Products define the services exposed by a Provider._
 
@@ -236,7 +236,7 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
 </tr>
 <tr>
 <td><a href='#productreference'><code>ProductReference</code></a></td>
-<td>Contains a unique reference to a [Product](/backend/accounting-service/README.md)</td>
+<td>Contains a unique reference to a Product</td>
 </tr>
 <tr>
 <td><a href='#producttype'><code>ProductType</code></a></td>
@@ -298,11 +298,14 @@ PageV2(
         ), 
         chargeType = ChargeType.ABSOLUTE, 
         cpu = 10, 
+        cpuModel = null, 
         description = "An example compute product", 
         freeToUse = false, 
         gpu = 0, 
+        gpuModel = null, 
         hiddenInGrantApplications = false, 
         memoryInGigs = 20, 
+        memoryModel = null, 
         name = "example-compute", 
         pricePerUnit = 1000000, 
         priority = 0, 
@@ -341,81 +344,6 @@ PageV2(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(ProductsApi.browse(
-    {
-        "itemsPerPage": 50,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterName": null,
-        "filterProvider": null,
-        "filterArea": null,
-        "filterCategory": null,
-        "filterVersion": null,
-        "showAllVersions": null,
-        "includeBalance": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "type": "compute",
-            "balance": null,
-            "name": "example-compute",
-            "pricePerUnit": 1000000,
-            "category": {
-                "name": "example-compute",
-                "provider": "example"
-            },
-            "description": "An example compute product",
-            "priority": 0,
-            "cpu": 10,
-            "memoryInGigs": 20,
-            "gpu": 0,
-            "version": 1,
-            "freeToUse": false,
-            "unitOfPrice": "CREDITS_PER_MINUTE",
-            "chargeType": "ABSOLUTE",
-            "hiddenInGrantApplications": false,
-            "productType": "COMPUTE"
-        },
-        {
-            "type": "storage",
-            "balance": null,
-            "name": "example-storage",
-            "pricePerUnit": 1,
-            "category": {
-                "name": "example-storage",
-                "provider": "example"
-            },
-            "description": "An example storage product (Quota)",
-            "priority": 0,
-            "version": 1,
-            "freeToUse": false,
-            "unitOfPrice": "PER_UNIT",
-            "chargeType": "DIFFERENTIAL_QUOTA",
-            "hiddenInGrantApplications": false,
-            "productType": "STORAGE"
-        }
-    ],
-    "next": null
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -445,6 +373,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #             "cpu": 10,
 #             "memoryInGigs": 20,
 #             "gpu": 0,
+#             "cpuModel": null,
+#             "memoryModel": null,
+#             "gpuModel": null,
 #             "version": 1,
 #             "freeToUse": false,
 #             "unitOfPrice": "CREDITS_PER_MINUTE",
@@ -532,11 +463,14 @@ PageV2(
         ), 
         chargeType = ChargeType.ABSOLUTE, 
         cpu = 10, 
+        cpuModel = null, 
         description = "An example compute product", 
         freeToUse = false, 
         gpu = 0, 
+        gpuModel = null, 
         hiddenInGrantApplications = false, 
         memoryInGigs = 20, 
+        memoryModel = null, 
         name = "example-compute", 
         pricePerUnit = 1000000, 
         priority = 0, 
@@ -549,63 +483,6 @@ PageV2(
     itemsPerPage = 50, 
     next = null, 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(ProductsApi.browse(
-    {
-        "itemsPerPage": 50,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterName": null,
-        "filterProvider": null,
-        "filterArea": "COMPUTE",
-        "filterCategory": null,
-        "filterVersion": null,
-        "showAllVersions": null,
-        "includeBalance": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "type": "compute",
-            "balance": null,
-            "name": "example-compute",
-            "pricePerUnit": 1000000,
-            "category": {
-                "name": "example-compute",
-                "provider": "example"
-            },
-            "description": "An example compute product",
-            "priority": 0,
-            "cpu": 10,
-            "memoryInGigs": 20,
-            "gpu": 0,
-            "version": 1,
-            "freeToUse": false,
-            "unitOfPrice": "CREDITS_PER_MINUTE",
-            "chargeType": "ABSOLUTE",
-            "hiddenInGrantApplications": false,
-            "productType": "COMPUTE"
-        }
-    ],
-    "next": null
-}
 */
 ```
 
@@ -643,6 +520,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #             "cpu": 10,
 #             "memoryInGigs": 20,
 #             "gpu": 0,
+#             "cpuModel": null,
+#             "memoryModel": null,
+#             "gpuModel": null,
 #             "version": 1,
 #             "freeToUse": false,
 #             "unitOfPrice": "CREDITS_PER_MINUTE",
@@ -706,11 +586,14 @@ Product.Compute(
     ), 
     chargeType = ChargeType.ABSOLUTE, 
     cpu = 10, 
+    cpuModel = null, 
     description = "An example compute product", 
     freeToUse = false, 
     gpu = 0, 
+    gpuModel = null, 
     hiddenInGrantApplications = false, 
     memoryInGigs = 20, 
+    memoryModel = null, 
     name = "example-compute", 
     pricePerUnit = 1000000, 
     priority = 0, 
@@ -720,52 +603,6 @@ Product.Compute(
     balance = null, 
     id = "example-compute", 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(ProductsApi.retrieve(
-    {
-        "filterName": "example-compute",
-        "filterCategory": "example-compute",
-        "filterProvider": "example",
-        "filterArea": null,
-        "filterVersion": null,
-        "includeBalance": null
-    }
-);
-
-/*
-{
-    "type": "compute",
-    "balance": null,
-    "name": "example-compute",
-    "pricePerUnit": 1000000,
-    "category": {
-        "name": "example-compute",
-        "provider": "example"
-    },
-    "description": "An example compute product",
-    "priority": 0,
-    "cpu": 10,
-    "memoryInGigs": 20,
-    "gpu": 0,
-    "version": 1,
-    "freeToUse": false,
-    "unitOfPrice": "CREDITS_PER_MINUTE",
-    "chargeType": "ABSOLUTE",
-    "hiddenInGrantApplications": false,
-    "productType": "COMPUTE"
-}
 */
 ```
 
@@ -800,6 +637,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/retrieve?
 #     "cpu": 10,
 #     "memoryInGigs": 20,
 #     "gpu": 0,
+#     "cpuModel": null,
+#     "memoryModel": null,
+#     "gpuModel": null,
 #     "version": 1,
 #     "freeToUse": false,
 #     "unitOfPrice": "CREDITS_PER_MINUTE",
@@ -828,7 +668,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/retrieve?
 
 ### `browse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -850,7 +690,7 @@ __Examples:__
 
 ### `retrieve`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -870,7 +710,7 @@ __Examples:__
 
 ### `create`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: SERVICE, ADMIN, PROVIDER](https://img.shields.io/static/v1?label=Auth&message=SERVICE,+ADMIN,+PROVIDER&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -902,7 +742,7 @@ always sequential and the incoming version number is always ignored by UCloud.
 
 ### `ChargeType`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -950,7 +790,7 @@ enum class ChargeType {
 
 ### `Product`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Products define the services exposed by a Provider._
@@ -990,6 +830,7 @@ For more information see [this](/docs/developer-guide/accounting-and-projects/pr
 <code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1001,6 +842,7 @@ For more information see [this](/docs/developer-guide/accounting-and-projects/pr
 <code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code> The category groups similar products together, it also defines which provider owns the product
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1012,6 +854,7 @@ For more information see [this](/docs/developer-guide/accounting-and-projects/pr
 <code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a></code></code> The category of payment model. Used in combination with unitOfPrice to create a complete payment model.
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1023,6 +866,7 @@ For more information see [this](/docs/developer-guide/accounting-and-projects/pr
 <code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A short (single-line) description of the Product
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1034,6 +878,7 @@ For more information see [this](/docs/developer-guide/accounting-and-projects/pr
 <code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code> Indicates that a Wallet is not required to use this Product
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
@@ -1047,6 +892,7 @@ has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is 
 <code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code> Flag to indicate that this Product is not publicly available
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 ⚠️ WARNING: This doesn't make the `Product`  secret. In only hides the `Product`  from the grant
@@ -1060,6 +906,7 @@ system's UI.
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
@@ -1071,6 +918,7 @@ system's UI.
 <code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A unique name associated with this Product
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1082,6 +930,7 @@ system's UI.
 <code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The price of a single unit in a single period
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 For more information go 
@@ -1095,6 +944,7 @@ For more information go
 <code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code> A integer used for changing the order in which products are displayed (ascending order)
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1106,6 +956,7 @@ For more information go
 <code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code> Classifier used to explain the type of Product
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1117,6 +968,7 @@ For more information go
 <code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a></code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1125,10 +977,11 @@ For more information go
 
 <details>
 <summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code> A version number for this Product, managed by UCloud
+<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code> This property is no longer used.
 </summary>
 
-
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1144,7 +997,7 @@ For more information go
 
 ### `Product.Compute`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A compute Product_
@@ -1159,6 +1012,9 @@ data class Compute(
     val cpu: Int?,
     val memoryInGigs: Int?,
     val gpu: Int?,
+    val cpuModel: String?,
+    val memoryModel: String?,
+    val gpuModel: String?,
     val version: Int?,
     val freeToUse: Boolean?,
     val unitOfPrice: ProductPriceUnit?,
@@ -1271,10 +1127,43 @@ For more information go
 
 <details>
 <summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A version number for this Product, managed by UCloud
+<code>cpuModel</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
+
+
+
+</details>
+
+<details>
+<summary>
+<code>memoryModel</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>gpuModel</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> This property is no longer used.
+</summary>
+
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1333,6 +1222,7 @@ system's UI.
 <code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1344,6 +1234,7 @@ system's UI.
 <code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1355,6 +1246,7 @@ system's UI.
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
@@ -1366,7 +1258,6 @@ system's UI.
 <code>type</code>: <code><code>String /* "compute" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1383,7 +1274,7 @@ system's UI.
 
 ### `Product.Ingress`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _An ingress Product_
@@ -1474,10 +1365,10 @@ For more information go
 
 <details>
 <summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A version number for this Product, managed by UCloud
+<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> This property is no longer used.
 </summary>
 
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1536,6 +1427,7 @@ system's UI.
 <code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1547,6 +1439,7 @@ system's UI.
 <code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1558,6 +1451,7 @@ system's UI.
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
@@ -1569,7 +1463,6 @@ system's UI.
 <code>type</code>: <code><code>String /* "ingress" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1586,7 +1479,7 @@ system's UI.
 
 ### `Product.License`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A license Product_
@@ -1689,10 +1582,10 @@ For more information go
 
 <details>
 <summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A version number for this Product, managed by UCloud
+<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> This property is no longer used.
 </summary>
 
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1751,6 +1644,7 @@ system's UI.
 <code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1762,6 +1656,7 @@ system's UI.
 <code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1773,6 +1668,7 @@ system's UI.
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
@@ -1784,7 +1680,6 @@ system's UI.
 <code>type</code>: <code><code>String /* "license" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1801,7 +1696,7 @@ system's UI.
 
 ### `Product.NetworkIP`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _An IP address Product_
@@ -1892,10 +1787,10 @@ For more information go
 
 <details>
 <summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A version number for this Product, managed by UCloud
+<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> This property is no longer used.
 </summary>
 
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1954,6 +1849,7 @@ system's UI.
 <code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1965,6 +1861,7 @@ system's UI.
 <code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1976,6 +1873,7 @@ system's UI.
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
@@ -1987,7 +1885,6 @@ system's UI.
 <code>type</code>: <code><code>String /* "network_ip" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2004,7 +1901,7 @@ system's UI.
 
 ### `Product.Storage`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A storage Product_
@@ -2095,10 +1992,10 @@ For more information go
 
 <details>
 <summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A version number for this Product, managed by UCloud
+<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> This property is no longer used.
 </summary>
 
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2157,6 +2054,7 @@ system's UI.
 <code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2168,6 +2066,7 @@ system's UI.
 <code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2179,6 +2078,7 @@ system's UI.
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
@@ -2190,7 +2090,6 @@ system's UI.
 <code>type</code>: <code><code>String /* "storage" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2207,7 +2106,7 @@ system's UI.
 
 ### `ProductCategoryId`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2251,6 +2150,7 @@ data class ProductCategoryId(
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
@@ -2267,7 +2167,7 @@ data class ProductCategoryId(
 
 ### `ProductPriceUnit`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2387,10 +2287,10 @@ enum class ProductPriceUnit {
 
 ### `ProductReference`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_Contains a unique reference to a [Product](/backend/accounting-service/README.md)_
+_Contains a unique reference to a Product_
 
 ```kotlin
 data class ProductReference(
@@ -2448,7 +2348,7 @@ data class ProductReference(
 
 ### `ProductType`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)_
@@ -2540,7 +2440,7 @@ For more information, see the individual [`Product`](/docs/reference/dk.sdu.clou
 
 ### `ProductsBrowseRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
@@ -2726,7 +2626,7 @@ paginate through the results.
 
 ### `ProductsRetrieveRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

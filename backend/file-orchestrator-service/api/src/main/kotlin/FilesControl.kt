@@ -7,16 +7,19 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
 @Serializable
+@UCloudApiStable
 data class FilesControlAddUpdateRequestItem(
     val taskId: String,
     val update: String,
 )
 
 @Serializable
+@UCloudApiStable
 data class FilesControlMarkAsCompleteRequestItem(
     val taskId: String
 )
 
+@UCloudApiStable
 object FilesControl : CallDescriptionContainer("files.control") {
     const val baseContext = "/api/files/control"
 

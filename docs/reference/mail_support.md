@@ -36,30 +36,6 @@ Unit
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as ucloud
-await callAPI(MailApi.sendSupport(
-    {
-        "fromEmail": "foo@bar",
-        "subject": "Subject",
-        "message": "Message"
-    }
-);
-
-/*
-{
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 

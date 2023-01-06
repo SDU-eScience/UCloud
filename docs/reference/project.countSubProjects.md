@@ -1,10 +1,10 @@
-[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Projects](/docs/developer-guide/accounting-and-projects/projects/README.md) / [Projects](/docs/developer-guide/accounting-and-projects/projects/projects.md)
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Legacy](/docs/developer-guide/legacy/README.md) / [Projects (Legacy)](/docs/developer-guide/legacy/projects-legacy/README.md) / [Projects](/docs/developer-guide/legacy/projects-legacy/projects.md)
 
 # `project.countSubProjects`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 | Request | Response | Error |
