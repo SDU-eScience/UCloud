@@ -366,10 +366,10 @@ ${ApiConventions.nonConformingApiWarning}
             )
 
             documentation {
-                summary = "Submits a [GrantApplication] to a project"
+                summary = "Submits a $TYPE_REF GrantApplication to a project"
                 description = """
                      In order for the user to submit an application they must match any criteria in
-                     [ProjectApplicationSettings.allowRequestsFrom]. If they are not the request will fail.
+                     `ProjectApplicationSettings.allowRequestsFrom`. If they are not the request will fail.
                 """.trimIndent()
             }
         }
@@ -382,8 +382,8 @@ ${ApiConventions.nonConformingApiWarning}
         )
 
        documentation {
-            summary = "Approves or rejects an existing [GrantApplication]. If accepted by all grant givers this will " +
-                "trigger granting of resources to the [GrantApplication.Document.recipient]. "
+            summary = "Approves or rejects an existing $TYPE_REF GrantApplication. If accepted by all grant givers this will " +
+                "trigger granting of resources to the `GrantApplication.Document.recipient`. "
             description = "Only the grant reviewer can perform this action."
         }
     }
@@ -402,7 +402,7 @@ ${ApiConventions.nonConformingApiWarning}
         )
 
         documentation {
-            summary = "Performs an edit to an existing [GrantApplication]"
+            summary = "Performs an edit to an existing $TYPE_REF GrantApplication"
             description = "Both the creator and any of the grant reviewers are allowed to edit the application."
         }
     }
@@ -419,9 +419,9 @@ ${ApiConventions.nonConformingApiWarning}
         )
 
         documentation {
-            summary = "Closes an existing [GrantApplication]"
-            description = "This action is identical to rejecting the [GrantApplication] using " +
-                "[updateApplicationState] except it can be performed by the [GrantApplication] creator."
+            summary = "Closes an existing $TYPE_REF GrantApplication"
+            description = "This action is identical to rejecting the $TYPE_REF GrantApplication using " +
+                "`updateApplicationState` except it can be performed by the $TYPE_REF GrantApplication creator."
         }
     }
 
@@ -455,9 +455,9 @@ ${ApiConventions.nonConformingApiWarning}
             )
 
             documentation {
-                summary = "List active [GrantApplication]s"
-                description = """Lists active [GrantApplication]s which are relevant to a project. By using
-                    [BrowseApplicationFlags] it is possible to filter on ingoing and/or outgoing.
+                summary = "List active $TYPE_REF GrantApplication s"
+                description = """Lists active `GrantApplication`s which are relevant to a project. By using
+                    $TYPE_REF BrowseApplicationFlags it is possible to filter on ingoing and/or outgoing.
                 """.trimIndent()
             }
         }
@@ -474,10 +474,10 @@ ${ApiConventions.nonConformingApiWarning}
         )
 
         documentation {
-            summary = "Endpoint for users to browse projects which they can send grant [Application]s to"
+            summary = "Endpoint for users to browse projects which they can send a $TYPE_REF GrantApplication to"
             description = """
                  Concretely, this will return a list for which the user matches the criteria listed in
-                 [ProjectApplicationSettings.allowRequestsFrom].
+                 `ProjectApplicationSettings.allowRequestsFrom`.
             """.trimIndent()
         }
     }
@@ -530,9 +530,9 @@ ${ApiConventions.nonConformingApiWarning}
         )
 
         documentation {
-            summary = "Retrieves an active [GrantApplication]"
+            summary = "Retrieves an active $TYPE_REF GrantApplication"
             description = """
-                Only the creator and grant reviewers are allowed to view any given [GrantApplication].
+                Only the creator and grant reviewers are allowed to view any given $TYPE_REF GrantApplication.
             """.trimIndent()
         }
     }
