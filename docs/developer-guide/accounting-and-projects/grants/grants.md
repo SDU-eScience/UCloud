@@ -18,14 +18,14 @@ storage. There are only two ways of receiving any credits, either through an adm
 credits or by receiving them from a project.
 
 Grants acts as a more user-friendly gateway to receiving resources from a project. Every
-`Application` goes through the following steps:
+`GrantApplication` goes through the following steps:
 
-1. User submits application to relevant approvers using `Grants.submitApplication`
-2. All grant approvers must reviews the application
-   - User and reviewer can comment on the application via `Grants.commentOnApplication`
+1. User submits application to relevant project using `Grants.submitApplication`
+2. All grant approvers must review the application
+   - User and reviewer can comment on the application via `GrantComments.createComment`
    - User and reviewer can perform edits to the application via `Grants.editApplication`
-3. Reviewer either performs `Grants.rejectApplication` or `Grants.approveApplication`
-4. If all reviewers approve the application, then the resources are granted
+3. Reviewer either performs `Grants.updateApplicationState` to approve or reject
+4. If the `GrantApplication` was approved then resources are granted to the `GrantApplication.recipient`
 
 ## Table of Contents
 <details>
@@ -44,7 +44,7 @@ Grants acts as a more user-friendly gateway to receiving resources from a projec
 </tr>
 <tr>
 <td><a href='#browseapplications'><code>browseApplications</code></a></td>
-<td>List active `GrantApplication`s</td>
+<td>List active [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)s</td>
 </tr>
 <tr>
 <td><a href='#browseproducts'><code>browseProducts</code></a></td>
@@ -52,7 +52,7 @@ Grants acts as a more user-friendly gateway to receiving resources from a projec
 </tr>
 <tr>
 <td><a href='#browseprojects'><code>browseProjects</code></a></td>
-<td>Endpoint for users to browse projects which they can send grant `Application`s to</td>
+<td>Endpoint for users to browse projects which they can send a [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  to</td>
 </tr>
 <tr>
 <td><a href='#retrieveaffiliations'><code>retrieveAffiliations</code></a></td>
@@ -60,19 +60,19 @@ Grants acts as a more user-friendly gateway to receiving resources from a projec
 </tr>
 <tr>
 <td><a href='#viewapplication'><code>viewApplication</code></a></td>
-<td>Retrieves an active `Application`</td>
+<td>Retrieves an active [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)</td>
 </tr>
 <tr>
 <td><a href='#closeapplication'><code>closeApplication</code></a></td>
-<td>Closes an existing `GrantApplication`</td>
+<td>Closes an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)</td>
 </tr>
 <tr>
 <td><a href='#editapplication'><code>editApplication</code></a></td>
-<td>Performs an edit to an existing `GrantApplication`</td>
+<td>Performs an edit to an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)</td>
 </tr>
 <tr>
 <td><a href='#submitapplication'><code>submitApplication</code></a></td>
-<td>Submits an [Application] to a project</td>
+<td>Submits a [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  to a project</td>
 </tr>
 <tr>
 <td><a href='#transferapplication'><code>transferApplication</code></a></td>
@@ -80,7 +80,7 @@ Grants acts as a more user-friendly gateway to receiving resources from a projec
 </tr>
 <tr>
 <td><a href='#updateapplicationstate'><code>updateApplicationState</code></a></td>
-<td>Approves or rejects an existing `GrantApplication`.</td>
+<td>Approves or rejects an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication..md)  If accepted by all grant givers this will trigger granting of resources to the `GrantApplication.Document.recipient`.</td>
 </tr>
 </tbody></table>
 
@@ -256,14 +256,14 @@ Grants acts as a more user-friendly gateway to receiving resources from a projec
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_List active `GrantApplication`s_
+_List active [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)s_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#browseapplicationsrequest'>BrowseApplicationsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#grantapplication'>GrantApplication</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 Lists active `GrantApplication`s which are relevant to a project. By using
-                    `BrowseApplicationFlags` it is possible to filter on ingoing and/or outgoing.
+                    [`BrowseApplicationFlags`](/docs/reference/dk.sdu.cloud.grant.api.BrowseApplicationFlags.md)  it is possible to filter on ingoing and/or outgoing.
 
 
 ### `browseProducts`
@@ -285,7 +285,7 @@ Lists active `GrantApplication`s which are relevant to a project. By using
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Endpoint for users to browse projects which they can send grant `Application`s to_
+_Endpoint for users to browse projects which they can send a [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  to_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -314,13 +314,13 @@ Concretely, this will return a list for which the user matches the criteria list
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Retrieves an active `Application`_
+_Retrieves an active [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#retrieveapplicationrequest'>RetrieveApplicationRequest</a></code>|<code><a href='#grantapplication'>GrantApplication</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-Only the creator and grant reviewers are allowed to view any given `Application`.
+Only the creator and grant reviewers are allowed to view any given [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication..md)
 
 
 ### `closeApplication`
@@ -329,13 +329,13 @@ Only the creator and grant reviewers are allowed to view any given `Application`
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Closes an existing `GrantApplication`_
+_Closes an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#closeapplicationrequest'>CloseApplicationRequest</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-This action is identical to `rejectApplication` except it can be performed by the `GrantApplication` creator.
+This action is identical to rejecting the [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  using `updateApplicationState` except it can be performed by the [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  creator.
 
 
 ### `editApplication`
@@ -344,7 +344,7 @@ This action is identical to `rejectApplication` except it can be performed by th
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Performs an edit to an existing `GrantApplication`_
+_Performs an edit to an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -359,7 +359,7 @@ Both the creator and any of the grant reviewers are allowed to edit the applicat
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Submits an [Application] to a project_
+_Submits a [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  to a project_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -389,14 +389,13 @@ _Transfers allocation request to other root project_
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Approves or rejects an existing `GrantApplication`._
+_Approves or rejects an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication..md)  If accepted by all grant givers this will trigger granting of resources to the `GrantApplication.Document.recipient`._
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#updateapplicationstate'>UpdateApplicationState</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-Only the grant reviewer can perform this action. If accepted by all grant givers this will trigger 
-granting of resources to the `GrantApplication.Document.recipient`.
+Only the grant reviewer can perform this action.
 
 
 

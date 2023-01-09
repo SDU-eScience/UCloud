@@ -6,7 +6,7 @@
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Retrieve product support for this providers_
+_Retrieve product support for this provider_
 
 | Request | Response | Error |
 |---------|----------|-------|

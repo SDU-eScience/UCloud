@@ -11,6 +11,7 @@ import kotlinx.serialization.builtins.serializer
  * A serialized avatar. Should be used whenever going over the wire.
  */
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class SerializedAvatar(
     val top: String,
     val topAccessory: String,
@@ -36,11 +37,13 @@ typealias FindRequest = Unit
 typealias FindResponse = SerializedAvatar
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class FindBulkRequest(
     val usernames: List<String>
 )
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class FindBulkResponse(
     val avatars: Map<String, SerializedAvatar>
 )
@@ -48,6 +51,7 @@ data class FindBulkResponse(
 typealias Avatars = AvatarDescriptions
 
 @TSTopLevel
+@UCloudApiInternal(InternalLevel.STABLE)
 object AvatarDescriptions : CallDescriptionContainer("avatar") {
     val baseContext = "/api/avatar"
 

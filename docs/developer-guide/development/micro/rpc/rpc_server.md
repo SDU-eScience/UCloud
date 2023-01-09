@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Developing UCloud](/docs/developer-guide/development/README.md) / [Micro Library Reference](/docs/developer-guide/development/micro/README.md) / [RPC](/docs/developer-guide/development/micro/rpc/README.md) / RPC Server
 # RPC Server
 
-The `RpcServer` is the object responsible for implementing the client-side of [remote procedure calls](./rpc.md).
+The `RpcServer` is the object responsible for implementing the server-side of [remote procedure calls](./rpc.md).
 The server, like the client, is implemented using plugin based approach. The `RpcServer` instance is available from
 `micro.server` and is configured by the `ServerFeature`. Inside an `RpcServer` we find the following
 properties:

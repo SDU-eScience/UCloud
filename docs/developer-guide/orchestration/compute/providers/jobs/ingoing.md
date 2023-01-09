@@ -123,7 +123,7 @@ fit.
 </tr>
 <tr>
 <td><a href='#retrieveproducts'><code>retrieveProducts</code></a></td>
-<td>Retrieve product support for this providers</td>
+<td>Retrieve product support for this provider</td>
 </tr>
 <tr>
 <td><a href='#retrieveutilization'><code>retrieveUtilization</code></a></td>
@@ -1985,7 +1985,7 @@ For more information, see the end-user API ([`jobs.follow`](/docs/reference/jobs
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Retrieve product support for this providers_
+_Retrieve product support for this provider_
 
 | Request | Response | Error |
 |---------|----------|-------|

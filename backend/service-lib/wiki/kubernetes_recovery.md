@@ -1,3 +1,10 @@
+---
+
+__⚠️WARNING:__ The following are a collection of scripts which can be useful when debugging Kubernetes. The scripts 
+have not been updated in a while and might no longer be useful. Please verify before using them.
+
+---
+
 `kuberecov`
 
 ```

@@ -286,11 +286,11 @@ Be aware that the responses contain project IDs that changes for each test. Thes
 Request #1:
 
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_project.create-$DATE/_search?pretty -d "
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_notifications.create-$DATE/_search?pretty -d "
 {
   \"query\": {
     \"query_string\": {
-      \"query\": \"requestJson.principalInvestigator:$USERNAME1\"
+      \"query\": \"requestJson.user:$USERNAME1\"
     }
   }
 }"
@@ -299,180 +299,224 @@ curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" local
 Should contain:
 ```
 "requestJson" : {
-    "title" : "AUDITTEST-$DATE",
-    "parent" : "PARENT_PROJECT_ID",
-    "principalInvestigator" : "$USERNAME"
+    "user" : "audit1",
+    "notification" : {
+      "type" : "GRANT_APPLICATION_RESPONSE",
+      "message" : "Grant application updated (Approved)",
+      "id" : null,
+      "meta" : {
+        "grantRecipient" : {
+          "type" : "newProject",
+          "title" : "AUDITTEST-$DATE"
+        },
+        "appId" : APPLICATION_ID
+      },
+      "ts" : 1672876712302,
+      "read" : false
+    }
 }
 ```
 ---
 Request #2:
 
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_project.invite-$DATE/_search?pretty -d '
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_projects.v2.createinvite-$DATE/_search?pretty -d "
 {
-  "query": {
-    "query_string": {
-      "query": "token.principal.username:$USERNAME"
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME1\"
     }
   }
-}'
+}"
 ```
 Should contain:
 ```
 "requestJson" : {
-    "projectId" : PROJECTID,
-    "usernames" : [
-      "audit1"
-    ]
-},
+  "items" : [
+    {
+      "recipient" : "$USERNAME2"
+    }
+  ]
+}
 ```
 ---
 Request #3:
 ```
- curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_project.acceptinvite-$DATE/_search?pretty -d '
+ curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_projects.v2.acceptinvite-$DATE/_search?pretty -d "
 {
-  "query": {
-    "query_string": {
-      "query": "token.principal.username:audit1"
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME2\"
     }
   }
-}'
+}"
 ```
 
 Should contain:
 ```
 "requestJson" : {
-    "projectId" : PROJECTID
+  "items" : [
+    {
+      "project" : "PROJECTID"
+    }
+  ]
 },
 ```
 ---
 Request #4:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_project.changeuserrole-$DATE/_search?pretty -d '
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_projects.v2.changerole-$DATE/_search?pretty -d "
 {
-  "query": {
-    "query_string": {
-      "query": "token.principal.username:$USERNAME"
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME1\"
     }
   }
-}'
+}"
 ```
 
 Should contain:
 ```
 "requestJson" : {
-    "projectId" : PROJECTID,
-    "member" : "audit1",
-    "newRole" : "ADMIN"
+  "items" : [
+    {
+      "username" : "$USERNAME2",
+      "role" : "ADMIN"
+    }
+  ]
 }
 ```
 ---
 Request #5: 
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_project.invite-$DATE/_search?pretty -d '
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_projects.v2.createinvite-$DATE/_search?pretty -d "
 {
-  "query": {
-    "query_string": {
-      "query": "token.principal.username:audit1"
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME2\"
     }
   }
-}
+}"
 ```
 
 Should contain:
 ```
- "requestJson" : {
-    "projectId" : PROJECTID,
-    "usernames" : [
-      "audit2"
-    ]
+"requestJson" : {
+  "items" : [
+    {
+      "recipient" : "$USERNAME3"
+    }
+  ]
 }
 ```
 ---
 Request #6:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_project.acceptinvite-$DATE/_search?pretty -d '
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_projects.v2.acceptinvite-$DATE/_search?pretty -d "
 {
-  "query": {
-    "query_string": {
-      "query": "token.principal.username:audit2"
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME3\"
     }
   }
 }
+"
 ```
 
 Should contain:
 ```
 "requestJson" : {
-    "projectId" : "f933c498-1f11-47d1-b701-760dfef0d548"
+  "items" : [
+    {
+     "project" : "PROJECTID"
+    } 
+  ]
 }
 ```
 ---
 Request #7
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.upload.simpleupload-$DATE/_search?pretty -d '
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.createupload-$DATE/_search?pretty -d "
 {
-  "query": {
-    "query_string": {
-      "query": "token.principal.username:audit2"
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME3\"
     }
   }
 }
+"
 ```
 
 Should contain:
 ```
 "requestJson" : {
-    "request" : {
-      "path" : "/home/audit2/file.txt",
-      "sensitivityLevel" : null,
-      "owner" : "audit2"
+  "items" : [
+    {
+      "id" : "/RANDOMID/file.txt",
+      "supportedProtocols" : [
+        "CHUNKED"
+      ],
+      "conflictPolicy" : "RENAME"
     }
+  ]
 }
 ```
 ---
 Request #8:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.reclassify-$DATE/_search?pretty -d '
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.metadata.create-$DATE/_search?pretty -d "
 {
-  "query": {
-    "query_string": {
-        "query": "token.principal.username:audit2"
+  \"query\": {
+    \"query_string\": {
+        \"query\": \"token.principal.username:$USERNAME3\"
     }
   }
 }
+"
 ```
 
 Should contain:
 ```
 "requestJson" : {
-    "request" : {
-        "path" : "/home/audit2/file.txt",
-        "sensitivity" : "SENSITIVE"
+  "items" : [
+    {
+      "fileId" : "/RANDOMID/file.txt",
+      "metadata" : {
+        "templateId" : "5",
+        "version" : "1.0.0",
+        "document" : {
+          "sensitivity" : "SENSITIVE"
+        },
+        "changeLog" : "GDPR"
+      }
     }
+  ]
 }
 ```
 ---
 Request #9:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.move-$DATE/_search?pretty -d '
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.move-$DATE/_search?pretty -d "
 {
-  "query": {
-    "query_string": {
-      "query": "token.principal.username:audit2"
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME3\"
     }
   }
 }
+"
 ```
 
 Should contain:
 ```
 "requestJson" : {
-    "request" : {
-      "path" : "/home/audit2/file.txt",
-      "newPath" : "/projects/PROJECTID/Members' Files/audit2/file.txt",
-      "policy" : "REJECT"
+  "items" : [
+    {
+      "oldId" : "/RANDOMID/file.txt",
+      "newId" : "/OTHER_RANDOMID/file.txt",
+      "conflictPolicy" : "RENAME"
     }
+  ]
 }
 ```
 ---
