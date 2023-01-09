@@ -67,10 +67,12 @@ fun main(args: Array<String>) {
         commandFactory = LocalExecutableCommandFactory()
         fileFactory = LocalFileFactory()
 
+        val shouldInitializeTestEnvironment = args.contains("init") && args.contains("--all-providers")
+
         // NOTE(Dan): initCurrentEnvironment() now initializes an environment which is ready. It returns true if the
         // environment is new. This method will override several "environment" global variables, such as the
         // commandFactory and fileFactory.
-        val shouldStart = initCurrentEnvironment().shouldStartEnvironment
+        val shouldStart = initCurrentEnvironment(shouldInitializeTestEnvironment).shouldStartEnvironment
 
         // NOTE(Dan): We start out by trying to understand if we need to start the environment. This is more or less
         // just checking the output of `docker compose ps`. This has the added benefit of stopping early if the user
@@ -90,11 +92,11 @@ fun main(args: Array<String>) {
         }
 
         val psLines =
-            (psText ?: "").lines().filter { !it.isBlank() && !it.trim().startsWith("name", ignoreCase = true) && !it.trim().startsWith("---") }
+            (psText ?: "").lines().filter { it.isNotBlank() && !it.trim().startsWith("name", ignoreCase = true) && !it.trim().startsWith("---") }
 
         if (shouldStart || psLines.size <= 1) {
             generateComposeFile()
-            val startConfirmed = confirm(
+            val startConfirmed = shouldInitializeTestEnvironment || confirm(
                 prompt,
                 "The environment '${currentEnvironment.name}' is not running. Do you want to start it?",
                 default = true
@@ -120,6 +122,13 @@ fun main(args: Array<String>) {
                 println()
                 println("UCloud is now running. You should create a provider to get started. Select the " +
                     "'Create provider...' entry below to do so.")
+            }
+        }
+
+        if (shouldInitializeTestEnvironment) {
+            val providers = ComposeService.allProviders()
+            for (provider in providers) {
+                Commands.createProvider(provider.name)
             }
         }
 
@@ -243,7 +252,7 @@ fun main(args: Array<String>) {
                         }
 
                         val baseDir = File(localEnvironment.jvmFile, ".compose").also { it.mkdirs() }
-                        val env = selectOrCreateEnvironment(baseDir)
+                        val env = selectOrCreateEnvironment(baseDir, false)
                         initIO(true)
                         currentEnvironment.child("..").child(env).mkdirs()
                         File(baseDir, "current.txt").writeText(env)
