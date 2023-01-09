@@ -98,51 +98,46 @@ current usage is below the quota, then the account is removed from the locked ta
 
 **Note: This features is in development/testing.**
 
-The synchronization feature of UCloud/Storage depends on [Syncthing](https://syncthing.net). The provider maintains
-communication with one or more Syncthing instances, running in seperate containers, through the Syncthing API.
+Syncthing is provided in UCloud as an integrated application. This essentially means that the
+orchestrator is providing a very limited API to the provider centered around pushing configuration. The
+orchestrator expects the provider to use this configuration to update the storage and compute systems, in such
+a way that Syncthing responds to the requested changes.
 
-The provider also maintains two types of resources:
+The orchestrator has the following assumptions about how the provider does this:
 
-- SyncDevice: A user's Syncthing device ID,
-- SyncFolder: Folder on UCloud which should be synchronized by Syncthing,
+ 1. The provider must register a job with UCloud (through `JobsControl.register`).
+    - It is assumed that every user gets their own job.
+    - Currently, the frontend does a lot of the work in finding the jobs, but the orchestrator might change to
+      expose an endpoint which returns the relevant job IDs instead.
+ 2. The application must have at least one parameter called `stateFolder` which should be an input directory.
+ 3. The folder which has the state must contain a file called `ucloud_device_id.txt`. This file must contain the
+    device ID of the Syncthing server.
 
-as well as communication with a separate service, SyncMounter.
-
-When a request to add a folder to Syncthing is received, the provider will add the SyncFolder resource and send a
-request to SyncMounter to bind-mount the internal path to a new location. The provider will then fetch all SyncFolder
-and SyncDevice resources and generate a new Syncthing configuration which will be sent to one of the Syncthing
-instances.
-
-To shield the Syncthing instances from access to the rest of the filesystem, it will only receive paths to the
-bind-mounted location of folders.
-
-The provider will attempt to add the SyncFolder to the Syncthing instance with the least usage (sum of the size of files
-in the current SyncFolders for that instance) to distribute load. A draw-back to this method is that SyncDevices for a
-single end-user might be added to multiple different Syncthing instances. Thus, the end-user might need to add multiple
-UCloud Syncthing devices to their locally running instance of Syncthing.
-
-When a SyncFolder is removed, the provider will request the responsible Syncthing instance to update its configuration,
-then request SyncMounter to unmount the bind-mounted location of the folder. In some cases the SyncMounter might fail to
-unmount the bind-mounted folder. This can happen if the Syncthing instance does not update its configuration in time. In
-this case the provider will retry the request a few times, but otherwise proceed without alerting the user. In this case
-the folder will be unmounted the next time the SyncMounter service is restarted.
-
-Adding or removing SyncFolders and SyncDevices will always result in a request to one or more Syncthing instances to
-overwrite their configuration, thus the configuration of a Syncthing instance is always a reflexion of a subset of the
-providers knowledge.
-
-On start-up the SyncMounter service will automatically request the provider for a list of SyncFolders, mount them, and
-then mark itself as ready. The provider will wait for SyncMounter to respond that it is ready, before requesting all
-Syncthing instances to update their configuration.
-
-When the SyncMounter process ends it will unmount all SyncFolder paths and when the provider process ends, it will
-request all Syncthing instances to drain/empty their configuration.
-
-**Current status:** Requests to Syncthing might currently fail unexpectedly due to a problem with ktor and/or the
-Syncthing HTTP server. The current work-around is that the provider restricts the number of continuous requests to
-Syncthing by delaying requests and by retrying in case of failure. In case all retries fail, the provider will attempt
-to revert the changes to the database before throwing an error.
+ The UCloud compute plugin implements this in a fairly straight forward way. These are the keypoints:
+ 
+ 1. Every user is allocated a single state folder (on-demand). This state folder lives in their personal
+    workspace. The folder is called `Syncthing`.
+ 2. This state folder contains a configuration file called `ucloud_config.json`. This file essentially contains
+    the configuration received by the orchestrator in JSON format.
+ 3. A custom wrapper application with Syncthing embedded is started as a completely normal compute job and is managed by
+    the normal compute capabilities of this provider. This application will be described in further details later.
+    - The job is launched on demand based on invocations of `updateConfiguration`.
+ 4. Using a normal job means that the provider does not have to worry about permission management and quotas. All of 
+    this is already taken care of by the existing systems. This includes permission checking from the orchestrator and
+    the accounting performed by the provider.
+ 5. The orchestrator is notified about new mounts when they appear. The container will automatically trigger a
+    restart based on the new configuration.
 
 
+In the UCloud provider the Syncthing application consists of a wrapper application with an embedded instance of
+[Syncthing](https://syncthing.net). The `stateFolder` and any folders added to Syncthing are bind-mounted to the job the
+usual way.
 
+The wrapper application is reponsible for:
+
+ - Starting the Syncthing process,
+ - checking if a restart of the application have been prompted by checking for a specific file in `stateFolder`, and if
+   so, ending any further execution,
+ - listen for (and read) changes made to the configuration file `ucloud_config.json`,
+ - updating Syncthing's internal configuration using the Syncthing API, based on the contents of `ucloud_config.json`,
 

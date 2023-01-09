@@ -7,8 +7,6 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / [Monitoring, Alerting and Procedures](/docs/developer-guide/core/monitoring/README.md) / Grafana
 # Grafana
 
-# Grafana
-
 To display information from our systems we use [Grafana](https://grafana.com/) to construct dashboards with user
 defined queries.
 

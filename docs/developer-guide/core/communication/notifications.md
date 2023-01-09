@@ -153,7 +153,7 @@ NotificationDescriptions.create.call(
                 isString = false, 
             )),)), 
             read = false, 
-            ts = 1673000212745, 
+            ts = 1673008735141, 
             type = "MY_NOTIFICATION_TYPE", 
         ), 
         user = "User#1234", 
@@ -192,7 +192,7 @@ curl -XPUT -H "Authorization: Bearer $accessToken" -H "Content-Type: content-typ
         "meta": {
             "myParameter": 42
         },
-        "ts": 1673000212745,
+        "ts": 1673008735141,
         "read": false
     }
 }'
@@ -248,7 +248,7 @@ Notification(
         isString = false, 
     )),)), 
     read = false, 
-    ts = 1673000212747, 
+    ts = 1673008735145, 
     type = "MY_NOTIFICATION_TYPE", 
 )
 */
@@ -343,7 +343,7 @@ Page(
             isString = false, 
         )),)), 
         read = false, 
-        ts = 1673000212748, 
+        ts = 1673008735147, 
         type = "MY_NOTIFICATION_TYPE", 
     )), 
     itemsInTotal = 1, 
@@ -390,7 +390,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/notifications?"
 #             "meta": {
 #                 "myParameter": 42
 #             },
-#             "ts": 1673000212748,
+#             "ts": 1673008735147,
 #             "read": false
 #         }
 #     ]

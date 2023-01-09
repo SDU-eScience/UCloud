@@ -6,7 +6,7 @@
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Endpoint for users to browse projects which they can send grant `Application`s to_
+_Endpoint for users to browse projects which they can send a [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  to_
 
 | Request | Response | Error |
 |---------|----------|-------|

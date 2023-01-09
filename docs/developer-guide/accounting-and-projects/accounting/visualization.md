@@ -9,7 +9,7 @@
 
 [![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
-_Visualization gives the user the possibility to get an easy overview of their usage_
+_Visualization gives the user access to an overview of their usage during a set period or for a given product category._
 
 ## Usage chart
 
@@ -17,7 +17,7 @@ The usage chart shows the usage over time for each product category.
 
 ![](/backend/accounting-service/wiki/UsageChartFull.png)
 
-__Figure 1:__ Usage shown fully for product type `COMPUTE` for the period of week. 
+__Figure 1:__ Full usage shown for product type `COMPUTE` for the period of a week. 
 
 ![](/backend/accounting-service/wiki/UsageChartInfo.png)
 
@@ -44,11 +44,11 @@ __Figure 3:__ Breakdown of different products usage in product type `COMPUTE`
 <tbody>
 <tr>
 <td><a href='#retrievebreakdown'><code>retrieveBreakdown</code></a></td>
-<td><i>No description</i></td>
+<td>Retrieve breakdown charts of usage for the entire period.</td>
 </tr>
 <tr>
 <td><a href='#retrieveusage'><code>retrieveUsage</code></a></td>
-<td><i>No description</i></td>
+<td>Retrieve charts of usage over time.</td>
 </tr>
 </tbody></table>
 
@@ -123,6 +123,7 @@ __Figure 3:__ Breakdown of different products usage in product type `COMPUTE`
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Retrieve breakdown charts of usage for the entire period._
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -136,6 +137,7 @@ __Figure 3:__ Breakdown of different products usage in product type `COMPUTE`
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Retrieve charts of usage over time._
 
 | Request | Response | Error |
 |---------|----------|-------|

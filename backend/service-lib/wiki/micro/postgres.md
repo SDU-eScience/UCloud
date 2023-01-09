@@ -38,7 +38,7 @@ class AsyncDBSessionFactory(
 ```
 
 The `AsyncDBSessionFactory` is responsible for managing a pool of connections to the Postgres database. The
-`AsyncDBSessionFactory` can open and return an active connection in the form of an `AsyncDBConnection.
+`AsyncDBSessionFactory` can open and return an active connection in the form of an `AsyncDBConnection`.
 
 ```kotlin
 class AsyncDBConnection : DBContext()

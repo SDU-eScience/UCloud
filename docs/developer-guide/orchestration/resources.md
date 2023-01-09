@@ -45,7 +45,7 @@ UCloud, in almost all cases, store a record of all resources in use. We refer to
 catalog of UCloud. As a result, UCloud/Core can fulfil some operations without involving the provider. 
 In particular, UCloud/Core performs many read operations without the provider's involvement.
 
-End-users interact with all resources through a standarized API. The API provides common CRUD operations 
+End-users interact with all resources through a standardized API. The API provides common CRUD operations 
 along with permission related operations. Concrete resources further extend this API with resource specific 
 tasks. For example, virtual machines expose an operation to shut down the machine. 
 

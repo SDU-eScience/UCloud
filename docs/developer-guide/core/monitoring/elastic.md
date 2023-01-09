@@ -7,8 +7,6 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / [Monitoring, Alerting and Procedures](/docs/developer-guide/core/monitoring/README.md) / ElasticSearch
 # ElasticSearch
 
-# ElasticSearch
-
 To help make our metadata on files and applications searchable and to keep our logging information we use
 [Elasticsearch](https://www.elastic.co/products/elasticsearch). This is done by having two separate Elasticsearch
 clusters: One for logs and another for metadata.

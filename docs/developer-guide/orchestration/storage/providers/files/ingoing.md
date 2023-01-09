@@ -23,7 +23,7 @@
 <tbody>
 <tr>
 <td><a href='#retrieveproducts'><code>retrieveProducts</code></a></td>
-<td>Retrieve product support for this providers</td>
+<td>Retrieve product support for this provider</td>
 </tr>
 <tr>
 <td><a href='#search'><code>search</code></a></td>
@@ -43,7 +43,7 @@
 </tr>
 <tr>
 <td><a href='#create'><code>create</code></a></td>
-<td><i>No description</i></td>
+<td>Request creation of resource.</td>
 </tr>
 <tr>
 <td><a href='#createdownload'><code>createDownload</code></a></td>
@@ -59,7 +59,7 @@
 </tr>
 <tr>
 <td><a href='#delete'><code>delete</code></a></td>
-<td><i>No description</i></td>
+<td>Request deletion of resource.</td>
 </tr>
 <tr>
 <td><a href='#emptytrash'><code>emptyTrash</code></a></td>
@@ -178,7 +178,7 @@
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Retrieve product support for this providers_
+_Retrieve product support for this provider_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -248,6 +248,7 @@ UCloud/Core already.
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request creation of resource._
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -300,6 +301,7 @@ UCloud/Core already.
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request deletion of resource._
 
 | Request | Response | Error |
 |---------|----------|-------|

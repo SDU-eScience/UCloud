@@ -6,7 +6,7 @@
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Submits an [Application] to a project_
+_Submits a [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  to a project_
 
 | Request | Response | Error |
 |---------|----------|-------|

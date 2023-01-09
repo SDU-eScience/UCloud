@@ -1,5 +1,3 @@
-# Grafana
-
 To display information from our systems we use [Grafana](https://grafana.com/) to construct dashboards with user
 defined queries.
 

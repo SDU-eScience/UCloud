@@ -107,7 +107,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </tr>
 <tr>
 <td><a href='#rename'><code>rename</code></a></td>
-<td><i>No description</i></td>
+<td>Request renaming of [`FileCollection`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileCollection.md)</td>
 </tr>
 <tr>
 <td><a href='#updateacl'><code>updateAcl</code></a></td>
@@ -857,6 +857,7 @@ the request.
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request renaming of [`FileCollection`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileCollection.md)_
 
 | Request | Response | Error |
 |---------|----------|-------|
