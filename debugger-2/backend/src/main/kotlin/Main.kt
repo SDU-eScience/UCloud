@@ -15,6 +15,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import java.io.File
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
@@ -232,19 +234,35 @@ fun main(args: Array<String>) {
 
         routing {
             webSocket {
-                val newSession = ClientSession(this)
+                val session = ClientSession(this)
                 sessionMutex.withLock {
-                    sessions.add(newSession)
+                    sessions.add(session)
                     println("Adding a client: ${sessions.size}")
                 }
 
                 try {
                     while (isActive) {
                         val frame = incoming.receiveCatching().getOrNull() ?: break
+                        if (frame !is Frame.Text) continue
+                        val frameText = frame.readText()
+
+                        val request = runCatching {
+                            defaultMapper.decodeFromString(ClientRequest.serializer(), frameText)
+                        }.getOrNull() ?: continue
+
+                        when (request) {
+                            is ClientRequest.ReplayMessages -> {
+
+                            }
+
+                            is ClientRequest.ActivateService -> {
+                                session.activeService = request.service
+                            }
+                        }
                     }
                 } finally {
                     sessionMutex.withLock {
-                        sessions.remove(newSession)
+                        sessions.remove(session)
 
                         println("Removing a client: ${sessions.size}")
                     }
@@ -252,6 +270,17 @@ fun main(args: Array<String>) {
             }
         }
     }.start(wait = true)
+}
+
+@Serializable
+sealed class ClientRequest {
+    @Serializable
+    @SerialName("replay_messages")
+    data class ReplayMessages(val generation: String, val context: Int, val timestamp: Long) : ClientRequest()
+
+    @Serializable
+    @SerialName("activate_service")
+    data class ActivateService(val service: String) : ClientRequest()
 }
 
 data class ClientSession(
