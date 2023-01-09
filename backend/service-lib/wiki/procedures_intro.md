@@ -184,7 +184,7 @@ If the messages from the alerting/monitoring services contains alerts/notificati
 project leaders and the rest of the support team by the user of the Security Slack Channel.  In the case that this is
 unknown behavior and a potential risk is seen, an issue is created.
 
-![](/backend/service-lib/wiki/securityFlow.png)
+![](/backend/service-lib/wiki/SecurityFlowUpdate.png)
 
 Our GitHub issue tracker is not used for security incidents, given that it is public. Instead, our Jira incident service
 desk is used for this purpose.
