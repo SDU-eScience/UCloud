@@ -1,6 +1,9 @@
 import {useState, useEffect} from 'react';
 import './App.css';
+import {Filters} from './Header/Filters';
 import {Header} from './Header/Header';
+import {Levels} from './Header/Levels';
+import {SearchBar} from './Header/SearchBar';
 import {MainContent} from './MainContent/MainContent';
 import {Sidebar} from './Sidebar/Sidebar';
 
@@ -40,6 +43,7 @@ function addServiceFromRootNode(fullServicePath: string, root: ServiceNode[]) {
 function App(): JSX.Element {
     const [activeService, setActiveService] = useState("");
     const [services, setServices] = useState<ServiceNode[]>([]);
+    const [level, setLevel] = useState<string>("");
 
     useEffect(() => {
         setServices(s => {
@@ -56,7 +60,11 @@ function App(): JSX.Element {
     }, [])
 
     return <>
-        <Header />
+        <Header>
+            <SearchBar />
+            <Filters filters={[]} setFilters={() => undefined} />
+            <Levels level={level} setLevel={setLevel} />
+        </Header>
         <div className="flex">
             <Sidebar>
                 <ServiceList services={services} setActiveService={setActiveService} activeService={activeService} depth={0} />

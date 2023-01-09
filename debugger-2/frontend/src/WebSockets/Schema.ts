@@ -1,20 +1,20 @@
-function readInt1(buffer: DataView, offset: number) {
+function readInt1(buffer: DataView, offset: number): number {
     return buffer.getInt8(offset);
 }
 
-function readInt2(buffer: DataView, offset: number) {
+function readInt2(buffer: DataView, offset: number): number {
     return buffer.getInt16(offset, false);
 }
 
-function readInt4(buffer: DataView, offset: number) {
+function readInt4(buffer: DataView, offset: number): number {
     return buffer.getInt32(offset, false);
 }
 
-function readInt8(buffer: DataView, offset: number) {
+function readInt8(buffer: DataView, offset: number): bigint {
     return buffer.getBigInt64(offset, false);
 }
 
-function readBool(buffer: DataView, offset: number) {
+function readBool(buffer: DataView, offset: number): boolean {
     return buffer.getInt8(offset) !== 0;
 }
 
@@ -62,6 +62,10 @@ export enum BinaryDebugMessageType {
     LOG = 9,
 }
 
+export function binaryDebugMessageTypeToString(type: BinaryDebugMessageType): string {
+    return BinaryDebugMessageType[type];
+}
+
 export enum MessageImportance {
     TELL_ME_EVERYTHING = 0,
     IMPLEMENTATION_DETAIL = 1,
@@ -69,6 +73,10 @@ export enum MessageImportance {
     THIS_IS_ODD = 3,
     THIS_IS_WRONG = 4,
     THIS_IS_DANGEROUS = 5,
+}
+
+export function messageImportanceToString(importance: MessageImportance): string {
+    return MessageImportance[importance];
 }
 
 export interface BinaryDebugMessage {
@@ -93,6 +101,7 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
     }
 
     get type(): BinaryDebugMessageType {
+        // Note(Jonas): Is this correct?
         return BinaryDebugMessageType.CLIENT_REQUEST;
     }
 

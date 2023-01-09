@@ -49,6 +49,11 @@ div.request-list-row[data-has-error="true"] {
     background-color: var(--red);
 }
 
+div.request-list-row[data-is-odd="true"] {
+    color: white;
+    background-color: var(--yellow, pink);
+}
+
 div.request-list-row:last-child {
     border-bottom: 1px solid black;
 }

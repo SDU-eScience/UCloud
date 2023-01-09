@@ -1,15 +1,6 @@
 import * as React from "react";
+import {BinaryDebugMessage, MessageImportance} from "../WebSockets/Schema";
 import "./MainContent.css";
-
-enum RequestType {
-    SERVER_REQUEST,
-    BACKGROUND_TASK,
-}
-
-enum RequestImportance {
-    THIS_IS_NORMAL,
-    THIS_IS_WRONG,
-}
 
 export function MainContent({activeService, query, filters, levels}: {activeService: string, query: string, filters: string, levels: string;}): JSX.Element {
     const [routeComponents, setRouteComponents] = React.useState(activeService);
@@ -18,10 +9,10 @@ export function MainContent({activeService, query, filters, levels}: {activeServ
 
     }, []);
 
-    const [activeRequest, setActiveRequest] = React.useState<UCloudRequest | null>(null);
+    const [activeRequest, setActiveRequest] = React.useState<BinaryDebugMessage | null>(null);
 
     React.useEffect(() => {
-        setActiveRequest(null);
+        setActiveRequest({} as BinaryDebugMessage);
     }, [activeService])
 
     React.useEffect(() => {
@@ -34,14 +25,15 @@ export function MainContent({activeService, query, filters, levels}: {activeServ
                 <BreadCrumbs routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
                 <RequestDetails request={activeRequest} />
                 <RequestView>
-                    {[requestExample1, requestExample2].map(it =>
+                    {([] as BinaryDebugMessage[]).map(it =>
                         <div
-                            key={it.name}
+                            key={it.ctxId}
                             className="request-list-row"
                             onClick={() => setActiveRequest(it)}
-                            data-has-error={it.importance === RequestImportance.THIS_IS_WRONG}
+                            data-has-error={[MessageImportance.THIS_IS_WRONG, MessageImportance.THIS_IS_DANGEROUS].includes(it.importance)}
+                            data-is-odd={it.importance === MessageImportance.THIS_IS_ODD}
                         >
-                            {it.name}
+                            {it.ctxGeneration}
                         </div>
                     )}
                 </RequestView>
@@ -50,36 +42,11 @@ export function MainContent({activeService, query, filters, levels}: {activeServ
     </div>
 }
 
-
-const requestExample1: UCloudRequest = {
-    id: 1,
-    importance: RequestImportance.THIS_IS_NORMAL,
-    name: "📯 Just something to think about.",
-    parent: 1,
-    type: RequestType.SERVER_REQUEST,
-}
-
-const requestExample2: UCloudRequest = {
-    id: 1,
-    importance: RequestImportance.THIS_IS_WRONG,
-    name: "❌ Just something to think about, too.",
-    parent: 1,
-    type: RequestType.BACKGROUND_TASK,
-}
-
-interface UCloudRequest {
-    parent: number;
-    id: number;
-    importance: RequestImportance;
-    type: RequestType;
-    name: string;
-}
-
-function RequestDetails({request}: {request: UCloudRequest | null}): JSX.Element {
+function RequestDetails({request}: {request: BinaryDebugMessage | null}): JSX.Element {
     if (!request) return <div />;
     return <div className="card details flex">
         <div className="card query">
-            <pre>{request.name}</pre>
+            <pre>{request.type}</pre>
         </div>
         <div className="card query-details">
             <pre>

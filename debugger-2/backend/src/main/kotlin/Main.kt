@@ -20,6 +20,7 @@ import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
 
 data class TrackedService(val title: String, val generation: Long, val lastModified: Long)
+
 val trackedServices = AtomicReference(emptyMap<String, TrackedService>())
 
 val sessions = ArrayList<ClientSession>()
@@ -236,6 +237,11 @@ fun main(args: Array<String>) {
                 sessionMutex.withLock {
                     sessions.add(newSession)
                     println("Adding a client: ${sessions.size}")
+                }
+
+                // Send every registered service to the new session
+                trackedServices.get().forEach { (service) ->
+                    newSession.acceptService(service)
                 }
 
                 try {
