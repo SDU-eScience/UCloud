@@ -134,7 +134,7 @@ export const logStore = new class {
     }
 }();
 
-const serviceStore = new class {
+export const serviceStore = new class {
     private services: string[] = [];
     private subscriptions: (() => void)[] = [];
 
