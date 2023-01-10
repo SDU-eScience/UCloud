@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
+import {findElement, widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
 import {Select} from "@/ui-components";
 import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
@@ -50,7 +50,3 @@ export const EnumSetter: WidgetSetter = (param, value) => {
     if (selector === null) throw "Missing element for: " + param.name;
     selector.value = (value as AppParameterValueNS.Text).value;
 };
-
-function findElement(param: ApplicationParameterNS.Enumeration): HTMLSelectElement | null {
-    return document.getElementById(widgetId(param)) as HTMLSelectElement | null;
-}

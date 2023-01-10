@@ -53,15 +53,15 @@ object FeatureExpiry : JobFeature, Loggable {
 
 val Container.maxTime: Long?
     get() {
-        return annotations[FeatureExpiry.MAX_TIME_ANNOTATION]?.replace("\"", "")?.toLongOrNull()
+        return annotations[FeatureExpiry.MAX_TIME_ANNOTATION]?.replace("\\\"", "")?.replace("\"", "")?.toLongOrNull()
     }
 
 val Container.jobStart: Long?
     get() {
-        return annotations[FeatureExpiry.JOB_START]?.replace("\"", "")?.toLongOrNull()
+        return annotations[FeatureExpiry.JOB_START]?.replace("\\\"", "")?.replace("\"", "")?.toLongOrNull()
     }
 
 val Container.expiry: Long?
     get() {
-        return annotations[FeatureExpiry.EXPIRY_ANNOTATION]?.replace("\"", "")?.toLongOrNull()
+        return annotations[FeatureExpiry.EXPIRY_ANNOTATION]?.replace("\\\"", "")?.replace("\"", "")?.toLongOrNull()
     }

@@ -47,7 +47,8 @@ class Server(
         val accountingService = AccountingService(db, simpleProviders)
         val depositNotifications = DepositNotificationService(db)
 
-        val projectsV2 = dk.sdu.cloud.accounting.services.projects.v2.ProjectService(db, client, projectCache, micro.developmentModeEnabled)
+        val projectsV2 = dk.sdu.cloud.accounting.services.projects.v2.ProjectService(db, client, projectCache,
+            micro.developmentModeEnabled, micro.backgroundScope)
         val projectNotifications = dk.sdu.cloud.accounting.services.projects.v2
             .ProviderNotificationService(projectsV2, db, simpleProviders, micro.backgroundScope)
         val projectService = ProjectService(client, projectCache, projectsV2)

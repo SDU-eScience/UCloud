@@ -11,10 +11,12 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
 import {timestampUnixMs} from "@/UtilityFunctions";
+import { ProductSelectorPlayground } from "@/Products/Selector";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
         <>
+            <ProductSelectorPlayground />
             <Button onClick={() => {
                 const now = timestampUnixMs();
                 for (let i = 0; i < 50; i++) {

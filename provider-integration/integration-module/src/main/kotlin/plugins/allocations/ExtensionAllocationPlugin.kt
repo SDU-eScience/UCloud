@@ -16,32 +16,30 @@ class ExtensionAllocationPlugin : AllocationPlugin {
     override suspend fun PluginContext.onResourceAllocationTotal(
         notifications: List<AllocationNotificationTotal>
     ): List<OnResourceAllocationResult> {
-        val results = ArrayList<OnResourceAllocationResult>()
         for (notification in notifications) {
-            results.add(onAllocationTotal.invoke(this, pluginConfig.extensions.onAllocationTotal, notification))
+            onAllocationTotal.optionalInvoke(this, pluginConfig.extensions.onAllocationTotal, notification)
         }
-        return results
+        return notifications.map { OnResourceAllocationResult.ManageThroughUCloud }
     }
 
     override suspend fun PluginContext.onResourceAllocationSingle(
         notifications: List<AllocationNotificationSingle>
     ): List<OnResourceAllocationResult> {
-        val results = ArrayList<OnResourceAllocationResult>()
         for (notification in notifications) {
-            results.add(onAllocationSingle.invoke(this, pluginConfig.extensions.onAllocationSingle, notification))
+            onAllocationSingle.optionalInvoke(this, pluginConfig.extensions.onAllocationSingle, notification)
         }
-        return results
+        return notifications.map { OnResourceAllocationResult.ManageThroughUCloud }
     }
 
     override suspend fun PluginContext.onResourceSynchronizationTotal(notifications: List<AllocationNotificationTotal>) {
         for (notification in notifications) {
-            onSynchronizationTotal.invoke(this, pluginConfig.extensions.onSynchronizationTotal, notification)
+            onSynchronizationTotal.optionalInvoke(this, pluginConfig.extensions.onSynchronizationTotal, notification)
         }
     }
 
     override suspend fun PluginContext.onResourceSynchronizationSingle(notifications: List<AllocationNotificationSingle>) {
         for (notification in notifications) {
-            onSynchronizationSingle.invoke(this, pluginConfig.extensions.onSynchronizationSingle, notification)
+            onSynchronizationSingle.optionalInvoke(this, pluginConfig.extensions.onSynchronizationSingle, notification)
         }
     }
 

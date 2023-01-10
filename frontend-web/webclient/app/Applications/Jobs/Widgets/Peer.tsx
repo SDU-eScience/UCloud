@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidationAnswer} from "./index";
+import {widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidationAnswer} from "./index";
 import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "@/ui-components/Flex";
@@ -10,19 +10,17 @@ import styled from "styled-components";
 import Input from "@/ui-components/Input";
 import Label from "@/ui-components/Label";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {emptyPage} from "@/DefaultObjects";
-import {useCloudAPI} from "@/Authentication/DataHook";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {JobBrowse} from "@/Applications/Jobs/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
+import {checkProviderMismatch} from "../Create";
 
 interface PeerProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Peer;
 }
 
 export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
-    const error = props.errors[props.parameter.name] != null;
     return <Flex mb={8}>
         <div>
             <Label>
@@ -43,7 +41,8 @@ export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
             <JobSelector
                 parameter={props.parameter}
                 suggestedApplication={props.parameter.suggestedApplication}
-                error={error}
+                errors={props.errors}
+                setErrors={props.setErrors}
             />
         </Box>
     </Flex>;
@@ -89,11 +88,11 @@ function findElementJob(param: ApplicationParameterNS.Peer): HTMLInputElement | 
 interface JobSelectorProps {
     parameter: ApplicationParameterNS.Peer;
     suggestedApplication?: string;
-    error: boolean;
+    errors: Record<string, string>;
+    setErrors: (errors: Record<string, string>) => void;
 }
 
 const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
-    const [selectedPeer, setSelectedPeer] = useState<string>("");
     const [allowAutoConfigure, setAllowAutoConfigure] = useState<boolean>(true);
     const [open, setOpen] = useState(false);
     const doOpen = useCallback(() => {
@@ -102,15 +101,6 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
     const doClose = useCallback(() => {
         setOpen(false)
     }, [setOpen]);
-
-    const [suggestedApplicationApi] = useCloudAPI<Page<UCloud.compute.Job>>(
-        props.suggestedApplication ?
-            UCloud.compute.apps.findByName({appName: props.suggestedApplication, itemsPerPage: 50, page: 0}) :
-            {noop: true},
-        {...emptyPage, itemsPerPage: -1}
-    );
-
-    const [suggestedApplication] = suggestedApplicationApi.data.items;
 
     React.useEffect(() => {
         if (props.suggestedApplication === null && allowAutoConfigure) {
@@ -125,11 +115,9 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
             id={widgetId(props.parameter) + "job"}
             placeholder={"No selected run"}
             onClick={doOpen}
-            value={selectedPeer}
             style={{height: "39px"}}
             readOnly
         />
-        <input type="hidden" id={widgetId(props.parameter)}/>
         <ReactModal
             isOpen={open}
             ariaHideApp={false}
@@ -140,8 +128,21 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
         >
             <JobBrowse
                 additionalFilters={filters}
+                onSelectRestriction={job => {
+                    const errorMessage = checkProviderMismatch(job, "Jobs");
+                    if (errorMessage) return errorMessage;
+                    return true;
+                }}
                 onSelect={job => {
-                    setSelectedPeer(job.id);
+                    const el = document.getElementById(widgetId(props.parameter) + "job");
+                    if (el) {
+                        (el as HTMLInputElement).value = job.id;
+                    }
+                    WidgetSetProvider({name: props.parameter.name + "job"}, job.specification.product.provider);
+                    if (props.errors[props.parameter.name]) {
+                        delete props.errors[props.parameter.name];
+                        props.setErrors({...props.errors});
+                    }
                     setAllowAutoConfigure(false);
                     doClose();
                 }}

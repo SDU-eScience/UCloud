@@ -12,11 +12,10 @@ import {ListRow, ListRowStat} from "@/ui-components/List";
 import {Flex, List, VerticalButtonGroup} from "@/ui-components";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {useNavigate} from "react-router";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {dateToString} from "@/Utilities/DateUtilities";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -34,26 +33,25 @@ export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (p
         emptyPage
     );
 
-
     const [filters, setFilters] = useState<Record<string, string>>({});
     const baseName = props.ingoing ? "Ingoing" : "Outgoing";
 
+    const paramProject = useProjectFromParams(`${baseName} Applications`);
+    const projectIdToUse = !paramProject.isPersonalWorkspace ? paramProject.projectId : undefined;
+
     useRefreshFunction(() => {
-        fetchApplications(
-            browseGrantApplications({
+        fetchApplications({
+            ...browseGrantApplications({
                 itemsPerPage: 50,
                 includeIngoingApplications: props.ingoing,
                 includeOutgoingApplications: !props.ingoing,
                 filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.ACTIVE
-            })
-        );
+            }), projectOverride: projectIdToUse
+        });
         setScrollGeneration(prev => prev + 1);
     });
 
     useTitle(`${baseName} Applications`);
-
-    const paramProject = useProjectFromParams(`${baseName} Applications`);
-    const projectIdToUse = !paramProject.isPersonalWorkspace ? paramProject.projectId : undefined;
 
     useEffect(() => {
         setScrollGeneration(prev => prev + 1);
@@ -158,7 +156,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                     icon={
                         slim ? null : (
                             <UserAvatar
-                                avatar={avatars.cache[app.createdBy] ?? defaultAvatar}
+                                avatar={avatars.avatar(app.createdBy)}
                                 width={"45px"}
                             />
                         )

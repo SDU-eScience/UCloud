@@ -75,7 +75,6 @@ class LogoService(
                 LogoType.TOOL -> toolDao.fetchLogo(session, name)
             } ?: when (type) {
                 LogoType.APPLICATION -> {
-                    println("Couldnt find by app. trying tool")
                     val app = appService.findAllByName(
                         session,
                         null,
@@ -84,7 +83,6 @@ class LogoService(
                         name,
                         NormalizedPaginationRequest(10, 0)
                     ).items.firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-                    println("foudn app ${app.metadata.name} ${app.metadata.version}")
 
                     fetchLogo(
                         LogoType.TOOL,
@@ -100,7 +98,6 @@ class LogoService(
                 }
 
                 else -> {
-                    println("Could not find $type $name")
                     throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
                 }
             }

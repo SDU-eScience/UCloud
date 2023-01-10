@@ -309,7 +309,7 @@ interface CopyToClipboard {
  */
 export function copyToClipboard({value, message}: CopyToClipboard): void {
     navigator.clipboard.writeText(value ?? "");
-    snackbarStore.addSuccess(message, false);
+    if (message) snackbarStore.addSuccess(message, false);
 }
 
 export function errorMessageOrDefault(

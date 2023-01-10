@@ -20,7 +20,6 @@ import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "@/UC
 import {apiBrowse, apiUpdate} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {fileName} from "@/Utilities/FileUtilities";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {preventDefault, stopPropagation, useEffectSkipMount} from "@/UtilityFunctions";
 import {useCallback, useState} from "react";
@@ -91,7 +90,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             const avatars = useAvatars();
             if (resource?.owner?.createdBy === Client.username) {
                 return <UserAvatar
-                    avatar={avatars.cache[resource!.specification.sharedWith] ?? defaultAvatar}
+                    avatar={avatars.avatar(resource!.specification.sharedWith)}
                     width={size}
                     height={size}
                     mx={"0"}

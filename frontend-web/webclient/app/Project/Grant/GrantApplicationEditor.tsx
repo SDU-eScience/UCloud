@@ -87,13 +87,14 @@ import {
     updateState,
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 import {Accordion} from "@/ui-components/Accordion";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI, OldProjectRole, useProjectId} from "../Api";
 import {useProject} from "../cache";
+import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing_project",
@@ -304,7 +305,7 @@ const GenericRequestCard: React.FunctionComponent<{
                         <tr>
                             <th>Product</th>
                             <td>
-                                {wb.metadata.category.provider} / {wb.metadata.category.name}
+                                <ProviderTitle providerId={wb.metadata.category.provider} /> / {wb.metadata.category.name}
                                 <Icon name={productTypeToIcon(wb.metadata.productType)} size={40} />
                             </td>
                         </tr>
@@ -421,7 +422,7 @@ function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllo
     }, [allocation, allocationRequest])
 
     const allocationText = allocation ?
-        `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name} [${allocation.allocation.id}]` : "";
+        `${getProviderTitle(allocation.wallet.paysFor.provider)} @ ${allocation.wallet.paysFor.name} [${allocation.allocation.id}]` : "";
 
     React.useEffect(() => {
         if (!allocationRequest || allocation != null || !showAllocationSelection) return;
@@ -493,7 +494,7 @@ function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: 
     return <>
         {wallet.allocations.filter(it => isAllocationSuitableForSubAllocation(it)).map(a =>
             <TableRow key={a.id} onClick={() => onClick(wallet, a)} cursor="pointer">
-                <TableCell width="200px">{wallet.paysFor.provider}</TableCell>
+                <TableCell width="200px"><ProviderTitle providerId={wallet.paysFor.provider} /></TableCell>
                 <TableCell width="200px">{wallet.paysFor.name}</TableCell>
                 <TableCell width="200px">
                     {normalizeBalanceForFrontend(a.balance, wallet.productType, wallet.unit)}
@@ -652,7 +653,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
     const isApprover = activeStateBreakDown != null;
 
     const [templates, fetchTemplates] = useCloudAPI<Templates | undefined>({noop: true}, undefined);
-    
+
     React.useEffect(() => {
         const {parentProjectId} = getDocument(grantApplication);
         if (parentProjectId && target !== RequestTarget.VIEW_APPLICATION) {
@@ -1115,6 +1116,20 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
     const recipientName = getRecipientName(grantApplication);
     const isProject = recipient.type !== "personalWorkspace";
 
+    const newProjectWarningOnClick = React.useCallback(() => {
+        addStandardDialog({
+            title: "Delete application?",
+            message: `
+                This will delete your current application and switch to a new project application instead. You might
+                wish to save your work before doing so.
+            `.trim(),
+            confirmText: "Switch to a new project",
+            onConfirm: () => navigate("/project/grants/new"),
+            addToFront: true,
+            onCancel: doNothing,
+        });
+    }, []);
+
     return (
         <MainContainer
             header={target === RequestTarget.EXISTING_PROJECT ?
@@ -1126,11 +1141,9 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                         Submit Application
                     </Button>
                     {target === RequestTarget.NEW_PROJECT ? null : (
-                        <Link to="/project/grants/new">
-                            <Button mt="8px" fullWidth>
-                                New project
-                            </Button>
-                        </Link>
+                        <Button mt="8px" fullWidth onClick={newProjectWarningOnClick}>
+                            Apply for new project instead
+                        </Button>
                     )}
                 </>) : null}
                 {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
@@ -1385,24 +1398,30 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                         {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverEntries}
                         {/* Note(Jonas): This is for the grant givers that are part of an existing grant application */}
                         {target !== RequestTarget.VIEW_APPLICATION ? null : (
-                            grantGivers.data.items.sort(grantGiverSortFn)
-                                .filter(it => grantApplication.status.stateBreakdown
-                                    .map(it => it.projectId).includes(it.projectId)).map(grantGiver =>
-                                        <GrantGiver
-                                            key={grantGiver.projectId}
-                                            target={target}
-                                            isLocked={isLocked}
-                                            isApprover={Client.projectId === grantGiver.projectId}
-                                            project={grantGiver}
-                                            setParentProject={parentProjectId =>
-                                                dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})
-                                            }
-                                            isParentProject={grantGiver.projectId === getDocument(grantApplication).parentProjectId}
-                                            grantApplication={grantApplication}
-                                            setGrantProductCategories={setGrantProductCategories}
-                                            wallets={wallets.data.items}
-                                            isRecipient={isRecipient}
-                                        />))}
+                            grantApplication.status.stateBreakdown
+                                .map(it => ({projectId: it.projectId, title: it.projectTitle}))
+                                .sort(grantGiverSortFn)
+                                .filter(grantGiver => {
+                                    return grantApplication.status.stateBreakdown
+                                        .map(it => it.projectId)
+                                        .includes(grantGiver.projectId);
+                                })
+                                .map(grantGiver =>
+                                    <GrantGiver
+                                        key={grantGiver.projectId}
+                                        target={target}
+                                        isLocked={isLocked}
+                                        isApprover={Client.projectId === grantGiver.projectId}
+                                        project={grantGiver}
+                                        setParentProject={parentProjectId =>
+                                            dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})
+                                        }
+                                        isParentProject={grantGiver.projectId === getDocument(grantApplication).parentProjectId}
+                                        grantApplication={grantApplication}
+                                        setGrantProductCategories={setGrantProductCategories}
+                                        wallets={wallets.data.items}
+                                        isRecipient={isRecipient}
+                                    />))}
 
                         <CommentApplicationWrapper style={{display: target === RequestTarget.VIEW_APPLICATION || grantGiversInUse.length > 0 ? undefined : "none"}}>
                             <RequestFormContainer>
@@ -1497,14 +1516,14 @@ function Comments(props: CommentsProps) {
                     key={it.id}
                     grantId={props.appId}
                     comment={it}
-                    avatar={avatars.cache[it.username] ?? defaultAvatar}
+                    avatar={avatars.avatar(it.username)}
                     reload={props.reload}
                 />
             ))}
             {!props.appId ? null :
                 <PostCommentWidget
                     grantId={props.appId}
-                    avatar={avatars.cache[Client.username!] ?? defaultAvatar}
+                    avatar={avatars.avatar(Client.username!)}
                     onPostedComment={comment => props.dispatch({type: "POSTED_COMMENT", payload: comment})}
                     disabled={props.target !== RequestTarget.VIEW_APPLICATION}
                 />
@@ -1712,7 +1731,7 @@ function GrantGiver(props: {
                 right={right}
             /> : null}
             {creatingOrApproverOrRecipient ? products :
-                <Accordion noBorder title={<Flex mt="-12px">{left}</Flex>} titleContent={right} panelProps={{mx: "-8px", pl: "8px"}}>
+                <Accordion noBorder title={left} titleContent={right} panelProps={{mx: "3px"}}>
                     {products}
                 </Accordion>
             }

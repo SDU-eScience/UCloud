@@ -1,12 +1,47 @@
 package dk.sdu.cloud.calls.server
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonProperty
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.calls.AttributeKey
+import dk.sdu.cloud.service.ElasticServiceInstance
 import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.Time
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import java.time.Period
+@Serializable
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class ElasticAudit(
+    @JsonProperty("@timestamp")
+    val timestamp: String?,
+    @JsonProperty("jobId")
+    val jobId: String?,
+    @JsonIgnore
+    @JsonProperty("handledBy")
+    val handledBy: ElasticServiceInstance?,
+    @JsonProperty("causedBy")
+    val causedBy: String?,
+    @JsonProperty("requestName")
+    val requestName: String?,
+    @JsonProperty("userAgent")
+    val userAgent: String?,
+    @JsonProperty("remoteOrigin")
+    val remoteOrigin: String?,
+    @JsonProperty("requestSize")
+    val requestSize: Int?,
+    @JsonProperty("responseCode")
+    val responseCode: Int?,
+    @JsonProperty("responseTime")
+    val responseTime: Long?,
+    @JsonProperty("_id")
+    val id: String?,
+    @JsonProperty("_index")
+    val index: String?,
+    @JsonProperty("_score")
+    val score: String?
+)
 
 @Serializable
 data class HttpCallLogEntry(

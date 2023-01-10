@@ -373,6 +373,28 @@ class GrantSettingsService(
         actorAndProject: ActorAndProject,
         request: WithPaginationRequestV2
     ): PageV2<ProjectWithTitle> {
+        val project = actorAndProject.project
+        val extraItems: List<ProjectWithTitle> = if (request.next == null && project != null)  {
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    { setParameter("project_id", project) },
+                    """
+                        with my_project as (
+                            select parent
+                            from project.projects
+                            where id = :project_id
+                        )
+                        select p.id, p.title
+                        from
+                            project.projects p join
+                            my_project mp on mp.parent = p.id
+                    """
+                )
+            }.rows.map { row -> ProjectWithTitle(row.getString(0)!!, row.getString(1)!!) }
+        } else {
+            emptyList()
+        }
+
         return db.paginateV2(
             actorAndProject.actor,
             request.normalize(),
@@ -425,7 +447,7 @@ class GrantSettingsService(
                 )
             },
             mapper = { _, rows -> rows.map { ProjectWithTitle(it.getString(0)!!, it.getString(1)!!) }}
-        )
+        ).let { it.copy(items = extraItems + it.items) }
     }
 
     suspend fun fetchLogo(projectId: String): ByteArray? {
@@ -451,16 +473,16 @@ class GrantSettingsService(
                         setParameter("description", req.description)
                     },
                     """
-                    insert into "grant".descriptions (project_id, description)
-                    select :project_id, :description
-                    from project.project_members pm
-                    where
-                        pm.username = :username and
-                        (pm.role = 'PI' or pm.role = 'ADMIN') and
-                        pm.project_id = :project_id
-                    on conflict (project_id) do update set
-                        description = excluded.description
-                """
+                        insert into "grant".descriptions (project_id, description)
+                        select :project_id, :description
+                        from project.project_members pm
+                        where
+                            pm.username = :username and
+                            (pm.role = 'PI' or pm.role = 'ADMIN') and
+                            pm.project_id = :project_id
+                        on conflict (project_id) do update set
+                            description = excluded.description
+                    """
                 ).rowsAffected > 0
 
                 if (!success) {

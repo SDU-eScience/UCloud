@@ -229,9 +229,10 @@ export const App: React.FunctionComponent = () => {
                                     <Box flexGrow={1}>
                                         {allTags.data.length > 0 ?
                                             <DataList
+                                                rightLabel
                                                 options={allTags.data.map(tag => ({value: tag, content: tag}))}
-                                                onSelect={(item) => setSelectedTag(item)}
-                                                onChange={(item) => setSelectedTag(item)}
+                                                onSelect={item => setSelectedTag(item)}
+                                                onChange={item => setSelectedTag(item)}
                                                 placeholder={"Enter or choose a tag..."}
                                             />
                                             : <></>
@@ -322,27 +323,27 @@ export const App: React.FunctionComponent = () => {
                                             placeholder="Username"
                                         />
                                     ) : (
-                                            <>
-                                                <Input
-                                                    leftLabel
-                                                    rightLabel
-                                                    required
-                                                    width={180}
-                                                    type="text"
-                                                    ref={projectEntityField}
-                                                    placeholder="Project name"
-                                                />
-                                                <Input
-                                                    leftLabel
-                                                    rightLabel
-                                                    required
-                                                    width={180}
-                                                    type="text"
-                                                    ref={groupEntityField}
-                                                    placeholder="Group name"
-                                                />
-                                            </>
-                                        )}
+                                        <>
+                                            <Input
+                                                leftLabel
+                                                rightLabel
+                                                required
+                                                width={180}
+                                                type="text"
+                                                ref={projectEntityField}
+                                                placeholder="Project name"
+                                            />
+                                            <Input
+                                                leftLabel
+                                                rightLabel
+                                                required
+                                                width={180}
+                                                type="text"
+                                                ref={groupEntityField}
+                                                placeholder="Group name"
+                                            />
+                                        </>
+                                    )}
                                     <InputLabel width={300} rightLabel>
                                         <ClickableDropdown
                                             chevron
@@ -376,8 +377,8 @@ export const App: React.FunctionComponent = () => {
                                                         {(permissionEntry.entity.user) ? (
                                                             permissionEntry.entity.user
                                                         ) : (
-                                                                `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
-                                                            )}</TableCell>
+                                                            `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
+                                                        )}</TableCell>
                                                     <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
                                                     <TableCell textAlign="right">
                                                         <Button
@@ -389,11 +390,11 @@ export const App: React.FunctionComponent = () => {
                                                                     <Box>
                                                                         <Text>
                                                                             Remove permission
-                                                                        for {(permissionEntry.entity.user) ? (
+                                                                            for {(permissionEntry.entity.user) ? (
                                                                                 permissionEntry.entity.user
                                                                             ) : (
-                                                                                    `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
-                                                                                )}
+                                                                                `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
+                                                                            )}
                                                                         </Text>
                                                                     </Box>
                                                                 ),
@@ -424,8 +425,8 @@ export const App: React.FunctionComponent = () => {
                                         </tbody>
                                     </Table>
                                 ) : (
-                                        <Text textAlign="center">No explicit permissions set for this application</Text>
-                                    )}
+                                    <Text textAlign="center">No explicit permissions set for this application</Text>
+                                )}
                             </Box>
                         </Flex>
                     </Box>
@@ -475,11 +476,11 @@ export const App: React.FunctionComponent = () => {
                                                     </Label>
                                                     {version.isPublic ? (
                                                         <Box ml={28}>Everyone can see and launch this version
-                                                        of {appTitle}.</Box>
+                                                            of {appTitle}.</Box>
                                                     ) : (
-                                                            <Box ml={28}>Access to this version is restricted as defined in
-                                                        Permissions.</Box>
-                                                        )}
+                                                        <Box ml={28}>Access to this version is restricted as defined in
+                                                            Permissions.</Box>
+                                                    )}
                                                 </Box>
                                             </TableCell>
                                         </TableRow>

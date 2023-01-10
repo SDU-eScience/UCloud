@@ -6,8 +6,9 @@ import {useCallback, useEffect, useState} from "react";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import ProjectAPI, {Project, useProjectId} from "./Api";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {getStoredProject} from "./Redux";
+import {dispatchSetProjectAction, getStoredProject, setStoredProject} from "./Redux";
 import {displayErrorMessageOrDefault, errorMessageOrDefault} from "@/UtilityFunctions";
+import { useDispatch } from "react-redux";
 
 // This needs to be global
 let cacheIsLoading = false;
@@ -38,6 +39,7 @@ export function useProject(): {fetch(): Project; reload(): void; loading: boolea
 
     const [error, setError] = useState("");
 
+    const dispatch = useDispatch();
     const projectId = useProjectId();
     const [loading, invokeCommand] = useCloudCommand();
 
@@ -48,7 +50,7 @@ export function useProject(): {fetch(): Project; reload(): void; loading: boolea
         try {
             cacheIsLoading = true;
             const project = await invokeCommand<Project>(ProjectAPI.retrieve({
-                id: getStoredProject() ?? "",
+                id: projectId,
                 includeGroups: true,
                 includeFavorite: true,
                 includeArchived: true,
@@ -59,11 +61,13 @@ export function useProject(): {fetch(): Project; reload(): void; loading: boolea
             if (project !== null) {
                 setCache({expiresAt: +(new Date()) + cacheMaxAge, project});
             } else {
-                setCache({...cache, expiresAt: +(new Date()) + (1000 * 30)});
+                setStoredProject(null);
+                dispatchSetProjectAction(dispatch);
             }
             setError("");
         } catch (e) {
-            setError(errorMessageOrDefault(e, "Failed to fetch project"));
+            setStoredProject(null);
+            dispatchSetProjectAction(dispatch);
         }
 
         cacheIsLoading = false;

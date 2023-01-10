@@ -1,24 +1,25 @@
 package dk.sdu.cloud.elastic.management.services
 
-import org.elasticsearch.action.bulk.BulkRequest
-import org.elasticsearch.action.delete.DeleteRequest
-import org.elasticsearch.action.index.IndexRequest
-import org.elasticsearch.action.search.SearchRequest
-import org.elasticsearch.action.search.SearchResponse
-import org.elasticsearch.client.RequestOptions
-import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.index.query.QueryBuilders
-import org.elasticsearch.search.builder.SearchSourceBuilder
+import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch._types.query_dsl.MatchQuery
+import co.elastic.clients.elasticsearch.core.BulkRequest
+import co.elastic.clients.elasticsearch.core.SearchRequest
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
+import co.elastic.clients.elasticsearch.core.bulk.DeleteOperation
+import co.elastic.clients.elasticsearch.core.search.HitsMetadata
+import dk.sdu.cloud.calls.CallDescription
+import org.elasticsearch.client.RestClient
 
-class CustomScripts(val client: RestHighLevelClient) {
+
+class CustomScripts(val client: ElasticsearchClient, val lowLevelClient: RestClient) {
 
     fun deleteSpecificLogsFromOverfullIndices(query: String, docLimit: Int, field: String) {
         locateIndicesAboveXDocs(docLimit).forEach { index ->
             do {
                 val response = findEntriesContaining("$query*", index, field)
-                val ids = response.hits.map { it.id }
+                val ids = response.hits().map { it.id() }
                 deleteInBulk(index, ids)
-            } while (response.hits.totalHits.value?.toInt() == 10000)
+            } while (response.total()?.value()?.toInt() == 10000)
         }
 
     }
@@ -27,7 +28,7 @@ class CustomScripts(val client: RestHighLevelClient) {
         val indices = getListOfIndices(client, "*")
         val highCountList = mutableListOf<String>()
         indices.forEach { index ->
-            val docCount = getDocumentCountSum(listOf(index), client.lowLevelClient)
+            val docCount = getDocumentCountSum(listOf(index), lowLevelClient)
             if (docCount >= numberOfDocs) {
                 highCountList.add(index)
             }
@@ -35,27 +36,36 @@ class CustomScripts(val client: RestHighLevelClient) {
         return highCountList
     }
 
-    fun findEntriesContaining(query: String, index: String, field: String): SearchResponse {
-        val request = SearchRequest(index)
-        val query = SearchSourceBuilder().query(
-            QueryBuilders.matchQuery(
-                field, query
-            )
-        ).size(250)
-        request.source(query)
+    fun findEntriesContaining(query: String, index: String, field: String): HitsMetadata<CallDescription<*,*,*>> {
+        val request = SearchRequest.Builder()
+            .index(index)
+            .query(
+                MatchQuery.Builder()
+                    .field(field)
+                    .query(query)
+                    .build()._toQuery()
+            ).size(250)
+            .build()
 
-        return client.search(request, RequestOptions.DEFAULT)
+        return client.search(request, CallDescription::class.java).hits()
     }
 
     fun deleteInBulk(index: String, ids: List<String>) {
-        val request = BulkRequest()
-
+        val request = BulkRequest.Builder()
+        val operations = mutableListOf<BulkOperation>()
         ids.forEach { id ->
-            val deleteRequest = DeleteRequest(index, "_doc_", id)
-            request.add(deleteRequest)
+            val deleteRequest =
+                BulkOperation.Builder()
+                    .delete(
+                        DeleteOperation.Builder().index(index).id(id).build()
+                    )
+                    .build()
+
+            operations.add(deleteRequest)
         }
 
-        client.bulk(request, RequestOptions.DEFAULT)
+        request.operations(operations)
+        client.bulk(request.build())
 
     }
 

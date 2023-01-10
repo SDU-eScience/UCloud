@@ -4,10 +4,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.controllers.ComputeSessionIpc
@@ -213,8 +210,8 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
         }
     }
 
-    override suspend fun RequestContext.verify(jobs: List<Job>) {
-        jobManagement.verifyJobs(jobs)
+    override suspend fun RequestContext.verify(request: BulkRequest<Job>) {
+        jobManagement.verifyJobs(request.items)
     }
 
     override suspend fun RequestContext.openInteractiveSession(job: JobsProviderOpenInteractiveSessionRequestItem): ComputeSession {

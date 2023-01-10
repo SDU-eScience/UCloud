@@ -1,14 +1,14 @@
 import {useCallback, useRef, useState} from "react";
-import * as React from "react";
 import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
 import AppParameterValue = compute.AppParameterValue;
 import {setWidgetValues} from "@/Applications/Jobs/Widgets";
+import {flushSync} from "react-dom";
 
 export interface ResourceHook {
     onAdd: () => void;
     onRemove: (id: string) => void;
-    setSize: (size: number) => void;
+    setSize: (size: number) => ApplicationParameter[];
     params: ApplicationParameter[];
     errors: Record<string, string>;
     provider?: string;
@@ -35,15 +35,22 @@ export function useResource(ns: ResourceTypes, provider: string | undefined,
 
     const onRemove = useCallback((id: string) => {
         setParams(oldParams => oldParams.filter(it => it.name !== id));
-    }, [setParams]);
+        if (errors[id]) { 
+            delete errors[id];
+            setErrors(({...errors}));
+        }
+    }, [setParams, setErrors, errors]);
 
-    const setSize = useCallback((size: number) => {
+    const setSize = useCallback((size: number): ApplicationParameter[] => {
         const params: ApplicationParameter[] = [];
         let i = size;
         while (i--) {
             params.push(paramMapper(`${ns}${counter.current++}`));
         }
-        setParams(params);
+        flushSync(() => {
+            setParams(params);
+        });
+        return params;
     }, [setParams, setErrors]);
 
     return {onAdd, onRemove, params, errors, setErrors, warning, setWarning, setSize, provider};
@@ -52,28 +59,18 @@ export function useResource(ns: ResourceTypes, provider: string | undefined,
 export function createSpaceForLoadedResources(
     resources: ResourceHook,
     values: AppParameterValue[],
-    type: string,
-    jobBeingLoaded: React.MutableRefObject<Partial<compute.JobSpecification> | null>,
-    importedJob: Partial<compute.JobSpecification>
-): boolean {
+    type: string
+): ApplicationParameter[] {
     const resourceFolders = values.filter(it => it.type === type);
-    if (resources.params.length !== resourceFolders.length) {
-        jobBeingLoaded.current = importedJob;
-        resources.setSize(resourceFolders.length);
-        return true;
-    }
-    return false;
+    return resources.setSize(resourceFolders.length);
 }
 
 export function injectResources(
-    resources: ResourceHook,
+    params: ApplicationParameter[],
     values: AppParameterValue[],
     type: string
 ): void {
-    let i = 0;
-    for (const value of values) {
-        if (value.type !== type) continue;
-        setWidgetValues([{param: resources.params[i], value}]);
-        i++;
+    for (const [i, value] of values.filter(it => it.type === type).entries()) {
+        setWidgetValues([{param: params[i], value}]);
     }
 }

@@ -10,7 +10,7 @@ class Server(override val micro: Micro) : CommonServer {
 
     override fun start() {
         if (micro.featureOrNull(ElasticFeature) == null) return
-        val client = micro.elasticHighLevelClient
+        val client = micro.elasticClient
 
         AuditProcessor(micro.eventStreamService, client, micro.developmentModeEnabled).init()
 

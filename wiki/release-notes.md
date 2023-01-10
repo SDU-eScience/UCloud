@@ -1,11 +1,58 @@
 # UCloud Release Notes
 
 This page tracks a high-level overview of changes to the version of UCloud
-hosted at ucloud.dk (cloud.sdu.dk). This page is intended for internal
+hosted at cloud.sdu.dk. This page is intended for internal
 use.
 
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
+
+# 04-01-23
+
+Note that this was a DB migration change, as a result the service version didn't change.
+
+```
+✅  Deployment(accounting, 2022.3.1) (UP-TO-DATE)
+```
+
+# 16-12-22
+
+```
+✅  Deployment(webclient, 2022.2.96) (UP-TO-DATE)
+```
+
+# 14-12-22
+
+```
+✅  Deployment(accounting, 2022.2.96) (UP-TO-DATE)
+```
+
+# 08-12-22
+
+```
+✅  Deployment(app-store, 2022.2.86) (UP-TO-DATE)
+```
+
+# 07-12-22
+
+```
+✅  Deployment(accounting, 2022.2.85) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2022.2.85) (UP-TO-DATE)
+✅  Deployment(file-orchestrator, 2022.2.85) (UP-TO-DATE)
+```
+
+# 06-12-22
+
+```
+✅  Deployment(app-store, 2022.2.76) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2022.2.76) (UP-TO-DATE)
+✅  Deployment(file-orchestrator, 2022.2.76) (UP-TO-DATE)
+✅  Deployment(accounting, 2022.2.76) (UP-TO-DATE)
+✅  Deployment(auth, 2022.2.76) (UP-TO-DATE)
+✅  Deployment(notification, 2022.2.76) (UP-TO-DATE)
+✅  Deployment(task, 2022.2.76) (UP-TO-DATE)
+✅  Deployment(frontend, 2022.2.82) (UP-TO-DATE)
+```
 
 ## 16-11-22
 

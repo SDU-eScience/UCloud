@@ -15,6 +15,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.mail.api.MailDescriptions
 import dk.sdu.cloud.mail.api.SendRequestItem
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
@@ -25,6 +26,7 @@ import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -38,6 +40,7 @@ class ProjectService(
     private val serviceClient: AuthenticatedClient,
     private val projectCache: ProjectCache,
     private val developmentMode: Boolean,
+    private val backgroundScope: BackgroundScope,
 ) {
     private val updateHandlers = ArrayList<OnProjectUpdatedHandler>()
 
@@ -1047,6 +1050,7 @@ class ProjectService(
                     insert into project.invites (project_id, username, invited_by) 
                     select :project, invited_user, :username
                     from relevant_invites
+                    on conflict do nothing
                     returning username
                 """
             ).rows.map { it.getString(0)!! }
@@ -1056,32 +1060,34 @@ class ProjectService(
             // already in the project.
             val success = usersInvited.isNotEmpty()
             if (success) {
-                // NOTE(Dan): We succeeded! We notify the users via email and internal notification system. Also note
-                // that we are not calling `.orThrow()` on the RPCs. This is on purpose, we do not wish to cause a
-                // failure just because one of the notification systems are down.
-                val notifications = usersInvited.map { user ->
-                    CreateNotification(
-                        user,
-                        Notification(
-                            NotificationType.PROJECT_INVITE.name,
-                            "${actor.safeUsername()} has invited you to collaborate"
+                backgroundScope.launch {
+                    // NOTE(Dan): We succeeded! We notify the users via email and internal notification system. Also
+                    // note that we are not calling `.orThrow()` on the RPCs. This is on purpose, we do not wish to
+                    // cause a failure just because one of the notification systems are down.
+                    val notifications = usersInvited.map { user ->
+                        CreateNotification(
+                            user,
+                            Notification(
+                                NotificationType.PROJECT_INVITE.name,
+                                "${actor.safeUsername()} has invited you to collaborate"
+                            )
                         )
+                    }
+
+                    val emails = usersInvited.map { user ->
+                        SendRequestItem(user, Mail.ProjectInviteMail(resolvedProject.specification.title))
+                    }
+
+                    NotificationDescriptions.createBulk.call(
+                        BulkRequest(notifications),
+                        serviceClient
+                    )
+
+                    MailDescriptions.sendToUser.call(
+                        BulkRequest(emails),
+                        serviceClient
                     )
                 }
-
-                val emails = usersInvited.map { user ->
-                    SendRequestItem(user, Mail.ProjectInviteMail(resolvedProject.specification.title))
-                }
-
-                NotificationDescriptions.createBulk.call(
-                    BulkRequest(notifications),
-                    serviceClient
-                )
-
-                MailDescriptions.sendToUser.call(
-                    BulkRequest(emails),
-                    serviceClient
-                )
             } else {
                 // NOTE(Dan): This entire branch indicates that no new users were invited to the project. The rest
                 // of the code is simply here to provider a meaningful error message to the client.

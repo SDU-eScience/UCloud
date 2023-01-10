@@ -75,6 +75,7 @@ export interface WidgetProps {
     parameter: ApplicationParameter;
     errors: Record<string, string>;
     setWarning?: (warning: string) => void;
+    setErrors: (errors: Record<string, string>) => void;
 }
 
 interface RootWidgetProps {
@@ -120,37 +121,35 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
     const parameter = props.parameter;
     const [open, setOpen] = useState<boolean>(false);
     const toggleOpen = useCallback(() => {
-        setOpen(!open);
-    }, [open]);
+        setOpen(o => !o);
+    }, []);
 
     if (props.active !== false) {
-        return <>
-            <Box mt={"1em"} data-param-type={props.parameter.type} data-component={`app-parameter`}>
-                <Label fontSize={1} htmlFor={parameter.name}>
-                    <Flex>
-                        <Flex data-component={"param-title"}>
-                            {parameter.title}
-                            {parameter.optional ? null : <MandatoryField />}
-                        </Flex>
-                        {!parameter.optional || !props.onRemove ? null : (
-                            <>
-                                <Box ml="auto" />
-                                <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
-                                      data-component={"param-remove"}>
-                                    Remove
-                                    <Icon ml="6px" size={16} name="close" />
-                                </Text>
-                            </>
-                        )}
+        return <Box mt={"1em"} data-param-type={props.parameter.type} data-component={`app-parameter`}>
+            <Label fontSize={1} htmlFor={parameter.name}>
+                <Flex>
+                    <Flex data-component={"param-title"}>
+                        {parameter.title}
+                        {parameter.optional ? null : <MandatoryField />}
                     </Flex>
-                </Label>
-                <WidgetBody {...props} />
-                {error ? <TextP color={"red"}>{error}</TextP> : null}
-                <Markdown>
-                    {parameter.description}
-                </Markdown>
-            </Box>
-        </>;
+                    {!parameter.optional || !props.onRemove ? null : (
+                        <>
+                            <Box ml="auto" />
+                            <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
+                                data-component={"param-remove"}>
+                                Remove
+                                <Icon ml="6px" size={16} name="close" />
+                            </Text>
+                        </>
+                    )}
+                </Flex>
+            </Label>
+            <WidgetBody {...props} />
+            {error ? <TextP color={"red"}>{error}</TextP> : null}
+            <Markdown>
+                {parameter.description}
+            </Markdown>
+        </Box>;
     } else {
         return <Box data-param-type={props.parameter.type} data-component={"app-parameter"}>
             <InactiveWidget onClick={toggleOpen}>
@@ -189,6 +188,21 @@ const OptionalWidgetSearchWrapper = styled(Box)`
     padding-bottom: 8px;
     overflow-y: auto;
 `;
+
+export function findElement<HTMLElement = HTMLInputElement>(param: {name: string}): HTMLElement | null {
+    return document.getElementById(widgetId(param)) as HTMLElement | null;
+}
+
+export function WidgetSetProvider(param: {name: string}, provider: string): void {
+    const elem = findElement(param);
+    if (elem) {
+        if (provider.length === 0) {
+            elem.removeAttribute("data-provider");
+        } else {
+            elem.setAttribute("data-provider", provider);
+        }
+    }
+}
 
 export const OptionalWidgetSearch: React.FunctionComponent<{
     pool: UCloud.compute.ApplicationParameter[];

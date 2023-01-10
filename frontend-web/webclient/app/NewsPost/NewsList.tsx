@@ -14,6 +14,7 @@ import {Tag, hashF, appColor} from "@/Applications/Card";
 import {capitalized} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
+import AppRoutes from "@/Routes";
 
 interface NewsPostRequestProps extends PaginationRequest {
     withHidden: boolean;
@@ -86,7 +87,7 @@ export const NewsList: React.FC = () => {
             {page.items.map(item => (
                 <HighlightedCard color={"blue"} isLoading={false} key={item.id}>
                     <Box mb={16}>
-                        <Link to={`/news/detailed/${item.id}`}>
+                        <Link to={AppRoutes.news.detailed(item.id)}>
                             <Flex><Heading.h3>{item.title}</Heading.h3><IsHidden hidden={item.hidden} /></Flex>
                         </Link>
                         <Heading.h5>{item.subtitle}</Heading.h5>

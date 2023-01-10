@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import com.github.jasync.sql.db.util.length
 import dk.sdu.cloud.*
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.accounting.api.Product
@@ -239,6 +240,91 @@ class JobOrchestrator(
             val preliminaryJob = Job.fromSpecification(id.toString(), actorAndProject, spec)
             listeners.forEach { it.onCreate(db, preliminaryJob) }
         }
+    }
+
+    override suspend fun deleteSpecification(
+        resourceIds: List<Long>,
+        resources: List<Job>,
+        session: AsyncDBConnection
+    ) {
+        session.sendPreparedStatement(
+            {
+                setParameter("job_ids", resourceIds)
+            },
+            """
+                delete from app_orchestrator.job_resources
+                where job_id = some(:job_ids::bigint[])
+            """
+        )
+
+        session.sendPreparedStatement(
+            {
+                setParameter("job_ids", resourceIds)
+            },
+            """
+                delete from app_orchestrator.job_input_parameters
+                where job_id = some(:job_ids::bigint[])
+            """
+        )
+
+        // Update ingresses
+        val ingressIds = resources.flatMap { job ->
+            job.ingressPoints.map { it.id }
+        }
+
+        if (ingressIds.length > 0) {
+            session.sendPreparedStatement(
+                {
+                    setParameter("job_ids", resourceIds)
+                    setParameter("ingress_ids", ingressIds)
+                },
+                """
+                    update app_orchestrator.ingresses set status_bound_to = (
+                        select array(select unnest(status_bound_to) except select unnest(:job_ids::bigint[]))
+                    ) where resource = some(:ingress_ids::bigint[])
+                """
+            )
+        }
+
+        // Update licenses
+        val licenseIds = resources.flatMap { job ->
+            job.licences.map { it.id }
+        }
+
+        if (licenseIds.length > 0) {
+            session.sendPreparedStatement(
+                {
+                    setParameter("job_ids", resourceIds)
+                    setParameter("license_ids", licenseIds)
+                },
+                """
+                update app_orchestrator.licenses set status_bound_to = (
+                    select array(select unnest(status_bound_to) except select unnest(:job_ids::bigint[]))
+                ) where resource = some(:license_ids::bigint[])
+            """
+            )
+        }
+
+        // Update network ips
+        val networkIds = resources.flatMap { job ->
+            job.networks.map { it.id }
+        }
+
+        if (networkIds.length > 0) {
+            session.sendPreparedStatement(
+                {
+                    setParameter("job_ids", resourceIds)
+                    setParameter("network_ids", networkIds)
+                },
+                """
+                update app_orchestrator.network_ips set status_bound_to = (
+                    select array(select unnest(status_bound_to) except select unnest(:job_ids::bigint[]))
+                ) where resource = some(:network_ids::bigint[])
+            """
+            )
+        }
+
+        super.deleteSpecification(resourceIds, resources, session)
     }
 
     suspend fun insertResources(

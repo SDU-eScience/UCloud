@@ -58,7 +58,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
         <MainContainer
             header={<Flex>
                 <ProjectBreadcrumbsWrapper mb="12px" embedded={false}>
-                    <span><Link to="/projects">My Projects</Link></span>
+                    <span><Link to="/projects">My projects</Link></span>
                     <span>
                         {isPersonalWorkspace ? "My Workspace" :
                             shorten(20, project?.specification.title ?? "")
@@ -94,7 +94,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                         </HighlightedCard>}
 
                         <HighlightedCard
-                            title={"Resources and Usage"}
+                            title={"Resources and usage"}
                             icon="grant"
                             color="purple"
                             onClick={() => navigate(`/project/resources/${projectId ?? ""}`)}
@@ -103,7 +103,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                         </HighlightedCard>
 
                         <HighlightedCard
-                            title={"Resource Allocations"}
+                            title={"Resource allocations"}
                             icon="grant"
                             color="darkGreen"
                             isLoading={false}
@@ -116,7 +116,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                             <HighlightedCard
                                 subtitle={<RightArrow />}
                                 onClick={() => navigate(`/project/grants/ingoing/${projectId ?? ""}`)}
-                                title="Grant Applications"
+                                title="Grant applications"
                                 icon="mail"
                                 color="red"
                             >

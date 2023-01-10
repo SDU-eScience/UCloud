@@ -105,7 +105,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     viewProperties?: (res: Res) => void;
     closeProperties?: () => void;
     onSelect?: (resource: Res) => void;
-    onSelectRestriction?: (resource: Res) => boolean;
+    onSelectRestriction?: (resource: Res) => boolean | string;
     embedded: boolean;
     dispatch: Dispatch;
     startRenaming?: (resource: Res, defaultValue: string) => void;

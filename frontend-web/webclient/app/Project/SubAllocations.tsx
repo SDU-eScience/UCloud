@@ -39,7 +39,8 @@ import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
 import ProjectAPI, {useProjectIdFromParams} from "@/Project/Api";
-import { isAllocationSuitableForSubAllocation } from "@/Project/Grant";
+import {isAllocationSuitableForSubAllocation} from "@/Project/Grant";
+import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider) + ` [${getParentAllocationFromSuballocation(alloc)}]`;
@@ -50,7 +51,7 @@ function getParentAllocationFromSuballocation(alloc: SubAllocation): string {
 }
 
 function rawAllocationTitleInRow(category: string, provider: string) {
-    return `${category} @ ${provider}`;
+    return `${category} @ ${getProviderTitle(provider)}`;
 }
 
 export const SubAllocationViewer: React.FunctionComponent<{
@@ -162,6 +163,9 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
             snackbarStore.addFailure("No allocations to get resources from.", false);
             return;
         }
+        const internalEntryToUse = allocationsByProductTypes[firstProductTypeWithEntries]
+            .findIndex(it => it.allocations.length > 0);
+
         setRecipients(existing => {
             existing.push({
                 id: newRecipientId.current++,
@@ -174,8 +178,8 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                     amount: undefined,
                     endDate: undefined,
                     startDate: startOfDay(new Date()).getTime(),
-                    wallet: allocationsByProductTypes[firstProductTypeWithEntries][0].wallet,
-                    allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id,
+                    wallet: allocationsByProductTypes[firstProductTypeWithEntries][internalEntryToUse].wallet,
+                    allocationId: allocationsByProductTypes[firstProductTypeWithEntries][internalEntryToUse].allocations[0].id,
                 }],
             });
             return [...existing];
@@ -203,6 +207,9 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
             return newRecipients;
         }
 
+        const internalEntryToUse = allocationsByProductTypes[firstProductTypeWithEntries]
+            .findIndex(it => it.allocations.length > 0);
+
         const recipientIndex = newRecipients.findIndex(it => it.id === id);
         newRecipients[recipientIndex].suballocations.push({
             id: newRecipientId.current++,
@@ -210,7 +217,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
             amount: undefined,
             endDate: undefined,
             startDate: startOfDay(new Date()).getTime(),
-            wallet: allocationsByProductTypes[firstProductTypeWithEntries][0].wallet,
+            wallet: allocationsByProductTypes[firstProductTypeWithEntries][internalEntryToUse].wallet,
             allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id,
         });
         return setRecipients([...newRecipients]);
@@ -349,22 +356,24 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                     onChange={e => reason = e.target.value}
                 />
             </Box>
-            <ButtonGroup><Button onClick={async () => {
-                if (!reason) {
-                    snackbarStore.addFailure("Reason can't be empty", false);
-                    return;
-                }
-                mappedRows.forEach(it => it.description = reason);
-                try {
-                    await invokeCommand(deposit(bulkRequestOf(...mappedRows)));
-                    removeNewRecipientRow(recipient.id);
-                    props.reload();
-                    dialogStore.success();
-                    snackbarStore.addSuccess("Sub-allocations added.", false);
-                } catch (e) {
-                    errorMessageOrDefault(e, "Failed to submit rows");
-                }
-            }} color="green">Confirm</Button><Button color="red" onClick={() => dialogStore.failure()}>Cancel</Button></ButtonGroup>
+            <ButtonGroup>
+                <Button onClick={async () => {
+                    if (!reason) {
+                        snackbarStore.addFailure("Reason can't be empty", false);
+                        return;
+                    }
+                    mappedRows.forEach(it => it.description = reason);
+                    try {
+                        await invokeCommand(deposit(bulkRequestOf(...mappedRows)), {defaultErrorHandler: false});
+                        removeNewRecipientRow(recipient.id);
+                        props.reload();
+                        dialogStore.success();
+                        snackbarStore.addSuccess("Sub-allocations added.", false);
+                    } catch (e) {
+                        displayErrorMessageOrDefault(e, "Failed to submit rows");
+                    }
+                }} color="green">Confirm</Button>
+                <Button color="red" onClick={() => dialogStore.failure()}>Cancel</Button></ButtonGroup>
         </Box>, () => undefined);
     }, [projectId]);
 
@@ -380,7 +389,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                 key={recipient.id}
                 iconColor2="white"
                 title={<Flex>
-                    <Flex width="170px" mt="7px">
+                    <Flex width="170px" ml="8px" mt="7px">
                         <ClickableDropdown useMousePositioning width="250px" chevron trigger={<><Icon mr="4px" color2="white" name={recipient.isProject ? "projects" : "user"} />{!recipient.isProject ? "User" : recipient.asNewProject ? "New" : "Existing"}</>}>
                             <Flex onClick={() => toggleIsProject(recipient.id, true)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> Existing project</Flex>
                             <Flex onClick={() => toggleAsNewProject(recipient.id)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> New project</Flex>
@@ -404,7 +413,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                         left={null}
                     />
                     {recipient.suballocations.map(row => {
-                        const productAndProvider = row.wallet ? <Flex>{row.wallet.paysFor.name} @ {row.wallet.paysFor.provider}<TextSpan pl="0.3em" title="Allocation ID">[{row.allocationId}]</TextSpan></Flex> : null;
+                        const productAndProvider = row.wallet ? <Flex>{row.wallet.paysFor.name} @ <ProviderTitle providerId={row.wallet.paysFor.provider} /><TextSpan pl="0.3em" title="Allocation ID">[{row.allocationId}]</TextSpan></Flex> : null;
                         const remainingProductTypes = productTypes.filter(it => it !== row.productType);
                         const recipientId = newRecipients.findIndex(it => it.id === recipient.id);
                         const suballocationId = newRecipients[recipientId].suballocations.findIndex(it => it.id === row.id);
@@ -417,7 +426,10 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                                             const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
                                             return allowProductSelect ?
                                                 <Flex height="32px" key={pt} color="text" style={{alignItems: "center"}} onClick={() => {
-                                                    const {wallet, allocations} = allocationsByProductTypes[pt][0];
+                                                    const internalEntryToUse = allocationsByProductTypes[pt]
+                                                        .findIndex(it => it.allocations.length > 0);
+
+                                                    const {wallet, allocations} = allocationsByProductTypes[pt][internalEntryToUse];
                                                     newRecipients[recipientId].suballocations[suballocationId].productType = pt;
                                                     newRecipients[recipientId].suballocations[suballocationId].wallet = wallet;
                                                     newRecipients[recipientId].suballocations[suballocationId].allocationId = allocations[0].id;
@@ -774,14 +786,17 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             return rows;
         }
 
+        const internalEntryToUse = allocationsByProductTypes[firstProductTypeWithEntries]
+            .findIndex(it => it.allocations.length > 0);
+
         rows.push({
             id: idRef.current++,
             productType: firstProductTypeWithEntries,
             amount: undefined,
             endDate: undefined,
             startDate: startOfDay(new Date()).getTime(),
-            wallet: allocationsByProductTypes[firstProductTypeWithEntries][0].wallet,
-            allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id,
+            wallet: allocationsByProductTypes[firstProductTypeWithEntries][internalEntryToUse].wallet,
+            allocationId: allocationsByProductTypes[firstProductTypeWithEntries][internalEntryToUse].allocations[0].id,
         });
         return [...rows];
     }), [props.wallets]);
@@ -858,7 +873,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             <Box px="12px">
                 {creationRows.length === 0 ? null : <Spacer my="4px" right={<Button ml="8px" mt="2px" disabled={loading} height="32px" onClick={e => submitNewRows(creationRows)}>Submit new rows</Button>} left={null} />}
                 {creationRows.map((row, index) => {
-                    const productAndProvider = row.wallet ? <Text>{row.wallet.paysFor.name} @ {row.wallet.paysFor.provider}<TextSpan pl="0.3em" title="Allocation ID">[{row.allocationId}]</TextSpan></Text> : null;
+                    const productAndProvider = row.wallet ? <Text>{row.wallet.paysFor.name} @ <ProviderTitle providerId={row.wallet.paysFor.provider} /><TextSpan pl="0.3em" title="Allocation ID">[{row.allocationId}]</TextSpan></Text> : null;
                     const remainingProductTypes = productTypes.filter(it => it !== row.productType);
 
                     return (
@@ -870,6 +885,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                         const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
                                         return allowProductSelect ?
                                             <Flex height="32px" key={pt} color="text" style={{alignItems: "center"}} onClick={() => {
+
                                                 const {wallet, allocations} = allocationsByProductTypes[pt][0];
                                                 creationRows[index].productType = pt;
                                                 creationRows[index].wallet = wallet;
@@ -944,7 +960,7 @@ function findValidAllocations(wallets: Wallet[], productType: ProductType): {wal
 
 function hasValidAllocations(walletAllocations?: {wallet: Wallet, allocations: WalletAllocation[]}[]): boolean {
     if (!walletAllocations) return false;
-    return walletAllocations.some(({allocations}) => allocations.length > 0);
+    return walletAllocations.some(({allocations}) => allocations.some(it => isAllocationSuitableForSubAllocation(it)));
 }
 
 function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean; editEntries: MutableRefObject<Record<string, SubAllocation>>}): JSX.Element {

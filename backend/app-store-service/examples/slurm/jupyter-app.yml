@@ -1,0 +1,45 @@
+application: v1
+
+title: JupyterLab (Hippo)
+name: jupyterlab-hippo
+version: 3.1.6
+
+applicationType: WEB
+
+allowMultiNode: false
+
+tool:
+  name: jupyterlab-hippo
+  version: 3.1.6
+
+authors: ["SDU eScience"]
+
+description: "A proof-of-concept for running JupyterLab on Hippo"
+
+environment:
+  INPUT_DIR:
+    type: var
+    vars: ["nootbookdir"]
+
+invocation:
+  - bash
+  - -c
+  - >
+    tok=`uuidgen`;
+    echo "c.ServerApp.token='$tok'" > nb.py;
+    echo "Use the following token to access JupyterLab:";
+    echo "$tok";
+    echo;
+    jupyter lab --ip=0.0.0.0 --port=$UCLOUD_PORT --no-browser --notebook-dir=$INPUT_DIR --config=nb.py;
+
+parameters:
+  nootbookdir:
+    title: Notebook Directory
+    type: input_directory
+    description: >
+      The directory to store notebooks in.
+    optional: false
+
+outputFileGlobs: []
+
+
