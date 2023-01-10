@@ -214,6 +214,10 @@ div[data-onechild="true"] {
     display: flex;
 }
 
+div[data-singular="true"] {
+    cursor: pointer;
+}
+
 div[data-omitindent="true"] {
     margin-left: 10px;
 }

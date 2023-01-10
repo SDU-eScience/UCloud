@@ -183,10 +183,18 @@ export class DebugContext {
     }
 
     get name(): string {
-        const nameBytes = readBytes(this.buffer, this.offset + 14, 116);
-        let end = nameBytes.indexOf(0);
-        if (end === -1) end = nameBytes.length;
-        const slice = nameBytes.slice(0, end);
-        return textDecoder.decode(slice);
+        return readNameFromBuffer(this.buffer, this.offset + 14, 116);
     }
+}
+
+function readNameFromBuffer(buffer: DataView, offset: number, size: number) {
+    const nameBytes = readBytes(buffer, offset, size);
+    let end = nameBytes.indexOf(0);
+    if (end === -1) end = nameBytes.length;
+    const slice = nameBytes.slice(0, end);
+    return textDecoder.decode(slice);
+}
+
+export function getServiceName(buffer: DataView) {
+    return readNameFromBuffer(buffer, 8, 256 - 8);
 }

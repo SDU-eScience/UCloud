@@ -1,5 +1,6 @@
 import * as React from "react";
 import {BinaryDebugMessage, MessageImportance} from "../WebSockets/Schema";
+import {logStore} from "../WebSockets/Socket";
 import "./MainContent.css";
 
 export function MainContent({activeService, query, filters, levels}: {activeService: string, query: string, filters: string, levels: string;}): JSX.Element {
@@ -18,6 +19,9 @@ export function MainContent({activeService, query, filters, levels}: {activeServ
     React.useEffect(() => {
         doFetch(query, filters, levels);
     }, [query, filters, levels, doFetch]);
+
+    const logs = React.useSyncExternalStore(s => logStore.subscribe(s), () => logStore.getSnapshot())
+    console.log(logs)
 
     return <div className="main-content">
         {!activeService ? <h3>Select a service to view requests</h3> :
@@ -50,7 +54,7 @@ function RequestDetails({request}: {request: BinaryDebugMessage | null}): JSX.El
         </div>
         <div className="card query-details">
             <pre>
-               {request.importance} 
+                {request.importance}
             </pre>
         </div>
     </div>;

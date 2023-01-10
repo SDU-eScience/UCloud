@@ -243,7 +243,7 @@ fun main(args: Array<String>) {
 
                 // Send every registered service to the new session
                 trackedServices.get().forEach { (service) ->
-                    newSession.acceptService(service)
+                    session.acceptService(service)
                 }
 
                 try {
@@ -263,6 +263,10 @@ fun main(args: Array<String>) {
 
                             is ClientRequest.ActivateService -> {
                                 session.activeService = request.service
+                            }
+
+                            else -> {
+                                println("Missing request handling. when(request) {")
                             }
                         }
                     }

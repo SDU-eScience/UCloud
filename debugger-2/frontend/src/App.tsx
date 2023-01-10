@@ -1,4 +1,4 @@
-import {useState, useEffect} from 'react';
+import {useState, useSyncExternalStore, useMemo} from 'react';
 import './App.css';
 import {Filters} from './Header/Filters';
 import {Header} from './Header/Header';
@@ -6,6 +6,7 @@ import {Levels} from './Header/Levels';
 import {SearchBar} from './Header/SearchBar';
 import {MainContent} from './MainContent/MainContent';
 import {Sidebar} from './Sidebar/Sidebar';
+import {serviceStore} from './WebSockets/Socket';
 
 
 interface ServiceNode {
@@ -22,17 +23,23 @@ function hasOneChild(serviceNode: ServiceNode): boolean {
     return serviceNode.children.length === 1;
 }
 
+function onlyHasSingularChildren(root: ServiceNode): boolean {
+    let _r = root;
+    while (hasOneChild(_r) && !isLeaf((_r))) {
+        _r = _r.children[0];
+    }
+    return isLeaf(_r);
+}
+
 function addServiceFromRootNode(fullServicePath: string, root: ServiceNode[]) {
     const splitPath = fullServicePath.split("/");
     let _root = root;
-    let absolutePath = "";
     for (const p of splitPath) {
-        absolutePath += "/" + p;
         const _newRoot = _root.find(it => it.serviceName === p);
         if (_newRoot) {
             _root = _newRoot.children;
         } else {
-            _root.push({absolutePath, children: [], serviceName: p});
+            _root.push({absolutePath: fullServicePath, children: [], serviceName: p});
             const newRoot = _root.find(it => it.serviceName === p)?.children;
             if (!newRoot) return;
             _root = newRoot;
@@ -42,22 +49,17 @@ function addServiceFromRootNode(fullServicePath: string, root: ServiceNode[]) {
 
 function App(): JSX.Element {
     const [activeService, setActiveService] = useState("");
-    const [services, setServices] = useState<ServiceNode[]>([]);
     const [level, setLevel] = useState<string>("");
+    const services = useSyncExternalStore(subscription => serviceStore.subscribe(subscription), () => serviceStore.getSnapshot());
+    const serviceNodes = useMemo(() => {
+        const root: ServiceNode[] = [];
+        for (const service of services) {
+            addServiceFromRootNode(service, root)
+        }
+        return root;
+    }, [services]);
 
-    useEffect(() => {
-        setServices(s => {
-            addServiceFromRootNode("UCloud/Core", s);
-            addServiceFromRootNode("K8/Server", s);
-            addServiceFromRootNode("Slurm/Server", s);
-            addServiceFromRootNode("Slurm/User/1000", s);
-            addServiceFromRootNode("Slurm/User/1100", s);
-            addServiceFromRootNode("Slurm/User/1140", s);
-            addServiceFromRootNode("Slurm/User/11141", s);
-            addServiceFromRootNode("Slurm/User/15121", s);
-            return [...s];
-        });
-    }, [])
+    console.log(serviceNodes);
 
     return <>
         <Header>
@@ -67,7 +69,7 @@ function App(): JSX.Element {
         </Header>
         <div className="flex">
             <Sidebar>
-                <ServiceList services={services} setActiveService={setActiveService} activeService={activeService} depth={0} />
+                <ServiceList services={serviceNodes} setActiveService={setActiveService} activeService={activeService} depth={0} />
             </Sidebar>
             <MainContent activeService={activeService} filters="todo" levels="todo" query="todo" />
         </div>
@@ -78,7 +80,7 @@ function ServiceList({services, activeService, setActiveService, depth}: {active
     if (services.length === 0) return <div />;
     return <div className="mb-12px">
         {services.map(it => {
-            const isActive = it.absolutePath === activeService || activeService.startsWith(it.absolutePath);
+            const isActive = it.absolutePath === activeService || activeService.startsWith(it.serviceName);
 
             if (isLeaf(it)) {
                 return <div key={it.absolutePath}>
@@ -88,7 +90,8 @@ function ServiceList({services, activeService, setActiveService, depth}: {active
                 </div>
             } else {
                 const oneChild = hasOneChild(it);
-                return <div data-onechild={oneChild} key={it.absolutePath}>
+                const singularChildren = onlyHasSingularChildren(it);
+                return <div data-onechild={oneChild} data-singular={singularChildren} onClick={singularChildren ? () => setActiveService(it.absolutePath) : undefined} key={it.absolutePath}>
                     <div data-active={isActive}> {it.serviceName}/</div>
                     <div data-omitindent={!oneChild}>
                         <ServiceList
