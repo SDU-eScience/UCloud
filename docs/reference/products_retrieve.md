@@ -38,11 +38,14 @@ Product.Compute(
     ), 
     chargeType = ChargeType.ABSOLUTE, 
     cpu = 10, 
+    cpuModel = null, 
     description = "An example compute product", 
     freeToUse = false, 
     gpu = 0, 
+    gpuModel = null, 
     hiddenInGrantApplications = false, 
     memoryInGigs = 20, 
+    memoryModel = null, 
     name = "example-compute", 
     pricePerUnit = 1000000, 
     priority = 0, 
@@ -52,52 +55,6 @@ Product.Compute(
     balance = null, 
     id = "example-compute", 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(ProductsApi.retrieve(
-    {
-        "filterName": "example-compute",
-        "filterCategory": "example-compute",
-        "filterProvider": "example",
-        "filterArea": null,
-        "filterVersion": null,
-        "includeBalance": null
-    }
-);
-
-/*
-{
-    "type": "compute",
-    "balance": null,
-    "name": "example-compute",
-    "pricePerUnit": 1000000,
-    "category": {
-        "name": "example-compute",
-        "provider": "example"
-    },
-    "description": "An example compute product",
-    "priority": 0,
-    "cpu": 10,
-    "memoryInGigs": 20,
-    "gpu": 0,
-    "version": 1,
-    "freeToUse": false,
-    "unitOfPrice": "CREDITS_PER_MINUTE",
-    "chargeType": "ABSOLUTE",
-    "hiddenInGrantApplications": false,
-    "productType": "COMPUTE"
-}
 */
 ```
 
@@ -132,6 +89,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/retrieve?
 #     "cpu": 10,
 #     "memoryInGigs": 20,
 #     "gpu": 0,
+#     "cpuModel": null,
+#     "memoryModel": null,
+#     "gpuModel": null,
 #     "version": 1,
 #     "freeToUse": false,
 #     "unitOfPrice": "CREDITS_PER_MINUTE",

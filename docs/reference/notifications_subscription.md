@@ -32,7 +32,7 @@ Notification(
         isString = false, 
     )),)), 
     read = false, 
-    ts = 1662706353437, 
+    ts = 1673008735145, 
     type = "MY_NOTIFICATION_TYPE", 
 )
 */
@@ -48,30 +48,6 @@ NotificationDescriptions.markAsRead.call(
 MarkResponse(
     failures = emptyList(), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(NotificationsApi.markAsRead(
-    {
-        "ids": "56123"
-    }
-);
-
-/*
-{
-    "failures": [
-    ]
-}
 */
 ```
 

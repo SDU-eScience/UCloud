@@ -3,6 +3,13 @@ interface describes how each call should be made on a concrete RPC backend. Each
 in the `api` package. You can read more about the overall structure of a micro-service
 [here](../architecture.md).
 
+---
+
+__⚠️WARNING:__ This document, while still true, has mostly been superseded by shorter versions for defining a 
+call. These are described in more detail [here](/docs/developer-guide/core/api-conventions.md).
+
+---
+
 The interfaces themselves are defined using a 
 [Kotlin DSL](https://kotlinlang.org/docs/reference/type-safe-builders.html). If you are unfamiliar with the syntax it
 might help to  read [this](https://kotlinlang.org/docs/reference/type-safe-builders.html) article.

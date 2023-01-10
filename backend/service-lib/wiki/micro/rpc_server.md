@@ -1,4 +1,4 @@
-The `RpcServer` is the object responsible for implementing the client-side of [remote procedure calls](./rpc.md).
+The `RpcServer` is the object responsible for implementing the server-side of [remote procedure calls](./rpc.md).
 The server, like the client, is implemented using plugin based approach. The `RpcServer` instance is available from
 `micro.server` and is configured by the `ServerFeature`. Inside an `RpcServer` we find the following
 properties:

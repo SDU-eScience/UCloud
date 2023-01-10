@@ -8,6 +8,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
 @Serializable
+@UCloudApiStable
 data class Create2FACredentialsResponse(
     val otpAuthUri: String,
     val qrCodeB64Data: String,
@@ -16,6 +17,7 @@ data class Create2FACredentialsResponse(
 )
 
 @Serializable
+@UCloudApiStable
 data class AnswerChallengeRequest(val challengeId: String, val verificationCode: Int) {
     override fun toString(): String {
         return "AnswerChallengeRequest(challengeId='$challengeId')"
@@ -23,8 +25,10 @@ data class AnswerChallengeRequest(val challengeId: String, val verificationCode:
 }
 
 @Serializable
+@UCloudApiStable
 data class TwoFactorStatusResponse(val connected: Boolean)
 
+@UCloudApiStable
 object TwoFactorAuthDescriptions : CallDescriptionContainer("auth.twofactor") {
     const val baseContext = "/auth/2fa"
 

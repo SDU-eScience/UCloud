@@ -195,16 +195,16 @@ sealed class GeneratedType {
 }
 
 @OptIn(ExperimentalStdlibApi::class)
-fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>): GeneratedTypeReference {
+fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>, why: String = ""): GeneratedTypeReference {
     when (type) {
         is GenericArrayType -> {
-            return GeneratedTypeReference.Array(traverseType(type.genericComponentType, visitedTypes))
+            return GeneratedTypeReference.Array(traverseType(type.genericComponentType, visitedTypes, why + "/array"))
         }
 
         is ParameterizedType -> {
             when {
-                type.rawType == List::class.java || type.rawType == Set::class.java -> {
-                    return GeneratedTypeReference.Array(traverseType(type.actualTypeArguments.first(), visitedTypes))
+                type.rawType == List::class.java || type.rawType == Set::class.java || type.rawType == ArrayList::class.java -> {
+                    return GeneratedTypeReference.Array(traverseType(type.actualTypeArguments.first(), visitedTypes, why + "/list"))
                 }
 
                 type.rawType == Map::class.java -> {
@@ -478,7 +478,7 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
                 )
                 return GeneratedTypeReference.Structure(qualifiedName)
             } else {
-                TODO("Non-primitive and non-kotlin class $type ${type::class}")
+                TODO("Non-primitive and non-kotlin class $type ${type::class} $why")
             }
         }
 

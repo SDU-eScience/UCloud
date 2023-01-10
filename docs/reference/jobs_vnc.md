@@ -66,6 +66,7 @@ BulkResponse(
         providerDomain = "provider.example.com", 
         providerId = "example", 
         session = OpenSession.Vnc(
+            domainOverride = null, 
             jobId = "51231", 
             password = "e7ccc6e0870250073286c44545e6b41820d1db7f", 
             rank = 0, 
@@ -73,95 +74,6 @@ BulkResponse(
         ), 
     )), 
 )
-*/
-
-/* The user can now connect to the remote desktop using the VNC protocol with the above details */
-
-
-/* NOTE: UCloud expects this to support the VNC over WebSockets, as it allows for a connection to be
-established directly from the browser.
-
-You can read more about the protocol here: https://novnc.com */
-
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, the user will create a Job which uses an Application that exposes a VNC interface */
-
-// Authenticated as user
-await callAPI(JobsApi.create(
-    {
-        "items": [
-            {
-                "application": {
-                    "name": "acme-remote-desktop",
-                    "version": "1.0.0"
-                },
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                },
-                "name": null,
-                "replicas": 1,
-                "allowDuplicateJob": false,
-                "parameters": null,
-                "resources": null,
-                "timeAllocation": null,
-                "openedFile": null,
-                "restartOnExit": null,
-                "sshEnabled": null
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "51231"
-        }
-    ]
-}
-*/
-await callAPI(JobsApi.openInteractiveSession(
-    {
-        "items": [
-            {
-                "id": "51231",
-                "rank": 0,
-                "sessionType": "VNC"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "providerDomain": "provider.example.com",
-            "providerId": "example",
-            "session": {
-                "type": "vnc",
-                "jobId": "51231",
-                "rank": 0,
-                "url": "vnc-69521c85-4811-43e6-9de3-2a48614d04ab.provider.example.com",
-                "password": "e7ccc6e0870250073286c44545e6b41820d1db7f"
-            }
-        }
-    ]
-}
 */
 
 /* The user can now connect to the remote desktop using the VNC protocol with the above details */
@@ -246,7 +158,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 "jobId": "51231",
 #                 "rank": 0,
 #                 "url": "vnc-69521c85-4811-43e6-9de3-2a48614d04ab.provider.example.com",
-#                 "password": "e7ccc6e0870250073286c44545e6b41820d1db7f"
+#                 "password": "e7ccc6e0870250073286c44545e6b41820d1db7f",
+#                 "domainOverride": null
 #             }
 #         }
 #     ]

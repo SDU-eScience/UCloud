@@ -5,12 +5,14 @@ import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class PieChart(val points: List<Point>) {
     @Serializable
     data class Point(val name: String, val value: Double)
 }
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class LineChart(val lines: List<Line>) {
     @Serializable
     data class Line(val name: String, val points: List<Point>)
@@ -31,6 +33,7 @@ interface VisualizationFlags {
 }
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class VisualizationRetrieveUsageRequest(
     override val filterStartDate: Long? = null,
     override val filterEndDate: Long? = null,
@@ -43,9 +46,11 @@ data class VisualizationRetrieveUsageRequest(
 ) : VisualizationFlags
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class VisualizationRetrieveUsageResponse(val charts: List<UsageChart>)
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class UsageChart(
     val type: ProductType,
     val periodUsage: Long,
@@ -55,6 +60,7 @@ data class UsageChart(
 )
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class VisualizationRetrieveBreakdownRequest(
     override val filterStartDate: Long? = null,
     override val filterEndDate: Long? = null,
@@ -67,9 +73,11 @@ data class VisualizationRetrieveBreakdownRequest(
 ) : VisualizationFlags
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class VisualizationRetrieveBreakdownResponse(val charts: List<BreakdownChart>)
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class BreakdownChart(
     val type: ProductType,
 //    val periodUsage: Long,
@@ -78,36 +86,50 @@ data class BreakdownChart(
     val chart: PieChart,
 )
 
+@UCloudApiInternal(InternalLevel.STABLE)
 object Visualization : CallDescriptionContainer("accounting.visualization") {
     const val baseContext = "/api/accounting/visualization"
 
     init {
         title = "Usage Visualization"
         description = """
-            Visualization gives the user the possibility to get an easy overview of their usage during a set period or for a given product category. 
+            Visualization gives the user access to an overview of their usage during a set period or for a given product category.
             
-            There are currently two variations of usage visualization:
+            ## Usage chart
             
-            1. Usage Chart: The usage chart shows the usage over time for each product category.
+            The usage chart shows the usage over time for each product category.
             
-            Usage shown fully for product type COMPUTE for the period of week. 
             ![](/backend/accounting-service/wiki/UsageChartFull.png)
-            Usage specifics for each category in the product type.
+            
+            __Figure 1:__ Full usage shown for product type `COMPUTE` for the period of a week. 
+            
             ![](/backend/accounting-service/wiki/UsageChartInfo.png)
+            
+            __Figure 2:__ Usage specifics for each category in the product type.
 
-            2. Breakdown Chart: The breakdown chart shows the usage for the entire period divided into the
-            different products used.
-            Breakdown of different products usage in product type COMPUTE
+            ## Breakdown chart
+            
+            The breakdown chart shows the usage for the entire period divided into the different products used.
+            
             ![](/backend/accounting-service/wiki/BreakdownChart.png)
             
+            __Figure 3:__ Breakdown of different products usage in product type `COMPUTE`
         """.trimIndent()
     }
 
     val retrieveUsage = call("retrieveUsage", VisualizationRetrieveUsageRequest.serializer(), VisualizationRetrieveUsageResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "usage")
+
+        documentation {
+            summary = "Retrieve charts of usage over time."
+        }
     }
 
     val retrieveBreakdown = call("retrieveBreakdown", VisualizationRetrieveBreakdownRequest.serializer(), VisualizationRetrieveBreakdownResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "breakdown")
+
+        documentation {
+            summary = "Retrieve breakdown charts of usage for the entire period."
+        }
     }
 }

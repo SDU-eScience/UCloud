@@ -9,23 +9,28 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class LoginRequest(
     val username: String? = null,
     val service: String? = null,
 )
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class OneTimeAccessToken(val accessToken: String, val jti: String) : DebugSensitive {
     override fun removeSensitiveInformation(): JsonElement = JsonNull
 }
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class RequestOneTimeToken(val audience: String)
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class ClaimOneTimeToken(val jti: String)
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class Session(
     val ipAddress: String,
     val userAgent: String,
@@ -35,6 +40,7 @@ data class Session(
 }
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class ListUserSessionsRequest(
     override val itemsPerPage: Int? = null,
     override val page: Int? = null,
@@ -43,6 +49,7 @@ data class ListUserSessionsRequest(
 typealias ListUserSessionsResponse = Page<Session>
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class TokenExtensionRequest(
     /**
      * A valid JWT for the security principal extension is requested
@@ -83,6 +90,7 @@ data class TokenExtensionRequest(
 typealias TokenExtensionResponse = OptionalAuthenticationTokens
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class TokenExtensionAudit(
     val requestedBy: String,
     val username: String? = null,
@@ -93,6 +101,7 @@ data class TokenExtensionAudit(
 )
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class BulkInvalidateRequest(val tokens: List<String>) : DebugSensitive {
     override fun removeSensitiveInformation(): JsonElement = JsonNull
 }
@@ -100,6 +109,7 @@ data class BulkInvalidateRequest(val tokens: List<String>) : DebugSensitive {
 typealias BulkInvalidateResponse = Unit
 
 @TSTopLevel
+@UCloudApiInternal(InternalLevel.STABLE)
 object AuthDescriptions : CallDescriptionContainer("auth") {
     const val baseContext = "/auth"
     init {
@@ -109,7 +119,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             ## Authenticating with UCloud
 
             UCloud provides various backends for authentication. These are all implemented in the authentication service. As of
-            01/11/21 the following backends are supported:
+            06/01/23 the following backends are supported:
 
             - Authentication with username/password
             - Authentication via WAYF
@@ -138,7 +148,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
 
             Passwords are stored following recommendations by
             [OWASP](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Password_Storage_Cheat_Sheet.md).
-            Password hashing is provided via OpenJDK 11. Specifically we use
+            Password hashing is provided via OpenJDK. Specifically we use
             `PBKDF2WithHmacSHA512` with the following parameters:
 
             - Salt length: 16 bytes (Generated via `SecureRandom`)
@@ -260,8 +270,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             ### Authorization in UCloud
 
             These properties are related to the authorization mechanisms of UCloud.  This is tightly related to how the RPC layer is
-            defined. This is described further in [Auditing](backend/service-lib/wiki/auditing.md) and [Writing Service
-            Interface](/backend/service-lib/wiki/writing_service_interfaces.md).
+            defined.
 
             | **Property** | **Description**                                             |
             | -------- | ------------------------------------------------------- |
@@ -366,6 +375,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         """.trimIndent()
     }
 
+    @UCloudApiStable
     val refresh = call("refresh", Unit.serializer(), AccessToken.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PUBLIC

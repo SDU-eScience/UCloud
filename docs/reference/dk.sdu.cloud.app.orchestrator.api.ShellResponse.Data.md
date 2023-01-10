@@ -3,9 +3,10 @@
 # `ShellResponse.Data`
 
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Emitted by the provider when new data is available for the terminal_
 
 ```kotlin
 data class Data(
@@ -35,7 +36,6 @@ data class Data(
 <code>type</code>: <code><code>String /* "data" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

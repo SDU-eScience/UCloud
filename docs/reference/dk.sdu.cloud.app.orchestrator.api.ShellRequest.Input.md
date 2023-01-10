@@ -3,9 +3,10 @@
 # `ShellRequest.Input`
 
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_An event triggered when a user types any sort of input into a terminal_
 
 ```kotlin
 data class Input(
@@ -35,7 +36,6 @@ data class Input(
 <code>type</code>: <code><code>String /* "input" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

@@ -10,12 +10,15 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 data class AuthProvidersRegisterRequestItem(val id: String)
 
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 data class AuthProvidersRegisterResponseItem(val claimToken: String)
 
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 data class PublicKeyAndRefreshToken(
     val providerId: String,
     val publicKey: String,
@@ -32,16 +35,19 @@ typealias AuthProvidersRefreshAudit = FindByStringId
 typealias AuthProvidersRetrievePublicKeyRequest = FindByStringId
 
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 data class AuthProvidersRetrievePublicKeyResponse(val publicKey: String)
 
 typealias AuthProvidersRefreshAsProviderRequest = BulkRequest<AuthProvidersRefreshAsProviderRequestItem>
 
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 data class AuthProvidersRefreshAsProviderRequestItem(val providerId: String)
 typealias AuthProvidersRefreshAsProviderResponse = BulkResponse<AccessToken>
 
 typealias AuthProvidersGenerateKeyPairRequest = Unit
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 data class AuthProvidersGenerateKeyPairResponse(
     val publicKey: String,
     val privateKey: String,
@@ -57,7 +63,7 @@ val Actor.providerIdOrNull: String?
         }
     }
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 object AuthProviders : CallDescriptionContainer("auth.providers") {
     const val baseContext = "/auth/providers"
     const val PROVIDER_PREFIX = "#P_"
@@ -242,6 +248,7 @@ configured to _only_ accept the parameters mentioned above.
         httpUpdate(baseContext, "renew", roles = Roles.PRIVILEGED)
     }
 
+    @UCloudApiStable
     val refresh = call("refresh", AuthProvidersRefreshRequest.serializer(AuthProvidersRefreshRequestItem.serializer()), AuthProvidersRefreshResponse.serializer(AccessToken.serializer()), CommonErrorMessage.serializer()) {
         audit(BulkResponse.serializer(AuthProvidersRefreshAudit.serializer()))
         httpUpdate(baseContext, "refresh", roles = Roles.PUBLIC)

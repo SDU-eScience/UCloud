@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / [Provider APIs](/docs/developer-guide/orchestration/compute/providers/README.md) / Shells
 # Shells
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 ## Table of Contents
@@ -50,11 +50,11 @@
 </tr>
 <tr>
 <td><a href='#shellrequest.input'><code>ShellRequest.Input</code></a></td>
-<td><i>No description</i></td>
+<td>An event triggered when a user types any sort of input into a terminal</td>
 </tr>
 <tr>
 <td><a href='#shellrequest.resize'><code>ShellRequest.Resize</code></a></td>
-<td><i>No description</i></td>
+<td>An event triggered when a user resizes a terminal</td>
 </tr>
 <tr>
 <td><a href='#shellresponse'><code>ShellResponse</code></a></td>
@@ -62,15 +62,15 @@
 </tr>
 <tr>
 <td><a href='#shellresponse.acknowledged'><code>ShellResponse.Acknowledged</code></a></td>
-<td><i>No description</i></td>
+<td>Emitted by the provider to acknowledge a previous request</td>
 </tr>
 <tr>
 <td><a href='#shellresponse.data'><code>ShellResponse.Data</code></a></td>
-<td><i>No description</i></td>
+<td>Emitted by the provider when new data is available for the terminal</td>
 </tr>
 <tr>
 <td><a href='#shellresponse.initialized'><code>ShellResponse.Initialized</code></a></td>
-<td><i>No description</i></td>
+<td>Emitted by the provider when the terminal has been initialized</td>
 </tr>
 </tbody></table>
 
@@ -82,7 +82,7 @@
 
 ### `open`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -98,7 +98,7 @@
 
 ### `ShellRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -116,7 +116,7 @@ sealed class ShellRequest {
 
 ### `ShellRequest.Initialize`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -172,7 +172,6 @@ data class Initialize(
 <code>type</code>: <code><code>String /* "initialize" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -189,9 +188,10 @@ data class Initialize(
 
 ### `ShellRequest.Input`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_An event triggered when a user types any sort of input into a terminal_
 
 ```kotlin
 data class Input(
@@ -221,7 +221,6 @@ data class Input(
 <code>type</code>: <code><code>String /* "input" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -238,9 +237,10 @@ data class Input(
 
 ### `ShellRequest.Resize`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_An event triggered when a user resizes a terminal_
 
 ```kotlin
 data class Resize(
@@ -282,7 +282,6 @@ data class Resize(
 <code>type</code>: <code><code>String /* "resize" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -299,7 +298,7 @@ data class Resize(
 
 ### `ShellResponse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -317,9 +316,10 @@ sealed class ShellResponse {
 
 ### `ShellResponse.Acknowledged`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Emitted by the provider to acknowledge a previous request_
 
 ```kotlin
 data class Acknowledged(
@@ -337,7 +337,6 @@ data class Acknowledged(
 <code>type</code>: <code><code>String /* "ack" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -354,9 +353,10 @@ data class Acknowledged(
 
 ### `ShellResponse.Data`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Emitted by the provider when new data is available for the terminal_
 
 ```kotlin
 data class Data(
@@ -386,7 +386,6 @@ data class Data(
 <code>type</code>: <code><code>String /* "data" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -403,9 +402,10 @@ data class Data(
 
 ### `ShellResponse.Initialized`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Emitted by the provider when the terminal has been initialized_
 
 ```kotlin
 data class Initialized(
@@ -423,7 +423,6 @@ data class Initialized(
 <code>type</code>: <code><code>String /* "initialize" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

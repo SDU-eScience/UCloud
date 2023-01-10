@@ -46,40 +46,6 @@ BulkResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.createDownload(
-    {
-        "items": [
-            {
-                "id": "/123/folder/file"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "endpoint": "https://provider.example.com/ucloud/example-provider/download?token=d293435e94734c91394f17bb56268d3161c7f069"
-        }
-    ]
-}
-*/
-
-/* The user can now download the file through normal HTTP(s) GET at the provided endpoint */
-
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 

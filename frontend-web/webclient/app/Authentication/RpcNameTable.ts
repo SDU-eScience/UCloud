@@ -18,701 +18,389 @@ export function estimateRpcName(params: CallParameters): string | null {
     } else if (params.context !== "") {
         path = params.context + path;
     }
-
+    
     path = "/" + path.split("/").filter(it => it.trim().length > 0).join("/");
-
+    
     switch (method) {
-        case 'DELETE':
-            switch (path) {
-                case '/api/ingresses':
-                    return 'ingresses.delete';
-                case '/api/hpc/apps':
-                    return 'hpc.apps.delete';
-                case '/api/hpc/apps/clearLogo':
-                    return 'hpc.apps.clearLogo';
-                case '/api/hpc/tools/clearLogo':
-                    return 'hpc.tools.clearLogo';
-                case '/api/files/metadata':
-                    return 'files.metadata.delete';
-                case '/api/notifications':
-                    return 'notifications.delete';
-                case '/api/shares':
-                    return 'shares.delete';
-                case '/api/files':
-                    return 'files.delete';
-                case '/api/projects/invites/reject':
-                    return 'project.rejectInvite';
-                case '/api/projects/leave':
-                    return 'project.leaveProject';
-                case '/api/projects/members':
-                    return 'project.deleteMember';
-                case '/auth/sessions':
-                    return 'auth.invalidateSessions';
-                case '/api/files/collections':
-                    return 'files.collections.delete';
-                case '/api/grant/comment':
-                    return 'grant.deleteComment';
-                case '/api/projects/groups':
-                    return 'project.group.delete';
-                case '/api/projects/groups/members':
-                    return 'project.group.removeGroupMember';
-                case '/api/licenses':
-                    return 'licenses.delete';
-                case '/api/gifts':
-                    return 'gifts.deleteGift';
-                case '/api/news/delete':
-                    return 'news.deletePost';
-                case '/api/networkips':
-                    return 'networkips.delete';
-            }
-            break;
-        case 'POST':
-            switch (path) {
-                case '/api/ingresses':
-                    return 'ingresses.create';
-                case '/api/ingresses/search':
-                    return 'ingresses.search';
-                case '/api/ingresses/init':
-                    return 'ingresses.init';
-                case '/api/ingresses/updateAcl':
-                    return 'ingresses.updateAcl';
-                case '/api/hpc/apps/favorites':
-                    return 'hpc.apps.toggleFavorite';
-                case '/api/hpc/apps/isPublic':
-                    return 'hpc.apps.isPublic';
-                case '/api/hpc/apps/setPublic':
-                    return 'hpc.apps.setPublic';
-                case '/api/hpc/apps/advancedSearch':
-                    return 'hpc.apps.advancedSearch';
-                case '/api/hpc/apps/updateAcl':
-                    return 'hpc.apps.updateAcl';
-                case '/api/hpc/apps/bySupportedFileExtension':
-                    return 'hpc.apps.findBySupportedFileExtension';
-                case '/api/hpc/apps/createTag':
-                    return 'hpc.apps.createTag';
-                case '/api/hpc/apps/deleteTag':
-                    return 'hpc.apps.removeTag';
-                case '/api/hpc/apps/uploadLogo':
-                    return 'hpc.apps.uploadLogo';
-                case '/api/avatar/update':
-                    return 'avatar.update';
-                case '/api/avatar/bulk':
-                    return 'avatar.findBulk';
-                case '/api/hpc/tools/uploadLogo':
-                    return 'hpc.tools.uploadLogo';
-                case '/api/projects/membership':
-                    return 'project.members.userStatus';
-                case '/api/projects/membership/lookup-admins':
-                    return 'project.members.lookupAdminsBulk';
-                case '/api/files/metadata':
-                    return 'files.metadata.create';
-                case '/api/files/metadata/move':
-                    return 'files.metadata.moveMetadata';
-                case '/api/files/metadata/approve':
-                    return 'files.metadata.approve';
-                case '/api/files/metadata/reject':
-                    return 'files.metadata.reject';
-                case '/auth/users/register':
-                    return 'auth.users.createNewUser';
-                case '/auth/users/updateUserInfo':
-                    return 'auth.users.updateUserInfo';
-                case '/auth/users/password':
-                    return 'auth.users.changePassword';
-                case '/auth/users/password/reset':
-                    return 'auth.users.changePasswordWithReset';
-                case '/auth/users/lookup':
-                    return 'auth.users.lookupUsers';
-                case '/auth/users/lookup/email':
-                    return 'auth.users.lookupEmail';
-                case '/auth/users/lookup/with-email':
-                    return 'auth.users.lookupUserWithEmail';
-                case '/auth/users/lookup-uid':
-                    return 'auth.users.lookupUID';
-                case '/auth/users/iterator/open':
-                    return 'auth.users.openUserIterator';
-                case '/auth/users/iterator/next':
-                    return 'auth.users.fetchNextIterator';
-                case '/auth/users/iterator/close':
-                    return 'auth.users.closeIterator';
-                case '/api/jobs/terminate':
-                    return 'jobs.terminate';
-                case '/api/jobs/extend':
-                    return 'jobs.extend';
-                case '/api/jobs/suspend':
-                    return 'jobs.suspend';
-                case '/api/jobs/unsuspend':
-                    return 'jobs.unsuspend';
-                case '/api/jobs/interactiveSession':
-                    return 'jobs.openInteractiveSession';
-                case '/api/jobs':
-                    return 'jobs.create';
-                case '/api/jobs/search':
-                    return 'jobs.search';
-                case '/api/jobs/init':
-                    return 'jobs.init';
-                case '/api/jobs/updateAcl':
-                    return 'jobs.updateAcl';
-                case '/api/notifications/read':
-                    return 'notifications.markAsRead';
-                case '/api/notifications/read/all':
-                    return 'notifications.markAllAsRead';
-                case '/api/notifications/bulk':
-                    return 'notifications.createBulk';
-                case '/api/files/control/addUpdate':
-                    return 'files.control.addUpdate';
-                case '/api/files/control/markAsComplete':
-                    return 'files.control.markAsComplete';
-                case '/api/accounting/wallets/push':
-                    return 'accounting.wallets.push';
-                case '/api/accounting/wallets/register':
-                    return 'accounting.wallets.register';
-                case '/api/accounting/wallets/searchSubAllocation':
-                    return 'accounting.wallets.searchSubAllocations';
-                case '/api/tasks/postStatus':
-                    return 'task.postStatus';
-                case '/api/tasks/markAsComplete':
-                    return 'task.markAsComplete';
-                case '/placeholder':
-                    return 'PROVIDERID.uploadChunk';
-                case '/api/shares/approve':
-                    return 'shares.approve';
-                case '/api/shares/reject':
-                    return 'shares.reject';
-                case '/api/shares/permissions':
-                    return 'shares.updatePermissions';
-                case '/api/shares':
-                    return 'shares.create';
-                case '/api/shares/search':
-                    return 'shares.search';
-                case '/api/shares/init':
-                    return 'shares.init';
-                case '/api/shares/updateAcl':
-                    return 'shares.updateAcl';
-                case '/api/files/collections/control/chargeCredits':
-                    return 'files.collections.control.chargeCredits';
-                case '/api/files/collections/control/checkCredits':
-                    return 'files.collections.control.checkCredits';
-                case '/api/files/collections/control/register':
-                    return 'files.collections.control.register';
-                case '/api/files/collections/control/update':
-                    return 'files.collections.control.update';
-                case '/api/projects/favorite':
-                    return 'project.favorite.toggleFavorite';
-                case '/api/support/ticket':
-                    return 'support.createTicket';
-                case '/api/jobs/control/update':
-                    return 'jobs.control.update';
-                case '/api/jobs/control/chargeCredits':
-                    return 'jobs.control.chargeCredits';
-                case '/api/jobs/control/checkCredits':
-                    return 'jobs.control.checkCredits';
-                case '/api/jobs/control/register':
-                    return 'jobs.control.register';
-                case '/api/sla/accept':
-                    return 'sla.accept';
-                case '/api/files/move':
-                    return 'files.move';
-                case '/api/files/copy':
-                    return 'files.copy';
-                case '/api/files/upload':
-                    return 'files.createUpload';
-                case '/api/files/download':
-                    return 'files.createDownload';
-                case '/api/files/folder':
-                    return 'files.createFolder';
-                case '/api/files/trash':
-                    return 'files.trash';
-                case '/api/files/emptyTrash':
-                    return 'files.emptyTrash';
-                case '/api/files/updateAcl':
-                    return 'files.updateAcl';
-                case '/api/files/search':
-                    return 'files.search';
-                case '/api/files/init':
-                    return 'files.init';
-                case '/auth/2fa':
-                    return 'auth.twofactor.createCredentials';
-                case '/auth/2fa/challenge':
-                    return 'auth.twofactor.answerChallenge';
-                case '/api/licenses/control/chargeCredits':
-                    return 'licenses.control.chargeCredits';
-                case '/api/licenses/control/checkCredits':
-                    return 'licenses.control.checkCredits';
-                case '/api/licenses/control/register':
-                    return 'licenses.control.register';
-                case '/api/licenses/control/update':
-                    return 'licenses.control.update';
-                case '/api/accounting/charge':
-                    return 'accounting.charge';
-                case '/api/accounting/deposit':
-                    return 'accounting.deposit';
-                case '/api/accounting/transfer':
-                    return 'accounting.transfer';
-                case '/api/accounting/allocation':
-                    return 'accounting.updateAllocation';
-                case '/api/accounting/check':
-                    return 'accounting.check';
-                case '/api/accounting/rootDeposit':
-                    return 'accounting.rootDeposit';
-                case '/api/providers/renewToken':
-                    return 'providers.renewToken';
-                case '/api/providers/requestApproval':
-                    return 'providers.requestApproval';
-                case '/api/providers/approve':
-                    return 'providers.approve';
-                case '/api/providers':
-                    return 'providers.create';
-                case '/api/providers/search':
-                    return 'providers.search';
-                case '/api/providers/init':
-                    return 'providers.init';
-                case '/api/providers/updateAcl':
-                    return 'providers.updateAcl';
-                case '/api/slack/sendAlert':
-                    return 'slack.sendAlert';
-                case '/api/slack/sendSupport':
-                    return 'slack.sendSupport';
-                case '/api/projects':
-                    return 'project.create';
-                case '/api/projects/invites':
-                    return 'project.invite';
-                case '/api/projects/invites/accept':
-                    return 'project.acceptInvite';
-                case '/api/projects/transfer-pi':
-                    return 'project.transferPiRole';
-                case '/api/projects/members/change-role':
-                    return 'project.changeUserRole';
-                case '/api/projects/verify-membership':
-                    return 'project.verifyMembership';
-                case '/api/projects/archive':
-                    return 'project.archive';
-                case '/api/projects/archiveBulk':
-                    return 'project.archiveBulk';
-                case '/api/projects/exists':
-                    return 'project.exists';
-                case '/api/projects/lookupByIdBulk':
-                    return 'project.lookupByIdBulk';
-                case '/api/projects/rename':
-                    return 'project.rename';
-                case '/api/projects/toggleRenaming':
-                    return 'project.toggleRenaming';
-                case '/api/projects/update-dmp':
-                    return 'project.updateDataManagementPlan';
-                case '/api/projects/search':
-                    return 'project.search';
-                case '/auth/refresh':
-                    return 'auth.refresh';
-                case '/auth/refresh/web':
-                    return 'auth.webRefresh';
-                case '/auth/logout/bulk':
-                    return 'auth.bulkInvalidate';
-                case '/auth/logout':
-                    return 'auth.logout';
-                case '/auth/logout/web':
-                    return 'auth.webLogout';
-                case '/auth/claim':
-                    return 'auth.claim';
-                case '/auth/request':
-                    return 'auth.requestOneTimeTokenWithAudience';
-                case '/auth/extend':
-                    return 'auth.tokenExtension';
-                case '/auth/login':
-                    return 'auth.passwordLogin';
-                case '/api/shares/control/chargeCredits':
-                    return 'shares.control.chargeCredits';
-                case '/api/shares/control/checkCredits':
-                    return 'shares.control.checkCredits';
-                case '/api/shares/control/register':
-                    return 'shares.control.register';
-                case '/api/shares/control/update':
-                    return 'shares.control.update';
-                case '/api/files/collections/rename':
-                    return 'files.collections.rename';
-                case '/api/files/collections':
-                    return 'files.collections.create';
-                case '/api/files/collections/search':
-                    return 'files.collections.search';
-                case '/api/files/collections/init':
-                    return 'files.collections.init';
-                case '/api/files/collections/updateAcl':
-                    return 'files.collections.updateAcl';
-                case '/api/grant/uploadDescription':
-                    return 'grant.uploadDescription';
-                case '/api/grant/uploadLogo':
-                    return 'grant.uploadLogo';
-                case '/api/grant/upload-templates':
-                    return 'grant.uploadTemplates';
-                case '/api/grant/request-settings':
-                    return 'grant.uploadRequestSettings';
-                case '/api/grant/submit-application':
-                    return 'grant.submitApplication';
-                case '/api/grant/comment':
-                    return 'grant.commentOnApplication';
-                case '/api/grant/approve':
-                    return 'grant.approveApplication';
-                case '/api/grant/reject':
-                    return 'grant.rejectApplication';
-                case '/api/grant/edit':
-                    return 'grant.editApplication';
-                case '/api/grant/editReference':
-                    return 'grant.editReferenceId';
-                case '/api/grant/close':
-                    return 'grant.closeApplication';
-                case '/api/grant/transfer':
-                    return 'grant.transferApplication';
-                case '/api/grant/set-enabled':
-                    return 'grant.setEnabledStatus';
-                case '/api/projects/groups/list-all-group-members':
-                    return 'project.group.listAllGroupMembers';
-                case '/api/projects/groups/update-name':
-                    return 'project.group.updateGroupName';
-                case '/api/projects/groups/is-member':
-                    return 'project.group.isMember';
-                case '/api/projects/groups/exists':
-                    return 'project.group.groupExists';
-                case '/api/ingresses/control/chargeCredits':
-                    return 'ingresses.control.chargeCredits';
-                case '/api/ingresses/control/checkCredits':
-                    return 'ingresses.control.checkCredits';
-                case '/api/ingresses/control/register':
-                    return 'ingresses.control.register';
-                case '/api/ingresses/control/update':
-                    return 'ingresses.control.update';
-                case '/api/licenses':
-                    return 'licenses.create';
-                case '/api/licenses/search':
-                    return 'licenses.search';
-                case '/api/licenses/init':
-                    return 'licenses.init';
-                case '/api/licenses/updateAcl':
-                    return 'licenses.updateAcl';
-                case '/api/products':
-                    return 'products.create';
-                case '/api/networkips/control/chargeCredits':
-                    return 'networkips.control.chargeCredits';
-                case '/api/networkips/control/checkCredits':
-                    return 'networkips.control.checkCredits';
-                case '/api/networkips/control/register':
-                    return 'networkips.control.register';
-                case '/api/networkips/control/update':
-                    return 'networkips.control.update';
-                case '/api/gifts/claim':
-                    return 'gifts.claimGift';
-                case '/api/gifts':
-                    return 'gifts.createGift';
-                case '/api/password/reset':
-                    return 'password.reset.reset';
-                case '/api/password/reset/new':
-                    return 'password.reset.newPassword';
-                case '/auth/providers':
-                    return 'auth.providers.register';
-                case '/auth/providers/claim':
-                    return 'auth.providers.claim';
-                case '/auth/providers/renew':
-                    return 'auth.providers.renew';
-                case '/auth/providers/refresh':
-                    return 'auth.providers.refresh';
-                case '/auth/providers/refreshAsOrchestrator':
-                    return 'auth.providers.refreshAsOrchestrator';
-                case '/auth/providers/generateKeyPair':
-                    return 'auth.providers.generateKeyPair';
-                case '/api/mail/support':
-                    return 'mail.sendSupport';
-                case '/api/mail/sendToUser':
-                    return 'mail.sendToUser';
-                case '/api/mail/toggleEmailSettings':
-                    return 'mail.toggleEmailSettings';
-                case '/api/news/update':
-                    return 'news.updatePost';
-                case '/api/news/toggleHidden':
-                    return 'news.togglePostHidden';
-                case '/api/networkips/firewall':
-                    return 'networkips.updateFirewall';
-                case '/api/networkips':
-                    return 'networkips.create';
-                case '/api/networkips/search':
-                    return 'networkips.search';
-                case '/api/networkips/init':
-                    return 'networkips.init';
-                case '/api/networkips/updateAcl':
-                    return 'networkips.updateAcl';
-                case '/api/files/metadataTemplates/templates':
-                    return 'files.metadataTemplates.createTemplate';
-                case '/api/files/metadataTemplates/deprecate':
-                    return 'files.metadataTemplates.deprecate';
-                case '/api/files/metadataTemplates':
-                    return 'files.metadataTemplates.create';
-                case '/api/files/metadataTemplates/init':
-                    return 'files.metadataTemplates.init';
-                case '/api/files/metadataTemplates/updateAcl':
-                    return 'files.metadataTemplates.updateAcl';
-            }
-            break;
-        case 'GET':
-            switch (path) {
-                case '/api/ingresses/retrieve':
-                    return 'ingresses.retrieve';
-                case '/api/ingresses/retrieveProducts':
-                    return 'ingresses.retrieveProducts';
-                case '/api/ingresses/browse':
-                    return 'ingresses.browse';
-                case '/api/hpc/apps/favorites':
-                    return 'hpc.apps.retrieveFavorites';
-                case '/api/hpc/apps/searchTags':
-                    return 'hpc.apps.searchTags';
-                case '/api/hpc/apps/search':
-                    return 'hpc.apps.searchApps';
-                case '/api/hpc/apps/byName':
-                    return 'hpc.apps.findByName';
-                case '/api/hpc/apps/byNameAndVersion':
-                    return 'hpc.apps.findByNameAndVersion';
-                case '/api/hpc/apps/permission':
-                    return 'hpc.apps.hasPermission';
-                case '/api/hpc/apps/list-acl':
-                    return 'hpc.apps.listAcl';
-                case '/api/hpc/apps/byTool':
-                    return 'hpc.apps.findLatestByTool';
-                case '/api/hpc/apps':
-                    return 'hpc.apps.listAll';
-                case '/api/hpc/apps/logo':
-                    return 'hpc.apps.fetchLogo';
-                case '/api/avatar/find':
-                    return 'avatar.findAvatar';
-                case '/api/hpc/tools/byNameAndVersion':
-                    return 'hpc.tools.findByNameAndVersion';
-                case '/api/hpc/tools/byName':
-                    return 'hpc.tools.findByName';
-                case '/api/hpc/tools':
-                    return 'hpc.tools.listAll';
-                case '/api/hpc/tools/logo':
-                    return 'hpc.tools.fetchLogo';
-                case '/api/projects/membership/search':
-                    return 'project.members.search';
-                case '/api/projects/membership/count':
-                    return 'project.members.count';
-                case '/api/projects/membership/lookup-admins':
-                    return 'project.members.lookupAdmins';
-                case '/api/files/metadata/retrieveAll':
-                    return 'files.metadata.retrieveAll';
-                case '/api/files/metadata/browse':
-                    return 'files.metadata.browse';
-                case '/auth/users/userInfo':
-                    return 'auth.users.getUserInfo';
-                case '/auth/users/retrievePrincipal':
-                    return 'auth.users.retrievePrincipal';
-                case '/api/jobs/retrieveUtilization':
-                    return 'jobs.retrieveUtilization';
-                case '/api/jobs/retrieveProducts':
-                    return 'jobs.retrieveProducts';
-                case '/api/jobs/retrieve':
-                    return 'jobs.retrieve';
-                case '/api/jobs/browse':
-                    return 'jobs.browse';
-                case '/api/accounting/visualization/retrieveUsage':
-                    return 'accounting.visualization.retrieveUsage';
-                case '/api/accounting/visualization/retrieveBreakdown':
-                    return 'accounting.visualization.retrieveBreakdown';
-                case '/api/notifications':
-                    return 'notifications.list';
-                case '/api/accounting/wallets/browse':
-                    return 'accounting.wallets.browse';
-                case '/api/accounting/wallets/browseSubAllocation':
-                    return 'accounting.wallets.browseSubAllocations';
-                case '/api/accounting/wallets/retrieveRecipient':
-                    return 'accounting.wallets.retrieveRecipient';
-                case '/api/accounting/wallets/retrieveProviderSummary':
-                    return 'accounting.wallets.retrieveProviderSummary';
-                case '/api/tasks':
-                    return 'task.list';
-                case '/api/tasks/retrieve':
-                    return 'task.view';
-                case '/api/shares/browseOutgoing':
-                    return 'shares.browseOutgoing';
-                case '/api/shares/browse':
-                    return 'shares.browse';
-                case '/api/shares/retrieve':
-                    return 'shares.retrieve';
-                case '/api/shares/retrieveProducts':
-                    return 'shares.retrieveProducts';
-                case '/api/files/collections/control/browse':
-                    return 'files.collections.control.browse';
-                case '/api/files/collections/control/retrieve':
-                    return 'files.collections.control.retrieve';
-                case '/api/jobs/control/browse':
-                    return 'jobs.control.browse';
-                case '/api/jobs/control/retrieve':
-                    return 'jobs.control.retrieve';
-                case '/api/sla':
-                    return 'sla.find';
-                case '/api/files/browse':
-                    return 'files.browse';
-                case '/api/files/retrieve':
-                    return 'files.retrieve';
-                case '/api/files/retrieveProducts':
-                    return 'files.retrieveProducts';
-                case '/auth/2fa/status':
-                    return 'auth.twofactor.twoFactorStatus';
-                case '/api/licenses/control/browse':
-                    return 'licenses.control.browse';
-                case '/api/licenses/control/retrieve':
-                    return 'licenses.control.retrieve';
-                case '/api/providers/retrieveSpecification':
-                    return 'providers.retrieveSpecification';
-                case '/api/providers/retrieve':
-                    return 'providers.retrieve';
-                case '/api/providers/browse':
-                    return 'providers.browse';
-                case '/api/providers/retrieveProducts':
-                    return 'providers.retrieveProducts';
-                case '/api/projects/members':
-                    return 'project.viewMemberInProject';
-                case '/api/projects/invites/ingoing':
-                    return 'project.listIngoingInvites';
-                case '/api/projects/invites/outgoing':
-                    return 'project.listOutgoingInvites';
-                case '/api/projects/listFavorites':
-                    return 'project.listFavoriteProjects';
-                case '/api/projects/list':
-                    return 'project.listProjects';
-                case '/api/projects/view':
-                    return 'project.viewProject';
-                case '/api/projects/sub-projects':
-                    return 'project.listSubProjects';
-                case '/api/projects/sub-projects-count':
-                    return 'project.countSubProjects';
-                case '/api/projects/ancestors':
-                    return 'project.viewAncestors';
-                case '/api/projects/lookupByTitle':
-                    return 'project.lookupByPath';
-                case '/api/projects/lookupById':
-                    return 'project.lookupById';
-                case '/api/projects/lookup-pi':
-                    return 'project.lookupPrincipalInvestigator';
-                case '/api/projects/renameable':
-                    return 'project.allowsRenaming';
-                case '/api/projects/renameable-sub':
-                    return 'project.allowsSubProjectRenaming';
-                case '/api/projects/dmp':
-                    return 'project.fetchDataManagementPlan';
-                case '/auth/sessions':
-                    return 'auth.listUserSessions';
-                case '/api/shares/control/browse':
-                    return 'shares.control.browse';
-                case '/api/shares/control/retrieve':
-                    return 'shares.control.retrieve';
-                case '/api/files/collections/retrieve':
-                    return 'files.collections.retrieve';
-                case '/api/files/collections/retrieveProducts':
-                    return 'files.collections.retrieveProducts';
-                case '/api/files/collections/browse':
-                    return 'files.collections.browse';
-                case '/api/grant/description':
-                    return 'grant.fetchDescription';
-                case '/api/grant/logo':
-                    return 'grant.fetchLogo';
-                case '/api/grant/request-settings':
-                    return 'grant.readRequestSettings';
-                case '/api/grant/read-templates':
-                    return 'grant.readTemplates';
-                case '/api/grant/ingoing':
-                    return 'grant.ingoingApplications';
-                case '/api/grant/outgoing':
-                    return 'grant.outgoingApplications';
-                case '/api/grant/is-enabled':
-                    return 'grant.isEnabled';
-                case '/api/grant/browse-projects':
-                    return 'grant.browseProjects';
-                case '/api/grant/retrieveAffiliations':
-                    return 'grant.retrieveAffiliations';
-                case '/api/grant/retrieveProducts':
-                    return 'grant.retrieveProducts';
-                case '/api/grant':
-                    return 'grant.viewApplication';
-                case '/api/projects/groups/summary':
-                    return 'project.group.listGroupsWithSummary';
-                case '/api/projects/groups/members':
-                    return 'project.group.listGroupMembers';
-                case '/api/projects/groups/count':
-                    return 'project.group.count';
-                case '/api/projects/groups/view':
-                    return 'project.group.view';
-                case '/api/projects/groups/lookup-by-title':
-                    return 'project.group.lookupByTitle';
-                case '/api/projects/groups/lookup-project-and-group':
-                    return 'project.group.lookupProjectAndGroup';
-                case '/api/projects/groups/list-all-groups':
-                    return 'project.group.listAllGroupIdsAndTitles';
-                case '/api/ingresses/control/browse':
-                    return 'ingresses.control.browse';
-                case '/api/ingresses/control/retrieve':
-                    return 'ingresses.control.retrieve';
-                case '/api/licenses/retrieveProducts':
-                    return 'licenses.retrieveProducts';
-                case '/api/licenses/retrieve':
-                    return 'licenses.retrieve';
-                case '/api/licenses/browse':
-                    return 'licenses.browse';
-                case '/api/products/retrieve':
-                    return 'products.retrieve';
-                case '/api/products/browse':
-                    return 'products.browse';
-                case '/api/networkips/control/browse':
-                    return 'networkips.control.browse';
-                case '/api/networkips/control/retrieve':
-                    return 'networkips.control.retrieve';
-                case '/api/gifts/available':
-                    return 'gifts.availableGifts';
-                case '/auth/providers/retrieveKey':
-                    return 'auth.providers.retrievePublicKey';
-                case '/api/mail/retrieveEmailSettings':
-                    return 'mail.retrieveEmailSettings';
-                case '/api/news/listCategories':
-                    return 'news.listCategories';
-                case '/api/news/list':
-                    return 'news.listPosts';
-                case '/api/news/listDowntimes':
-                    return 'news.listDowntimes';
-                case '/api/news/byId':
-                    return 'news.getPostBy';
-                case '/api/networkips/retrieveProducts':
-                    return 'networkips.retrieveProducts';
-                case '/api/networkips/retrieve':
-                    return 'networkips.retrieve';
-                case '/api/networkips/browse':
-                    return 'networkips.browse';
-                case '/api/files/metadataTemplates/retrieveLatest':
-                    return 'files.metadataTemplates.retrieveLatest';
-                case '/api/files/metadataTemplates/retrieveTemplates':
-                    return 'files.metadataTemplates.retrieveTemplate';
-                case '/api/files/metadataTemplates/browseTemplates':
-                    return 'files.metadataTemplates.browseTemplates';
-                case '/api/files/metadataTemplates/browse':
-                    return 'files.metadataTemplates.browse';
-                case '/api/files/metadataTemplates/retrieve':
-                    return 'files.metadataTemplates.retrieve';
-                case '/api/files/metadataTemplates/retrieveProducts':
-                    return 'files.metadataTemplates.retrieveProducts';
-            }
-            break;
-        case 'PUT':
-            switch (path) {
-                case '/api/hpc/apps':
-                    return 'hpc.apps.create';
-                case '/api/hpc/tools':
-                    return 'hpc.tools.create';
-                case '/api/notifications':
-                    return 'notifications.create';
-                case '/api/tasks':
-                    return 'task.create';
-                case '/api/projects/groups':
-                    return 'project.group.create';
-                case '/api/projects/groups/members':
-                    return 'project.group.addGroupMember';
-                case '/api/news/post':
-                    return 'news.newPost';
-            }
-            break;
-    }
-    console.warn('Could not resolve RPC name, this will probably break something! A developer should run `./run.sh --run-script api-gen` from the backend', params);
-    return null;
+case 'DELETE':
+switch (path) {
+case '/api/licenses': return 'licenses.delete';
+case '/api/projects/invites/reject': return 'project.rejectInvite';
+case '/api/projects/leave': return 'project.leaveProject';
+case '/api/projects/members': return 'project.deleteMember';
+case '/api/projects/groups': return 'project.group.delete';
+case '/api/projects/groups/members': return 'project.group.removeGroupMember';
+case '/api/ingresses': return 'ingresses.delete';
+case '/api/hpc/tools/clearLogo': return 'hpc.tools.clearLogo';
+case '/api/hpc/apps': return 'hpc.apps.delete';
+case '/api/hpc/apps/clearLogo': return 'hpc.apps.clearLogo';
+case '/api/files/metadata': return 'files.metadata.delete';
+case '/api/shares': return 'shares.delete';
+case '/api/gifts': return 'gifts.deleteGift';
+case '/api/networkips': return 'networkips.delete';
+case '/api/news/delete': return 'news.deletePost';
+case '/api/notifications': return 'notifications.delete';
+case '/api/files': return 'files.delete';
+case '/api/files/collections': return 'files.collections.delete';
+case '/auth/sessions': return 'auth.invalidateSessions';
+}
+break;
+case 'POST':
+switch (path) {
+case '/api/grant/setEnabled': return 'grant.enabled.setEnabledStatus';
+case '/api/grant/logo/upload': return 'grant.logo.upload';
+case '/api/files/control/addUpdate': return 'files.control.addUpdate';
+case '/api/files/control/markAsComplete': return 'files.control.markAsComplete';
+case '/api/licenses': return 'licenses.create';
+case '/api/licenses/search': return 'licenses.search';
+case '/api/licenses/init': return 'licenses.init';
+case '/api/licenses/updateAcl': return 'licenses.updateAcl';
+case '/api/sla/accept': return 'sla.accept';
+case '/api/files/collections/control/chargeCredits': return 'files.collections.control.chargeCredits';
+case '/api/files/collections/control/checkCredits': return 'files.collections.control.checkCredits';
+case '/api/files/collections/control/register': return 'files.collections.control.register';
+case '/api/files/collections/control/update': return 'files.collections.control.update';
+case '/api/projects': return 'project.create';
+case '/api/projects/invites': return 'project.invite';
+case '/api/projects/invites/accept': return 'project.acceptInvite';
+case '/api/projects/transfer-pi': return 'project.transferPiRole';
+case '/api/projects/members/change-role': return 'project.changeUserRole';
+case '/api/projects/verify-membership': return 'project.verifyMembership';
+case '/api/projects/archive': return 'project.archive';
+case '/api/projects/archiveBulk': return 'project.archiveBulk';
+case '/api/projects/exists': return 'project.exists';
+case '/api/projects/lookupByIdBulk': return 'project.lookupByIdBulk';
+case '/api/projects/rename': return 'project.rename';
+case '/api/projects/toggleRenaming': return 'project.toggleRenaming';
+case '/api/projects/update-dmp': return 'project.updateDataManagementPlan';
+case '/api/projects/search': return 'project.search';
+case '/api/avatar/update': return 'avatar.update';
+case '/api/avatar/bulk': return 'avatar.findBulk';
+case '/api/projects/v2': return 'projects.v2.create';
+case '/api/projects/v2/archive': return 'projects.v2.archive';
+case '/api/projects/v2/unarchive': return 'projects.v2.unarchive';
+case '/api/projects/v2/toggleFavorite': return 'projects.v2.toggleFavorite';
+case '/api/projects/v2/updateSettings': return 'projects.v2.updateSettings';
+case '/api/projects/v2/retrieveAllUsersGroup': return 'projects.v2.retrieveAllUsersGroup';
+case '/api/projects/v2/renameProject': return 'projects.v2.renameProject';
+case '/api/projects/v2/projectVerificationStatus': return 'projects.v2.projectVerificationStatus';
+case '/api/projects/v2/verifyMembership': return 'projects.v2.verifyMembership';
+case '/api/projects/v2/invites': return 'projects.v2.createInvite';
+case '/api/projects/v2/acceptInvite': return 'projects.v2.acceptInvite';
+case '/api/projects/v2/deleteInvite': return 'projects.v2.deleteInvite';
+case '/api/projects/v2/deleteMember': return 'projects.v2.deleteMember';
+case '/api/projects/v2/changeRole': return 'projects.v2.changeRole';
+case '/api/projects/v2/groups': return 'projects.v2.createGroup';
+case '/api/projects/v2/renameGroup': return 'projects.v2.renameGroup';
+case '/api/projects/v2/deleteGroup': return 'projects.v2.deleteGroup';
+case '/api/projects/v2/groupMembers': return 'projects.v2.createGroupMember';
+case '/api/projects/v2/deleteGroupMember': return 'projects.v2.deleteGroupMember';
+case '/api/projects/groups/list-all-group-members': return 'project.group.listAllGroupMembers';
+case '/api/projects/groups/update-name': return 'project.group.updateGroupName';
+case '/api/projects/groups/is-member': return 'project.group.isMember';
+case '/api/projects/groups/exists': return 'project.group.groupExists';
+case '/api/ingresses': return 'ingresses.create';
+case '/api/ingresses/search': return 'ingresses.search';
+case '/api/ingresses/init': return 'ingresses.init';
+case '/api/ingresses/updateAcl': return 'ingresses.updateAcl';
+case '/api/ingresses/control/chargeCredits': return 'ingresses.control.chargeCredits';
+case '/api/ingresses/control/checkCredits': return 'ingresses.control.checkCredits';
+case '/api/ingresses/control/register': return 'ingresses.control.register';
+case '/api/ingresses/control/update': return 'ingresses.control.update';
+case '/api/files/metadataTemplates/templates': return 'files.metadataTemplates.createTemplate';
+case '/api/files/metadataTemplates/deprecate': return 'files.metadataTemplates.deprecate';
+case '/api/files/metadataTemplates': return 'files.metadataTemplates.create';
+case '/api/files/metadataTemplates/init': return 'files.metadataTemplates.init';
+case '/api/files/metadataTemplates/updateAcl': return 'files.metadataTemplates.updateAcl';
+case '/api/hpc/tools/uploadLogo': return 'hpc.tools.uploadLogo';
+case '/api/hpc/apps/favorites': return 'hpc.apps.toggleFavorite';
+case '/api/hpc/apps/isPublic': return 'hpc.apps.isPublic';
+case '/api/hpc/apps/setPublic': return 'hpc.apps.setPublic';
+case '/api/hpc/apps/advancedSearch': return 'hpc.apps.advancedSearch';
+case '/api/hpc/apps/updateAcl': return 'hpc.apps.updateAcl';
+case '/api/hpc/apps/bySupportedFileExtension': return 'hpc.apps.findBySupportedFileExtension';
+case '/api/hpc/apps/createTag': return 'hpc.apps.createTag';
+case '/api/hpc/apps/deleteTag': return 'hpc.apps.removeTag';
+case '/api/hpc/apps/uploadLogo': return 'hpc.apps.uploadLogo';
+case '/api/hpc/apps/devImport': return 'hpc.apps.devImport';
+case '/api/grant/settings/upload': return 'grant.settings.uploadRequestSettings';
+case '/api/files/metadata': return 'files.metadata.create';
+case '/api/files/metadata/move': return 'files.metadata.moveMetadata';
+case '/api/files/metadata/approve': return 'files.metadata.approve';
+case '/api/files/metadata/reject': return 'files.metadata.reject';
+case '/placeholder': return 'PROVIDERID.uploadChunk';
+case '/api/shares/approve': return 'shares.approve';
+case '/api/shares/reject': return 'shares.reject';
+case '/api/shares/permissions': return 'shares.updatePermissions';
+case '/api/shares': return 'shares.create';
+case '/api/shares/search': return 'shares.search';
+case '/api/shares/init': return 'shares.init';
+case '/api/shares/updateAcl': return 'shares.updateAcl';
+case '/auth/2fa': return 'auth.twofactor.createCredentials';
+case '/auth/2fa/challenge': return 'auth.twofactor.answerChallenge';
+case '/api/projects/membership': return 'project.members.userStatus';
+case '/api/projects/membership/lookup-admins': return 'project.members.lookupAdminsBulk';
+case '/api/products': return 'products.create';
+case '/api/jobs/terminate': return 'jobs.terminate';
+case '/api/jobs/extend': return 'jobs.extend';
+case '/api/jobs/suspend': return 'jobs.suspend';
+case '/api/jobs/unsuspend': return 'jobs.unsuspend';
+case '/api/jobs/interactiveSession': return 'jobs.openInteractiveSession';
+case '/api/jobs': return 'jobs.create';
+case '/api/jobs/search': return 'jobs.search';
+case '/api/jobs/init': return 'jobs.init';
+case '/api/jobs/updateAcl': return 'jobs.updateAcl';
+case '/api/gifts/claim': return 'gifts.claimGift';
+case '/api/gifts': return 'gifts.createGift';
+case '/api/mail/support': return 'mail.sendSupport';
+case '/api/mail/sendToUser': return 'mail.sendToUser';
+case '/api/mail/toggleEmailSettings': return 'mail.toggleEmailSettings';
+case '/api/accounting/charge': return 'accounting.charge';
+case '/api/accounting/deposit': return 'accounting.deposit';
+case '/api/accounting/transfer': return 'accounting.transfer';
+case '/api/accounting/allocation': return 'accounting.updateAllocation';
+case '/api/accounting/check': return 'accounting.check';
+case '/api/accounting/rootDeposit': return 'accounting.rootDeposit';
+case '/api/networkips/firewall': return 'networkips.updateFirewall';
+case '/api/networkips': return 'networkips.create';
+case '/api/networkips/search': return 'networkips.search';
+case '/api/networkips/init': return 'networkips.init';
+case '/api/networkips/updateAcl': return 'networkips.updateAcl';
+case '/api/news/update': return 'news.updatePost';
+case '/api/news/toggleHidden': return 'news.togglePostHidden';
+case '/api/support/ticket': return 'support.createTicket';
+case '/api/shares/control/chargeCredits': return 'shares.control.chargeCredits';
+case '/api/shares/control/checkCredits': return 'shares.control.checkCredits';
+case '/api/shares/control/register': return 'shares.control.register';
+case '/api/shares/control/update': return 'shares.control.update';
+case '/auth/providers': return 'auth.providers.register';
+case '/auth/providers/claim': return 'auth.providers.claim';
+case '/auth/providers/renew': return 'auth.providers.renew';
+case '/auth/providers/refresh': return 'auth.providers.refresh';
+case '/auth/providers/refreshAsOrchestrator': return 'auth.providers.refreshAsOrchestrator';
+case '/auth/providers/generateKeyPair': return 'auth.providers.generateKeyPair';
+case '/api/tasks/postStatus': return 'task.postStatus';
+case '/api/tasks/markAsComplete': return 'task.markAsComplete';
+case '/api/networkips/control/chargeCredits': return 'networkips.control.chargeCredits';
+case '/api/networkips/control/checkCredits': return 'networkips.control.checkCredits';
+case '/api/networkips/control/register': return 'networkips.control.register';
+case '/api/networkips/control/update': return 'networkips.control.update';
+case '/api/notifications/read': return 'notifications.markAsRead';
+case '/api/notifications/read/all': return 'notifications.markAllAsRead';
+case '/api/notifications/bulk': return 'notifications.createBulk';
+case '/api/files/move': return 'files.move';
+case '/api/files/copy': return 'files.copy';
+case '/api/files/upload': return 'files.createUpload';
+case '/api/files/download': return 'files.createDownload';
+case '/api/files/folder': return 'files.createFolder';
+case '/api/files/trash': return 'files.trash';
+case '/api/files/emptyTrash': return 'files.emptyTrash';
+case '/api/files/updateAcl': return 'files.updateAcl';
+case '/api/files/search': return 'files.search';
+case '/api/files/init': return 'files.init';
+case '/api/grant/submit-application': return 'grant.submitApplication';
+case '/api/grant/update-state': return 'grant.updateApplicationState';
+case '/api/grant/edit': return 'grant.editApplication';
+case '/api/grant/close': return 'grant.closeApplication';
+case '/api/grant/transfer': return 'grant.transferApplication';
+case '/api/files/collections/rename': return 'files.collections.rename';
+case '/api/files/collections': return 'files.collections.create';
+case '/api/files/collections/search': return 'files.collections.search';
+case '/api/files/collections/init': return 'files.collections.init';
+case '/api/files/collections/updateAcl': return 'files.collections.updateAcl';
+case '/api/password/reset': return 'password.reset.reset';
+case '/api/password/reset/new': return 'password.reset.newPassword';
+case '/api/jobs/control/browseSshKeys': return 'jobs.control.browseSshKeys';
+case '/api/jobs/control/update': return 'jobs.control.update';
+case '/api/jobs/control/chargeCredits': return 'jobs.control.chargeCredits';
+case '/api/jobs/control/checkCredits': return 'jobs.control.checkCredits';
+case '/api/jobs/control/register': return 'jobs.control.register';
+case '/api/providers/update': return 'providers.update';
+case '/api/providers/renewToken': return 'providers.renewToken';
+case '/api/providers/requestApproval': return 'providers.requestApproval';
+case '/api/providers/approve': return 'providers.approve';
+case '/api/providers': return 'providers.create';
+case '/api/providers/search': return 'providers.search';
+case '/api/providers/init': return 'providers.init';
+case '/api/providers/updateAcl': return 'providers.updateAcl';
+case '/api/grant/description/upload': return 'grant.description.uploadDescription';
+case '/api/licenses/control/chargeCredits': return 'licenses.control.chargeCredits';
+case '/api/licenses/control/checkCredits': return 'licenses.control.checkCredits';
+case '/api/licenses/control/register': return 'licenses.control.register';
+case '/api/licenses/control/update': return 'licenses.control.update';
+case '/api/slack/sendAlert': return 'slack.sendAlert';
+case '/api/slack/sendSupport': return 'slack.sendSupport';
+case '/auth/users/register': return 'auth.users.createNewUser';
+case '/auth/users/updateUserInfo': return 'auth.users.updateUserInfo';
+case '/auth/users/password': return 'auth.users.changePassword';
+case '/auth/users/password/reset': return 'auth.users.changePasswordWithReset';
+case '/auth/users/lookup': return 'auth.users.lookupUsers';
+case '/auth/users/lookup/email': return 'auth.users.lookupEmail';
+case '/auth/users/lookup/with-email': return 'auth.users.lookupUserWithEmail';
+case '/auth/users/lookup-uid': return 'auth.users.lookupUID';
+case '/auth/users/iterator/open': return 'auth.users.openUserIterator';
+case '/auth/users/iterator/next': return 'auth.users.fetchNextIterator';
+case '/auth/users/iterator/close': return 'auth.users.closeIterator';
+case '/api/accounting/wallets/push': return 'accounting.wallets.push';
+case '/api/accounting/wallets/register': return 'accounting.wallets.register';
+case '/api/accounting/wallets/searchSubAllocation': return 'accounting.wallets.searchSubAllocations';
+case '/api/projects/v2/notifications/markAsRead': return 'projects.v2.notifications.markAsRead';
+case '/auth/refresh': return 'auth.refresh';
+case '/auth/refresh/web': return 'auth.webRefresh';
+case '/auth/logout/bulk': return 'auth.bulkInvalidate';
+case '/auth/logout': return 'auth.logout';
+case '/auth/logout/web': return 'auth.webLogout';
+case '/auth/claim': return 'auth.claim';
+case '/auth/request': return 'auth.requestOneTimeTokenWithAudience';
+case '/auth/extend': return 'auth.tokenExtension';
+case '/auth/login': return 'auth.passwordLogin';
+case '/api/projects/favorite': return 'project.favorite.toggleFavorite';
+}
+break;
+case 'GET':
+switch (path) {
+case '/api/grant/enabled/retrieve': return 'grant.enabled.isEnabled';
+case '/api/grant/logo/retrieve': return 'grant.logo.retrieveLogo';
+case '/api/licenses/retrieveProducts': return 'licenses.retrieveProducts';
+case '/api/licenses/retrieve': return 'licenses.retrieve';
+case '/api/licenses/browse': return 'licenses.browse';
+case '/api/sla': return 'sla.find';
+case '/api/files/collections/control/browse': return 'files.collections.control.browse';
+case '/api/files/collections/control/retrieve': return 'files.collections.control.retrieve';
+case '/api/projects/members': return 'project.viewMemberInProject';
+case '/api/projects/invites/ingoing': return 'project.listIngoingInvites';
+case '/api/projects/invites/outgoing': return 'project.listOutgoingInvites';
+case '/api/projects/listFavorites': return 'project.listFavoriteProjects';
+case '/api/projects/list': return 'project.listProjects';
+case '/api/projects/view': return 'project.viewProject';
+case '/api/projects/sub-projects': return 'project.listSubProjects';
+case '/api/projects/sub-projects-count': return 'project.countSubProjects';
+case '/api/projects/ancestors': return 'project.viewAncestors';
+case '/api/projects/lookupByTitle': return 'project.lookupByPath';
+case '/api/projects/lookupById': return 'project.lookupById';
+case '/api/projects/lookup-pi': return 'project.lookupPrincipalInvestigator';
+case '/api/projects/renameable': return 'project.allowsRenaming';
+case '/api/projects/renameable-sub': return 'project.allowsSubProjectRenaming';
+case '/api/projects/dmp': return 'project.fetchDataManagementPlan';
+case '/api/avatar/find': return 'avatar.findAvatar';
+case '/api/projects/v2/retrieve': return 'projects.v2.retrieve';
+case '/api/projects/v2/browse': return 'projects.v2.browse';
+case '/api/projects/v2/browseInvites': return 'projects.v2.browseInvites';
+case '/api/projects/v2/retrieveGroups': return 'projects.v2.retrieveGroup';
+case '/api/projects/v2/retrieveProviderProject': return 'projects.v2.retrieveProviderProject';
+case '/api/projects/groups/summary': return 'project.group.listGroupsWithSummary';
+case '/api/projects/groups/members': return 'project.group.listGroupMembers';
+case '/api/projects/groups/count': return 'project.group.count';
+case '/api/projects/groups/view': return 'project.group.view';
+case '/api/projects/groups/lookup-by-title': return 'project.group.lookupByTitle';
+case '/api/projects/groups/lookup-project-and-group': return 'project.group.lookupProjectAndGroup';
+case '/api/projects/groups/list-all-groups': return 'project.group.listAllGroupIdsAndTitles';
+case '/api/ingresses/retrieve': return 'ingresses.retrieve';
+case '/api/ingresses/retrieveProducts': return 'ingresses.retrieveProducts';
+case '/api/ingresses/browse': return 'ingresses.browse';
+case '/api/ingresses/control/browse': return 'ingresses.control.browse';
+case '/api/ingresses/control/retrieve': return 'ingresses.control.retrieve';
+case '/api/files/metadataTemplates/retrieveLatest': return 'files.metadataTemplates.retrieveLatest';
+case '/api/files/metadataTemplates/retrieveTemplates': return 'files.metadataTemplates.retrieveTemplate';
+case '/api/files/metadataTemplates/browseTemplates': return 'files.metadataTemplates.browseTemplates';
+case '/api/files/metadataTemplates/browse': return 'files.metadataTemplates.browse';
+case '/api/files/metadataTemplates/retrieve': return 'files.metadataTemplates.retrieve';
+case '/api/files/metadataTemplates/retrieveProducts': return 'files.metadataTemplates.retrieveProducts';
+case '/api/hpc/tools/byNameAndVersion': return 'hpc.tools.findByNameAndVersion';
+case '/api/hpc/tools/byName': return 'hpc.tools.findByName';
+case '/api/hpc/tools': return 'hpc.tools.listAll';
+case '/api/hpc/tools/logo': return 'hpc.tools.fetchLogo';
+case '/api/hpc/apps/favorites': return 'hpc.apps.retrieveFavorites';
+case '/api/hpc/apps/searchTags': return 'hpc.apps.searchTags';
+case '/api/hpc/apps/search': return 'hpc.apps.searchApps';
+case '/api/hpc/apps/byName': return 'hpc.apps.findByName';
+case '/api/hpc/apps/byNameAndVersion': return 'hpc.apps.findByNameAndVersion';
+case '/api/hpc/apps/permission': return 'hpc.apps.hasPermission';
+case '/api/hpc/apps/list-acl': return 'hpc.apps.listAcl';
+case '/api/hpc/apps/byTool': return 'hpc.apps.findLatestByTool';
+case '/api/hpc/apps': return 'hpc.apps.listAll';
+case '/api/hpc/apps/overview': return 'hpc.apps.overview';
+case '/api/hpc/apps/listTags': return 'hpc.apps.listTags';
+case '/api/hpc/apps/logo': return 'hpc.apps.fetchLogo';
+case '/api/grant/settings/retrieve': return 'grant.settings.retrieveRequestSettings';
+case '/api/files/metadata/retrieveAll': return 'files.metadata.retrieveAll';
+case '/api/files/metadata/browse': return 'files.metadata.browse';
+case '/api/shares/browseOutgoing': return 'shares.browseOutgoing';
+case '/api/shares/browse': return 'shares.browse';
+case '/api/shares/retrieve': return 'shares.retrieve';
+case '/api/shares/retrieveProducts': return 'shares.retrieveProducts';
+case '/auth/2fa/status': return 'auth.twofactor.twoFactorStatus';
+case '/api/projects/membership/search': return 'project.members.search';
+case '/api/projects/membership/count': return 'project.members.count';
+case '/api/projects/membership/lookup-admins': return 'project.members.lookupAdmins';
+case '/api/products/retrieve': return 'products.retrieve';
+case '/api/products/browse': return 'products.browse';
+case '/api/jobs/retrieveUtilization': return 'jobs.retrieveUtilization';
+case '/api/jobs/retrieveProducts': return 'jobs.retrieveProducts';
+case '/api/jobs/retrieve': return 'jobs.retrieve';
+case '/api/jobs/browse': return 'jobs.browse';
+case '/api/gifts/available': return 'gifts.availableGifts';
+case '/api/mail/retrieveEmailSettings': return 'mail.retrieveEmailSettings';
+case '/api/networkips/retrieveProducts': return 'networkips.retrieveProducts';
+case '/api/networkips/retrieve': return 'networkips.retrieve';
+case '/api/networkips/browse': return 'networkips.browse';
+case '/api/news/listCategories': return 'news.listCategories';
+case '/api/news/list': return 'news.listPosts';
+case '/api/news/listDowntimes': return 'news.listDowntimes';
+case '/api/news/byId': return 'news.getPostBy';
+case '/api/shares/control/browse': return 'shares.control.browse';
+case '/api/shares/control/retrieve': return 'shares.control.retrieve';
+case '/auth/providers/retrieveKey': return 'auth.providers.retrievePublicKey';
+case '/api/tasks': return 'task.list';
+case '/api/tasks/retrieve': return 'task.view';
+case '/api/networkips/control/browse': return 'networkips.control.browse';
+case '/api/networkips/control/retrieve': return 'networkips.control.retrieve';
+case '/api/notifications': return 'notifications.list';
+case '/api/files/browse': return 'files.browse';
+case '/api/files/retrieve': return 'files.retrieve';
+case '/api/files/retrieveProducts': return 'files.retrieveProducts';
+case '/api/grant/browse': return 'grant.browseApplications';
+case '/api/grant/browseProjects': return 'grant.browseProjects';
+case '/api/grant/browseAffiliationsByResource': return 'grant.browseAffiliationsByResource';
+case '/api/grant/browseAffiliations': return 'grant.retrieveAffiliations';
+case '/api/grant/browseProducts': return 'grant.browseProducts';
+case '/api/grant/retrieve': return 'grant.viewApplication';
+case '/api/files/collections/retrieve': return 'files.collections.retrieve';
+case '/api/files/collections/retrieveProducts': return 'files.collections.retrieveProducts';
+case '/api/files/collections/browse': return 'files.collections.browse';
+case '/api/jobs/control/browse': return 'jobs.control.browse';
+case '/api/jobs/control/retrieve': return 'jobs.control.retrieve';
+case '/api/providers/retrieveSpecification': return 'providers.retrieveSpecification';
+case '/api/providers/retrieve': return 'providers.retrieve';
+case '/api/providers/browse': return 'providers.browse';
+case '/api/providers/retrieveProducts': return 'providers.retrieveProducts';
+case '/api/grant/description/retrieve': return 'grant.description.retrieveDescription';
+case '/api/licenses/control/browse': return 'licenses.control.browse';
+case '/api/licenses/control/retrieve': return 'licenses.control.retrieve';
+case '/api/accounting/visualization/retrieveUsage': return 'accounting.visualization.retrieveUsage';
+case '/api/accounting/visualization/retrieveBreakdown': return 'accounting.visualization.retrieveBreakdown';
+case '/auth/users/userInfo': return 'auth.users.getUserInfo';
+case '/auth/users/retrievePrincipal': return 'auth.users.retrievePrincipal';
+case '/api/accounting/wallets/browse': return 'accounting.wallets.browse';
+case '/api/accounting/wallets/browseSubAllocation': return 'accounting.wallets.browseSubAllocations';
+case '/api/accounting/wallets/retrieveRecipient': return 'accounting.wallets.retrieveRecipient';
+case '/api/accounting/wallets/retrieveProviderSummary': return 'accounting.wallets.retrieveProviderSummary';
+case '/api/projects/v2/notifications/retrieve': return 'projects.v2.notifications.retrieve';
+case '/auth/sessions': return 'auth.listUserSessions';
+}
+break;
+case 'PUT':
+switch (path) {
+case '/api/projects/groups': return 'project.group.create';
+case '/api/projects/groups/members': return 'project.group.addGroupMember';
+case '/api/hpc/tools': return 'hpc.tools.create';
+case '/api/hpc/apps': return 'hpc.apps.create';
+case '/api/news/post': return 'news.newPost';
+case '/api/tasks': return 'task.create';
+case '/api/notifications': return 'notifications.create';
+}
+break;
+}
+console.warn('Could not resolve RPC name, this will probably break something! A developer should run `./run.sh --run-script api-gen` from the backend', params);
+return null;
 }

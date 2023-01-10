@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / [Users](/docs/developer-guide/core/users/README.md) / 2FA
 # 2FA
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _UCloud supports 2FA for all users using a TOTP backend._
 
@@ -156,62 +156,6 @@ TwoFactorStatusResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(AuthTwofactorApi.twoFactorStatus(
-    {
-    }
-);
-
-/*
-{
-    "connected": false
-}
-*/
-await callAPI(AuthTwofactorApi.createCredentials(
-    {
-    }
-);
-
-/*
-{
-    "otpAuthUri": "OTP URI",
-    "qrCodeB64Data": "QR CODE BASE64 ENCODED",
-    "secret": "SECRET",
-    "challengeId": "CHALLENGE ID"
-}
-*/
-await callAPI(AuthTwofactorApi.answerChallenge(
-    {
-        "challengeId": "CHALLENGE ID",
-        "verificationCode": 999999
-    }
-);
-
-/*
-{
-}
-*/
-await callAPI(AuthTwofactorApi.twoFactorStatus(
-    {
-    }
-);
-
-/*
-{
-    "connected": true
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -272,7 +216,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/auth/2fa/status"
 
 ### `answerChallenge`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -286,7 +230,7 @@ _Answers a challenge previously issued by createCredentials_
 
 ### `createCredentials`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -300,7 +244,7 @@ _Creates initial 2FA credentials and bootstraps a challenge for those credential
 
 ### `twoFactorStatus`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -317,7 +261,7 @@ _Retrieves the 2FA status of the currently authenticated user_
 
 ### `AnswerChallengeRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -365,7 +309,7 @@ data class AnswerChallengeRequest(
 
 ### `Create2FACredentialsResponse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -437,7 +381,7 @@ data class Create2FACredentialsResponse(
 
 ### `TwoFactorStatusResponse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

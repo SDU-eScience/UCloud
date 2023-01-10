@@ -14,13 +14,10 @@ import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
-import dk.sdu.cloud.accounting.api.providers.ResourceSearchRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
-import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.accounting.api.providers.SupportByProvider
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.debug.DebugSensitive
-import dk.sdu.cloud.project.api.SearchRequest
 import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdate
@@ -45,20 +42,25 @@ interface WithPathMoving {
 }
 
 @Serializable
+@UCloudApiStable
 data class FindByPath(override val id: String) : WithPath
 
 @Serializable
+@UCloudApiStable
 sealed class LongRunningTask {
     @Serializable
     @SerialName("complete")
+    @UCloudApiStable
     class Complete : LongRunningTask()
 
     @Serializable
     @SerialName("continues_in_background")
+    @UCloudApiStable
     data class ContinuesInBackground(val taskId: String) : LongRunningTask()
 }
 
 @Serializable
+@UCloudApiStable
 enum class FilesSortBy {
     PATH,
     SIZE,
@@ -68,6 +70,7 @@ enum class FilesSortBy {
 typealias FilesMoveRequest = BulkRequest<FilesMoveRequestItem>
 
 @Serializable
+@UCloudApiStable
 data class FilesMoveRequestItem(
     override val oldId: String,
     override val newId: String,
@@ -78,6 +81,7 @@ typealias FilesMoveResponse = BulkResponse<LongRunningTask?>
 typealias FilesCopyRequest = BulkRequest<FilesCopyRequestItem>
 
 @Serializable
+@UCloudApiStable
 data class FilesCopyRequestItem(
     override val oldId: String,
     override val newId: String,
@@ -91,6 +95,7 @@ typealias FilesDeleteResponse = BulkResponse<LongRunningTask>
 typealias FilesCreateFolderRequest = BulkRequest<FilesCreateFolderRequestItem>
 
 @Serializable
+@UCloudApiStable
 data class FilesCreateFolderRequestItem(
     override val id: String,
     override val conflictPolicy: WriteConflictPolicy,
@@ -100,6 +105,7 @@ typealias FilesCreateFolderResponse = BulkResponse<LongRunningTask?>
 typealias FilesUpdateAclRequest = BulkRequest<FilesUpdateAclRequestItem>
 
 @Serializable
+@UCloudApiStable
 data class FilesUpdateAclRequestItem(
     override val id: String,
     val newAcl: List<ResourceAclEntry>
@@ -115,6 +121,7 @@ typealias FilesEmptyTrashRequest = BulkRequest<FindByPath>
 typealias FilesEmptyTrashResponse = BulkResponse<LongRunningTask?>
 
 @Serializable
+@UCloudApiStable
 data class FilesCreateUploadRequestItem(
     override val id: String,
     val supportedProtocols: List<UploadProtocol>,
@@ -123,6 +130,7 @@ data class FilesCreateUploadRequestItem(
 typealias FilesCreateUploadResponse = BulkResponse<FilesCreateUploadResponseItem?>
 
 @Serializable
+@UCloudApiStable
 data class FilesCreateUploadResponseItem(
     var endpoint: String,
     val protocol: UploadProtocol,
@@ -131,6 +139,7 @@ data class FilesCreateUploadResponseItem(
     override fun removeSensitiveInformation(): JsonElement = JsonNull
 }
 
+@UCloudApiStable
 enum class UploadProtocol {
     CHUNKED
 }
@@ -138,18 +147,22 @@ enum class UploadProtocol {
 typealias FilesCreateDownloadRequest = BulkRequest<FilesCreateDownloadRequestItem>
 
 @Serializable
+@UCloudApiStable
 data class FilesCreateDownloadRequestItem(override val id: String) : WithPath
 typealias FilesCreateDownloadResponse = BulkResponse<FilesCreateDownloadResponseItem?>
 
 @Serializable
+@UCloudApiStable
 data class FilesCreateDownloadResponseItem(var endpoint: String) : DebugSensitive {
     override fun removeSensitiveInformation(): JsonElement = JsonNull
 }
 
 @Serializable
+@UCloudApiOwnedBy(Files::class)
 data class UFileUpdate(override val timestamp: Long, override val status: String?) : ResourceUpdate
 
 @Serializable
+@UCloudApiStable
 data class FilesStreamingSearchRequest(
     val flags: UFileIncludeFlags,
     val query: String,
@@ -157,18 +170,21 @@ data class FilesStreamingSearchRequest(
 )
 
 @Serializable
+@UCloudApiStable
 sealed class FilesStreamingSearchResult {
     @Serializable
     @SerialName("result")
+    @UCloudApiStable
     data class Result(val batch: List<UFile>) : FilesStreamingSearchResult()
     @Serializable
     @SerialName("end_of_results")
+    @UCloudApiStable
     class EndOfResults : FilesStreamingSearchResult()
 }
 
 // ---
 
-@UCloudApiExperimental(ExperimentalLevel.BETA)
+@UCloudApiStable
 object Files : ResourceApi<UFile, UFileSpecification, UFileUpdate, UFileIncludeFlags, UFileStatus, Product.Storage,
         FSSupport>("files") {
     @OptIn(ExperimentalStdlibApi::class)

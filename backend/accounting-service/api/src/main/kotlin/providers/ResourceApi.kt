@@ -13,7 +13,7 @@ import kotlin.reflect.KType
 
 @Suppress("EnumEntryName")
 @UCloudApiOwnedBy(Resources::class)
-// TODO(Dan): This should probably be moved to `dk.sdu.cloud` as it is of general use.
+@UCloudApiStable
 enum class SortDirection {
     ascending,
     descending
@@ -26,6 +26,7 @@ interface SortFlags {
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)
+@UCloudApiStable
 data class ResourceBrowseRequest<Flags : ResourceIncludeFlags>(
     val flags: Flags,
     override val itemsPerPage: Int? = null,
@@ -38,6 +39,7 @@ data class ResourceBrowseRequest<Flags : ResourceIncludeFlags>(
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)
+@UCloudApiStable
 data class ResourceSearchRequest<Flags : ResourceIncludeFlags>(
     val flags: Flags,
     val query: String,
@@ -51,6 +53,7 @@ data class ResourceSearchRequest<Flags : ResourceIncludeFlags>(
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)
+@UCloudApiStable
 data class ResourceRetrieveRequest<Flags : ResourceIncludeFlags>(
     val flags: Flags,
     val id: String,
@@ -58,6 +61,7 @@ data class ResourceRetrieveRequest<Flags : ResourceIncludeFlags>(
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)
+@UCloudApiStable
 data class SupportByProvider<P : Product, S : ProductSupport>(
     val productsByProvider: Map<String, List<ResolvedSupport<P, S>>>
 )

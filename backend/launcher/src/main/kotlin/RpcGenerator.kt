@@ -210,7 +210,7 @@ private fun generateCall(
         emptyList(),
         emptyList(),
         Documentation(
-            fieldDocs?.deprecated ?: false,
+            (fieldDocs?.deprecated ?: false) || (field?.annotations?.any { it is Deprecated } ?: false),
             fieldDocs?.maturity ?: defaultMaturity,
             (overriddenDocs?.synopsis ?: synopsis ?: fieldDocs?.synopsis)?.trim(),
             (overriddenDocs?.description ?: description ?: fieldDocs?.description)?.trim(),

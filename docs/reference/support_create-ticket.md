@@ -35,29 +35,6 @@ Unit
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(SupportApi.createTicket(
-    {
-        "subject": "My subject",
-        "message": "Consequatur harum excepturi nemo consequatur laboriosam repellendus vel quos."
-    }
-);
-
-/*
-{
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
