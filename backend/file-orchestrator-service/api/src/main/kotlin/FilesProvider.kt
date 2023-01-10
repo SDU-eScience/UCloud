@@ -18,6 +18,7 @@ import kotlinx.serialization.builtins.serializer
 
 @Serializable
 @UCloudApiDoc("A partial UFile returned by providers and made complete by UCloud/Core")
+@UCloudApiStable
 data class PartialUFile(
     @UCloudApiDoc("The id of the file. Corresponds to UFile.id")
     val id: String,
@@ -35,6 +36,7 @@ data class PartialUFile(
 )
 
 @Serializable
+@UCloudApiStable
 data class FilesProviderBrowseRequest(
     val resolvedCollection: FileCollection,
     val browse: ResourceBrowseRequest<UFileIncludeFlags>
@@ -42,6 +44,7 @@ data class FilesProviderBrowseRequest(
 typealias FilesProviderBrowseResponse = PageV2<PartialUFile>
 
 @Serializable
+@UCloudApiStable
 data class FilesProviderRetrieveRequest(
     val resolvedCollection: FileCollection,
     val retrieve: ResourceRetrieveRequest<UFileIncludeFlags>
@@ -49,6 +52,7 @@ data class FilesProviderRetrieveRequest(
 typealias FilesProviderRetrieveResponse = PartialUFile
 
 @Serializable
+@UCloudApiStable
 data class FilesProviderMoveRequestItem(
     val resolvedOldCollection: FileCollection,
     val resolvedNewCollection: FileCollection,
@@ -59,6 +63,7 @@ data class FilesProviderMoveRequestItem(
 typealias FilesProviderMoveResponse = FilesMoveResponse
 
 @Serializable
+@UCloudApiStable
 data class FilesProviderCopyRequestItem(
     val resolvedOldCollection: FileCollection,
     val resolvedNewCollection: FileCollection,
@@ -69,6 +74,7 @@ data class FilesProviderCopyRequestItem(
 typealias FilesProviderCopyResponse = FilesCopyResponse
 
 @Serializable
+@UCloudApiStable
 data class FilesProviderCreateFolderRequestItem(
     val resolvedCollection: FileCollection,
     override val id: String,
@@ -77,6 +83,7 @@ data class FilesProviderCreateFolderRequestItem(
 typealias FilesProviderCreateFolderResponse = FilesCreateFolderResponse
 
 @Serializable
+@UCloudApiStable
 data class FilesProviderTrashRequestItem(
     val resolvedCollection: FileCollection,
     override val id: String
@@ -84,6 +91,7 @@ data class FilesProviderTrashRequestItem(
 typealias FilesProviderTrashResponse = FilesTrashResponse
 
 @Serializable
+@UCloudApiStable
 data class FilesProviderEmptyTrashRequestItem(
     val resolvedCollection: FileCollection,
     override val id: String
@@ -92,6 +100,7 @@ typealias FilesProviderEmptyTrashResponse = FilesTrashResponse
 
 
 @Serializable
+@UCloudApiStable
 data class FilesProviderCreateDownloadRequestItem(
     val resolvedCollection: FileCollection,
     override val id: String
@@ -99,6 +108,7 @@ data class FilesProviderCreateDownloadRequestItem(
 typealias FilesProviderCreateDownloadResponse = FilesCreateDownloadResponse
 
 @Serializable
+@UCloudApiStable
 data class FilesProviderCreateUploadRequestItem(
     val resolvedCollection: FileCollection,
     override val id: String,
@@ -108,6 +118,7 @@ data class FilesProviderCreateUploadRequestItem(
 typealias FilesProviderCreateUploadResponse = FilesCreateUploadResponse
 
 @Serializable
+@UCloudApiStable
 data class FilesProviderSearchRequest(
     val query: String,
     val owner: ResourceOwner,
@@ -120,6 +131,7 @@ data class FilesProviderSearchRequest(
 ) : WithPaginationRequestV2
 
 @Serializable
+@UCloudApiStable
 data class FilesProviderStreamingSearchRequest(
     val query: String,
     val owner: ResourceOwner,
@@ -129,16 +141,20 @@ data class FilesProviderStreamingSearchRequest(
 )
 
 @Serializable
+@UCloudApiStable
 sealed class FilesProviderStreamingSearchResult {
     @Serializable
     @SerialName("result")
+    @UCloudApiStable
     data class Result(val batch: List<PartialUFile>) : FilesProviderStreamingSearchResult()
 
     @Serializable
     @SerialName("end_of_results")
+    @UCloudApiStable
     class EndOfResults : FilesProviderStreamingSearchResult()
 }
 
+@UCloudApiStable
 open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpecification, UFileUpdate,
     UFileIncludeFlags, UFileStatus, Product.Storage, FSSupport>("files", provider) {
     @OptIn(ExperimentalStdlibApi::class)

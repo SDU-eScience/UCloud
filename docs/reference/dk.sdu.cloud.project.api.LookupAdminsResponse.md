@@ -1,4 +1,4 @@
-[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Projects](/docs/developer-guide/accounting-and-projects/projects/README.md) / [Members](/docs/developer-guide/accounting-and-projects/projects/members.md)
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Legacy](/docs/developer-guide/legacy/README.md) / [Projects (Legacy)](/docs/developer-guide/legacy/projects-legacy/README.md) / [Members](/docs/developer-guide/legacy/projects-legacy/members.md)
 
 # `LookupAdminsResponse`
 

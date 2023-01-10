@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / Drives (FileCollection)
 # Drives (FileCollection)
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _A FileCollection is an entrypoint to a user's files_
 
@@ -107,7 +107,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </tr>
 <tr>
 <td><a href='#rename'><code>rename</code></a></td>
-<td><i>No description</i></td>
+<td>Request renaming of [`FileCollection`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileCollection.md)</td>
 </tr>
 <tr>
 <td><a href='#updateacl'><code>updateAcl</code></a></td>
@@ -146,7 +146,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </tr>
 <tr>
 <td><a href='#filecollection'><code>FileCollection</code></a></td>
-<td></td>
+<td>A `Resource` is the core data model used to synchronize tasks between UCloud and Provider.</td>
 </tr>
 <tr>
 <td><a href='#filecollection.spec'><code>FileCollection.Spec</code></a></td>
@@ -251,80 +251,6 @@ FileCollection(
     ), 
     updates = emptyList(), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example we will see a simple collection. This collection models the 'home' directory of a user. */
-
-
-/* 📝 NOTE: Collections are identified by a unique (UCloud provided) ID */
-
-// Authenticated as user
-await callAPI(FilesCollectionsApi.retrieve(
-    {
-        "flags": {
-            "filterMemberFiles": null,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "54123"
-    }
-);
-
-/*
-{
-    "id": "54123",
-    "specification": {
-        "title": "Home",
-        "product": {
-            "id": "example-ssd",
-            "category": "example-ssd",
-            "provider": "example"
-        }
-    },
-    "createdAt": 1635151675465,
-    "status": {
-        "resolvedSupport": null,
-        "resolvedProduct": null
-    },
-    "updates": [
-    ],
-    "owner": {
-        "createdBy": "user",
-        "project": null
-    },
-    "permissions": {
-        "myself": [
-            "ADMIN"
-        ],
-        "others": [
-        ]
-    },
-    "providerGeneratedId": null
-}
 */
 ```
 
@@ -628,244 +554,6 @@ PageV2(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will see how a user can rename one of their collections. */
-
-
-/* 📝 NOTE: Renaming must be supported by the provider */
-
-// Authenticated as user
-await callAPI(FilesCollectionsApi.retrieveProducts(
-    {
-    }
-);
-
-/*
-{
-    "productsByProvider": {
-        "ucloud": [
-            {
-                "product": {
-                    "balance": null,
-                    "name": "example-ssd",
-                    "pricePerUnit": 1,
-                    "category": {
-                        "name": "example-ssd",
-                        "provider": "example"
-                    },
-                    "description": "Fast storage",
-                    "priority": 0,
-                    "version": 1,
-                    "freeToUse": false,
-                    "unitOfPrice": "PER_UNIT",
-                    "chargeType": "DIFFERENTIAL_QUOTA",
-                    "hiddenInGrantApplications": false,
-                    "productType": "STORAGE"
-                },
-                "support": {
-                    "product": {
-                        "id": "example-ssd",
-                        "category": "example-ssd",
-                        "provider": "example"
-                    },
-                    "stats": {
-                        "sizeInBytes": null,
-                        "sizeIncludingChildrenInBytes": null,
-                        "modifiedAt": null,
-                        "createdAt": null,
-                        "accessedAt": null,
-                        "unixPermissions": null,
-                        "unixOwner": null,
-                        "unixGroup": null
-                    },
-                    "collection": {
-                        "aclModifiable": null,
-                        "usersCanCreate": true,
-                        "usersCanDelete": true,
-                        "usersCanRename": true
-                    },
-                    "files": {
-                        "aclModifiable": false,
-                        "trashSupported": false,
-                        "isReadOnly": false,
-                        "searchSupported": true,
-                        "streamingSearchSupported": false
-                    }
-                }
-            }
-        ]
-    }
-}
-*/
-
-/* As we can see, the provider does support the rename operation. We now look at our collections. */
-
-await callAPI(FilesCollectionsApi.browse(
-    {
-        "flags": {
-            "filterMemberFiles": null,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "sortBy": null,
-        "sortDirection": "ascending"
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "id": "54123",
-            "specification": {
-                "title": "Home",
-                "product": {
-                    "id": "example-ssd",
-                    "category": "example-ssd",
-                    "provider": "example"
-                }
-            },
-            "createdAt": 1635151675465,
-            "status": {
-                "resolvedSupport": null,
-                "resolvedProduct": null
-            },
-            "updates": [
-            ],
-            "owner": {
-                "createdBy": "user",
-                "project": null
-            },
-            "permissions": {
-                "myself": [
-                    "ADMIN"
-                ],
-                "others": [
-                ]
-            },
-            "providerGeneratedId": null
-        }
-    ],
-    "next": null
-}
-*/
-
-/* Using the unique ID, we can rename the collection */
-
-await callAPI(FilesCollectionsApi.rename(
-    {
-        "items": [
-            {
-                "id": "54123",
-                "newTitle": "My Awesome Drive"
-            }
-        ]
-    }
-);
-
-/*
-{
-}
-*/
-
-/* The new title is observed when we browse the collections one more time */
-
-await callAPI(FilesCollectionsApi.browse(
-    {
-        "flags": {
-            "filterMemberFiles": null,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "sortBy": null,
-        "sortDirection": "ascending"
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "id": "54123",
-            "specification": {
-                "title": "My Awesome Drive",
-                "product": {
-                    "id": "example-ssd",
-                    "category": "example-ssd",
-                    "provider": "example"
-                }
-            },
-            "createdAt": 1635151675465,
-            "status": {
-                "resolvedSupport": null,
-                "resolvedProduct": null
-            },
-            "updates": [
-            ],
-            "owner": {
-                "createdBy": "user",
-                "project": null
-            },
-            "permissions": {
-                "myself": [
-                    "ADMIN"
-                ],
-                "others": [
-                ]
-            },
-            "providerGeneratedId": null
-        }
-    ],
-    "next": null
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -1055,7 +743,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/
 
 ### `browse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1069,7 +757,7 @@ _Browses the catalog of available resources_
 
 ### `retrieve`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1083,7 +771,7 @@ _Retrieve a single resource_
 
 ### `retrieveProducts`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1105,7 +793,7 @@ See also:
 
 ### `search`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1119,7 +807,7 @@ _Searches the catalog of available resources_
 
 ### `create`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1133,7 +821,7 @@ _Creates one or more resources_
 
 ### `delete`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1147,7 +835,7 @@ _Deletes one or more resources_
 
 ### `init`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1165,10 +853,11 @@ the request.
 
 ### `rename`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request renaming of [`FileCollection`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileCollection.md)_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -1178,7 +867,7 @@ the request.
 
 ### `updateAcl`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1195,7 +884,7 @@ _Updates the ACL attached to a resource_
 
 ### `FSCollectionSupport`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Declares which `FileCollection` operations are supported for a product_
@@ -1268,7 +957,7 @@ data class FSCollectionSupport(
 
 ### `FSFileSupport`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Declares which file-level operations a product supports_
@@ -1355,7 +1044,7 @@ to false in a later release. Providers should explicitly declare support for thi
 
 ### `FSProductStatsSupport`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Declares which stats a given product supports_
@@ -1476,7 +1165,7 @@ data class FSProductStatsSupport(
 
 ### `FSSupport`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1548,10 +1237,10 @@ data class FSSupport(
 
 ### `FileCollection`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-__
+_A `Resource` is the core data model used to synchronize tasks between UCloud and Provider._
 
 ```kotlin
 data class FileCollection(
@@ -1565,6 +1254,7 @@ data class FileCollection(
     val providerGeneratedId: String?,
 )
 ```
+For more information go [here](/docs/developer-guide/orchestration/resources.md).
 
 <details>
 <summary>
@@ -1673,7 +1363,7 @@ A null value indicates that permissions are not supported by this resource type.
 
 ### `FileCollection.Spec`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1721,7 +1411,7 @@ data class Spec(
 
 ### `FileCollection.Status`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Describes the current state of the `Resource`_
@@ -1778,7 +1468,7 @@ This attribute is not included by default unless `includeProduct` is specified.
 
 ### `FileCollection.Update`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Describes an update to the `Resource`_
@@ -1836,7 +1526,7 @@ An update will typically contain information similar to the `status` field, for 
 
 ### `FileCollectionIncludeFlags`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2052,7 +1742,7 @@ data class FileCollectionIncludeFlags(
 
 ### `MemberFilesFilter`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Filter for member files._
@@ -2114,7 +1804,7 @@ A member files collection must use the following format to be recognized: "Membe
 
 ### `FileCollectionsRenameRequestItem`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

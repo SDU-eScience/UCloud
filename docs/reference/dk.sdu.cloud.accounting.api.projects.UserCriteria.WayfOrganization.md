@@ -3,10 +3,10 @@
 # `UserCriteria.WayfOrganization`
 
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_Matches any user with an organization matching [org]_
+_Matches any user with an organization matching `org`_
 
 ```kotlin
 data class WayfOrganization(
@@ -37,7 +37,6 @@ The organization is currently derived from the information we receive from WAYF.
 <code>type</code>: <code><code>String /* "wayf" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

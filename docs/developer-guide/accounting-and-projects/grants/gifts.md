@@ -1,5 +1,5 @@
 <p align='center'>
-<a href='/docs/developer-guide/accounting-and-projects/grants/grants.md'>« Previous section</a>
+<a href='/docs/developer-guide/accounting-and-projects/grants/grant-settings-description.md'>« Previous section</a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/orchestration/resources.md'>Next section »</a>
 </p>
 
@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Grants](/docs/developer-guide/accounting-and-projects/grants/README.md) / Gifts
 # Gifts
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Gifts provide the system a way to grant new and existing users (personal projects) credits from a project_
 
@@ -51,11 +51,11 @@ changes are expected:
 <tbody>
 <tr>
 <td><a href='#availablegifts'><code>availableGifts</code></a></td>
-<td>Finds a list of a user's unclaimed [Gift]s</td>
+<td>Finds a list of a user's unclaimed `Gift`s</td>
 </tr>
 <tr>
 <td><a href='#claimgift'><code>claimGift</code></a></td>
-<td>Claims a [Gift] to the calling user's personal project</td>
+<td>Claims a `Gift` to the calling user's personal project</td>
 </tr>
 <tr>
 <td><a href='#creategift'><code>createGift</code></a></td>
@@ -82,7 +82,7 @@ changes are expected:
 <tbody>
 <tr>
 <td><a href='#giftwithcriteria'><code>GiftWithCriteria</code></a></td>
-<td><i>No description</i></td>
+<td>A `Gift` along with the `criteria` for which that can `Gifts.claimGift` this</td>
 </tr>
 <tr>
 <td><a href='#claimgiftrequest'><code>ClaimGiftRequest</code></a></td>
@@ -106,11 +106,11 @@ changes are expected:
 
 ### `availableGifts`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Finds a list of a user's unclaimed [Gift]s_
+_Finds a list of a user's unclaimed `Gift`s_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -120,25 +120,25 @@ _Finds a list of a user's unclaimed [Gift]s_
 
 ### `claimGift`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Claims a [Gift] to the calling user's personal project_
+_Claims a `Gift` to the calling user's personal project_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#claimgiftrequest'>ClaimGiftRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 User errors:
- - Users who are not eligible for claiming this [Gift] will receive an appropriate error code.
+ - Users who are not eligible for claiming this `Gift` will receive an appropriate error code.
  - If the gifting project has run out of resources then this endpoint will fail. The gift will not be 
    marked as claimed.
 
 
 ### `createGift`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -153,7 +153,7 @@ Only project administrators can create new [`Gift`](/docs/reference/dk.sdu.cloud
 
 ### `deleteGift`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -171,9 +171,10 @@ Only project administrators of `Gift.resourcesOwnedBy` can delete the [`Gift`](/
 
 ### `GiftWithCriteria`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A `Gift` along with the `criteria` for which that can `Gifts.claimGift` this_
 
 ```kotlin
 data class GiftWithCriteria(
@@ -204,7 +205,7 @@ data class GiftWithCriteria(
 
 <details>
 <summary>
-<code>resourcesOwnedBy</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>resourcesOwnedBy</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A reference to the project which owns these resources
 </summary>
 
 
@@ -215,29 +216,31 @@ data class GiftWithCriteria(
 
 <details>
 <summary>
-<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The title of a gift
 </summary>
 
 
 
+Suitable for presentation in UIs
 
 
 </details>
 
 <details>
 <summary>
-<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The title of a gift
 </summary>
 
 
 
+Suitable for presentation in UIs
 
 
 </details>
 
 <details>
 <summary>
-<code>resources</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.AllocationRequest.md'>GrantApplication.AllocationRequest</a>&gt;</code></code>
+<code>resources</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.AllocationRequest.md'>GrantApplication.AllocationRequest</a>&gt;</code></code> A list of resources which will be granted to users `Gifts.claimGift` this `Gift`.
 </summary>
 
 
@@ -267,7 +270,7 @@ data class GiftWithCriteria(
 
 ### `ClaimGiftRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -303,7 +306,7 @@ data class ClaimGiftRequest(
 
 ### `DeleteGiftRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -339,7 +342,7 @@ data class DeleteGiftRequest(
 
 ### `AvailableGiftsResponse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

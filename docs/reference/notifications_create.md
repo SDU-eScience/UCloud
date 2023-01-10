@@ -27,7 +27,7 @@ NotificationDescriptions.create.call(
                 isString = false, 
             )),)), 
             read = false, 
-            ts = 1669212996451, 
+            ts = 1673350428793, 
             type = "MY_NOTIFICATION_TYPE", 
         ), 
         user = "User#1234", 
@@ -39,39 +39,6 @@ NotificationDescriptions.create.call(
 FindByLongId(
     id = 56123, 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as ucloud
-await callAPI(NotificationsApi.create(
-    {
-        "user": "User#1234",
-        "notification": {
-            "type": "MY_NOTIFICATION_TYPE",
-            "message": "Something has happened",
-            "id": null,
-            "meta": {
-                "myParameter": 42
-            },
-            "ts": 1669212996451,
-            "read": false
-        }
-    }
-);
-
-/*
-{
-    "id": 56123
-}
 */
 ```
 
@@ -99,7 +66,7 @@ curl -XPUT -H "Authorization: Bearer $accessToken" -H "Content-Type: content-typ
         "meta": {
             "myParameter": 42
         },
-        "ts": 1669212996451,
+        "ts": 1673350428793,
         "read": false
     }
 }'

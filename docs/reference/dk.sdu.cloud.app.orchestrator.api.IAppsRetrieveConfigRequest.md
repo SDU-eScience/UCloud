@@ -9,8 +9,8 @@
 
 ```kotlin
 data class IAppsRetrieveConfigRequest<ConfigType>(
-    val providerId: String,
-    val category: String,
+    val provider: String,
+    val productId: String,
 )
 ```
 
@@ -21,7 +21,7 @@ data class IAppsRetrieveConfigRequest<ConfigType>(
 
 <details>
 <summary>
-<code>providerId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>provider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -32,7 +32,7 @@ data class IAppsRetrieveConfigRequest<ConfigType>(
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>productId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 

@@ -12,6 +12,7 @@ import kotlinx.serialization.builtins.serializer
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)
+@UCloudApiStable
 data class ResourceChargeCredits(
     @UCloudApiDoc("The ID of the `Resource`")
     val id: String,
@@ -34,6 +35,7 @@ data class ResourceChargeCredits(
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)
+@UCloudApiStable
 data class ResourceChargeCreditsResponse(
     @UCloudApiDoc(
         "A list of resources which could not be charged due to lack of funds. " +

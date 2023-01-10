@@ -4,6 +4,7 @@ import dk.sdu.cloud.calls.ExperimentalLevel
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiExperimental
 import dk.sdu.cloud.calls.UCloudApiOwnedBy
+import dk.sdu.cloud.calls.UCloudApiStable
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -20,8 +21,8 @@ import kotlinx.serialization.encoding.Encoder
         standard permissions that can be applied to a resource and its associated operations.
     """
 )
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiOwnedBy(Resources::class)
+@UCloudApiStable
 enum class Permission(val canBeGranted: Boolean) {
     @UCloudApiDoc(
         """
@@ -60,6 +61,7 @@ enum class Permission(val canBeGranted: Boolean) {
 }
 
 @Serializable
+@UCloudApiStable
 data class ResourcePermissions(
     @UCloudApiDoc("The permissions that the requesting user has access to")
     var myself: List<Permission>,
@@ -69,6 +71,7 @@ data class ResourcePermissions(
 )
 
 @Serializable
+@UCloudApiStable
 data class UpdatedAcl(
     val id: String,
     val added: List<ResourceAclEntry>,
@@ -77,6 +80,7 @@ data class UpdatedAcl(
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)
+@UCloudApiStable
 data class UpdatedAclWithResource<Res : Resource<*, *>>(
     val resource: Res,
     val added: List<ResourceAclEntry>,

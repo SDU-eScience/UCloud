@@ -39,7 +39,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("1254151"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 500, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 2, 
             id = "1254151", 
@@ -214,220 +216,6 @@ Job(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, the user will create a Job and eventually run out of compute credits. */
-
-
-/* When the user creates the Job, they have enough credits */
-
-// Authenticated as user
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "user",
-                "username": "user"
-            },
-            "paysFor": {
-                "name": "example-compute",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "1254151",
-                    "allocationPath": [
-                        "1254151"
-                    ],
-                    "balance": 500,
-                    "initialBalance": 500000000,
-                    "localBalance": 500,
-                    "startDate": 1633329776235,
-                    "endDate": null,
-                    "grantedIn": 2
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "COMPUTE",
-            "chargeType": "ABSOLUTE",
-            "unit": "CREDITS_PER_MINUTE"
-        }
-    ],
-    "next": null
-}
-*/
-
-/* 📝 Note: at this point the user has a very low amount of credits remaining.
-It will only last a couple of minutes. */
-
-await callAPI(JobsApi.create(
-    {
-        "items": [
-            {
-                "application": {
-                    "name": "acme-web-application",
-                    "version": "1.0.0"
-                },
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                },
-                "name": null,
-                "replicas": 1,
-                "allowDuplicateJob": false,
-                "parameters": null,
-                "resources": null,
-                "timeAllocation": null,
-                "openedFile": null,
-                "restartOnExit": null,
-                "sshEnabled": null
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "62348"
-        }
-    ]
-}
-*/
-
-/* The Job is now running */
-
-
-/* However, a few minutes later the Job is automatically killed by UCloud. The status now reflects this. */
-
-await callAPI(JobsApi.retrieve(
-    {
-        "flags": {
-            "filterApplication": null,
-            "filterState": null,
-            "includeParameters": null,
-            "includeApplication": null,
-            "includeProduct": false,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "62348"
-    }
-);
-
-/*
-{
-    "id": "62348",
-    "owner": {
-        "createdBy": "user",
-        "project": null
-    },
-    "updates": [
-        {
-            "state": "IN_QUEUE",
-            "outputFolder": null,
-            "status": "Your job is now waiting in the queue!",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633588976235
-        },
-        {
-            "state": "RUNNING",
-            "outputFolder": null,
-            "status": "Your job is now running!",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633588981235
-        },
-        {
-            "state": "SUCCESS",
-            "outputFolder": null,
-            "status": "Your job has been terminated (No more credits)",
-            "expectedState": null,
-            "expectedDifferentState": null,
-            "newTimeAllocation": null,
-            "allowRestart": null,
-            "newMounts": null,
-            "timestamp": 1633589101235
-        }
-    ],
-    "specification": {
-        "application": {
-            "name": "acme-web-application",
-            "version": "1.0.0"
-        },
-        "product": {
-            "id": "example-compute",
-            "category": "example-compute",
-            "provider": "example"
-        },
-        "name": null,
-        "replicas": 1,
-        "allowDuplicateJob": false,
-        "parameters": null,
-        "resources": null,
-        "timeAllocation": null,
-        "openedFile": null,
-        "restartOnExit": null,
-        "sshEnabled": null
-    },
-    "status": {
-        "state": "SUCCESS",
-        "jobParametersJson": null,
-        "startedAt": null,
-        "expiresAt": null,
-        "resolvedApplication": null,
-        "resolvedSupport": null,
-        "resolvedProduct": null,
-        "allowRestart": false
-    },
-    "createdAt": 1633588976235,
-    "output": null,
-    "permissions": null
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -467,7 +255,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 500,
 #                     "startDate": 1633329776235,
 #                     "endDate": null,
-#                     "grantedIn": 2
+#                     "grantedIn": 2,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",

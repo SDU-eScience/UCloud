@@ -375,8 +375,8 @@ data class OrchestratorInfo(
 
 ```kotlin
 data class IAppsResetConfigRequest<ConfigType>(
-    val providerId: String,
-    val category: String,
+    val provider: String,
+    val productId: String,
     val expectedETag: String?,
 )
 ```
@@ -388,7 +388,7 @@ data class IAppsResetConfigRequest<ConfigType>(
 
 <details>
 <summary>
-<code>providerId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>provider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -399,7 +399,7 @@ data class IAppsResetConfigRequest<ConfigType>(
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>productId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -435,8 +435,8 @@ data class IAppsResetConfigRequest<ConfigType>(
 
 ```kotlin
 data class IAppsRestartRequest<ConfigType>(
-    val providerId: String,
-    val category: String,
+    val provider: String,
+    val productId: String,
 )
 ```
 
@@ -447,7 +447,7 @@ data class IAppsRestartRequest<ConfigType>(
 
 <details>
 <summary>
-<code>providerId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>provider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -458,7 +458,7 @@ data class IAppsRestartRequest<ConfigType>(
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>productId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -483,8 +483,8 @@ data class IAppsRestartRequest<ConfigType>(
 
 ```kotlin
 data class IAppsRetrieveConfigRequest<ConfigType>(
-    val providerId: String,
-    val category: String,
+    val provider: String,
+    val productId: String,
 )
 ```
 
@@ -495,7 +495,7 @@ data class IAppsRetrieveConfigRequest<ConfigType>(
 
 <details>
 <summary>
-<code>providerId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>provider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -506,7 +506,7 @@ data class IAppsRetrieveConfigRequest<ConfigType>(
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>productId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -531,8 +531,8 @@ data class IAppsRetrieveConfigRequest<ConfigType>(
 
 ```kotlin
 data class IAppsUpdateConfigRequest<ConfigType>(
-    val providerId: String,
-    val category: String,
+    val provider: String,
+    val productId: String,
     val config: ConfigType,
     val expectedETag: String?,
 )
@@ -545,7 +545,7 @@ data class IAppsUpdateConfigRequest<ConfigType>(
 
 <details>
 <summary>
-<code>providerId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>provider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -556,7 +556,7 @@ data class IAppsUpdateConfigRequest<ConfigType>(
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>productId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 

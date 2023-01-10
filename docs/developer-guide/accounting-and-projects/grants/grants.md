@@ -1,13 +1,13 @@
 <p align='center'>
 <a href='/docs/developer-guide/accounting-and-projects/accounting/visualization.md'>« Previous section</a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/accounting-and-projects/grants/gifts.md'>Next section »</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/accounting-and-projects/grants/grant-admin.md'>Next section »</a>
 </p>
 
 
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Grants](/docs/developer-guide/accounting-and-projects/grants/README.md) / Allocation Process
 # Allocation Process
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Grants provide a way for users of UCloud to apply for resources._
 
@@ -18,27 +18,14 @@ storage. There are only two ways of receiving any credits, either through an adm
 credits or by receiving them from a project.
 
 Grants acts as a more user-friendly gateway to receiving resources from a project. Every
-`Application` goes through the following steps:
+`GrantApplication` goes through the following steps:
 
 1. User submits application to relevant project using `Grants.submitApplication`
-2. Project administrator of `Application.resourcesOwnedBy` reviews the application
-   - User and reviewer can comment on the application via `Grants.commentOnApplication`
+2. All grant approvers must review the application
+   - User and reviewer can comment on the application via `GrantComments.createComment`
    - User and reviewer can perform edits to the application via `Grants.editApplication`
-3. Reviewer either performs `Grants.closeApplication` or `Grants.approveApplication`
-4. If the `Application` was approved then resources are granted to the `Application.grantRecipient`
-
----
-    
-__⚠️ WARNING:__ The API listed on this page will likely change to conform with our
-[API conventions](/docs/developer-guide/core/api-conventions.md). Be careful when building integrations. The following
-changes are expected:
-
-- RPC names will change to conform with the conventions
-- RPC request and response types will change to conform with the conventions
-- RPCs which return a page will be collapsed into a single `browse` endpoint
-- Some property names will change to be consistent with [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s
-
----
+3. Reviewer either performs `Grants.updateApplicationState` to approve or reject
+4. If the `GrantApplication` was approved then resources are granted to the `GrantApplication.recipient`
 
 ## Table of Contents
 <details>
@@ -57,7 +44,7 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#browseapplications'><code>browseApplications</code></a></td>
-<td>List active [GrantApplication]s</td>
+<td>List active [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)s</td>
 </tr>
 <tr>
 <td><a href='#browseproducts'><code>browseProducts</code></a></td>
@@ -65,7 +52,7 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#browseprojects'><code>browseProjects</code></a></td>
-<td>Endpoint for users to browse projects which they can send grant [Application]s to</td>
+<td>Endpoint for users to browse projects which they can send a [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  to</td>
 </tr>
 <tr>
 <td><a href='#retrieveaffiliations'><code>retrieveAffiliations</code></a></td>
@@ -73,19 +60,19 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#viewapplication'><code>viewApplication</code></a></td>
-<td>Retrieves an active [Application]</td>
+<td>Retrieves an active [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)</td>
 </tr>
 <tr>
 <td><a href='#closeapplication'><code>closeApplication</code></a></td>
-<td>Closes an existing [GrantApplication]</td>
+<td>Closes an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)</td>
 </tr>
 <tr>
 <td><a href='#editapplication'><code>editApplication</code></a></td>
-<td>Performs an edit to an existing [GrantApplication]</td>
+<td>Performs an edit to an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)</td>
 </tr>
 <tr>
 <td><a href='#submitapplication'><code>submitApplication</code></a></td>
-<td>Submits an [Application] to a project</td>
+<td>Submits a [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  to a project</td>
 </tr>
 <tr>
 <td><a href='#transferapplication'><code>transferApplication</code></a></td>
@@ -93,7 +80,7 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#updateapplicationstate'><code>updateApplicationState</code></a></td>
-<td>Approves or rejects an existing [GrantApplication]. If accepted by all grant givers this will trigger granting of resources to the [GrantApplication.Document.recipient ].</td>
+<td>Approves or rejects an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication..md)  If accepted by all grant givers this will trigger granting of resources to the `GrantApplication.Document.recipient`.</td>
 </tr>
 </tbody></table>
 
@@ -124,7 +111,7 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#usercriteria.wayforganization'><code>UserCriteria.WayfOrganization</code></a></td>
-<td>Matches any user with an organization matching [org]</td>
+<td>Matches any user with an organization matching `org`</td>
 </tr>
 <tr>
 <td><a href='#createapplication'><code>CreateApplication</code></a></td>
@@ -252,7 +239,7 @@ changes are expected:
 
 ### `browseAffiliationsByResource`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -265,23 +252,23 @@ changes are expected:
 
 ### `browseApplications`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_List active [GrantApplication]s_
+_List active [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)s_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#browseapplicationsrequest'>BrowseApplicationsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#grantapplication'>GrantApplication</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-Lists active [GrantApplication]s which are relevant to a project. By using
-                    [BrowseApplicationFlags] it is possible to filter on ingoing and/or outgoing.
+Lists active `GrantApplication`s which are relevant to a project. By using
+                    [`BrowseApplicationFlags`](/docs/reference/dk.sdu.cloud.grant.api.BrowseApplicationFlags.md)  it is possible to filter on ingoing and/or outgoing.
 
 
 ### `browseProducts`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -294,23 +281,23 @@ Lists active [GrantApplication]s which are relevant to a project. By using
 
 ### `browseProjects`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Endpoint for users to browse projects which they can send grant [Application]s to_
+_Endpoint for users to browse projects which they can send a [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  to_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#browseprojectsrequest'>BrowseProjectsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#projectwithtitle'>ProjectWithTitle</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 Concretely, this will return a list for which the user matches the criteria listed in
-[ProjectApplicationSettings.allowRequestsFrom].
+`ProjectApplicationSettings.allowRequestsFrom`.
 
 
 ### `retrieveAffiliations`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -323,41 +310,41 @@ Concretely, this will return a list for which the user matches the criteria list
 
 ### `viewApplication`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Retrieves an active [Application]_
+_Retrieves an active [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#retrieveapplicationrequest'>RetrieveApplicationRequest</a></code>|<code><a href='#grantapplication'>GrantApplication</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-Only the creator and grant reviewers are allowed to view any given [Application].
+Only the creator and grant reviewers are allowed to view any given [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication..md)
 
 
 ### `closeApplication`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Closes an existing [GrantApplication]_
+_Closes an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#closeapplicationrequest'>CloseApplicationRequest</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-This action is identical to [rejectApplication] except it can be performed by the [GrantApplication] creator.
+This action is identical to rejecting the [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  using `updateApplicationState` except it can be performed by the [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  creator.
 
 
 ### `editApplication`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Performs an edit to an existing [GrantApplication]_
+_Performs an edit to an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -368,23 +355,23 @@ Both the creator and any of the grant reviewers are allowed to edit the applicat
 
 ### `submitApplication`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Submits an [Application] to a project_
+_Submits a [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  to a project_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#createapplication'>CreateApplication</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByLongId.md'>FindByLongId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 In order for the user to submit an application they must match any criteria in
-[ProjectApplicationSettings.allowRequestsFrom]. If they are not the request will fail.
+`ProjectApplicationSettings.allowRequestsFrom`. If they are not the request will fail.
 
 
 ### `transferApplication`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -398,11 +385,11 @@ _Transfers allocation request to other root project_
 
 ### `updateApplicationState`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Approves or rejects an existing [GrantApplication]. If accepted by all grant givers this will trigger granting of resources to the [GrantApplication.Document.recipient ]._
+_Approves or rejects an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication..md)  If accepted by all grant givers this will trigger granting of resources to the `GrantApplication.Document.recipient`._
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -416,7 +403,7 @@ Only the grant reviewer can perform this action.
 
 ### `UserCriteria`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Describes some criteria which match a user_
@@ -436,7 +423,7 @@ This is used in conjunction with actions that require authorization.
 
 ### `UserCriteria.Anyone`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Matches any user_
@@ -457,7 +444,6 @@ data class Anyone(
 <code>type</code>: <code><code>String /* "anyone" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -474,7 +460,7 @@ data class Anyone(
 
 ### `UserCriteria.EmailDomain`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Matches any user with an email domain equal to `domain`_
@@ -507,7 +493,6 @@ data class EmailDomain(
 <code>type</code>: <code><code>String /* "email" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -524,10 +509,10 @@ data class EmailDomain(
 
 ### `UserCriteria.WayfOrganization`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_Matches any user with an organization matching [org]_
+_Matches any user with an organization matching `org`_
 
 ```kotlin
 data class WayfOrganization(
@@ -558,7 +543,6 @@ The organization is currently derived from the information we receive from WAYF.
 <code>type</code>: <code><code>String /* "wayf" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -575,7 +559,7 @@ The organization is currently derived from the information we receive from WAYF.
 
 ### `CreateApplication`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -611,7 +595,7 @@ data class CreateApplication(
 
 ### `GrantApplication`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -710,7 +694,7 @@ closed.
 
 ### `GrantApplication.Comment`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -778,7 +762,6 @@ data class Comment(
 <code>type</code>: <code><code>String /* "comment" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -795,7 +778,7 @@ data class Comment(
 
 ### `GrantApplication.Document`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -897,7 +880,6 @@ Immutable after creation: No. First revision must always be null.
 <code>type</code>: <code><code>String /* "document" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -914,7 +896,7 @@ Immutable after creation: No. First revision must always be null.
 
 ### `GrantApplication.Form`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -936,7 +918,6 @@ sealed class Form {
 <code>type</code>: <code><code>String /* "form" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -953,7 +934,7 @@ sealed class Form {
 
 ### `GrantApplication.Form.PlainText`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -985,7 +966,6 @@ data class PlainText(
 <code>type</code>: <code><code>String /* "plain_text" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1002,7 +982,7 @@ data class PlainText(
 
 ### `GrantApplication.GrantGiverApprovalState`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1058,7 +1038,6 @@ data class GrantGiverApprovalState(
 <code>type</code>: <code><code>String /* "grant_giver_approval_state" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1075,7 +1054,7 @@ data class GrantGiverApprovalState(
 
 ### `GrantApplication.Period`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1119,7 +1098,6 @@ data class Period(
 <code>type</code>: <code><code>String /* "period" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1136,7 +1114,7 @@ data class Period(
 
 ### `GrantApplication.Recipient`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1160,7 +1138,6 @@ sealed class Recipient {
 <code>type</code>: <code><code>String /* "recipient" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1177,7 +1154,7 @@ sealed class Recipient {
 
 ### `GrantApplication.Recipient.ExistingProject`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1209,7 +1186,6 @@ data class ExistingProject(
 <code>type</code>: <code><code>String /* "existingProject" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1226,7 +1202,7 @@ data class ExistingProject(
 
 ### `GrantApplication.Recipient.NewProject`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1258,7 +1234,6 @@ data class NewProject(
 <code>type</code>: <code><code>String /* "newProject" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1275,7 +1250,7 @@ data class NewProject(
 
 ### `GrantApplication.Recipient.PersonalWorkspace`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1307,7 +1282,6 @@ data class PersonalWorkspace(
 <code>type</code>: <code><code>String /* "personalWorkspace" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1324,7 +1298,7 @@ data class PersonalWorkspace(
 
 ### `GrantApplication.Revision`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Contains information about a specific revision of the application._
@@ -1400,7 +1374,6 @@ first revision to be 0 and the second revision to be 10.
 <code>type</code>: <code><code>String /* "revision" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1417,7 +1390,7 @@ first revision to be 0 and the second revision to be 10.
 
 ### `GrantApplication.State`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1489,7 +1462,7 @@ enum class State {
 
 ### `GrantApplication.Status`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1581,7 +1554,6 @@ data class Status(
 <code>type</code>: <code><code>String /* "status" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1598,7 +1570,7 @@ data class Status(
 
 ### `GrantApplicationFilter`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1658,7 +1630,7 @@ enum class GrantApplicationFilter {
 
 ### `ProjectWithTitle`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1706,7 +1678,7 @@ data class ProjectWithTitle(
 
 ### `UpdateApplicationState`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1766,7 +1738,7 @@ data class UpdateApplicationState(
 
 ### `BrowseApplicationsRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
@@ -1904,7 +1876,7 @@ paginate through the results.
 
 ### `BrowseProjectsRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
@@ -2006,7 +1978,7 @@ paginate through the results.
 
 ### `CloseApplicationRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2042,7 +2014,7 @@ data class CloseApplicationRequest(
 
 ### `EditApplicationRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2090,7 +2062,7 @@ data class EditApplicationRequest(
 
 ### `GrantApplication.AllocationRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2182,7 +2154,6 @@ data class AllocationRequest(
 <code>type</code>: <code><code>String /* "allocation_request" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2199,7 +2170,7 @@ data class AllocationRequest(
 
 ### `GrantsBrowseAffiliationsByResourceRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
@@ -2313,7 +2284,7 @@ paginate through the results.
 
 ### `GrantsBrowseAffiliationsRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
@@ -2415,7 +2386,7 @@ paginate through the results.
 
 ### `GrantsBrowseProductsRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2487,7 +2458,7 @@ data class GrantsBrowseProductsRequest(
 
 ### `RetrieveApplicationRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2523,7 +2494,7 @@ data class RetrieveApplicationRequest(
 
 ### `TransferApplicationRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2583,7 +2554,7 @@ data class TransferApplicationRequest(
 
 ### `GrantsBrowseProductsResponse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

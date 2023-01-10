@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.DocVisualizable
 import dk.sdu.cloud.calls.DocVisualization
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiOwnedBy
+import dk.sdu.cloud.calls.UCloudApiStable
 import dk.sdu.cloud.calls.visualizeValue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -60,6 +61,7 @@ data class SimpleResourceIncludeFlags(
 
 @UCloudApiDoc("The owner of a `Resource`")
 @Serializable
+@UCloudApiStable
 data class ResourceOwner(
     val createdBy: String,
     val project: String?,
@@ -93,6 +95,7 @@ An update will typically contain information similar to the `status` field, for 
 """
 )
 @UCloudApiOwnedBy(Resources::class)
+@UCloudApiStable
 interface ResourceUpdate {
     @UCloudApiDoc("A timestamp referencing when UCloud received this update")
     val timestamp: Long
@@ -103,6 +106,7 @@ interface ResourceUpdate {
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)
+@UCloudApiStable
 data class ResourceUpdateAndId<U : ResourceUpdate>(
     val id: String,
     val update: U
@@ -110,13 +114,16 @@ data class ResourceUpdateAndId<U : ResourceUpdate>(
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)
+@UCloudApiStable
 data class ResourceAclEntry(val entity: AclEntity, val permissions: List<Permission>)
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)
+@UCloudApiStable
 sealed class AclEntity {
     @Serializable
     @SerialName("project_group")
+    @UCloudApiStable
     data class ProjectGroup(
         val projectId: String,
         val group: String
@@ -124,6 +131,7 @@ sealed class AclEntity {
 
     @Serializable
     @SerialName("user")
+    @UCloudApiStable
     data class User(val username: String) : AclEntity()
 }
 

@@ -1,5 +1,5 @@
 <p align='center'>
-<a href='/docs/developer-guide/accounting-and-projects/projects/favorites.md'>« Previous section</a>
+<a href='/docs/developer-guide/accounting-and-projects/project-notifications-providers.md'>« Previous section</a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/accounting-and-projects/products.md'>Next section »</a>
 </p>
 
@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / Providers
 # Providers
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Providers, the backbone of UCloud, expose compute and storage resources to end-users._
 
@@ -24,7 +24,7 @@ __Figure:__ UCloud/Core receives a request from the user and forwards it to a pr
 The core isn't a simple proxy. Before passing the request, UCloud performs the following tasks:
 
 - __Authentication:__ UCloud ensures that users have authenticated.
-- __Authorization:__ The [`Project`](/docs/reference/dk.sdu.cloud.project.api.Project.md)  system of UCloud brings role-based 
+- __Authorization:__ The [`Project`](/docs/reference/dk.sdu.cloud.project.api.v2.Project.md)  system of UCloud brings role-based 
   authorization to all [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s. The core verifies all actions before forwarding the request.
 - __Resolving references:__ UCloud maintains a catalog of all [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s in the system. All user 
   requests only contain a reference to these [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s. UCloud verifies and resolves all 
@@ -251,41 +251,6 @@ ProviderSpecification(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* This example shows an example provider. The provider's specification contains basic contact
-information. This information is used by UCloud when it needs to communicate with a provider. */
-
-// Authenticated as admin
-await callAPI(ProvidersApi.retrieveSpecification(
-    {
-        "id": "51231"
-    }
-);
-
-/*
-{
-    "id": "example",
-    "domain": "provider.example.com",
-    "https": true,
-    "port": 443,
-    "product": {
-        "id": "",
-        "category": "",
-        "provider": "ucloud_core"
-    }
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -347,6 +312,11 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/providers/retrieve
 </summary>
 
 ```kotlin
+
+/* WARNING: The following flow still works, but is no longer used by the default configuration of
+the integration module. Instead, it has been replaced by the much simpler approach of having
+a UCloud administrator register the provider manually and then exchange tokens out-of-band. */
+
 
 /* This example shows how a Provider registers with UCloud/Core. In this example, the Provider will 
 be using the Integration Module. The system administrator, of the Provider, has just installed the 
@@ -498,165 +468,6 @@ Provider(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* This example shows how a Provider registers with UCloud/Core. In this example, the Provider will 
-be using the Integration Module. The system administrator, of the Provider, has just installed the 
-Integration Module. Before starting the module, the system administrator has configured the module 
-to contact UCloud at a known address. */
-
-
-/* When the system administrator launches the Integration Module, it will automatically contact 
-UCloud. This request contains the contact information back to the Provider. */
-
-// Authenticated as integrationModule
-await callAPI(ProvidersApi.requestApproval(
-    {
-        "type": "information",
-        "specification": {
-            "id": "example",
-            "domain": "provider.example.com",
-            "https": true,
-            "port": null,
-            "product": {
-                "id": "",
-                "category": "",
-                "provider": "ucloud_core"
-            }
-        }
-    }
-);
-
-/*
-{
-    "type": "requires_signature",
-    "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
-}
-*/
-
-/* UCloud/Core responds with a token and the IM displays a link to the sysadmin. The sysadmin follows 
-this link, and authenticates with their own UCloud user. This triggers the following request: */
-
-await callAPI(ProvidersApi.requestApproval(
-    {
-        "type": "sign",
-        "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
-    }
-);
-
-/*
-{
-    "type": "requires_signature",
-    "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
-}
-*/
-
-/* The sysadmin now sends his token to a UCloud administrator. This communication always happen 
-out-of-band. For a production system, we expect to have been in a dialogue with you about this 
-process already.
-
-The UCloud administrator approves the request. */
-
-// Authenticated as admin
-await callAPI(ProvidersApi.approve(
-    {
-        "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
-    }
-);
-
-/*
-{
-    "id": "51231"
-}
-*/
-
-/* UCloud/Core sends a welcome message to the Integration Module. The core uses the original token to 
-authenticate the request. The request also contains the refreshToken and publicKey required by the 
-IM. Under normal circumstances, the IM will auto-configure itself to use these tokens. */
-
-// Authenticated as ucloud
-await callAPI(ExampleImApi.welcome(
-    {
-        "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414",
-        "createdProvider": {
-            "refreshToken": "8accc446c2e3ac924ff07c77d93e1679378a5dad",
-            "publicKey": "~~ public key ~~"
-        }
-    }
-);
-
-/*
-{
-}
-*/
-
-/* Alternatively, the sysadmin can read the tokens and perform manual configuration. */
-
-// Authenticated as systemAdministrator
-await callAPI(ProvidersApi.retrieve(
-    {
-        "flags": {
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "filterName": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "51231"
-    }
-);
-
-/*
-{
-    "id": "51231",
-    "specification": {
-        "id": "example",
-        "domain": "provider.example.com",
-        "https": true,
-        "port": null,
-        "product": {
-            "id": "",
-            "category": "",
-            "provider": "ucloud_core"
-        }
-    },
-    "refreshToken": "8accc446c2e3ac924ff07c77d93e1679378a5dad",
-    "publicKey": "~~ public key ~~",
-    "createdAt": 1633329776235,
-    "status": {
-        "resolvedSupport": null,
-        "resolvedProduct": null
-    },
-    "updates": [
-    ],
-    "owner": {
-        "createdBy": "sysadmin",
-        "project": null
-    },
-    "permissions": null
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -665,6 +476,10 @@ await callAPI(ProvidersApi.retrieve(
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
 # ------------------------------------------------------------------------------------------------------
+
+# WARNING: The following flow still works, but is no longer used by the default configuration of
+# the integration module. Instead, it has been replaced by the much simpler approach of having
+# a UCloud administrator register the provider manually and then exchange tokens out-of-band.
 
 # This example shows how a Provider registers with UCloud/Core. In this example, the Provider will 
 # be using the Integration Module. The system administrator, of the Provider, has just installed the 
@@ -836,40 +651,6 @@ BulkResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* 📝 Note: The tokens shown here are not representative of tokens you will see in practice */
-
-// Authenticated as provider
-await callAPI(AuthProvidersApi.refresh(
-    {
-        "items": [
-            {
-                "refreshToken": "fb69e4367ee0fe4c76a4a926394aee547a41d998"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "accessToken": "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIjUF9leGFtcGxlIiwicm9sZSI6IlBST1ZJREVSIiwiaWF0IjoxNjMzNTIxMDA5LCJleHAiOjE2MzM1MjE5MTl9.P4zL-LBeahsga4eH0GqKpBmPf-Sa7pU70QhiXB1BchBe0DE9zuJ_6fws9cs9NOIo"
-        }
-    ]
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -919,7 +700,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 ### `browse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -934,7 +715,7 @@ This endpoint can only be used my users who either own a Provider or are a UClou
 
 ### `retrieve`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -949,7 +730,7 @@ This endpoint can only be used my users who either own a Provider or are a UClou
 
 ### `retrieveSpecification`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -964,7 +745,7 @@ This endpoint is used by internal services to look up the contact information of
 
 ### `search`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -978,9 +759,9 @@ _Searches the catalog of available resources_
 
 ### `approve`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Used for the last step of the approval protocol_
 
@@ -999,7 +780,7 @@ __Examples:__
 
 ### `create`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1014,7 +795,7 @@ This endpoint can only be invoked by a UCloud administrator.
 
 ### `init`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1032,7 +813,7 @@ the request.
 
 ### `renewToken`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1052,9 +833,9 @@ This endpoint should only be used if the current tokens are compromised.
 
 ### `requestApproval`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Used for the approval protocol_
 
@@ -1073,7 +854,7 @@ __Examples:__
 
 ### `update`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1088,7 +869,7 @@ This endpoint can only be invoked by a UCloud administrator.
 
 ### `updateAcl`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -1105,7 +886,7 @@ _Updates the ACL attached to a resource_
 
 ### `Provider`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Providers, the backbone of UCloud, expose compute and storage resources to end-users._
@@ -1239,6 +1020,7 @@ A null value indicates that permissions are not supported by this resource type.
 <code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1255,7 +1037,7 @@ A null value indicates that permissions are not supported by this resource type.
 
 ### `ProviderIncludeFlags`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Flags used to tweak read queries_
@@ -1472,7 +1254,7 @@ data class ProviderIncludeFlags(
 
 ### `ProviderSpecification`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The specification of a Provider contains basic (network) contact information_
@@ -1541,6 +1323,7 @@ data class ProviderSpecification(
 <code>product</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1557,7 +1340,7 @@ data class ProviderSpecification(
 
 ### `ProviderStatus`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A placeholder document used only to conform with the Resources API_
@@ -1606,7 +1389,7 @@ data class ProviderStatus(
 
 ### `ProviderSupport`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A placeholder document used only to conform with the Resources API_
@@ -1643,7 +1426,7 @@ data class ProviderSupport(
 
 ### `ProviderUpdate`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Updates regarding a Provider, not currently in use_
@@ -1692,7 +1475,7 @@ data class ProviderUpdate(
 
 ### `ResourceOwner`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The owner of a `Resource`_
@@ -1741,7 +1524,7 @@ data class ResourceOwner(
 
 ### `ResourcePermissions`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1790,7 +1573,7 @@ This value typically needs to be included through the `includeFullPermissions` f
 
 ### `UpdatedAcl`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1850,8 +1633,8 @@ data class UpdatedAcl(
 
 ### `ProvidersApproveRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Request type used as part of the approval process_
 
@@ -1887,7 +1670,7 @@ data class ProvidersApproveRequest(
 
 ### `ProvidersRenewRefreshTokenRequestItem`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Request type for renewing the tokens of a Provider_
@@ -1924,8 +1707,8 @@ data class ProvidersRenewRefreshTokenRequestItem(
 
 ### `ProvidersRequestApprovalRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Request type used as part of the approval process_
 
@@ -1942,8 +1725,8 @@ sealed class ProvidersRequestApprovalRequest {
 
 ### `ProvidersRequestApprovalRequest.Information`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Request type used as part of the approval process, provides contact information_
 
@@ -1975,7 +1758,6 @@ data class Information(
 <code>type</code>: <code><code>String /* "information" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1992,8 +1774,8 @@ data class Information(
 
 ### `ProvidersRequestApprovalRequest.Sign`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Request type used as part of the approval process, associates a UCloud user to previously uploaded information_
 
@@ -2025,7 +1807,6 @@ data class Sign(
 <code>type</code>: <code><code>String /* "sign" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2042,8 +1823,8 @@ data class Sign(
 
 ### `ProvidersRequestApprovalResponse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Response type used as part of the approval process_
 
@@ -2060,8 +1841,8 @@ sealed class ProvidersRequestApprovalResponse {
 
 ### `ProvidersRequestApprovalResponse.AwaitingAdministratorApproval`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Response type used as part of the approval process_
 
@@ -2093,7 +1874,6 @@ data class AwaitingAdministratorApproval(
 <code>type</code>: <code><code>String /* "awaiting_admin_approval" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2110,8 +1890,8 @@ data class AwaitingAdministratorApproval(
 
 ### `ProvidersRequestApprovalResponse.RequiresSignature`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Response type used as part of the approval process_
 
@@ -2143,7 +1923,6 @@ data class RequiresSignature(
 <code>type</code>: <code><code>String /* "requires_signature" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

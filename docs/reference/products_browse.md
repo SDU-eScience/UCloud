@@ -44,11 +44,14 @@ PageV2(
         ), 
         chargeType = ChargeType.ABSOLUTE, 
         cpu = 10, 
+        cpuModel = null, 
         description = "An example compute product", 
         freeToUse = false, 
         gpu = 0, 
+        gpuModel = null, 
         hiddenInGrantApplications = false, 
         memoryInGigs = 20, 
+        memoryModel = null, 
         name = "example-compute", 
         pricePerUnit = 1000000, 
         priority = 0, 
@@ -87,81 +90,6 @@ PageV2(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(ProductsApi.browse(
-    {
-        "itemsPerPage": 50,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterName": null,
-        "filterProvider": null,
-        "filterArea": null,
-        "filterCategory": null,
-        "filterVersion": null,
-        "showAllVersions": null,
-        "includeBalance": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "type": "compute",
-            "balance": null,
-            "name": "example-compute",
-            "pricePerUnit": 1000000,
-            "category": {
-                "name": "example-compute",
-                "provider": "example"
-            },
-            "description": "An example compute product",
-            "priority": 0,
-            "cpu": 10,
-            "memoryInGigs": 20,
-            "gpu": 0,
-            "version": 1,
-            "freeToUse": false,
-            "unitOfPrice": "CREDITS_PER_MINUTE",
-            "chargeType": "ABSOLUTE",
-            "hiddenInGrantApplications": false,
-            "productType": "COMPUTE"
-        },
-        {
-            "type": "storage",
-            "balance": null,
-            "name": "example-storage",
-            "pricePerUnit": 1,
-            "category": {
-                "name": "example-storage",
-                "provider": "example"
-            },
-            "description": "An example storage product (Quota)",
-            "priority": 0,
-            "version": 1,
-            "freeToUse": false,
-            "unitOfPrice": "PER_UNIT",
-            "chargeType": "DIFFERENTIAL_QUOTA",
-            "hiddenInGrantApplications": false,
-            "productType": "STORAGE"
-        }
-    ],
-    "next": null
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -191,6 +119,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #             "cpu": 10,
 #             "memoryInGigs": 20,
 #             "gpu": 0,
+#             "cpuModel": null,
+#             "memoryModel": null,
+#             "gpuModel": null,
 #             "version": 1,
 #             "freeToUse": false,
 #             "unitOfPrice": "CREDITS_PER_MINUTE",

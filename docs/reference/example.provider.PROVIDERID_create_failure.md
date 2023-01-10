@@ -103,126 +103,7 @@ ResourceProvider.create.call(
 ).orThrow()
 
 /*
-HttpStatusCode(value=500, description=Internal Server Error)
-*/
-
-/* In this case, imagine that the provider failed to create the second resource. This should
-immediately trigger cleanup on the provider, if the first resource was already created. The provider
-should then respond with an appropriate error message. Providers should not attempt to only
-partially create the resources. */
-
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will discover how a provider should deal with a partial failure. */
-
-// Authenticated as ucloud
-await callAPI(ExampleProviderPROVIDERIDApi.create(
-    {
-        "items": [
-            {
-                "id": "1234",
-                "specification": {
-                    "start": 0,
-                    "target": 100,
-                    "product": {
-                        "id": "example-compute",
-                        "category": "example-compute",
-                        "provider": "example"
-                    }
-                },
-                "createdAt": 1635170395571,
-                "status": {
-                    "state": "RUNNING",
-                    "value": 10,
-                    "resolvedSupport": null,
-                    "resolvedProduct": null
-                },
-                "updates": [
-                    {
-                        "timestamp": 1635170395571,
-                        "status": "We are about to start counting!",
-                        "newState": "PENDING",
-                        "currentValue": null
-                    },
-                    {
-                        "timestamp": 1635170395571,
-                        "status": "We are now counting!",
-                        "newState": "RUNNING",
-                        "currentValue": 10
-                    }
-                ],
-                "owner": {
-                    "createdBy": "user",
-                    "project": null
-                },
-                "permissions": {
-                    "myself": [
-                        "ADMIN"
-                    ],
-                    "others": [
-                    ]
-                }
-            },
-            {
-                "id": "51214",
-                "specification": {
-                    "start": 0,
-                    "target": 100,
-                    "product": {
-                        "id": "example-compute",
-                        "category": "example-compute",
-                        "provider": "example"
-                    }
-                },
-                "createdAt": 1635170395571,
-                "status": {
-                    "state": "RUNNING",
-                    "value": 10,
-                    "resolvedSupport": null,
-                    "resolvedProduct": null
-                },
-                "updates": [
-                    {
-                        "timestamp": 1635170395571,
-                        "status": "We are about to start counting!",
-                        "newState": "PENDING",
-                        "currentValue": null
-                    },
-                    {
-                        "timestamp": 1635170395571,
-                        "status": "We are now counting!",
-                        "newState": "RUNNING",
-                        "currentValue": 10
-                    }
-                ],
-                "owner": {
-                    "createdBy": "user",
-                    "project": null
-                },
-                "permissions": {
-                    "myself": [
-                        "ADMIN"
-                    ],
-                    "others": [
-                    ]
-                }
-            }
-        ]
-    }
-);
-
-/*
-HttpStatusCode(value=500, description=Internal Server Error)
+500 Internal Server Error
 */
 
 /* In this case, imagine that the provider failed to create the second resource. This should
@@ -343,7 +224,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 }'
 
 
-# HttpStatusCode(value=500, description=Internal Server Error)
+# 500 Internal Server Error
 
 # In this case, imagine that the provider failed to create the second resource. This should
 # immediately trigger cleanup on the provider, if the first resource was already created. The provider

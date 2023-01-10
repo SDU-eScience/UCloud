@@ -4,6 +4,10 @@ import dk.sdu.cloud.accounting.api.Accounting
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.Visualization
 import dk.sdu.cloud.accounting.api.Wallets
+import dk.sdu.cloud.accounting.api.projects.GrantDescription
+import dk.sdu.cloud.accounting.api.projects.GrantSettings
+import dk.sdu.cloud.accounting.api.projects.GrantsEnabled
+import dk.sdu.cloud.accounting.api.projects.ProjectLogo
 import dk.sdu.cloud.alerting.api.Alerting
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppStore
@@ -115,14 +119,13 @@ fun generateCode() {
                 "accounting-and-projects",
                 "Accounting and Project Management",
                 listOf(
-                    Chapter.Node(
-                        "projects",
-                        "Projects",
-                        listOf(
-                            Chapter.Feature("projects", "Projects", Projects),
-                            Chapter.Feature("members", "Members", ProjectMembers),
-                            Chapter.Feature("groups", "Groups", ProjectGroups),
-                            Chapter.Feature("favorites", "Favorites", ProjectFavorites)
+                    Chapter.Feature("projects", "Projects", dk.sdu.cloud.project.api.v2.Projects),
+                    Chapter.Feature("project-notifications", "Project notifications", dk.sdu.cloud.project.api.v2.ProjectNotifications),
+                    Chapter.Feature(
+                        "project-notifications-providers",
+                        "Project notifications (Provider API)",
+                        dk.sdu.cloud.project.api.v2.ProjectNotificationsProvider(
+                            PROVIDER_ID_PLACEHOLDER
                         )
                     ),
                     Chapter.Feature("providers", "Providers", Providers),
@@ -141,6 +144,10 @@ fun generateCode() {
                         "Grants",
                         listOf(
                             Chapter.Feature("grants", "Allocation Process", Grants),
+                            Chapter.Feature("grant-admin", "Grant Administration", GrantsEnabled),
+                            Chapter.Feature("grant-settings", "Grant Settings", GrantSettings),
+                            Chapter.Feature("grant-settings-logo", "Grant Settings (Logo)", ProjectLogo),
+                            Chapter.Feature("grant-settings-description", "Grant Settings (Description)", GrantDescription),
                             Chapter.Feature("gifts", "Gifts", Gifts)
                         )
                     )
@@ -425,6 +432,22 @@ fun generateCode() {
                 )
             ),
             Chapter.Node(
+                "legacy",
+                "Legacy",
+                listOf(
+                    Chapter.Node(
+                        "projects-legacy",
+                        "Projects (Legacy)",
+                        listOf(
+                            Chapter.Feature("projects", "Projects", Projects),
+                            Chapter.Feature("members", "Members", ProjectMembers),
+                            Chapter.Feature("groups", "Groups", ProjectGroups),
+                            Chapter.Feature("favorites", "Favorites", ProjectFavorites)
+                        )
+                    )
+                )
+            ),
+            Chapter.Node(
                 "built-in-provider",
                 "Built-in Provider",
                 listOf(
@@ -507,8 +530,6 @@ fun generateCode() {
                         chapter
                     )
 
-                    generateTypeScriptCode(types, calls, chapter.title, chapter.container)
-                    generateSerializerCode(types, calls, chapter.container)
                     useCases.addAll(chapter.container.useCases)
                 }
             }

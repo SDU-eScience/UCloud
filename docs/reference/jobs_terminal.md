@@ -38,11 +38,14 @@ SupportByProvider(
             ), 
             chargeType = ChargeType.ABSOLUTE, 
             cpu = 1, 
+            cpuModel = null, 
             description = "An example machine", 
             freeToUse = false, 
             gpu = 0, 
+            gpuModel = null, 
             hiddenInGrantApplications = false, 
             memoryInGigs = 2, 
+            memoryModel = null, 
             name = "compute-example", 
             pricePerUnit = 1000000, 
             priority = 0, 
@@ -170,123 +173,6 @@ ShellResponse.Data(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(JobsApi.retrieveProducts(
-    {
-    }
-);
-
-/*
-{
-    "productsByProvider": {
-        "example": [
-            {
-                "product": {
-                    "balance": null,
-                    "name": "compute-example",
-                    "pricePerUnit": 1000000,
-                    "category": {
-                        "name": "compute-example",
-                        "provider": "example"
-                    },
-                    "description": "An example machine",
-                    "priority": 0,
-                    "cpu": 1,
-                    "memoryInGigs": 2,
-                    "gpu": 0,
-                    "version": 1,
-                    "freeToUse": false,
-                    "unitOfPrice": "CREDITS_PER_MINUTE",
-                    "chargeType": "ABSOLUTE",
-                    "hiddenInGrantApplications": false,
-                    "productType": "COMPUTE"
-                },
-                "support": {
-                    "product": {
-                        "id": "compute-example",
-                        "category": "compute-example",
-                        "provider": "example"
-                    },
-                    "docker": {
-                        "enabled": true,
-                        "web": null,
-                        "vnc": null,
-                        "logs": null,
-                        "terminal": true,
-                        "peers": null,
-                        "timeExtension": null,
-                        "utilization": null
-                    },
-                    "virtualMachine": {
-                        "enabled": null,
-                        "logs": null,
-                        "vnc": null,
-                        "terminal": null,
-                        "timeExtension": null,
-                        "suspension": null,
-                        "utilization": null
-                    },
-                    "native": {
-                        "enabled": null,
-                        "logs": null,
-                        "vnc": null,
-                        "terminal": null,
-                        "timeExtension": null,
-                        "utilization": null,
-                        "web": null
-                    }
-                }
-            }
-        ]
-    }
-}
-*/
-
-/* 📝 Note: The machine has support for the 'terminal' feature */
-
-await callAPI(JobsApi.openInteractiveSession(
-    {
-        "items": [
-            {
-                "id": "123",
-                "rank": 1,
-                "sessionType": "SHELL"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "providerDomain": "provider.example.com",
-            "providerId": "example",
-            "session": {
-                "type": "shell",
-                "jobId": "123",
-                "rank": 1,
-                "sessionIdentifier": "a81ea644-58f5-44d9-8e94-89f81666c441",
-                "domainOverride": null
-            }
-        }
-    ]
-}
-*/
-
-/* The session is now open and we can establish a shell connection directly with provider.example.com */
-
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -316,6 +202,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProdu
 #                     "cpu": 1,
 #                     "memoryInGigs": 2,
 #                     "gpu": 0,
+#                     "cpuModel": null,
+#                     "memoryModel": null,
+#                     "gpuModel": null,
 #                     "version": 1,
 #                     "freeToUse": false,
 #                     "unitOfPrice": "CREDITS_PER_MINUTE",

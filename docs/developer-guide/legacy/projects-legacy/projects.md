@@ -1,9 +1,10 @@
 <p align='center'>
-<a href='/docs/developer-guide/accounting-and-projects/projects/members.md'>Next section »</a>
+<a href='/docs/developer-guide/core/communication/mail.md'>« Previous section</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/legacy/projects-legacy/members.md'>Next section »</a>
 </p>
 
 
-[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Projects](/docs/developer-guide/accounting-and-projects/projects/README.md) / Projects
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Legacy](/docs/developer-guide/legacy/README.md) / [Projects (Legacy)](/docs/developer-guide/legacy/projects-legacy/README.md) / Projects
 # Projects
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -31,7 +32,7 @@ changes are expected:
 ## Definition
 
 A project in UCloud is a collection of `members` which is uniquely identified by an `id`. All `members` are
-[users](../auth-service/README.md) identified by their `username` and have exactly one `role`. A user always has exactly one
+[users](../../core/users/creation.md) identified by their `username` and have exactly one `role`. A user always has exactly one
 `role`. Each project has exactly one principal investigator (`PI`). The `PI` is responsible for managing the project,
 including adding and removing users.
 
@@ -56,11 +57,11 @@ and the members of a group can only be from the project it belongs to.
 
 ## Creating Projects and Sub-Projects
 
-All projects create by end-users have exactly one parent project. Only UCloud administrators can create root-level
+All projects created by end-users have exactly one parent project. Only UCloud administrators can create root-level
 projects, that is a project without a parent. This allows users of UCloud to create a hierarchy of projects. The
 project hierarchy plays a significant role in accounting.
 
-Normal users can create a project through the [grant application](../grant-service/README.md) feature.
+Normal users can create a project through the [grant application](../grants/grants.md) feature.
 
 A project can be uniquely identified by the path from the root project to the leaf-project. As a result, the `title` of
 a project must be unique within a single project. `title`s are case-insensitive.
@@ -89,7 +90,7 @@ explicitly been added to the "IMADA" project.
 
 All requests in UCloud are executed in a particular context. The header of every request defines the context. For the
 HTTP backend this is done in the `Project` header. The absence of a project implies that the request is executed in the
-personal project context.
+personal project context, also called *My Workspace* on UCloud.
 
 ![](/backend/accounting-service/wiki/context-switcher.png)
 
@@ -448,7 +449,7 @@ implement(Descriptions.call) {
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 | Request | Response | Error |

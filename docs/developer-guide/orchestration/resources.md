@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / Introduction to Resources
 # Introduction to Resources
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Resources are the base abstraction used for orchestration in UCloud._
 
@@ -45,7 +45,7 @@ UCloud, in almost all cases, store a record of all resources in use. We refer to
 catalog of UCloud. As a result, UCloud/Core can fulfil some operations without involving the provider. 
 In particular, UCloud/Core performs many read operations without the provider's involvement.
 
-End-users interact with all resources through a standarized API. The API provides common CRUD operations 
+End-users interact with all resources through a standardized API. The API provides common CRUD operations 
 along with permission related operations. Concrete resources further extend this API with resource specific 
 tasks. For example, virtual machines expose an operation to shut down the machine. 
 
@@ -190,10 +190,6 @@ this, then UCloud/Core will reject all requests counting backwards.
 <tr>
 <td><a href='#supportbyprovider'><code>SupportByProvider</code></a></td>
 <td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#ufileupdate'><code>UFileUpdate</code></a></td>
-<td>Describes an update to the `Resource`</td>
 </tr>
 <tr>
 <td><a href='#aclentity'><code>AclEntity</code></a></td>
@@ -377,110 +373,6 @@ PageV2(
     itemsPerPage = 50, 
     next = null, 
 )
-*/
-
-/* 📝 NOTE: The provider has already started counting. You can observe the changes which lead to the
-current status through the updates. */
-
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will discover how a user can browse their catalog. This is done through the
-browse operation. The browse operation exposes the results using the pagination API of UCloud.
-
-As we will see later, it is possible to filter in the results returned using the flags of the
-operation. */
-
-// Authenticated as user
-await callAPI(ExampleApi.browse(
-    {
-        "flags": {
-            "filterState": null,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "sortBy": null,
-        "sortDirection": "ascending"
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "id": "1234",
-            "specification": {
-                "start": 0,
-                "target": 100,
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                }
-            },
-            "createdAt": 1635170395571,
-            "status": {
-                "state": "RUNNING",
-                "value": 10,
-                "resolvedSupport": null,
-                "resolvedProduct": null
-            },
-            "updates": [
-                {
-                    "timestamp": 1635170395571,
-                    "status": "We are about to start counting!",
-                    "newState": "PENDING",
-                    "currentValue": null
-                },
-                {
-                    "timestamp": 1635170395571,
-                    "status": "We are now counting!",
-                    "newState": "RUNNING",
-                    "currentValue": 10
-                }
-            ],
-            "owner": {
-                "createdBy": "user",
-                "project": null
-            },
-            "permissions": {
-                "myself": [
-                    "ADMIN"
-                ],
-                "others": [
-                ]
-            }
-        }
-    ],
-    "next": null
-}
 */
 
 /* 📝 NOTE: The provider has already started counting. You can observe the changes which lead to the
@@ -697,121 +589,6 @@ ExampleResource(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will discover how to create a resource and retrieve information about it. */
-
-// Authenticated as user
-await callAPI(ExampleApi.create(
-    {
-        "items": [
-            {
-                "start": 0,
-                "target": 100,
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "1234"
-        }
-    ]
-}
-*/
-
-/* 📝 NOTE: Users only specify the specification when they wish to create a resource. The specification
-defines the values which are in the control of the user. The specification remains immutable
-for the resource's lifetime. Mutable values are instead listed in the status. */
-
-await callAPI(ExampleApi.retrieve(
-    {
-        "flags": {
-            "filterState": null,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "1234"
-    }
-);
-
-/*
-{
-    "id": "1234",
-    "specification": {
-        "start": 0,
-        "target": 100,
-        "product": {
-            "id": "example-compute",
-            "category": "example-compute",
-            "provider": "example"
-        }
-    },
-    "createdAt": 1635170395571,
-    "status": {
-        "state": "RUNNING",
-        "value": 10,
-        "resolvedSupport": null,
-        "resolvedProduct": null
-    },
-    "updates": [
-        {
-            "timestamp": 1635170395571,
-            "status": "We are about to start counting!",
-            "newState": "PENDING",
-            "currentValue": null
-        },
-        {
-            "timestamp": 1635170395571,
-            "status": "We are now counting!",
-            "newState": "RUNNING",
-            "currentValue": 10
-        }
-    ],
-    "owner": {
-        "createdBy": "user",
-        "project": null
-    },
-    "permissions": {
-        "myself": [
-            "ADMIN"
-        ],
-        "others": [
-        ]
-    }
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -1013,109 +790,6 @@ PageV2(
     itemsPerPage = 50, 
     next = null, 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will look at the flags which are passed to both browse and retrieve operations.
-This value is used to:
-
-- Filter out values: These properties are prefixed by filter* and remove results from the response.
-  When used in a retrieve operation, this will cause a 404 if no results are found.
-- Include additional data: These properties are prefixed by include* and can be used to load 
-  additional data. This data is returned as part of the status object. The intention of these are to
-  save the client a round-trip by retrieving all relevant data in a single call. */
-
-// Authenticated as user
-await callAPI(ExampleApi.browse(
-    {
-        "flags": {
-            "filterState": "RUNNING",
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "sortBy": null,
-        "sortDirection": "ascending"
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "id": "1234",
-            "specification": {
-                "start": 0,
-                "target": 100,
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                }
-            },
-            "createdAt": 1635170395571,
-            "status": {
-                "state": "RUNNING",
-                "value": 10,
-                "resolvedSupport": null,
-                "resolvedProduct": null
-            },
-            "updates": [
-                {
-                    "timestamp": 1635170395571,
-                    "status": "We are about to start counting!",
-                    "newState": "PENDING",
-                    "currentValue": null
-                },
-                {
-                    "timestamp": 1635170395571,
-                    "status": "We are now counting!",
-                    "newState": "RUNNING",
-                    "currentValue": 10
-                }
-            ],
-            "owner": {
-                "createdBy": "user",
-                "project": null
-            },
-            "permissions": {
-                "myself": [
-                    "ADMIN"
-                ],
-                "others": [
-                ]
-            }
-        }
-    ],
-    "next": null
-}
 */
 ```
 
@@ -1434,234 +1108,6 @@ PageV2(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will discover the search functionality of resources. Search allows for free-text
-queries which attempts to find relevant results. This is very different from browse with filters, 
-since 'relevancy' is a vaguely defined concept. Search is not guaranteed to return results in any
-deterministic fashion, unlike browse. */
-
-
-/* We start with the following dataset. */
-
-// Authenticated as user
-await callAPI(ExampleApi.browse(
-    {
-        "flags": {
-            "filterState": "RUNNING",
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "sortBy": null,
-        "sortDirection": "ascending"
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "id": "1",
-            "specification": {
-                "start": 0,
-                "target": 100,
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                }
-            },
-            "createdAt": 1635170395571,
-            "status": {
-                "state": "RUNNING",
-                "value": 10,
-                "resolvedSupport": null,
-                "resolvedProduct": null
-            },
-            "updates": [
-            ],
-            "owner": {
-                "createdBy": "user",
-                "project": null
-            },
-            "permissions": {
-                "myself": [
-                    "ADMIN"
-                ],
-                "others": [
-                ]
-            }
-        },
-        {
-            "id": "2",
-            "specification": {
-                "start": 0,
-                "target": 200,
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                }
-            },
-            "createdAt": 1635170395571,
-            "status": {
-                "state": "RUNNING",
-                "value": 10,
-                "resolvedSupport": null,
-                "resolvedProduct": null
-            },
-            "updates": [
-            ],
-            "owner": {
-                "createdBy": "user",
-                "project": null
-            },
-            "permissions": {
-                "myself": [
-                    "ADMIN"
-                ],
-                "others": [
-                ]
-            }
-        },
-        {
-            "id": "3",
-            "specification": {
-                "start": 0,
-                "target": 300,
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                }
-            },
-            "createdAt": 1635170395571,
-            "status": {
-                "state": "RUNNING",
-                "value": 10,
-                "resolvedSupport": null,
-                "resolvedProduct": null
-            },
-            "updates": [
-            ],
-            "owner": {
-                "createdBy": "user",
-                "project": null
-            },
-            "permissions": {
-                "myself": [
-                    "ADMIN"
-                ],
-                "others": [
-                ]
-            }
-        }
-    ],
-    "next": null
-}
-*/
-
-/* Search may look in many different fields to determine if a result is relevant. Searching for the
-value 300 might produce the following results. */
-
-await callAPI(ExampleApi.search(
-    {
-        "flags": {
-            "filterState": null,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "query": "300",
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "sortBy": null,
-        "sortDirection": "ascending"
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "id": "3",
-            "specification": {
-                "start": 0,
-                "target": 300,
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                }
-            },
-            "createdAt": 1635170395571,
-            "status": {
-                "state": "RUNNING",
-                "value": 10,
-                "resolvedSupport": null,
-                "resolvedProduct": null
-            },
-            "updates": [
-            ],
-            "owner": {
-                "createdBy": "user",
-                "project": null
-            },
-            "permissions": {
-                "myself": [
-                    "ADMIN"
-                ],
-                "others": [
-                ]
-            }
-        }
-    ],
-    "next": null
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -1906,11 +1352,14 @@ SupportByProvider(
             ), 
             chargeType = ChargeType.ABSOLUTE, 
             cpu = 1, 
+            cpuModel = null, 
             description = "An example machine", 
             freeToUse = false, 
             gpu = null, 
+            gpuModel = null, 
             hiddenInGrantApplications = false, 
             memoryInGigs = 1, 
+            memoryModel = null, 
             name = "example-compute", 
             pricePerUnit = 1, 
             priority = 0, 
@@ -1964,97 +1413,6 @@ BulkResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will show how to use the feature detection feature of resources. Recall, that
-providers need to specify if they support counting backwards. */
-
-// Authenticated as user
-await callAPI(ExampleApi.retrieveProducts(
-    {
-    }
-);
-
-/*
-{
-    "productsByProvider": {
-        "example": [
-            {
-                "product": {
-                    "type": "compute",
-                    "balance": null,
-                    "name": "example-compute",
-                    "pricePerUnit": 1,
-                    "category": {
-                        "name": "example-compute",
-                        "provider": "example"
-                    },
-                    "description": "An example machine",
-                    "priority": 0,
-                    "cpu": 1,
-                    "memoryInGigs": 1,
-                    "gpu": null,
-                    "version": 1,
-                    "freeToUse": false,
-                    "unitOfPrice": "UNITS_PER_HOUR",
-                    "chargeType": "ABSOLUTE",
-                    "hiddenInGrantApplications": false,
-                    "productType": "COMPUTE"
-                },
-                "support": {
-                    "product": {
-                        "id": "example-compute",
-                        "category": "example-compute",
-                        "provider": "example"
-                    },
-                    "supportsBackwardsCounting": "SUPPORTED"
-                }
-            }
-        ]
-    }
-}
-*/
-
-/* In this case, the provider supports counting backwards. */
-
-
-/* Creating a resource which counts backwards should succeed. */
-
-await callAPI(ExampleApi.create(
-    {
-        "items": [
-            {
-                "start": 0,
-                "target": -100,
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "1234"
-        }
-    ]
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -2088,6 +1446,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrievePr
 #                     "cpu": 1,
 #                     "memoryInGigs": 1,
 #                     "gpu": null,
+#                     "cpuModel": null,
+#                     "memoryModel": null,
+#                     "gpuModel": null,
 #                     "version": 1,
 #                     "freeToUse": false,
 #                     "unitOfPrice": "UNITS_PER_HOUR",
@@ -2186,11 +1547,14 @@ SupportByProvider(
             ), 
             chargeType = ChargeType.ABSOLUTE, 
             cpu = 1, 
+            cpuModel = null, 
             description = "An example machine", 
             freeToUse = false, 
             gpu = null, 
+            gpuModel = null, 
             hiddenInGrantApplications = false, 
             memoryInGigs = 1, 
+            memoryModel = null, 
             name = "example-compute", 
             pricePerUnit = 1, 
             priority = 0, 
@@ -2231,92 +1595,7 @@ Resources.create.call(
 ).orThrow()
 
 /*
-HttpStatusCode(value=400, description=Bad Request)
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will show how to use the feature detection feature of resources. Recall, that
-providers need to specify if they support counting backwards. */
-
-// Authenticated as user
-await callAPI(ExampleApi.retrieveProducts(
-    {
-    }
-);
-
-/*
-{
-    "productsByProvider": {
-        "example": [
-            {
-                "product": {
-                    "type": "compute",
-                    "balance": null,
-                    "name": "example-compute",
-                    "pricePerUnit": 1,
-                    "category": {
-                        "name": "example-compute",
-                        "provider": "example"
-                    },
-                    "description": "An example machine",
-                    "priority": 0,
-                    "cpu": 1,
-                    "memoryInGigs": 1,
-                    "gpu": null,
-                    "version": 1,
-                    "freeToUse": false,
-                    "unitOfPrice": "UNITS_PER_HOUR",
-                    "chargeType": "ABSOLUTE",
-                    "hiddenInGrantApplications": false,
-                    "productType": "COMPUTE"
-                },
-                "support": {
-                    "product": {
-                        "id": "example-compute",
-                        "category": "example-compute",
-                        "provider": "example"
-                    },
-                    "supportsBackwardsCounting": "NOT_SUPPORTED"
-                }
-            }
-        ]
-    }
-}
-*/
-
-/* In this case, the provider does not support counting backwards. */
-
-
-/* Creating a resource which counts backwards should fail. */
-
-await callAPI(ExampleApi.create(
-    {
-        "items": [
-            {
-                "start": 0,
-                "target": -100,
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                }
-            }
-        ]
-    }
-);
-
-/*
-HttpStatusCode(value=400, description=Bad Request)
+400 Bad Request
 */
 ```
 
@@ -2358,6 +1637,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrievePr
 #                     "cpu": 1,
 #                     "memoryInGigs": 1,
 #                     "gpu": null,
+#                     "cpuModel": null,
+#                     "memoryModel": null,
+#                     "gpuModel": null,
 #                     "version": 1,
 #                     "freeToUse": false,
 #                     "unitOfPrice": "UNITS_PER_HOUR",
@@ -2397,7 +1679,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 }'
 
 
-# HttpStatusCode(value=400, description=Bad Request)
+# 400 Bad Request
 
 ```
 
@@ -2487,7 +1769,7 @@ Resources.retrieve.call(
 ).orThrow()
 
 /*
-HttpStatusCode(value=404, description=Not Found)
+404 Not Found
 */
 
 /* Alice can change the permissions of the resource by invoking updateAcl. This causes Bob to gain READ permissions. */
@@ -2588,191 +1870,6 @@ ExampleResource(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we discover how to use the resource collaboration features of UCloud. This example
-involves two users: Alice and Bob. */
-
-
-/* Alice starts by creating a resource */
-
-// Authenticated as alice
-await callAPI(ExampleApi.create(
-    {
-        "items": [
-            {
-                "start": 0,
-                "target": 100,
-                "product": {
-                    "id": "example-compute",
-                    "category": "example-compute",
-                    "provider": "example"
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "1234"
-        }
-    ]
-}
-*/
-
-/* By default, Bob doesn't have access to this resource. Attempting to retrieve it will fail. */
-
-// Authenticated as bob
-await callAPI(ExampleApi.retrieve(
-    {
-        "flags": {
-            "filterState": null,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "1234"
-    }
-);
-
-/*
-HttpStatusCode(value=404, description=Not Found)
-*/
-
-/* Alice can change the permissions of the resource by invoking updateAcl. This causes Bob to gain READ permissions. */
-
-// Authenticated as alice
-await callAPI(ExampleApi.updateAcl(
-    {
-        "items": [
-            {
-                "id": "1234",
-                "added": [
-                    {
-                        "entity": {
-                            "type": "project_group",
-                            "projectId": "Project",
-                            "group": "Group of Bob"
-                        },
-                        "permissions": [
-                            "READ"
-                        ]
-                    }
-                ],
-                "deleted": [
-                ]
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-        }
-    ]
-}
-*/
-
-/* Bob can now retrieve the resource. */
-
-// Authenticated as bob
-await callAPI(ExampleApi.retrieve(
-    {
-        "flags": {
-            "filterState": null,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "1234"
-    }
-);
-
-/*
-{
-    "id": "1234",
-    "specification": {
-        "start": 0,
-        "target": 100,
-        "product": {
-            "id": "example-compute",
-            "category": "example-compute",
-            "provider": "example"
-        }
-    },
-    "createdAt": 1635170395571,
-    "status": {
-        "state": "RUNNING",
-        "value": 10,
-        "resolvedSupport": null,
-        "resolvedProduct": null
-    },
-    "updates": [
-        {
-            "timestamp": 1635170395571,
-            "status": "We are about to start counting!",
-            "newState": "PENDING",
-            "currentValue": null
-        },
-        {
-            "timestamp": 1635170395571,
-            "status": "We are now counting!",
-            "newState": "RUNNING",
-            "currentValue": 10
-        }
-    ],
-    "owner": {
-        "createdBy": "user",
-        "project": null
-    },
-    "permissions": {
-        "myself": [
-            "READ"
-        ],
-        "others": [
-        ]
-    }
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -2816,7 +1913,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 # Authenticated as bob
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrieve?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&id=1234" 
 
-# HttpStatusCode(value=404, description=Not Found)
+# 404 Not Found
 
 # Alice can change the permissions of the resource by invoking updateAcl. This causes Bob to gain READ permissions.
 
@@ -2921,7 +2018,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrieve?i
 
 ### `browse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2935,7 +2032,7 @@ _Browses the catalog of available resources_
 
 ### `retrieve`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2949,7 +2046,7 @@ _Retrieve a single resource_
 
 ### `retrieveProducts`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2971,7 +2068,7 @@ See also:
 
 ### `search`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2985,7 +2082,7 @@ _Searches the catalog of available resources_
 
 ### `create`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2999,7 +2096,7 @@ _Creates one or more resources_
 
 ### `delete`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -3013,7 +2110,7 @@ _Deletes one or more resources_
 
 ### `init`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -3031,7 +2128,7 @@ the request.
 
 ### `updateAcl`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -3048,7 +2145,7 @@ _Updates the ACL attached to a resource_
 
 ### `ResolvedSupport`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3096,7 +2193,7 @@ data class ResolvedSupport<P, Support>(
 
 ### `ResourceChargeCredits`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3193,7 +2290,7 @@ This charge ID must be unique for the `Resource`, UCloud will reject charges whi
 
 ### `SortDirection`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3241,7 +2338,7 @@ enum class SortDirection {
 
 ### `SupportByProvider`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3275,67 +2372,9 @@ data class SupportByProvider<P, S>(
 
 ---
 
-### `UFileUpdate`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_Describes an update to the `Resource`_
-
-```kotlin
-data class UFileUpdate(
-    val timestamp: Long,
-    val status: String?,
-)
-```
-Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
-The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
-use the full update history if you only wish to know the _current_ state of a `Resource`.
-
-An update will typically contain information similar to the `status` field, for example:
-
-- A state value. For example, a compute `Job` might be `RUNNING`.
-- Change in key metrics.
-- Bindings to related `Resource`s.
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>timestamp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> A timestamp referencing when UCloud received this update
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>status</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A generic text message describing the current status of the `Resource`
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
 ### `AclEntity`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3352,7 +2391,7 @@ sealed class AclEntity {
 
 ### `AclEntity.ProjectGroup`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3396,7 +2435,6 @@ data class ProjectGroup(
 <code>type</code>: <code><code>String /* "project_group" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3413,7 +2451,7 @@ data class ProjectGroup(
 
 ### `AclEntity.User`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3445,7 +2483,6 @@ data class User(
 <code>type</code>: <code><code>String /* "user" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3462,7 +2499,7 @@ data class User(
 
 ### `ExampleResource`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A `Resource` is the core data model used to synchronize tasks between UCloud and Provider._
@@ -3572,6 +2609,7 @@ A null value indicates that permissions are not supported by this resource type.
 <code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3588,7 +2626,7 @@ A null value indicates that permissions are not supported by this resource type.
 
 ### `ExampleResource.Spec`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3648,7 +2686,7 @@ data class Spec(
 
 ### `ExampleResource.State`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3708,7 +2746,7 @@ enum class State {
 
 ### `ExampleResource.Status`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Describes the current state of the `Resource`_
@@ -3789,7 +2827,7 @@ This attribute is not included by default unless `includeProduct` is specified.
 
 ### `ExampleResource.Update`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Describes an update to the `Resource`_
@@ -3871,7 +2909,7 @@ An update will typically contain information similar to the `status` field, for 
 
 ### `ExampleResourceFlags`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -4087,7 +3125,7 @@ data class ExampleResourceFlags(
 
 ### `ExampleResourceSupport`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -4135,7 +3173,7 @@ data class ExampleResourceSupport(
 
 ### `ExampleResourceSupport.Supported`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -4183,7 +3221,7 @@ enum class Supported {
 
 ### `Permission`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The UCloud permission model_
@@ -4265,7 +3303,7 @@ resource.
 
 ### `ResourceAclEntry`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -4313,7 +3351,7 @@ data class ResourceAclEntry(
 
 ### `ResourceUpdateAndId`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -4361,7 +3399,7 @@ data class ResourceUpdateAndId<U>(
 
 ### `UpdatedAclWithResource`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -4421,7 +3459,7 @@ data class UpdatedAclWithResource<Res>(
 
 ### `ResourceBrowseRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
@@ -4559,7 +3597,7 @@ paginate through the results.
 
 ### `ResourceInitializationRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -4595,7 +3633,7 @@ data class ResourceInitializationRequest(
 
 ### `ResourceRetrieveRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -4643,7 +3681,7 @@ data class ResourceRetrieveRequest<Flags>(
 
 ### `ResourceSearchRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
@@ -4793,7 +3831,7 @@ paginate through the results.
 
 ### `ResourceChargeCreditsResponse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

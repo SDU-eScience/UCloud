@@ -9,41 +9,42 @@ import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
-/**
- * @see Gifts
- */
 interface Gift {
-    /**
-     * The title of a gift
-     *
-     * Suitable for presentation in UIs
-     */
+    @UCloudApiDoc(
+        """
+             The title of a gift
+
+            Suitable for presentation in UIs
+        """
+    )
     val title: String
 
-    /**
-     * The title of a gift
-     *
-     * Suitable for presentation in UIs
-     */
+    @UCloudApiDoc(
+        """
+             The title of a gift
+             
+             Suitable for presentation in UIs
+        """
+    )
     val description: String
 
-    /**
-     * A list of resources which will be granted to users [Gifts.claimGift] this [Gift].
-     */
+    @UCloudApiDoc(
+        """
+            A list of resources which will be granted to users `Gifts.claimGift` this `Gift`.
+        """
+    )
     val resources: List<GrantApplication.AllocationRequest>
 
-    /**
-     * A reference to the project which owns these resources
-     */
+    @UCloudApiDoc(
+        """
+            A reference to the project which owns these resources
+        """
+    )
     val resourcesOwnedBy: String
 }
 
-/**
- * A [Gift] along with the [criteria] for which that can [Gifts.claimGift] this
- *
- * @see Gift
- * @see Gifts
- */
+@UCloudApiInternal(InternalLevel.STABLE)
+@UCloudApiDoc("A `Gift` along with the `criteria` for which that can `Gifts.claimGift` this")
 @Serializable
 data class GiftWithCriteria(
     val id: Long,
@@ -60,6 +61,7 @@ data class GiftWithCriteria(
 }
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class ClaimGiftRequest(val giftId: Long)
 typealias ClaimGiftResponse = Unit
 
@@ -67,13 +69,17 @@ typealias CreateGiftRequest = GiftWithCriteria
 typealias CreateGiftResponse = FindByLongId
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class DeleteGiftRequest(val giftId: Long)
 typealias DeleteGiftResponse = Unit
 
 typealias AvailableGiftsRequest = Unit
+
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class AvailableGiftsResponse(val gifts: List<FindByLongId>)
 
+@UCloudApiInternal(InternalLevel.STABLE)
 object Gifts : CallDescriptionContainer("gifts") {
     const val baseContext = "/api/gifts"
 
@@ -114,10 +120,10 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
         documentation {
-            summary = "Claims a [Gift] to the calling user's personal project"
+            summary = "Claims a `Gift` to the calling user's personal project"
             description = """
                  User errors:
-                  - Users who are not eligible for claiming this [Gift] will receive an appropriate error code.
+                  - Users who are not eligible for claiming this `Gift` will receive an appropriate error code.
                   - If the gifting project has run out of resources then this endpoint will fail. The gift will not be 
                     marked as claimed.
             """.trimIndent()
@@ -139,7 +145,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
         documentation {
-            summary = "Finds a list of a user's unclaimed [Gift]s"
+            summary = "Finds a list of a user's unclaimed `Gift`s"
         }
     }
 

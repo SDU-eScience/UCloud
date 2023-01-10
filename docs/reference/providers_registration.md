@@ -21,6 +21,11 @@
 
 ```kotlin
 
+/* WARNING: The following flow still works, but is no longer used by the default configuration of
+the integration module. Instead, it has been replaced by the much simpler approach of having
+a UCloud administrator register the provider manually and then exchange tokens out-of-band. */
+
+
 /* This example shows how a Provider registers with UCloud/Core. In this example, the Provider will 
 be using the Integration Module. The system administrator, of the Provider, has just installed the 
 Integration Module. Before starting the module, the system administrator has configured the module 
@@ -171,165 +176,6 @@ Provider(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* This example shows how a Provider registers with UCloud/Core. In this example, the Provider will 
-be using the Integration Module. The system administrator, of the Provider, has just installed the 
-Integration Module. Before starting the module, the system administrator has configured the module 
-to contact UCloud at a known address. */
-
-
-/* When the system administrator launches the Integration Module, it will automatically contact 
-UCloud. This request contains the contact information back to the Provider. */
-
-// Authenticated as integrationModule
-await callAPI(ProvidersApi.requestApproval(
-    {
-        "type": "information",
-        "specification": {
-            "id": "example",
-            "domain": "provider.example.com",
-            "https": true,
-            "port": null,
-            "product": {
-                "id": "",
-                "category": "",
-                "provider": "ucloud_core"
-            }
-        }
-    }
-);
-
-/*
-{
-    "type": "requires_signature",
-    "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
-}
-*/
-
-/* UCloud/Core responds with a token and the IM displays a link to the sysadmin. The sysadmin follows 
-this link, and authenticates with their own UCloud user. This triggers the following request: */
-
-await callAPI(ProvidersApi.requestApproval(
-    {
-        "type": "sign",
-        "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
-    }
-);
-
-/*
-{
-    "type": "requires_signature",
-    "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
-}
-*/
-
-/* The sysadmin now sends his token to a UCloud administrator. This communication always happen 
-out-of-band. For a production system, we expect to have been in a dialogue with you about this 
-process already.
-
-The UCloud administrator approves the request. */
-
-// Authenticated as admin
-await callAPI(ProvidersApi.approve(
-    {
-        "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414"
-    }
-);
-
-/*
-{
-    "id": "51231"
-}
-*/
-
-/* UCloud/Core sends a welcome message to the Integration Module. The core uses the original token to 
-authenticate the request. The request also contains the refreshToken and publicKey required by the 
-IM. Under normal circumstances, the IM will auto-configure itself to use these tokens. */
-
-// Authenticated as ucloud
-await callAPI(ExampleImApi.welcome(
-    {
-        "token": "9eb96d0a27b1330cdc727ef4316bd48265f71414",
-        "createdProvider": {
-            "refreshToken": "8accc446c2e3ac924ff07c77d93e1679378a5dad",
-            "publicKey": "~~ public key ~~"
-        }
-    }
-);
-
-/*
-{
-}
-*/
-
-/* Alternatively, the sysadmin can read the tokens and perform manual configuration. */
-
-// Authenticated as systemAdministrator
-await callAPI(ProvidersApi.retrieve(
-    {
-        "flags": {
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "filterName": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "51231"
-    }
-);
-
-/*
-{
-    "id": "51231",
-    "specification": {
-        "id": "example",
-        "domain": "provider.example.com",
-        "https": true,
-        "port": null,
-        "product": {
-            "id": "",
-            "category": "",
-            "provider": "ucloud_core"
-        }
-    },
-    "refreshToken": "8accc446c2e3ac924ff07c77d93e1679378a5dad",
-    "publicKey": "~~ public key ~~",
-    "createdAt": 1633329776235,
-    "status": {
-        "resolvedSupport": null,
-        "resolvedProduct": null
-    },
-    "updates": [
-    ],
-    "owner": {
-        "createdBy": "sysadmin",
-        "project": null
-    },
-    "permissions": null
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -338,6 +184,10 @@ await callAPI(ProvidersApi.retrieve(
 # $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
 # $accessToken is a valid access-token issued by UCloud
 # ------------------------------------------------------------------------------------------------------
+
+# WARNING: The following flow still works, but is no longer used by the default configuration of
+# the integration module. Instead, it has been replaced by the much simpler approach of having
+# a UCloud administrator register the provider manually and then exchange tokens out-of-band.
 
 # This example shows how a Provider registers with UCloud/Core. In this example, the Provider will 
 # be using the Integration Module. The system administrator, of the Provider, has just installed the 

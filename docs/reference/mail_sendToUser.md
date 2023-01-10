@@ -43,48 +43,6 @@ Unit
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as ucloud
-await callAPI(MailApi.sendToUser(
-    {
-        "items": [
-            {
-                "receiver": "User#1234",
-                "mail": {
-                    "type": "lowFunds",
-                    "categories": [
-                        "u1-standard"
-                    ],
-                    "providers": [
-                        "ucloud"
-                    ],
-                    "projectTitles": [
-                        "Science Project"
-                    ],
-                    "subject": "Wallets low on resource"
-                },
-                "mandatory": false,
-                "receivingEmail": null,
-                "testMail": null
-            }
-        ]
-    }
-);
-
-/*
-{
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 

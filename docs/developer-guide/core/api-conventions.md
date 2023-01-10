@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / API Conventions
 # API Conventions
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _In this document we cover the API conventions for UCloud along with giving guidance on how to implement them in UCloud._
 
@@ -749,17 +749,7 @@ Examples:
 
 ---
 
-2: Request and response classes must be prefixed by their namespace
-
-Examples:
-
-- Correct: `JobsRetrieveRequest`
-- Correct: `JobsRetrieveResponse`
-- Incorrect: `RetrieveResponse` (Missing prefix)
-
----
-
-3: Request classes must use the `Request` suffix, response classes must use the `Response` suffix Examples:
+2: Request classes should use the `Request` suffix, response classes should use the `Response` suffix Examples:
 
 - Correct: `JobsRetrieveRequest`
 - Correct: `JobsRetrieveResponse`
@@ -767,7 +757,7 @@ Examples:
 
 ---
 
-4: `CallDescriptionContainer`s should be placed in a file named after the container
+3: `CallDescriptionContainer`s should be placed in a file named after the container
 
 - Correct: `Jobs.kt` containing `Jobs`
 - Incorrect: `JobDescriptions.kt` containing `Jobs`

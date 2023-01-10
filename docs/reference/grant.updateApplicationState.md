@@ -2,11 +2,11 @@
 
 # `grant.updateApplicationState`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Approves or rejects an existing [GrantApplication]. If accepted by all grant givers this will trigger granting of resources to the [GrantApplication.Document.recipient ]._
+_Approves or rejects an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication..md)  If accepted by all grant givers this will trigger granting of resources to the `GrantApplication.Document.recipient`._
 
 | Request | Response | Error |
 |---------|----------|-------|

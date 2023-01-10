@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / Files
 # Files
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Files in UCloud is a resource for storing, retrieving and organizing data in UCloud._
 
@@ -223,6 +223,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#ufileupdate'><code>UFileUpdate</code></a></td>
+<td>Describes an update to the `Resource`</td>
+</tr>
+<tr>
 <td><a href='#uploadprotocol'><code>UploadProtocol</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -304,39 +308,6 @@ Files.move.call(
 BulkResponse(
     responses = listOf(LongRunningTask.Complete()), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.move(
-    {
-        "items": [
-            {
-                "oldId": "/123/my/file",
-                "newId": "/123/my/new_file",
-                "conflictPolicy": "REJECT"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "type": "complete"
-        }
-    ]
-}
 */
 ```
 
@@ -435,39 +406,6 @@ BulkResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.copy(
-    {
-        "items": [
-            {
-                "oldId": "/123/my/file",
-                "newId": "/123/my/file",
-                "conflictPolicy": "RENAME"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "type": "complete"
-        }
-    ]
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -554,46 +492,6 @@ BulkResponse(
         token = "f1460d47e583653f7723204e5ff3f50bad91a658", 
     )), 
 )
-*/
-
-/* The user can now proceed to upload using the chunked protocol at the provided endpoint */
-
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.createUpload(
-    {
-        "items": [
-            {
-                "id": "/123/folder",
-                "supportedProtocols": [
-                    "CHUNKED"
-                ],
-                "conflictPolicy": "REJECT"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "endpoint": "https://provider.example.com/ucloud/example-provider/chunked",
-            "protocol": "CHUNKED",
-            "token": "f1460d47e583653f7723204e5ff3f50bad91a658"
-        }
-    ]
-}
 */
 
 /* The user can now proceed to upload using the chunked protocol at the provided endpoint */
@@ -700,40 +598,6 @@ BulkResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.createDownload(
-    {
-        "items": [
-            {
-                "id": "/123/folder/file"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "endpoint": "https://provider.example.com/ucloud/example-provider/download?token=d293435e94734c91394f17bb56268d3161c7f069"
-        }
-    ]
-}
-*/
-
-/* The user can now download the file through normal HTTP(s) GET at the provided endpoint */
-
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -814,38 +678,6 @@ Files.createFolder.call(
 BulkResponse(
     responses = listOf(LongRunningTask.Complete()), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.createFolder(
-    {
-        "items": [
-            {
-                "id": "/123/folder/a",
-                "conflictPolicy": "REJECT"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "type": "complete"
-        }
-    ]
-}
 */
 ```
 
@@ -944,43 +776,6 @@ BulkResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.trash(
-    {
-        "items": [
-            {
-                "id": "/123/folder"
-            },
-            {
-                "id": "/123/file"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "type": "complete"
-        },
-        {
-            "type": "complete"
-        }
-    ]
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -1065,37 +860,6 @@ Files.trash.call(
 BulkResponse(
     responses = listOf(LongRunningTask.Complete()), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.trash(
-    {
-        "items": [
-            {
-                "id": "/home/trash"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "type": "complete"
-        }
-    ]
-}
 */
 ```
 
@@ -1243,96 +1007,6 @@ PageV2(
     itemsPerPage = 50, 
     next = null, 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.browse(
-    {
-        "flags": {
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "includePermissions": null,
-            "includeTimestamps": true,
-            "includeSizes": null,
-            "includeUnixInfo": null,
-            "includeMetadata": null,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterByFileExtension": null,
-            "path": null,
-            "allowUnsupportedInclude": null,
-            "filterHiddenFiles": false,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "sortBy": null,
-        "sortDirection": "ascending"
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "id": "/123/folder/file.txt",
-            "specification": {
-                "collection": "123",
-                "product": {
-                    "id": "u1-cephfs",
-                    "category": "u1-cephfs",
-                    "provider": "ucloud"
-                }
-            },
-            "createdAt": 1632903417165,
-            "status": {
-                "type": "FILE",
-                "icon": null,
-                "sizeInBytes": null,
-                "sizeIncludingChildrenInBytes": null,
-                "modifiedAt": 1632903417165,
-                "accessedAt": null,
-                "unixMode": null,
-                "unixOwner": null,
-                "unixGroup": null,
-                "metadata": null,
-                "resolvedSupport": null,
-                "resolvedProduct": null
-            },
-            "owner": {
-                "createdBy": "user",
-                "project": "f63919cd-60d3-45d3-926b-0246dcc697fd"
-            },
-            "permissions": null,
-            "updates": [
-            ]
-        }
-    ],
-    "next": null
-}
 */
 ```
 
@@ -1504,85 +1178,6 @@ UFile(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.retrieve(
-    {
-        "flags": {
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "includePermissions": null,
-            "includeTimestamps": true,
-            "includeSizes": null,
-            "includeUnixInfo": null,
-            "includeMetadata": null,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterByFileExtension": null,
-            "path": null,
-            "allowUnsupportedInclude": null,
-            "filterHiddenFiles": false,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "/123/folder"
-    }
-);
-
-/*
-{
-    "id": "/123/folder",
-    "specification": {
-        "collection": "123",
-        "product": {
-            "id": "u1-cephfs",
-            "category": "u1-cephfs",
-            "provider": "ucloud"
-        }
-    },
-    "createdAt": 1632903417165,
-    "status": {
-        "type": "DIRECTORY",
-        "icon": null,
-        "sizeInBytes": null,
-        "sizeIncludingChildrenInBytes": null,
-        "modifiedAt": 1632903417165,
-        "accessedAt": null,
-        "unixMode": null,
-        "unixOwner": null,
-        "unixGroup": null,
-        "metadata": null,
-        "resolvedSupport": null,
-        "resolvedProduct": null
-    },
-    "owner": {
-        "createdBy": "user",
-        "project": "f63919cd-60d3-45d3-926b-0246dcc697fd"
-    },
-    "permissions": null,
-    "updates": [
-    ]
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -1676,36 +1271,6 @@ Files.delete.call(
 BulkResponse(
     responses = listOf(Unit), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.delete(
-    {
-        "items": [
-            {
-                "id": "/123/folder"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-        }
-    ]
-}
 */
 ```
 
@@ -1842,80 +1407,6 @@ SupportByProvider(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.retrieveProducts(
-    {
-    }
-);
-
-/*
-{
-    "productsByProvider": {
-        "ucloud": [
-            {
-                "product": {
-                    "balance": null,
-                    "name": "u1-cephfs",
-                    "pricePerUnit": 1,
-                    "category": {
-                        "name": "u1-cephfs",
-                        "provider": "ucloud"
-                    },
-                    "description": "Storage provided by UCloud",
-                    "priority": 0,
-                    "version": 1,
-                    "freeToUse": false,
-                    "unitOfPrice": "PER_UNIT",
-                    "chargeType": "DIFFERENTIAL_QUOTA",
-                    "hiddenInGrantApplications": false,
-                    "productType": "STORAGE"
-                },
-                "support": {
-                    "product": {
-                        "id": "u1-cephfs",
-                        "category": "u1-cephfs",
-                        "provider": "ucloud"
-                    },
-                    "stats": {
-                        "sizeInBytes": true,
-                        "sizeIncludingChildrenInBytes": true,
-                        "modifiedAt": true,
-                        "createdAt": true,
-                        "accessedAt": false,
-                        "unixPermissions": true,
-                        "unixOwner": true,
-                        "unixGroup": true
-                    },
-                    "collection": {
-                        "aclModifiable": false,
-                        "usersCanCreate": true,
-                        "usersCanDelete": true,
-                        "usersCanRename": true
-                    },
-                    "files": {
-                        "aclModifiable": false,
-                        "trashSupported": true,
-                        "isReadOnly": false,
-                        "searchSupported": true,
-                        "streamingSearchSupported": false
-                    }
-                }
-            }
-        ]
-    }
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -2004,7 +1495,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProd
 
 ### `browse`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2024,7 +1515,7 @@ no longer exist then the provider should simply not include these results.
 
 ### `retrieve`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2042,7 +1533,7 @@ this information using [`files.collections.browse`](/docs/reference/files.collec
 
 ### `retrieveProducts`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2064,7 +1555,7 @@ See also:
 
 ### `search`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2078,7 +1569,7 @@ _Searches the catalog of available resources_
 
 ### `streamingSearch`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2101,7 +1592,7 @@ it is no longer possible to request additional results.
 
 ### `copy`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2128,9 +1619,9 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `HttpStatusCode(value=400, description=Bad Request)` | The operation couldn't be completed because of the write conflict policy |
-| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
-| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
+| `400 Bad Request` | The operation couldn't be completed because of the write conflict policy |
+| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
+| `403 Forbidden` | You lack permissions to perform this operation |
 
 __Examples:__
 
@@ -2141,7 +1632,7 @@ __Examples:__
 
 ### `createDownload`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2157,8 +1648,8 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
-| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
+| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
+| `403 Forbidden` | You lack permissions to perform this operation |
 
 __Examples:__
 
@@ -2169,7 +1660,7 @@ __Examples:__
 
 ### `createFolder`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2186,8 +1677,8 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
-| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
+| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
+| `403 Forbidden` | You lack permissions to perform this operation |
 
 __Examples:__
 
@@ -2198,7 +1689,7 @@ __Examples:__
 
 ### `createUpload`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2215,8 +1706,8 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
-| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
+| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
+| `403 Forbidden` | You lack permissions to perform this operation |
 
 __Examples:__
 
@@ -2227,7 +1718,7 @@ __Examples:__
 
 ### `delete`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2246,7 +1737,7 @@ API can check if the file has been deleted by calling `retrieve` on the file.
 
 ### `emptyTrash`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2269,9 +1760,9 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
-| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
-| `HttpStatusCode(value=400, description=Bad Request)` | This operation is not supported by the provider |
+| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
+| `403 Forbidden` | You lack permissions to perform this operation |
+| `400 Bad Request` | This operation is not supported by the provider |
 
 __Examples:__
 
@@ -2282,7 +1773,7 @@ __Examples:__
 
 ### `init`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2300,7 +1791,7 @@ the request.
 
 ### `move`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2321,9 +1812,9 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `HttpStatusCode(value=400, description=Bad Request)` | The operation couldn't be completed because of the write conflict policy |
-| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
-| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
+| `400 Bad Request` | The operation couldn't be completed because of the write conflict policy |
+| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
+| `403 Forbidden` | You lack permissions to perform this operation |
 
 __Examples:__
 
@@ -2334,7 +1825,7 @@ __Examples:__
 
 ### `trash`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2358,9 +1849,9 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
-| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
-| `HttpStatusCode(value=400, description=Bad Request)` | This operation is not supported by the provider |
+| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
+| `403 Forbidden` | You lack permissions to perform this operation |
+| `400 Bad Request` | This operation is not supported by the provider |
 
 __Examples:__
 
@@ -2371,7 +1862,7 @@ __Examples:__
 
 ### `updateAcl`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -2394,7 +1885,7 @@ __⚠️ WARNING:__ No providers currently support this API. Instead use the
 
 ### `UFile`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A [`UFile`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFile.md)  is a resource for storing, retrieving and organizing data in UCloud_
@@ -2604,9 +2095,10 @@ A null value indicates that permissions are not supported by this resource type.
 
 <details>
 <summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFileUpdate.md'>UFileUpdate</a>&gt;</code></code>
+<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#ufileupdate'>UFileUpdate</a>&gt;</code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2618,6 +2110,7 @@ A null value indicates that permissions are not supported by this resource type.
 <code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2634,7 +2127,7 @@ A null value indicates that permissions are not supported by this resource type.
 
 ### `UFileStatus`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _General system-level stats about a file_
@@ -2804,7 +2297,7 @@ This attribute is not included by default unless `includeProduct` is specified.
 
 ### `FileIconHint`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A hint to clients about which icon should be used in user-interfaces when representing a `UFile`_
@@ -2877,7 +2370,7 @@ enum class FileIconHint {
 
 ### `FileType`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The type of a `UFile`_
@@ -2934,6 +2427,7 @@ enum class FileType {
 <code>DANGLING_METADATA</code> Indicates that there used to be a file with metadata here, but the file no longer exists
 </summary>
 
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2950,7 +2444,7 @@ enum class FileType {
 
 ### `UFileSpecification`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 __
@@ -2999,7 +2493,7 @@ data class UFileSpecification(
 
 ### `FileMetadataOrDeleted.Deleted`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Indicates that the metadata document has been deleted is no longer in use_
@@ -3097,7 +2591,7 @@ data class Deleted(
 
 ### `FileMetadataHistory`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3145,7 +2639,7 @@ data class FileMetadataHistory(
 
 ### `FileMetadataOrDeleted`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3171,6 +2665,7 @@ sealed class FileMetadataOrDeleted {
 <code>createdAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3182,6 +2677,7 @@ sealed class FileMetadataOrDeleted {
 <code>createdBy</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3193,6 +2689,7 @@ sealed class FileMetadataOrDeleted {
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3204,6 +2701,7 @@ sealed class FileMetadataOrDeleted {
 <code>status</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileMetadataDocument.Status.md'>FileMetadataDocument.Status</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3220,7 +2718,7 @@ sealed class FileMetadataOrDeleted {
 
 ### `FilesStreamingSearchResult`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3237,7 +2735,7 @@ sealed class FilesStreamingSearchResult {
 
 ### `FilesStreamingSearchResult.EndOfResults`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3257,7 +2755,6 @@ data class EndOfResults(
 <code>type</code>: <code><code>String /* "end_of_results" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3274,7 +2771,7 @@ data class EndOfResults(
 
 ### `FilesStreamingSearchResult.Result`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3306,7 +2803,6 @@ data class Result(
 <code>type</code>: <code><code>String /* "result" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3323,7 +2819,7 @@ data class Result(
 
 ### `FindByPath`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3359,7 +2855,7 @@ data class FindByPath(
 
 ### `LongRunningTask`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3376,7 +2872,7 @@ sealed class LongRunningTask {
 
 ### `LongRunningTask.Complete`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3396,7 +2892,6 @@ data class Complete(
 <code>type</code>: <code><code>String /* "complete" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3413,7 +2908,7 @@ data class Complete(
 
 ### `LongRunningTask.ContinuesInBackground`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3445,7 +2940,6 @@ data class ContinuesInBackground(
 <code>type</code>: <code><code>String /* "continues_in_background" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3462,7 +2956,7 @@ data class ContinuesInBackground(
 
 ### `UFileIncludeFlags`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3773,9 +3267,67 @@ This value is `true` by default
 
 ---
 
+### `UFileUpdate`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_Describes an update to the `Resource`_
+
+```kotlin
+data class UFileUpdate(
+    val timestamp: Long,
+    val status: String?,
+)
+```
+Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+use the full update history if you only wish to know the _current_ state of a `Resource`.
+
+An update will typically contain information similar to the `status` field, for example:
+
+- A state value. For example, a compute `Job` might be `RUNNING`.
+- Change in key metrics.
+- Bindings to related `Resource`s.
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>timestamp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> A timestamp referencing when UCloud received this update
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>status</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A generic text message describing the current status of the `Resource`
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `UploadProtocol`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3811,7 +3363,7 @@ enum class UploadProtocol {
 
 ### `WriteConflictPolicy`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A policy for how UCloud should handle potential naming conflicts for certain operations (e.g. copy)_
@@ -3889,7 +3441,7 @@ Note: This mode is not supported for all operations.
 
 ### `FilesCopyRequestItem`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3949,7 +3501,7 @@ data class FilesCopyRequestItem(
 
 ### `FilesCreateDownloadRequestItem`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3985,7 +3537,7 @@ data class FilesCreateDownloadRequestItem(
 
 ### `FilesCreateFolderRequestItem`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -4033,7 +3585,7 @@ data class FilesCreateFolderRequestItem(
 
 ### `FilesCreateUploadRequestItem`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -4093,7 +3645,7 @@ data class FilesCreateUploadRequestItem(
 
 ### `FilesMoveRequestItem`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -4153,7 +3705,7 @@ data class FilesMoveRequestItem(
 
 ### `FilesStreamingSearchRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -4213,7 +3765,7 @@ data class FilesStreamingSearchRequest(
 
 ### `FilesCreateDownloadResponseItem`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -4249,7 +3801,7 @@ data class FilesCreateDownloadResponseItem(
 
 ### `FilesCreateUploadResponseItem`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
