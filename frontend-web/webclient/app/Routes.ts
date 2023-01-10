@@ -7,9 +7,14 @@ const news = {
     list: (filter: string) => `/news/list/${filter}`,
 };
 
+const project = {
+    members: (projectId: string) => `/projects/${projectId}/members`
+}
+
 const AppRoutes = {
     news,
     users,
+    project,
 };
 
 export default AppRoutes;

@@ -175,7 +175,7 @@ const Core = (): JSX.Element => (
 
                         <Route path="/projects/" element={React.createElement(requireAuth(ProjectList))} />
                         <Route path="/projects/:project" element={React.createElement(requireAuth(ProjectDashboard))} />
-                        <Route path="/projects/:project/members" element={React.createElement(requireAuth(ProjectMembers))} />
+                        <Route path={AppRoutes.project.members(":project")} element={React.createElement(requireAuth(ProjectMembers))} />
 
                         <Route path="/subprojects/:project" element={React.createElement(requireAuth(SubprojectList))} />
 

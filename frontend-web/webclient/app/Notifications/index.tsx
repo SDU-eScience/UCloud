@@ -16,15 +16,13 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {triggerNotificationPopup, NotificationPopups} from "./Popups";
 import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import * as H from "history";
 import {Dispatch} from "redux";
 import {Location, NavigateFunction, useLocation, useNavigate} from "react-router";
 import {useDispatch, useSelector} from "react-redux";
-import {getStoredProject} from "@/Project/Redux";
-import {dispatchSetProjectAction} from "@/Project/Redux";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import * as Heading from "@/ui-components/Heading";
 import {WebSocketConnection} from "@/Authentication/ws";
+import AppRoutes from "@/Routes";
 
 // NOTE(Dan): If you are in here, then chances are you want to attach logic to one of the notifications coming from
 // the backend. You can do this by editing the following two functions: `resolveNotification()` and
@@ -69,7 +67,6 @@ function resolveNotification(event: Notification): {
 }
 
 function onNotificationAction(notification: Notification, navigate: NavigateFunction, dispatch: Dispatch) {
-    const currentProject = getStoredProject();
     switch (notification.type) {
         case "APP_COMPLETE":
             navigate(`/applications/results/${notification.meta.jobId}`);
@@ -91,10 +88,7 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
         }
         case "PROJECT_ROLE_CHANGE": {
             const {projectId} = notification.meta;
-            if (currentProject !== projectId) {
-                dispatchSetProjectAction(dispatch, projectId);
-            }
-            navigate("/project/members");
+            navigate(AppRoutes.project.members(projectId));
             break;
         }
         default:
