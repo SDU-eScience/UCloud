@@ -546,11 +546,13 @@ sealed class ComposeService {
                     default:
                       type: UCloud
                       matches: "*"
-                      namespace: ucloud-apps
+                      kubernetes:
+                        namespace: ucloud-apps
                       scheduler: Pods
-                      fakeIpMount: true
-                      forceMinimumReservation: true
-                      usePortForwarding: true
+                      developmentMode:
+                        fakeIpMount: true
+                        fakeMemoryAllocation: true
+                        usePortForwarding: true
                   
                   fileCollections:
                     default:
