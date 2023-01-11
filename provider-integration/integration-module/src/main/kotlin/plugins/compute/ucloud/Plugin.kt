@@ -3,31 +3,20 @@ package dk.sdu.cloud.plugins.compute.ucloud
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.app.orchestrator.api.ComputeSupport
-import dk.sdu.cloud.app.orchestrator.api.Ingress
-import dk.sdu.cloud.app.orchestrator.api.IngressSupport
-import dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem
-import dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem
-import dk.sdu.cloud.app.orchestrator.api.JobsProviderSuspendRequestItem
-import dk.sdu.cloud.app.orchestrator.api.JobsProviderUtilizationResponse
-import dk.sdu.cloud.app.orchestrator.api.NetworkIP
-import dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport
-import dk.sdu.cloud.app.orchestrator.api.ShellRequest
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.controllers.ComputeSessionIpc
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.dbConnection
-import dk.sdu.cloud.debug.wrongD
 import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.ComputePlugin
 import dk.sdu.cloud.plugins.ComputeSession
 import dk.sdu.cloud.plugins.IngressPlugin
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.PublicIPPlugin
+import dk.sdu.cloud.plugins.SyncthingPlugin
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.plugins.storage.ucloud.UCloudFilePlugin
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -37,13 +26,14 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.selects.select
 import kotlin.coroutines.coroutineContext
 
-class UCloudComputePlugin : ComputePlugin {
+class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
     override val pluginTitle: String = "UCloud"
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
     override var productAllocationResolved: List<Product> = emptyList()
     private lateinit var pluginConfig: ConfigSchema.Plugins.Jobs.UCloud
     private lateinit var files: UCloudFilePlugin
+    private var syncthingService: SyncthingService? = null
 
     override fun supportsRealUserMode(): Boolean = false
     override fun supportsServiceUserMode(): Boolean = true
@@ -110,6 +100,17 @@ class UCloudComputePlugin : ComputePlugin {
         logService = K8LogService(k8, runtime)
         utilization = UtilizationService(k8, runtime)
         shell = K8Shell(runtime)
+
+        if (config.products.compute?.keys?.contains("syncthing") == true) {
+            syncthingService = SyncthingService(
+                config.core.providerId,
+                jobManagement,
+                files.pathConverter,
+                files.memberFiles,
+                files.fs,
+                k8.serviceClient
+            )
+        }
 
         with(jobManagement) {
             register(
@@ -320,6 +321,50 @@ class UCloudComputePlugin : ComputePlugin {
                 )
             }
         )
+    }
+
+    override suspend fun RequestContext.retrieveSyncthingConfiguration(
+        request: IAppsProviderRetrieveConfigRequest<SyncthingConfig>
+    ): IAppsProviderRetrieveConfigResponse<SyncthingConfig> {
+        if (syncthingService == null) {
+            throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
+        }
+
+        return syncthingService?.retrieveConfiguration(request)
+            ?: throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
+    }
+
+    override suspend fun RequestContext.updateSyncthingConfiguration(
+        request: IAppsProviderUpdateConfigRequest<SyncthingConfig>
+    ): IAppsProviderUpdateConfigResponse<SyncthingConfig> {
+        if (syncthingService == null) {
+            throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
+        }
+
+        return syncthingService?.updateConfiguration(request)
+            ?: throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
+    }
+
+    override suspend fun RequestContext.resetSyncthingConfiguration(
+        request: IAppsProviderResetConfigRequest<SyncthingConfig>
+    ): IAppsProviderResetConfigResponse<SyncthingConfig> {
+        if (syncthingService == null) {
+            throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
+        }
+
+        return syncthingService?.resetConfiguration(request)
+            ?: throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
+    }
+
+    override suspend fun RequestContext.restartSyncthing(
+        request: IAppsProviderRestartRequest<SyncthingConfig>
+    ): IAppsProviderRestartResponse<SyncthingConfig> {
+        if (syncthingService == null) {
+            throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
+        }
+
+        return syncthingService?.restart(request)
+            ?: throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
     }
 }
 

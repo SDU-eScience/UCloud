@@ -622,7 +622,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
             </List>
         </>
     }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport, renaming,
-        viewProperties, operations, providerConnection.lastRefresh]);
+        viewProperties, operations, providerConnection.lastRefresh, callbacks]);
 
     if (!isEmbedded) {
         useTitle(api.titlePlural);

@@ -100,12 +100,12 @@ export const Create: React.FunctionComponent = () => {
     useUState(connectionState);
 
     useEffect(() => {
-        if (appName === "syncthing") {
-            navigate("/syncthing");
+        if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
+            navigate("/drives");
         }
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
         fetchPrevious(UCloud.compute.apps.findByName({appName}));
-    }, [appName, appVersion]);
+    }, [appName, appVersion, provider]);
 
     const application = applicationResp.data;
 

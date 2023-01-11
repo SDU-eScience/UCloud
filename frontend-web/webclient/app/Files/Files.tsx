@@ -21,7 +21,7 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {Box, Button, Flex, Icon, Link, List, Text} from "@/ui-components";
-import {PageV2} from "@/UCloud";
+import {PageV2, compute } from "@/UCloud";
 import {ListV2} from "@/Pagination";
 import styled from "styled-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
@@ -66,6 +66,7 @@ export const FilesBrowse: React.FunctionComponent<{
     // UI state
     const didUnmount = useDidUnmount();
     const [syncthingConfig, setSyncthingConfig] = useState<SyncthingConfig | null>(null);
+    const [syncthingProduct, setSyncthingProduct] = useState<compute.ComputeProductSupportResolved | null>(null);
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
     const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);
     const [drives, setDrives] = useState<PageV2<FileCollection>>(emptyPageV2);
@@ -125,32 +126,37 @@ export const FilesBrowse: React.FunctionComponent<{
     }, [navigateToPath]);
 
     const setSynchronization = useCallback((file: UFile, shouldAdd: boolean) => {
-        setSyncthingConfig((conf) => {
-            if (!conf) return conf;
-            const newConf = deepCopy(conf);
-
-            const folders = newConf?.folders ?? []
+        setSyncthingConfig((config) => {
+            if (!config) return config;
+            const newConfig = deepCopy(config);
+            
+            const folders = newConfig?.folders ?? []
 
             if (shouldAdd) {
                 const newFolders = [...folders];
-                newConf.folders = newFolders;
+                newConfig.folders = newFolders;
 
                 if (newFolders.every(it => it.ucloudPath !== file.id)) {
                     newFolders.push({id: randomUUID(), ucloudPath: file.id});
                 }
             } else {
-                newConf.folders = folders.filter(it => it.ucloudPath !== file.id);
+                newConfig.folders = folders.filter(it => it.ucloudPath !== file.id);
             }
 
-            invokeCommand(Sync.api.updateConfiguration({providerId: "ucloud", config: newConf}))
-                .catch(e => {
-                    if (didUnmount.current) return;
-                    defaultErrorHandler(e);
-                    setSyncthingConfig(conf);
-                });
-            return newConf;
+            if (!collection.data?.specification.product.provider) return config;
+
+            invokeCommand(Sync.api.updateConfiguration({
+                provider: collection.data?.specification.product.provider,
+                productId: "syncthing",
+                config: newConfig
+            })).catch(e => {
+                if (didUnmount.current) return;
+                defaultErrorHandler(e);
+                setSyncthingConfig(config);
+            });
+            return newConfig;
         });
-    }, []);
+    }, [collection.data?.specification.product.provider]);
 
     React.useEffect(() => {
         if (collection.data) {
@@ -215,13 +221,28 @@ export const FilesBrowse: React.FunctionComponent<{
     }, []);
 
     useEffect(() => {
+        //NOTE(Brian): Load relevant Syncthing product
+
+        if (!collection.data?.specification.product.provider) return;
+
+        Sync.fetchProducts(collection.data.specification.product.provider).then(products => {
+            if (products.length > 0) {
+                setSyncthingProduct(products[0]);
+            }
+        });
+    }, [collection.data, localActiveProject]);
+
+
+    useEffect(() => {
         // NOTE(Dan): Load relevant synchronization configuration. We don't currently reload any of this information,
         // but maybe we should.
-        Sync.fetchConfig().then(config => {
-            if (didUnmount.current) return;
+
+        if (!syncthingProduct) return;
+        if (didUnmount.current) return;
+        Sync.fetchConfig(syncthingProduct.product.category.provider).then(config => {
             setSyncthingConfig(config);
         });
-    }, []);
+    }, [collection.data, path, localActiveProject, syncthingProduct]);
 
     useEffect(() => {
         // NOTE(Dan): The uploader component, triggered by one of the operations, need to know about the current folder.
@@ -429,8 +450,6 @@ export const FilesBrowse: React.FunctionComponent<{
         </Box>;
     }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject, props.isSearch, activeProviderId]);
 
-    const hasSyncCookie = true;
-
     return <ResourceBrowse
         api={FilesApi}
         onSelect={props.onSelect}
@@ -467,8 +486,8 @@ export const FilesBrowse: React.FunctionComponent<{
         extraSidebar={
             <>
                 <Box flexGrow={1} />
-                {!hasSyncCookie ? null :
-                    <Link to={"/syncthing"}>
+                {!syncthingConfig ? null :
+                    <Link to={`/syncthing?provider=${collection.data?.specification.product.provider}`}>
                         <Button>Manage synchronization (BETA)</Button>
                     </Link>
                 }

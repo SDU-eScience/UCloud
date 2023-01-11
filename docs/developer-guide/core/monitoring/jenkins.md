@@ -37,17 +37,6 @@ specifying which tests are to blame.
 
 ![Jenkins Flow Chart](/backend/service-lib/wiki/JenkinsNonParallel.png)
 
-### "Automated" Build of Docker Images
-
-We also have the possibility to create Docker images for all our services.
-This is never triggered automatically when the master branch is updated, but
-have to be initialized manually. This is a scripted job that pulls from our
-git repository and locates all service directories. For each
-service/directory it loads the `JenkinsBuildDockerFile` that are found in
-each services base folder. We have chosen that the build of Docker images
-should not be triggered automatically since we rarely need all services to
-have their Docker image created. Usually we do this manually for a specific
-service when it have been patched.
 
 
 

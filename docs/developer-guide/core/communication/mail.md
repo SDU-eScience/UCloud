@@ -14,7 +14,8 @@ _Internal service for sending e-mails._
 ## Rationale
 
 Currently only one end-point is exposed for sending a single email to one user at a time, and only
-`SERVICE` principals is authorized to do so.
+`SERVICE` principals is authorized to do so. The endpoint does take multiple mails as a bulk request, 
+but they are sent individually
 
 Email templates are pre-defined and are not controllable by clients.
 

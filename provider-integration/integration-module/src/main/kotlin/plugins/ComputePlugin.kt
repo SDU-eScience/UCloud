@@ -89,6 +89,21 @@ interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, C
     }
 }
 
+interface SyncthingPlugin {
+    suspend fun RequestContext.retrieveSyncthingConfiguration(
+        request: IAppsProviderRetrieveConfigRequest<SyncthingConfig>
+    ): IAppsProviderRetrieveConfigResponse<SyncthingConfig>
+    suspend fun RequestContext.updateSyncthingConfiguration(
+        request: IAppsProviderUpdateConfigRequest<SyncthingConfig>
+    ): IAppsProviderUpdateConfigResponse<SyncthingConfig>
+    suspend fun RequestContext.resetSyncthingConfiguration(
+        request: IAppsProviderResetConfigRequest<SyncthingConfig>
+    ): IAppsProviderResetConfigResponse<SyncthingConfig>
+    suspend fun RequestContext.restartSyncthing(
+        request: IAppsProviderRestartRequest<SyncthingConfig>
+    ): IAppsProviderRestartResponse<SyncthingConfig>
+}
+
 abstract class EmptyComputePlugin : ComputePlugin {
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()

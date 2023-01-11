@@ -15,6 +15,7 @@ import dk.sdu.cloud.plugins.ResourcePlugin
 import dk.sdu.cloud.provider.api.Resource
 import dk.sdu.cloud.service.Controller
 import kotlinx.coroutines.runBlocking
+import dk.sdu.cloud.service.Loggable
 
 abstract class BaseResourceController<
     P : Product,
@@ -27,6 +28,12 @@ abstract class BaseResourceController<
     protected abstract fun retrievePlugins(): Collection<Plugin>?
     protected abstract fun retrieveApi(providerId: String): Api
     override fun configureIpc(server: IpcServer) {}
+
+    protected fun lookupPluginByProduct(productId: String): Plugin? {
+        return retrievePlugins()?.find { plugin ->
+            plugin.productAllocation.any { it.id == productId }
+        }
+    }
 
     protected fun lookupPluginOrNull(product: ProductReference): Plugin? {
         return retrievePlugins()?.find { plugin ->
@@ -182,5 +189,9 @@ abstract class BaseResourceController<
         }
 
         configureCustomEndpoints(plugins, api)
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

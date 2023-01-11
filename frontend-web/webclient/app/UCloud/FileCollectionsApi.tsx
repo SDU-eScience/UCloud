@@ -1,7 +1,7 @@
 import {
     CREATE_TAG,
     DELETE_TAG, findSupport, PERMISSIONS_TAG,
-    ProductSupport, Resource,
+    ProductSupport, ResolvedSupport, Resource,
     ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,
     ResourceSpecification,

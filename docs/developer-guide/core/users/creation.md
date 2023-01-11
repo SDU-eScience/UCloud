@@ -51,11 +51,11 @@ changes are expected:
 <tbody>
 <tr>
 <td><a href='#getuserinfo'><code>getUserInfo</code></a></td>
-<td><i>No description</i></td>
+<td>Request information about the current user.</td>
 </tr>
 <tr>
 <td><a href='#lookupemail'><code>lookupEmail</code></a></td>
-<td><i>No description</i></td>
+<td>Request the email of a user.</td>
 </tr>
 <tr>
 <td><a href='#lookupuid'><code>lookupUID</code></a></td>
@@ -75,11 +75,11 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#changepassword'><code>changePassword</code></a></td>
-<td><i>No description</i></td>
+<td>Request change of the password of the current user (if [`PASSWORD`](/docs/reference/dk.sdu.cloud.auth.api.PASSWORD.md)  user).</td>
 </tr>
 <tr>
 <td><a href='#changepasswordwithreset'><code>changePasswordWithReset</code></a></td>
-<td><i>No description</i></td>
+<td>Request reset of password of a [`PASSWORD`](/docs/reference/dk.sdu.cloud.auth.api.PASSWORD.md)  user.</td>
 </tr>
 <tr>
 <td><a href='#closeiterator'><code>closeIterator</code></a></td>
@@ -87,7 +87,7 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#createnewuser'><code>createNewUser</code></a></td>
-<td><i>No description</i></td>
+<td>Request creation of a new [`PASSWORD`](/docs/reference/dk.sdu.cloud.auth.api.PASSWORD.md)  user.</td>
 </tr>
 <tr>
 <td><a href='#fetchnextiterator'><code>fetchNextIterator</code></a></td>
@@ -99,7 +99,7 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#updateuserinfo'><code>updateUserInfo</code></a></td>
-<td><i>No description</i></td>
+<td>Request update of information about the current user.</td>
 </tr>
 </tbody></table>
 
@@ -218,6 +218,7 @@ changes are expected:
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request information about the current user._
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -231,6 +232,7 @@ changes are expected:
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request the email of a user._
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -296,6 +298,7 @@ changes are expected:
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request change of the password of the current user (if [`PASSWORD`](/docs/reference/dk.sdu.cloud.auth.api.PASSWORD.md)  user)._
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -309,11 +312,14 @@ changes are expected:
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request reset of password of a [`PASSWORD`](/docs/reference/dk.sdu.cloud.auth.api.PASSWORD.md)  user._
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#changepasswordwithresetrequest'>ChangePasswordWithResetRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This request can only be called by other services, and is used by the `PasswordResetService` to reset a
+user's password in case they are unable to log in. Read more in [Password Reset](authentication/password-reset.md).
 
 
 ### `closeIterator`
@@ -335,6 +341,7 @@ changes are expected:
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request creation of a new [`PASSWORD`](/docs/reference/dk.sdu.cloud.auth.api.PASSWORD.md)  user._
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -374,6 +381,7 @@ changes are expected:
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request update of information about the current user._
 
 | Request | Response | Error |
 |---------|----------|-------|
