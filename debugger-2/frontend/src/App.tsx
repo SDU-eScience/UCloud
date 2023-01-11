@@ -1,12 +1,12 @@
-import {useState, useSyncExternalStore, useMemo} from 'react';
-import './App.css';
-import {Filters} from './Header/Filters';
-import {Header} from './Header/Header';
-import {Levels} from './Header/Levels';
-import {SearchBar} from './Header/SearchBar';
-import {MainContent} from './MainContent/MainContent';
-import {Sidebar} from './Sidebar/Sidebar';
-import {activeService, serviceStore} from './WebSockets/Socket';
+import {useState, useSyncExternalStore, useMemo} from "react";
+import "./App.css";
+import {Filters} from "./Header/Filters";
+import {Header} from "./Header/Header";
+import {Levels} from "./Header/Levels";
+import {SearchBar} from "./Header/SearchBar";
+import {MainContent} from "./MainContent/MainContent";
+import {Sidebar} from "./Sidebar/Sidebar";
+import {activeService, serviceStore} from "./WebSockets/Socket";
 
 
 interface ServiceNode {

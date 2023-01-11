@@ -1,4 +1,4 @@
-import {Log, DebugContext, getServiceName} from "./Schema";
+import {Log, DebugContext, getServiceName, debugContextToString, messageImportanceToString, binaryDebugMessageTypeToString} from "./Schema";
 
 let socket: WebSocket | null = null;
 let options: SocketOptions;
@@ -49,6 +49,7 @@ function initializeSocket() {
                 const numberOfEntries = (message.length - 8) / 388;
                 for (let i = 0; i < numberOfEntries; i++) {
                     const log = new DebugContext(view, 8 + i * 388);
+                    console.log(log.id, messageImportanceToString(log.importance), log.name, log.parent, log.typeString);
                     logStore.addDebugContext(log);
                 }
                 break;
@@ -57,7 +58,7 @@ function initializeSocket() {
                 const numberOfEntries = (message.length - 8) / 256;
                 for (let i = 0; i < numberOfEntries; i++) {
                     const log = new Log(view, 8 + i * 256);
-                    console.log(log.ctxGeneration, log.ctxId, log.ctxParent, log.importance, log.timestamp, log.type, log.message, log.extra);
+                    console.log(log.ctxGeneration, log.ctxId, log.ctxParent, log.importance, log.timestamp, log.typeString, log.message, log.extra);
                 }
                 break;
             }
@@ -180,4 +181,13 @@ function activateServiceRequest(service: string): string {
         type: "activate_service",
         service,
     })
+}
+
+function replayMessagesRequest(generation: string, context: number, timestamp: number): string {
+    return JSON.stringify({
+        type: "replay_messages",
+        generation,
+        context,
+        timestamp,
+    });
 }

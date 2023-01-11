@@ -104,6 +104,10 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
         // Note(Jonas): Is this correct?
         return BinaryDebugMessageType.CLIENT_REQUEST;
     }
+    
+    get typeString(): string {
+        return binaryDebugMessageTypeToString(this.type);
+    }
 
     get ctxGeneration(): number {
         return Number(readInt8(this.buffer, this.offset + 1));
@@ -157,6 +161,10 @@ enum DebugContextType {
     OTHER = 4,
 }
 
+export function debugContextToString(ctx: DebugContextType): string {
+    return DebugContextType[ctx]; 
+}
+
 export class DebugContext {
     protected buffer: DataView;
     protected offset: number;
@@ -180,6 +188,10 @@ export class DebugContext {
 
     get type(): DebugContextType {
         return readInt1(this.buffer, this.offset + 9) as DebugContextType;
+    }
+    
+    get typeString(): string {
+        return debugContextToString(this.type);
     }
 
     get name(): string {
