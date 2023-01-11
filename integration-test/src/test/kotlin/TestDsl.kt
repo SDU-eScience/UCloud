@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.faults.FaultInjections
 import dk.sdu.cloud.prettyMapper
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.DynamicTest
@@ -61,6 +62,20 @@ abstract class UCloudTest {
                 System.getenv("UCLOUD_TEST_SNAPSHOT") ?: error("Unable to find UCLOUD_TEST_SNAPSHOT env variable")
             )
         ).executeToText()
+
+        runBlocking {
+            val hosts = setOf("ucloud.localhost.direct", "k8.localhost.direct", "slurm.localhost.direct")
+            for (host in hosts) {
+                rpcClient.call(
+                    FaultInjections.clearCaches,
+                    Unit,
+                    OutgoingHttpCall,
+                    afterHook = {
+                        it.attributes.outgoingTargetHost = HostInfo(host, "https", 443)
+                    }
+                )
+            }
+        }
     }
 
     @TestFactory

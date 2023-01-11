@@ -700,3 +700,4 @@ data class RedirectEntry(
 )
 
 private val portAllocator = AtomicInteger(UCLOUD_IM_PORT + 1)
+fun allocatedUserInstancePorts(): IntRange = (UCLOUD_IM_PORT + 1) until portAllocator.get()

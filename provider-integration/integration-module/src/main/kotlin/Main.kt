@@ -571,7 +571,8 @@ fun main(args: Array<String>) {
                     )
                 }
             }.absolutePath
-            val debugSystem = when (serverMode) {
+            val debugSystem: DebugSystem? = when (serverMode) {
+                /*
                 ServerMode.Server -> CommonDebugSystem(
                     "IM/Server",
                     CommonFile(structuredLogs),
@@ -583,6 +584,7 @@ fun main(args: Array<String>) {
                     CommonFile(structuredLogs),
                     debugTransformer
                 )
+                 */
 
                 else -> null
             }
@@ -705,6 +707,7 @@ fun main(args: Array<String>) {
                     ShareController(controllerContext),
                     ConnectionController(controllerContext, envoyConfig),
                     EventController(controllerContext),
+                    FaultInjectionController(controllerContext),
                 )
             }
 

@@ -3,6 +3,7 @@ package dk.sdu.cloud.micro
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.debug.DebugSystemFeature
+import dk.sdu.cloud.faults.FaultInjectionFeature
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.ScriptManager
 import dk.sdu.cloud.service.isRunning
@@ -87,6 +88,7 @@ class ServiceRegistry(
                 install(BackgroundScopeFeature)
                 install(DebugSystemFeature)
                 install(ScriptManager)
+                install(FaultInjectionFeature)
             }
         }
     }
