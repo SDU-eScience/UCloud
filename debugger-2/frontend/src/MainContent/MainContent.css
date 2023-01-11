@@ -1,7 +1,7 @@
 .main-content {
     padding: 15px 13px 25px 18px;
     width: 100%;
-    overflow-y: scroll;
+    height: calc(100vh - var(96px));
 }
 
 div.card {

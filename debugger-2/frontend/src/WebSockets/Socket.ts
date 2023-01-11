@@ -1,6 +1,5 @@
-import {Log, DebugContext, getServiceName, BinaryDebugMessageType} from "./Schema";
+import {Log, DebugContext, getServiceName} from "./Schema";
 
-let isConnected = false;
 let socket: WebSocket | null = null;
 let options: SocketOptions;
 
@@ -23,12 +22,10 @@ function initializeSocket() {
     socket.binaryType = "arraybuffer";
 
     socket.onopen = () => {
-        isConnected = true;
         options.onConnect();
     };
 
     socket.onclose = () => {
-        isConnected = false;
         options.onDisconnect();
 
         setTimeout(() => {
@@ -68,15 +65,22 @@ function initializeSocket() {
     };
 }
 
-type Logs = DebugContext | Log;
+export type Logs = DebugContext | Log;
 
 export const activeService = new class {
     private activeService: string = "";
-    private subscriptions: (() => void)[] = []
+    private subscriptions: (() => void)[] = [];
+
+    public get service() {
+        return this.activeService;
+    }
 
     public setService(service: string): void {
         this.activeService = service;
-        this.emitChange();
+        if (socket) {
+            socket.send(activateServiceRequest(service));
+            this.emitChange();
+        }
     }
 
     public subscribe(subscription: () => void) {
@@ -104,11 +108,21 @@ export const logStore = new class {
 
     public addLog(log: Log): void {
         this.isDirty = true;
+        if (!this.logs.content[activeService.service]) {
+            this.logs.content[activeService.service] = [log];
+        } else {
+            this.logs.content[activeService.service].push(log)
+        }
         this.emitChange();
     }
 
     public addDebugContext(debugContext: DebugContext): void {
         this.isDirty = true;
+        if (!this.logs.content[activeService.service]) {
+            this.logs.content[activeService.service] = [debugContext];
+        } else {
+            this.logs.content[activeService.service].push(debugContext)
+        }
         this.emitChange();
     }
 
@@ -160,3 +174,10 @@ export const serviceStore = new class {
         }
     }
 }();
+
+function activateServiceRequest(service: string): string {
+    return JSON.stringify({
+        type: "activate_service",
+        service,
+    })
+}

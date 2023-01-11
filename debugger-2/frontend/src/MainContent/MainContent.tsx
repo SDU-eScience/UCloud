@@ -1,43 +1,48 @@
 import * as React from "react";
 import {BinaryDebugMessage, MessageImportance} from "../WebSockets/Schema";
-import {logStore} from "../WebSockets/Socket";
+import {activeService, Logs, logStore} from "../WebSockets/Socket";
 import "./MainContent.css";
 
-export function MainContent({activeService, query, filters, levels}: {activeService: string, query: string, filters: string, levels: string;}): JSX.Element {
-    const [routeComponents, setRouteComponents] = React.useState(activeService);
+export function MainContent({query, filters, levels}: {query: string, filters: string, levels: string;}): JSX.Element {
+
 
     const doFetch = React.useCallback((query: string, filters: string, levels: string) => {
 
     }, []);
 
-    const [activeRequest, setActiveRequest] = React.useState<BinaryDebugMessage | null>(null);
+    const [activeRequest, setActiveRequest] = React.useState<Logs | null>(null);
+    const service = React.useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot());
+    const [routeComponents, setRouteComponents] = React.useState("");
+    React.useEffect(() => { 
+
+    }, []);
+    const logs = React.useSyncExternalStore(s => logStore.subscribe(s), () => logStore.getSnapshot())
 
     React.useEffect(() => {
-        setActiveRequest({} as BinaryDebugMessage);
-    }, [activeService])
+        setActiveRequest(null);
+    }, [service])
 
     React.useEffect(() => {
         doFetch(query, filters, levels);
     }, [query, filters, levels, doFetch]);
+    
+    const serviceLogs = logs.content[service] ?? [];
 
-    const logs = React.useSyncExternalStore(s => logStore.subscribe(s), () => logStore.getSnapshot())
-    console.log(logs)
-
-    return <div className="main-content">
-        {!activeService ? <h3>Select a service to view requests</h3> :
+    return <div style={{overflowY: "scroll"}} className="main-content">
+        {!service ? <h3>Select a service to view requests</h3> :
             <>
                 <BreadCrumbs routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
                 <RequestDetails request={activeRequest} />
                 <RequestView>
-                    {([] as BinaryDebugMessage[]).map(it =>
+                    {serviceLogs.map(it =>
                         <div
-                            key={it.ctxId}
+                            key={it.id}
                             className="request-list-row"
-                            onClick={() => setActiveRequest(it)}
+                            onClick={() => setActiveRequest(it as any)}
                             data-has-error={[MessageImportance.THIS_IS_WRONG, MessageImportance.THIS_IS_DANGEROUS].includes(it.importance)}
                             data-is-odd={it.importance === MessageImportance.THIS_IS_ODD}
                         >
-                            {it.ctxGeneration}
+                            {it.importance}
                         </div>
                     )}
                 </RequestView>
@@ -46,11 +51,11 @@ export function MainContent({activeService, query, filters, levels}: {activeServ
     </div>
 }
 
-function RequestDetails({request}: {request: BinaryDebugMessage | null}): JSX.Element {
+function RequestDetails({request}: {request: Logs | null}): JSX.Element {
     if (!request) return <div />;
     return <div className="card details flex">
         <div className="card query">
-            <pre>{request.type}</pre>
+            <pre>{request.id}</pre>
         </div>
         <div className="card query-details">
             <pre>

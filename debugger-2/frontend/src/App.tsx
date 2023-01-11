@@ -6,7 +6,7 @@ import {Levels} from './Header/Levels';
 import {SearchBar} from './Header/SearchBar';
 import {MainContent} from './MainContent/MainContent';
 import {Sidebar} from './Sidebar/Sidebar';
-import {serviceStore} from './WebSockets/Socket';
+import {activeService, serviceStore} from './WebSockets/Socket';
 
 
 interface ServiceNode {
@@ -48,8 +48,8 @@ function addServiceFromRootNode(fullServicePath: string, root: ServiceNode[]) {
 }
 
 function App(): JSX.Element {
-    const [activeService, setActiveService] = useState("");
-    const [level, setLevel] = useState<string>("");
+    const [level, setLevel] = useState("");
+    const [query, setQuery] = useState("");
     const services = useSyncExternalStore(subscription => serviceStore.subscribe(subscription), () => serviceStore.getSnapshot());
     const serviceNodes = useMemo(() => {
         const root: ServiceNode[] = [];
@@ -59,47 +59,42 @@ function App(): JSX.Element {
         return root;
     }, [services]);
 
-    console.log(serviceNodes);
-
     return <>
         <Header>
-            <SearchBar />
+            <SearchBar setQuery={setQuery} />
             <Filters filters={[]} setFilters={() => undefined} />
             <Levels level={level} setLevel={setLevel} />
         </Header>
         <div className="flex">
             <Sidebar>
-                <ServiceList services={serviceNodes} setActiveService={setActiveService} activeService={activeService} depth={0} />
+                <ServiceList services={serviceNodes} />
             </Sidebar>
-            <MainContent activeService={activeService} filters="todo" levels="todo" query="todo" />
+            <MainContent filters="todo" levels={level} query={query} />
         </div>
     </>;
 }
 
-function ServiceList({services, activeService, setActiveService, depth}: {activeService: string, services: ServiceNode[], setActiveService: (s: string) => void; depth: number;}): JSX.Element {
+function ServiceList({services}: {services: ServiceNode[];}): JSX.Element {
+    const service = useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot())
+
     if (services.length === 0) return <div />;
+
     return <div className="mb-12px">
         {services.map(it => {
-            const isActive = it.absolutePath === activeService || activeService.startsWith(it.serviceName);
-
+            const isActive = it.absolutePath === service || service.startsWith(it.serviceName);
             if (isLeaf(it)) {
                 return <div key={it.absolutePath}>
-                    <span className="leaf" data-active={isActive} onClick={() => setActiveService(it.absolutePath)}>
+                    <span className="leaf" data-active={isActive} onClick={() => activeService.setService(it.absolutePath)}>
                         {it.serviceName}
                     </span>
                 </div>
             } else {
                 const oneChild = hasOneChild(it);
                 const singularChildren = onlyHasSingularChildren(it);
-                return <div data-onechild={oneChild} data-singular={singularChildren} onClick={singularChildren ? () => setActiveService(it.absolutePath) : undefined} key={it.absolutePath}>
+                return <div data-onechild={oneChild} data-singular={singularChildren} onClick={singularChildren ? () => activeService.setService(it.absolutePath) : undefined} key={it.absolutePath}>
                     <div data-active={isActive}> {it.serviceName}/</div>
                     <div data-omitindent={!oneChild}>
-                        <ServiceList
-                            services={it.children}
-                            activeService={activeService}
-                            setActiveService={setActiveService}
-                            depth={depth + 1}
-                        />
+                        <ServiceList services={it.children} />
                     </div>
                 </div>
             }

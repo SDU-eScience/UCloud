@@ -116,7 +116,7 @@ fun main(args: Array<String>) {
                             }
 
                             if (shouldOpen) {
-                                println("Opening $directory ${service} ${idx}")
+                                println("Opening $directory $service $idx")
                                 val openFile = LogFileReader(directory, service.value.generation, idx)
                                 openFile.seekToEnd()
                                 openLogFiles.add(openFile)
@@ -258,15 +258,11 @@ fun main(args: Array<String>) {
 
                         when (request) {
                             is ClientRequest.ReplayMessages -> {
-
+                                // TODO
                             }
 
                             is ClientRequest.ActivateService -> {
                                 session.activeService = request.service
-                            }
-
-                            else -> {
-                                println("Missing request handling. when(request) {")
                             }
                         }
                     }
@@ -354,13 +350,11 @@ data class ClientSession(
     }
 
     suspend fun acceptLogMessage(message: BinaryDebugMessage<*>) {
-        if (false) {
-            val service = activeService ?: return
-            if (message.importance.ordinal < minimumLevel.ordinal) return
-            val services = trackedServices.get()
-            val trackedService = services.values.find { it.title == service }
-            if (trackedService == null || trackedService.generation != message.ctxGeneration) return
-        }
+        val service = activeService ?: return
+        if (message.importance.ordinal < minimumLevel.ordinal) return
+        val services = trackedServices.get()
+        val trackedService = services.values.find { it.title == service }
+        if (trackedService == null || trackedService.generation != message.ctxGeneration) return
 
         writeMutex.withLock {
             if (newLogsWriteBuffer.remaining() < FRAME_SIZE) return
