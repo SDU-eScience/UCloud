@@ -135,12 +135,12 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
 }
 
 export class Log extends BaseBinaryDebugMessage {
-    constructor(buffer: DataView, offset: number) {
-        super(buffer, offset);
-    }
-
     get type(): BinaryDebugMessageType {
         return BinaryDebugMessageType.LOG;
+    }
+    
+    get typeString(): string {
+        return BinaryDebugMessageType[this.type];
     }
 
     get message(): LargeText {
@@ -184,6 +184,10 @@ export class DebugContext {
 
     get importance(): MessageImportance {
         return readInt1(this.buffer, this.offset + 8) as MessageImportance;
+    }
+    
+    get importanceString(): string {
+        return MessageImportance[this.importance];
     }
 
     get type(): DebugContextType {

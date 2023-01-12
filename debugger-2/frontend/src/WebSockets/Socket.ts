@@ -103,19 +103,9 @@ export const activeService = new class {
 }();
 
 export const logStore = new class {
-    private logs: {content: Record<string, Logs[]>} = {content: {}};
+    private logs: {content: Record<string, DebugContext[]>} = {content: {}};
     private subscriptions: (() => void)[] = [];
     private isDirty = false;
-
-    public addLog(log: Log): void {
-        this.isDirty = true;
-        if (!this.logs.content[activeService.service]) {
-            this.logs.content[activeService.service] = [log];
-        } else {
-            this.logs.content[activeService.service].push(log)
-        }
-        this.emitChange();
-    }
 
     public addDebugContext(debugContext: DebugContext): void {
         this.isDirty = true;
@@ -134,7 +124,7 @@ export const logStore = new class {
         };
     }
 
-    public getSnapshot(): {content: Record<string, Logs[]>} {
+    public getSnapshot(): {content: Record<string, DebugContext[]>} {
         if (this.isDirty) {
             this.isDirty = false;
             return this.logs = {content: this.logs.content};

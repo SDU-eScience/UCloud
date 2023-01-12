@@ -1,6 +1,6 @@
 import * as React from "react";
-import {BinaryDebugMessage, MessageImportance} from "../WebSockets/Schema";
-import {activeService, Logs, logStore} from "../WebSockets/Socket";
+import {DebugContext, MessageImportance} from "../WebSockets/Schema";
+import {activeService, logStore} from "../WebSockets/Socket";
 import "./MainContent.css";
 
 export function MainContent({query, filters, levels}: {query: string, filters: string, levels: string;}): JSX.Element {
@@ -10,10 +10,10 @@ export function MainContent({query, filters, levels}: {query: string, filters: s
 
     }, []);
 
-    const [activeRequest, setActiveRequest] = React.useState<Logs | null>(null);
+    const [activeContext, setActiveRequest] = React.useState<DebugContext | null>(null);
     const service = React.useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot());
     const [routeComponents, setRouteComponents] = React.useState("");
-    React.useEffect(() => { 
+    React.useEffect(() => {
 
     }, []);
     const logs = React.useSyncExternalStore(s => logStore.subscribe(s), () => logStore.getSnapshot())
@@ -25,25 +25,17 @@ export function MainContent({query, filters, levels}: {query: string, filters: s
     React.useEffect(() => {
         doFetch(query, filters, levels);
     }, [query, filters, levels, doFetch]);
-    
+
     const serviceLogs = logs.content[service] ?? [];
 
     return <div style={{overflowY: "scroll"}} className="main-content">
         {!service ? <h3>Select a service to view requests</h3> :
             <>
                 <BreadCrumbs routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
-                <RequestDetails request={activeRequest} />
+                <RequestDetails activeContext={activeContext} />
                 <RequestView>
                     {serviceLogs.map(it =>
-                        <div
-                            key={it.id}
-                            className="request-list-row"
-                            onClick={() => setActiveRequest(it as any)}
-                            data-has-error={[MessageImportance.THIS_IS_WRONG, MessageImportance.THIS_IS_DANGEROUS].includes(it.importance)}
-                            data-is-odd={it.importance === MessageImportance.THIS_IS_ODD}
-                        >
-                            {it.importance}
-                        </div>
+                        <DebugContextRow setDebugContext={setActiveRequest} debugContext={it} />
                     )}
                 </RequestView>
             </>
@@ -51,15 +43,27 @@ export function MainContent({query, filters, levels}: {query: string, filters: s
     </div>
 }
 
-function RequestDetails({request}: {request: Logs | null}): JSX.Element {
-    if (!request) return <div />;
+function DebugContextRow({debugContext, setDebugContext}: {debugContext: DebugContext; setDebugContext(ctx: DebugContext): void;}): JSX.Element {
+    return <div
+        key={debugContext.id}
+        className="request-list-row flex"
+        onClick={() => setDebugContext(debugContext)}
+        data-has-error={[MessageImportance.THIS_IS_WRONG, MessageImportance.THIS_IS_DANGEROUS].includes(debugContext.importance)}
+        data-is-odd={debugContext.importance === MessageImportance.THIS_IS_ODD}
+    >
+        <div>{debugContext.name}</div>
+    </div>
+}
+
+function RequestDetails({activeContext}: {activeContext: DebugContext | null}): JSX.Element {
+    if (!activeContext) return <div />;
     return <div className="card details flex">
         <div className="card query">
-            <pre>{request.id}</pre>
+            <pre>{activeContext.id}</pre>
         </div>
         <div className="card query-details">
             <pre>
-                {request.importance}
+                {activeContext.importance}
             </pre>
         </div>
     </div>;
