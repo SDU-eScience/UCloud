@@ -373,18 +373,90 @@
             <doc-prop name="type" type='"UCloud"' required></doc-prop>
             <doc-prop name="matches" type="string" required></doc-prop>
 
-            <doc-prop name="kubeConfig" type="string"></doc-prop>
-            <doc-prop name="kubeSvcOverride" type="string"></doc-prop>
-            <doc-prop name="useMachineSelector" type="boolean" default="false"></doc-prop>
-            <doc-prop name="systemReservedCpuMillis" type="int" default="0"></doc-prop>
-            <doc-prop name="systemReservedMemMegabytes" type="int" default="0"></doc-prop>
-            <doc-prop name="forceMinimumReservation" type="boolean" default="false"></doc-prop>
-            <doc-prop name="nodeToleration" type="section"></doc-prop>
-            <doc-prop name="namespace" type="string" default="app-kubernetes"></doc-prop>
+            <doc-prop name="kubernetes" type="section">
+                <doc-sealed-container>
+                    <doc-prop name="namespace" type="string" default="app-kubernetes">
+                       <p>
+                           The Kubernetes namespace to use for the matched set of products.
+                       </p>
+                    </doc-prop>
+                    <doc-prop name="configPath" type="string">
+                        <p>
+                            Path for a custom Kubernetes configuration file.
+                        </p>
+                        <p>
+                            <strong>Note:</strong> If <code>serviceUrl</code> is set, this will not be used.
+                            If neither this or <code>serviceUrl</code> is set, a default configuration will be used.
+                        </p>
+                    </doc-prop>
+                    <doc-prop name="serviceUrl" type="string">
+                        <p>
+                            Override URL for the Kubernetes service. Should be defined if Kubernetes is not running on
+                            the same machine as the Integration module.
+                        </p>
+                        <p>
+                            <strong>Note:</strong> If this is set <code>configPath</code> will not be used.
+                        </p>
+                    </doc-prop>
+                    <doc-prop name="nodeToleration" type="section">
+                        <p>
+                            If set, the matched set of products will only be scheduled to <i>tainted</i> nodes with
+                            matching <code>key</code> and <code>value</code>.
+                        </p>
+                        <p>
+                            Read more: <a href="https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/">Kubernetes documentation: Taints and Tolerations</a>.
+                        </p>
+
+                        <doc-sealed-container>
+                                <doc-prop name="key" type="string">
+                                    <p>
+                                        Key of the taint applied to one or more nodes.
+                                    </p>
+                                </doc-prop>
+                                <doc-prop name="value" type="string">
+                                    <p>
+                                        Value of the taint/key to match.
+                                    </p>
+                                </doc-prop>
+                        </doc-sealed-container>
+                    </doc-prop>
+                    <doc-prop name="useMachineSelector" type="boolean" default="false">
+                        <p>
+                            If true, the matched set of products will be scheduled to nodes with a matching product label.
+                        </p>
+                    </doc-prop>
+                    <doc-prop name="categoryToSelector" type="map[string, string]">
+                        Used for scheduling jobs from the matched set of products from one category to
+                    </doc-prop>
+                </doc-sealed-container>
+            </doc-prop>
+            <doc-prop name="systemReserved" type="section">
+                <p>
+                    Control the resources reserved for system processes. This is useful for preventing jobs from consuming
+                    all resources of a node.
+                </p>
+                <doc-sealed-container>
+                    <doc-prop name="cpuMillis" type="int" default="0"></doc-prop>
+                    <doc-prop name="memGigabytes" type="int" default="0"></doc-prop>
+                </doc-sealed-container>
+            </doc-prop>
+            <doc-prop name="developmentMode" type="section">
+                <doc-sealed-container>
+                    <doc-prop name="fakeMemoryAllocation" type="boolean" default="false"></doc-prop>
+                    <doc-prop name="fakeIpMount" type="boolean" default="false"></doc-prop>
+                    <doc-prop name="usePortForwarding" type="boolean" default="false"></doc-prop>
+                </doc-sealed-container>
+            </doc-prop>
             <doc-prop name="scheduler" type="enum" default="Volcano"></doc-prop>
-            <doc-prop name="categoryToSelector" type="map[string, string]"></doc-prop>
-            <doc-prop name="fakeIpMount" type="boolean" default="false"></doc-prop>
-            <doc-prop name="ssh" type="section"></doc-prop>
+            <doc-prop name="ssh" type="section">
+                <doc-sealed-container>
+                    <doc-prop name="iface" type="string"></doc-prop>
+                    <doc-prop name="privateCidr" type="string"></doc-prop>
+                    <doc-prop name="publicHostname" type="string"></doc-prop>
+                    <doc-prop name="portMin" type="int"></doc-prop>
+                    <doc-prop name="portMax" type="int"></doc-prop>
+                </doc-sealed-container>
+            </doc-prop>
         </doc-prop-container>
     </section>
 
