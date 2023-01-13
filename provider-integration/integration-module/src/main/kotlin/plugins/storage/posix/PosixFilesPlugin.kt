@@ -384,6 +384,8 @@ class PosixFilesPlugin : FilePlugin {
                 ),
                 0L
             )
+        } catch (ex: NoSuchFileException) {
+            throw RPCException("File not found", HttpStatusCode.NotFound)
         }
     }
 

@@ -39,7 +39,7 @@ const val adminUsername = "admin@dev"
 lateinit var adminClient: AuthenticatedClient
 lateinit var adminClientWs: AuthenticatedClient
 
-val didInitialRestore = AtomicBoolean(false)
+private val firstTestEver = AtomicBoolean(true)
 
 typealias IntegrationTest = UCloudTest
 abstract class UCloudTest {
@@ -55,6 +55,7 @@ abstract class UCloudTest {
     }
 
     private fun restoreSnapshot() {
+        if (!firstTestEver.compareAndSet(true, false)) return
         ExeCommand(
             listOf(
                 System.getenv("UCLOUD_LAUNCHER") ?: error("Could not find UCLOUD_LAUNCHER env variable"),
@@ -208,7 +209,7 @@ abstract class UCloudTest {
                     suite.numberOfTests++
 
                     definedTests.add(DynamicTest.dynamicTest("${suite.title}/${case.subtitle}") {
-                        if (didInitialRestore.compareAndSet(false, true)) restoreSnapshot()
+                        restoreSnapshot()
 
                         runBlocking {
                             repeat(3) { println() }

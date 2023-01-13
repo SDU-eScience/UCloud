@@ -1,7 +1,6 @@
 package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.app.orchestrator.api.OpenSession
 import dk.sdu.cloud.app.orchestrator.api.SSHKeysProvider
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.HttpMethod
@@ -242,7 +241,7 @@ class ConnectionController(
                                 if (requireSigning) {
                                     error(
                                         "Plugin has returned ShowInstructions but signing is required. " +
-                                            "This is not supported! Only redirect is supported when signing is required."
+                                                "This is not supported! Only redirect is supported when signing is required."
                                     )
                                 }
 
@@ -381,7 +380,6 @@ object UserMapping {
 
         dbConnection.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 """
                     select ucloud_id
                     from user_mapping
@@ -404,7 +402,6 @@ object UserMapping {
         val items = ArrayList<ConnectionEntry>()
         dbConnection.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 """
                     select ucloud_id, local_identity
                     from user_mapping
@@ -429,7 +426,6 @@ object UserMapping {
 
         dbConnection.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 """
                     select local_identity
                     from user_mapping
@@ -479,26 +475,28 @@ object UserMapping {
         pluginConnectionId: String?,
         ctx: DBContext = dbConnection
     ) {
-        ctx.withSession { session ->
-            session.prepareStatement(
-                //language=postgresql
-                """
-                    insert into user_mapping (ucloud_id, local_identity)
-                    values (:ucloud_id, :local_id)
-                    on conflict (ucloud_id) do update set ucloud_id = :ucloud_id, local_identity = :local_id
-                """
-            ).useAndInvokeAndDiscard(
-                prepare = {
-                    bindString("ucloud_id", ucloudId)
-                    bindString("local_id", localId.toString())
-                },
-            )
+        UserGroupLocks.useLockByUCloudUsername("insertMapping", ucloudId) {
+            ctx.withSession { session ->
+                session.prepareStatement(
+                    """
+                        insert into user_mapping (ucloud_id, local_identity)
+                        values (:ucloud_id, :local_id)
+                        on conflict (ucloud_id) do update set ucloud_id = :ucloud_id, local_identity = :local_id
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindString("ucloud_id", ucloudId)
+                        bindString("local_id", localId.toString())
+                    },
+                )
 
-            if (pluginConnectionId != null) {
-                MessageSigningKeyStore.activateKey(pluginConnectionId, session)
+                if (pluginConnectionId != null) {
+                    MessageSigningKeyStore.activateKey(pluginConnectionId, session)
+                }
             }
         }
 
+        // NOTE(Dan): Avoid holding the lock here, since the callbacks also might want to lock
         with(pluginContext) {
             val projectPlugin = config.plugins.projects
             if (projectPlugin != null) {
@@ -511,7 +509,6 @@ object UserMapping {
         pluginContext.config.plugins.temporary.onConnectionCompleteHandlers.forEach { handler ->
             handler(ucloudId, localId)
         }
-
     }
 
     suspend fun clearMappingByUCloudId(
@@ -519,28 +516,29 @@ object UserMapping {
         pluginContext: PluginContext,
         clearInUCloud: Boolean = true,
     ) {
-        dbConnection.withSession { session ->
-            session.prepareStatement(
-                //language=postgresql
-                """
-                    delete from user_mapping
-                    where ucloud_id = :ucloud_id
-                """
-            ).useAndInvokeAndDiscard(
-                prepare = {
-                    bindString("ucloud_id", ucloudId)
-                },
-            )
+        UserGroupLocks.useLockByUCloudUsername("clearMapping", ucloudId) {
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
+                        delete from user_mapping
+                        where ucloud_id = :ucloud_id
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindString("ucloud_id", ucloudId)
+                    },
+                )
 
-            if (clearInUCloud) {
-                IntegrationControl.clearConnection.call(
-                    IntegrationClearConnectionRequest(ucloudId),
-                    pluginContext.rpcClient,
-                ).orRethrowAs { ex ->
-                    throw RPCException(
-                        "Could not clear connection. UCloud/Core failed with ${ex.statusCode} ${ex.error}",
-                        HttpStatusCode.BadGateway
-                    )
+                if (clearInUCloud) {
+                    IntegrationControl.clearConnection.call(
+                        IntegrationClearConnectionRequest(ucloudId),
+                        pluginContext.rpcClient,
+                    ).orRethrowAs { ex ->
+                        throw RPCException(
+                            "Could not clear connection. UCloud/Core failed with ${ex.statusCode} ${ex.error}",
+                            HttpStatusCode.BadGateway
+                        )
+                    }
                 }
             }
         }
@@ -549,7 +547,6 @@ object UserMapping {
     suspend fun clearMappingByLocalId(localId: Int) {
         dbConnection.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 """
                     delete from user_mapping
                     where local_identity = :local_id
@@ -567,7 +564,6 @@ object MessageSigningKeyStore {
     suspend fun clearMapping(performedBy: Int, mapping: Int, ctx: DBContext = dbConnection) {
         ctx.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 """
                     delete from message_signing_key
                     where
@@ -589,7 +585,6 @@ object MessageSigningKeyStore {
         val result = ArrayList<String>()
         ctx.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 """
                     select public_key
                     from message_signing_key
@@ -611,7 +606,6 @@ object MessageSigningKeyStore {
         var result: Int? = null
         ctx.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 """
                     insert into message_signing_key (public_key, ucloud_user)
                     values (:public_key, :ucloud_user)
@@ -637,7 +631,6 @@ object MessageSigningKeyStore {
 
         ctx.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 """
                     update message_signing_key
                     set is_key_active = true
@@ -656,7 +649,6 @@ object MessageSigningKeyStore {
         val result = ArrayList<KeyInfo>()
         ctx.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 """
                     select extract(epoch from ts) as bigint, id, public_key
                     from message_signing_key

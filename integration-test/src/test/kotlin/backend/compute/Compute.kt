@@ -133,7 +133,7 @@ class ComputeTest : IntegrationTest() {
     )
 
     override fun defineTests() {
-        testFilter = { a, b -> a.contains("k8") || a.contains("kubernetes") }
+        testFilter = { a, b -> a.contains("slurm") }
         val cases: List<TestCase> = runBlocking {
             val allProducts = findProducts(findProviderIds())
             val productsByProviders = allProducts.groupBy { it.category.provider }

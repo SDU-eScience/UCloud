@@ -58,7 +58,7 @@ suspend fun initializeCollection(
         )
     }
 
-    val collection = retrySection {
+    val collection = retrySection(attempts = 30, delay = 2000) {
         FileCollections.browse
             .call(
                 ResourceBrowseRequest(FileCollectionIncludeFlags()),
@@ -71,6 +71,16 @@ suspend fun initializeCollection(
 
     val createdCollectionWithSupport = allSupport.find { it.product.toReference() == collection.specification.product }
         ?: error("Unknown product")
+
+    retrySection(attempts = 30, delay = 2000) {
+        Files.browse.call(
+            ResourceBrowseRequest(
+                UFileIncludeFlags(path = "/${collection.id}"),
+                itemsPerPage = 250
+            ),
+            rpcClient
+        ).orThrow()
+    }
 
     return InitializedCollection(
         collection,

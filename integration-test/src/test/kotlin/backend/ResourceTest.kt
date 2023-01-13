@@ -17,6 +17,10 @@ import dk.sdu.cloud.integration.assertThatInstance
 import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.provider.api.*
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.request.*
+import io.ktor.network.sockets.*
 
 enum class UserType(val usuallyHasPermissions: Boolean) {
     PI(true),
@@ -95,6 +99,41 @@ suspend fun initializeResourceTestContext(
 
     val groupNamesToId = groups.associateWith { groupName ->
         createGroup(ourProject, groupName = groupName).groupId
+    }
+    val clients = arrayListOf(piClient, adminClient, memberClient)
+
+    for (client in clients) {
+        // NOTE(Dan): We require that all clients being tested (like this) use an automatic authentication
+        // procedure. Meaning that we only have to poke the endpoint for it to initialize user creation.
+
+        // NOTE(Dan): We create a new client for each user, just in case the provider might be making some
+        // assumptions about which TCP connections the end-user is coming from. This seems unlikely but not entirely
+        // impossible.
+
+        val httpClient = HttpClient(CIO) {
+            expectSuccess = false
+            followRedirects = true
+            engine {
+                requestTimeout = 60_000 * 5
+            }
+        }
+
+        httpClient.use { _ ->
+            val connectableProviders = Integration.browse.call(
+                IntegrationBrowseRequest(itemsPerPage = 250),
+                client
+            ).orThrow().items.filter { !it.connected }
+
+            val relevantProviders = connectableProviders.filter { it.providerTitle in providers }
+            for (provider in relevantProviders) {
+                val redirectTo = Integration.connect.call(
+                    IntegrationConnectRequest(provider.provider),
+                    client
+                ).orThrow().redirectTo
+
+                httpClient.get(redirectTo)
+            }
+        }
     }
 
     return ResourceUsageTestContext(

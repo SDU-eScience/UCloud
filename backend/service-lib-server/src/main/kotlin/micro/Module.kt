@@ -88,7 +88,6 @@ class ServiceRegistry(
                 install(BackgroundScopeFeature)
                 install(DebugSystemFeature)
                 install(ScriptManager)
-                install(FaultInjectionFeature)
             }
         }
     }
@@ -98,6 +97,7 @@ class ServiceRegistry(
         scopedMicro.serviceDescription = service.description
         scopedMicro.isEmbeddedService = true
         scopedMicro.install(DatabaseConfigurationFeature)
+        scopedMicro.install(FaultInjectionFeature)
         scopedMicro.install(FlywayFeature)
         if (redisEnabled) scopedMicro.install(RedisFeature)
         val server = service.initializeServer(scopedMicro)

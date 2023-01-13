@@ -14,9 +14,12 @@ import dk.sdu.cloud.faults.FaultInjections
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.sql.TemporaryView
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import kotlinx.coroutines.delay
+import kotlin.math.absoluteValue
+import kotlin.random.Random
 
 class FaultInjectionController(
     private val controllerContext: ControllerContext,
@@ -51,6 +54,8 @@ class FaultInjectionController(
             }
 
             knownCaches.onEach { it.clearAll() }
+
+            TemporaryView.notifyTestReset()
 
             if (controllerContext.configuration.shouldRunServerCode()) {
                 for (port in allocatedUserInstancePorts()) {
@@ -91,11 +96,26 @@ class FaultInjectionController(
                 }
             }
 
+            if (controllerContext.configuration.shouldRunServerCode()) {
+                sequenceValue += 10_000
+                dbConnection.withSession { session ->
+                    session.prepareStatement(
+                        """
+                            select setval('simple_project_group_mapper_local_id_seq', :val, true)
+                        """
+                    ).useAndInvokeAndDiscard {
+                        bindInt("val", sequenceValue)
+                    }
+                }
+            }
+
             ok(Unit)
         }
     }
 
     companion object : Loggable {
         override val log = logger()
+
+        private var sequenceValue = Random.nextInt().absoluteValue
     }
 }
