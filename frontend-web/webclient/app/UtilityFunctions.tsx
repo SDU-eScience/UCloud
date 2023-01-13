@@ -114,6 +114,7 @@ export const extensionType = (ext: string): ExtensionType => {
         case "xml":
         case "json":
         case "yml":
+        case "ini":
         case "sbatch":
             return "code";
         case "png":
