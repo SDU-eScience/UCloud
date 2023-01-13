@@ -44,13 +44,11 @@ export function Dropdown({children, trigger}: {children: React.ReactNode; trigge
         setOpen(false);
     }, []);
 
-    return <div className="pointer" onClick={() => setOpen(o => !o)} ref={dropdownRef}>
+    return <div className={"pointer"} onClick={() => setOpen(o => !o)} ref={dropdownRef}>
         <span>{trigger}</span>
-        {!isOpen ? null : (
-            <div className="card dropdown-content" style={{width: "280px"}} onClick={close}>
-                {children}
-            </div>
-        )}
+        <div className="card dropdown-content" style={{width: "280px", display: isOpen ? "block" : undefined}} onClick={close}>
+            {children}
+        </div>
     </div>
 }
 

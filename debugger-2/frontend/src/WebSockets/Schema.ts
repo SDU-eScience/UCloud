@@ -104,7 +104,7 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
         // Note(Jonas): Is this correct?
         return BinaryDebugMessageType.CLIENT_REQUEST;
     }
-    
+
     get typeString(): string {
         return binaryDebugMessageTypeToString(this.type);
     }
@@ -138,7 +138,7 @@ export class Log extends BaseBinaryDebugMessage {
     get type(): BinaryDebugMessageType {
         return BinaryDebugMessageType.LOG;
     }
-    
+
     get typeString(): string {
         return BinaryDebugMessageType[this.type];
     }
@@ -153,7 +153,7 @@ export class Log extends BaseBinaryDebugMessage {
 }
 
 // Contexts
-enum DebugContextType {
+export enum DebugContextType {
     CLIENT_REQUEST = 0,
     SERVER_REQUEST = 1,
     DATABASE_TRANSACTION = 2,
@@ -162,7 +162,7 @@ enum DebugContextType {
 }
 
 export function debugContextToString(ctx: DebugContextType): string {
-    return DebugContextType[ctx]; 
+    return DebugContextType[ctx];
 }
 
 export class DebugContext {
@@ -185,7 +185,7 @@ export class DebugContext {
     get importance(): MessageImportance {
         return readInt1(this.buffer, this.offset + 8) as MessageImportance;
     }
-    
+
     get importanceString(): string {
         return MessageImportance[this.importance];
     }
@@ -193,7 +193,7 @@ export class DebugContext {
     get type(): DebugContextType {
         return readInt1(this.buffer, this.offset + 9) as DebugContextType;
     }
-    
+
     get typeString(): string {
         return debugContextToString(this.type);
     }

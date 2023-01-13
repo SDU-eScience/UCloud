@@ -1,21 +1,12 @@
 import * as React from "react";
-import {DebugContext, MessageImportance} from "../WebSockets/Schema";
-import {activeService, logStore} from "../WebSockets/Socket";
+import {DebugContext, DebugContextType, MessageImportance} from "../WebSockets/Schema";
+import {activeService, logStore, setSessionState} from "../WebSockets/Socket";
 import "./MainContent.css";
 
-export function MainContent({query, filters, levels}: {query: string, filters: string, levels: string;}): JSX.Element {
-
-
-    const doFetch = React.useCallback((query: string, filters: string, levels: string) => {
-
-    }, []);
-
+export function MainContent({query, filters, levels}: {query: string, filters: Set<DebugContextType>, levels: string;}): JSX.Element {
     const [activeContext, setActiveRequest] = React.useState<DebugContext | null>(null);
     const service = React.useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot());
     const [routeComponents, setRouteComponents] = React.useState("");
-    React.useEffect(() => {
-
-    }, []);
     const logs = React.useSyncExternalStore(s => logStore.subscribe(s), () => logStore.getSnapshot())
 
     React.useEffect(() => {
@@ -23,12 +14,12 @@ export function MainContent({query, filters, levels}: {query: string, filters: s
     }, [service])
 
     React.useEffect(() => {
-        doFetch(query, filters, levels);
-    }, [query, filters, levels, doFetch]);
+        setSessionState(query, filters, levels);
+    }, [query, filters, levels]);
 
     const serviceLogs = logs.content[service] ?? [];
 
-    return <div style={{overflowY: "scroll"}} className="main-content">
+    return <div className="main-content">
         {!service ? <h3>Select a service to view requests</h3> :
             <>
                 <BreadCrumbs routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
@@ -57,6 +48,7 @@ function DebugContextRow({debugContext, setDebugContext}: {debugContext: DebugCo
 
 function RequestDetails({activeContext}: {activeContext: DebugContext | null}): JSX.Element {
     if (!activeContext) return <div />;
+
     return <div className="card details flex">
         <div className="card query">
             <pre>{activeContext.id}</pre>
@@ -81,6 +73,5 @@ function BreadCrumbs({routeComponents, setRouteComponents}: {routeComponents: st
     if (!routeComponents) return <div />
     return <div className="flex breadcrumb" style={{width: "100%"}}>
         <span>/ Root</span>
-        <div className="breadcrumb-line" />
     </div>;
 }

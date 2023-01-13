@@ -1,4 +1,4 @@
-import {Log, DebugContext, getServiceName, debugContextToString, messageImportanceToString, binaryDebugMessageTypeToString} from "./Schema";
+import {Log, DebugContext, getServiceName, messageImportanceToString, DebugContextType} from "./Schema";
 
 let socket: WebSocket | null = null;
 let options: SocketOptions;
@@ -15,6 +15,10 @@ export function initializeConnection(opts: SocketOptions) {
     if (socket != null) throw Error("initializeConnection has already been called!");
     options = opts;
     initializeSocket();
+}
+
+export function isSocketOpen(): boolean {
+    return socket?.readyState === socket?.OPEN;
 }
 
 function initializeSocket() {
@@ -179,5 +183,35 @@ function replayMessagesRequest(generation: string, context: number, timestamp: n
         generation,
         context,
         timestamp,
+    });
+}
+
+export async function setSessionState(query: string, filters: Set<DebugContextType>, level: string): Promise<void> {
+    if (!socket) return;
+    console.log("setSessionState")
+    const debugContextFilters: string[] = [];
+    filters.forEach(entry => {
+        debugContextFilters.push(DebugContextType[entry]);
+    });
+    console.log("Setting", query, filters, level);
+    socket.send(
+        setSessionStateRequest(
+            undefOrVal(query),
+            debugContextFilters,
+            undefOrVal(level)
+        )
+    );
+}
+
+function undefOrVal(f: string): string | undefined {
+    return f === "" ? undefined : f;
+}
+
+export function setSessionStateRequest(query: string | undefined, filters: string[], level: string | undefined): string {
+    return JSON.stringify({
+        type: "set_session_state",
+        query,
+        filters,
+        level,
     });
 }

@@ -6,6 +6,7 @@ import {Levels} from "./Header/Levels";
 import {SearchBar} from "./Header/SearchBar";
 import {MainContent} from "./MainContent/MainContent";
 import {Sidebar} from "./Sidebar/Sidebar";
+import {DebugContextType} from "./WebSockets/Schema";
 import {activeService, serviceStore} from "./WebSockets/Socket";
 
 
@@ -50,6 +51,7 @@ function addServiceFromRootNode(fullServicePath: string, root: ServiceNode[]) {
 function App(): JSX.Element {
     const [level, setLevel] = useState("");
     const [query, setQuery] = useState("");
+    const [filters, setFilters] = useState<Set<DebugContextType>>(new Set());
     const services = useSyncExternalStore(subscription => serviceStore.subscribe(subscription), () => serviceStore.getSnapshot());
     const serviceNodes = useMemo(() => {
         const root: ServiceNode[] = [];
@@ -62,14 +64,14 @@ function App(): JSX.Element {
     return <>
         <Header>
             <SearchBar setQuery={setQuery} />
-            <Filters filters={[]} setFilters={() => undefined} />
+            <Filters filters={filters} setFilters={setFilters} />
             <Levels level={level} setLevel={setLevel} />
         </Header>
         <div className="flex">
             <Sidebar>
                 <ServiceList services={serviceNodes} />
             </Sidebar>
-            <MainContent filters="todo" levels={level} query={query} />
+            <MainContent filters={filters} levels={level} query={query} />
         </div>
     </>;
 }

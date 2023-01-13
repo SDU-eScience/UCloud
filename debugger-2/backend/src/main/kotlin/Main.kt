@@ -264,6 +264,12 @@ fun main(args: Array<String>) {
                             is ClientRequest.ActivateService -> {
                                 session.activeService = request.service
                             }
+
+                            is ClientRequest.SetSessionState -> {
+                                session.filterQuery = request.query
+                                session.minimumLevel = request.level
+                                // TODO(Jonas): Filters
+                            }
                         }
                     }
                 } finally {
@@ -287,6 +293,10 @@ sealed class ClientRequest {
     @Serializable
     @SerialName("activate_service")
     data class ActivateService(val service: String) : ClientRequest()
+
+    @Serializable
+    @SerialName("set_session_state")
+    data class SetSessionState(val query: String, val filters: List<DebugContextType>, val level: MessageImportance) : ClientRequest()
 }
 
 data class ClientSession(
@@ -372,12 +382,10 @@ data class ClientSession(
     }
 
     suspend fun acceptContext(generation: Long, context: DebugContextDescriptor) {
-        if (false) {
-            val service = activeService ?: return
-            val services = trackedServices.get()
-            val trackedService = services.values.find { it.title == service }
-            if (trackedService == null || trackedService.generation != generation) return
-        }
+        val service = activeService ?: return
+        val services = trackedServices.get()
+        val trackedService = services.values.find { it.title == service }
+        if (trackedService == null || trackedService.generation != generation) return
 
         writeMutex.withLock {
             if (newContextWriteBuffer.remaining() < DebugContextDescriptor.size) return
