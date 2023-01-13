@@ -5,14 +5,12 @@ import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
-import dk.sdu.cloud.app.orchestrator.api.License
-import dk.sdu.cloud.app.orchestrator.api.LicenseControl
-import dk.sdu.cloud.app.orchestrator.api.LicenseIncludeFlags
-import dk.sdu.cloud.app.orchestrator.api.LicenseSupport
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
@@ -28,6 +26,8 @@ import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.plugins.ipcServer
 import dk.sdu.cloud.plugins.rpcClient
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.bindIntNullable
 import dk.sdu.cloud.sql.bindStringNullable
 import dk.sdu.cloud.sql.useAndInvoke
@@ -378,8 +378,20 @@ class GenericLicensePlugin : LicensePlugin {
     }
 
     override suspend fun RequestContext.create(resource: License): FindByStringId? {
-        // Do nothing
-        return null
+        LicenseControl.update.call(
+            bulkRequestOf(
+                ResourceUpdateAndId(
+                    resource.id,
+                    LicenseUpdate(
+                        Time.now(),
+                        LicenseState.READY,
+                        "License is ready for use"
+                    )
+                )
+            ),
+            rpcClient
+        ).orThrow()
+        return FindByStringId(resource.id)
     }
 
     override suspend fun RequestContext.delete(resource: License) {
