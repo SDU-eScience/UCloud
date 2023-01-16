@@ -1,17 +1,29 @@
 import * as React from "react";
 import {DebugContext, DebugContextType, MessageImportance} from "../WebSockets/Schema";
-import {activeService, logStore, setSessionState} from "../WebSockets/Socket";
+import {activeService, logStore, replayMessages, setSessionState} from "../WebSockets/Socket";
 import "./MainContent.css";
 
 export function MainContent({query, filters, levels}: {query: string, filters: Set<DebugContextType>, levels: string;}): JSX.Element {
-    const [activeContext, setActiveRequest] = React.useState<DebugContext | null>(null);
+    const [activeContext, setActiveContext] = React.useState<DebugContext | null>(null);
     const service = React.useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot());
     const [routeComponents, setRouteComponents] = React.useState("");
     const logs = React.useSyncExternalStore(s => logStore.subscribe(s), () => logStore.getSnapshot())
 
+    const setContext = React.useCallback((d: DebugContext) => {
+        setActiveContext(current => {
+            if (d === current) {
+                return null;
+            }
+
+            replayMessages("dfoo", d.id, 0);
+
+            return d;
+        });
+    }, [setActiveContext]);
+
     React.useEffect(() => {
-        setActiveRequest(null);
-    }, [service])
+        setActiveContext(null);
+    }, [service]);
 
     React.useEffect(() => {
         setSessionState(query, filters, levels);
@@ -26,7 +38,7 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
                 <RequestDetails activeContext={activeContext} />
                 <RequestView>
                     {serviceLogs.map(it =>
-                        <DebugContextRow setDebugContext={setActiveRequest} debugContext={it} />
+                        <DebugContextRow isActive={activeContext === it} setDebugContext={setContext} debugContext={it} />
                     )}
                 </RequestView>
             </>
@@ -34,10 +46,11 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
     </div>
 }
 
-function DebugContextRow({debugContext, setDebugContext}: {debugContext: DebugContext; setDebugContext(ctx: DebugContext): void;}): JSX.Element {
+function DebugContextRow({debugContext, setDebugContext, isActive}: {isActive: boolean; debugContext: DebugContext; setDebugContext(ctx: DebugContext): void;}): JSX.Element {
     return <div
         key={debugContext.id}
         className="request-list-row flex"
+        data-selected={isActive}
         onClick={() => setDebugContext(debugContext)}
         data-has-error={[MessageImportance.THIS_IS_WRONG, MessageImportance.THIS_IS_DANGEROUS].includes(debugContext.importance)}
         data-is-odd={debugContext.importance === MessageImportance.THIS_IS_ODD}

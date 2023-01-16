@@ -267,7 +267,7 @@ fun main(args: Array<String>) {
 
                             is ClientRequest.SetSessionState -> {
                                 session.filterQuery = request.query
-                                session.minimumLevel = request.level
+                                session.minimumLevel = request.level ?: MessageImportance.TELL_ME_EVERYTHING
                                 // TODO(Jonas): Filters
                             }
                         }
@@ -296,7 +296,8 @@ sealed class ClientRequest {
 
     @Serializable
     @SerialName("set_session_state")
-    data class SetSessionState(val query: String, val filters: List<DebugContextType>, val level: MessageImportance) : ClientRequest()
+    data class SetSessionState(val query: String?, val filters: List<DebugContextType>, val level: MessageImportance?) :
+        ClientRequest()
 }
 
 data class ClientSession(

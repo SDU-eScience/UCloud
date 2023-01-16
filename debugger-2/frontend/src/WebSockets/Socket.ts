@@ -1,4 +1,4 @@
-import {Log, DebugContext, getServiceName, messageImportanceToString, DebugContextType} from "./Schema";
+import {Log, DebugContext, getServiceName, DebugContextType} from "./Schema";
 
 let socket: WebSocket | null = null;
 let options: SocketOptions;
@@ -15,10 +15,6 @@ export function initializeConnection(opts: SocketOptions) {
     if (socket != null) throw Error("initializeConnection has already been called!");
     options = opts;
     initializeSocket();
-}
-
-export function isSocketOpen(): boolean {
-    return socket?.readyState === socket?.OPEN;
 }
 
 function initializeSocket() {
@@ -53,7 +49,7 @@ function initializeSocket() {
                 const numberOfEntries = (message.length - 8) / 388;
                 for (let i = 0; i < numberOfEntries; i++) {
                     const log = new DebugContext(view, 8 + i * 388);
-                    console.log(log.id, messageImportanceToString(log.importance), log.name, log.parent, log.typeString);
+                    console.log(log.id, log.importanceString, log.name, log.parent, log.typeString);
                     logStore.addDebugContext(log);
                 }
                 break;
@@ -69,8 +65,6 @@ function initializeSocket() {
         }
     };
 }
-
-export type Logs = DebugContext | Log;
 
 export const activeService = new class {
     private activeService: string = "";
@@ -177,6 +171,11 @@ function activateServiceRequest(service: string): string {
     })
 }
 
+export function replayMessages(generation: string, context: number, timestamp: number): void {
+    if (!isSocketReady(socket)) return;
+    socket.send(replayMessagesRequest(generation, context, timestamp));
+}
+
 function replayMessagesRequest(generation: string, context: number, timestamp: number): string {
     return JSON.stringify({
         type: "replay_messages",
@@ -186,32 +185,37 @@ function replayMessagesRequest(generation: string, context: number, timestamp: n
     });
 }
 
-export async function setSessionState(query: string, filters: Set<DebugContextType>, level: string): Promise<void> {
-    if (!socket) return;
-    console.log("setSessionState")
+export function setSessionState(query: string, filters: Set<DebugContextType>, level: string): void {
+    if (!isSocketReady(socket)) return;
     const debugContextFilters: string[] = [];
     filters.forEach(entry => {
         debugContextFilters.push(DebugContextType[entry]);
     });
-    console.log("Setting", query, filters, level);
-    socket.send(
-        setSessionStateRequest(
-            undefOrVal(query),
-            debugContextFilters,
-            undefOrVal(level)
-        )
+    const req = setSessionStateRequest(
+        nullIfEmpty(query),
+        debugContextFilters,
+        nullIfEmpty(level)
     );
+    socket.send(req);
 }
 
-function undefOrVal(f: string): string | undefined {
-    return f === "" ? undefined : f;
+function nullIfEmpty(f: string): string | null {
+    return f === "" ? null : f;
 }
 
-export function setSessionStateRequest(query: string | undefined, filters: string[], level: string | undefined): string {
+export function setSessionStateRequest(query: string | null, filters: string[], level: string | null): string {
     return JSON.stringify({
         type: "set_session_state",
-        query,
-        filters,
-        level,
+        query: query,
+        filters: filters,
+        level: level,
     });
+}
+
+function isSocketReady(socket: WebSocket | null): socket is WebSocket {
+    return !!(socket && socket.readyState === socket.OPEN);
+}
+
+export function isSocketOpen(): boolean {
+    return isSocketReady(socket);
 }

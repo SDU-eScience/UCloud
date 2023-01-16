@@ -38,12 +38,16 @@ div.card.list {
 }
 
 div.request-list-row {
-    border-top: 1px solid black;
+    border-top: 1px solid var(--black);
     height: 20px;
     color: black;
-    background-color: white;
+    background-color: var(--white);
     cursor: pointer;
     padding-left: 8px;
+}
+
+div.request-list-row[data-selected="true"] {
+    background-color: var(--lightBlue);
 }
 
 div.request-list-row[data-has-error="true"] {
