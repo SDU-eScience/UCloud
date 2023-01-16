@@ -46,15 +46,15 @@ changes are expected:
 <tbody>
 <tr>
 <td><a href='#findavatar'><code>findAvatar</code></a></td>
-<td><i>No description</i></td>
+<td>Request the avatar of the current user.</td>
 </tr>
 <tr>
 <td><a href='#findbulk'><code>findBulk</code></a></td>
-<td><i>No description</i></td>
+<td>Request the avatars of one or more users by username.</td>
 </tr>
 <tr>
 <td><a href='#update'><code>update</code></a></td>
-<td><i>No description</i></td>
+<td>Update the avatar of the current user.</td>
 </tr>
 </tbody></table>
 
@@ -97,6 +97,7 @@ changes are expected:
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request the avatar of the current user._
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -110,6 +111,7 @@ changes are expected:
 [![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request the avatars of one or more users by username._
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -123,6 +125,7 @@ changes are expected:
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Update the avatar of the current user._
 
 | Request | Response | Error |
 |---------|----------|-------|

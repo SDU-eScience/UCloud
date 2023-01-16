@@ -17,7 +17,7 @@ Powers the notification feature of UCloud. Other services can call this
 service to create a new notification for users. Notifications are
 automatically delivered to any connected frontend via websockets.
 
-![](/backend/notification-service/wiki/NotificationFlow.png)
+![](/backend/notification-service/wiki/Notifications.png)
 
 ## Table of Contents
 <details>
@@ -153,7 +153,7 @@ NotificationDescriptions.create.call(
                 isString = false, 
             )),)), 
             read = false, 
-            ts = 1673008735141, 
+            ts = 1673350428793, 
             type = "MY_NOTIFICATION_TYPE", 
         ), 
         user = "User#1234", 
@@ -192,7 +192,7 @@ curl -XPUT -H "Authorization: Bearer $accessToken" -H "Content-Type: content-typ
         "meta": {
             "myParameter": 42
         },
-        "ts": 1673008735141,
+        "ts": 1673350428793,
         "read": false
     }
 }'
@@ -248,7 +248,7 @@ Notification(
         isString = false, 
     )),)), 
     read = false, 
-    ts = 1673008735145, 
+    ts = 1673350428793, 
     type = "MY_NOTIFICATION_TYPE", 
 )
 */
@@ -343,7 +343,7 @@ Page(
             isString = false, 
         )),)), 
         read = false, 
-        ts = 1673008735147, 
+        ts = 1673350428794, 
         type = "MY_NOTIFICATION_TYPE", 
     )), 
     itemsInTotal = 1, 
@@ -390,7 +390,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/notifications?"
 #             "meta": {
 #                 "myParameter": 42
 #             },
-#             "ts": 1673008735147,
+#             "ts": 1673350428794,
 #             "read": false
 #         }
 #     ]

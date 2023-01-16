@@ -6,6 +6,7 @@
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Reset the password of a user based on a generated password-reset token._
 
 | Request | Response | Error |
 |---------|----------|-------|

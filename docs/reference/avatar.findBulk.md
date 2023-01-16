@@ -6,6 +6,7 @@
 [![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request the avatars of one or more users by username._
 
 | Request | Response | Error |
 |---------|----------|-------|

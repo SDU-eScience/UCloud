@@ -199,17 +199,15 @@ class JobManagement(
     }
 
     private suspend fun cancel(jobId: String) {
-        val exists = markJobAsComplete(jobId)
+        markJobAsComplete(jobId)
         cleanup(jobId)
-        if (exists) {
-            k8.changeState(
-                jobId, 
-                JobState.SUCCESS, 
-                "Job has been cancelled",
-                allowRestart = false,
-                expectedDifferentState = true,
-            )
-        }
+        k8.changeState(
+            jobId,
+            JobState.SUCCESS,
+            "Job has been cancelled",
+            allowRestart = false,
+            expectedDifferentState = true,
+        )
     }
 
     private var lastScan: Map<String, List<Container>> = emptyMap()

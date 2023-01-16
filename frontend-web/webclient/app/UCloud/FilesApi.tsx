@@ -8,7 +8,7 @@ import {
     ResourceUpdate,
 } from "@/UCloud/ResourceApi";
 import {FileIconHint, FileType} from "@/Files";
-import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
+import {BulkRequest, BulkResponse, compute, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Box, Button, Flex, FtIcon, Icon, Link, Select, Text, TextArea} from "@/ui-components";
@@ -291,7 +291,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
             const navigate = useNavigate();
             const openSync = useCallback(() => {
-                navigate("/syncthing");
+                navigate(`/syncthing?provider=${resource.specification.product.provider}`);
             }, []);
 
             return <Flex>
@@ -859,9 +859,6 @@ function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBr
     const support = cb.collection?.status.resolvedSupport?.support;
     if (!support) return false;
 
-    const isUCloud = cb.collection?.specification?.product?.provider === "ucloud"
-    if (!isUCloud) return false;
-
     const isShare = cb.collection?.specification.product.id === "share";
     if (isShare) {
         return false;
@@ -888,6 +885,7 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
     const resolvedFiles = files.length === 0 ? (cb.directory ? [cb.directory] : []) : files;
     const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
 
+    if (!cb.syncthingConfig) return;
     if (!allSynchronized) {
         const synchronizedFolderNames = synchronized.map(it => it.ucloudPath.split("/").pop());
 
