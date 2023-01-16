@@ -672,9 +672,9 @@ fun exampleProducer(logFolder: File) {
         (0 until 1).map {
             GlobalScope.launch {
                 while (isActive) {
-                    debug.useContext(DebugContextType.BACKGROUND_TASK, "Context $it") {
+                    debug.useContext(DebugContextType.BACKGROUND_TASK, "📯 Context $it") {
                         repeat(10) {
-                            debug.log(MessageImportance.THIS_IS_NORMAL, "Log $it")
+                            debug.log(MessageImportance.THIS_IS_NORMAL, "📜 Log $it")
                             delay(50)
                         }
                     }

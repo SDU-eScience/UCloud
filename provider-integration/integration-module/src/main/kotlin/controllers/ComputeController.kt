@@ -415,8 +415,6 @@ class ComputeController(
                         domain = ingressDomain
                     )
 
-                    println("Setting cookie on $ingressDomain ${call.request.origin} ${call.request.host()}")
-
                     call.respondRedirect("http://$ingressDomain")
                 } catch (ex: RPCException) {
                     call.respondText(

@@ -1,6 +1,5 @@
-import {Log, DebugContext, getServiceName, BinaryDebugMessageType} from "./Schema";
+import {Log, DebugContext, getServiceName, DebugContextType} from "./Schema";
 
-let isConnected = false;
 let socket: WebSocket | null = null;
 let options: SocketOptions;
 
@@ -23,12 +22,10 @@ function initializeSocket() {
     socket.binaryType = "arraybuffer";
 
     socket.onopen = () => {
-        isConnected = true;
         options.onConnect();
     };
 
     socket.onclose = () => {
-        isConnected = false;
         options.onDisconnect();
 
         setTimeout(() => {
@@ -52,6 +49,7 @@ function initializeSocket() {
                 const numberOfEntries = (message.length - 8) / 388;
                 for (let i = 0; i < numberOfEntries; i++) {
                     const log = new DebugContext(view, 8 + i * 388);
+                    console.log(log.id, log.importanceString, log.name, log.parent, log.typeString);
                     logStore.addDebugContext(log);
                 }
                 break;
@@ -60,7 +58,7 @@ function initializeSocket() {
                 const numberOfEntries = (message.length - 8) / 256;
                 for (let i = 0; i < numberOfEntries; i++) {
                     const log = new Log(view, 8 + i * 256);
-                    console.log(log.ctxGeneration, log.ctxId, log.ctxParent, log.importance, log.timestamp, log.type, log.message, log.extra);
+                    console.log(log.ctxGeneration, log.ctxId, log.ctxParent, log.importance, log.timestamp, log.typeString, log.message, log.extra);
                 }
                 break;
             }
@@ -68,15 +66,20 @@ function initializeSocket() {
     };
 }
 
-type Logs = DebugContext | Log;
-
 export const activeService = new class {
     private activeService: string = "";
-    private subscriptions: (() => void)[] = []
+    private subscriptions: (() => void)[] = [];
+
+    public get service() {
+        return this.activeService;
+    }
 
     public setService(service: string): void {
         this.activeService = service;
-        this.emitChange();
+        if (socket) {
+            socket.send(activateServiceRequest(service));
+            this.emitChange();
+        }
     }
 
     public subscribe(subscription: () => void) {
@@ -98,17 +101,17 @@ export const activeService = new class {
 }();
 
 export const logStore = new class {
-    private logs: {content: Record<string, Logs[]>} = {content: {}};
+    private logs: {content: Record<string, DebugContext[]>} = {content: {}};
     private subscriptions: (() => void)[] = [];
     private isDirty = false;
 
-    public addLog(log: Log): void {
-        this.isDirty = true;
-        this.emitChange();
-    }
-
     public addDebugContext(debugContext: DebugContext): void {
         this.isDirty = true;
+        if (!this.logs.content[activeService.service]) {
+            this.logs.content[activeService.service] = [debugContext];
+        } else {
+            this.logs.content[activeService.service].push(debugContext)
+        }
         this.emitChange();
     }
 
@@ -119,7 +122,7 @@ export const logStore = new class {
         };
     }
 
-    public getSnapshot(): {content: Record<string, Logs[]>} {
+    public getSnapshot(): {content: Record<string, DebugContext[]>} {
         if (this.isDirty) {
             this.isDirty = false;
             return this.logs = {content: this.logs.content};
@@ -160,3 +163,59 @@ export const serviceStore = new class {
         }
     }
 }();
+
+function activateServiceRequest(service: string): string {
+    return JSON.stringify({
+        type: "activate_service",
+        service,
+    })
+}
+
+export function replayMessages(generation: string, context: number, timestamp: number): void {
+    if (!isSocketReady(socket)) return;
+    socket.send(replayMessagesRequest(generation, context, timestamp));
+}
+
+function replayMessagesRequest(generation: string, context: number, timestamp: number): string {
+    return JSON.stringify({
+        type: "replay_messages",
+        generation,
+        context,
+        timestamp,
+    });
+}
+
+export function setSessionState(query: string, filters: Set<DebugContextType>, level: string): void {
+    if (!isSocketReady(socket)) return;
+    const debugContextFilters: string[] = [];
+    filters.forEach(entry => {
+        debugContextFilters.push(DebugContextType[entry]);
+    });
+    const req = setSessionStateRequest(
+        nullIfEmpty(query),
+        debugContextFilters,
+        nullIfEmpty(level)
+    );
+    socket.send(req);
+}
+
+function nullIfEmpty(f: string): string | null {
+    return f === "" ? null : f;
+}
+
+export function setSessionStateRequest(query: string | null, filters: string[], level: string | null): string {
+    return JSON.stringify({
+        type: "set_session_state",
+        query: query,
+        filters: filters,
+        level: level,
+    });
+}
+
+function isSocketReady(socket: WebSocket | null): socket is WebSocket {
+    return !!(socket && socket.readyState === socket.OPEN);
+}
+
+export function isSocketOpen(): boolean {
+    return isSocketReady(socket);
+}

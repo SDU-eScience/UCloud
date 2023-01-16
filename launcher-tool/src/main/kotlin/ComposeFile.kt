@@ -155,6 +155,7 @@ sealed class ComposeService {
                 serviceConvention = true
             )
 
+            /*
             service(
                 "debugger",
                 "UCloud/Core: Debugger",
@@ -179,6 +180,7 @@ sealed class ComposeService {
                 ),
                 serviceConvention = true
             )
+            */
 
             val postgresDataDir = environment.dataDirectory.child("pg-data").also { it.mkdirs() }
 

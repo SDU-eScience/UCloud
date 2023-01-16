@@ -15,7 +15,7 @@ interface Container {
 
     suspend fun upsertAnnotation(key: String, value: String)
 
-    suspend fun cancel()
+    suspend fun cancel(force: Boolean = false)
 
     suspend fun downloadLogs(out: OutputStream)
     suspend fun watchLogs(scope: CoroutineScope): ReceiveChannel<String>

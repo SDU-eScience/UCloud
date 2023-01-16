@@ -133,7 +133,7 @@ class ComputeTest : IntegrationTest() {
     )
 
     override fun defineTests() {
-        testFilter = { a, b -> a.contains("k8") || a.contains("kubernetes") }
+        testFilter = { a, b -> a.contains("slurm") }
         val cases: List<TestCase> = runBlocking {
             val allProducts = findProducts(findProviderIds())
             val productsByProviders = allProducts.groupBy { it.category.provider }
@@ -148,6 +148,8 @@ class ComputeTest : IntegrationTest() {
 
         for (case in cases) {
             for (product in case.products.filterIsInstance<Product.Compute>()) {
+                if (product.category.name == "syncthing") continue
+
                 val titlePrefix = "Compute @ ${case.title} ($product):"
                 test<Unit, Unit>("$titlePrefix Batch application") {
                     execute {

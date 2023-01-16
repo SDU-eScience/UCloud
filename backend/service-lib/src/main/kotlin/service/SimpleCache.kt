@@ -27,7 +27,9 @@ class SimpleCache<K, V : Any>(
     private var nextRemoveExpired = Time.now() + (maxAge * 5)
 
     init {
-        allCachesOnlyForTestingPlease.add(WeakReference(this))
+        synchronized(allCachesLock) {
+            allCachesOnlyForTestingPlease.add(WeakReference(this))
+        }
     }
 
     override suspend fun clearAll() {
@@ -116,6 +118,7 @@ class SimpleCache<K, V : Any>(
         override val log = logger()
         const val DONT_EXPIRE = -1L
 
+        val allCachesLock = Any()
         val allCachesOnlyForTestingPlease = ArrayList<WeakReference<SimpleCache<*, *>>>()
     }
 }

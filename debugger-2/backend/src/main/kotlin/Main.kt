@@ -116,7 +116,7 @@ fun main(args: Array<String>) {
                             }
 
                             if (shouldOpen) {
-                                println("Opening $directory ${service} ${idx}")
+                                println("Opening $directory $service $idx")
                                 val openFile = LogFileReader(directory, service.value.generation, idx)
                                 openFile.seekToEnd()
                                 openLogFiles.add(openFile)
@@ -258,15 +258,17 @@ fun main(args: Array<String>) {
 
                         when (request) {
                             is ClientRequest.ReplayMessages -> {
-
+                                // TODO
                             }
 
                             is ClientRequest.ActivateService -> {
                                 session.activeService = request.service
                             }
 
-                            else -> {
-                                println("Missing request handling. when(request) {")
+                            is ClientRequest.SetSessionState -> {
+                                session.filterQuery = request.query
+                                session.minimumLevel = request.level ?: MessageImportance.TELL_ME_EVERYTHING
+                                // TODO(Jonas): Filters
                             }
                         }
                     }
@@ -291,6 +293,11 @@ sealed class ClientRequest {
     @Serializable
     @SerialName("activate_service")
     data class ActivateService(val service: String) : ClientRequest()
+
+    @Serializable
+    @SerialName("set_session_state")
+    data class SetSessionState(val query: String?, val filters: List<DebugContextType>, val level: MessageImportance?) :
+        ClientRequest()
 }
 
 data class ClientSession(
@@ -354,13 +361,11 @@ data class ClientSession(
     }
 
     suspend fun acceptLogMessage(message: BinaryDebugMessage<*>) {
-        if (false) {
-            val service = activeService ?: return
-            if (message.importance.ordinal < minimumLevel.ordinal) return
-            val services = trackedServices.get()
-            val trackedService = services.values.find { it.title == service }
-            if (trackedService == null || trackedService.generation != message.ctxGeneration) return
-        }
+        val service = activeService ?: return
+        if (message.importance.ordinal < minimumLevel.ordinal) return
+        val services = trackedServices.get()
+        val trackedService = services.values.find { it.title == service }
+        if (trackedService == null || trackedService.generation != message.ctxGeneration) return
 
         writeMutex.withLock {
             if (newLogsWriteBuffer.remaining() < FRAME_SIZE) return
@@ -378,12 +383,10 @@ data class ClientSession(
     }
 
     suspend fun acceptContext(generation: Long, context: DebugContextDescriptor) {
-        if (false) {
-            val service = activeService ?: return
-            val services = trackedServices.get()
-            val trackedService = services.values.find { it.title == service }
-            if (trackedService == null || trackedService.generation != generation) return
-        }
+        val service = activeService ?: return
+        val services = trackedServices.get()
+        val trackedService = services.values.find { it.title == service }
+        if (trackedService == null || trackedService.generation != generation) return
 
         writeMutex.withLock {
             if (newContextWriteBuffer.remaining() < DebugContextDescriptor.size) return

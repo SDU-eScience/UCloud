@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.faults.FaultInjections
 import dk.sdu.cloud.prettyMapper
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.DynamicTest
@@ -38,7 +39,7 @@ const val adminUsername = "admin@dev"
 lateinit var adminClient: AuthenticatedClient
 lateinit var adminClientWs: AuthenticatedClient
 
-val didInitialRestore = AtomicBoolean(false)
+private val firstTestEver = AtomicBoolean(true)
 
 typealias IntegrationTest = UCloudTest
 abstract class UCloudTest {
@@ -54,6 +55,7 @@ abstract class UCloudTest {
     }
 
     private fun restoreSnapshot() {
+        if (!firstTestEver.compareAndSet(true, false)) return
         ExeCommand(
             listOf(
                 System.getenv("UCLOUD_LAUNCHER") ?: error("Could not find UCLOUD_LAUNCHER env variable"),
@@ -61,6 +63,20 @@ abstract class UCloudTest {
                 System.getenv("UCLOUD_TEST_SNAPSHOT") ?: error("Unable to find UCLOUD_TEST_SNAPSHOT env variable")
             )
         ).executeToText()
+
+        runBlocking {
+            val hosts = setOf("ucloud.localhost.direct", "k8.localhost.direct", "slurm.localhost.direct")
+            for (host in hosts) {
+                rpcClient.call(
+                    FaultInjections.clearCaches,
+                    Unit,
+                    OutgoingHttpCall,
+                    afterHook = {
+                        it.attributes.outgoingTargetHost = HostInfo(host, "https", 443)
+                    }
+                )
+            }
+        }
     }
 
     @TestFactory
@@ -193,7 +209,7 @@ abstract class UCloudTest {
                     suite.numberOfTests++
 
                     definedTests.add(DynamicTest.dynamicTest("${suite.title}/${case.subtitle}") {
-                        if (didInitialRestore.compareAndSet(false, true)) restoreSnapshot()
+                        restoreSnapshot()
 
                         runBlocking {
                             repeat(3) { println() }

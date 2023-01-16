@@ -105,6 +105,10 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
         return BinaryDebugMessageType.CLIENT_REQUEST;
     }
 
+    get typeString(): string {
+        return binaryDebugMessageTypeToString(this.type);
+    }
+
     get ctxGeneration(): number {
         return Number(readInt8(this.buffer, this.offset + 1));
     }
@@ -131,12 +135,12 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
 }
 
 export class Log extends BaseBinaryDebugMessage {
-    constructor(buffer: DataView, offset: number) {
-        super(buffer, offset);
-    }
-
     get type(): BinaryDebugMessageType {
         return BinaryDebugMessageType.LOG;
+    }
+
+    get typeString(): string {
+        return BinaryDebugMessageType[this.type];
     }
 
     get message(): LargeText {
@@ -149,12 +153,16 @@ export class Log extends BaseBinaryDebugMessage {
 }
 
 // Contexts
-enum DebugContextType {
+export enum DebugContextType {
     CLIENT_REQUEST = 0,
     SERVER_REQUEST = 1,
     DATABASE_TRANSACTION = 2,
     BACKGROUND_TASK = 3,
     OTHER = 4,
+}
+
+export function debugContextToString(ctx: DebugContextType): string {
+    return DebugContextType[ctx];
 }
 
 export class DebugContext {
@@ -178,8 +186,16 @@ export class DebugContext {
         return readInt1(this.buffer, this.offset + 8) as MessageImportance;
     }
 
+    get importanceString(): string {
+        return MessageImportance[this.importance];
+    }
+
     get type(): DebugContextType {
         return readInt1(this.buffer, this.offset + 9) as DebugContextType;
+    }
+
+    get typeString(): string {
+        return debugContextToString(this.type);
     }
 
     get name(): string {
