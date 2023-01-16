@@ -50,8 +50,10 @@ data class NormalProjectInitialization(
 )
 
 suspend fun initializeRootProject(
-    providers: Set<String>
+    providers: Set<String>,
+    admin: AuthenticatedClient? = null
 ): String {
+    val adminClient = admin ?: adminClient
     val rootProject = Projects.create.call(
         bulkRequestOf(
             Project.Specification(
@@ -85,9 +87,12 @@ suspend fun initializeNormalProject(
     rootProject: String,
     initializeWallet: Boolean = true,
     amount: Long = 10_000_000_000,
-    userRole: Role = Role.USER
+    userRole: Role = Role.USER,
+    admin: CreatedUser? = null
 ): NormalProjectInitialization {
-    val (piClient, piUsername) = createUser(role = userRole)
+    val adminClient = admin?.client ?: adminClient
+    val adminUsername = admin?.username ?: adminUsername
+    val (piClient, piUsername) = createUser(username = "pi-${Random.nextLong()}", role = userRole)
 
     val projectId = Projects.create.call(
         bulkRequestOf(
