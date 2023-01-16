@@ -10,6 +10,7 @@ import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudTestSuiteBuilder
@@ -126,12 +127,21 @@ suspend fun initializeResourceTestContext(
 
             val relevantProviders = connectableProviders.filter { it.providerTitle in providers }
             for (provider in relevantProviders) {
-                val redirectTo = Integration.connect.call(
-                    IntegrationConnectRequest(provider.provider),
-                    client
-                ).orThrow().redirectTo
+                try {
+                    val redirectTo = Integration.connect.call(
+                        IntegrationConnectRequest(provider.provider),
+                        client
+                    ).orThrow().redirectTo
 
-                httpClient.get(redirectTo)
+                    httpClient.get(redirectTo)
+                } catch (ex: RPCException) {
+                    if (ex.httpStatusCode == HttpStatusCode.BadRequest &&
+                        ex.why.contains("not supported by this provider")) {
+                        // Ignore
+                    } else {
+                        throw ex
+                    }
+                }
             }
         }
     }

@@ -821,7 +821,7 @@ class SlurmPlugin : ComputePlugin {
             ComputeSupport(
                 ref,
                 docker = ComputeSupport.Docker(
-                    enabled = true,
+                    enabled = pluginConfig.udocker.enabled,
                     logs = true,
                     timeExtension = false,
                     terminal = pluginConfig.terminal.enabled,

@@ -24,7 +24,6 @@ class FileTest : IntegrationTest() {
     )
 
     override fun defineTests() {
-        testFilter = { title, subtitle -> title.contains("slurm") }
         val cases: List<TestCase> = runBlocking {
             val allProducts = findProducts(findProviderIds())
             val productsByProviders = allProducts.groupBy { it.category.provider }

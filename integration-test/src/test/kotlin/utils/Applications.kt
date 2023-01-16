@@ -106,11 +106,50 @@ object ApplicationTestData {
     lateinit var figletTool: Tool
     lateinit var figletBatch: ApplicationWithFavoriteAndTags
     lateinit var figletLongRunning: ApplicationWithFavoriteAndTags
+    lateinit var slurmNativeTool: Tool
+    lateinit var slurmNativeBatch: ApplicationWithFavoriteAndTags
+    lateinit var slurmNativeLongRunning: ApplicationWithFavoriteAndTags
 
-    suspend fun create() {
+    private suspend fun createTool(name: String, version: String, toolYaml: String): Tool {
         ToolStore.create.call(
             Unit,
             adminClient.withHttpBody(
+                toolYaml,
+                ContentType("text", "yaml")
+            )
+        ).throwIfInternalOrBadRequest()
+
+        return ToolStore.findByNameAndVersion.call(
+            FindByNameAndVersion(name, version),
+            adminClient
+        ).orThrow()
+    }
+
+    private suspend fun createApp(name: String, version: String, appYaml: String): ApplicationWithFavoriteAndTags {
+        AppStore.create.call(
+            Unit,
+            adminClient.withHttpBody(appYaml, ContentType("text", "yaml"))
+        ).throwIfInternalOrBadRequest()
+
+        AppStore.setPublic.call(
+            SetPublicRequest(name, version, true),
+            adminClient
+        ).orThrow()
+
+        return AppStore.findByNameAndVersion.call(
+            FindApplicationAndOptionalDependencies(name, version),
+            adminClient
+        ).orThrow()
+    }
+
+    suspend fun create() {
+        // ==========================================================
+        // Docker based applications
+        // ==========================================================
+        run {
+            figletTool = createTool(
+                "figlet",
+                "1.0.0",
                 """
                     ---
                     tool: v1
@@ -134,52 +173,47 @@ object ApplicationTestData {
 
                     backend: DOCKER
                 """.trimIndent(),
-                ContentType("text", "yaml")
             )
-        ).throwIfInternalOrBadRequest()
 
-        AppStore.create.call(
-            Unit,
-            adminClient.withHttpBody(
+            figletBatch = createApp(
+                "figlet",
+                "1.0.0",
                 """
-                   ---
-                   application: v1
+                    ---
+                    application: v1
 
-                   title: Figlet
-                   name: figlet
-                   version: 1.0.0
+                    title: Figlet
+                    name: figlet
+                    version: 1.0.0
 
-                   tool:
-                     name: figlet
-                     version: 1.0.0
+                    tool:
+                      name: figlet
+                      version: 1.0.0
 
-                   authors:
-                   - Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+                    authors:
+                    - Dan Sebastian Thrane <dthrane@imada.sdu.dk>
 
-                   description: >
-                     Render some text with Figlet Docker!
+                    description: >
+                      Render some text with Figlet Docker!
 
-                   invocation:
-                   - figlet
-                   - type: var
-                     vars: text
-                     
-                   parameters:
-                     text:
-                       title: "Some text to render with figlet"
-                       type: text
-                   
-                   allowAdditionalMounts: true
-                   applicationType: WEB
-     
+                    invocation:
+                    - figlet
+                    - type: var
+                      vars: text
+                      
+                    parameters:
+                      text:
+                        title: "Some text to render with figlet"
+                        type: text
+                    
+                    allowAdditionalMounts: true
+                    applicationType: WEB
                 """.trimIndent(),
-                ContentType("text", "yaml")
             )
-        ).throwIfInternalOrBadRequest()
 
-        AppStore.create.call(
-            Unit,
-            adminClient.withHttpBody(
+            figletLongRunning = createApp(
+                "long-running",
+                "1.0.0",
                 """
                     ---
                     application: v1
@@ -201,32 +235,106 @@ object ApplicationTestData {
                     - figlet-count
                     - 1000000000
                 """.trimIndent(),
-                ContentType("text", "yaml")
             )
-        ).throwIfInternalOrBadRequest()
+        }
 
-        figletTool = ToolStore.findByNameAndVersion.call(
-            FindByNameAndVersion("figlet", "1.0.0"),
-            adminClient
-        ).orThrow()
+        // ==========================================================
+        // Native (for Slurm) based applications
+        // ==========================================================
+        run {
+            slurmNativeTool = createTool(
+                "slurm-native",
+                "1.0.0",
+                """
+                    ---
+                    tool: v1
+                    backend: "NATIVE"
+                    
+                    title: "slurm-native"
+                    name: "slurm-native"
+                    version: "1.0.0"
+                    
+                    authors: ["UCloud"]
+                    description: "Slurm native tool"
+                    
+                    defaultNumberOfNodes: 1
+                    defaultTasksPerNode: 1
+                    requiredModules: []
+                    supportedProviders: ["slurm"]
+                """.trimIndent()
+            )
 
-        figletBatch = AppStore.findByNameAndVersion.call(
-            FindApplicationAndOptionalDependencies("figlet", "1.0.0"),
-            adminClient
-        ).orThrow()
+            slurmNativeBatch = createApp(
+                "slurm-native",
+                "1.0.0",
+                """
+                    ---
+                    application: v1
+                    applicationType: WEB
 
-        figletLongRunning = AppStore.findByNameAndVersion.call(
-            FindApplicationAndOptionalDependencies("long-running", "1.0.0"),
-            adminClient
-        ).orThrow()
+                    title: "slurm-native"
+                    name: "slurm-native"
+                    version: "1.0.0"
+                    
+                    tool:
+                      name: slurm-native
+                      version: 1.0.0
 
-        val apps = listOf(figletBatch, figletLongRunning)
+                    authors: ["UCloud"]
+                    description: Slurm native application
 
-        for (app in apps) {
-            AppStore.setPublic.call(
-                SetPublicRequest(app.metadata.name, app.metadata.version, true),
-                adminClient
-            ).orThrow()
+                    allowMultiNode: false
+                    allowAdditionalMounts: true
+                    
+                    invocation:
+                    - /bin/echo
+                    - type: var
+                      vars: text
+                      
+                    parameters:
+                      text:
+                        title: "Some text to render"
+                        type: text
+                """.trimIndent()
+            )
+
+            slurmNativeLongRunning = createApp(
+                "slurm-native-long",
+                "1.0.0",
+                """
+                    ---
+                    application: v1
+                    applicationType: WEB
+
+                    title: "slurm-native-long"
+                    name: "slurm-native-long"
+                    version: "1.0.0"
+
+                    tool:
+                      name: slurm-native
+                      version: 1.0.0
+
+                    authors: ["UCloud"]
+                    description: Slurm native application
+
+                    allowMultiNode: false
+                    allowAdditionalMounts: true
+                    
+                    
+                    invocation:
+                    - sh
+                    - -c
+                    - >
+                      echo "Hello, World!";
+                      sleep 2;
+                      echo "How are you doing?";
+                      sleep 1;
+                      echo "This is just me writing some stuff for testing purposes!";
+                      sleep 1;
+                      seq 0 7200 | xargs -n 1 -I _ sh -c 'echo _; sleep 1';
+                        
+                """.trimIndent()
+            )
         }
     }
 }

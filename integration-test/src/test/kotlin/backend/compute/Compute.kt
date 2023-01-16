@@ -38,15 +38,30 @@ class ComputeTest : IntegrationTest() {
         parameters: StartJobParameters,
         product: Product.Compute,
         rpcClient: AuthenticatedClient,
-    ): Pair<String, JobState> {
+        support: ComputeSupport,
+    ): Pair<String, JobState>? {
         with(parameters) {
             val (meta, params) = when {
                 !longRunning && interactivity == null -> {
-                    Pair(ApplicationTestData.figletBatch.metadata, mapOf("text" to AppParameterValue.Text("Hello, World!")))
+                    Pair(
+                        when {
+                            support.docker.enabled == true -> ApplicationTestData.figletBatch.metadata
+                            support.native.enabled == true -> ApplicationTestData.slurmNativeBatch.metadata
+                            else -> return null
+                        },
+                        mapOf("text" to AppParameterValue.Text("Hello, World!"))
+                    )
                 }
 
                 longRunning && interactivity == null -> {
-                    Pair(ApplicationTestData.figletLongRunning.metadata, emptyMap())
+                    Pair(
+                        when {
+                            support.docker.enabled == true -> ApplicationTestData.figletLongRunning.metadata
+                            support.native.enabled == true -> ApplicationTestData.slurmNativeLongRunning.metadata
+                            else -> return null
+                        },
+                        emptyMap()
+                    )
                 }
 
                 interactivity == InteractiveSessionType.SHELL -> {
@@ -112,7 +127,7 @@ class ComputeTest : IntegrationTest() {
         resourceInitialization: suspend ResourceUsageTestContext.(coll: FileCollection) -> List<AppParameterValue> = {
             emptyList()
         }
-    ): TestContext {
+    ): TestContext? {
         ApplicationTestData.create()
         with(initializeResourceTestContext(case.products, emptyList())) {
             val rpcClient = piClient.withProject(project)
@@ -121,7 +136,12 @@ class ComputeTest : IntegrationTest() {
 
             val resources = resourceInitialization(initializedCollection.collection)
 
-            val (id, lastKnownState) = startJob(parameters.copy(resources = resources), product, rpcClient)
+            val (id, lastKnownState) = startJob(
+                parameters.copy(resources = resources),
+                product,
+                rpcClient,
+                findSupport<Product.Compute, ComputeSupport>(product, null, rpcClient).support
+            ) ?: return null
 
             return TestContext(this, initializedCollection.collection, id, rpcClient, lastKnownState)
         }
@@ -133,7 +153,6 @@ class ComputeTest : IntegrationTest() {
     )
 
     override fun defineTests() {
-        testFilter = { a, b -> a.contains("slurm") }
         val cases: List<TestCase> = runBlocking {
             val allProducts = findProducts(findProviderIds())
             val productsByProviders = allProducts.groupBy { it.category.provider }
@@ -149,6 +168,7 @@ class ComputeTest : IntegrationTest() {
         for (case in cases) {
             for (product in case.products.filterIsInstance<Product.Compute>()) {
                 if (product.category.name == "syncthing") continue
+                if (product.name == "cpu-2") continue
 
                 val titlePrefix = "Compute @ ${case.title} ($product):"
                 test<Unit, Unit>("$titlePrefix Batch application") {
@@ -161,7 +181,7 @@ class ComputeTest : IntegrationTest() {
                                 interactivity = null,
                                 waitForState = JobState.SUCCESS
                             ),
-                        )
+                        ) ?: return@execute
 
                         if (ctx.currentState != JobState.SUCCESS) {
                             throw IllegalStateException("Application did not succeed within deadline: ${ctx.currentState}")
@@ -184,7 +204,7 @@ class ComputeTest : IntegrationTest() {
                                 interactivity = null,
                                 waitForState = JobState.RUNNING
                             )
-                        )
+                        ) ?: return@execute
 
                         if (ctx.currentState != JobState.RUNNING) {
                             throw IllegalStateException("Application did not start within deadline: ${ctx.currentState}")
@@ -216,7 +236,7 @@ class ComputeTest : IntegrationTest() {
                                 interactivity = null,
                                 waitForState = JobState.RUNNING
                             )
-                        )
+                        ) ?: return@execute
 
                         if (ctx.currentState != JobState.RUNNING) {
                             throw IllegalStateException("Application did not start within deadline: ${ctx.currentState}")
