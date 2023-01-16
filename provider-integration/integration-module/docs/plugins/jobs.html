@@ -422,11 +422,18 @@
                     </doc-prop>
                     <doc-prop name="useMachineSelector" type="boolean" default="false">
                         <p>
-                            If true, the matched set of products will be scheduled to nodes with a matching product label.
+                            If true, jobs from the matched set of products will be scheduled to nodes with a matching product label.
+                            Otherwise, let Kubernetes handle the scheduling.
                         </p>
                     </doc-prop>
                     <doc-prop name="categoryToSelector" type="map[string, string]">
-                        Used for scheduling jobs from the matched set of products from one category to
+                        <p>
+                            Schedule jobs from the matched set of products from one category to nodes with a different label.
+                        </p>
+                        <p>
+                            For example, <code>u1-standard-1=u1-standard</code> will schedule jobs in product category
+                            <code>u1-standard-1</code> to nodes with label <code>u1-standard</code>.
+                        </p>
                     </doc-prop>
                 </doc-sealed-container>
             </doc-prop>
@@ -441,13 +448,27 @@
                 </doc-sealed-container>
             </doc-prop>
             <doc-prop name="developmentMode" type="section">
+                <p>
+                    Configuration options mainly used for development purposes.
+                </p>
                 <doc-sealed-container>
                     <doc-prop name="fakeMemoryAllocation" type="boolean" default="false"></doc-prop>
                     <doc-prop name="fakeIpMount" type="boolean" default="false"></doc-prop>
                     <doc-prop name="usePortForwarding" type="boolean" default="false"></doc-prop>
                 </doc-sealed-container>
             </doc-prop>
-            <doc-prop name="scheduler" type="enum" default="Volcano"></doc-prop>
+            <doc-prop name="scheduler" type="enum" default="Volcano">
+                <doc-sealed-container>
+                    <doc-prop-container>
+                        <doc-prop name="Volcano" type="string">
+                            <p>The Volcano scheduler.</p>
+                        </doc-prop>
+                        <doc-prop name="Pods" type="string">
+                            <p>The Kubernetes scheduler.</p>
+                        </doc-prop>
+                    </doc-prop-container>
+                </doc-sealed-container>
+            </doc-prop>
             <doc-prop name="ssh" type="section">
                 <doc-sealed-container>
                     <doc-prop name="iface" type="string"></doc-prop>
