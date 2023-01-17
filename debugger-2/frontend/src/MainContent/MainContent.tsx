@@ -2,6 +2,8 @@ import * as React from "react";
 import {DebugContext, DebugContextType, MessageImportance} from "../WebSockets/Schema";
 import {activeService, logStore, replayMessages, setSessionState} from "../WebSockets/Socket";
 import "./MainContent.css";
+import {FixedSizeList as List} from "react-window";
+import AutoSizer from "react-virtualized-auto-sizer";
 
 export function MainContent({query, filters, levels}: {query: string, filters: Set<DebugContextType>, levels: string;}): JSX.Element {
     const [activeContext, setActiveContext] = React.useState<DebugContext | null>(null);
@@ -14,8 +16,8 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
             if (d === current) {
                 return null;
             }
-
-            replayMessages("dfoo", d.id, 0);
+        
+            replayMessages(activeService.generation, d.id, 0);
 
             return d;
         });
@@ -30,20 +32,27 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
     }, [query, filters, levels]);
 
     const serviceLogs = logs.content[service] ?? [];
+    console.log(serviceLogs, service);
 
-    return <div className="main-content">
+    return <div className="main-content flex">
         {!service ? <h3>Select a service to view requests</h3> :
             <>
                 <BreadCrumbs routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
                 <RequestDetails activeContext={activeContext} />
-                <RequestView>
-                    {serviceLogs.map(it =>
-                        <DebugContextRow isActive={activeContext === it} setDebugContext={setContext} debugContext={it} />
-                    )}
-                </RequestView>
+                <AutoSizer defaultHeight={200}>
+                    {({height, width}) => {
+                        console.log(height, width)
+                        return <List itemData={serviceLogs} height={height} width={width} itemSize={16} itemCount={serviceLogs.length} className="card list">
+                            {({index, data}) => {
+                                const item = data[index];
+                                return <DebugContextRow setDebugContext={setContext} debugContext={item} isActive={activeContext === item} />
+                            }}
+                        </List>;
+                    }}
+                </AutoSizer>
             </>
         }
-    </div>
+    </div >
 }
 
 function DebugContextRow({debugContext, setDebugContext, isActive}: {isActive: boolean; debugContext: DebugContext; setDebugContext(ctx: DebugContext): void;}): JSX.Element {
@@ -73,14 +82,6 @@ function RequestDetails({activeContext}: {activeContext: DebugContext | null}): 
         </div>
     </div>;
 }
-
-function RequestView({children}: {children: React.ReactNode}): JSX.Element {
-    return <div className="card list">
-        {children}
-    </div>;
-}
-
-
 
 function BreadCrumbs({routeComponents, setRouteComponents}: {routeComponents: string; setRouteComponents: (route: string) => void;}): JSX.Element {
     if (!routeComponents) return <div />

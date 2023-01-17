@@ -56,12 +56,12 @@ fun main(args: Array<String>) {
                     val oldServices = trackedServices.get()
 
                     // Notify clients of new services
-                    val servicesWhichAreNew = newServices.keys.filter { it !in oldServices }
+                    val servicesWhichAreNew = newServices.filter { !oldServices.keys.contains(it.key) }
                     if (servicesWhichAreNew.isNotEmpty()) {
                         sessionMutex.withLock {
                             for (session in sessions) {
-                                for (service in servicesWhichAreNew) {
-                                    session.acceptService(service)
+                                for ((_, service) in servicesWhichAreNew) {
+                                    session.acceptService(service.title, service.generation)
                                 }
                             }
                         }
@@ -99,10 +99,10 @@ fun main(args: Array<String>) {
 
                     // Open new log files
                     run {
-                        for (service in currentServices) {
+                        for ((_, service) in currentServices) {
                             var idx = 0
                             while (true) {
-                                if (!LogFileReader.exists(directory, service.value.generation, idx)) {
+                                if (!LogFileReader.exists(directory, service.generation, idx)) {
                                     idx--
                                     break
                                 }
@@ -112,12 +112,12 @@ fun main(args: Array<String>) {
                             if (idx < 0) continue
 
                             val shouldOpen = openLogFiles.none {
-                                it.generation == service.value.generation && it.idx == idx
+                                it.generation == service.generation && it.idx == idx
                             }
 
                             if (shouldOpen) {
                                 println("Opening $directory $service $idx")
-                                val openFile = LogFileReader(directory, service.value.generation, idx)
+                                val openFile = LogFileReader(directory, service.generation, idx)
                                 openFile.seekToEnd()
                                 openLogFiles.add(openFile)
                             }
@@ -159,6 +159,7 @@ fun main(args: Array<String>) {
                                 // Close if generation is no longer valid
                                 currentServices.none { it.value.generation == contextFile.generation }
                             // TODO Close files which are no longer actively used
+                            // What does this mean? This should probably depend on the ReplayMessage request.
 
                             if (shouldClose) {
                                 println("Closing context")
@@ -170,10 +171,10 @@ fun main(args: Array<String>) {
 
                     // Open new files
                     run {
-                        for (service in currentServices) {
+                        for ((_, service) in currentServices) {
                             var idx = 1
                             while (true) {
-                                if (!ContextReader.exists(directory, service.value.generation, idx)) {
+                                if (!ContextReader.exists(directory, service.generation, idx)) {
                                     idx--
                                     break
                                 }
@@ -183,12 +184,12 @@ fun main(args: Array<String>) {
                             if (idx < 0) continue
 
                             val shouldOpen = openContextFiles.none {
-                                it.generation == service.value.generation && it.idx == idx
+                                it.generation == service.generation && it.idx == idx
                             }
 
                             if (shouldOpen) {
                                 println("Opening context $directory $service $idx")
-                                val openFile = ContextReader(directory, service.value.generation, idx)
+                                val openFile = ContextReader(directory, service.generation, idx)
 //                                openFile.seekToEnd()
                                 openContextFiles.add(openFile)
                             }
@@ -242,8 +243,8 @@ fun main(args: Array<String>) {
                 }
 
                 // Send every registered service to the new session
-                trackedServices.get().forEach { (service) ->
-                    session.acceptService(service)
+                trackedServices.get().forEach { (_, service) ->
+                    session.acceptService(service.title, service.generation)
                 }
 
                 try {
@@ -258,7 +259,11 @@ fun main(args: Array<String>) {
 
                         when (request) {
                             is ClientRequest.ReplayMessages -> {
-                                // TODO
+                                session.activeContext = request.context
+                                // By this point, we have contextId, generation and timestamp. We should be able to look through a file and read.
+                                // Log file -should- be of names "${request.generation}-${id}.log", but how do we get .id?
+                                request.generation
+                                request.timestamp
                             }
 
                             is ClientRequest.ActivateService -> {
@@ -267,7 +272,7 @@ fun main(args: Array<String>) {
 
                             is ClientRequest.SetSessionState -> {
                                 session.filterQuery = request.query
-                                session.minimumLevel = request.level ?: MessageImportance.TELL_ME_EVERYTHING
+                                session.minimumLevel = request.level ?: MessageImportance.THIS_IS_NORMAL
                                 // TODO(Jonas): Filters
                             }
                         }
@@ -288,7 +293,7 @@ fun main(args: Array<String>) {
 sealed class ClientRequest {
     @Serializable
     @SerialName("replay_messages")
-    data class ReplayMessages(val generation: String, val context: Int, val timestamp: Long) : ClientRequest()
+    data class ReplayMessages(val generation: String, val context: Long, val timestamp: Long) : ClientRequest()
 
     @Serializable
     @SerialName("activate_service")
@@ -403,16 +408,27 @@ data class ClientSession(
         }
     }
 
-    suspend fun acceptService(serviceName: String) {
+    suspend fun acceptService(serviceName: String, generation: Long) {
+        // NOTE(Jonas): An additional byte (type) is in the buffer ahead of this, making it 264 bytes long in total.
+        val MAX_GENERATION_LENGTH = 16
+        val MAX_SERVICENAME_LENGTH = 256 - MAX_GENERATION_LENGTH
+
         writeMutex.withLock {
-            val encoded = serviceName.encodeToByteArray()
-            if (encoded.size >= 256) return
-            if (newServiceWriteBuffer.remaining() < 256) return
+            val encodedServiceName = serviceName.encodeToByteArray()
+            if (encodedServiceName.size >= MAX_SERVICENAME_LENGTH) return
+            if (newServiceWriteBuffer.remaining() < MAX_SERVICENAME_LENGTH) return
 
-            newServiceWriteBuffer.put(encoded)
+            val encodedGeneration = generation.toString().encodeToByteArray()
+            if (encodedGeneration.size >= MAX_GENERATION_LENGTH) return
 
-            val emptyBytes = ByteArray(256 - encoded.size)
+            newServiceWriteBuffer.put(encodedServiceName)
+
+            val emptyBytes = ByteArray(MAX_SERVICENAME_LENGTH - encodedServiceName.size)
             newServiceWriteBuffer.put(emptyBytes)
+
+            newServiceWriteBuffer.put(encodedGeneration)
+            val emptyGenerationBytes = ByteArray(MAX_GENERATION_LENGTH - encodedGeneration.size)
+            newServiceWriteBuffer.put(emptyGenerationBytes)
         }
     }
 }

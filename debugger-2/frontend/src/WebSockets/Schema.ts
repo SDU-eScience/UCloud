@@ -174,10 +174,12 @@ export class DebugContext {
         this.offset = offset;
     }
 
+    /* Context ID */
     get parent(): number {
         return readInt4(this.buffer, this.offset + 0);
     }
 
+    /* Also Context ID? */
     get id(): number {
         return readInt4(this.buffer, this.offset + 4);
     }
@@ -212,5 +214,9 @@ function readNameFromBuffer(buffer: DataView, offset: number, size: number) {
 }
 
 export function getServiceName(buffer: DataView) {
-    return readNameFromBuffer(buffer, 8, 256 - 8);
+    return readNameFromBuffer(buffer, 8, 264 - 16);
+}
+
+export function getGenerationName(buffer: DataView) {
+    return readNameFromBuffer(buffer, 264 - 16, 16); 
 }

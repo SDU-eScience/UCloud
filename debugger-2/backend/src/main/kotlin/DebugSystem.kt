@@ -377,14 +377,14 @@ class DebugContextDescriptor(buf: ByteBuffer, ptr: Int) : BinaryFrame(buf, ptr) 
             Schema.name.setValue(this, this::name, shortName.encodeToByteArray())
         }
 
-    fun setChild(idx: Int, childContext: Int) {
+    private fun setChild(idx: Int, childContext: Int) {
         require(idx in 0..255) { "index out of bounds $idx not in 0..255" }
         val relativeContext = childContext - id
         if (relativeContext >= Short.MAX_VALUE || relativeContext <= 0) return
         buf.putShort(children.offset + idx * 2, relativeContext.toShort())
     }
 
-    fun getChild(idx: Int): Int {
+    private fun getChild(idx: Int): Int {
         require(idx in 0..255) { "index out of bounds $idx not in 0..255" }
         return id + buf.getShort(children.offset + idx * 2)
     }

@@ -1,4 +1,4 @@
-import {Log, DebugContext, getServiceName, DebugContextType} from "./Schema";
+import {Log, DebugContext, getServiceName, DebugContextType, getGenerationName} from "./Schema";
 
 let socket: WebSocket | null = null;
 let options: SocketOptions;
@@ -42,14 +42,15 @@ function initializeSocket() {
         switch (Number(view.getBigInt64(0, false))) {
             case 1:
                 const service = getServiceName(view);
-                serviceStore.attemptAdd(service);
+                const generation = getGenerationName(view);
+                serviceStore.attemptAdd(service, generation);
                 break;
 
             case 2:
                 const numberOfEntries = (message.length - 8) / 388;
                 for (let i = 0; i < numberOfEntries; i++) {
                     const log = new DebugContext(view, 8 + i * 388);
-                    console.log(log.id, log.importanceString, log.name, log.parent, log.typeString);
+                    // console.log(log.id, log.importanceString, log.name, log.parent, log.typeString);
                     logStore.addDebugContext(log);
                 }
                 break;
@@ -58,7 +59,7 @@ function initializeSocket() {
                 const numberOfEntries = (message.length - 8) / 256;
                 for (let i = 0; i < numberOfEntries; i++) {
                     const log = new Log(view, 8 + i * 256);
-                    console.log(log.ctxGeneration, log.ctxId, log.ctxParent, log.importance, log.timestamp, log.typeString, log.message, log.extra);
+                    // console.log(log.ctxGeneration, log.ctxId, log.ctxParent, log.importance, log.timestamp, log.typeString, log.message, log.extra);
                 }
                 break;
             }
@@ -68,14 +69,20 @@ function initializeSocket() {
 
 export const activeService = new class {
     private activeService: string = "";
+    private activeGeneration: string = "";
     private subscriptions: (() => void)[] = [];
 
     public get service() {
         return this.activeService;
     }
 
+    public get generation() {
+        return this.activeGeneration;
+    }
+
     public setService(service: string): void {
         this.activeService = service;
+        this.activeGeneration = serviceStore.getGeneration(service);
         if (socket) {
             socket.send(activateServiceRequest(service));
             this.emitChange();
@@ -139,11 +146,17 @@ export const logStore = new class {
 
 export const serviceStore = new class {
     private services: string[] = [];
+    private generations: Record<string, string> = {};
     private subscriptions: (() => void)[] = [];
 
-    public attemptAdd(entry: string): void {
+    public attemptAdd(entry: string, generation: string): void {
         this.services = [...this.services, entry];
+        this.generations[entry] = generation;
         this.emitChange();
+    }
+    
+    public getGeneration(service: string): string {
+        return this.generations[service] ?? "";
     }
 
     public subscribe(subscription: () => void) {
