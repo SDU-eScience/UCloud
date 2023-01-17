@@ -2,15 +2,13 @@ properties([
     buildDiscarder(logRotator(numToKeepStr: '30')),
 ])
 
-def label = "worker-${UUID.randomUUID().toString()}"
-def postgresPassword = UUID.randomUUID().toString()
 
 // NOTE(Dan): We should definitely not attempt to run these builds on untrusted builds. The Kubernetes cluster we start
 // is capable of doing quite a lot of damage. We should at the very least not run Kubernetes based tests on untrusted
 // builds.
 
 
-node (label) {
+node {
     sh label: '', script: 'java -version'
     if (env.BRANCH_NAME == 'devel-testing') {
         stage('Checkout') {
