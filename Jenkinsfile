@@ -10,7 +10,7 @@ properties([
 
 node {
     sh label: '', script: 'java -version'
-    if (env.BRANCH_NAME == 'devel-testing') {
+    if (env.BRANCH_NAME == 'devel-test') {
         stage('Checkout') {
             checkout(
                 [
