@@ -61,13 +61,13 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             }
 
         jobCache = VerifiedJobCache(rpcClient)
-        val nameAllocator = NameAllocator(pluginConfig.namespace)
+        val nameAllocator = NameAllocator(pluginConfig.kubernetes.namespace)
         k8 = K8DependenciesImpl(
             KubernetesClient(
-                if (pluginConfig.kubeSvcOverride != null) {
-                    KubernetesConfigurationSource.InClusterConfiguration(pluginConfig.kubeSvcOverride)
-                } else if (pluginConfig.kubeConfig != null) {
-                    KubernetesConfigurationSource.KubeConfigFile(pluginConfig.kubeConfig, null)
+                if (pluginConfig.kubernetes.serviceUrl != null) {
+                    KubernetesConfigurationSource.InClusterConfiguration(pluginConfig.kubernetes.serviceUrl)
+                } else if (pluginConfig.kubernetes.configPath != null) {
+                    KubernetesConfigurationSource.KubeConfigFile(pluginConfig.kubernetes.configPath, null)
                 } else {
                     KubernetesConfigurationSource.Auto
                 }
@@ -80,10 +80,10 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
         )
 
         runtime = when (pluginConfig.scheduler) {
-            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Volcano -> VolcanoRuntime(k8, pluginConfig.categoryToSelector,
-                pluginConfig.fakeIpMount, pluginConfig.usePortForwarding)
-            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> K8PodRuntime(k8.client, pluginConfig.namespace,
-                pluginConfig.categoryToSelector, pluginConfig.fakeIpMount, pluginConfig.usePortForwarding)
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Volcano -> VolcanoRuntime(k8, pluginConfig.kubernetes.categoryToSelector,
+                pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> K8PodRuntime(k8.client, pluginConfig.kubernetes.namespace,
+                pluginConfig.kubernetes.categoryToSelector, pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
         }
 
         nameAllocator.runtime = runtime
@@ -115,12 +115,12 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
         with(jobManagement) {
             register(
                 FeatureTask(
-                    pluginConfig.nodeToleration,
-                    pluginConfig.forceMinimumReservation,
-                    pluginConfig.useMachineSelector,
+                    pluginConfig.kubernetes.nodeToleration,
+                    pluginConfig.developmentMode.fakeMemoryAllocation,
+                    pluginConfig.kubernetes.useMachineSelector,
                     NodeConfiguration(
-                        pluginConfig.systemReservedCpuMillis,
-                        pluginConfig.systemReservedCpuMillis,
+                        pluginConfig.systemReserved.cpuMillis,
+                        pluginConfig.systemReserved.memGigabytes * 1000,
                         run {
                             val result = HashMap<String, NodeType>()
                             val allTypes = productAllocationResolved

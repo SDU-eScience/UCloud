@@ -373,18 +373,170 @@
             <doc-prop name="type" type='"UCloud"' required></doc-prop>
             <doc-prop name="matches" type="string" required></doc-prop>
 
-            <doc-prop name="kubeConfig" type="string"></doc-prop>
-            <doc-prop name="kubeSvcOverride" type="string"></doc-prop>
-            <doc-prop name="useMachineSelector" type="boolean" default="false"></doc-prop>
-            <doc-prop name="systemReservedCpuMillis" type="int" default="0"></doc-prop>
-            <doc-prop name="systemReservedMemMegabytes" type="int" default="0"></doc-prop>
-            <doc-prop name="forceMinimumReservation" type="boolean" default="false"></doc-prop>
-            <doc-prop name="nodeToleration" type="section"></doc-prop>
-            <doc-prop name="namespace" type="string" default="app-kubernetes"></doc-prop>
-            <doc-prop name="scheduler" type="enum" default="Volcano"></doc-prop>
-            <doc-prop name="categoryToSelector" type="map[string, string]"></doc-prop>
-            <doc-prop name="fakeIpMount" type="boolean" default="false"></doc-prop>
-            <doc-prop name="ssh" type="section"></doc-prop>
+            <doc-prop name="kubernetes" type="section">
+                <doc-sealed-container>
+                    <doc-prop name="namespace" type="string" default="app-kubernetes">
+                       <p>
+                           The Kubernetes namespace to use for jobs scheduled by this plugin.
+                       </p>
+                    </doc-prop>
+                    <doc-prop name="configPath" type="string">
+                        <p>
+                            Path for a custom Kubernetes configuration file. If this property is not specified, then it
+                            will attempt to use the default Kubernetes configuration or an in-cluster configuration.
+                            This is similar to how <code>kubectl</code> works.
+                        </p>
+                        <p>
+                            <strong>Note:</strong> If <code>serviceUrl</code> is set, this will not be used.
+                            If neither this or <code>serviceUrl</code> is set, a default configuration will be used.
+                        </p>
+                    </doc-prop>
+                    <doc-prop name="serviceUrl" type="string">
+                        <p>
+                            Override URL for the Kubernetes service. Should be defined if Kubernetes is not running on
+                            the same machine as the Integration module.
+                        </p>
+                        <p>
+                            <strong>Note:</strong> If this is set <code>configPath</code> will not be used.
+                        </p>
+                    </doc-prop>
+                    <doc-prop name="nodeToleration" type="section">
+                        <p>
+                            If set, the matched set of products will only be scheduled to <i>tainted</i> nodes with
+                            matching <code>key</code> and <code>value</code>.
+                        </p>
+                        <p>
+                            Read more: <a href="https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/">Kubernetes documentation: Taints and Tolerations</a>.
+                        </p>
+
+                        <doc-sealed-container>
+                            <doc-prop name="key" type="string">
+                                <p>
+                                    Key of the taint applied to one or more nodes.
+                                </p>
+                            </doc-prop>
+                            <doc-prop name="value" type="string">
+                                <p>
+                                    Value of the taint/key to match.
+                                </p>
+                            </doc-prop>
+                        </doc-sealed-container>
+                    </doc-prop>
+                    <doc-prop name="useMachineSelector" type="boolean" default="false">
+                        <p>
+                            If true, jobs from the matched set of products will be scheduled to nodes with a matching 
+                            product label. Otherwise, let Kubernetes handle the scheduling. The nodes must use the 
+                            label <code>ucloud.dk/machine</code>. The label should contain the product category or one
+                            of the aliases specified in <code>categoryToSelector</code>. For example, a machine of
+                            type <code>u1-standard</code> should have the following label
+                            <code>ucloud.dk/machine: u1-standard</code>.
+                        </p>
+                    </doc-prop>
+                    <doc-prop name="categoryToSelector" type="map[string, string]">
+                        <p>
+                            This changes which label is used to select the node. This property extends
+                            <code>useMachineSelector</code>. As a result, this property is also only used if
+                            this property is set to <code>true</code>. This property is used to map multiple product
+                            categories to a single machine type. This can be beneficial when you have products that may
+                            use different payment mechanisms but all map to a single physical node type.
+                        </p>
+                        <p>
+                            For example, if you have a category called <code>u1-standard</code> (DKK/hour) and another
+                            category <code>u1-standard-h</code> (Core hours) that both map to the same physical node
+                            type. Assuming that the nodes are all labeled with
+                            <code>ucloud.dk/machine: u1-standard</code>, then you can use the following configuration:
+                        </p>
+                        <doc-snippet>
+                            useMachineSelector: true
+                            categoryToSelector:
+                                u1-standard-h: u1-standard
+                        </doc-snippet>
+                    </doc-prop>
+                </doc-sealed-container>
+            </doc-prop>
+            <doc-prop name="systemReserved" type="section">
+                <p>
+                    Control the resources reserved for system processes. This is useful for preventing jobs from
+                    consuming all resources of a node. We recommend that you set this property in a production
+                    environment. If you observe node instability and jobs being killed with <code>OOMError</code> then
+                    you may want to increase the limits listed in this section. The properties listed here are the
+                    amount of resources reserved for <i>your</i> system. Thus, if you have <code>memGigabytes: 4</code>
+                    then the entire machines memory except for the last 4GB will be used for job allocations.
+                </p>
+                <doc-sealed-container>
+                    <doc-prop name="cpuMillis" type="int" default="0">
+                        <p>
+                            The number of milli-vCPUs to reserve for the system.
+                        </p>
+                    </doc-prop>
+                    <doc-prop name="memGigabytes" type="int" default="0">
+                        <p>
+                            The number of gigabytes of memory to reserve for the system.
+                        </p>
+                    </doc-prop>
+                </doc-sealed-container>
+            </doc-prop>
+            <doc-prop name="developmentMode" type="section">
+                <p>
+                    Configuration options mainly used for development purposes.
+                </p>
+                <doc-sealed-container>
+                    <doc-prop name="fakeMemoryAllocation" type="boolean" default="false">
+                        <p>
+                            Causes all memory allocations (and CPU allocations) to use a very small value. This is 
+                            used to ensure that all the resources of the development machine isn't used to run jobs.
+                        </p>
+                    </doc-prop>
+
+                    <doc-prop name="fakeIpMount" type="boolean" default="false">
+                        <p>
+                            Causes the code to skip normal IP mounting and simply uses a fake mechanism. This can be 
+                            useful to test the remaining IP code without the need for any public IP availability.
+                        </p>
+                    </doc-prop>
+
+                    <doc-prop name="usePortForwarding" type="boolean" default="false">
+                        <p>
+                            For interactive apps, such as <code>WEB</code> apps, this causes the code to use port 
+                            forwarding to reach the application as opposed to a direct connection. This is useful when 
+                            the integration module isn't running as part of a Kubernetes cluster.
+                        </p>
+                    </doc-prop>
+                </doc-sealed-container>
+            </doc-prop>
+            <doc-prop name="scheduler" type="enum" default="Volcano">
+                <doc-sealed-container>
+                    <doc-prop-container>
+                        <doc-prop name="Volcano" type="string">
+                            <p>
+                                Uses the <a href="https://volcano.sh">Volcano scheduler.</a> The Volcano scheduler 
+                                must be installed separately. We refer to their documentation.
+                            </p>
+                            <p>
+                                This causes all jobs scheduled to use the Volcano scheduler using their primitives.
+                                When a job has multiple replicas then this should ensure that they are all scheduled
+                                together (i.e. gang scheduling).
+                            </p>
+                        </doc-prop>
+                        <doc-prop name="Pods" type="string">
+                            <p>
+                                Schedules all UCloud jobs using raw pods. There are no guarantees that multi replica
+                                jobs are scheduled together. However, you do not have to install any extra dependencies
+                                in your cluster.
+                            </p>
+                        </doc-prop>
+                    </doc-prop-container>
+                </doc-sealed-container>
+            </doc-prop>
+            <doc-prop name="ssh" type="section">
+                <doc-sealed-container>
+                    <doc-prop name="iface" type="string"></doc-prop>
+                    <doc-prop name="privateCidr" type="string"></doc-prop>
+                    <doc-prop name="publicHostname" type="string"></doc-prop>
+                    <doc-prop name="portMin" type="int"></doc-prop>
+                    <doc-prop name="portMax" type="int"></doc-prop>
+                </doc-sealed-container>
+            </doc-prop>
         </doc-prop-container>
     </section>
 
