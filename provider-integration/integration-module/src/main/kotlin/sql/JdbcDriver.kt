@@ -71,7 +71,6 @@ abstract class JdbcDriver : DBContext.ConnectionFactory() {
     }
 }
 
-
 class JdbcConnection(
     private val connection: JavaSqlConnection,
     private val pool: SimpleConnectionPool
