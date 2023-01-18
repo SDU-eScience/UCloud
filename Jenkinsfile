@@ -37,16 +37,16 @@ node {
         //Delete current environment if any
 
         sh script: """
-            docker rm -f \$(docker ps -q)
-            docker volume rm -f \$(docker volume ls -q)
-            docker network rm  \$(docker network ls -q)
+            docker rm -f \$(docker ps -q) || true
+            docker volume rm -f \$(docker volume ls -q) || true
+            docker network rm  \$(docker network ls -q) || true
             
-            docker rm -f \$(docker ps -q)
-            docker volume rm -f \$(docker volume ls -q)
-            docker network rm  \$(docker network ls -q)
+            docker rm -f \$(docker ps -q) || true
+            docker volume rm -f \$(docker volume ls -q) || true
+            docker network rm  \$(docker network ls -q) || true
             
-            docker volume prune 
-            docker network prune 
+            docker volume prune || true
+            docker network prune || true
         """
 
         //Create new environment with providers installed
