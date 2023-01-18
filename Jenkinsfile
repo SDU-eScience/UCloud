@@ -36,15 +36,15 @@ node {
 
         //Delete current environment if any
 
-        sh script './launcher env delete'
+        sh script: './launcher env delete'
 
         //Create new environment with providers installed
 
-        sh script './launcher init --all-providers'
+        sh script: './launcher init --all-providers'
 
         //Create Snapshot of DB to test purpose. Use "t"+timestamp for UNIQUE ID
 
-        sh script './launcher snapshot $ID'
+        sh script. './launcher snapshot $jobName'
 
         //Save log files from UCLoud and gradle build report
 
