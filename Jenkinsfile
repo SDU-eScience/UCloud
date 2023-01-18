@@ -60,7 +60,16 @@ node {
             ./launcher snapshot ${jobName}
         """
 
+        //run test
+        sh script: """
+            cd integration-test
+            export UCLOUD_LAUNCHER=\$PWD/launcher 
+            export UCLOUD_TEST_SNAPSHOT=${jobName} 
+            ./gradlew test
+        """
+
         //Save log files from UCLoud and gradle build report
+
 
         //Delete current environment
 
