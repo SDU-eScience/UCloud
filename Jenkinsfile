@@ -13,7 +13,7 @@ node {
     def jobName = "t"+currentBuild.startTimeInMillis
     System.Out.Println(jobName)
     //Make check on PR creator and specific branches. master, staging, PRs
-    if (env.BRANCH_NAME == 'devel-test') {
+    if (env.BRANCH_NAME == 'jenkinsSetup') {
         stage('Checkout') {
             checkout(
                 [
