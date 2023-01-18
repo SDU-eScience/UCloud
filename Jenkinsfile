@@ -47,6 +47,7 @@ node {
             
             docker volume prune || true
             docker network prune || true
+            docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
         """
 
         //Create new environment with providers installed
