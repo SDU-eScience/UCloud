@@ -6,6 +6,7 @@
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request creation of a new [`PASSWORD`](/docs/reference/dk.sdu.cloud.auth.api.PASSWORD.md)  user._
 
 | Request | Response | Error |
 |---------|----------|-------|

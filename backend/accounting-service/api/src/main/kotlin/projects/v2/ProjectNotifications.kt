@@ -15,6 +15,7 @@ import kotlinx.serialization.builtins.serializer
         `markAsRead` then only a single notification will be created by UCloud.
     """
 )
+@UCloudApiStable
 data class ProjectNotification(
     @UCloudApiDoc(
         """
@@ -29,8 +30,22 @@ data class ProjectNotification(
     val project: Project
 )
 
+@UCloudApiStable
 object ProjectNotifications : CallDescriptionContainer("projects.v2.notifications") {
     const val baseContext = "/api/projects/v2/notifications"
+
+    init {
+        description = """
+            Project notifications are used by providers to synchronize UCloud's state with the provider's local state.
+            
+            This feature is, for example, used to synchronize unix groups on a traditional HPC system with UCloud's
+            project structure. A provider will receive notifications for all relevant projects. A project is considered
+            relevant if the project has been allocated some resource on the provider. Providers should be aware that
+            they will receive notifications about users even if the users haven't connected yet. This problem is
+            typically handled by the integration module.
+        """.trimIndent()
+    }
+
 
     val retrieve = call("retrieve", Unit.serializer(), BulkResponse.serializer(ProjectNotification.serializer()), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, roles = Roles.PROVIDER)
@@ -58,10 +73,17 @@ object ProjectNotifications : CallDescriptionContainer("projects.v2.notification
     }
 }
 
+@UCloudApiStable
 open class ProjectNotificationsProvider(
     provider: String
 ) : CallDescriptionContainer("projects.v2.notifications.provider.$provider") {
     val baseContext = "/ucloud/$provider/projects/v2/notifications"
+
+    init {
+        description = """
+            The provider API to be notified about project notifications.
+        """.trimIndent()
+    }
 
     val pullRequest = call("pullRequest", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "pullRequest", roles = Roles.SERVICE)

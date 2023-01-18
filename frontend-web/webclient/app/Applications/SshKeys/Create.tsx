@@ -4,7 +4,7 @@ import {ResourceTab, ResourceTabOptions} from "@/Resource/ResourceTabs";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import SshKeyApi from "@/UCloud/SshKeyApi";
-import {Box, Button, Flex, Icon, Input, Label, Markdown, Text, TextArea} from "@/ui-components";
+import {Box, Button, Divider, Flex, Icon, Input, Label, Markdown, Text, TextArea} from "@/ui-components";
 import {TextP} from "@/ui-components/Text";
 import {MandatoryField} from "@/Applications/Jobs/Widgets";
 import {useCallback, useMemo, useState} from "react";
@@ -12,6 +12,10 @@ import {bulkRequestOf} from "@/DefaultObjects";
 import {callAPI} from "@/Authentication/DataHook";
 import {extractErrorMessage} from "@/UtilityFunctions";
 import {useNavigate} from "react-router";
+import * as Heading from "@/ui-components/Heading";
+import Table, { TableCell, TableHeader, TableHeaderCell, TableRow } from "@/ui-components/Table";
+import { ProviderLogo } from "@/Providers/ProviderLogo";
+import { ProviderTitle } from "@/Providers/ProviderTitle";
 
 interface GenericInputFieldProps {
     name: string;
@@ -166,10 +170,62 @@ You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/in
                             }
                         </Button>
                     </form>
+
+                    <Divider my={32} />
+                    <Heading.h3>What does this do?</Heading.h3>
+                    <p>
+                        Your public SSH key is automaticially made available to any provider, for which you have been
+                        allocated resources, to use. The providers will use these keys to authenticate your identity
+                        when using any of their SSH enabled services.
+                    </p>
+
+                    <p>
+                        Not all providers support SSH through this method. The following table summarizes which 
+                        providers support SSH services:
+                    </p>
+
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHeaderCell width={40} />
+                                <TableHeaderCell textAlign={"left"}>Provider</TableHeaderCell>
+                                <TableHeaderCell textAlign={"left"}>Support</TableHeaderCell>
+                            </TableRow>
+                        </TableHeader>
+                        <tbody>
+                            {hardcodedSshSupport.map(it => <ProviderSupportRow support={it} key={it.providerId} />)}
+                        </tbody>
+                    </Table>
                 </Box>
             </>
         }
     />;
 };
+
+const ProviderSupportRow: React.FunctionComponent<{ support: { providerId: string; support: string[] } }> = ({support}) => {
+    return <TableRow>
+        <TableCell width={40}><ProviderLogo providerId={support.providerId} size={32} /></TableCell>
+        <TableCell><ProviderTitle providerId={support.providerId} /></TableCell>
+        <TableCell>
+            {support.support.length > 1 ?
+                <ul>
+                    {support.support.map((it, idx) => {
+                        return <li key={idx}>{it}</li>
+                    })}
+                </ul> :
+                support.support.length === 0 ? "None" : support.support[0]
+            }
+        </TableCell>
+    </TableRow>;
+}
+
+// NOTE(Dan): This is hardcoded pending proper support from providers and backend
+const hardcodedSshSupport: { providerId: string; support: string[] }[] = [
+    { providerId: "ucloud", support: [] },
+    { providerId: "aau", support: ["None, keys are added through the application"] },
+    { providerId: "hippo", support: ["SSH to frontend"] },
+    { providerId: "sophia", support: ["SSH to frontend"] },
+    { providerId: "lumi", support: [] },
+];
 
 export default SshKeysCreate;

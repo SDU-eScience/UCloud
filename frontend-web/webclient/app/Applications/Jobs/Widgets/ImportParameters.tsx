@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
 import {default as ReactModal} from "react-modal";
-import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
 import {Box, Button, Flex, Icon, Label, Truncate} from "@/ui-components";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -200,7 +200,8 @@ export const ImportParameters: React.FunctionComponent<{
                                 onSelectRestriction={res => res.status.type === "FILE" && res.id.endsWith(".json")}
                             />,
                             () => undefined,
-                            true
+                            true,
+                            largeModalStyle
                         );
                     }}>
                         Select file from {CONF.PRODUCT_NAME}
@@ -220,7 +221,8 @@ export const ImportParameters: React.FunctionComponent<{
                                 }
                             />,
                             () => undefined,
-                            true
+                            true,
+                            largeModalStyle
                         );
                     }}>
                         Select parameters from jobs

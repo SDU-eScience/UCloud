@@ -3,17 +3,17 @@ import {Flex} from "@/ui-components";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import * as UCloud from "@/UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
+import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
 import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
-import ApplicationParameterNS = compute.ApplicationParameterNS;
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {useCloudCommand} from "@/Authentication/DataHook";
 import IngressBrowse from "@/Applications/Ingresses/Browse";
 import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 import {BrowseType} from "@/Resource/BrowseType";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {checkProviderMismatch} from "../Create";
 
 interface IngressProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Ingress;
@@ -31,8 +31,13 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
 
     const onUse = useCallback((network: Ingress) => {
         IngressSetter(props.parameter, {type: "ingress", id: network.id});
+        WidgetSetProvider(props.parameter, network.specification.product.provider);
+        if (props.errors[props.parameter.name]) {
+            delete props.errors[props.parameter.name];
+            props.setErrors({...props.errors});
+        }
         setOpen(false);
-    }, [props.parameter, setOpen]);
+    }, [props.parameter, setOpen, props.errors]);
 
     const valueInput = () => {
         return document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
@@ -92,7 +97,11 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
                 computeProvider={props.provider}
                 onSelect={onUse}
                 additionalFilters={filters}
-                onSelectRestriction={res => res.status.boundTo.length === 0}
+                onSelectRestriction={res => {
+                    const errorMessage = checkProviderMismatch(res, "Public links");
+                    if (errorMessage) return errorMessage;
+                    return res.status.boundTo.length === 0;
+                }}
                 browseType={BrowseType.Embedded}
             />
         </ReactModal>
@@ -118,7 +127,3 @@ export const IngressSetter: WidgetSetter = (param, value) => {
     selector.value = (value as AppParameterValueNS.Ingress).id;
     selector.dispatchEvent(new Event("change"));
 };
-
-function findElement(param: ApplicationParameterNS.Ingress): HTMLSelectElement | null {
-    return document.getElementById(widgetId(param)) as HTMLSelectElement | null;
-}

@@ -521,7 +521,7 @@ object UCloudLauncher : Loggable {
             runCatching {
                 // TODO Deal with elasticsearch
                 val me = micro.createScope()
-                ContactBookElasticDao(me.elasticHighLevelClient).createIndex()
+                ContactBookElasticDao(me.elasticClient).createIndex()
             }
 
             db.withTransaction { session ->

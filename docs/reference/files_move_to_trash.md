@@ -48,43 +48,6 @@ BulkResponse(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(FilesApi.trash(
-    {
-        "items": [
-            {
-                "id": "/123/folder"
-            },
-            {
-                "id": "/123/file"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "type": "complete"
-        },
-        {
-            "type": "complete"
-        }
-    ]
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 

@@ -644,7 +644,7 @@ fun main(args: Array<String>) {
                 IpcToUCloudProxyServer(rpcClient).init(ipcServer, rpcClient)
                 ProcessingScope.launch { ipcServer.runServer() }
             }
-            envoyConfig?.start(config.serverOrNull?.network?.listenPort)
+            envoyConfig?.start(config.serverOrNull?.network?.listenAddress, config.serverOrNull?.network?.listenPort)
             processWatcher?.initialize()
             if (rpcServer != null) loadE2EValidation(rpcServer, pluginContext)
 

@@ -5,20 +5,20 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {AppHeader, Information} from "@/Applications/View";
-import {Box, Button, ContainerForText, ExternalLink, Grid, Icon, Link, Markdown, VerticalButtonGroup} from "@/ui-components";
-import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
+import {Box, Button, ContainerForText, ExternalLink, Grid, Icon, Link, Markdown, Tooltip, VerticalButtonGroup} from "@/ui-components";
+import {findElement, OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget, widgetId} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
-import {getProviderField, IngressResource, ingressResourceAllowed} from "@/Applications/Jobs/Resources/Ingress";
+import {IngressResource, ingressResourceAllowed} from "@/Applications/Jobs/Resources/Ingress";
 import {PeerResource, peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
-import {createSpaceForLoadedResources, injectResources, useResource} from "@/Applications/Jobs/Resources";
+import {createSpaceForLoadedResources, injectResources, ResourceHook, useResource} from "@/Applications/Jobs/Resources";
 import {
     ReservationErrors,
     ReservationParameter,
     setReservation,
     validateReservation
 } from "@/Applications/Jobs/Widgets/Reservation";
-import {displayErrorMessageOrDefault, doNothing, extractErrorCode, requestFullScreen} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, extractErrorCode, prettierString} from "@/UtilityFunctions";
 import {addStandardDialog, WalletWarning} from "@/UtilityComponents";
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
@@ -37,11 +37,16 @@ import {connectionState} from "@/Providers/ConnectionState";
 import {Feature, hasFeature} from "@/Features";
 import {useUState} from "@/Utilities/UState";
 import {flushSync} from "react-dom";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {validateMachineReservation} from "./Widgets/Machines";
+import {Resource} from "@/UCloud/ResourceApi";
 
 interface InsufficientFunds {
     why?: string;
     errorCode?: string;
 }
+
+const PARAMETER_TYPE_FILTER = ["input_directory", "input_file", "ingress", "peer", "license_server", "network_ip"];
 
 export const Create: React.FunctionComponent = () => {
     const navigate = useNavigate();
@@ -89,19 +94,32 @@ export const Create: React.FunctionComponent = () => {
     const [reservationErrors, setReservationErrors] = useState<ReservationErrors>({});
 
     const [importDialogOpen, setImportDialogOpen] = useState(false);
+    // Note(Jonas): Should be safe to remove.
     const jobBeingLoaded = useRef<Partial<JobSpecification> | null>(null);
 
     useUState(connectionState);
 
     useEffect(() => {
-        if (appName === "syncthing") {
-            navigate("/syncthing");
+        if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
+            navigate("/drives");
         }
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
         fetchPrevious(UCloud.compute.apps.findByName({appName}));
-    }, [appName, appVersion]);
+    }, [appName, appVersion, provider]);
 
     const application = applicationResp.data;
+
+    React.useEffect(() => {
+        if (application && provider) {
+            const params = application.invocation.parameters.filter(it =>
+                PARAMETER_TYPE_FILTER.includes(it.type)
+            );
+
+            findProviderMismatches(
+                provider, {errors, params, setErrors}, networks, folders, peers, ingress
+            );
+        }
+    }, [provider, application]);
 
     const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
         if (application == null) return;
@@ -276,6 +294,11 @@ export const Create: React.FunctionComponent = () => {
     const isMissingConnection = hasFeature(Feature.PROVIDER_CONNECTION) && estimatedCost.product != null &&
         connectionState.canConnectToProvider(estimatedCost.product.category.provider);
 
+    const errorCount = countMandatoryAndOptionalErrors(application.invocation.parameters.filter(it =>
+        PARAMETER_TYPE_FILTER.includes(it.type)
+    ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors);
+    const anyError = errorCount > 0;
+
     return <MainContainer
         headerSize={92}
         header={
@@ -288,14 +311,21 @@ export const Create: React.FunctionComponent = () => {
                         <Button fullWidth color={"blue"}>Documentation</Button>
                     </ExternalLink>
                 )}
-                <Button
-                    type={"button"}
-                    color={"blue"}
-                    disabled={isLoading || !sshValid || isMissingConnection}
-                    onClick={() => submitJob(false)}
-                >
-                    Submit
-                </Button>
+                {anyError ?
+                    <Tooltip trigger={
+                        <Button type="button" color="blue" disabled>
+                            Submit
+                        </Button>
+                    }>
+                        {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve before submitting.
+                    </Tooltip> : <Button
+                        type={"button"}
+                        color={"blue"}
+                        disabled={isLoading || !sshValid || isMissingConnection}
+                        onClick={() => submitJob(false)}
+                    >
+                        Submit
+                    </Button>}
 
                 {!isMissingConnection ? null :
                     <Box mt={32}>
@@ -364,6 +394,7 @@ export const Create: React.FunctionComponent = () => {
                                 <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
                                     {mandatoryParameters.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                            setErrors={setErrors}
                                             active />
                                     ))}
                                 </Grid>
@@ -374,9 +405,15 @@ export const Create: React.FunctionComponent = () => {
                                 <Heading.h4>Additional Parameters</Heading.h4>
                                 <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
                                     {activeParameters.map(param => (
-                                        <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                        <Widget
+                                            key={param.name} parameter={param} errors={errors} provider={provider}
+                                            setErrors={setErrors}
                                             active
                                             onRemove={() => {
+                                                if (errors[param.name]) {
+                                                    delete errors[param.name];
+                                                    setErrors({...errors});
+                                                }
                                                 setActiveOptParams(activeOptParams.filter(it => it !== param.name));
                                             }}
                                         />
@@ -388,6 +425,7 @@ export const Create: React.FunctionComponent = () => {
                             <GrayBox>
                                 <OptionalWidgetSearch pool={inactiveParameters} mapper={param => (
                                     <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                        setErrors={setErrors}
                                         active={false}
                                         onActivate={() => {
                                             setActiveOptParams([...activeOptParams, param.name]);
@@ -440,5 +478,93 @@ export const GrayBox = styled.div`
         margin-bottom: auto;
     }
 `;
+
+function getParameterName(param: Pick<UCloud.compute.ApplicationParameter, "type" | "name">): string {
+    switch (param.type) {
+        case "peer": {
+            return param.name + "job";
+        }
+        default: return param.name;
+    }
+}
+
+function findProviderMismatches(
+    provider: string,
+    ...parameterResources: Pick<ResourceHook, "params" | "errors" | "setErrors">[]
+): void {
+    for (const group of parameterResources) {
+        var anyErrors = false;
+        for (const param of group.params) {
+            const el = findElement({name: getParameterName(param)});
+            if (el) {
+                const elementProvider = el.getAttribute("data-provider");
+                if (elementProvider != null && provider !== elementProvider) {
+                    group.errors[param.name] = `This ${prettierType(param.type)} from ${getProviderTitle(elementProvider)} is not possible to use with the machine from ${getProviderTitle(provider)}.`;
+                    anyErrors = true;
+                }
+            }
+        }
+        if (anyErrors) {
+            group.setErrors({...group.errors});
+        }
+    }
+}
+
+function prettierType(type: string): string {
+    switch (type) {
+        case "peer":
+            return "job";
+        case "network_ip":
+            return "public IP";
+        case "ingress":
+            return "link"
+        case "license_server":
+            return "license";
+        case "input_file":
+            return "file";
+        case "input_directory":
+            return "folder";
+        default: return prettierString(type).toLocaleLowerCase();
+    }
+}
+
+export function getProviderField(): string | undefined {
+    try {
+        const validatedMachineReservation = validateMachineReservation();
+        return validatedMachineReservation?.provider;
+    } catch (e) {
+        return undefined;
+    }
+}
+
+export function checkProviderMismatch(resource: Resource, resourceType: string): string | false {
+    const provider = getProviderField();
+    const resourceProvider = resource.specification.product.provider;
+    if (provider && provider !== resourceProvider) {
+        return providerMismatchError(resourceProvider, resourceType);
+    }
+    return false;
+}
+
+export function providerMismatchError(resourceProvider: string, resourceType: string): string {
+    const selectedProvider = getProviderField() ?? "";
+    return providerError(resourceType, resourceProvider, selectedProvider);
+}
+
+function providerError(resourceType: string, resourceProvider: string, selectedProvider: string) {
+    return `${resourceType} from ${getProviderTitle(resourceProvider)} cannot be used with machines from ${getProviderTitle(selectedProvider)}`;
+}
+
+function countErrors(...objects: Record<string, string>[]): number {
+    return objects.reduce((acc, cur) => acc + Object.values(cur).length, 0);
+}
+
+function countMandatoryAndOptionalErrors(params: string[], errors: Record<string, string>): number {
+    var count = 0;
+    for (const param of params) {
+        if (errors[param]) count++;
+    }
+    return count;
+}
 
 export default Create;

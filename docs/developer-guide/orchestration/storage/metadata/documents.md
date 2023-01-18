@@ -437,266 +437,6 @@ UFile(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will show how to create a metadata document and attach it to a file. */
-
-
-/* We already have a metadata template in the catalog: */
-
-// Authenticated as user
-await callAPI(FilesMetadataTemplatesApi.retrieveLatest(
-    {
-        "id": "15123"
-    }
-);
-
-/*
-{
-    "namespaceId": "sensitivity",
-    "title": "Sensitivity",
-    "version": "1.0.0",
-    "schema": {
-        "type": "object",
-        "title": "UCloud File Sensitivity",
-        "required": [
-            "sensitivity"
-        ],
-        "properties": {
-            "sensitivity": {
-                "enum": [
-                    "SENSITIVE",
-                    "CONFIDENTIAL",
-                    "PRIVATE"
-                ],
-                "type": "string",
-                "title": "File Sensitivity",
-                "enumNames": [
-                    "Sensitive",
-                    "Confidential",
-                    "Private"
-                ]
-            }
-        },
-        "dependencies": {
-        }
-    },
-    "inheritable": true,
-    "requireApproval": true,
-    "description": "File sensitivity for files",
-    "changeLog": "Initial version",
-    "namespaceType": "COLLABORATORS",
-    "uiSchema": {
-        "ui:order": [
-            "sensitivity"
-        ]
-    },
-    "namespaceName": null,
-    "createdAt": 0
-}
-*/
-
-/* Using this, we can create a metadata document and attach it to our file */
-
-await callAPI(FilesMetadataApi.create(
-    {
-        "items": [
-            {
-                "fileId": "/51231/my/file",
-                "metadata": {
-                    "templateId": "15123",
-                    "version": "1.0.0",
-                    "document": {
-                        "sensitivity": "SENSITIVE"
-                    },
-                    "changeLog": "New sensitivity"
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "651233"
-        }
-    ]
-}
-*/
-
-/* This specific template requires approval from a workspace admin. We can do this by calling approve. */
-
-await callAPI(FilesMetadataApi.approve(
-    {
-        "items": [
-            {
-                "id": "651233"
-            }
-        ]
-    }
-);
-
-/*
-{
-}
-*/
-
-/* We can view the metadata by adding includeMetadata = true when requesting any file */
-
-await callAPI(FilesApi.retrieve(
-    {
-        "flags": {
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "includePermissions": null,
-            "includeTimestamps": null,
-            "includeSizes": null,
-            "includeUnixInfo": null,
-            "includeMetadata": true,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterByFileExtension": null,
-            "path": null,
-            "allowUnsupportedInclude": null,
-            "filterHiddenFiles": false,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "51231"
-    }
-);
-
-/*
-{
-    "id": "/51231/my/file",
-    "specification": {
-        "collection": "51231",
-        "product": {
-            "id": "example-ssd",
-            "category": "example-ssd",
-            "provider": "example"
-        }
-    },
-    "createdAt": 1635151675465,
-    "status": {
-        "type": "FILE",
-        "icon": null,
-        "sizeInBytes": null,
-        "sizeIncludingChildrenInBytes": null,
-        "modifiedAt": null,
-        "accessedAt": null,
-        "unixMode": null,
-        "unixOwner": null,
-        "unixGroup": null,
-        "metadata": {
-            "templates": {
-                "sensitivity": {
-                    "namespaceId": "sensitivity",
-                    "title": "Sensitivity",
-                    "version": "1.0.0",
-                    "schema": {
-                        "type": "object",
-                        "title": "UCloud File Sensitivity",
-                        "required": [
-                            "sensitivity"
-                        ],
-                        "properties": {
-                            "sensitivity": {
-                                "enum": [
-                                    "SENSITIVE",
-                                    "CONFIDENTIAL",
-                                    "PRIVATE"
-                                ],
-                                "type": "string",
-                                "title": "File Sensitivity",
-                                "enumNames": [
-                                    "Sensitive",
-                                    "Confidential",
-                                    "Private"
-                                ]
-                            }
-                        },
-                        "dependencies": {
-                        }
-                    },
-                    "inheritable": true,
-                    "requireApproval": true,
-                    "description": "File sensitivity for files",
-                    "changeLog": "Initial version",
-                    "namespaceType": "COLLABORATORS",
-                    "uiSchema": {
-                        "ui:order": [
-                            "sensitivity"
-                        ]
-                    },
-                    "namespaceName": null,
-                    "createdAt": 0
-                }
-            },
-            "metadata": {
-                "sensitivity": [
-                    {
-                        "type": "metadata",
-                        "id": "651233",
-                        "specification": {
-                            "templateId": "15123",
-                            "version": "1.0.0",
-                            "document": {
-                                "sensitivity": "SENSITIVE"
-                            },
-                            "changeLog": "New sensitivity"
-                        },
-                        "createdAt": 1635151675465,
-                        "status": {
-                            "approval": {
-                                "type": "approved",
-                                "approvedBy": "user"
-                            }
-                        },
-                        "createdBy": "user"
-                    }
-                ]
-            }
-        },
-        "resolvedSupport": null,
-        "resolvedProduct": null
-    },
-    "owner": {
-        "createdBy": "user",
-        "project": null
-    },
-    "permissions": {
-        "myself": [
-            "ADMIN"
-        ],
-        "others": [
-        ]
-    },
-    "updates": [
-    ]
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -1031,7 +771,7 @@ files if needed. This should eventually result in either a `browse` or `retrieve
 
 ### `FileMetadataDocument`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A metadata document which conforms to a `FileMetadataTemplate`_
@@ -1129,7 +869,7 @@ data class FileMetadataDocument(
 
 ### `FileMetadataDocument.Spec`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Specification of a FileMetadataDocument_
@@ -1202,7 +942,7 @@ data class Spec(
 
 ### `FileMetadataDocument.Status`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The current status of a metadata document_
@@ -1239,7 +979,7 @@ data class Status(
 
 ### `FileMetadataDocument.ApprovalStatus`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The approval status of a metadata document_
@@ -1259,7 +999,7 @@ sealed class ApprovalStatus {
 
 ### `FileMetadataDocument.ApprovalStatus.Approved`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The metadata change has been approved by an admin in the workspace_
@@ -1309,7 +1049,7 @@ data class Approved(
 
 ### `FileMetadataDocument.ApprovalStatus.Pending`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The metadata document has not yet been approved_
@@ -1347,7 +1087,7 @@ data class Pending(
 
 ### `FileMetadataDocument.ApprovalStatus.Rejected`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The metadata document has been rejected by an admin of the workspace_
@@ -1397,7 +1137,7 @@ data class Rejected(
 
 ### `FileMetadataDocument.ApprovalStatus.NotRequired`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The metadata document does not require approval_

@@ -6,6 +6,7 @@
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Initialize password-reset procedure by generating a token and sending an email to the user._
 
 | Request | Response | Error |
 |---------|----------|-------|

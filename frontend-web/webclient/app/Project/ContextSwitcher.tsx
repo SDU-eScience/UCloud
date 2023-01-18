@@ -20,7 +20,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
     const projectId = useProjectId();
     const [response, setFetchParams, params] = useCloudAPI<Page<Project>>(
         ProjectAPI.browse({
-            itemsPerPage: 10,
+            itemsPerPage: 250,
             includeFavorite: true,
         }),
         emptyPage
@@ -35,6 +35,18 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
             activeContext = shortUUID(props.activeProject);
         }
     }
+
+    const sortedProjects = React.useMemo(() => {
+        return response.data.items.sort((a, b) => {
+            if (a.status.isFavorite === true && b.status.isFavorite !== true) {
+                return -1;
+            } else if (b.status.isFavorite === true && a.status.isFavorite !== true) {
+                return 1;
+            } else {
+                return a.specification.title.localeCompare(b.specification.title);
+            }
+        }).slice(0, 25);
+    }, [response.data.items]);
 
     useEffect(() => {
         const storedProject = getStoredProject();
@@ -75,7 +87,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                             </Text>
                         ) : null
                     }
-                    {response.data.items.filter(it => !(it.id === props.activeProject)).map(project =>
+                    {sortedProjects.filter(it => !(it.id === props.activeProject)).map(project =>
                         <Text
                             key={project.id}
                             onClick={() => onProjectUpdated(navigate, () => props.setProject(project.id), props.refresh, project.id)}

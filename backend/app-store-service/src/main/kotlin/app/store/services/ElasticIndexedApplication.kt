@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.services
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import kotlinx.serialization.Serializable
 
 /**
@@ -8,10 +9,15 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ElasticIndexedApplication(
+    @JsonProperty("name")
     val name: String,
+    @JsonProperty("version")
     val version: String,
+    @JsonProperty("description")
     val description: String,
+    @JsonProperty("title")
     val title: String,
+    @JsonProperty("tags")
     val tags: List<String>
 ) {
     @Suppress("unused")

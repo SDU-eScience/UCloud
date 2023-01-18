@@ -3,7 +3,7 @@
 # `FSFileSupport`
 
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Declares which file-level operations a product supports_
@@ -64,7 +64,7 @@ data class FSFileSupport(
 
 
 NOTE(Dan, 01/09/2022): For backwards compatibility, this is true by default, however, this will likely change 
-to false in a later release. Providers should explicltly declare support for this endpoint for the time being.
+to false in a later release. Providers should explicitly declare support for this endpoint for the time being.
 
 
 </details>

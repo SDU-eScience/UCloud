@@ -35,7 +35,11 @@ export function useResource(ns: ResourceTypes, provider: string | undefined,
 
     const onRemove = useCallback((id: string) => {
         setParams(oldParams => oldParams.filter(it => it.name !== id));
-    }, [setParams]);
+        if (errors[id]) { 
+            delete errors[id];
+            setErrors(({...errors}));
+        }
+    }, [setParams, setErrors, errors]);
 
     const setSize = useCallback((size: number): ApplicationParameter[] => {
         const params: ApplicationParameter[] = [];

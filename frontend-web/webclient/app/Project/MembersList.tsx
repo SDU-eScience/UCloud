@@ -3,7 +3,6 @@ import {useAvatars} from "@/AvataaarLib/hook";
 import * as React from "react";
 import {useEffect} from "react";
 import styled from "styled-components";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {Flex, Icon, Text, Box, Button, RadioTile, RadioTilesContainer} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -49,7 +48,7 @@ export function MembersList(props: Readonly<{
         {props.members.map(member =>
             <React.Fragment key={member.username}>
                 <Flex alignItems="center" mb="16px" mt="16px">
-                    <UserAvatar avatar={avatars.cache[member.username] ?? defaultAvatar} mr="10px" />
+                    <UserAvatar avatar={avatars.avatar(member.username)} mr="10px" />
                     {!props.isOutgoingInvites ?
                         <div>
                             <Text bold>{member.username}</Text>

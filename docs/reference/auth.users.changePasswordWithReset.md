@@ -6,10 +6,13 @@
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request reset of password of a [`PASSWORD`](/docs/reference/dk.sdu.cloud.auth.api.PASSWORD.md)  user._
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#changepasswordwithresetrequest'>ChangePasswordWithResetRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+This request can only be called by other services, and is used by the `PasswordResetService` to reset a
+user's password in case they are unable to log in. Read more in [Password Reset](authentication/password-reset.md).
 
 

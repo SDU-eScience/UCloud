@@ -38,7 +38,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 1000, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "42", 
@@ -109,7 +111,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 900, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "42", 
@@ -180,7 +184,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 950, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "42", 
@@ -204,236 +210,6 @@ PageV2(
     itemsPerPage = 50, 
     next = null, 
 )
-*/
-
-/* This results in 950 GB being unused. */
-
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will be performing some simple charge requests for a differential 
-product. Before and after each charge, we will show the current state of the system.
-We will perform the charges on a root allocation, that is, it has no ancestors. */
-
-// Authenticated as ucloud
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "my-research"
-            },
-            "paysFor": {
-                "name": "example-storage",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "42",
-                    "allocationPath": [
-                        "42"
-                    ],
-                    "balance": 1000,
-                    "initialBalance": 1000,
-                    "localBalance": 1000,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "STORAGE",
-            "chargeType": "DIFFERENTIAL_QUOTA",
-            "unit": "PER_UNIT"
-        }
-    ],
-    "next": null
-}
-*/
-
-/* Currently, the allocation shows that we have 1000 GB unused. */
-
-await callAPI(AccountingApi.charge(
-    {
-        "items": [
-            {
-                "payer": {
-                    "type": "project",
-                    "projectId": "my-research"
-                },
-                "units": 100,
-                "periods": 1,
-                "product": {
-                    "id": "example-storage",
-                    "category": "example-storage",
-                    "provider": "example"
-                },
-                "performedBy": "user",
-                "description": "A charge for storage usage",
-                "transactionId": "charge-1"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        true
-    ]
-}
-*/
-
-/* The charge returns true, indicating that we had enough credits to complete the request. */
-
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "my-research"
-            },
-            "paysFor": {
-                "name": "example-storage",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "42",
-                    "allocationPath": [
-                        "42"
-                    ],
-                    "balance": 900,
-                    "initialBalance": 1000,
-                    "localBalance": 900,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "STORAGE",
-            "chargeType": "DIFFERENTIAL_QUOTA",
-            "unit": "PER_UNIT"
-        }
-    ],
-    "next": null
-}
-*/
-
-/* The charge has correctly record our usage. It now shows that we have 900 GB unused. */
-
-await callAPI(AccountingApi.charge(
-    {
-        "items": [
-            {
-                "payer": {
-                    "type": "project",
-                    "projectId": "my-research"
-                },
-                "units": 50,
-                "periods": 1,
-                "product": {
-                    "id": "example-storage",
-                    "category": "example-storage",
-                    "provider": "example"
-                },
-                "performedBy": "user",
-                "description": "A charge for storage usage",
-                "transactionId": "charge-1"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        true
-    ]
-}
-*/
-
-/* The new charge reports that we are only using 50 GB, that is data was removed since last period. */
-
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "my-research"
-            },
-            "paysFor": {
-                "name": "example-storage",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "42",
-                    "allocationPath": [
-                        "42"
-                    ],
-                    "balance": 950,
-                    "initialBalance": 1000,
-                    "localBalance": 950,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "STORAGE",
-            "chargeType": "DIFFERENTIAL_QUOTA",
-            "unit": "PER_UNIT"
-        }
-    ],
-    "next": null
-}
 */
 
 /* This results in 950 GB being unused. */
@@ -484,7 +260,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 1000,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -553,7 +331,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 900,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -622,7 +402,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 950,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",

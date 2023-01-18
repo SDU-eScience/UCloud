@@ -45,8 +45,8 @@ Jenkins is our CI system and is responsible for building and testing code.
 Under normal conditions, before deploying a new version you must ensure that
 the software checks every mark in the following list:
 
-- [ ] The software be built and tested. This process should make use of the development system and integration tests.
+- [ ] The software be built and tested. This process should make use of the development system, manual testing and automatic testing.
 - [ ] Migrations must occur before the deployment of the new software.
-- [ ] Migrations should not break the existing build. The old and new version must be able to co-exist.
-- [ ] When introducing breaking changes to a call, the Elasticsearch auditing index for that call must be updated. See [Auditing](../auditing.md) for more information.
+- [ ] Migrations should strive towards not breaking the existing build. The old and new version should be able to co-exist.
+- [ ] When introducing breaking changes to a call, the Elasticsearch auditing index for that call must be updated. See [Auditing](./auditing.md) for more information.
 

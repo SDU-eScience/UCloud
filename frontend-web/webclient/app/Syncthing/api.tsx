@@ -1,4 +1,4 @@
-import { PageV2 } from "@/UCloud";
+import { PageV2, compute } from "@/UCloud";
 import { api as JobsApi, Job, isJobStateFinal } from "@/UCloud/JobsApi";
 import { callAPI, apiRetrieve, apiUpdate } from "@/Authentication/DataHook";
 
@@ -18,66 +18,16 @@ export interface SyncthingFolder {
     ucloudPath: string;
 }
 
-export function fetchConfigFake(): Promise<SyncthingConfig> {
-    const devices: SyncthingDevice[] = [];
-
-    for (let i = 0; i < 10; i++) {
-        const device = {
-            label: "Android " + i, 
-            deviceId: "L5WRYM7-V6IDHTV-2V4MN67-2STUNXL-FLEX7QR-LD7UXEC-2QRUCQE-FUHWEQ" + i
-        };
-        devices.push(device);
-    }
-
-    const folders: SyncthingFolder[] = [];
-
-    for (let i = 0; i < 5; i++) {
-        const folder = {
-            id: "Cuda" + i,
-            ucloudPath: "/4/Jobs/Coder CUDA" + i
-        };
-        folders.push(folder);
-    }
-
-    
-    return new Promise((resolve) => {
-        resolve({devices, folders});
-    });
-}
-
-export async function fetchConfig(): Promise<SyncthingConfig> {
-    const resp = await callAPI<SyncthingConfigResponse>(api.retrieveConfiguration("ucloud"));
+export async function fetchConfig(provider: string): Promise<SyncthingConfig> {
+    const resp = await callAPI<SyncthingConfigResponse>(api.retrieveConfiguration(provider, "syncthing"));
     return resp.config;
 }
 
-export function fetchServersFake(): Promise<Job[]> {
-    const servers: Job[] = [{
-        id: "1",
-        createdAt: 0,
-        owner: {
-            createdBy: "user",
-        },
-        specification: {
-            name: "Syncthing Default Server",
-            application: { name: "syncthing", version: "1.2.3" },
-            replicas: 1,
-            parameters: {},
-            resources: [],
-            product: {
-                category: "syncthing",
-                id: "syncthing",
-                provider: "ucloud"
-            }
-        },
-        permissions: { myself: ["ADMIN"], others: [] },
-        updates: [],
-        status: {
-            state: "RUNNING",
-            jobParametersJson: null,
-        }
-    }];
-
-    return new Promise((resolve) => resolve(servers));
+export async function fetchProducts(provider: string): Promise<compute.ComputeProductSupportResolved[]> {
+    const products = await callAPI<compute.JobsRetrieveProductsResponse>(compute.jobs.retrieveProducts({
+        providers: provider
+    }));
+    return products.productsByProvider[provider]?.filter(it => it.product.name === "syncthing") ?? [];
 }
 
 export async function fetchServers(): Promise<Job[]> {
@@ -86,8 +36,6 @@ export async function fetchServers(): Promise<Job[]> {
             ...JobsApi.browse({
                 filterApplication: "syncthing",
                 filterProductId: "syncthing",
-                filterProductCategory: "syncthing",
-
                 sortBy: "createdAt",
                 sortDirection: "descending",
                 itemsPerPage: 250
@@ -103,8 +51,8 @@ export async function fetchServers(): Promise<Job[]> {
 class Api {
     baseContext = "/api/iapps/syncthing";
 
-    retrieveConfiguration(providerId: string): APICallParameters {
-        return apiRetrieve({ providerId }, this.baseContext);
+    retrieveConfiguration(provider: string, productId: string): APICallParameters {
+        return apiRetrieve({ provider, productId }, this.baseContext);
     }
 
     updateConfiguration(request: UpdateConfigRequest): APICallParameters {
@@ -127,18 +75,21 @@ export interface SyncthingConfigResponse {
 }
 
 export interface UpdateConfigRequest {
-    providerId: string;
+    provider: string;
+    productId: string;
     config: SyncthingConfig;
     expectedETag?: string | null;
 }
 
 export interface ResetConfigRequest {
-    providerId: string;
+    provider: string;
+    productId: string;
     expectedETag?: string | null;
 }
 
 export interface RestartRequest {
-    providerId: string;
+    provider: string;
+    productId: string;
 }
 
 export const api = new Api();

@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Storage](/docs/developer-guide/orchestration/storage/README.md) / Shares
 # Shares
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Shares provide users a way of collaborating on individual folders in a personal workspaces._
 
@@ -370,220 +370,6 @@ PageV2(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example we will see Alice sharing a folder with Bob. Alice starts by creating a share. The
-share references a UFile. */
-
-// Authenticated as alice
-await callAPI(SharesApi.create(
-    {
-        "items": [
-            {
-                "sharedWith": "bob",
-                "sourceFilePath": "/5123/work/my-project/my-collaboration",
-                "permissions": [
-                    "EDIT"
-                ],
-                "product": {
-                    "id": "example-ssd",
-                    "category": "example-ssd",
-                    "provider": "example"
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "6342"
-        }
-    ]
-}
-*/
-
-/* This returns a new ID of the Share resource. Bob can now view this when browsing the ingoing shares. */
-
-// Authenticated as bob
-await callAPI(SharesApi.browse(
-    {
-        "flags": {
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIngoing": true,
-            "filterOriginalPath": null,
-            "filterRejected": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "sortBy": null,
-        "sortDirection": "ascending"
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "id": "6342",
-            "specification": {
-                "sharedWith": "bob",
-                "sourceFilePath": "/5123/work/my-project/my-collaboration",
-                "permissions": [
-                    "EDIT"
-                ],
-                "product": {
-                    "id": "example-ssd",
-                    "category": "example-ssd",
-                    "provider": "example"
-                }
-            },
-            "createdAt": 1635151675465,
-            "status": {
-                "shareAvailableAt": null,
-                "state": "PENDING",
-                "resolvedSupport": null,
-                "resolvedProduct": null
-            },
-            "updates": [
-            ],
-            "owner": {
-                "createdBy": "alice",
-                "project": null
-            },
-            "permissions": {
-                "myself": [
-                    "READ"
-                ],
-                "others": null
-            }
-        }
-    ],
-    "next": null
-}
-*/
-
-/* Bob now approves this share request */
-
-await callAPI(SharesApi.approve(
-    {
-        "items": [
-            {
-                "id": "6342"
-            }
-        ]
-    }
-);
-
-/*
-{
-}
-*/
-
-/* And the file is now shared and available at the path /6412 */
-
-await callAPI(SharesApi.browse(
-    {
-        "flags": {
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIngoing": true,
-            "filterOriginalPath": null,
-            "filterRejected": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "sortBy": null,
-        "sortDirection": "ascending"
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "id": "6342",
-            "specification": {
-                "sharedWith": "bob",
-                "sourceFilePath": "/5123/work/my-project/my-collaboration",
-                "permissions": [
-                    "EDIT"
-                ],
-                "product": {
-                    "id": "example-ssd",
-                    "category": "example-ssd",
-                    "provider": "example"
-                }
-            },
-            "createdAt": 1635151675465,
-            "status": {
-                "shareAvailableAt": "/6412",
-                "state": "APPROVED",
-                "resolvedSupport": null,
-                "resolvedProduct": null
-            },
-            "updates": [
-            ],
-            "owner": {
-                "createdBy": "alice",
-                "project": null
-            },
-            "permissions": {
-                "myself": [
-                    "READ"
-                ],
-                "others": null
-            }
-        }
-    ],
-    "next": null
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -748,7 +534,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/shares/browse?incl
 
 ### `browse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -762,7 +548,7 @@ _Browses the catalog of available resources_
 
 ### `browseOutgoing`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -775,7 +561,7 @@ _Browses the catalog of available resources_
 
 ### `retrieve`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -789,7 +575,7 @@ _Retrieve a single resource_
 
 ### `retrieveProducts`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -811,7 +597,7 @@ See also:
 
 ### `search`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -825,7 +611,7 @@ _Searches the catalog of available resources_
 
 ### `approve`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -838,7 +624,7 @@ _Searches the catalog of available resources_
 
 ### `create`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -852,7 +638,7 @@ _Creates one or more resources_
 
 ### `delete`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -866,7 +652,7 @@ _Deletes one or more resources_
 
 ### `init`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -884,7 +670,7 @@ the request.
 
 ### `reject`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -897,7 +683,7 @@ the request.
 
 ### `updateAcl`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -911,7 +697,7 @@ _Updates the ACL attached to a resource_
 
 ### `updatePermissions`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -927,7 +713,7 @@ _Updates the ACL attached to a resource_
 
 ### `OutgoingShareGroup`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -987,7 +773,7 @@ data class OutgoingShareGroup(
 
 ### `OutgoingShareGroup.Preview`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1059,7 +845,7 @@ data class Preview(
 
 ### `Share`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A `Resource` is the core data model used to synchronize tasks between UCloud and Provider._
@@ -1169,6 +955,7 @@ A null value indicates that permissions are not supported by this resource type.
 <code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1185,7 +972,7 @@ A null value indicates that permissions are not supported by this resource type.
 
 ### `Share.Spec`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1257,7 +1044,7 @@ data class Spec(
 
 ### `Share.State`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1317,7 +1104,7 @@ enum class State {
 
 ### `Share.Status`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Describes the current state of the `Resource`_
@@ -1398,7 +1185,7 @@ This attribute is not included by default unless `includeProduct` is specified.
 
 ### `Share.Update`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Describes an update to the `Resource`_
@@ -1480,7 +1267,7 @@ An update will typically contain information similar to the `status` field, for 
 
 ### `ShareFlags`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1720,7 +1507,7 @@ data class ShareFlags(
 
 ### `ShareSupport`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1768,7 +1555,7 @@ data class ShareSupport(
 
 ### `ShareType`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1804,7 +1591,7 @@ enum class ShareType {
 
 ### `SharesBrowseOutgoingRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
@@ -1906,7 +1693,7 @@ paginate through the results.
 
 ### `SharesUpdatePermissionsRequestItem`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

@@ -2,7 +2,7 @@
 
 # `files.createFolder`
 
-[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -19,8 +19,8 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
-| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
+| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
+| `403 Forbidden` | You lack permissions to perform this operation |
 
 __Examples:__
 

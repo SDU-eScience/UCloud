@@ -45,9 +45,10 @@ data class ServiceDefinition(
 )
 
 data class ServiceInstance(
-    val definition: ServiceDefinition, 
-    val hostname: String, 
-    val port: Int
+    val definition: ServiceDefinition,
+    val hostname: String,
+    val port: Int,
+    val ipAddress: String? = null
 )
 
 data class SecurityPrincipalToken(
@@ -55,7 +56,9 @@ data class SecurityPrincipalToken(
     val scopes: List<SecurityScope>,
     val issuedAt: Long,
     val expiresAt: Long,
-    val publicSessionReference: String?
+    val publicSessionReference: String?,
+    val extendedBy: String? = null,
+    val extendedByChain: List<String> = emptyList()
 )
 
 data class HttpCallLogEntry(
@@ -64,21 +67,20 @@ data class HttpCallLogEntry(
     val causedBy: String?,
 
     val requestName: String,
-    val httpMethod: String,
-    val uri: String,
     val userAgent: String?,
     val remoteOrigin: String,
 
     val token: SecurityPrincipalToken?,
-    val requestContentType: String?,
+
     val requestSize: Long,
-    val requestJson: Any?,
+    val requestJson: JsonElement?,
 
     val responseCode: Int,
     val responseTime: Long,
-    val responseContentType: String,
-    val responseSize: Long,
-    val responseJson: Any?
+
+    val expiry: Long,
+
+    val project: String?
 )
 ```
 

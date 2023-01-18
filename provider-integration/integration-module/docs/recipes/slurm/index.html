@@ -9,10 +9,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono&display=swap"
-        rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
 </head>
 
@@ -30,7 +27,7 @@
         </p>
 
         <ul>
-            <li>The machine must run Linux with an x86-based processor.</li>
+            <li>The machine must run Linux with an x86_64 compatible processor.</li>
             <li>You should expect to use at least 128MB RAM per active concurrent user.</li>
             <li>We recommend that the machine has at least 4 vCPUs and 16 GB RAM.</li>
             <li>The machine must be able to communicate with Slurm using the normal Slurm CLI commands.</li>
@@ -41,7 +38,7 @@
                 across the entire cluster.</li>
         </ul>
         <p>
-            For security reasons, the integration module should always run as a non-privileged user. In the following we
+            For security reasons, the integration module should always run as a unprivileged user. In the following we
             assume the user is called <code>ucloud</code> with a dedicated primary group also called <code>ucloud</code>.
             This user will need to be granted a couple of extra privileges, as described in the following sections.
         </p>
@@ -96,7 +93,7 @@
 
         <doc-snippet>
             # Preparing a local service user (NOTE: You may prefer to create one in your normal identity system)
-            useradd -r ucloud            
+            useradd -r ucloud
 
             # Preparing folders (see table above for an explanation)
             mkdir -p /opt/ucloud/extensions
@@ -118,7 +115,7 @@
 
         <h3>Installing UCloud/IM</h3>
         <p>
-            In order to install UCloud/IM, you should first grab the latest release from 
+            In order to install UCloud/IM, you should first grab the latest release from
             <a href="https://github.com/SDU-eScience/UCloud/releases">here</a>. This single executable can be put
             anywhere on your file-system where users can reach it and execute it. In this guide we recommend that you
             install in <code>/opt/ucloud/ucloud</code>. The following snippet should achieve this:
@@ -133,36 +130,59 @@
             This executable has no external dependencies other than libc.
         </p>
 
-        <h3>Privileged scripts</h3>
+        <h3 id="sudo">Sudo</h3>
 
-        <p>All extension scripts will either be executed as the `ucloud` service
-        account or as one of the HPC users. In both cases these users are
-        unprivileged, so whenever the extension scripts need to perform a
-        privileged operation (like creating a new user or account in Slurm), a
-        method for granting privileges to the script is needed.</p>
+        <p>Because the integration module acts on behalf of the HPC users, it
+        must be allowed to spawn an instance of itself as those users. By
+        spawning an instance of itself as the user in question, we are
+        guaranteed that the integration module has exactly the same permissions,
+        as if the user had accessed the system via SSH.</p>
 
-        <p>To avoid granting additional privileges to the `ucloud` service
-        account, which is running the integration module, we instead suggest to
-        create a new service account and grant privileges to that account. By
-        doing so, there is a clear separation of privileges and the integration
-        module does not have access to perform any changes on the system.</p>
+        <p>The easiest way to grant this permission is by creating a file
+        <code>/etc/sudoers.d/ucloud</code> with the following content.</p>
+
+        <doc-snippet>
+            ucloud ALL=(%ucloud_users) NOPASSWD: /opt/ucloud/ucloud
+        </doc-snippet>
+
+        <p>This allows the <code>ucloud</code> user to run the integration
+        module itself <code>/opt/ucloud/ucloud</code> as any user in the group
+        <code>ucloud_users</code>. By restricting ourselves to a specific group
+        of users, we can ensure that the integration module is never spawned as
+        a non-HPC user.</p>
+
+        <h3 id="scripts">Privileged scripts</h3>
+
+        <p>All extension scripts will either be executed as the
+        <code>ucloud</code> service account or as one of the HPC users. In both
+        cases these users are unprivileged, so whenever the extension scripts
+        need to perform a privileged operation (like creating a new user or
+        account in Slurm), a method for granting privileges to the script is
+        needed.</p>
+
+        <p>To avoid granting additional privileges to the <code>ucloud</code>
+        service account, which is running the integration module, we instead
+        suggest to create a new service account and grant privileges to that
+        account. By doing so, there is a clear separation of privileges and the
+        integration module does not have access to perform any changes on the
+        system.</p>
 
         <p>If we follow this approach, the extension scripts must be able to run
-        as the privileged service account, which we will call `sysop` in the
-        following examples. This can be achieved with an additional sudo
+        as the privileged service account, which we will call <code>sysop</code>
+        in the following examples. This can be achieved with an additional sudo
         rule.</p>
 
         <doc-snippet>
-            ucloud ALL=(sysop) NOPASSWD: /etc/ucloud/extensions/*
+            ucloud ALL=(sysop) NOPASSWD: /opt/ucloud/extensions/*
         </doc-snippet>
 
-        <p>This rule allows the `ucloud` service account to execute the
-        extension scripts as the privileged user. However, the integration
+        <p>This rule allows the <code>ucloud</code> service account to execute
+        the extension scripts as the privileged user. However, the integration
         module will not actually run these scripts as the privileged user, since
         it has no knowledge of whether or not that is necessary. Instead the
         extension scripts should automatically switch to this user whenever
         needed. Below are two examples, one for Bash and one for Python, that
-        shows how a script can make a switch itself to the privileged user.</p>
+        shows how a script can make a switch to the privileged user.</p>
 
         <b>Bash</b>
 
@@ -192,19 +212,21 @@
 
         <h3 id="slurm">Slurm</h3>
         <p>
-            Making the <code>ucloud</code> user an administrator in Slurm is often necessary, but ultimately it depends
-            on the local environment. Some of the extension scripts will run as the <code>ucloud</code> user, so if any of
-            these need to modify Slurm accounts or users, then administrator privileges are needed.
+            As stated in the previous section, some of the extension scripts
+            usually be required to create users and accounts in Slurm. This is
+            an operation that requires the <code>operator</code> privilege in
+            Slurm. Depending on the local setup, this privilege should either be
+            granted to the <code>ucloud</code> or <code>sysop</code> user.
         </p>
 
         <p>
-            Use the following commands to create the <code>ucloud</code> user in Slurm and grant it administrator
-            privileges.
+            Use the following commands to create the user in Slurm and grant it operator
+            privileges. Replace <code>sysop</code> with <code>ucloud</code> if needed.
         </p>
 
         <doc-snippet>
-            sacctmgr -i create user ucloud account=root
-            sacctmgr -i modify user ucloud set adminlevel=admin
+            sacctmgr -i create user sysop account=root
+            sacctmgr -i modify user sysop set adminlevel=operator
         </doc-snippet>
 
         <h3 id="system-service">System service</h3>
@@ -235,7 +257,7 @@
 
         <p>
             This service file will start the integration module as the <code>ucloud</code> user and before starting it
-            will create a couple of directories with the proper permissions. Moreover, the service will automatically 
+            will create a couple of directories with the proper permissions. Moreover, the service will automatically
             restart in case of failures. To start and enable the service, use:
         </p>
 
@@ -249,7 +271,7 @@
             Before you can continue, you must first register as a UCloud provider. How you do this depends entirely on
             what you are trying to achieve. If you wish to integrate with the production instance of UCloud, then you
             must <a href="https://escience.sdu.dk" target="_blank">contact us</a> directly. On the other hand, if you
-            are trying to evaluate UCloud or you are developing code for UCloud, then you 
+            are trying to evaluate UCloud or you are developing code for UCloud, then you
             can look at <a href="/getting-started/">this guide</a> which covers both cases.
         </p>
 
@@ -309,7 +331,7 @@
                   cost:
                       currency: UNITS
                       frequency: MINUTE
-            
+
             storage:
                 exotic:
                 - name: exotic
@@ -330,13 +352,13 @@
             redirectTo: https://cloud.sdu.dk                                # Could change this
             extensions:
               onConnectionComplete: /opt/ucloud/extensions/connection-complete
-          
+
           projects:
             type: Simple
             unixGroupNamespace: 739300000                                   # Should change this
             extensions:
               all: /opt/ucloud/extensions/project-extension
-          
+
           allocations:
             STORAGE:
               type: Extension
@@ -348,7 +370,7 @@
               extensions:
                 onAllocation: /opt/ucloud/extensions/on-compute-allocation
                 onSynchronization: /opt/ucloud/extensions/on-compute-allocation
-          
+
           fileCollections:
             default:
               type: Posix
@@ -356,12 +378,12 @@
               accounting: /opt/ucloud/extensions/storage-accounting
               extensions:
                 driveLocator: /opt/ucloud/extensions/drive-locator
-          
+
           files:
             default:
               type: Posix
               matches: "*"
-          
+
           jobs:
             default:
               type: Slurm
@@ -388,7 +410,7 @@
         <doc-todo></doc-todo>
 
         <p>
-            In this section, we will try to provider you guidance with the extension scripts that you need to write.
+            In this section, we will try to provide you with guidance on the extension scripts that you need to write.
             For each script, we will tell you about the types of input you receive, what type of output you should
             produce and which side-effects your scripts should have. We will exemplify this by showing how this works
             in a real production system.
@@ -410,9 +432,9 @@
                     <tr>
                         <td>UCloud/Core</td>
                         <td>
-                            The UCloud platform itself. This is the service hosting the user-interface and core APIs. 
-                            It is typicially not hosted by the provider itself. For example, there is 
-                            <a href="https://cloud.sdu.dk" target="_blank">cloud.sdu.dk</a> which is hosted by the 
+                            The UCloud platform itself. This is the service hosting the user-interface and core APIs.
+                            It is typicially not hosted by the provider itself. For example, there is
+                            <a href="https://cloud.sdu.dk" target="_blank">cloud.sdu.dk</a> which is hosted by the
                             SDU eScience Center.
                         </td>
                     </tr>
@@ -429,14 +451,14 @@
                         <td>NGINX</td>
                         <td>
                             Gateway proxy server which is accepting all traffic. The proxy will forward traffic to
-                            relevant services, such as the IM's gateway. This proxy performs 
+                            relevant services, such as the IM's gateway. This proxy performs
                             <a href="https://en.wikipedia.org/wiki/TLS_termination_proxy" target="_blank">TLS termination</a>.
                         </td>
                     </tr>
                     <tr>
                         <td>IM (Envoy gateway)</td>
                         <td>
-                            Embedded into the integration module, this service accepts all traffic destined to the 
+                            Embedded into the integration module, this service accepts all traffic destined to the
                             integration module. In then forwards to either the UCloud/IM server instance or one of the
                             user instances. It does this based on routing information from UCloud/Core or the end-user.
                         </td>
@@ -446,13 +468,13 @@
                         <td>
                             The server instance of the integration module. This server is responsible for handling
                             server-to-server traffic which is not related to an end-user request. For example, this
-                            server instance will tell UCloud/Core about which services it exposes. 
+                            server instance will tell UCloud/Core about which services it exposes.
                         </td>
                     </tr>
                     <tr>
                         <td>IM (UID XXXXX)</td>
                         <td>
-                            One of the integration module server instances. These instances are launched by the 
+                            One of the integration module server instances. These instances are launched by the
                             UCloud/IM server instance on demand. Any end-user action through UCloud/Core will trigger
                             the automatic launching of such an instance. This instance runs with the same privileges as
                             if the user had logged in through the SSH server. All authorization checks are enforced
@@ -463,7 +485,7 @@
                         <td>SSH server</td>
                         <td>
                             An <a href="https://en.wikipedia.org/wiki/Comparison_of_SSH_servers" target="_blank">SSH server</a>.
-                            End-users authenticate with this service to access the HPC system. From here they can 
+                            End-users authenticate with this service to access the HPC system. From here they can
                             compile code, manage their data and submit jobs. Once a user has authenticated with the
                             server, a login shell is spawned. All user interaction is done through this login shell and
                             all authorization checks are enforced directly by the operating system.
@@ -496,8 +518,8 @@
                     <tr>
                         <td>IBM ESS</td>
                         <td>
-                            <a href="https://www.ibm.com/products/elastic-storage-system" target="_blank">IBM ESS</a> 
-                            is a storage system. In our case, its primary purpose is to deliver a distributed POSIX 
+                            <a href="https://www.ibm.com/products/elastic-storage-system" target="_blank">IBM ESS</a>
+                            is a storage system. In our case, its primary purpose is to deliver a distributed POSIX
                             file system. Any other system, which delivers a distributed POSIX file system, could be
                             used instead. UCloud/IM does not care about the underlying storage system.
                         </td>
@@ -521,10 +543,10 @@
                         <th>When is it invoked?</th>
                         <td>
                             Every time the user finishes the connection procedure. <br><br>
-                            
-                            This naturually happens periodicially since the connection itself doesn't last 
-                            indefinitely. As a result, the script must be able to handle a previous connection. 
-                            This could be done by looking up the user in the identity management system. If the user 
+
+                            This naturally happens periodically since the connection itself doesn't last
+                            indefinitely. As a result, the script must be able to handle a previous connection.
+                            This could be done by looking up the user in the identity management system. If the user
                             already exists, then there is no need to create a new one.
                         </td>
                     </tr>
@@ -556,7 +578,7 @@
                                         <li>This quota is adjusted later when we receive information about the allocation</li>
                                     </ul>
                                 </li>
-                                <li>Return the UID of the user in FreepIPA</li>
+                                <li>Return the UID of the user in FreeIPA</li>
                             </ol>
                         </td>
                     </tr>
@@ -662,7 +684,7 @@
                     <tr>
                         <th>When is it invoked?</th>
                         <td>
-                            Always after a successful allocation. Subsequently, it may be periodicially invoked 
+                            Always after a successful allocation. Subsequently, it may be periodically invoked
                             when requred by the IM.
                         </td>
                     </tr>
@@ -779,7 +801,7 @@
                     <tr>
                         <th>When is it invoked?</th>
                         <td>
-                            Periodicially and when a new allocation is created. This script will always run
+                            Periodically and when a new allocation is created. This script will always run
                             <i>after</i> the project/connection extensions.
                         </td>
                     </tr>
@@ -840,7 +862,7 @@
                     <tr>
                         <th>When is it invoked?</th>
                         <td>
-                            Periodicially and when a new allocation is created. This script will always run
+                            Periodically and when a new allocation is created. This script will always run
                             <i>after</i> the project/connection extensions.
                         </td>
                     </tr>
@@ -901,7 +923,7 @@
                     <tr>
                         <th>When is it invoked?</th>
                         <td>
-                            Periodicially, one invocation per active drive.
+                            Periodically, one invocation per active drive.
                         </td>
                     </tr>
                     <tr>
@@ -944,3 +966,4 @@
     <script src="/app.js"></script>
 </body>
 </html>
+

@@ -61,7 +61,7 @@ import Sidebar from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
 import Snackbars from "@/Snackbar/Snackbars";
 import {Dialog} from "@/Dialog/Dialog";
-import {Navigate, Route, Routes, useNavigate} from "react-router-dom";
+import {Navigate, Route, Routes} from "react-router-dom";
 import {USER_LOGIN} from "@/Navigation/Redux/HeaderReducer";
 import {inDevEnvironment} from "@/UtilityFunctions";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
@@ -84,6 +84,7 @@ import {SharesOutgoing} from "@/Files/SharesOutgoing";
 import {ApplicationsOverview2} from "./Applications/Overview2";
 import {TerminalContainer} from "@/Terminal/Container";
 import {LOGIN_REDIRECT_KEY} from "@/Login/Login";
+import AppRoutes from "./Routes";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -93,7 +94,7 @@ const Core = (): JSX.Element => (
         <Snackbars />
         <Uploader />
         <Sidebar />
-        <div style={{height: "calc(100vh - var(--termsize, 0px))", overflowX: "auto", overflowY: "auto"}}>
+        <div data-component="router-wrapper" style={{height: "calc(100vh - var(--termsize, 0px))", overflowX: "auto", overflowY: "auto"}}>
             <ErrorBoundary>
                 <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>
                     <Routes>
@@ -158,14 +159,14 @@ const Core = (): JSX.Element => (
                         <Route path="/providers/detailed/:id" element={<ProviderDetailed />} />
                         <Route path="/providers/*" element={React.createElement(requireAuth(ProviderRouter))} />
 
-                        <Route path="/news/detailed/:id" element={<DetailedNews />} />
+                        <Route path={AppRoutes.news.detailed(":id")} element={<DetailedNews />} />
 
                         {/* Nullable paths args aren't supported (yet?) so we duplicate. */}
-                        <Route path="/news/list/" element={<NewsList />} />
-                        <Route path="/news/list/:filter" element={<NewsList />} />
+                        <Route path={AppRoutes.news.list("")} element={<NewsList />} />
+                        <Route path={AppRoutes.news.list(":filter")} element={<NewsList />} />
 
                         <Route
-                            path="/users/settings"
+                            path={AppRoutes.users.settings()}
                             element={React.createElement(requireAuth(UserSettings, {requireTwoFactor: false}))}
                         />
                         <Route path="/users/avatar" element={React.createElement(requireAuth(AvataaarModification))} />
@@ -174,7 +175,7 @@ const Core = (): JSX.Element => (
 
                         <Route path="/projects/" element={React.createElement(requireAuth(ProjectList))} />
                         <Route path="/projects/:project" element={React.createElement(requireAuth(ProjectDashboard))} />
-                        <Route path="/projects/:project/members" element={React.createElement(requireAuth(ProjectMembers))} />
+                        <Route path={AppRoutes.project.members(":project")} element={React.createElement(requireAuth(ProjectMembers))} />
 
                         <Route path="/subprojects/:project" element={React.createElement(requireAuth(SubprojectList))} />
 
@@ -244,7 +245,7 @@ function requireAuth<T>(Delegate: React.FunctionComponent<T>, opts?: RequireAuth
         if (opts === undefined || opts.requireTwoFactor) {
             if (info.principalType === "password" && Client.userRole === "USER" &&
                 info.twoFactorAuthentication === false) {
-                return <Navigate to="/user/settings" />;
+                return <Navigate to={AppRoutes.users.settings()} />;
             }
         }
 

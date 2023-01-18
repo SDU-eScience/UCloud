@@ -39,8 +39,8 @@ import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
 import ProjectAPI, {useProjectIdFromParams} from "@/Project/Api";
-import { isAllocationSuitableForSubAllocation } from "@/Project/Grant";
-import { getProviderTitle, ProviderTitle } from "@/Providers/ProviderTitle";
+import {isAllocationSuitableForSubAllocation} from "@/Project/Grant";
+import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider) + ` [${getParentAllocationFromSuballocation(alloc)}]`;
@@ -356,22 +356,24 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                     onChange={e => reason = e.target.value}
                 />
             </Box>
-            <ButtonGroup><Button onClick={async () => {
-                if (!reason) {
-                    snackbarStore.addFailure("Reason can't be empty", false);
-                    return;
-                }
-                mappedRows.forEach(it => it.description = reason);
-                try {
-                    await invokeCommand(deposit(bulkRequestOf(...mappedRows)));
-                    removeNewRecipientRow(recipient.id);
-                    props.reload();
-                    dialogStore.success();
-                    snackbarStore.addSuccess("Sub-allocations added.", false);
-                } catch (e) {
-                    errorMessageOrDefault(e, "Failed to submit rows");
-                }
-            }} color="green">Confirm</Button><Button color="red" onClick={() => dialogStore.failure()}>Cancel</Button></ButtonGroup>
+            <ButtonGroup>
+                <Button onClick={async () => {
+                    if (!reason) {
+                        snackbarStore.addFailure("Reason can't be empty", false);
+                        return;
+                    }
+                    mappedRows.forEach(it => it.description = reason);
+                    try {
+                        await invokeCommand(deposit(bulkRequestOf(...mappedRows)), {defaultErrorHandler: false});
+                        removeNewRecipientRow(recipient.id);
+                        props.reload();
+                        dialogStore.success();
+                        snackbarStore.addSuccess("Sub-allocations added.", false);
+                    } catch (e) {
+                        displayErrorMessageOrDefault(e, "Failed to submit rows");
+                    }
+                }} color="green">Confirm</Button>
+                <Button color="red" onClick={() => dialogStore.failure()}>Cancel</Button></ButtonGroup>
         </Box>, () => undefined);
     }, [projectId]);
 
@@ -387,7 +389,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                 key={recipient.id}
                 iconColor2="white"
                 title={<Flex>
-                    <Flex width="170px" mt="7px">
+                    <Flex width="170px" ml="8px" mt="7px">
                         <ClickableDropdown useMousePositioning width="250px" chevron trigger={<><Icon mr="4px" color2="white" name={recipient.isProject ? "projects" : "user"} />{!recipient.isProject ? "User" : recipient.asNewProject ? "New" : "Existing"}</>}>
                             <Flex onClick={() => toggleIsProject(recipient.id, true)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> Existing project</Flex>
                             <Flex onClick={() => toggleAsNewProject(recipient.id)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> New project</Flex>

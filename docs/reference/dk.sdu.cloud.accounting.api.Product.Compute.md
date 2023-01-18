@@ -3,7 +3,7 @@
 # `Product.Compute`
 
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A compute Product_
@@ -18,6 +18,9 @@ data class Compute(
     val cpu: Int?,
     val memoryInGigs: Int?,
     val gpu: Int?,
+    val cpuModel: String?,
+    val memoryModel: String?,
+    val gpuModel: String?,
     val version: Int?,
     val freeToUse: Boolean?,
     val unitOfPrice: ProductPriceUnit?,
@@ -130,10 +133,43 @@ For more information go
 
 <details>
 <summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A version number for this Product, managed by UCloud
+<code>cpuModel</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
+
+
+
+</details>
+
+<details>
+<summary>
+<code>memoryModel</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>gpuModel</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> This property is no longer used.
+</summary>
+
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -192,6 +228,7 @@ system's UI.
 <code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -203,6 +240,7 @@ system's UI.
 <code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -214,6 +252,7 @@ system's UI.
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
@@ -225,7 +264,6 @@ system's UI.
 <code>type</code>: <code><code>String /* "compute" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

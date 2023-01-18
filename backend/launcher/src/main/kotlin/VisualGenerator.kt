@@ -327,11 +327,17 @@ fun Graphics2D.drawVisualization(
             for (line in visualization.lines) {
                 var maxHeight = 0
                 for (stat in line.stats) {
+                    var statValue = stat.value
+                    if (statValue is DocVisualization.Placeholder) {
+                        stat.value = replacePlaceholderVisualization(statValue.value)
+                        statValue = stat.value
+                    }
+
                     val key = if (stat.name.isEmpty()) "" else "${stat.name}: "
                     drawString(key, x + offsetX, y + offsetY + metrics.height)
                     offsetX += metrics.stringWidth(key)
 
-                    val extraSpace = if (stat.value is DocVisualization.Card) {
+                    val extraSpace = if (statValue is DocVisualization.Card) {
                         metrics.height + cardPropertyPaddingY
                     } else {
                         0
@@ -339,14 +345,14 @@ fun Graphics2D.drawVisualization(
 
                     offsetY += extraSpace
 
-                    if (stat.value is DocVisualization.Card) offsetX = cardMargin
+                    if (statValue is DocVisualization.Card) offsetX = cardMargin
 
-                    val newDepth = if (stat.value is DocVisualization.Card) depth + 1 else depth
-                    drawVisualization(stat.value, x + offsetX, y + offsetY, maxWidth - cardMargin * 2, newDepth)
+                    val newDepth = if (statValue is DocVisualization.Card) depth + 1 else depth
+                    drawVisualization(statValue, x + offsetX, y + offsetY, maxWidth - cardMargin * 2, newDepth)
 
                     offsetY -= extraSpace
 
-                    maxHeight = max(maxHeight, estimateHeight(stat.value) + extraSpace)
+                    maxHeight = max(maxHeight, estimateHeight(statValue) + extraSpace)
                 }
                 offsetY += maxHeight + propertyPadding
                 offsetX = cardMargin
@@ -379,6 +385,15 @@ fun Graphics2D.estimateHeight(
     return when (visualization) {
         is DocVisualization.Card -> {
             val lineHeight = visualization.lines.sumByLong { line ->
+                // HACK(Dan): This shouldn't be here, but it was the easiest place to make sure that placeholders are
+                // gone before we estimate the height.
+                line.stats.forEach {
+                    val value = it.value
+                    if (value is DocVisualization.Placeholder) {
+                        it.value = replacePlaceholderVisualization(value.value)
+                    }
+                }
+
                 val hasCard = line.stats.any { it.value is DocVisualization.Card }
                 val extraSpacing = if (hasCard) metrics.height + cardPropertyPaddingY else 0
                 (line.stats.maxOf { estimateHeight(it.value) } ) + cardPropertyPaddingY + extraSpacing.toLong()

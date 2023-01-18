@@ -3,10 +3,10 @@
 # `FileCollection`
 
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-__
+_A `Resource` is the core data model used to synchronize tasks between UCloud and Provider._
 
 ```kotlin
 data class FileCollection(
@@ -20,6 +20,7 @@ data class FileCollection(
     val providerGeneratedId: String?,
 )
 ```
+For more information go [here](/docs/developer-guide/orchestration/resources.md).
 
 <details>
 <summary>

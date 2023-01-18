@@ -9,6 +9,7 @@ import kotlinx.serialization.builtins.serializer
 typealias ProjectRole = dk.sdu.cloud.project.api.ProjectRole
 
 @Serializable
+@UCloudApiStable
 data class ProjectMember(
     val username: String,
     val role: ProjectRole,
@@ -16,7 +17,8 @@ data class ProjectMember(
 )
 
 @Serializable
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
+@UCloudApiOwnedBy(Projects::class)
 data class Project(
     val id: String,
     val createdAt: Long,
@@ -24,6 +26,7 @@ data class Project(
     val status: Status,
 ) {
     @Serializable
+    @UCloudApiStable
     data class Status(
         @UCloudApiDoc("""
             A flag which indicates if the project is currently archived.
@@ -78,6 +81,7 @@ data class Project(
     )
 
     @Serializable
+    @UCloudApiStable
     data class Specification(
         val parent: String?,
         val title: String,
@@ -89,10 +93,12 @@ data class Project(
     }
 
     @Serializable
+    @UCloudApiStable
     data class Settings(
         val subprojects: SubProjects? = null,
     ) {
         @Serializable
+        @UCloudApiStable
         data class SubProjects(
             val allowRenaming: Boolean = false
         )
@@ -100,7 +106,7 @@ data class Project(
 }
 
 @Serializable
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 data class Group(
     val id: String,
     val createdAt: Long,
@@ -108,6 +114,7 @@ data class Group(
     val status: Status
 ) {
     @Serializable
+    @UCloudApiStable
     data class Specification(
         val project: String,
         val title: String,
@@ -118,13 +125,14 @@ data class Group(
     }
 
     @Serializable
+    @UCloudApiStable
     data class Status(
         val members: List<String>? = null
     )
 }
 
 @Serializable
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 data class ProjectInvite(
     val createdAt: Long,
     val invitedBy: String,
@@ -134,6 +142,7 @@ data class ProjectInvite(
 )
 
 @Serializable
+@UCloudApiStable
 data class RenameProjectRequest(
     val id: String,
     val newTitle: String
@@ -141,17 +150,112 @@ data class RenameProjectRequest(
 typealias RenameProjectResponse = Unit
 
 @Serializable
+@UCloudApiStable
 data class SetProjectVerificationStatusRequest(
     val projectId: String,
 )
 typealias SetProjectVerificationStatusResponse = Unit
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 object Projects : CallDescriptionContainer("projects.v2") {
     const val baseContext = "/api/projects/v2"
     const val inviteResource = "invites"
     const val groupResource = "groups"
     const val groupMemberResource = "groupMembers"
+
+    init {
+        description = """
+The projects feature allow for collaboration between different users across the entire UCloud platform.
+
+This project establishes the core abstractions for projects and establishes an event stream for receiving updates about
+changes. Other services extend the projects feature and subscribe to these changes to create the full project feature.
+
+## Definition
+
+A project in UCloud is a collection of `members` which is uniquely identified by an `id`. All `members` are
+[users](/docs/developer-guide/core/users/authentication/users.md) identified by their `username` and have exactly one 
+`role`. A user always has exactly one `role`. Each project has exactly one principal investigator (`PI`). The `PI` is 
+responsible for managing the project, including adding and removing users.
+
+| Role           | Notes                                                                                              |
+|----------------|----------------------------------------------------------------------------------------------------|
+| `PI`           | The primary point of contact for projects. All projects have exactly one PI.                       |
+| `ADMIN`        | Administrators are allowed to perform some project management. A project can have multiple admins. |
+| `USER`         | Has no special privileges.                                                                         |
+
+**Table:** The possible roles of a project, and their privileges within project
+management.
+
+A project can be updated by adding/removing/changing any of its `members`.
+
+A project is sub-divided into groups:
+
+![](/backend/accounting-service/wiki/structure.png)
+
+Each project may have 0 or more groups. The groups can have 0 or more members. A group belongs to exactly one project,
+and the members of a group can only be from the project it belongs to.
+
+## Special Groups
+
+All projects have some special groups. The most common, and as of 05/01/23 the only, special group is the "All Users"
+group. This group automatically contains all members of the project. These are synchronized every single time a user is
+added or removed from a project. This special group is used by providers when registering resources with UCloud.
+
+## Creating Projects and Sub-Projects
+
+All projects create by end-users have exactly one parent project. Only UCloud administrators can create root-level
+projects, that is a project without a parent. This allows users of UCloud to create a hierarchy of projects. The
+project hierarchy plays a significant role in accounting.
+
+Normal users can create a project through the [grant application](./grants/grants.md) feature.
+
+A project can be uniquely identified by the path from the root project to the leaf-project. As a result, the `title` of
+a project must be unique within a single project. `title`s are case-insensitive.
+
+Permissions and memberships are _not_ hierarchical. This means that a user must be explicitly added to every project
+they need permissions in. UCloud administrators can always create a sub-project in any given project. A setting exists
+for every project which allows normal users to create sub-projects.
+
+---
+
+__Example:__ A project hierarchy
+
+![](/backend/accounting-service/wiki/subprojects.png)
+
+__Figure 1:__ A project hierarchy
+
+Figure 1 shows a hierarchy of projects. Note that users deep in the hierarchy are not necessarily members of the
+projects further up in the hierarchy. For example, being a member of "IMADA" does not imply membership of "NAT".
+A member of "IMADA" can be a member of "NAT" but they must be _explicitly_ added to both projects.
+
+None of the projects share _any_ resources. Each individual project will have their own home directory. The
+administrators, or any other user, of "NAT" will not be able to read/write any files of "IMADA" unless they have
+explicitly been added to the "IMADA" project.
+
+## The Project Context (also known as workspace)
+
+All requests in UCloud are executed in a particular context. The header of every request defines the context. For the
+HTTP backend this is done in the `Project` header. The absence of a project implies that the request is executed in the
+personal project context.
+
+![](/backend/accounting-service/wiki/context-switcher.png)
+
+__Figure 2:__ The UCloud user interface allows you to select context through a dropdown in the navigation header.
+
+---
+
+__Example:__ Accessing the project context from a microservice
+
+```kotlin
+implement(Descriptions.call) {
+    val project: String? = ctx.project // null implies the personal project
+    ok(service.doSomething(project))
+}
+```
+
+--- 
+        """.trimIndent()
+    }
 
     // Project management
     val retrieve = call("retrieve", ProjectsRetrieveRequest.serializer(), Project.serializer(), CommonErrorMessage.serializer()) {
@@ -182,8 +286,7 @@ object Projects : CallDescriptionContainer("projects.v2") {
         httpUpdate(baseContext, "updateSettings")
     }
 
-    // Internal API
-    @UCloudApiInternal(InternalLevel.BETA)
+    @UCloudApiInternal(InternalLevel.STABLE)
     val retrieveAllUsersGroup = call("retrieveAllUsersGroup", BulkRequest.serializer(FindByProjectId.serializer()), BulkResponse.serializer(FindByStringId.serializer()), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "retrieveAllUsersGroup", roles = Roles.SERVICE)
     }
@@ -268,6 +371,7 @@ interface ProjectFlags {
 }
 
 @Serializable
+@UCloudApiStable
 data class ProjectsRetrieveRequest(
     val id: String,
     override val includeMembers: Boolean? = null,
@@ -279,6 +383,7 @@ data class ProjectsRetrieveRequest(
 ) : ProjectFlags
 
 @Serializable
+@UCloudApiStable
 enum class ProjectsSortBy {
     favorite,
     title,
@@ -286,6 +391,7 @@ enum class ProjectsSortBy {
 }
 
 @Serializable
+@UCloudApiStable
 data class ProjectsBrowseRequest(
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -311,6 +417,7 @@ typealias ProjectsUpdateSettingsRequest = Project.Settings
 typealias ProjectsVerifyMembershipRequest = BulkRequest<FindByStringId>
 
 @Serializable
+@UCloudApiStable
 enum class ProjectInviteType {
     INGOING,
     OUTGOING,
@@ -321,6 +428,7 @@ interface ProjectInviteFlags {
 }
 
 @Serializable
+@UCloudApiStable
 data class ProjectsBrowseInvitesRequest(
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -331,14 +439,17 @@ data class ProjectsBrowseInvitesRequest(
 ) : ProjectInviteFlags, WithPaginationRequestV2
 
 @Serializable
+@UCloudApiStable
 data class ProjectsCreateInviteRequestItem(val recipient: String)
 typealias ProjectsCreateInviteRequest = BulkRequest<ProjectsCreateInviteRequestItem>
 
 @Serializable
+@UCloudApiStable
 data class FindByProjectId(val project: String)
 typealias ProjectsAcceptInviteRequest = BulkRequest<FindByProjectId>
 
 @Serializable
+@UCloudApiStable
 data class ProjectsDeleteInviteRequestItem(
     val project: String,
     val username: String,
@@ -346,10 +457,12 @@ data class ProjectsDeleteInviteRequestItem(
 typealias ProjectsDeleteInviteRequest = BulkRequest<ProjectsDeleteInviteRequestItem>
 
 @Serializable
+@UCloudApiStable
 data class ProjectsDeleteMemberRequestItem(val username: String)
 typealias ProjectsDeleteMemberRequest = BulkRequest<ProjectsDeleteMemberRequestItem>
 
 @Serializable
+@UCloudApiStable
 data class ProjectsChangeRoleRequestItem(val username: String, val role: ProjectRole)
 typealias ProjectsChangeRoleRequest = BulkRequest<ProjectsChangeRoleRequestItem>
 
@@ -358,6 +471,7 @@ interface ProjectGroupFlags {
 }
 
 @Serializable
+@UCloudApiStable
 data class ProjectsRetrieveGroupRequest(
     val id: String,
     override val includeMembers: Boolean? = null
@@ -366,6 +480,7 @@ data class ProjectsRetrieveGroupRequest(
 typealias ProjectsCreateGroupRequest = BulkRequest<Group.Specification>
 
 @Serializable
+@UCloudApiStable
 data class ProjectsRenameGroupRequestItem(
     val group: String,
     val newTitle: String,
@@ -374,6 +489,7 @@ data class ProjectsRenameGroupRequestItem(
 typealias ProjectsRenameGroupRequest = BulkRequest<ProjectsRenameGroupRequestItem>
 
 @Serializable
+@UCloudApiStable
 data class GroupMember(
     val username: String,
     val group: String

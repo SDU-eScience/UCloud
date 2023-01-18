@@ -1,24 +1,32 @@
 package dk.sdu.cloud.elastic.management.services
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
+import co.elastic.clients.elasticsearch.cluster.HealthRequest
+import co.elastic.clients.elasticsearch.indices.ExistsRequest
+import co.elastic.clients.elasticsearch.indices.GetIndexRequest
+import co.elastic.clients.elasticsearch.indices.IndexRouting
+import co.elastic.clients.elasticsearch.indices.IndexRoutingAllocation
+import co.elastic.clients.elasticsearch.indices.IndexRoutingAllocationInclude
+import co.elastic.clients.elasticsearch.indices.IndexSettingBlocks
+import co.elastic.clients.elasticsearch.indices.IndexSettings
+import co.elastic.clients.elasticsearch.indices.PutIndicesSettingsRequest
+import co.elastic.clients.elasticsearch.indices.ShrinkRequest
+import co.elastic.clients.json.JsonData
 import dk.sdu.cloud.service.Loggable
 import org.elasticsearch.ElasticsearchStatusException
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
-import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest
-import org.elasticsearch.action.admin.indices.shrink.ResizeRequest
-import org.elasticsearch.client.RequestOptions
+import org.elasticsearch.client.Request
 import org.elasticsearch.client.ResponseException
-import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.client.core.CountRequest
-import org.elasticsearch.client.indices.GetIndexRequest
+import org.elasticsearch.client.RestClient
 import org.elasticsearch.common.settings.Settings
-import org.elasticsearch.index.query.QueryBuilders
 import org.slf4j.Logger
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.time.LocalDate
 
 class ShrinkService(
-    private val elastic: RestHighLevelClient,
+    private val elastic: ElasticsearchClient,
+    private val lowlevelClient: RestClient,
     private val gatherNode: String
 ) {
 
@@ -30,31 +38,39 @@ class ShrinkService(
             }
             counter++
             Thread.sleep(1000)
-        } while (elastic.cluster().health(ClusterHealthRequest(index), RequestOptions.DEFAULT).relocatingShards > 0)
+        } while (elastic.cluster().health(
+                HealthRequest.Builder()
+                    .index(index)
+                    .build()
+            ).relocatingShards() > 0)
     }
 
     private fun shrinkIndex(sourceIndex: String){
         var retries = 0
         while (retries < 3) {
             val targetIndex = sourceIndex + "_small"
-            val request = ResizeRequest(targetIndex, sourceIndex)
-            request.targetIndexRequest.settings(
-                Settings.builder()
-                    //Set number of shards in new shrinked index.
-                    //Should always be a factor the original. 15 -> 5,3,1.
-                    .put("index.number_of_shards", 1)
-                    //Makes sure that the new index is writable
-                    .put("index.blocks.write", false)
-                    //Set the number of replicas in the new shrinked index.
-                    .put("index.number_of_replicas", 1)
-                    //Choose that the index should use best_compression strategy.
-                    //Slower search, but less space usage
-                    .put("index.codec", "best_compression")
-                    //Should have access to all nodes again
-                    .putNull("index.routing.allocation.require._name")
-            )
+            val request = ShrinkRequest.Builder()
+                .index(sourceIndex)
+                .target(targetIndex)
+                .settings(
+                    mutableMapOf<String?, JsonData?>().apply {
+                        //Set number of shards in new shrinked index.
+                        //Should always be a factor the original. 15 -> 5,3,1.
+                        put("index.number_of_shards", JsonData.of(1))
+                        //Makes sure that the new index is writable
+                        put("index.blocks.write", JsonData.of(false))
+                        //Set the number of replicas in the new shrinked index.
+                        put("index.number_of_replicas", JsonData.of(1))
+                        //Choose that the index should use best_compression strategy.
+                        //Slower search, but less space usage
+                        put("index.codec", JsonData.of("best_compression"))
+                        //Should have access to all nodes again
+                        put("index.routing.allocation.require._name", JsonData.of("*"))
+                    }
+                )
+                .build()
             try {
-                elastic.indices().shrink(request, RequestOptions.DEFAULT)
+                elastic.indices().shrink(request)
             } catch (ex: Exception) {
                 when (ex) {
                     //handeling internal error on "allocation should be on one node"
@@ -65,11 +81,11 @@ class ShrinkService(
                     }
                     //usually an index-already-exists error due to previous failure having created the resized
                     // index but failed before it could delete the original index
-                    is ElasticsearchStatusException -> {
+                    is ElasticsearchException -> {
                         log.warn(ex.stackTraceToString())
                         //If both exists
-                        if (elastic.indices().exists(GetIndexRequest(sourceIndex), RequestOptions.DEFAULT)
-                            && elastic.indices().exists(GetIndexRequest(targetIndex), RequestOptions.DEFAULT)) {
+                        if (elastic.indices().exists(ExistsRequest.Builder().index(sourceIndex).build()).value()
+                            && elastic.indices().exists(ExistsRequest.Builder().index(targetIndex).build()).value()) {
                             log.info("Both Indices exists: $targetIndex, $sourceIndex")
                             if (isSameSize(sourceIndex, targetIndex, elastic)) {
                                 log.info("They are same size")
@@ -104,28 +120,28 @@ class ShrinkService(
         throw Exception("Too many retries on shrink of $sourceIndex")
     }
 
-    private fun prepareSourceIndex(index: String) {
+    private fun prepareSourceIndex(index: String ) {
         var retries = 0
         while (retries < 3) {
             //What node should the shards be collected on before shrink is performed
-            val setNodeSettingKey = "index.routing.allocation.require._name"
-            val setNodeSettingValue = gatherNode
+            //"index.routing.allocation.require._name"
+            // gatherNode
 
             //Make sure that no more is being written to the index. Block writing.
-            val setBlockSettingKey = "index.blocks.write"
-            val setBlockSettingValue = true
+            //"index.blocks.write"
+            //true
 
-            val request = UpdateSettingsRequest(index)
+            val r = Request("PUT", "/$index/_settings")
 
-            val settings =
-                Settings.builder()
-                    .put(setNodeSettingKey, setNodeSettingValue)
-                    .put(setBlockSettingKey, setBlockSettingValue)
-                    .build()
+            r.setJsonEntity("""
+                {
+                    "index.routing.allocation.require._name":"$gatherNode",
+                    "index.blocks.write": true
+                }
+                """.trimIndent())
 
-            request.settings(settings)
             try {
-                elastic.indices().putSettings(request, RequestOptions.DEFAULT)
+                lowlevelClient.performRequest(r)
                 return
             } catch (ex: IOException) {
                 log.info("IOException - retrying")

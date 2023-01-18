@@ -19,6 +19,8 @@ import dk.sdu.cloud.utils.secureToken
 import jdk.net.ExtendedSocketOptions
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.*
 import kotlinx.serialization.json.JsonObject
@@ -216,7 +218,8 @@ class IpcServer(
 ) {
     private val isProxy = rpcServer == null
     private val ipcHandlers = ArrayList<IpcHandler>()
-    val closeClientIds: MutableSet<Int> = mutableSetOf()
+    private val shouldCloseMutex = Mutex()
+    private val closeClientIds: MutableSet<Int> = mutableSetOf()
     val handlers: List<IpcHandler>
         get() = ipcHandlers
 
@@ -247,12 +250,17 @@ class IpcServer(
         }
     }
 
-    fun requestClientRestart(uid: Int) {
-        closeClientIds.add(uid)
+    suspend fun requestClientRestart(uid: Int) {
+        shouldCloseMutex.withLock {
+            closeClientIds.add(uid)
+        }
     }
 
-    fun clientShouldRestart(uid: Int): Boolean  {
-        return closeClientIds.contains(uid)
+    suspend fun clientShouldRestart(uid: Int, remove: Boolean = true): Boolean  {
+        shouldCloseMutex.withLock {
+            return if (remove) closeClientIds.remove(uid)
+            else closeClientIds.contains(uid)
+        }
     }
 
     fun addHandler(handler: IpcHandler) {

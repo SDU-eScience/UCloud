@@ -1,85 +1,106 @@
 package dk.sdu.cloud.app.store.services
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch._types.analysis.WhitespaceAnalyzer
+import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
+import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery
+import co.elastic.clients.elasticsearch._types.query_dsl.MatchAllQuery
+import co.elastic.clients.elasticsearch._types.query_dsl.RegexpQuery
+import co.elastic.clients.elasticsearch._types.query_dsl.TermQuery
+import co.elastic.clients.elasticsearch.core.*
+import co.elastic.clients.elasticsearch.core.search.Hit
+import co.elastic.clients.elasticsearch.indices.*
+import co.elastic.clients.elasticsearch.indices.ExistsRequest
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-import org.elasticsearch.action.admin.indices.flush.FlushRequest
-import org.elasticsearch.action.delete.DeleteRequest
-import org.elasticsearch.action.index.IndexRequest
-import org.elasticsearch.action.search.SearchRequest
-import org.elasticsearch.action.search.SearchResponse
-import org.elasticsearch.action.update.UpdateRequest
-import org.elasticsearch.client.RequestOptions
-import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.client.indices.CreateIndexRequest
-import org.elasticsearch.client.indices.GetIndexRequest
-import org.elasticsearch.common.settings.Settings
-import org.elasticsearch.index.query.QueryBuilders
-import org.elasticsearch.search.builder.SearchSourceBuilder
-import org.elasticsearch.xcontent.XContentType
+import java.io.ByteArrayInputStream
 
 private const val SEARCH_RESPONSE_SIZE = 200
 
 class ElasticDao(
-    val elasticClient: RestHighLevelClient
+    val elasticClient: ElasticsearchClient
 ) {
 
-    private fun findApplicationInElasticOrNull(appName: String, appVersion: String): SearchResponse? {
-        val indexExists = elasticClient.indices().exists(GetIndexRequest(APPLICATION_INDEX), RequestOptions.DEFAULT)
+    private fun findApplicationInElasticOrNull(appName: String, appVersion: String): List<Hit<ElasticIndexedApplication>>? {
+        val indexExists = elasticClient.indices().exists(
+            ExistsRequest.Builder()
+                .index(APPLICATION_INDEX)
+                .build()
+        ).value()
+
         if (!indexExists) {
             //If index does not exist then create with special whitspace mapping (makes terms on whitespace only,
             // not on  special chars)
-            val request = CreateIndexRequest(APPLICATION_INDEX)
-            request.settings(Settings.builder()
-                .put("index.number_of_shards",1)
-                .put("index.number_of_replicas", 2)
-                .put("analysis.analyzer", "whitespace" )
-            )
-
-            request.mapping("""
-                {
-                    "properties" : {
-                        "version" : {
-                            "type" : "text",
-                            "analyzer": "whitespace",
-                            "fields" : {
-                                "keyword" : { 
-                                    "type" : "text",
-                                    "analyzer" : "whitespace"
+            val request = CreateIndexRequest.Builder()
+                .index(APPLICATION_INDEX)
+                .settings(
+                    IndexSettings.Builder()
+                        .numberOfShards("1")
+                        .numberOfReplicas("2")
+                        .analysis(
+                            IndexSettingsAnalysis.Builder()
+                                .analyzer("whitespace", WhitespaceAnalyzer.Builder().build()._toAnalyzer())
+                                .build()
+                        )
+                        .build()
+                )
+                .mappings(
+                    TypeMapping.Builder()
+                        .withJson(ByteArrayInputStream(
+                            """
+                                {
+                                    "properties" : {
+                                        "version" : {
+                                            "type" : "text",
+                                            "analyzer": "whitespace",
+                                            "fields" : {
+                                                "keyword" : { 
+                                                    "type" : "text",
+                                                    "analyzer" : "whitespace"
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                            }
-                        }
-                    }
-                }""".trimIndent(), XContentType.JSON)
-            elasticClient.indices().create(request, RequestOptions.DEFAULT)
+                            """.toByteArray()
+                        )).build()
+                ).build()
+
+            elasticClient.indices().create(request)
             flushElastic()
             return null
         }
 
-        val request = SearchRequest(APPLICATION_INDEX)
-        val source = SearchSourceBuilder()
+        val request = SearchRequest.Builder()
+            .index(APPLICATION_INDEX)
             .query(
-                QueryBuilders.boolQuery()
+                BoolQuery.Builder()
                     .must(
-                        QueryBuilders.termQuery("name", appName.toLowerCase())
+                        TermQuery.Builder()
+                            .field("name")
+                            .value(appName.lowercase())
+                            .build()._toQuery()
                     )
                     .must(
-                        QueryBuilders.termQuery("version", appVersion.toLowerCase())
+                        TermQuery.Builder()
+                            .field("version")
+                            .value(appVersion.lowercase())
+                            .build()._toQuery()
                     )
+                    .build()._toQuery()
             )
+            .build()
 
-        request.source(source)
-
-        val results = elasticClient.search(request, RequestOptions.DEFAULT)
+        val results = elasticClient.search(request, ElasticIndexedApplication::class.java).hits().hits()
 
 
         return when {
-            results.hits.hits.isEmpty() -> null
-            results.hits.hits.size > 1 -> throw RPCException.fromStatusCode(
+            results.isEmpty() -> null
+            results.size > 1 -> throw RPCException.fromStatusCode(
                 HttpStatusCode.Conflict,
                 "Multiple entries matching: name = $appName and version = $appVersion found. Contact support for help."
             )
@@ -109,21 +130,24 @@ class ElasticDao(
             return
         }
 
-        val normalizedTags = tags.map { it.toLowerCase() }
+        val normalizedTags = tags.map { it.lowercase() }
 
         val indexedApplication = ElasticIndexedApplication(
-            name = name.toLowerCase(),
-            version = version.toLowerCase(),
-            description = description.toLowerCase(),
-            title = title.toLowerCase(),
+            name = name.lowercase(),
+            version = version.lowercase(),
+            description = description.lowercase(),
+            title = title.lowercase(),
             tags = normalizedTags
         )
 
-        val request = IndexRequest(APPLICATION_INDEX)
-        val source = defaultMapper.encodeToString(indexedApplication).encodeToByteArray()
-        request.source(source, XContentType.JSON)
+        val request = IndexRequest.Builder<ElasticIndexedApplication>()
+            .index(APPLICATION_INDEX)
+            .document(
+                indexedApplication
+            )
+            .build()
 
-        elasticClient.index(request, RequestOptions.DEFAULT)
+        elasticClient.index(request)
         flushElastic()
     }
 
@@ -133,9 +157,9 @@ class ElasticDao(
         val results = findApplicationInElasticOrNull(name, version) ?: throw RPCException.fromStatusCode(
             HttpStatusCode.NotFound
         )
-        val id = results.hits.hits.first().id
-        val deleteRequest = DeleteRequest(APPLICATION_INDEX, id)
-        elasticClient.delete(deleteRequest, RequestOptions.DEFAULT)
+        val id = results.first().id()
+        val deleteRequest = DeleteRequest.Builder().index(APPLICATION_INDEX).id(id).build()
+        elasticClient.delete(deleteRequest)
     }
 
     fun updateApplicationDescriptionInElastic(appName: String, appVersion: String, newDescription: String) {
@@ -143,50 +167,65 @@ class ElasticDao(
             HttpStatusCode.NotFound
         )
 
-        val hitID = results.hits.hits.first().id
-        val updateRequest = UpdateRequest(APPLICATION_INDEX, hitID).apply {
-            doc("description", newDescription.toLowerCase())
-        }
+        val hit = results.first()
+        val updateRequest = UpdateRequest.Builder<ElasticIndexedApplication, ElasticIndexedApplication>()
+            .index(APPLICATION_INDEX)
+            .id(hit.id())
+            .doc(
+                hit.source()?.copy(description = newDescription)
+            )
+            .build()
 
-        elasticClient.update(updateRequest, RequestOptions.DEFAULT)
+        elasticClient.update(updateRequest, ElasticIndexedApplication::class.java)
         flushElastic()
     }
 
 
-    private fun findDocsByAppName(appName: String): SearchResponse {
-        val request = SearchRequest(APPLICATION_INDEX)
-        val source = SearchSourceBuilder()
+    private fun findDocsByAppName(appName: String): List<Hit<ElasticIndexedApplication>> {
+        val request = SearchRequest.Builder()
+            .index(APPLICATION_INDEX)
             .query(
-                QueryBuilders.boolQuery()
+                BoolQuery.Builder()
                     .must(
-                        QueryBuilders.termQuery("name", appName.toLowerCase())
+                        TermQuery.Builder()
+                            .field("name")
+                            .value(appName.lowercase())
+                            .build()._toQuery()
                     )
+                    .build()._toQuery()
             )
+            .build()
 
-        request.source(source)
-
-        return elasticClient.search(request, RequestOptions.DEFAULT)
+        return elasticClient.search(request, ElasticIndexedApplication::class.java).hits().hits()
     }
 
     fun addTagToElastic(appName: String, tag: List<String>) {
         val results = findDocsByAppName(appName)
-        val normalizedTags = tag.map { it.toLowerCase() }
+        val normalizedTags = tag.map { it.lowercase() }
 
-        results.hits.hits.forEach { elasticDoc ->
-            val doc = defaultMapper.decodeFromString<ElasticIndexedApplication>(elasticDoc.sourceAsString)
+        results.forEach { elasticDoc ->
+            val doc = elasticDoc.source()
             val newListOfTags = mutableListOf<String>()
 
             normalizedTags.forEach {
-                if (doc.tags.contains(it)) {
+                if (doc?.tags?.contains(it) == true) {
                     return@forEach
                 } else {
                     newListOfTags.add(it)
                 }
             }
-            newListOfTags.addAll(doc.tags)
+            if (doc?.tags != null && doc.tags.isNotEmpty()) {
+                newListOfTags.addAll( doc.tags )
+            }
 
-            val updateRequest = UpdateRequest(APPLICATION_INDEX, elasticDoc.id).doc("tags", newListOfTags)
-            elasticClient.update(updateRequest, RequestOptions.DEFAULT)
+            val updateRequest = UpdateRequest.Builder<ElasticIndexedApplication,ElasticIndexedApplication>()
+                .index(APPLICATION_INDEX)
+                .id(elasticDoc.id())
+                .doc(
+                    doc?.copy(tags = newListOfTags)
+                )
+                .build()
+            elasticClient.update(updateRequest, ElasticIndexedApplication::class.java)
         }
         flushElastic()
     }
@@ -194,12 +233,12 @@ class ElasticDao(
     fun removeTagFromElastic(appName: String, tag: List<String>) {
         val results = findDocsByAppName(appName)
 
-        val normalizedTagsToDelete = tag.map { it.toLowerCase() }
-        results.hits.hits.forEach { elasticDoc ->
-            val doc = defaultMapper.decodeFromString<ElasticIndexedApplication>(elasticDoc.sourceAsString)
+        val normalizedTagsToDelete = tag.map { it.lowercase() }
+        results.forEach { elasticDoc ->
+            val doc = elasticDoc.source()
 
             val newListOfTags = mutableListOf<String>()
-            doc.tags.forEach { oldTag ->
+            doc?.tags?.forEach { oldTag ->
                 if (normalizedTagsToDelete.contains(oldTag)) {
                     return@forEach
                 } else {
@@ -207,76 +246,86 @@ class ElasticDao(
                 }
             }
 
-            val updateRequest = UpdateRequest(APPLICATION_INDEX, elasticDoc.id).doc("tags", newListOfTags)
-            elasticClient.update(updateRequest, RequestOptions.DEFAULT)
+            val updateRequest = UpdateRequest.Builder<ElasticIndexedApplication, ElasticIndexedApplication>()
+                .index(APPLICATION_INDEX)
+                .id(elasticDoc.id())
+                .doc(
+                    doc?.copy(tags = newListOfTags)
+                )
+                .build()
+            elasticClient.update(updateRequest, ElasticIndexedApplication::class.java)
         }
         flushElastic()
     }
 
-    fun search(queryTerms: List<String>, tagFilter: List<String>): SearchResponse {
-        val request = SearchRequest(APPLICATION_INDEX)
+    fun search(queryTerms: List<String>, tagFilter: List<String>): List<Hit<ElasticIndexedApplication>> {
+        val request = SearchRequest.Builder()
+            .index(APPLICATION_INDEX)
 
-        val qb = QueryBuilders.boolQuery()
+            .build()
 
-        val queryFilterTerms = QueryBuilders.boolQuery()
+        val qb = BoolQuery.Builder()
+
+        val queryFilterTerms = BoolQuery.Builder()
 
         if (tagFilter.isEmpty()) {
-            queryFilterTerms.should(QueryBuilders.matchAllQuery())
+            queryFilterTerms.should(MatchAllQuery.Builder().build()._toQuery())
         } else {
             tagFilter.forEach { tag ->
                 queryFilterTerms.should(
-                    QueryBuilders.termQuery(
-                        "tags",
-                        tag
-                    )
+                    TermQuery.Builder()
+                        .field("tags")
+                        .value(tag)
+                        .build()._toQuery()
                 )
             }
         }
 
         if (queryTerms.isEmpty()) {
-            qb.should(QueryBuilders.matchAllQuery()).filter(queryFilterTerms)
+            qb.should(MatchAllQuery.Builder().build()._toQuery()).filter(queryFilterTerms.build()._toQuery())
         } else {
             for (i in 0 until queryTerms.size) {
                 val term = ".*${queryTerms[i]}.*"
                 qb.should(
-                    QueryBuilders.boolQuery()
+                    BoolQuery.Builder()
                         .should(
-                            QueryBuilders.regexpQuery(
-                                "description",//FIELD
-                                term//REGEXP
-                            ).boost(0.5f)
+                            RegexpQuery.Builder()
+                                .field("description")
+                                .value(term)
+                                .boost(0.5f)
+                                .build()._toQuery()
                         )
                         .should(
-                            QueryBuilders.regexpQuery(
-                                "title",
-                                term
-                            ).boost(2.0f)
+                            RegexpQuery.Builder()
+                                .field("title")
+                                .value(term)
+                                .boost(2.0f)
+                                .build()._toQuery()
                         )
                         .should(
-                            QueryBuilders.regexpQuery(
-                                "tags",
-                                term
-                            )
+                            RegexpQuery.Builder()
+                                .field("tags")
+                                .value(term)
+                                .build()._toQuery()
                         )
                         .should(
-                            QueryBuilders.regexpQuery(
-                                "version",
-                                term
-                            ).boost(5.0f)
-                        ).minimumShouldMatch(1)
-                ).minimumShouldMatch(1).filter(queryFilterTerms)
+                            RegexpQuery.Builder()
+                                .field("version")
+                                .value(term)
+                                .boost(5.0f)
+                                .build()._toQuery()
+                        ).minimumShouldMatch("1")
+                        .build()._toQuery()
+                ).minimumShouldMatch("1")
+                    .filter(queryFilterTerms.build()._toQuery())
             }
         }
-        val source = SearchSourceBuilder().query(qb).size(SEARCH_RESPONSE_SIZE)
 
-        request.source(source)
-        log.debug(source.toString())
-
-        return elasticClient.search(request, RequestOptions.DEFAULT)
+        return elasticClient.search(request, ElasticIndexedApplication::class.java).hits().hits()
     }
 
     private fun flushElastic() {
-        elasticClient.indices().flush(FlushRequest(APPLICATION_INDEX).waitIfOngoing(true), RequestOptions.DEFAULT)
+        elasticClient.indices().flush(FlushRequest.Builder().index(APPLICATION_INDEX).waitIfOngoing(true).build())
     }
 
     companion object : Loggable {

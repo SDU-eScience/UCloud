@@ -37,7 +37,7 @@ Page(
             isString = false, 
         )),)), 
         read = false, 
-        ts = 1662706353437, 
+        ts = 1673350428794, 
         type = "MY_NOTIFICATION_TYPE", 
     )), 
     itemsInTotal = 1, 
@@ -52,55 +52,6 @@ NotificationDescriptions.markAllAsRead.call(
 
 /*
 Unit
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(NotificationsApi.list(
-    {
-        "type": null,
-        "since": null,
-        "itemsPerPage": null,
-        "page": null
-    }
-);
-
-/*
-{
-    "itemsInTotal": 1,
-    "itemsPerPage": 50,
-    "pageNumber": 0,
-    "items": [
-        {
-            "type": "MY_NOTIFICATION_TYPE",
-            "message": "Something has happened",
-            "id": 56123,
-            "meta": {
-                "myParameter": 42
-            },
-            "ts": 1662706353437,
-            "read": false
-        }
-    ]
-}
-*/
-await callAPI(NotificationsApi.markAllAsRead(
-    {
-    }
-);
-
-/*
-{
-}
 */
 ```
 
@@ -133,7 +84,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/notifications?"
 #             "meta": {
 #                 "myParameter": 42
 #             },
-#             "ts": 1662706353437,
+#             "ts": 1673350428794,
 #             "read": false
 #         }
 #     ]

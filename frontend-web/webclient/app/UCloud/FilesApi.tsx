@@ -8,7 +8,7 @@ import {
     ResourceUpdate,
 } from "@/UCloud/ResourceApi";
 import {FileIconHint, FileType} from "@/Files";
-import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
+import {BulkRequest, BulkResponse, compute, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Box, Button, Flex, FtIcon, Icon, Link, Select, Text, TextArea} from "@/ui-components";
@@ -61,6 +61,7 @@ import {useNavigate} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import { ProviderTitle } from "@/Providers/ProviderTitle";
+import { ProviderLogo } from "@/Providers/ProviderLogo";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -290,7 +291,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
             const navigate = useNavigate();
             const openSync = useCallback(() => {
-                navigate("/syncthing");
+                navigate(`/syncthing?provider=${resource.specification.product.provider}`);
             }, []);
 
             return <Flex>
@@ -335,9 +336,15 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         <div><b>Path:</b> <PrettyFilePath path={file.id} /></div>
                         <div>
                             <b>Product: </b>
-                            {file.specification.product.id} / {file.specification.product.category}
+                            {file.specification.product.id === file.specification.product.category ?
+                                <>{file.specification.product.id}</> :
+                                <>{file.specification.product.id} / {file.specification.product.category}</>
+                            }
                         </div>
-                        <div><b>Provider: </b> {file.specification.product.provider}</div>
+                        <Flex gap="8px">
+                            <b>Provider: </b>
+                            <ProviderTitle providerId={file.specification.product.provider} />
+                        </Flex>
                         <Box mt={"16px"} mb={"8px"}>
                             <Link to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
                                 <Button fullWidth>View in folder</Button>
@@ -852,9 +859,6 @@ function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBr
     const support = cb.collection?.status.resolvedSupport?.support;
     if (!support) return false;
 
-    const isUCloud = cb.collection?.specification?.product?.provider === "ucloud"
-    if (!isUCloud) return false;
-
     const isShare = cb.collection?.specification.product.id === "share";
     if (isShare) {
         return false;
@@ -881,6 +885,7 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
     const resolvedFiles = files.length === 0 ? (cb.directory ? [cb.directory] : []) : files;
     const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
 
+    if (!cb.syncthingConfig) return;
     if (!allSynchronized) {
         const synchronizedFolderNames = synchronized.map(it => it.ucloudPath.split("/").pop());
 

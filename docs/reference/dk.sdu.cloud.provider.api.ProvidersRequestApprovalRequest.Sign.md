@@ -3,8 +3,8 @@
 # `ProvidersRequestApprovalRequest.Sign`
 
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Request type used as part of the approval process, associates a UCloud user to previously uploaded information_
 
@@ -36,7 +36,6 @@ data class Sign(
 <code>type</code>: <code><code>String /* "sign" */</code></code> The type discriminator
 </summary>
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

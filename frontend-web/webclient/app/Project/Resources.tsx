@@ -35,7 +35,7 @@ import {BrowseType} from "@/Resource/BrowseType";
 import {format} from "date-fns/esm";
 import {Spacer} from "@/ui-components/Spacer";
 import {useProjectFromParams} from "./Api";
-import { getProviderTitle } from "@/Providers/ProviderTitle";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
 
 
 const ANIMATION_DURATION = 1000;
@@ -375,7 +375,7 @@ const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
 }
 
 function ChartPointName({name}: {name: string}): JSX.Element {
-    const { productName, category, provider } = normalizeName(name);
+    const {productName, category, provider} = normalizeName(name);
 
     return (
         <div>
@@ -383,7 +383,7 @@ function ChartPointName({name}: {name: string}): JSX.Element {
             <SubText>
                 {productName ? <>
                     {category} / {provider}
-                </>: <>
+                </> : <>
                     {provider}
                 </>}
             </SubText>
@@ -391,7 +391,8 @@ function ChartPointName({name}: {name: string}): JSX.Element {
     );
 }
 
-function normalizeName(name: string): { productName: string | null, category: string, provider: string} {
+function normalizeName(name: string): {productName: string | null, category: string, provider: string} {
+    if (name === "Other") return {provider: "Other", category: "Other", productName: null};
     const [first, second, third] = name.split(" / ");
     let productName: string | null = null;
     let category: string;
@@ -408,7 +409,7 @@ function normalizeName(name: string): { productName: string | null, category: st
 
     provider = getProviderTitle(provider);
 
-    return { productName, category, provider };
+    return {productName, category, provider};
 }
 
 function normalizeNameToString(name: string): string {

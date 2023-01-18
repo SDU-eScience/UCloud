@@ -133,7 +133,7 @@ class GrantTest : IntegrationTest() {
                     ).orThrow()
 
                     val appStatus = Grants.retrieveApplication.call(
-                        RetrieveApplicationRequest(applicationId.first().id),
+                        RetrieveApplicationRequest(applicationId.responses.first().id),
                         applier.client
                     ).orThrow()
 
@@ -369,7 +369,7 @@ class GrantTest : IntegrationTest() {
                             )
                         ),
                         normalUser.client
-                    ).orThrow().first().id
+                    ).orThrow().responses.first().id
 
                     // If we manage to submit the application then we must be able to see the project in
                     // `browseProjects`
@@ -435,20 +435,20 @@ class GrantTest : IntegrationTest() {
                     // Create and delete a single comment (it shouldn't affect the output)
                     GrantComments.createComment.call(
                         bulkRequestOf(
-                            CreateCommentRequest(applicationId, "To be deleted!")
+                            CreateCommentRequest(applicationId.toString(), "To be deleted!")
                         ),
                         grantPi.client
                     ).orThrow()
 
                     val commentId = Grants.retrieveApplication.call(RetrieveApplicationRequest(applicationId), grantPi.client)
                         .orThrow().status.comments.singleOrNull()?.id ?: error("found no comment")
-                    GrantComments.deleteComment.call(bulkRequestOf(DeleteCommentRequest(applicationId, commentId)), evilUser.client).assertUserError()
-                    GrantComments.deleteComment.call(bulkRequestOf(DeleteCommentRequest(applicationId, commentId)), grantPi.client).orThrow()
+                    GrantComments.deleteComment.call(bulkRequestOf(DeleteCommentRequest(applicationId.toString(), commentId)), evilUser.client).assertUserError()
+                    GrantComments.deleteComment.call(bulkRequestOf(DeleteCommentRequest(applicationId.toString(), commentId)), grantPi.client).orThrow()
 
                     for (comment in input.comments) {
                         GrantComments.createComment.call(
                             bulkRequestOf(
-                                CreateCommentRequest(applicationId, comment.commentToPost)
+                                CreateCommentRequest(applicationId.toString(), comment.commentToPost)
                             ),
                             when (comment.poster) {
                                 is CommentPoster.Admin -> grantAdmins[comment.poster.idx].client
@@ -460,7 +460,7 @@ class GrantTest : IntegrationTest() {
 
                     GrantComments.createComment.call(
                         bulkRequestOf(
-                            CreateCommentRequest(applicationId, "Should fail")
+                            CreateCommentRequest(applicationId.toString(), "Should fail")
                         ),
                         evilUser.client
                     ).assertUserError()
@@ -544,7 +544,7 @@ class GrantTest : IntegrationTest() {
                         GrantApplication.State.CLOSED -> {
                             Grants.closeApplication.call(
                                 bulkRequestOf(
-                                    CloseApplicationRequest(applicationId)
+                                    CloseApplicationRequest(applicationId.toString())
                                 ),
                                 clientToChange
                             ).orThrow()
@@ -568,7 +568,7 @@ class GrantTest : IntegrationTest() {
                     ).assertUserError()
                     Grants.closeApplication.call(
                         bulkRequestOf(
-                            CloseApplicationRequest(applicationId)
+                            CloseApplicationRequest(applicationId.toString())
                         ),
                         evilUser.client
                     ).assertUserError()

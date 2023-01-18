@@ -75,15 +75,22 @@ class FeatureIngress(
                     )
                 }
 
-                session.prepareStatement(
-                    //language=postgresql
-                    "insert into ucloud_compute_ingresses (id, domain) values (:id, :domain)"
-                ).useAndInvokeAndDiscard(
-                    prepare = {
-                        bindString("id", ingress.id)
-                        bindString("domain", ingress.specification.domain)
-                    }
-                )
+                try {
+                    session.prepareStatement(
+                        //language=postgresql
+                        "insert into ucloud_compute_ingresses (id, domain) values (:id, :domain)"
+                    ).useAndInvokeAndDiscard(
+                        prepare = {
+                            bindString("id", ingress.id)
+                            bindString("domain", ingress.specification.domain)
+                        }
+                    )
+                } catch (ex: Throwable) {
+                    throw RPCException(
+                        "Public link with domain already exists",
+                        HttpStatusCode.BadRequest
+                    )
+                }
             }
         }
 

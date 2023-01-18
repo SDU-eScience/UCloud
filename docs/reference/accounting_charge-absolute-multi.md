@@ -40,7 +40,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 1000, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "42", 
@@ -81,7 +83,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42", "52"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 500, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "52", 
@@ -156,7 +160,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 999, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "42", 
@@ -202,7 +208,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42", "52"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 499, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "52", 
@@ -226,261 +234,6 @@ PageV2(
     itemsPerPage = 50, 
     next = null, 
 )
-*/
-
-/* In the leaf allocation, we see that this has affected both the balance and the local balance. */
-
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will show how a charge affects the rest of the allocation hierarchy. The 
-hierarchy we use consists of a single root allocation. The root allocation has a single child, 
-which we will be referring to as the leaf, since it has no children. */
-
-// Authenticated as piRoot
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "root-project"
-            },
-            "paysFor": {
-                "name": "example-slim",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "42",
-                    "allocationPath": [
-                        "42"
-                    ],
-                    "balance": 1000,
-                    "initialBalance": 1000,
-                    "localBalance": 1000,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "COMPUTE",
-            "chargeType": "ABSOLUTE",
-            "unit": "UNITS_PER_HOUR"
-        }
-    ],
-    "next": null
-}
-*/
-// Authenticated as piLeaf
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "leaf-project"
-            },
-            "paysFor": {
-                "name": "example-slim",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "52",
-                    "allocationPath": [
-                        "42",
-                        "52"
-                    ],
-                    "balance": 500,
-                    "initialBalance": 500,
-                    "localBalance": 500,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "COMPUTE",
-            "chargeType": "ABSOLUTE",
-            "unit": "UNITS_PER_HOUR"
-        }
-    ],
-    "next": null
-}
-*/
-
-/* As we can see, in our initial state, the root has 1000 core hours remaining and the leaf has 500. */
-
-
-/* We now perform our charge of a single core hour. */
-
-// Authenticated as ucloud
-await callAPI(AccountingApi.charge(
-    {
-        "items": [
-            {
-                "payer": {
-                    "type": "project",
-                    "projectId": "leaf-project"
-                },
-                "units": 1,
-                "periods": 1,
-                "product": {
-                    "id": "example-slim-1",
-                    "category": "example-slim",
-                    "provider": "example"
-                },
-                "performedBy": "user",
-                "description": "A charge for compute usage",
-                "transactionId": "charge-1"
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        true
-    ]
-}
-*/
-
-/* The response, as expected, that we had enough credits for the transaction. This would have been 
-false if _any_ of the allocation in the hierarchy runs out of credits. */
-
-// Authenticated as piRoot
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "root-project"
-            },
-            "paysFor": {
-                "name": "example-slim",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "42",
-                    "allocationPath": [
-                        "42"
-                    ],
-                    "balance": 999,
-                    "initialBalance": 1000,
-                    "localBalance": 1000,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "COMPUTE",
-            "chargeType": "ABSOLUTE",
-            "unit": "UNITS_PER_HOUR"
-        }
-    ],
-    "next": null
-}
-*/
-
-/* On the root allocation, we see that this has subtracted a single core hour from the balance. Recall 
-that balance shows the overall balance for the entire subtree. The local balance of the root 
-remains unaffected, since this wasn't consumed by the root.  */
-
-// Authenticated as piLeaf
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "leaf-project"
-            },
-            "paysFor": {
-                "name": "example-slim",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "52",
-                    "allocationPath": [
-                        "42",
-                        "52"
-                    ],
-                    "balance": 499,
-                    "initialBalance": 500,
-                    "localBalance": 499,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "COMPUTE",
-            "chargeType": "ABSOLUTE",
-            "unit": "UNITS_PER_HOUR"
-        }
-    ],
-    "next": null
-}
 */
 
 /* In the leaf allocation, we see that this has affected both the balance and the local balance. */
@@ -531,7 +284,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 1000,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -570,7 +325,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 500,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -644,7 +401,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 1000,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -687,7 +446,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 499,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",

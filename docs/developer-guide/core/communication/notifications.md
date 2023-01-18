@@ -17,7 +17,7 @@ Powers the notification feature of UCloud. Other services can call this
 service to create a new notification for users. Notifications are
 automatically delivered to any connected frontend via websockets.
 
-![](/backend/notification-service/wiki/NotificationFlow.png)
+![](/backend/notification-service/wiki/Notifications.png)
 
 ## Table of Contents
 <details>
@@ -153,7 +153,7 @@ NotificationDescriptions.create.call(
                 isString = false, 
             )),)), 
             read = false, 
-            ts = 1662706353436, 
+            ts = 1673350428793, 
             type = "MY_NOTIFICATION_TYPE", 
         ), 
         user = "User#1234", 
@@ -165,39 +165,6 @@ NotificationDescriptions.create.call(
 FindByLongId(
     id = 56123, 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as ucloud
-await callAPI(NotificationsApi.create(
-    {
-        "user": "User#1234",
-        "notification": {
-            "type": "MY_NOTIFICATION_TYPE",
-            "message": "Something has happened",
-            "id": null,
-            "meta": {
-                "myParameter": 42
-            },
-            "ts": 1662706353436,
-            "read": false
-        }
-    }
-);
-
-/*
-{
-    "id": 56123
-}
 */
 ```
 
@@ -225,7 +192,7 @@ curl -XPUT -H "Authorization: Bearer $accessToken" -H "Content-Type: content-typ
         "meta": {
             "myParameter": 42
         },
-        "ts": 1662706353436,
+        "ts": 1673350428793,
         "read": false
     }
 }'
@@ -281,7 +248,7 @@ Notification(
         isString = false, 
     )),)), 
     read = false, 
-    ts = 1662706353437, 
+    ts = 1673350428793, 
     type = "MY_NOTIFICATION_TYPE", 
 )
 */
@@ -297,30 +264,6 @@ NotificationDescriptions.markAsRead.call(
 MarkResponse(
     failures = emptyList(), 
 )
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(NotificationsApi.markAsRead(
-    {
-        "ids": "56123"
-    }
-);
-
-/*
-{
-    "failures": [
-    ]
-}
 */
 ```
 
@@ -400,7 +343,7 @@ Page(
             isString = false, 
         )),)), 
         read = false, 
-        ts = 1662706353437, 
+        ts = 1673350428794, 
         type = "MY_NOTIFICATION_TYPE", 
     )), 
     itemsInTotal = 1, 
@@ -415,55 +358,6 @@ NotificationDescriptions.markAllAsRead.call(
 
 /*
 Unit
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-// Authenticated as user
-await callAPI(NotificationsApi.list(
-    {
-        "type": null,
-        "since": null,
-        "itemsPerPage": null,
-        "page": null
-    }
-);
-
-/*
-{
-    "itemsInTotal": 1,
-    "itemsPerPage": 50,
-    "pageNumber": 0,
-    "items": [
-        {
-            "type": "MY_NOTIFICATION_TYPE",
-            "message": "Something has happened",
-            "id": 56123,
-            "meta": {
-                "myParameter": 42
-            },
-            "ts": 1662706353437,
-            "read": false
-        }
-    ]
-}
-*/
-await callAPI(NotificationsApi.markAllAsRead(
-    {
-    }
-);
-
-/*
-{
-}
 */
 ```
 
@@ -496,7 +390,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/notifications?"
 #             "meta": {
 #                 "myParameter": 42
 #             },
-#             "ts": 1662706353437,
+#             "ts": 1673350428794,
 #             "read": false
 #         }
 #     ]

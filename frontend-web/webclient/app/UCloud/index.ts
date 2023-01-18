@@ -6412,7 +6412,7 @@ export interface Storage {
     type: ("storage"),
 }
 export interface Compute {
-    id: string,
+    name: string,
     pricePerUnit: number /* int64 */,
     category: ProductCategoryId,
     description: string,

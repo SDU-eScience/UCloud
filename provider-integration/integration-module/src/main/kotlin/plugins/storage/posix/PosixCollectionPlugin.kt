@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.controllers.ResourceOwnerWithId
+import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.enterContext
@@ -18,6 +19,7 @@ import dk.sdu.cloud.debug.logD
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
+import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.provider.api.ResourceOwner
@@ -37,6 +39,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
+import libc.clib
 import java.util.Date
 import kotlin.math.floor
 
@@ -129,6 +132,21 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         }
 
         return collections
+    }
+
+    override suspend fun RequestContext.initInUserMode(owner: ResourceOwner) {
+        ipcClient.sendRequest(
+            PosixCollectionIpc.retrieveCollections,
+            owner
+        )
+
+        runCatching {
+            val ucloudUsername = owner.createdBy
+            ipcClient.sendRequest(
+                PosixCollectionIpc.retrieveCollections,
+                ResourceOwner(ucloudUsername, project = null)
+            )
+        }
     }
 
     override suspend fun RequestContext.retrieveProducts(
@@ -237,7 +255,9 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                     .filter { it.product.category == category }
 
                                 if (colls.isNotEmpty()) {
-                                    val bytesUsed = colls.sumOf { calculateUsage(it) }
+                                    val bytesUsed = colls.sumOf {
+                                        runCatching { calculateUsage(it) }.getOrElse { 0 }
+                                    }
                                     val unitsUsed = bytesUsed / 1_000_000_000L
                                     val coll = pathConverter.ucloudToCollection(
                                         pathConverter.internalToUCloud(InternalFile(colls.first().localPath))

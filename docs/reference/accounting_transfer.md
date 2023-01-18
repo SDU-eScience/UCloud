@@ -42,7 +42,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 500, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "42", 
@@ -123,7 +125,7 @@ Accounting.transfer.call(
         target = WalletOwner.Project(
             projectId = "second-root-project", 
         ), 
-        transactionId = "90088045173374984741662706352562", 
+        transactionId = "-74254265709024341111673350427701", 
     )),
     piRoot
 ).orThrow()
@@ -147,7 +149,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("42"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 400, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "42", 
@@ -188,7 +192,9 @@ PageV2(
     items = listOf(Wallet(
         allocations = listOf(WalletAllocation(
             allocationPath = listOf("52"), 
+            allowSubAllocationsToAllocate = true, 
             balance = 100, 
+            canAllocate = false, 
             endDate = null, 
             grantedIn = 1, 
             id = "52", 
@@ -212,243 +218,6 @@ PageV2(
     itemsPerPage = 50, 
     next = null, 
 )
-*/
-
-/* After inspecting the allocations, we see that the original (root) allocation has changed. The 
-system has immediately removed all the resources. The leaf workspace now have a new allocation. 
-The new allocation does not have a parent. */
-
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example, we will show how a workspace can transfer money to another workspace. This is not 
-the recommended way of creating granting resources. This approach immediately removes all resources 
-from the parent. The parent cannot observe usage from the child. In addition, the workspace is not 
-allowed to over-allocate resources. We recommend using deposit for almost all cases. Workspace PIs 
-should only use transfers if they wish to give away resources that they otherwise will not be able 
-to consume.  */
-
-// Authenticated as piRoot
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "root-project"
-            },
-            "paysFor": {
-                "name": "example-slim",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "42",
-                    "allocationPath": [
-                        "42"
-                    ],
-                    "balance": 500,
-                    "initialBalance": 500,
-                    "localBalance": 500,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "COMPUTE",
-            "chargeType": "ABSOLUTE",
-            "unit": "UNITS_PER_HOUR"
-        }
-    ],
-    "next": null
-}
-*/
-// Authenticated as piSecondRoot
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "second-root-project"
-            },
-            "paysFor": {
-                "name": "example-slim",
-                "provider": "example"
-            },
-            "allocations": [
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "COMPUTE",
-            "chargeType": "ABSOLUTE",
-            "unit": "UNITS_PER_HOUR"
-        }
-    ],
-    "next": null
-}
-*/
-
-/* Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
-resources at the moment. */
-
-
-/* We now perform a transfer operation with the leaf workspace as the target. */
-
-// Authenticated as piRoot
-await callAPI(AccountingApi.transfer(
-    {
-        "items": [
-            {
-                "categoryId": {
-                    "name": "example-slim",
-                    "provider": "example"
-                },
-                "target": {
-                    "type": "project",
-                    "projectId": "second-root-project"
-                },
-                "source": {
-                    "type": "project",
-                    "projectId": "root-project"
-                },
-                "amount": 100,
-                "startDate": null,
-                "endDate": null,
-                "transactionId": "90088045173374984741662706352562",
-                "dry": false
-            }
-        ]
-    }
-);
-
-/*
-{
-}
-*/
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "root-project"
-            },
-            "paysFor": {
-                "name": "example-slim",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "42",
-                    "allocationPath": [
-                        "42"
-                    ],
-                    "balance": 400,
-                    "initialBalance": 500,
-                    "localBalance": 400,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "COMPUTE",
-            "chargeType": "ABSOLUTE",
-            "unit": "UNITS_PER_HOUR"
-        }
-    ],
-    "next": null
-}
-*/
-// Authenticated as piSecondRoot
-await callAPI(AccountingWalletsApi.browse(
-    {
-        "itemsPerPage": null,
-        "next": null,
-        "consistency": null,
-        "itemsToSkip": null,
-        "filterType": null
-    }
-);
-
-/*
-{
-    "itemsPerPage": 50,
-    "items": [
-        {
-            "owner": {
-                "type": "project",
-                "projectId": "second-root-project"
-            },
-            "paysFor": {
-                "name": "example-slim",
-                "provider": "example"
-            },
-            "allocations": [
-                {
-                    "id": "52",
-                    "allocationPath": [
-                        "52"
-                    ],
-                    "balance": 100,
-                    "initialBalance": 100,
-                    "localBalance": 100,
-                    "startDate": 1633941615074,
-                    "endDate": null,
-                    "grantedIn": 1
-                }
-            ],
-            "chargePolicy": "EXPIRE_FIRST",
-            "productType": "COMPUTE",
-            "chargeType": "ABSOLUTE",
-            "unit": "UNITS_PER_HOUR"
-        }
-    ],
-    "next": null
-}
 */
 
 /* After inspecting the allocations, we see that the original (root) allocation has changed. The 
@@ -504,7 +273,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 500,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -566,7 +337,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "amount": 100,
             "startDate": null,
             "endDate": null,
-            "transactionId": "90088045173374984741662706352562",
+            "transactionId": "-74254265709024341111673350427701",
             "dry": false
         }
     ]
@@ -601,7 +372,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 400,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",
@@ -639,7 +412,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "localBalance": 100,
 #                     "startDate": 1633941615074,
 #                     "endDate": null,
-#                     "grantedIn": 1
+#                     "grantedIn": 1,
+#                     "canAllocate": false,
+#                     "allowSubAllocationsToAllocate": true
 #                 }
 #             ],
 #             "chargePolicy": "EXPIRE_FIRST",

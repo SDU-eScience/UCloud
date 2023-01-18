@@ -14,7 +14,7 @@ class Server(override val micro: Micro) : CommonServer {
     override fun start() {
         if (micro.featureOrNull(ElasticFeature) == null) return
 
-        val contactsDAO = ContactBookElasticDao(micro.elasticHighLevelClient)
+        val contactsDAO = ContactBookElasticDao(micro.elasticClient)
 
         val contactBookService = ContactBookService(contactsDAO)
 

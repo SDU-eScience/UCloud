@@ -11,10 +11,14 @@ import Table, { TableCell, TableRow } from "@/ui-components/Table";
 import { useUState } from "@/Utilities/UState";
 import { grantsLink, stopPropagation } from "@/UtilityFunctions";
 import * as React from "react";
+import ReactDOM from "react-dom";
 import styled from "styled-components";
 import { boxShadow, BoxShadowProps } from "styled-system";
 
 const NEED_CONNECT = "need-connection";
+
+
+const dropdownPortal = "product-selector-portal";
 
 export const ProductSelector: React.FunctionComponent<{
     products: Product[];
@@ -24,6 +28,14 @@ export const ProductSelector: React.FunctionComponent<{
     loading?: boolean;
     onSelect: (product: Product) => void;
 }> = ({ selected, ...props }) => {
+    let portal = document.getElementById(dropdownPortal);
+    if (!portal) {
+        const elem = document.createElement("div");
+        elem.id = dropdownPortal;
+        document.body.appendChild(elem);
+        portal = elem;
+    }
+
     useUState(connectionState);
     const [filteredProducts, setFilteredProducts] = React.useState<Product[]>([]);
     const type = props.products.length > 0 ? props.products[0].productType : props.type;
@@ -67,10 +79,14 @@ export const ProductSelector: React.FunctionComponent<{
             const cCompare = a.category.name.localeCompare(b.category.name);
             if (cCompare !== 0) return cCompare;
 
-            const aNumberSuffix = a.name.match(/^.*-(\d+)$/);
-            const bNumberSuffix = b.name.match(/^.*-(\d+)$/);
-            if (aNumberSuffix && bNumberSuffix) {
-                return parseInt(aNumberSuffix[1]) - parseInt(bNumberSuffix[1]);
+            const aNumberMatches = a.name.match(/(^.*)-(\d+)$/);
+            const bNumberMatches = b.name.match(/(^.*)-(\d+)$/);
+            if (aNumberMatches && bNumberMatches) {
+                const aPrefix = aNumberMatches[1];
+                const bPrefix = bNumberMatches[1];
+                const pCompare = aPrefix.localeCompare(bPrefix);
+                if (pCompare !== 0) return pCompare;
+                return parseInt(aNumberMatches[2]) - parseInt(bNumberMatches[2]);
             } else {
                 return a.name.localeCompare(b.name);
             }
@@ -236,89 +252,92 @@ export const ProductSelector: React.FunctionComponent<{
             <Icon name="chevronDown" />
         </SelectorBox>
 
-        {!isOpen ? null : <>
-            <SelectorDialog style={{ left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight }} onClick={stopPropagation}>
-                {props.loading && props.products.length === 0 ? <>
-                    <HexSpin />
-                </> : props.products.length === 0 ?
-                    <>
-                        <NoResultsCardBody title={`No machines available for use`}>
-                            You do not currently have credits for any {productName} which you are able to use for this purpose. 
-                            {type !== "COMPUTE" ? null : <>
-                                If you are trying to run a virtual machine, please make sure you have applied for the correct credits
-                                in your grant application.
-                            </>}
+        {!isOpen ? null : 
+            ReactDOM.createPortal(
+                <SelectorDialog style={{ left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight }} onClick={stopPropagation}>
+                    {props.loading && props.products.length === 0 ? <>
+                        <HexSpin />
+                    </> : props.products.length === 0 ?
+                        <>
+                            <NoResultsCardBody title={`No ${productName} available for use`}>
+                                You do not currently have credits for any {productName} which you are able to use for this purpose.{" "}
+                                {type !== "COMPUTE" ? null : <>
+                                    If you are trying to run a virtual machine, please make sure you have applied for the correct credits
+                                    in your grant application.
+                                </>}
 
-                            <Link to={grantsLink(Client)}>
-                                <Button fullWidth mb={"4px"}>Apply for resources</Button>
-                            </Link>
-                        </NoResultsCardBody>
-                    </> :
-                    <>
-                        <div className="input-wrapper">
-                            <Input
-                                placeholder={`Search ${productName}s...`}
-                                autoComplete={"off"}
-                                ref={searchRef}
-                                onInput={onSearchType}
-                            />
-                        </div>
+                                <Link to={grantsLink(Client)}>
+                                    <Button fullWidth mb={"4px"}>Apply for resources</Button>
+                                </Link>
+                            </NoResultsCardBody>
+                        </> :
+                        <>
+                            <div className="input-wrapper">
+                                <Input
+                                    placeholder={`Search ${productName}s...`}
+                                    autoComplete={"off"}
+                                    ref={searchRef}
+                                    onInput={onSearchType}
+                                />
+                            </div>
 
-                        <Table>
-                            <thead>
-                                <TableRow>
-                                    <th style={{ width: "32px" }} />
-                                    <th>Name</th>
-                                    {headers.map(it => <th key={it}>{it}</th>)}
-                                    <th>Price</th>
-                                </TableRow>
-                            </thead>
-                            <tbody>
-                                {categorizedProducts.map((p, i) => {
-                                    if (typeof p === "string") {
-                                        if (!showHeadings) return null;
+                            <Table>
+                                <thead>
+                                    <TableRow>
+                                        <th style={{ width: "32px" }} />
+                                        <th>Name</th>
+                                        {headers.map(it => <th key={it}>{it}</th>)}
+                                        <th>Price</th>
+                                    </TableRow>
+                                </thead>
+                                <tbody>
+                                    {categorizedProducts.map((p, i) => {
+                                        if (typeof p === "string") {
+                                            if (!showHeadings) return null;
 
-                                        return <tr key={i} className="table-info">
-                                            {p === NEED_CONNECT ?
-                                                <td colSpan={3 + headers.length}>
-                                                    <div>
-                                                        <Link to="/providers/connect">
-                                                            <Icon name="warning" color="orange" mr="8px" />
-                                                            Connection required! You must connect with the provider before you can consume resources from it.
-                                                        </Link>
-                                                    </div>
-                                                </td> :
-                                                <td colSpan={3 + headers.length}>
-                                                    <div>
-                                                        <div className="spacer" />
-                                                        {p}
-                                                        <div className="spacer" />
-                                                    </div>
-                                                </td>
+                                            return <tr key={i} className="table-info">
+                                                {p === NEED_CONNECT ?
+                                                    <td colSpan={3 + headers.length}>
+                                                        <div>
+                                                            <Link to="/providers/connect">
+                                                                <Icon name="warning" color="orange" mr="8px" />
+                                                                Connection required! You must connect with the provider before you can consume resources from it.
+                                                            </Link>
+                                                        </div>
+                                                    </td> :
+                                                    <td colSpan={3 + headers.length}>
+                                                        <div>
+                                                            <div className="spacer" />
+                                                            {p}
+                                                            <div className="spacer" />
+                                                        </div>
+                                                    </td>
+                                                }
+                                            </tr>
+                                        } else {
+                                            const isDisabled = connectionState.canConnectToProvider(p.category.provider);
+                                            const onClick = () => {
+                                                if (isDisabled) return;
+                                                props.onSelect(p);
+                                                onClose();
                                             }
-                                        </tr>
-                                    } else {
-                                        const isDisabled = connectionState.canConnectToProvider(p.category.provider);
-                                        const onClick = () => {
-                                            if (isDisabled) return;
-                                            props.onSelect(p);
-                                            onClose();
-                                        }
 
-                                        return <TableRow key={i} onClick={onClick} className={isDisabled ? "disabled" : undefined}>
-                                            <TableCell><ProviderLogo providerId={p.category.provider} size={24} /></TableCell>
-                                            <TableCell><ProductName product={p} /></TableCell>
-                                            <ProductStats product={p} />
-                                            <TableCell>{priceExplainer(p)}</TableCell>
-                                        </TableRow>
-                                    }
-                                })}
-                            </tbody>
-                        </Table>
-                    </>
-                }
-            </SelectorDialog>
-        </>}
+                                            return <TableRow key={i} onClick={onClick} className={isDisabled ? "disabled" : undefined}>
+                                                <TableCell><ProviderLogo providerId={p.category.provider} size={24} /></TableCell>
+                                                <TableCell><ProductName product={p} /></TableCell>
+                                                <ProductStats product={p} />
+                                                <TableCell>{priceExplainer(p)}</TableCell>
+                                            </TableRow>
+                                        }
+                                    })}
+                                </tbody>
+                            </Table>
+                        </>
+                    }
+                </SelectorDialog>,
+                portal
+            )
+        }
     </>;
 };
 
