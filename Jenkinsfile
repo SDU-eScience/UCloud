@@ -50,7 +50,7 @@ node {
 
         //Delete current environment
 
-        sendAlert("Hello from Jenkins")
+        //sendAlert("Hello from Jenkins")
 
         /*String frontendResult = runBuild("frontend-web/Jenkinsfile")
         String backendResult = runBuild("backend/Jenkinsfile")
