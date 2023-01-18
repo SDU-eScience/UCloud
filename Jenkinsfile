@@ -10,6 +10,9 @@ properties([
 
 node {
     sh label: '', script: 'java -version'
+    def jobName = "t"+currentBuild.startTimeInMillis
+    System.Out.Println(jobName)
+    //Make check on PR creator and specific branches. master, staging, PRs
     if (env.BRANCH_NAME == 'devel-test') {
         stage('Checkout') {
             checkout(
@@ -30,6 +33,22 @@ node {
                 ]
             )
         }
+
+        //Delete current environment if any
+
+        sh script './launcher env delete'
+
+        //Create new environment with providers installed
+
+        sh script './launcher init --all-providers'
+
+        //Create Snapshot of DB to test purpose. Use "t"+timestamp for UNIQUE ID
+
+        sh script './launcher snapshot $ID'
+
+        //Save log files from UCLoud and gradle build report
+
+        //Delete current environment
 
         sendAlert("Hello from Jenkins")
 
