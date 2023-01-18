@@ -36,7 +36,18 @@ node {
 
         //Delete current environment if any
 
-        sh script: './launcher env delete'
+        sh script: """
+            docker rm -f \$(docker ps -q)
+            docker volume rm -f \$(docker volume ls -q)
+            docker network rm  \$(docker network ls -q)
+            
+            docker rm -f \$(docker ps -q)
+            docker volume rm -f \$(docker volume ls -q)
+            docker network rm  \$(docker network ls -q)
+            
+            docker volume prune 
+            docker network prune 
+        """
 
         //Create new environment with providers installed
 
@@ -44,7 +55,9 @@ node {
 
         //Create Snapshot of DB to test purpose. Use "t"+timestamp for UNIQUE ID
 
-        sh script: './launcher snapshot ${jobName}'
+        sh script: """
+            ./launcher snapshot ${jobName}
+        """
 
         //Save log files from UCLoud and gradle build report
 
