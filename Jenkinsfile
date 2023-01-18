@@ -11,7 +11,7 @@ properties([
 node {
     sh label: '', script: 'java -version'
     def jobName = "t"+currentBuild.startTimeInMillis
-    System.Out.Println(jobName)
+    echo (jobName)
     //Make check on PR creator and specific branches. master, staging, PRs
     if (env.BRANCH_NAME == 'jenkinsSetup') {
         stage('Checkout') {
