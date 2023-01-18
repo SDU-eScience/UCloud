@@ -44,7 +44,7 @@ node {
 
         //Create Snapshot of DB to test purpose. Use "t"+timestamp for UNIQUE ID
 
-        sh script. './launcher snapshot $jobName'
+        sh script: './launcher snapshot $jobName'
 
         //Save log files from UCLoud and gradle build report
 
