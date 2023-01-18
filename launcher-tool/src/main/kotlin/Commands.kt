@@ -250,4 +250,38 @@ object Commands {
                     "You might need to do a git pull to get the latest version.")
         }
     }
+
+    fun createSnapshot(snapshotName: String) {
+        initializeServiceList()
+
+        LoadingIndicator("Creating snapshot...").use {
+            allServices
+                .filter { it.useServiceConvention }
+                .forEach { service ->
+                    compose.exec(
+                        currentEnvironment,
+                        service.containerName,
+                        listOf("/opt/ucloud/service.sh", "snapshot", snapshotName),
+                        tty = false
+                    ).allowFailure().streamOutput().executeToText()
+                }
+        }
+    }
+
+    fun restoreSnapshot(snapshotName: String) {
+        initializeServiceList()
+
+        LoadingIndicator("Restoring snapshot...").use {
+            allServices
+                .filter { it.useServiceConvention }
+                .forEach { service ->
+                    compose.exec(
+                        currentEnvironment,
+                        service.containerName,
+                        listOf("/opt/ucloud/service.sh", "restore", snapshotName),
+                        tty = false
+                    ).allowFailure().streamOutput().executeToText()
+                }
+        }
+    }
 }

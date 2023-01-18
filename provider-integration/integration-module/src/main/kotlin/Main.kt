@@ -160,6 +160,7 @@ fun main(args: Array<String>) {
                 is ServerMode.Plugin -> "plugin-${Time.now()}"
                 ServerMode.Server -> "server"
                 ServerMode.User -> "user-${clib.getuid()}"
+                else -> "unknown"
             }
 
             run {
@@ -174,7 +175,7 @@ fun main(args: Array<String>) {
                 val configurator = JoranConfigurator()
                 configurator.context = ctx
                 ctx.reset()
-                configurator.doConfigure(logbackConfiguration(logDir, logModule).encodeToByteArray().inputStream())
+                configurator.doConfigure(logbackConfiguration(logDir, config.core.providerId, logModule).encodeToByteArray().inputStream())
             }
 
             run {
@@ -332,9 +333,7 @@ fun main(args: Array<String>) {
                         allowHost(selfHost.substringAfter("://"), listOf(selfHost.substringBefore("://")))
                     }
 
-                    println(config.core.cors.allowHosts.toString())
                     config.core.cors.allowHosts.forEach {
-                        println("Setting $it")
                         allowHost(it.removePrefix("https://").removePrefix("http://"), listOf("https", "http"))
                     }
 
@@ -571,7 +570,8 @@ fun main(args: Array<String>) {
                     )
                 }
             }.absolutePath
-            val debugSystem = when (serverMode) {
+            val debugSystem: DebugSystem? = when (serverMode) {
+                /*
                 ServerMode.Server -> CommonDebugSystem(
                     "IM/Server",
                     CommonFile(structuredLogs),
@@ -583,6 +583,7 @@ fun main(args: Array<String>) {
                     CommonFile(structuredLogs),
                     debugTransformer
                 )
+                 */
 
                 else -> null
             }
@@ -705,6 +706,7 @@ fun main(args: Array<String>) {
                     ShareController(controllerContext),
                     ConnectionController(controllerContext, envoyConfig),
                     EventController(controllerContext),
+                    FaultInjectionController(controllerContext),
                 )
             }
 
@@ -725,7 +727,7 @@ fun main(args: Array<String>) {
                 stats.add("Mode" to serverMode.toString())
                 stats.add(empty)
                 stats.add("All logs" to config.core.logs.directory)
-                stats.add("My logs" to "${config.core.logs.directory}/$logModule-ucloud.log")
+                stats.add("My logs" to "${config.core.logs.directory}/${config.core.providerId}-$logModule.log")
                 if (serverMode == ServerMode.Server) {
                     val embeddedConfig = config.server.database.embeddedDataDirectory
                     if (embeddedConfig != null) {

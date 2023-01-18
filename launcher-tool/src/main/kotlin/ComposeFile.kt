@@ -133,7 +133,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2021.3.0-alpha14",
+                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2023.1.0",
                         "command": ["sleep", "inf"],
                         "restart": "always",
                         "hostname": "backend",
@@ -155,6 +155,7 @@ sealed class ComposeService {
                 serviceConvention = true
             )
 
+            /*
             service(
                 "debugger",
                 "UCloud/Core: Debugger",
@@ -162,7 +163,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2021.3.0-alpha14",
+                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2023.1.0",
                         "command": ["sleep", "inf"],
                         "restart": "always",
                         "hostname": "debugger",
@@ -179,6 +180,7 @@ sealed class ComposeService {
                 ),
                 serviceConvention = true
             )
+            */
 
             val postgresDataDir = environment.dataDirectory.child("pg-data").also { it.mkdirs() }
 

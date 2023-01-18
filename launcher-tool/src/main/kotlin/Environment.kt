@@ -23,7 +23,7 @@ var environmentIsRemote: Boolean = false
 lateinit var portAllocator: PortAllocator
 var composeName: String? = null
 
-fun selectOrCreateEnvironment(baseDir: File): String {
+fun selectOrCreateEnvironment(baseDir: File, initTest: Boolean = false): String {
     val alternativeEnvironments = (baseDir.listFiles() ?: emptyArray()).filter {
         it.isDirectory && it.name !in blacklistedEnvNames
     }
@@ -54,7 +54,7 @@ fun selectOrCreateEnvironment(baseDir: File): String {
 
     val newEnvironment: String
     while (true) {
-        val env = queryText(prompt, "Select a name for your environment", "default")
+        val env = if (initTest) "test" else queryText(prompt, "Select a name for your environment", "default")
         if (env in blacklistedEnvNames) {
             println("Illegal name. Try a different one.")
             continue
@@ -70,7 +70,7 @@ fun selectOrCreateEnvironment(baseDir: File): String {
         break
     }
 
-    when (localOrRemoteMenu.display(prompt)) {
+    when (if (initTest) localOrRemoteMenu.local else localOrRemoteMenu.display(prompt)) {
         localOrRemoteMenu.local -> {
             printExplanation("The following is expected of your machine:")
             println()
@@ -123,8 +123,14 @@ fun selectOrCreateEnvironment(baseDir: File): String {
 
 data class InitEnvironmentResult(val shouldStartEnvironment: Boolean)
 
-fun initCurrentEnvironment(): InitEnvironmentResult {
+fun initCurrentEnvironment(shouldInitializeTestEnvironment: Boolean): InitEnvironmentResult {
     val baseDir = File(repoRoot.jvmFile, ".compose").also { it.mkdirs() }
+
+    if (shouldInitializeTestEnvironment) {
+        runCatching { baseDir.deleteRecursively() }
+        baseDir.mkdirs()
+    }
+
     val currentEnvironmentName = runCatching { File(baseDir, "current.txt").readText() }.getOrNull()
     val currentIsRemote = if (currentEnvironmentName != null) {
         runCatching { File(File(baseDir, currentEnvironmentName), "remote").exists() }.getOrElse { false }
@@ -152,7 +158,7 @@ fun initCurrentEnvironment(): InitEnvironmentResult {
             """
         )
         println()
-        selectOrCreateEnvironment(baseDir)
+        selectOrCreateEnvironment(baseDir, shouldInitializeTestEnvironment)
     } else {
         println(ansi().render("Active environment: ").bold().render(env.name).boldOff())
         println()
@@ -205,7 +211,7 @@ fun initIO(isNew: Boolean) {
             if (!success) {
                 Commands.environmentDelete(shutdown = false)
             }
-            initCurrentEnvironment()
+            initCurrentEnvironment(shouldInitializeTestEnvironment = false)
             return
         }
         localEnvironment = currentEnvironment as LocalFile

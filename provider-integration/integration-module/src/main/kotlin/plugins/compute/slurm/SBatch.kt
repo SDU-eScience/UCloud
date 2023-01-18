@@ -78,6 +78,12 @@ suspend fun createSbatchFile(
         "${(resolvedProduct.memoryInGigs ?: 1) * 1000}"
     }
 
+    val cpuAllocation = if (pluginConfig.useFakeMemoryAllocations) {
+        1
+    } else {
+        resolvedProduct.cpu ?: 1
+    }
+
     /*
      *   https://slurm.schedmd.com/sbatch.html
      *   %n - Node identifier relative to current job (e.g. "0" is the first node of the running job) This will create
@@ -109,7 +115,7 @@ suspend fun createSbatchFile(
 
         run {
             if (jobFolder != null) appendLine("#SBATCH --chdir \"$jobFolder\"")
-            appendLine("#SBATCH --cpus-per-task $cpusPerTask")
+            appendLine("#SBATCH --cpus-per-task $cpuAllocation")
             appendLine("#SBATCH --ntasks-per-node $nTasksPerNode")
             appendLine("#SBATCH --mem $memoryAllocation")
             appendLine("#SBATCH --gpus-per-node ${resolvedProduct.gpu ?: 0}")

@@ -215,6 +215,8 @@ class ProviderProxy<
             if (request.items.isEmpty()) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
             val allResources = verifyAndFetchResources(actorAndProject, request)
+            if (allResources.isEmpty()) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
             val groupedByProvider = allResources.groupBy {
                 it.second.reference.provider
             }
