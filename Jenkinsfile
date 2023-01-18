@@ -40,7 +40,7 @@ node {
 
         //Create new environment with providers installed
 
-        sh script: './launcher init --all-providers'
+        sh script: 'DEBUG_COMMANDS=true ; ./launcher init --all-providers'
 
         //Create Snapshot of DB to test purpose. Use "t"+timestamp for UNIQUE ID
 
