@@ -106,18 +106,19 @@ node {
             def workspace = readFile "${env.WORKSPACE}/.compose/current.txt"
 
             sh script: """
-                docker cp ${workspace}-backend-1:/tmp/service.log /tmp/service.log
-                docker cp ${workspace}-backend-1:/var/log /tmp
+                docker cp ${workspace}-backend-1:/tmp/service.log ./tmp/service.log
+                docker cp ${workspace}-backend-1:/var/log ./tmp/
             """
 
 
             sh script: """
-                ls /tmp
-                ls /tmp/log/ucloud
+                ls .
+                ls ./tmp
+                ls ./tmp/log/ucloud
                 """
-                
-            archiveArtifacts artifacts: '/tmp/service.log', allowEmptyArchive: true
-            archiveArtifacts artifacts: '/tmp/log/ucloud/*.log', allowEmptyArchive: true
+
+            archiveArtifacts artifacts: './tmp/service.log', allowEmptyArchive: true
+            archiveArtifacts artifacts: './tmp/log/ucloud/*.log', allowEmptyArchive: true
 
 
             sh script: """
