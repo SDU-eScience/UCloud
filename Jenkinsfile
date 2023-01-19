@@ -91,16 +91,18 @@ node {
             }
 
 
-            sendAlert("""
+            sendAlert("""\
                 :warning: BuildFailed :warning:
 
                 BackendFailed: 
                 ${log.substring(startIndex, endIndex)}
-            """)
+            """.stripIndent()
+            )
         }
         finally {
             junit '**/build/test-results/**/*.xml'
-
+            archiveArtifacts artifacts: '/tmp/service.log', fingerprint: true
+            archiveArtifacts artifacts: '/var/log/ucloud/*.log', fingerprint: true
 
             sh script: """
                 docker rm -f \$(docker ps -q) || true
