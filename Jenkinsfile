@@ -127,12 +127,11 @@ node {
                 docker volume prune || true
                 docker network prune || true
                 docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
-
-                rm -rf /tmp/log*
-                rm /tmp/service.log
             """
         }
         
+//        rm -rf /tmp/log*
+ //               rm /tmp/service.log
         //sendAlert("Hello from Jenkins")
 
         /*String frontendResult = runBuild("frontend-web/Jenkinsfile")
