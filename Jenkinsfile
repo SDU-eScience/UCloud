@@ -111,7 +111,9 @@ node {
             """
 
 
-            archiveArtifacts artifacts: '/tmp/service.log, /var/log/ucloud/*.log', allowEmptyArchive: true
+            archiveArtifacts artifacts: '/tmp/service.log', allowEmptyArchive: true
+            archiveArtifacts artifacts: '/var/log/ucloud/*.log', allowEmptyArchive: true
+
 
             sh script: """
                 docker rm -f \$(docker ps -q) || true
