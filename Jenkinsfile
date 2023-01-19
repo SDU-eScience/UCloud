@@ -112,9 +112,7 @@ node {
 
 
             sh script: """
-                ls .
-                ls ./tmp
-                ls ./tmp/log/ucloud
+                mkdir ./tmp
                 """
 
             archiveArtifacts artifacts: './tmp/service.log', allowEmptyArchive: true
@@ -133,6 +131,8 @@ node {
                 docker volume prune || true
                 docker network prune || true
                 docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
+
+                rm -rf ./tmp
             """
         }
         
