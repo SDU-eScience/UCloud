@@ -101,9 +101,8 @@ node {
         }
         finally {
             junit '**/build/test-results/**/*.xml'
-            archiveArtifacts artifacts: '/tmp/service.log', fingerprint: true
-            archiveArtifacts artifacts: '/var/log/ucloud/*.log', fingerprint: true
-
+            archiveArtifacts artifacts: '/tmp/service.log', '/var/log/ucloud/*.log', allowEmptyArchive: true
+            
             sh script: """
                 docker rm -f \$(docker ps -q) || true
                 docker volume rm -f \$(docker volume ls -q) || true
