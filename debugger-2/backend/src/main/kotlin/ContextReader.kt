@@ -4,9 +4,9 @@ import java.io.File
 import java.nio.channels.FileChannel
 import java.nio.file.StandardOpenOption
 
-class ContextReader(val directory: File, val generation: Long, val idx: Int) {
+class ContextReader(directory: File, val generation: Long, val idx: Int) {
     private val channel = FileChannel.open(
-        File(directory, "$generation-$idx.ctx").toPath(),
+        File(directory, buildContextFilePath(generation, idx)).toPath(),
         StandardOpenOption.READ,
     )
 
@@ -66,13 +66,27 @@ class ContextReader(val directory: File, val generation: Long, val idx: Int) {
         }
     }
 
+    fun resetCursor() {
+        cursor = 0
+    }
+
     fun close() {
         channel.close()
     }
 
+    fun logAllEntries() {
+        val currentCursor = this.cursor
+        this.resetCursor()
+        while (this.next()) {
+            val entry = this.retrieve() ?: continue
+            println("id: ${entry.id}, name: ${entry.name}, ts: ${entry.timestamp}")
+        }
+        this.cursor = currentCursor
+    }
+
     companion object {
         fun exists(directory: File, generation: Long, idx: Int): Boolean {
-            return File(directory, "$generation-$idx.ctx").exists()
+            return File(directory, buildContextFilePath(generation, idx)).exists()
         }
     }
 }

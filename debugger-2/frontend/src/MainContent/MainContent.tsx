@@ -17,7 +17,8 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
                 return null;
             }
         
-            replayMessages(activeService.generation, d.id, 0);
+            // console.log(activeService.service, activeService.generation, d);
+            replayMessages(parseInt(activeService.generation, 10), d.id, d.timestamp);
 
             return d;
         });
@@ -32,7 +33,6 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
     }, [query, filters, levels]);
 
     const serviceLogs = logs.content[service] ?? [];
-    console.log(serviceLogs, service);
 
     return <div className="main-content flex">
         {!service ? <h3>Select a service to view requests</h3> :
@@ -41,7 +41,6 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
                 <RequestDetails activeContext={activeContext} />
                 <AutoSizer defaultHeight={200}>
                     {({height, width}) => {
-                        console.log(height, width)
                         return <List itemData={serviceLogs} height={height} width={width} itemSize={16} itemCount={serviceLogs.length} className="card list">
                             {({index, data}) => {
                                 const item = data[index];

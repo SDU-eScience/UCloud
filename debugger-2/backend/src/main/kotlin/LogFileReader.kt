@@ -55,6 +55,10 @@ class LogFileReader(val directory: File, val generation: Long, val idx: Int) {
         return true
     }
 
+    fun resetCursor() {
+        cursor = 0
+    }
+
     fun jumpTo(idx: Int): Boolean {
         val oldCursor = cursor
         cursor = idx

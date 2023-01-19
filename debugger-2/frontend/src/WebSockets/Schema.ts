@@ -179,6 +179,7 @@ export class DebugContext {
         return readInt4(this.buffer, this.offset + 0);
     }
 
+
     /* Also Context ID? */
     get id(): number {
         return readInt4(this.buffer, this.offset + 4);
@@ -200,8 +201,12 @@ export class DebugContext {
         return debugContextToString(this.type);
     }
 
+    get timestamp(): number {
+        return Number(readInt8(this.buffer, this.offset + 10));
+    }
+
     get name(): string {
-        return readNameFromBuffer(this.buffer, this.offset + 14, 116);
+        return readNameFromBuffer(this.buffer, this.offset + 22, 108);
     }
 }
 

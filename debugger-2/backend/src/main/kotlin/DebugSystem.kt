@@ -1,6 +1,7 @@
 package dk.sdu.cloud.debugger
 
 import io.ktor.http.*
+import io.ktor.util.date.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -105,15 +106,19 @@ class BinaryFrameAllocator(
     }
 }
 
+fun buildContextFilePath(generation: Long, fileIdx: Int): String {
+    return "$generation-$fileIdx.ctx"
+}
+
 class ContextDescriptorFile(
-    val directory: File,
-    val generation: Long,
-    val fileIdx: Int,
+    directory: File,
+    generation: Long,
+    fileIdx: Int,
 ) {
     private val trackedDescriptors = ArrayList<WeakReference<DebugContextDescriptor>>()
 
     private val channel = FileChannel.open(
-        File(directory, "$generation-$fileIdx.ctx").toPath(),
+        File(directory, buildContextFilePath(generation, fileIdx)).toPath(),
         StandardOpenOption.CREATE,
         StandardOpenOption.READ,
         StandardOpenOption.WRITE,
@@ -263,6 +268,7 @@ class BinaryDebugSystem(
             try {
                 descriptor.type = type
                 descriptor.importance = initialImportance
+                descriptor.timestamp = getTimeMillis()
                 descriptor.name = when {
                     initialName != null -> initialName
                     type == DebugContextType.BACKGROUND_TASK -> "Task"
@@ -370,6 +376,9 @@ class DebugContextDescriptor(buf: ByteBuffer, ptr: Int) : BinaryFrame(buf, ptr) 
     var id by Schema.id
     var importance by Schema.importance
     var type by Schema.type
+
+    var timestamp by Schema.timestamp
+
     var name: String
         get() = Schema.name.getValue(this, this::name).decodeToString()
         set(value) {
@@ -405,10 +414,11 @@ class DebugContextDescriptor(buf: ByteBuffer, ptr: Int) : BinaryFrame(buf, ptr) 
 
         val importance = enum<MessageImportance>()
         val type = enum<DebugContextType>()
+        val timestamp = int8()
         val rsv1 = int1()
         val rsv2 = int1()
 
-        val name = bytes(116)
+        val name = bytes(108)
         val children = bytes(256)
     }
 }

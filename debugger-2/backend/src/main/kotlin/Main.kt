@@ -20,6 +20,7 @@ import kotlinx.serialization.Serializable
 import java.io.File
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.minutes
 
 data class TrackedService(val title: String, val generation: Long, val lastModified: Long)
 
@@ -35,23 +36,20 @@ fun main(args: Array<String>) {
         return
     }
 
-    @Suppress("OPT_IN_USAGE")
-    GlobalScope.launch {
+    @Suppress("OPT_IN_USAGE") GlobalScope.launch {
         coroutineScope {
             val serviceWatcher = launch(Dispatchers.IO) {
                 while (isActive) {
-                    val newServices = (directory.listFiles() ?: emptyArray())
-                        .filter { it.isFile && it.name.endsWith(".service") }
-                        .mapNotNull { serviceFile ->
-                            runCatching {
-                                val lines = serviceFile.readText().lines()
-                                TrackedService(lines[0], lines[1].toLongOrNull() ?: 0, serviceFile.lastModified())
-                            }.getOrNull()
-                        }
-                        .groupBy { it.title }
-                        .mapValues { (_, group) ->
-                            group.maxByOrNull { it.lastModified }!!
-                        }
+                    val newServices =
+                        (directory.listFiles() ?: emptyArray()).filter { it.isFile && it.name.endsWith(".service") }
+                            .mapNotNull { serviceFile ->
+                                runCatching {
+                                    val lines = serviceFile.readText().lines()
+                                    TrackedService(lines[0], lines[1].toLongOrNull() ?: 0, serviceFile.lastModified())
+                                }.getOrNull()
+                            }.groupBy { it.title }.mapValues { (_, group) ->
+                                group.maxByOrNull { it.lastModified }!!
+                            }
 
                     val oldServices = trackedServices.get()
 
@@ -260,10 +258,89 @@ fun main(args: Array<String>) {
                         when (request) {
                             is ClientRequest.ReplayMessages -> {
                                 session.activeContext = request.context
-                                // By this point, we have contextId, generation and timestamp. We should be able to look through a file and read.
-                                // Log file -should- be of names "${request.generation}-${id}.log", but how do we get .id?
-                                request.generation
-                                request.timestamp
+
+                                val generation = request.generation.toLong()
+                                val startTime = request.timestamp
+                                val endTime = startTime + 15.minutes.inWholeMilliseconds
+
+                                val contextIds = arrayListOf(session.activeContext)
+                                var currentFileId = 1 // Note(Jonas): Seems to start at 1?
+
+                                // Read Ctx files, fetch relevant contexts, do for ALL contexts first, as we want contexts' children and grandchildren (done?)
+                                // Get contexts, build list of contexts IDs we can look up into (done?)
+                                // Use 15 minutes as time limit or when no more files. (done)
+
+                                outer@ while (ContextReader.exists(directory, generation, currentFileId)) {
+                                    var currentFile = ContextReader(directory, generation, currentFileId++)
+                                    // currentFile.logAllEntries()
+                                    currentFile.seekToEnd()
+                                    var fileEnd = currentFile.retrieve()?.timestamp ?: break@outer
+                                    currentFile.resetCursor()
+
+                                    // Find the file that contains our first potentially valid context
+                                    while (startTime > fileEnd) {
+                                        if (!ContextReader.exists(directory, generation, currentFileId)) break@outer
+                                        currentFile = ContextReader(directory, generation, currentFileId++)
+                                        currentFile.seekToEnd()
+                                        fileEnd = currentFile.retrieve()?.timestamp ?: Long.MAX_VALUE
+                                        currentFile.resetCursor()
+                                    }
+
+                                    if (fileEnd == Long.MAX_VALUE) {
+                                        println("Something went wrong. File end is it's error value.")
+                                    }
+
+                                    while (currentFile.next()) {
+                                        val currentEntry = currentFile.retrieve() ?: continue
+                                        if (currentEntry.timestamp < startTime) continue // keep looking
+                                        if (currentEntry.timestamp > endTime) break@outer // finished
+
+                                        if (currentEntry.parent.toLong() in contextIds) {
+                                            contextIds.add(currentEntry.id.toLong())
+                                            // Also add entire context to list. We need to send it back.
+                                        }
+
+                                        // TODO: Go to next file if exists. It might have the next entries.
+                                    }
+                                }
+
+                                val logIds = ArrayList<Long>()
+                                var logFileId = 0
+
+                                outer@ while (LogFileReader.exists(directory, generation, logFileId)) {
+                                    var logFile = LogFileReader(directory, generation, logFileId++)
+                                    logFile.seekToEnd()
+                                    var fileEnd = logFile.retrieve()?.timestamp ?: break@outer
+                                    logFile.resetCursor()
+                                    while (startTime > fileEnd) {
+                                        if (!ContextReader.exists(directory, generation, currentFileId)) break@outer
+                                        logFile = LogFileReader(directory, generation, logFileId++)
+                                        logFile.seekToEnd()
+                                        fileEnd = logFile.retrieve()?.timestamp ?: Long.MAX_VALUE
+                                        logFile.resetCursor()
+                                    }
+
+                                    if (fileEnd == Long.MAX_VALUE) {
+                                        println("Something went wrong. File end is it's error value.")
+                                    }
+
+                                    while (logFile.next()) {
+                                        val currentEntry = logFile.retrieve() ?: continue
+                                        if (currentEntry.timestamp < startTime) continue // keep looking
+                                        if (currentEntry.timestamp > endTime) break@outer // finished
+
+                                        if (currentEntry.ctxId.toLong() in contextIds) {
+                                            logIds.add(currentEntry.id.toLong())
+                                            // Also add entire log to list. We need to send it back.
+                                        }
+
+                                        // TODO(Jonas): Go to next file if exists. It might have the next entries.
+                                        // TODO(Jonas): Find overflow if relevant
+                                    }
+                                }
+
+                                println(contextIds.toString())
+                                println(logIds.toString())
                             }
 
                             is ClientRequest.ActivateService -> {
