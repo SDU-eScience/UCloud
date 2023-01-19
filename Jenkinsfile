@@ -69,6 +69,8 @@ node {
                 export UCLOUD_TEST_SNAPSHOT=${jobName} 
                 ./gradlew test --tests GiftTest
             """
+
+            echo 'HELLO'
         }
         catch(Exception e) {
             def logArray = currentBuild.rawBuild.getLog(50)
@@ -92,24 +94,27 @@ node {
 
                 BackendFailed: 
                 ${log.substring(startIndex, endIndex)}
-                """)
+            """)
         }
         finally {
             junit '**/build/test-results/**/*.xml'
 
-             sh script: """
-                cd integration-test 
-                export UCLOUD_LAUNCHER=\$PWD/launcher 
-                export UCLOUD_TEST_SNAPSHOT=${jobName} 
-                ./gradlew test --tests GiftTest
+
+            sh script: """
+                docker rm -f \$(docker ps -q) || true
+                docker volume rm -f \$(docker volume ls -q) || true
+                docker network rm  \$(docker network ls -q) || true
+                
+                docker rm -f \$(docker ps -q) || true
+                docker volume rm -f \$(docker volume ls -q) || true
+                docker network rm  \$(docker network ls -q) || true
+                
+                docker volume prune || true
+                docker network prune || true
+                docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
             """
         }
         
-
-        //Save log files from UCLoud and gradle build report
-
-        //Delete current environment
-
         //sendAlert("Hello from Jenkins")
 
         /*String frontendResult = runBuild("frontend-web/Jenkinsfile")
