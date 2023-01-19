@@ -101,6 +101,17 @@ node {
         }
         finally {
             junit '**/build/test-results/**/*.xml'
+
+            env.WORKSPACE = pwd()
+            def workspace = readFile "${env.WORKSPACE}/.compose/current.txt"
+
+            sh script: """
+                docker cp ${workspace}-backend-1:/tmp/service.log /tmp/service.log
+                mkdir /tmp/log
+                docker cp ${workspace}-backend-1:/var/log/ucloud /tmp/log
+            """
+
+
             archiveArtifacts artifacts: '/tmp/service.log, /var/log/ucloud/*.log', allowEmptyArchive: true
 
             sh script: """
