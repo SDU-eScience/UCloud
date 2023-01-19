@@ -300,7 +300,11 @@ fun main(args: Array<String>) {
                                             // Also add entire context to list. We need to send it back.
                                         }
 
-                                        // TODO: Go to next file if exists. It might have the next entries.
+                                        if (!currentFile.isValid(currentFile.cursor + 1)) {
+                                            if (ContextReader.exists(directory, generation, currentFileId)) {
+                                                currentFile = ContextReader(directory, generation, currentFileId++)
+                                            }
+                                        }
                                     }
                                 }
 
@@ -334,7 +338,11 @@ fun main(args: Array<String>) {
                                             // Also add entire log to list. We need to send it back.
                                         }
 
-                                        // TODO(Jonas): Go to next file if exists. It might have the next entries.
+                                        if (!logFile.isValid(logFile.cursor + 1)) {
+                                            if (LogFileReader.exists(directory, generation, logFileId)) {
+                                                logFile = LogFileReader(directory, generation, logFileId++)
+                                            }
+                                        }
                                         // TODO(Jonas): Find overflow if relevant
                                     }
                                 }

@@ -17,8 +17,7 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
                 return null;
             }
         
-            // console.log(activeService.service, activeService.generation, d);
-            replayMessages(parseInt(activeService.generation, 10), d.id, d.timestamp);
+            replayMessages(activeService.generation, d.id, d.timestamp);
 
             return d;
         });
