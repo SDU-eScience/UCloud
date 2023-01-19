@@ -111,8 +111,8 @@ node {
                 docker cp ${workspace}-backend-1:/var/log ./tmp/
             """
 
-            archiveArtifacts artifacts: './tmp/service.log', allowEmptyArchive: true
-            archiveArtifacts artifacts: './tmp/log/ucloud/*.log', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'tmp/service.log', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'tmp/log/ucloud/*.log', allowEmptyArchive: true
 
 
             sh script: """
