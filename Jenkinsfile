@@ -36,23 +36,23 @@ node {
 
         //Delete current environment if any
 
-        //sh script: """
-        //    docker rm -f \$(docker ps -q) || true
-        //    docker volume rm -f \$(docker volume ls -q) || true
-        //    docker network rm  \$(docker network ls -q) || true
-        //    
-        //    docker rm -f \$(docker ps -q) || true
-        //    docker volume rm -f \$(docker volume ls -q) || true
-        //    docker network rm  \$(docker network ls -q) || true
-        //    
-        //    docker volume prune || true
-        //    docker network prune || true
-        //    docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
-       // """
+        sh script: """
+            docker rm -f \$(docker ps -q) || true
+            docker volume rm -f \$(docker volume ls -q) || true
+            docker network rm  \$(docker network ls -q) || true
+            
+            docker rm -f \$(docker ps -q) || true
+            docker volume rm -f \$(docker volume ls -q) || true
+            docker network rm  \$(docker network ls -q) || true
+            
+            docker volume prune || true
+            docker network prune || true
+            docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
+        """
 
         //Create new environment with providers installed
 
-       // sh script: 'DEBUG_COMMANDS=true ; ./launcher init --all-providers'
+        sh script: 'DEBUG_COMMANDS=true ; ./launcher init --all-providers'
 
         //Create Snapshot of DB to test purpose. Use "t"+timestamp for UNIQUE ID
 
