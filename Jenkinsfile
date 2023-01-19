@@ -61,32 +61,54 @@ node {
         """
 
         //run test
-        sh script: """
-            cd integration-test 
-            export UCLOUD_LAUNCHER=\$PWD/launcher 
-            export UCLOUD_TEST_SNAPSHOT=${jobName} 
-            ./gradlew test --tests GiftTest
-        """
+
+        try {
+            sh script: """
+                cd integration-test 
+                export UCLOUD_LAUNCHER=\$PWD/launcher 
+                export UCLOUD_TEST_SNAPSHOT=${jobName} 
+                ./gradlew test --tests GiftTest
+            """
+        }
+        catch(Exception e) {
+            def logArray = currentBuild.rawBuild.getLog(50)
+            def log = ""
+            for (String s : logArray)
+            {
+                log += s + " ";
+            }
+            def startIndex = log.indexOf("FAILURE: Build failed with an exception")
+            def endIndex = log.indexOf("* Try:")
+            if (startIndex == -1) {
+                startIndex = 0
+            }
+            if (endIndex == -1) {
+                endIndex = log.length()-1
+            }
+
+
+            sendAlert("""
+                :warning: BuildFailed :warning:
+
+                BackendFailed: 
+                ${log.substring(startIndex, endIndex)}
+                """)
+        }
+        finally {
+            junit '**/build/test-results/**/*.xml'
+
+             sh script: """
+                cd integration-test 
+                export UCLOUD_LAUNCHER=\$PWD/launcher 
+                export UCLOUD_TEST_SNAPSHOT=${jobName} 
+                ./gradlew test --tests GiftTest
+            """
+        }
+        
 
         //Save log files from UCLoud and gradle build report
 
-        junit '**/build/test-results/**/*.xml'
-
         //Delete current environment
-
-        sh script: """
-            docker rm -f \$(docker ps -q) || true
-            docker volume rm -f \$(docker volume ls -q) || true
-            docker network rm  \$(docker network ls -q) || true
-            
-            docker rm -f \$(docker ps -q) || true
-            docker volume rm -f \$(docker volume ls -q) || true
-            docker network rm  \$(docker network ls -q) || true
-            
-            docker volume prune || true
-            docker network prune || true
-            docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
-        """
 
         //sendAlert("Hello from Jenkins")
 
