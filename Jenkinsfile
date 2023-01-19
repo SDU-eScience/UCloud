@@ -111,8 +111,13 @@ node {
             """
 
 
+            sh script: """
+                ls /tmp
+                ls /tmp/log/ucloud
+                """
+                
             archiveArtifacts artifacts: '/tmp/service.log', allowEmptyArchive: true
-            archiveArtifacts artifacts: '/var/log/ucloud/*.log', allowEmptyArchive: true
+            archiveArtifacts artifacts: '/tmp/log/ucloud/*.log', allowEmptyArchive: true
 
 
             sh script: """
