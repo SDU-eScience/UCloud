@@ -91,13 +91,13 @@ node {
             }
 
 
-            sendAlert("""\
-                :warning: BuildFailed :warning:
-
-                BackendFailed: 
-                ${log.substring(startIndex, endIndex)}
-            """.stripIndent()
-            )
+            //sendAlert("""\
+            //    :warning: BuildFailed :warning:
+//
+ //               BackendFailed: 
+   //             ${log.substring(startIndex, endIndex)}
+    //        """.stripIndent()
+     //       )
         }
         finally {
             junit '**/build/test-results/**/*.xml'
@@ -107,8 +107,7 @@ node {
 
             sh script: """
                 docker cp ${workspace}-backend-1:/tmp/service.log /tmp/service.log
-                mkdir /tmp/log
-                docker cp ${workspace}-backend-1:/var/log/ucloud /tmp/log
+                docker cp ${workspace}-backend-1:/var/log /tmp
             """
 
 
@@ -126,6 +125,9 @@ node {
                 docker volume prune || true
                 docker network prune || true
                 docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
+
+                rm -rf /tmp/log*
+                rm /tmp/service.log
             """
         }
         
