@@ -73,6 +73,8 @@ node {
             echo 'HELLO'
         }
         catch(Exception e) {
+            echo 'EX'
+
             def logArray = currentBuild.rawBuild.getLog(50)
             def log = ""
             for (String s : logArray)
