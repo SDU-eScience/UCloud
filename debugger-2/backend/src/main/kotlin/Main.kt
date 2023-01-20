@@ -257,6 +257,10 @@ fun main(args: Array<String>) {
 
                         when (request) {
                             is ClientRequest.ReplayMessages -> {
+                                // Clear Log and Context Buffer
+                                session.newContextWriteBuffer.clear()
+                                session.newLogsWriteBuffer.clear()
+
                                 session.activeContext = request.context
 
                                 val generation = request.generation.toLong()
@@ -297,7 +301,7 @@ fun main(args: Array<String>) {
 
                                         if (currentEntry.parent.toLong() in contextIds) {
                                             contextIds.add(currentEntry.id.toLong())
-                                            // Also add entire context to list. We need to send it back.
+                                            session.acceptContext(generation, currentEntry)
                                         }
 
                                         if (!currentFile.isValid(currentFile.cursor + 1)) {
@@ -308,9 +312,7 @@ fun main(args: Array<String>) {
                                     }
                                 }
 
-                                val logIds = ArrayList<Long>()
                                 var logFileId = 0
-
                                 outer@ while (LogFileReader.exists(directory, generation, logFileId)) {
                                     var logFile = LogFileReader(directory, generation, logFileId++)
                                     logFile.seekToEnd()
@@ -334,7 +336,7 @@ fun main(args: Array<String>) {
                                         if (currentEntry.timestamp > endTime) break@outer // finished
 
                                         if (currentEntry.ctxId.toLong() in contextIds) {
-                                            logIds.add(currentEntry.id.toLong())
+                                            session.acceptLogMessage(currentEntry)
                                             // Also add entire log to list. We need to send it back.
                                         }
 
@@ -343,12 +345,11 @@ fun main(args: Array<String>) {
                                                 logFile = LogFileReader(directory, generation, logFileId++)
                                             }
                                         }
-                                        // TODO(Jonas): Find overflow if relevant
                                     }
                                 }
 
-                                println(contextIds.toString())
-                                println(logIds.toString())
+                                session.flushLogsMessage()
+                                session.flushContextMessage()
                             }
 
                             is ClientRequest.ActivateService -> {

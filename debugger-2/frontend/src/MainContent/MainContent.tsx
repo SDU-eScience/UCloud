@@ -21,7 +21,8 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
 
             return d;
         });
-    }, [setActiveContext]);
+        setRouteComponents(d.id.toString())
+    }, [setActiveContext, setRouteComponents]);
 
     React.useEffect(() => {
         setActiveContext(null);
@@ -33,7 +34,7 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
 
     const serviceLogs = logs.content[service] ?? [];
 
-    return <div className="main-content flex">
+    return <div className="main-content">
         {!service ? <h3>Select a service to view requests</h3> :
             <>
                 <BreadCrumbs routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
