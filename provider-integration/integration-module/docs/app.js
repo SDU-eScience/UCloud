@@ -353,7 +353,7 @@ class DocHeader extends HTMLElement {
             }
 
             header .logo img {
-                width: 38px;
+                width: 64px;
             }
 
             header .logo {
