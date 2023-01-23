@@ -22,6 +22,7 @@ import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -1243,6 +1244,69 @@ class ProjectService(
                 )
             }
         }
+    }
+
+    suspend fun createInviteLink(actorAndProject: ActorAndProject, ctx: DBContext = db) {
+        val username = actorAndProject.actor.safeUsername()
+        val project = actorAndProject.requireProject()
+
+        val token = UUID.randomUUID().toString()
+        val expires = Time.now() + (1000L * 3600 * 24 * 30) // expire in 30 days
+
+        ctx.withSession { session ->
+            requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("token", token)
+                    setParameter("expires", expires)
+                },
+                """
+                    insert into project.invite_links (project, token, expires) values
+                        (:project, :token, :expires)
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Unable to create invitation link",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+    }
+
+    suspend fun browseInviteLinks(actorAndProject: ActorAndProject, ctx: DBContext = db): PageV2<ProjectInviteLink> {
+        return PageV2(20, emptyList(), null)
+    }
+
+    suspend fun deleteInviteLink(
+        actorAndProject: ActorAndProject,
+        request: ProjectsDeleteInviteLinkRequest,
+        ctx: DBContext = db
+    ) {
+
+    }
+
+    suspend fun updateInviteLinkRoleAssignment(
+        actorAndProject: ActorAndProject,
+        request: ProjectsUpdateInviteLinkRoleAssignmentRequest,
+        ctx: DBContext = db
+    ) {
+
+    }
+
+    suspend fun updateInviteLinkGroupAssignment(
+        actorAndProject: ActorAndProject,
+        request: ProjectsUpdateInviteLinkGroupAssignmentRequest,
+        ctx: DBContext = db
+    ) {
+
+    }
+
+    suspend fun acceptInviteLink(actorAndProject: ActorAndProject, request: ProjectsAcceptInviteLinkRequest) {
+
     }
 
     suspend fun deleteMember(
