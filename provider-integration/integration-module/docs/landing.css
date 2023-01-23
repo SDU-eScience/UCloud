@@ -14,11 +14,14 @@ code {
 }
 
 :root {
-    --header-size: 64px;
+    --header-size: 180px;
+    --bg: rgb(0, 106, 255); /*rgb(186 212 249);*/
 }
 
 header {
-    background: rgb(0, 106, 255);
+    /*background: rgb(0, 106, 255);*/
+    background: var(--bg);
+
     color: #ffffff;
     height: var(--header-size);
     width: 100vw;
@@ -41,11 +44,11 @@ header .logo {
     align-items: center;
     flex-grow: 1;
     gap: 15px;
-    margin-left: 15px;
+    margin-left: 32px;
 }
 
 header .logo img {
-    width: 38px;
+    width: 256px;
 }
 
 header .logo span {
@@ -99,7 +102,8 @@ header .right {
 .slide-1 {
     height: calc(100vh - var(--header-size));
     color: #ffffff;
-    background: rgb(0, 106, 255);
+    /*background: rgb(0, 106, 255);*/
+    background: var(--bg);
     overflow: hidden;
     display: flex;
     flex-direction: column;
