@@ -1247,11 +1247,9 @@ class ProjectService(
     }
 
     suspend fun createInviteLink(actorAndProject: ActorAndProject, ctx: DBContext = db) {
-        val username = actorAndProject.actor.safeUsername()
         val project = actorAndProject.requireProject()
 
         val token = UUID.randomUUID().toString()
-        val expires = Time.now() + (1000L * 3600 * 24 * 30) // expire in 30 days
 
         ctx.withSession { session ->
             requireAdmin(actorAndProject.actor, listOf(project), session)
@@ -1260,11 +1258,10 @@ class ProjectService(
                 {
                     setParameter("project", project)
                     setParameter("token", token)
-                    setParameter("expires", expires)
                 },
                 """
-                    insert into project.invite_links (project, token, expires) values
-                        (:project, :token, :expires)
+                    insert into project.invite_links (project_id, token, expires) values
+                        (:project, :token, now() + '30 days')
                 """
             ).rowsAffected > 0
 
