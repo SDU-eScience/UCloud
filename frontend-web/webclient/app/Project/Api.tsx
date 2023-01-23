@@ -151,6 +151,10 @@ class ProjectApi {
         return apiUpdate(request, this.baseContext, "deleteInvite");
     }
 
+    public createInviteLink(): APICallParameters {
+        return apiCreate(undefined, this.baseContext, "link");
+    }
+
     public deleteMember(request: BulkRequest<{username: string}>): APICallParameters {
         return apiUpdate(request, this.baseContext, "deleteMember");
     }

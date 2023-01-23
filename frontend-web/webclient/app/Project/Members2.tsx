@@ -25,7 +25,7 @@ import {
 import {shorten} from "@/Utilities/TextUtilities";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {addStandardDialog, addStandardInputDialog, NamingField} from "@/UtilityComponents";
-import {preventDefault} from "@/UtilityFunctions";
+import {doNothing, preventDefault} from "@/UtilityFunctions";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {IconName} from "@/ui-components/Icon";
@@ -47,12 +47,13 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 // UI state management
 // ================================================================================
 type ProjectAction = AddToGroup | RemoveFromGroup | Reload | InspectGroup | InviteMember | ReloadInvites |
     RemoveInvite | FailedInvite | RenameGroup | CreateGroup | UpdateGroupWithId | RemoveGroup | ChangeRole |
-    RemoveMember;
+    RemoveMember | CreateInviteLink;
 
 interface Reload {
     type: "Reload";
@@ -120,6 +121,10 @@ interface RemoveGroup {
 interface InviteMember {
     type: "InviteMember";
     members: string[];
+}
+
+interface CreateInviteLink {
+    type: "CreateInviteLink";
 }
 
 interface RemoveInvite {
@@ -595,25 +600,11 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                     type="button"
                                     title="Bulk invite"
                                     onClick={async () => {
-                                        try {
-                                            const res = await addStandardInputDialog({
-                                                title: "Bulk invite",
-                                                type: "textarea",
-                                                confirmText: "Invite users",
-                                                rows: 8,
-                                                width: "460px",
-                                                help: (<>Enter usernames in the box below. One username per line.</>),
-                                            });
-
-                                            const usernames = res.result
-                                                .split("\n")
-                                                .map(it => it.trim())
-                                                .filter(it => it.length > 0);
-
-                                            callbacks.dispatch({type: "InviteMember", members: usernames});
-                                        } catch (ignored) {
-                                            // Ignored
-                                        }
+                                        dialogStore.addDialog(
+                                            <InviteLinkEditor />,
+                                            doNothing,
+                                            true
+                                        );
                                     }}
                                 >
                                     <Icon name="open" />
@@ -1039,6 +1030,23 @@ const groupMemberOperations: Operation<string, Callbacks>[] = [
         }
     }
 ];
+
+
+const InviteLinkEditor: React.FunctionComponent = () => {
+    return <>
+        <Heading.h3>Invite with link</Heading.h3>
+        <Box textAlign="center">
+            <Text mb="20px" mt="20px">Invite collaborators to this project by sharing a link</Text>
+            <Button
+                onClick={async () => {
+                    const hello = await callAPIWithErrorHandler({
+                        ...Api.createInviteLink()
+                    });
+                }}
+            >Create link</Button>
+        </Box>
+    </>
+};
 
 // Utilities
 // ================================================================================
