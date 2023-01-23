@@ -410,7 +410,7 @@ class DocHeader extends HTMLElement {
                 background-color: black;
                 border-radius: 15px;
                 font-size: 120%;
-                padding: 16px;
+                padding: 10px 16px;
                 color: white;
                 align-items: center;
                 justify-content: center;
@@ -439,13 +439,11 @@ class DocHeader extends HTMLElement {
         shadow.innerHTML += `
             <header>
                 <a href="/" class="logo">
-                    <img src="/images/logo_esc.svg" alt="UCloud Logo">
-                    UCloud/IM
+                    <img src="/images/deic.svg" alt="DeiC Logo">
+                    DeiC Integration Portal
                 </a>
 
                 <div class="middle">
-                    <a href="/getting-started">Documentation</a>
-                    <a href="https://escience.sdu.dk" target="_blank">Support</a>
                 </div>
 
                 <div class="right">
@@ -469,6 +467,7 @@ class DocRecipes extends HTMLElement {
             description: "A traditional HPC system consisting of Slurm and a distributed POSIX file system",
             href: "/recipes/slurm"
         },
+        /*
         { 
             title: "Keycloak",
             description: "Connection procedure using Keycloak",
@@ -484,6 +483,7 @@ class DocRecipes extends HTMLElement {
             description: "Show-cases a collection of plugins which together form the basis of an integration with Puhuri",
             href: "/recipes/puhuri"
         },
+        */
     ];
 
     constructor() {
@@ -538,23 +538,28 @@ customElements.define("doc-recipes", DocRecipes);
 class DocTableOfContents extends HTMLElement {
     static sections = [
         { title: "Getting started", href: "/getting-started" },
-        { title: "Core", href: "/core" },
-        { title: "Server", href: "/server" },
-        { title: "Products", href: "/products" },
         { 
-            title: "Plugins", 
-            href: "/plugins",
+            title: "Configuration", 
             children: [
-                { title: "Connections", href: "/plugins/connections.html" },
-                { title: "Projects", href: "/plugins/projects.html" },
-                { title: "Jobs", href: "/plugins/jobs.html" },
-                { title: "Drives", href: "/plugins/fileCollections.html" },
-                { title: "Files", href: "/plugins/files.html" },
-                { title: "Public links", href: "/plugins/ingresses.html" },
-                { title: "Public IPs", href: "/plugins/publicIps.html" },
-                { title: "Software licenses", href: "/plugins/licenses.html" },
-                { title: "Shares", href: "/plugins/shares.html" },
-                { title: "Allocations", href: "/plugins/allocations.html" },
+                { title: "Core", href: "/core" },
+                { title: "Server", href: "/server" },
+                { title: "Products", href: "/products" },
+                { 
+                    title: "Plugins", 
+                    href: "/plugins",
+                    children: [
+                        { title: "Connections", href: "/plugins/connections.html" },
+                        { title: "Projects", href: "/plugins/projects.html" },
+                        { title: "Jobs", href: "/plugins/jobs.html" },
+                        { title: "Drives", href: "/plugins/fileCollections.html" },
+                        { title: "Files", href: "/plugins/files.html" },
+                        { title: "Public links", href: "/plugins/ingresses.html" },
+                        { title: "Public IPs", href: "/plugins/publicIps.html" },
+                        { title: "Software licenses", href: "/plugins/licenses.html" },
+                        { title: "Shares", href: "/plugins/shares.html" },
+                        { title: "Allocations", href: "/plugins/allocations.html" },
+                    ]
+                },
             ]
         },
         {
@@ -662,7 +667,8 @@ class DocTableOfContents extends HTMLElement {
         }
 
         const linkNode = document.createElement("doc-link");
-        linkNode.setAttribute("href", sectionNode.href);
+        if (sectionNode.href) linkNode.setAttribute("href", sectionNode.href);
+        else linkNode.setAttribute("href", "#");
         linkNode.textContent = sectionNode.title;
 
         itemNode.append(linkNode);
@@ -738,8 +744,11 @@ class DocNavigationButtons extends HTMLElement {
 
         const selfIndex = selfEntry.index;
 
-        const previousEntry = DocTableOfContents.findIndexed(selfIndex - 1);
-        const nextEntry = DocTableOfContents.findIndexed(selfIndex + 1);
+        let previousEntry = DocTableOfContents.findIndexed(selfIndex - 1);
+        let nextEntry = DocTableOfContents.findIndexed(selfIndex + 1);
+
+        if (previousEntry && !previousEntry.href) previousEntry = DocTableOfContents.findIndexed(selfIndex - 2);
+        if (nextEntry && !nextEntry.href) nextEntry = DocTableOfContents.findIndexed(selfIndex + 2);
 
         const shadow = this.attachShadow({ mode: "open" });
         shadow.append(style(`
