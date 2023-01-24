@@ -56,7 +56,7 @@ class ContextReader(directory: File, val generation: Long, val idx: Int) {
     fun seekToEnd() {
         var min = 0
         var max = buf.capacity() / FRAME_SIZE
-        while (min != max) {
+        while (min < max) {
             cursor = ((max - min) / 2) + min
             if (isValid()) {
                 min = cursor + 1
@@ -64,6 +64,7 @@ class ContextReader(directory: File, val generation: Long, val idx: Int) {
                 max = cursor - 1
             }
         }
+        cursor = max
     }
 
     fun resetCursor() {

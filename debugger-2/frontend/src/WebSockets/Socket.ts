@@ -43,24 +43,26 @@ function initializeSocket() {
             case 1:
                 const service = getServiceName(view);
                 const generation = getGenerationName(view);
-                serviceStore.attemptAdd(service, generation);
+                serviceStore.add(service, generation);
                 break;
 
             case 2:
                 const numberOfEntries = (message.length - 8) / 388;
                 for (let i = 0; i < numberOfEntries; i++) {
-                    const log = new DebugContext(view, 8 + i * 388);
-                    // console.log(log.id, log.importanceString, log.name, log.parent, log.typeString);
-                    logStore.addDebugContext(log);
+                    const ctx = new DebugContext(view, 8 + i * 388);
+                    logStore.addDebugContext(ctx);
                 }
+                logStore.emitChange();
                 break;
 
             case 3: {
                 const numberOfEntries = (message.length - 8) / 256;
                 for (let i = 0; i < numberOfEntries; i++) {
                     const log = new Log(view, 8 + i * 256);
-                    // console.log(log.ctxGeneration, log.ctxId, log.ctxParent, log.importance, log.timestamp, log.typeString, log.message, log.extra);
+                    logStore.addLog(log);
                 }
+                logStore.emitChange();
+                console.log(logStore.entryCount);
                 break;
             }
         }
@@ -107,19 +109,64 @@ export const activeService = new class {
     }
 }();
 
+export interface DebugContextAndChildren {
+    ctx: DebugContext;
+    children: (Log | DebugContextAndChildren)[]
+}
+
+let hasActiveContext = false;
+
 export const logStore = new class {
     private logs: {content: Record<string, DebugContext[]>} = {content: {}};
+    private activeContexts: DebugContextAndChildren | null = null;
+    private ctxMap: Record<number, DebugContextAndChildren> = {};
     private subscriptions: (() => void)[] = [];
     private isDirty = false;
+    public entryCount = 0;
+
+    public contextList(): DebugContextAndChildren | null {
+        return this.activeContexts;
+    }
+
+    public clearActiveContext(): void {
+        hasActiveContext = false;
+        this.ctxMap = {};
+        this.entryCount = 0;
+    }
+
+    public addDebugRoot(debugContext: DebugContext): void {
+        hasActiveContext = true;
+        const newRoot = {ctx: debugContext, children: []};
+        this.activeContexts = newRoot;
+        this.ctxMap[debugContext.id] = newRoot;
+        this.entryCount++;
+        this.emitChange();
+    }
 
     public addDebugContext(debugContext: DebugContext): void {
+        if (hasActiveContext) {
+            const newEntry = {ctx: debugContext, children: []};
+            this.ctxMap[debugContext.parent].children.push(newEntry);
+            this.entryCount++;
+            return;
+        }
+
         this.isDirty = true;
         if (!this.logs.content[activeService.service]) {
             this.logs.content[activeService.service] = [debugContext];
         } else {
             this.logs.content[activeService.service].push(debugContext)
         }
-        this.emitChange();
+    }
+
+    public addLog(log: Log): void {
+        if (hasActiveContext) {
+            console.log(log.ctxId)
+            this.ctxMap[log.ctxId].children.push(log);
+            this.entryCount++;
+        } else {
+            console.log(hasActiveContext)
+        }
     }
 
     public subscribe(subscription: () => void) {
@@ -149,12 +196,12 @@ export const serviceStore = new class {
     private generations: Record<string, string> = {};
     private subscriptions: (() => void)[] = [];
 
-    public attemptAdd(entry: string, generation: string): void {
+    public add(entry: string, generation: string): void {
         this.services = [...this.services, entry];
         this.generations[entry] = generation;
         this.emitChange();
     }
-    
+
     public getGeneration(service: string): string {
         return this.generations[service] ?? "";
     }

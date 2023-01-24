@@ -258,8 +258,8 @@ fun main(args: Array<String>) {
                         when (request) {
                             is ClientRequest.ReplayMessages -> {
                                 // Clear Log and Context Buffer
-                                session.newContextWriteBuffer.clear()
-                                session.newLogsWriteBuffer.clear()
+                                session.clearContextMessages()
+                                session.clearLogMessages()
 
                                 session.activeContext = request.context
 
@@ -268,6 +268,8 @@ fun main(args: Array<String>) {
                                 val endTime = startTime + 15.minutes.inWholeMilliseconds
 
                                 val contextIds = arrayListOf(session.activeContext)
+                                var foundLogs = 0
+
                                 var currentFileId = 1 // Note(Jonas): Seems to start at 1?
 
                                 // Read Ctx files, fetch relevant contexts, do for ALL contexts first, as we want contexts' children and grandchildren (done?)
@@ -286,12 +288,8 @@ fun main(args: Array<String>) {
                                         if (!ContextReader.exists(directory, generation, currentFileId)) break@outer
                                         currentFile = ContextReader(directory, generation, currentFileId++)
                                         currentFile.seekToEnd()
-                                        fileEnd = currentFile.retrieve()?.timestamp ?: Long.MAX_VALUE
+                                        fileEnd = currentFile.retrieve()?.timestamp ?: break@outer
                                         currentFile.resetCursor()
-                                    }
-
-                                    if (fileEnd == Long.MAX_VALUE) {
-                                        println("Something went wrong. File end is it's error value.")
                                     }
 
                                     while (currentFile.next()) {
@@ -312,22 +310,27 @@ fun main(args: Array<String>) {
                                     }
                                 }
 
-                                var logFileId = 0
-                                outer@ while (LogFileReader.exists(directory, generation, logFileId)) {
-                                    var logFile = LogFileReader(directory, generation, logFileId++)
-                                    logFile.seekToEnd()
-                                    var fileEnd = logFile.retrieve()?.timestamp ?: break@outer
-                                    logFile.resetCursor()
-                                    while (startTime > fileEnd) {
-                                        if (!ContextReader.exists(directory, generation, currentFileId)) break@outer
-                                        logFile = LogFileReader(directory, generation, logFileId++)
-                                        logFile.seekToEnd()
-                                        fileEnd = logFile.retrieve()?.timestamp ?: Long.MAX_VALUE
-                                        logFile.resetCursor()
-                                    }
+                                session.flushContextMessage()
 
-                                    if (fileEnd == Long.MAX_VALUE) {
-                                        println("Something went wrong. File end is it's error value.")
+                                var logFileId = 0
+                                var logs = ArrayList<BinaryDebugMessage<*>>()
+                                outer@ while (LogFileReader.exists(directory, generation, logFileId)) {
+                                    var logFile = LogFileReader(directory, generation, logFileId)
+
+                                    logFile.seekToEnd()
+                                    val end = logFile.retrieve()
+                                    var fileEnd = end?.timestamp ?: break@outer
+                                    logFile.resetCursor()
+                                    logFileId += 1
+                                    while (startTime > fileEnd) {
+                                        if (!LogFileReader.exists(directory, generation, logFileId)) {
+                                            break@outer
+                                        }
+                                        logFile = LogFileReader(directory, generation, logFileId)
+                                        logFile.seekToEnd()
+                                        fileEnd = logFile.retrieve()?.timestamp ?: break@outer
+                                        logFile.resetCursor()
+                                        logFileId += 1
                                     }
 
                                     while (logFile.next()) {
@@ -336,8 +339,10 @@ fun main(args: Array<String>) {
                                         if (currentEntry.timestamp > endTime) break@outer // finished
 
                                         if (currentEntry.ctxId.toLong() in contextIds) {
+                                            val type = currentEntry.type
                                             session.acceptLogMessage(currentEntry)
-                                            // Also add entire log to list. We need to send it back.
+                                            logs.add(currentEntry)
+                                            foundLogs++
                                         }
 
                                         if (!logFile.isValid(logFile.cursor + 1)) {
@@ -349,7 +354,7 @@ fun main(args: Array<String>) {
                                 }
 
                                 session.flushLogsMessage()
-                                session.flushContextMessage()
+
                             }
 
                             is ClientRequest.ActivateService -> {
@@ -363,6 +368,8 @@ fun main(args: Array<String>) {
                             }
                         }
                     }
+                } catch (ex: Throwable) {
+                    println(ex.stackTraceToString())
                 } finally {
                     sessionMutex.withLock {
                         sessions.remove(session)
@@ -396,7 +403,7 @@ data class ClientSession(
     val session: WebSocketServerSession,
 
     // State, which is updated by messages from the client.
-    var activeContext: Long = 0,
+    var activeContext: Long = 1,
     var minimumLevel: MessageImportance = MessageImportance.THIS_IS_NORMAL,
     var filterQuery: String? = null,
     var activeService: String? = null,
@@ -405,16 +412,16 @@ data class ClientSession(
 
     // Buffers used for various messages. We keep a separate buffer per message type to make it slightly easier to
     // handle concurrency.
-    val newContextWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 512),
-    val newLogsWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 512),
-    val newServiceWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 32),
+    private val newContextWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 512),
+    private val newLogsWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 512),
+    private val newServiceWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 32),
 ) {
     init {
         // NOTE(Dan): This will force initialize all buffers with their metadata
         runBlocking {
-            flushServiceMessage()
-            flushContextMessage()
-            flushLogsMessage()
+            clearServiceMessages()
+            clearContextMessages()
+            clearLogMessages()
         }
     }
 
@@ -451,12 +458,34 @@ data class ClientSession(
         }
     }
 
+    suspend fun clearServiceMessages() {
+        writeMutex.withLock {
+            newServiceWriteBuffer.clear()
+            newServiceWriteBuffer.putLong(1)
+        }
+    }
+
+    suspend fun clearContextMessages() {
+        writeMutex.withLock {
+            newContextWriteBuffer.clear()
+            newContextWriteBuffer.putLong(2)
+        }
+    }
+
+    suspend fun clearLogMessages() {
+        writeMutex.withLock {
+            newLogsWriteBuffer.clear()
+            newLogsWriteBuffer.putLong(3)
+        }
+    }
+
     suspend fun acceptLogMessage(message: BinaryDebugMessage<*>) {
         val service = activeService ?: return
         if (message.importance.ordinal < minimumLevel.ordinal) return
         val services = trackedServices.get()
         val trackedService = services.values.find { it.title == service }
         if (trackedService == null || trackedService.generation != message.ctxGeneration) return
+        if (activeContext != message.ctxId.toLong()) return
 
         writeMutex.withLock {
             if (newLogsWriteBuffer.remaining() < FRAME_SIZE) return
@@ -478,6 +507,7 @@ data class ClientSession(
         val services = trackedServices.get()
         val trackedService = services.values.find { it.title == service }
         if (trackedService == null || trackedService.generation != generation) return
+        if (activeContext != context.parent.toLong() && activeContext != context.id.toLong()) return
 
         writeMutex.withLock {
             if (newContextWriteBuffer.remaining() < DebugContextDescriptor.size) return
