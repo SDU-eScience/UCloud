@@ -179,7 +179,6 @@ export class DebugContext {
         return readInt4(this.buffer, this.offset + 0);
     }
 
-
     /* Also Context ID? */
     get id(): number {
         return readInt4(this.buffer, this.offset + 4);

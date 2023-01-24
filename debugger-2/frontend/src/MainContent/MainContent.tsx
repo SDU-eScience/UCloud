@@ -43,13 +43,11 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
                 <RequestDetails activeContext={activeContext} />
                 <AutoSizer defaultHeight={200}>
                     {({height, width}) => {
-                        const list = logStore.contextList();
-                        if (list) {
-                            return <List className="card list" height={height} width={width} itemData={list} itemSize={16} itemCount={logStore.entryCount}>
-                                {({data}) => 
-                                    <DebugContextRow setDebugContext={() => undefined} debugContext={data.ctx} ctxChildren={data.children} isActive={false} />
-                                }
-                            </List>
+                        const root = logStore.contextRoot();
+                        if (root) {
+                            return <div className="card list" style={{height: "800px", width: "80vw"}}>
+                                <DebugContextRow key={root.ctx.id} setDebugContext={() => undefined} debugContext={root.ctx} ctxChildren={root.children} isActive={false} />
+                            </div>
                         }
                         return <List itemData={serviceLogs} height={height} width={width} itemSize={16} itemCount={serviceLogs.length} className="card list">
                             {({index, data}) => {
@@ -71,25 +69,27 @@ function DebugContextRow({debugContext, setDebugContext, isActive, ctxChildren}:
     ctxChildren?: (DebugContextAndChildren | Log)[];
 }): JSX.Element {
     const children = ctxChildren ?? [];
-
     return <>
         <div
             key={debugContext.id}
             className="request-list-row flex"
-            data-selected={isActive}
             onClick={() => setDebugContext(debugContext)}
+            data-selected={isActive}
+            data-haschildren={children.length > 0}
             data-has-error={[MessageImportance.THIS_IS_WRONG, MessageImportance.THIS_IS_DANGEROUS].includes(debugContext.importance)}
             data-is-odd={debugContext.importance === MessageImportance.THIS_IS_ODD}
         >
             <div>{debugContext.name}</div>
         </div>
-        {children.map(it => {
-            if ("children" in it) {
-                return <DebugContextRow key={it.ctx.id} debugContext={it.ctx} isActive={false} setDebugContext={() => undefined} ctxChildren={it.children} />
-            } else {
-                return <div key={it.id} className="flex">{it.message.previewOrContent}</div>
-            }
-        })}
+        <span>
+            {children.map(it => {
+                if ("children" in it) {
+                    return <span style={{marginLeft: "24px", borderLeft: "solid 1px black"}}><DebugContextRow key={it.ctx.id} debugContext={it.ctx} isActive={false} setDebugContext={() => undefined} ctxChildren={it.children} /></span>
+                } else {
+                    return <div style={{marginLeft: "24px", borderLeft: "solid 1px black"}} key={it.id} className="flex request-list-row">{it.message.previewOrContent}</div>
+                }
+            })}
+        </span>
     </>
 }
 

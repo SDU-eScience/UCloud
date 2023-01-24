@@ -52,18 +52,25 @@ function initializeSocket() {
                     const ctx = new DebugContext(view, 8 + i * 388);
                     logStore.addDebugContext(ctx);
                 }
+                console.log(logStore.ctxMap)
                 logStore.emitChange();
                 break;
 
             case 3: {
                 const numberOfEntries = (message.length - 8) / 256;
+                const messages: string[] = []
                 for (let i = 0; i < numberOfEntries; i++) {
                     const log = new Log(view, 8 + i * 256);
+                    messages.push(log.message.previewOrContent);
                     logStore.addLog(log);
                 }
+                console.log(messages);
                 logStore.emitChange();
                 console.log(logStore.entryCount);
                 break;
+            }
+            default: {
+                console.log(Number(view.getBigInt64(0, false)))
             }
         }
     };
@@ -85,7 +92,7 @@ export const activeService = new class {
     public setService(service: string): void {
         this.activeService = service;
         this.activeGeneration = serviceStore.getGeneration(service);
-        if (socket) {
+        if (isSocketReady(socket)) {
             socket.send(activateServiceRequest(service));
             this.emitChange();
         }
@@ -119,12 +126,12 @@ let hasActiveContext = false;
 export const logStore = new class {
     private logs: {content: Record<string, DebugContext[]>} = {content: {}};
     private activeContexts: DebugContextAndChildren | null = null;
-    private ctxMap: Record<number, DebugContextAndChildren> = {};
+    public ctxMap: Record<number, DebugContextAndChildren> = {};
     private subscriptions: (() => void)[] = [];
     private isDirty = false;
     public entryCount = 0;
 
-    public contextList(): DebugContextAndChildren | null {
+    public contextRoot(): DebugContextAndChildren | null {
         return this.activeContexts;
     }
 
@@ -147,6 +154,7 @@ export const logStore = new class {
         if (hasActiveContext) {
             const newEntry = {ctx: debugContext, children: []};
             this.ctxMap[debugContext.parent].children.push(newEntry);
+            this.ctxMap[debugContext.id] = newEntry;
             this.entryCount++;
             return;
         }
@@ -161,8 +169,8 @@ export const logStore = new class {
 
     public addLog(log: Log): void {
         if (hasActiveContext) {
-            console.log(log.ctxId)
             this.ctxMap[log.ctxId].children.push(log);
+            console.log(log.ctxId);
             this.entryCount++;
         } else {
             console.log(hasActiveContext)
