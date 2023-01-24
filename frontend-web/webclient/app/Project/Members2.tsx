@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useRef, useCallback, useEffect, useMemo, useReducer, useState} from "react";
-import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole} from "./Api";
+import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole, ProjectInviteLink, projectRoleToString} from "./Api";
 import styled from "styled-components";
 import {NavigateFunction, useLocation, useNavigate, useParams} from "react-router";
 import MainContainer from "@/MainContainer/MainContainer";
@@ -11,11 +11,13 @@ import {
     Absolute,
     Box,
     Button,
+    Checkbox,
     Flex,
     Icon,
     Input,
     Label,
     Link, List,
+    NoSelect,
     RadioTile,
     RadioTilesContainer,
     Relative,
@@ -25,7 +27,7 @@ import {
 import {shorten} from "@/Utilities/TextUtilities";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {addStandardDialog, addStandardInputDialog, NamingField} from "@/UtilityComponents";
-import {doNothing, preventDefault} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, preventDefault} from "@/UtilityFunctions";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {IconName} from "@/ui-components/Icon";
@@ -48,6 +50,8 @@ import {timestampUnixMs} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {DropdownContent} from "@/ui-components/Dropdown";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
 
 // UI state management
 // ================================================================================
@@ -1031,22 +1035,183 @@ const groupMemberOperations: Operation<string, Callbacks>[] = [
     }
 ];
 
+function daysLeftToTimestamp(timestamp: number): number {
+    return Math.floor((timestamp - timestampUnixMs()/1000) / 3600 / 24);
+}
+
+function inviteLinkFromToken(token: string): string {
+    return window.location.origin + "/app/projects/invite?id=" + token;
+}
+
 
 const InviteLinkEditor: React.FunctionComponent = () => {
-    return <>
+    const [inviteLinksFromApi, fetchInviteLinks] = useCloudAPI<PageV2<ProjectInviteLink>>({noop: true}, emptyPageV2);
+    const [editingLink, setEditingLink] = useState<string|undefined>(undefined);
+    const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+    const [selectedRole, setSelectedRole] = useState<string>("USER");
+    const linkToggleSet = useToggleSet([]);
+
+    const roles = [
+        {text: "User", value: "USER"},
+        {text: "Admin", value: "ADMIN"}
+    ];
+
+    const items = [
+        {text: "Option 1", value: "opt1"},
+        {text: "Option 2", value: "opt2"},
+        {text: "Option 3", value: "opt3"},
+    ];
+
+    useEffect(() => {
+        fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
+    }, []);
+
+    return inviteLinksFromApi.data.items.length < 1 ? <>
         <Heading.h3>Invite with link</Heading.h3>
         <Box textAlign="center">
             <Text mb="20px" mt="20px">Invite collaborators to this project by sharing a link</Text>
             <Button
                 onClick={async () => {
-                    const hello = await callAPIWithErrorHandler({
+                    await callAPIWithErrorHandler({
                         ...Api.createInviteLink()
                     });
+
+                    fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
                 }}
             >Create link</Button>
         </Box>
+    </> : <>
+        {editingLink !== undefined ? <>
+            <Flex>
+                <Button mr={20} onClick={() => setEditingLink(undefined)}>
+                    <Icon name="backward" size={20} />
+                </Button>
+                <Heading.h3>Edit link settings</Heading.h3>
+            </Flex>
+
+            <Flex justifyContent="space-between" mt={20}>
+                <Text pt="10px">Assign members to role</Text>
+                <SelectBox>
+                    <ClickableDropdown
+                        chevron
+                        trigger={<>{roles.find(it => it.value === selectedRole)?.text}</>} 
+                        options={roles}
+                        onChange={clicked =>
+                            setSelectedRole(clicked)
+                        }
+                    />
+                </SelectBox> 
+            </Flex>
+            <Flex justifyContent="space-between">
+                <Text pt="10px">Assign members to groups</Text>
+
+                <SelectBox>
+                    <ClickableDropdown
+                        chevron
+                        trigger={<>{selectedGroups.length} selected groups</>} 
+                        keepOpenOnClick={true}
+                    >
+                        <>
+                            {items.length < 1 ? 
+                                <>No selectable items</>
+                            :
+                                items.map(item =>
+                                    <Box
+                                        key={item.value}
+                                        onClick={clicked => {
+                                            if (selectedGroups.includes(item.value)) {
+                                                const newSelection = selectedGroups.filter(it => it != item.value);
+                                                setSelectedGroups(newSelection);
+                                            } else {
+                                                const newSelection = selectedGroups.concat([item.value]);
+                                                setSelectedGroups(newSelection);
+                                            }
+                                        }}
+                                    >
+                                        <Checkbox checked={selectedGroups.includes(item.value)} />
+                                        {item.text}
+                                    </Box>
+                                )
+                            }
+                        </>
+                    </ClickableDropdown>
+                </SelectBox>
+            </Flex>
+        </> : <>
+            <Flex justifyContent="space-between">
+                <Heading.h3>Invite with link</Heading.h3>
+                <Box textAlign="right">
+                    <Button
+                        onClick={async () => {
+                            await callAPIWithErrorHandler({
+                                ...Api.createInviteLink()
+                            });
+
+                            fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
+                        }}
+                    >Create link</Button>
+                </Box>
+            </Flex>
+            <Box mt={20}>
+                {inviteLinksFromApi.data.items.map(link => (
+                    <Box key={link.token} mb="10px">
+                        <Flex justifyContent="space-between">
+                            <Tooltip
+                                left="-50%"
+                                top="1"
+                                mb="35px"
+                                trigger={(
+                                    <Flex flexDirection={"column"}>
+                                        <Text
+                                            unselectable="off"
+                                            onClick={() => {
+                                                copyToClipboard({value: inviteLinkFromToken(link.token), message: "Link copied to clipboard"})
+                                            }}
+                                            mr={10}
+                                        >
+                                            {link.token}
+                                        </Text>
+                                        <Text fontSize={12}>This link will automatically expire in {daysLeftToTimestamp(link.expires)} days</Text>
+                                    </Flex>
+                                )}
+                            >
+                                Click to copy link to clipboard
+                            </Tooltip>
+                            <Box>
+                                <Button
+                                    mr="5px"
+                                    onClick={() => 
+                                        setEditingLink(link.token)
+                                    }
+                                >
+                                    <Icon name="edit" size={20} />
+                                </Button>
+                                <Button
+                                    color="red"
+                                    onClick={async () => {
+                                        await callAPIWithErrorHandler({
+                                            ...Api.deleteInviteLink({token: link.token})
+                                        });
+
+                                        fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
+                                    }}
+                                >
+                                    <Icon name="trash" size={20} />
+                                </Button>
+                            </Box>
+                        </Flex>
+                    </Box>
+                ))}
+            </Box>
+        </>}
     </>
 };
+
+const SelectBox = styled.div`
+    border: 2px solid var(--midGray);
+    border-radius: 5px;
+    padding: 10px;
+`;
 
 // Utilities
 // ================================================================================

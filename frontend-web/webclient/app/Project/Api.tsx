@@ -81,6 +81,17 @@ export interface ProjectInvite {
     projectTitle: string;
 }
 
+export interface ProjectInviteLink {
+    token: string;
+    expires: number;
+    groupAssignment: ProjectGroup[];
+    roleAssignment: ProjectRole;
+}
+
+interface DeleteInviteLinkRequest {
+    token: string;
+}
+
 interface RenameProjectRequest {
     id: string;
     newTitle: string;
@@ -153,6 +164,14 @@ class ProjectApi {
 
     public createInviteLink(): APICallParameters {
         return apiCreate(undefined, this.baseContext, "link");
+    }
+
+    public browseInviteLinks(request: PaginationRequestV2): APICallParameters {
+        return apiBrowse(request, this.baseContext, "link");
+    }
+
+    public deleteInviteLink(request: DeleteInviteLinkRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "deleteInviteLink");
     }
 
     public deleteMember(request: BulkRequest<{username: string}>): APICallParameters {
