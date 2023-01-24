@@ -1,5 +1,7 @@
 package dk.sdu.cloud.accounting.services.projects.v2
 
+import com.github.jasync.sql.db.column.TimestampEncoderDecoder
+import com.github.jasync.sql.db.column.TimestampWithTimezoneEncoderDecoder
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.accounting.api.providers.SortDirection
@@ -31,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import java.time.OffsetDateTime
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -1248,8 +1251,9 @@ class ProjectService(
 
     suspend fun createInviteLink(actorAndProject: ActorAndProject, ctx: DBContext = db) {
         val project = actorAndProject.requireProject()
-
         val token = UUID.randomUUID().toString()
+
+        // TODO(Brian): Check how many links are currently active
 
         ctx.withSession { session ->
             requireAdmin(actorAndProject.actor, listOf(project), session)
@@ -1275,7 +1279,32 @@ class ProjectService(
     }
 
     suspend fun browseInviteLinks(actorAndProject: ActorAndProject, ctx: DBContext = db): PageV2<ProjectInviteLink> {
-        return PageV2(20, emptyList(), null)
+        val project = actorAndProject.requireProject()
+
+        val result = ctx.withSession { session ->
+            requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                },
+                """
+                    select * from project.invite_links
+                    left join project.invite_link_group_assignments a on a.link_token = token
+                    left join project.groups g on g.id = a.group_id
+                    where project_id = :project
+                """
+            ).rows.map { row ->
+                ProjectInviteLink(
+                    row.getAs<UUID>("token").toString(),
+                    row.getAs<OffsetDateTime>("expires").toEpochSecond(),
+                    emptyList(),
+                    ProjectRole.valueOf(row.getString("role_assignment")!!)
+                )
+            }
+        }
+
+        return PageV2(20, result, null)
     }
 
     suspend fun deleteInviteLink(

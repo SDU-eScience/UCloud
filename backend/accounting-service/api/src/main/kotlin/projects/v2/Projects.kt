@@ -326,7 +326,7 @@ implement(Descriptions.call) {
         httpCreate(baseContext, inviteLinkResource)
     }
 
-    val browseInviteLinks = call("browseInviteLinks", Unit.serializer(), PageV2.serializer(ProjectInviteLink.serializer()), CommonErrorMessage.serializer()) {
+    val browseInviteLinks = call("browseInviteLinks", ProjectsBrowseInviteLinksRequest.serializer(), PageV2.serializer(ProjectInviteLink.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext, inviteLinkResource)
     }
 
@@ -482,6 +482,15 @@ data class ProjectsDeleteInviteRequestItem(
 )
 typealias ProjectsDeleteInviteRequest = BulkRequest<ProjectsDeleteInviteRequestItem>
 
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ProjectsBrowseInviteLinksRequest(
+    override val itemsPerPage: Int?,
+    override val next: String?,
+    override val consistency: PaginationRequestV2Consistency?,
+    override val itemsToSkip: Long?
+
+) : WithPaginationRequestV2
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class ProjectInviteLink(
