@@ -408,6 +408,7 @@ class DebugContextDescriptor(buf: ByteBuffer, ptr: Int) : BinaryFrame(buf, ptr) 
     }
 
     override val schema = Schema
+
     companion object Schema : BinaryFrameSchema() {
         val parent = int4()
         val id = int4()
@@ -686,6 +687,10 @@ fun exampleProducer(logFolder: File) {
                         repeat(10) {
                             debug.log(MessageImportance.THIS_IS_NORMAL, "📜 Log $it")
                             delay(50)
+                        }
+                        debug.useContext(DebugContextType.DATABASE_TRANSACTION, "Database transaction") {
+                            debug.log(MessageImportance.THIS_IS_NORMAL, "sending query select * from fie.dog")
+                            debug.log(MessageImportance.THIS_IS_NORMAL, "got a response from the database")
                         }
                     }
                 }
