@@ -1312,7 +1312,37 @@ class ProjectService(
         request: ProjectsDeleteInviteLinkRequest,
         ctx: DBContext = db
     ) {
+        val project = actorAndProject.requireProject()
 
+        ctx.withSession { session ->
+            requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("token", request.token)
+                },
+                """
+                    delete from project.invite_links where project_id = :project and token = :token
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Unable to delete invitation link",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("token", request.token)
+                },
+                """
+                    delete from project.invite_link_group_assignments where link_token = :token
+                """
+            )
+        }
     }
 
     suspend fun updateInviteLinkRoleAssignment(
