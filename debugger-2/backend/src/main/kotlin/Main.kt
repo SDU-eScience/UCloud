@@ -70,6 +70,7 @@ fun main(args: Array<String>) {
                 }
             }
 
+            /*
             val logWatcher = launch(Dispatchers.IO) {
                 val openLogFiles = ArrayList<LogFileReader>()
 
@@ -139,7 +140,7 @@ fun main(args: Array<String>) {
 
                     delay(50)
                 }
-            }
+            } */
 
             val contextWatcher = launch(Dispatchers.IO) {
                 val openContextFiles = ArrayList<ContextReader>()
@@ -261,13 +262,12 @@ fun main(args: Array<String>) {
                                 session.clearContextMessages()
                                 session.clearLogMessages()
 
-                                session.activeContext = request.context
+                                session.activeContext = arrayListOf(request.context)
 
                                 val generation = request.generation.toLong()
                                 val startTime = request.timestamp
                                 val endTime = startTime + 15.minutes.inWholeMilliseconds
 
-                                val contextIds = arrayListOf(session.activeContext)
                                 var foundLogs = 0
 
                                 var currentFileId = 1 // Note(Jonas): Seems to start at 1?
@@ -297,8 +297,8 @@ fun main(args: Array<String>) {
                                         if (currentEntry.timestamp < startTime) continue // keep looking
                                         if (currentEntry.timestamp > endTime) break@outer // finished
 
-                                        if (currentEntry.parent.toLong() in contextIds) {
-                                            contextIds.add(currentEntry.id.toLong())
+                                        if (currentEntry.parent.toLong() in session.activeContext) {
+                                            session.activeContext.add(currentEntry.id.toLong())
                                             session.acceptContext(generation, currentEntry)
                                         }
 
@@ -338,8 +338,7 @@ fun main(args: Array<String>) {
                                         if (currentEntry.timestamp < startTime) continue // keep looking
                                         if (currentEntry.timestamp > endTime) break@outer // finished
 
-                                        if (currentEntry.ctxId.toLong() in contextIds) {
-                                            val type = currentEntry.type
+                                        if (currentEntry.ctxId.toLong() in session.activeContext) {
                                             session.acceptLogMessage(currentEntry)
                                             logs.add(currentEntry)
                                             foundLogs++
@@ -353,6 +352,8 @@ fun main(args: Array<String>) {
                                     }
                                 }
 
+                                session.activeContext
+                                foundLogs
                                 session.flushLogsMessage()
 
                             }
@@ -403,7 +404,7 @@ data class ClientSession(
     val session: WebSocketServerSession,
 
     // State, which is updated by messages from the client.
-    var activeContext: Long = 1,
+    var activeContext: ArrayList<Long> = arrayListOf(1L),
     var minimumLevel: MessageImportance = MessageImportance.THIS_IS_NORMAL,
     var filterQuery: String? = null,
     var activeService: String? = null,
@@ -485,7 +486,7 @@ data class ClientSession(
         val services = trackedServices.get()
         val trackedService = services.values.find { it.title == service }
         if (trackedService == null || trackedService.generation != message.ctxGeneration) return
-        if (activeContext != message.ctxId.toLong()) return
+        if (!activeContext.contains(message.ctxId.toLong())) return
 
         writeMutex.withLock {
             if (newLogsWriteBuffer.remaining() < FRAME_SIZE) return
@@ -507,7 +508,7 @@ data class ClientSession(
         val services = trackedServices.get()
         val trackedService = services.values.find { it.title == service }
         if (trackedService == null || trackedService.generation != generation) return
-        if (activeContext != context.parent.toLong() && activeContext != context.id.toLong()) return
+        if (!activeContext.contains(context.parent.toLong()) && !activeContext.contains(context.id.toLong())) return
 
         writeMutex.withLock {
             if (newContextWriteBuffer.remaining() < DebugContextDescriptor.size) return
