@@ -602,10 +602,12 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                     asSquare
                                     color="green"
                                     type="button"
-                                    title="Bulk invite"
+                                    title="Invite with link"
                                     onClick={async () => {
                                         dialogStore.addDialog(
-                                            <InviteLinkEditor />,
+                                            <InviteLinkEditor
+                                                groups={groups}
+                                            />,
                                             doNothing,
                                             true
                                         );
@@ -1044,7 +1046,7 @@ function inviteLinkFromToken(token: string): string {
 }
 
 
-const InviteLinkEditor: React.FunctionComponent = () => {
+const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefined)[]}> = ({groups}) => {
     const [inviteLinksFromApi, fetchInviteLinks] = useCloudAPI<PageV2<ProjectInviteLink>>({noop: true}, emptyPageV2);
     const [editingLink, setEditingLink] = useState<string|undefined>(undefined);
     const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
@@ -1056,11 +1058,19 @@ const InviteLinkEditor: React.FunctionComponent = () => {
         {text: "Admin", value: "ADMIN"}
     ];
 
-    const items = [
-        {text: "Option 1", value: "opt1"},
-        {text: "Option 2", value: "opt2"},
-        {text: "Option 3", value: "opt3"},
-    ];
+    const groupItems = groups.map(g => 
+        g ? 
+        {text: g.specification.title, value: g.id}
+        : null
+    ).filter(g => g?.text != "All users");
+
+    useEffect(() => {
+        if (editingLink) {
+            setSelectedGroups(
+                inviteLinksFromApi.data.items.find(it => it.token === editingLink)?.groupAssignment.map(it => it.id) ?? []
+            );
+        }
+    }, [editingLink]);
 
     useEffect(() => {
         fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
@@ -1081,63 +1091,67 @@ const InviteLinkEditor: React.FunctionComponent = () => {
             >Create link</Button>
         </Box>
     </> : <>
-        {editingLink !== undefined ? <>
-            <Flex>
-                <Button mr={20} onClick={() => setEditingLink(undefined)}>
-                    <Icon name="backward" size={20} />
-                </Button>
-                <Heading.h3>Edit link settings</Heading.h3>
-            </Flex>
+        {editingLink !== undefined ?
+            <Box minHeight="400px">
+                <Flex>
+                    <Button mr={20} onClick={() => setEditingLink(undefined)}>
+                        <Icon name="backward" size={20} />
+                    </Button>
+                    <Heading.h3>Edit link settings</Heading.h3>
+                </Flex>
 
-            <Flex justifyContent="space-between" mt={20}>
-                <Text pt="10px">Assign members to role</Text>
-                <SelectBox>
-                    <ClickableDropdown
-                        chevron
-                        trigger={<>{roles.find(it => it.value === selectedRole)?.text}</>} 
-                        options={roles}
-                        onChange={clicked =>
-                            setSelectedRole(clicked)
-                        }
-                    />
-                </SelectBox> 
-            </Flex>
-            <Flex justifyContent="space-between">
-                <Text pt="10px">Assign members to groups</Text>
-
-                <SelectBox>
-                    <ClickableDropdown
-                        chevron
-                        trigger={<>{selectedGroups.length} selected groups</>} 
-                        keepOpenOnClick={true}
-                    >
-                        <>
-                            {items.length < 1 ? 
-                                <>No selectable items</>
-                            :
-                                items.map(item =>
-                                    <Box
-                                        key={item.value}
-                                        onClick={clicked => {
-                                            if (selectedGroups.includes(item.value)) {
-                                                const newSelection = selectedGroups.filter(it => it != item.value);
-                                                setSelectedGroups(newSelection);
-                                            } else {
-                                                const newSelection = selectedGroups.concat([item.value]);
-                                                setSelectedGroups(newSelection);
-                                            }
-                                        }}
-                                    >
-                                        <Checkbox checked={selectedGroups.includes(item.value)} />
-                                        {item.text}
-                                    </Box>
-                                )
+                <Flex justifyContent="space-between" mt={20} mb={10}>
+                    <Text pt="10px">Assign members to role</Text>
+                    <SelectBox>
+                        <ClickableDropdown
+                            chevron
+                            trigger={<>{roles.find(it => it.value === selectedRole)?.text}</>} 
+                            options={roles}
+                            onChange={clicked =>
+                                setSelectedRole(clicked)
                             }
-                        </>
-                    </ClickableDropdown>
-                </SelectBox>
-            </Flex>
-        </> : <>
+                        />
+                    </SelectBox> 
+                </Flex>
+                <Flex justifyContent="space-between">
+                    <Text pt="10px">Assign members to groups</Text>
+
+                    <SelectBox>
+                        <ClickableDropdown
+                            width="200px"
+                            chevron
+                            trigger={<>{selectedGroups.length} selected groups</>} 
+                            keepOpenOnClick={true}
+                        >
+                            <>
+                                {groupItems.length < 1 ? 
+                                    <>No selectable groups</>
+                                :
+                                    groupItems.map(item =>
+                                        item ?
+                                            <Box
+                                                key={item.value}
+                                                onClick={clicked => {
+                                                    if (selectedGroups.includes(item.value)) {
+                                                        const newSelection = selectedGroups.filter(it => it != item.value);
+                                                        setSelectedGroups(newSelection);
+                                                    } else {
+                                                        const newSelection = selectedGroups.concat([item.value]);
+                                                        setSelectedGroups(newSelection);
+                                                    }
+                                                }}
+                                            >
+                                                <Checkbox checked={selectedGroups.includes(item.value)} readOnly />
+                                                {item.text}
+                                            </Box>
+                                        : <></>
+                                    )
+                                }
+                            </>
+                        </ClickableDropdown>
+                    </SelectBox>
+                </Flex>
+            </Box> : <>
             <Flex justifyContent="space-between">
                 <Heading.h3>Invite with link</Heading.h3>
                 <Box textAlign="right">
@@ -1162,15 +1176,16 @@ const InviteLinkEditor: React.FunctionComponent = () => {
                                 mb="35px"
                                 trigger={(
                                     <Flex flexDirection={"column"}>
-                                        <Text
-                                            unselectable="off"
+                                        <Input
+                                            readOnly
+                                            style={{"cursor": "pointer"}}
                                             onClick={() => {
                                                 copyToClipboard({value: inviteLinkFromToken(link.token), message: "Link copied to clipboard"})
                                             }}
                                             mr={10}
-                                        >
-                                            {link.token}
-                                        </Text>
+                                            value={inviteLinkFromToken(link.token)}
+                                            width="500px"
+                                        />
                                         <Text fontSize={12}>This link will automatically expire in {daysLeftToTimestamp(link.expires)} days</Text>
                                     </Flex>
                                 )}
