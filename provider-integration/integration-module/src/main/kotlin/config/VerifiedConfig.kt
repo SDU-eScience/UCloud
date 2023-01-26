@@ -271,8 +271,6 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             config.core?.disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy == true &&
                 config.core.developmentMode == true
 
-        println(disableInsecureCheck)
-
         if (config.core == null) missingFile(config, ConfigSchema.FILE_CORE) // Required for all
 
         when (mode) {

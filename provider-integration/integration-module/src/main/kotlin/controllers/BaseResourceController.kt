@@ -91,7 +91,6 @@ abstract class BaseResourceController<
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         val plugins = retrievePlugins()
         if (plugins == null) {
-            println("No plugins active for ${this@BaseResourceController::class.simpleName}")
             return
         }
         val api = retrieveApi(controllerContext.configuration.core.providerId)

@@ -1,5 +1,10 @@
 package dk.sdu.cloud.sql
 
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
+import kotlinx.coroutines.delay
+import org.postgresql.util.PSQLException
+
 sealed class DBContext {
     abstract class ConnectionFactory() : DBContext() {
         abstract suspend fun openSession(): Connection
@@ -10,6 +15,7 @@ sealed class DBContext {
         abstract suspend fun close()
         abstract suspend fun openTransaction()
         abstract suspend fun commit()
+        abstract suspend fun isReady(): Boolean
         open suspend fun rollback() {}
         @Suppress("EmptyFunctionBlock")
         open fun flush() {}
@@ -115,22 +121,36 @@ suspend fun ResultCursor.discardResult() {
 }
 
 suspend fun <R> DBContext.withSession(block: suspend (session: DBContext.Connection) -> R): R {
-    return when (this) {
-        is DBContext.ConnectionFactory -> {
-            val session = openSession()
-            try {
-                session.withTransaction { _ ->
-                    block(session)
+    for (attempt in 0 until 3) {
+        try {
+            return when (this) {
+                is DBContext.ConnectionFactory -> {
+                    val session = openSession()
+                    try {
+                        session.withTransaction { _ ->
+                            block(session)
+                        }
+                    } finally {
+                        session.close()
+                    }
                 }
-            } finally {
-                session.close()
+
+                is DBContext.Connection -> {
+                    block(this)
+                }
+            }
+        } catch (ex: PSQLException) {
+            // NOTE(Dan): These automatic retries are required for the integration test suite and are generally useful
+            // for production code.
+            if (ex.message?.contains("This connection has been closed") == true) {
+                delay(500)
+            } else {
+                throw ex
             }
         }
-
-        is DBContext.Connection -> {
-            block(this)
-        }
     }
+
+    throw RPCException("Database is unavailable", HttpStatusCode.InternalServerError)
 }
 
 suspend fun <R> DBContext.Connection.withTransaction(

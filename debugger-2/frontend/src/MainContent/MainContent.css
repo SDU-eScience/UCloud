@@ -1,0 +1,68 @@
+.main-content {
+    position: unset;
+    padding: 15px 13px 25px 18px;
+    width: 100%;
+    margin-top: 36px;
+    margin-left: 190px;
+    height: calc(100vh - 96px);
+}
+
+div.card {
+    width: 100%;
+    border: 1px solid black;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    margin-top: 4px;
+}
+
+div.card.details {
+    height: 200px;
+}
+
+div.card.query {
+    width: 66%;
+    margin: 5px 5px 5px 5px;
+    overflow-y: auto;
+    padding: 5px 5px 5px 5px;
+}
+
+div.card.query-details {
+    width: 33%;
+    margin: 5px 5px 5px 0;
+    overflow-y: auto;
+    padding: 5px 5px 5px 5px;
+}
+
+div.request-list-row {
+    color: black;
+    background-color: var(--white);
+    cursor: pointer;
+    padding-left: 8px;
+}
+
+div.request-list-row:not(:first-child) {
+    border-top: 1px solid var(--black);
+}
+
+div.request-list-row[data-selected="true"] {
+    background-color: var(--lightBlue);
+}
+
+div.request-list-row[data-has-error="true"] {
+    color: white;
+    background-color: var(--red);
+}
+
+div.request-list-row[data-is-odd="true"] {
+    color: white;
+    background-color: var(--yellow, pink);
+}
+
+div.request-list-row:last-child {
+    border-bottom: 1px solid black;
+}
+
+.leaf {
+    width: auto;
+    cursor: pointer;
+}

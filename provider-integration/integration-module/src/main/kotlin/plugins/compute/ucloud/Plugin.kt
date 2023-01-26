@@ -22,6 +22,7 @@ import dk.sdu.cloud.plugins.storage.ucloud.UCloudFilePlugin
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.selects.select
 import kotlin.coroutines.coroutineContext
@@ -167,7 +168,18 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
                 jobManagement.runMonitoring()
             } catch (ex: Throwable) {
                 debugSystem.logThrowable("Caught exception while monitoring K8 jobs", ex)
+                ex.printStackTrace()
             }
+        }
+    }
+
+    override suspend fun resetTestData() {
+        for (attempt in 0 until 120) {
+            val containers = runtime.list()
+            if (containers.isEmpty()) break
+            if (attempt != 0) delay(1000)
+
+            containers.forEach { runCatching { it.cancel(true) } }
         }
     }
 

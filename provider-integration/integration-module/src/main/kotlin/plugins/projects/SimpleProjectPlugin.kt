@@ -12,6 +12,7 @@ import dk.sdu.cloud.plugins.optionalInvoke
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.sql.*
+import dk.sdu.cloud.utils.UserGroupLocks
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
@@ -45,149 +46,155 @@ class SimpleProjectPlugin : ProjectPlugin {
     // UCloud/Core. This can, for example, happen if the integration module is down. As a result, each update can
     // result in many diffs or even none at all.
     override suspend fun PluginContext.onProjectUpdated(newProject: Project) {
-        val oldProject = run {
-            var oldProject: Project? = null
-            dbConnection.withSession { session ->
-                session.prepareStatement(
-                    //language=postgresql
-                    """
-                        select project_as_json
-                        from simple_project_project_database
-                        where ucloud_id = :ucloud_id
-                    """
-                ).useAndInvoke(
-                    prepare = {
-                        bindString("ucloud_id", newProject.id)
-                    },
-                    readRow = { row ->
-                        oldProject = defaultMapper.decodeFromString(Project.serializer(), row.getString(0)!!)
-                    }
-                )
+        UserGroupLocks.useLocksByUCloudUsernames(
+            "onProjectUpdated",
+            (newProject.status.members ?: emptyList()).map { it.username }
+        ) {
+            val oldProject = run {
+                var oldProject: Project? = null
+                dbConnection.withSession { session ->
+                    session.prepareStatement(
+                        """
+                            select project_as_json
+                            from simple_project_project_database
+                            where ucloud_id = :ucloud_id
+                        """
+                    ).useAndInvoke(
+                        prepare = {
+                            bindString("ucloud_id", newProject.id)
+                        },
+                        readRow = { row ->
+                            oldProject = defaultMapper.decodeFromString(Project.serializer(), row.getString(0)!!)
+                        }
+                    )
 
-                session.prepareStatement(
-                    //language=postgresql
-                    """
-                        insert into simple_project_project_database(ucloud_id, project_as_json)
-                        values (:ucloud_id, :project_as_json)
-                        on conflict (ucloud_id) do update set project_as_json = excluded.project_as_json 
-                    """
-                ).useAndInvokeAndDiscard(
-                    prepare = {
-                        bindString("ucloud_id", newProject.id)
-                        bindString("project_as_json", defaultMapper.encodeToString(Project.serializer(), newProject))
-                    }
-                )
+                    session.prepareStatement(
+                        """
+                            insert into simple_project_project_database(ucloud_id, project_as_json)
+                            values (:ucloud_id, :project_as_json)
+                            on conflict (ucloud_id) do update set project_as_json = excluded.project_as_json 
+                        """
+                    ).useAndInvokeAndDiscard(
+                        prepare = {
+                            bindString("ucloud_id", newProject.id)
+                            bindString(
+                                "project_as_json",
+                                defaultMapper.encodeToString(Project.serializer(), newProject)
+                            )
+                        }
+                    )
+                }
+
+                oldProject
             }
 
-            oldProject
-        }
-
-        // NOTE(Dan): Diffs are slightly different if we have an old project or not.
-        val diff = if (oldProject == null) {
-            calculateNewProjectDiffs(newProject)
-        } else {
-            calculateDiff(oldProject, newProject)
-        }
-
-        for (event in diff) {
-            try {
-                dispatchEvent(event)
-            } catch (ex: Throwable) {
-                log.warn("Failed to dispatch event: ${ex.message}")
+            // NOTE(Dan): Diffs are slightly different if we have an old project or not.
+            val diff = if (oldProject == null) {
+                calculateNewProjectDiffs(newProject)
+            } else {
+                calculateDiff(oldProject, newProject)
             }
-        }
 
-        for (event in diff) {
-            when (event) {
-                is ProjectDiff.MembersAddedToProject -> {
-                    for (member in event.newMembers) {
-                        if (member.uid != null) {
-                            this.ipcServer.requestClientRestart(member.uid)
-                        }
-                    }
-                }
-
-                is ProjectDiff.MembersAddedToGroup -> {
-                    for (member in event.newMembers) {
-                        if (member.uid != null) {
-                            this.ipcServer.requestClientRestart(member.uid)
-                        }
-                    }
-                }
-
-                is ProjectDiff.MembersRemovedFromProject -> {
-                    for (member in event.removedMembers) {
-                        if (member.uid != null) {
-                            this.ipcServer.requestClientRestart(member.uid)
-                        }
-                    }
-                }
-
-                is ProjectDiff.MembersRemovedFromGroup -> {
-                    for (member in event.removedMembers) {
-                        if (member.uid != null) {
-                            this.ipcServer.requestClientRestart(member.uid)
-                        }
-                    }
-                }
-
-                else -> {
-                    // do nothing
+            for (event in diff) {
+                try {
+                    dispatchEvent(event)
+                } catch (ex: Throwable) {
+                    log.warn("Failed to dispatch event: ${ex.message}")
                 }
             }
-        }
 
-        // NOTE(Dan): Calculate project members we don't know the UID of. We need to register these in a database such
-        // that we can correctly enroll them into groups later.
-        val missingUids = ArrayList<Map<String, String>>()
-        for (event in diff) {
-            when (event) {
-                is ProjectDiff.MembersAddedToProject -> {
-                    for (member in event.newMembers) {
-                        if (member.uid == null) {
-                            missingUids.add(mapOf("username" to member.projectMember.username))
-                        } else {
-                            this.ipcServer.requestClientRestart(member.uid)
+            for (event in diff) {
+                when (event) {
+                    is ProjectDiff.MembersAddedToProject -> {
+                        for (member in event.newMembers) {
+                            if (member.uid != null) {
+                                this.ipcServer.requestClientRestart(member.uid)
+                            }
                         }
                     }
-                }
 
-                is ProjectDiff.MembersAddedToGroup -> {
-                    for (member in event.newMembers) {
-                        if (member.uid == null) {
-                            missingUids.add(mapOf("username" to member.ucloudUsername))
-                        } else {
-                            this.ipcServer.requestClientRestart(member.uid)
+                    is ProjectDiff.MembersAddedToGroup -> {
+                        for (member in event.newMembers) {
+                            if (member.uid != null) {
+                                this.ipcServer.requestClientRestart(member.uid)
+                            }
                         }
                     }
-                }
 
-                else -> {
-                    // Nothing to do. We purposefully don't attempt to remove entries which are no longer valid.
-                    // Instead, we simply keep them. We also keep a timestamp such that we could potentially remove
-                    // old and irrelevant data.
+                    is ProjectDiff.MembersRemovedFromProject -> {
+                        for (member in event.removedMembers) {
+                            if (member.uid != null) {
+                                this.ipcServer.requestClientRestart(member.uid)
+                            }
+                        }
+                    }
+
+                    is ProjectDiff.MembersRemovedFromGroup -> {
+                        for (member in event.removedMembers) {
+                            if (member.uid != null) {
+                                this.ipcServer.requestClientRestart(member.uid)
+                            }
+                        }
+                    }
+
+                    else -> {
+                        // do nothing
+                    }
                 }
             }
-        }
 
-        if (!missingUids.isEmpty()) {
-            dbConnection.withSession { session ->
-                session.prepareStatement(
-                    """
-                        with changes as (
-                            ${safeSqlTableUpload("changes", missingUids)}
-                        )
-                        insert into simple_project_missing_connections(ucloud_id, project_id)
-                        select c.username, :project_id
-                        from changes c
-                        on conflict (ucloud_id, project_id) do nothing
-                    """
-                ).useAndInvokeAndDiscard(
-                    prepare = {
-                        bindTableUpload("changes", missingUids)
-                        bindString("project_id", newProject.id)
+            // NOTE(Dan): Calculate project members we don't know the UID of. We need to register these in a database such
+            // that we can correctly enroll them into groups later.
+            val missingUids = ArrayList<Map<String, String>>()
+            for (event in diff) {
+                when (event) {
+                    is ProjectDiff.MembersAddedToProject -> {
+                        for (member in event.newMembers) {
+                            if (member.uid == null) {
+                                missingUids.add(mapOf("username" to member.projectMember.username))
+                            } else {
+                                this.ipcServer.requestClientRestart(member.uid)
+                            }
+                        }
                     }
-                )
+
+                    is ProjectDiff.MembersAddedToGroup -> {
+                        for (member in event.newMembers) {
+                            if (member.uid == null) {
+                                missingUids.add(mapOf("username" to member.ucloudUsername))
+                            } else {
+                                this.ipcServer.requestClientRestart(member.uid)
+                            }
+                        }
+                    }
+
+                    else -> {
+                        // Nothing to do. We purposefully don't attempt to remove entries which are no longer valid.
+                        // Instead, we simply keep them. We also keep a timestamp such that we could potentially remove
+                        // old and irrelevant data.
+                    }
+                }
+            }
+
+            if (!missingUids.isEmpty()) {
+                dbConnection.withSession { session ->
+                    session.prepareStatement(
+                        """
+                            with changes as (
+                                ${safeSqlTableUpload("changes", missingUids)}
+                            )
+                            insert into simple_project_missing_connections(ucloud_id, project_id)
+                            select c.username, :project_id
+                            from changes c
+                            on conflict (ucloud_id, project_id) do nothing
+                        """
+                    ).useAndInvokeAndDiscard(
+                        prepare = {
+                            bindTableUpload("changes", missingUids)
+                            bindString("project_id", newProject.id)
+                        }
+                    )
+                }
             }
         }
     }
@@ -200,7 +207,6 @@ class SimpleProjectPlugin : ProjectPlugin {
         var result: Int? = null
         dbConnection.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 """
                     select local_id
                     from simple_project_group_mapper
@@ -222,98 +228,102 @@ class SimpleProjectPlugin : ProjectPlugin {
     // NOTE(Brian): Called when a new user-mapping is inserted. Will dispatch UserAddedToProject and UserAddedToGroup
     // events to the extension, fixing any missing connections between the user and projects/groups.
     private suspend fun fixMissingConnections(userId: String, localId: Int) {
-        val projects = mutableSetOf<Project>()
-        dbConnection.withSession { session ->
+        UserGroupLocks.useLockByUCloudUsername("fixMissingConnections", userId) {
+            val projects = mutableSetOf<Project>()
+            dbConnection.withSession { session ->
 
-            // Fetch missing connections
-            session.prepareStatement(
-                //language=postgresql
-                """
-                    select p.project_as_json
-                    from 
-                        simple_project_missing_connections m left join 
-                        simple_project_project_database p
-                            on m.project_id = p.ucloud_id
-                    where m.ucloud_id = :user_id
-                """
-            ).useAndInvoke(
-                prepare = {
-                    bindString("user_id", userId)
-                },
-                readRow = { row ->
-                    val project: Project? = defaultMapper.decodeFromString(
-                        Project.serializer().nullable,
-                        row.getString(0)!!
-                    )
-                    if (project != null) {
-                        if (project.status.members!!.map { it.username }.contains(userId)) {
-                            projects.add(project)
+                // Fetch missing connections
+                session.prepareStatement(
+                    """
+                        select p.project_as_json
+                        from 
+                            simple_project_missing_connections m left join 
+                            simple_project_project_database p
+                                on m.project_id = p.ucloud_id
+                        where m.ucloud_id = :user_id
+                    """
+                ).useAndInvoke(
+                    prepare = {
+                        bindString("user_id", userId)
+                    },
+                    readRow = { row ->
+                        val project: Project? = defaultMapper.decodeFromString(
+                            Project.serializer().nullable,
+                            row.getString(0)!!
+                        )
+                        if (project != null) {
+                            if (project.status.members!!.map { it.username }.contains(userId)) {
+                                projects.add(project)
+                            }
                         }
                     }
-                }
-            )
-
-            // Dispatch events
-            projects.forEach { project ->
-                val projectWithLocalId = ProjectWithLocalId(ucloudProjectIdToUnixGroupId(project.id), project)
-                val event = ProjectDiff.MembersAddedToProject(
-                    projectWithLocalId,
-                    projectWithLocalId,
-                    listOf(
-                        ProjectMemberWithUid(
-                            localId,
-                            project.status.members!!.first { it.username == userId }
-                        )
-                    )
                 )
 
-                try {
-                    dispatchEvent(event)
-                } catch (ex: Throwable) {
-                    log.warn("Extension failed when attempting to add a user whom was recently connected to a UCloud " +
-                        "project. The plugin will proceed resolving other missing connections to projects and groups.")
-                    log.warn("${ex.message}")
-                }
-
-                project.status.groups!!.forEach { group ->
-                    if (group.status.members!!.contains(userId)) {
-                        val event = ProjectDiff.MembersAddedToGroup(
-                            projectWithLocalId,
-                            projectWithLocalId,
-                            GroupWithLocalId(ucloudGroupIdToUnixGroupId(group.id), group),
-                            listOf(
-                                GroupMemberWithUid(
-                                    localId,
-                                    userId
-                                )
+                // Dispatch events
+                projects.forEach { project ->
+                    val projectWithLocalId = ProjectWithLocalId(ucloudProjectIdToUnixGroupId(project.id), project)
+                    val event = ProjectDiff.MembersAddedToProject(
+                        projectWithLocalId,
+                        projectWithLocalId,
+                        listOf(
+                            ProjectMemberWithUid(
+                                localId,
+                                project.status.members!!.first { it.username == userId }
                             )
                         )
+                    )
 
-                        try {
-                            dispatchEvent(event)
-                        } catch (ex: Throwable) {
-                            log.warn("Extension failed when attempting to add a user whom was recently connected to " +
-                                "a UCloud project group. The plugin will proceed resolving other missing connections " +
-                                "to projects and groups.")
-                            log.warn("${ex.message}")
+                    try {
+                        dispatchEvent(event)
+                    } catch (ex: Throwable) {
+                        log.warn(
+                            "Extension failed when attempting to add a user whom was recently connected to a UCloud " +
+                                    "project. The plugin will proceed resolving other missing connections to projects and groups."
+                        )
+                        log.warn("${ex.message}")
+                    }
+
+                    project.status.groups!!.forEach { group ->
+                        if (group.status.members!!.contains(userId)) {
+                            val event = ProjectDiff.MembersAddedToGroup(
+                                projectWithLocalId,
+                                projectWithLocalId,
+                                GroupWithLocalId(ucloudGroupIdToUnixGroupId(group.id), group),
+                                listOf(
+                                    GroupMemberWithUid(
+                                        localId,
+                                        userId
+                                    )
+                                )
+                            )
+
+                            try {
+                                dispatchEvent(event)
+                            } catch (ex: Throwable) {
+                                log.warn(
+                                    "Extension failed when attempting to add a user whom was recently connected to " +
+                                            "a UCloud project group. The plugin will proceed resolving other missing connections " +
+                                            "to projects and groups."
+                                )
+                                log.warn("${ex.message}")
+                            }
                         }
                     }
                 }
-            }
 
-            // Clean up (the user is no longer missing)
-            session.prepareStatement(
-                //language=postgresql
-                """
-                    delete from 
-                    simple_project_missing_connections
-                    where ucloud_id = :user_id
-                """
-            ).useAndInvokeAndDiscard(
-                prepare = {
-                    bindString("user_id", userId)
-                }
-            )
+                // Clean up (the user is no longer missing)
+                session.prepareStatement(
+                    """
+                        delete from 
+                        simple_project_missing_connections
+                        where ucloud_id = :user_id
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindString("user_id", userId)
+                    }
+                )
+            }
         }
     }
 
@@ -325,7 +335,6 @@ class SimpleProjectPlugin : ProjectPlugin {
         return dbConnection.withSession { session ->
             var result: Int? = null
             session.prepareStatement(
-                //language=postgresql
                 """
                     select local_id
                     from simple_project_group_mapper
@@ -616,20 +625,22 @@ class SimpleProjectPlugin : ProjectPlugin {
         // added to group.
         return sortedBy { event ->
             when (event) {
-                is ProjectDiff.ProjectArchived -> 1
-                is ProjectDiff.ProjectUnarchived -> 2
+                is ProjectDiff.ProjectRenamed -> 1
 
-                is ProjectDiff.MembersRemovedFromProject -> 3
-                is ProjectDiff.ProjectRenamed -> 4
-                is ProjectDiff.RoleChanged -> 5
+                is ProjectDiff.ProjectArchived -> 2
+                is ProjectDiff.ProjectUnarchived -> 3
 
-                is ProjectDiff.GroupsCreated -> 6
-                is ProjectDiff.GroupRenamed -> 7
-                is ProjectDiff.GroupsDeleted -> 8
+                is ProjectDiff.GroupsCreated -> 4
+                is ProjectDiff.GroupRenamed -> 5
+                is ProjectDiff.GroupsDeleted -> 6
 
-                is ProjectDiff.MembersAddedToGroup -> 9
-                is ProjectDiff.MembersAddedToProject -> 10
-                is ProjectDiff.MembersRemovedFromGroup -> 11
+                is ProjectDiff.MembersAddedToProject -> 7
+                is ProjectDiff.MembersAddedToGroup -> 8
+
+                is ProjectDiff.MembersRemovedFromGroup -> 9
+                is ProjectDiff.MembersRemovedFromProject -> 10
+
+                is ProjectDiff.RoleChanged -> 11
             }
         }
     }
@@ -640,9 +651,16 @@ class SimpleProjectPlugin : ProjectPlugin {
             is ProjectDiff.GroupsCreated -> extensions.groupCreated.optionalInvoke(ctx, event)
             is ProjectDiff.GroupsDeleted -> extensions.groupDeleted.optionalInvoke(ctx, event)
             is ProjectDiff.MembersAddedToGroup -> extensions.membersAddedToGroup.optionalInvoke(ctx, event)
-            is ProjectDiff.MembersAddedToProject -> extensions.membersAddedToProject.optionalInvoke(ctx, event)
+            is ProjectDiff.MembersAddedToProject -> {
+                extensions.membersAddedToProject.optionalInvoke(ctx, event)
+            }
+
             is ProjectDiff.MembersRemovedFromGroup -> extensions.membersRemovedFromGroup.optionalInvoke(ctx, event)
-            is ProjectDiff.MembersRemovedFromProject -> extensions.membersRemovedFromProject.optionalInvoke(ctx, event)
+            is ProjectDiff.MembersRemovedFromProject -> extensions.membersRemovedFromProject.optionalInvoke(
+                ctx,
+                event
+            )
+
             is ProjectDiff.ProjectArchived -> extensions.projectArchived.optionalInvoke(ctx, event)
             is ProjectDiff.ProjectRenamed -> extensions.projectRenamed.optionalInvoke(ctx, event)
             is ProjectDiff.ProjectUnarchived -> extensions.projectUnarchived.optionalInvoke(ctx, event)
