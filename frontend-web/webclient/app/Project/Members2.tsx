@@ -52,6 +52,7 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {DropdownContent} from "@/ui-components/Dropdown";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {ProductSelector} from "@/Products/Selector";
 
 // UI state management
 // ================================================================================
@@ -1066,6 +1067,10 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
 
     useEffect(() => {
         if (editingLink) {
+            setSelectedRole(
+                inviteLinksFromApi.data.items.find(it => it.token === editingLink)?.roleAssignment ?? "USER"
+            );
+
             setSelectedGroups(
                 inviteLinksFromApi.data.items.find(it => it.token === editingLink)?.groupAssignment.map(it => it.id) ?? []
             );
@@ -1092,7 +1097,7 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
         </Box>
     </> : <>
         {editingLink !== undefined ?
-            <Box minHeight="400px">
+            <Box minHeight="200px">
                 <Flex>
                     <Button mr={20} onClick={() => setEditingLink(undefined)}>
                         <Icon name="backward" size={20} />
@@ -1104,12 +1109,18 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
                     <Text pt="10px">Assign members to role</Text>
                     <SelectBox>
                         <ClickableDropdown
+                            useMousePositioning
+                            width="100px"
                             chevron
                             trigger={<>{roles.find(it => it.value === selectedRole)?.text}</>} 
                             options={roles}
-                            onChange={clicked =>
-                                setSelectedRole(clicked)
-                            }
+                            onChange={async role => {
+                                await callAPIWithErrorHandler({
+                                    ...Api.updateInviteLinkRoleAssignment({token: editingLink, role: role})
+                                });
+
+                                fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
+                            }}
                         />
                     </SelectBox> 
                 </Flex>
@@ -1118,10 +1129,14 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
 
                     <SelectBox>
                         <ClickableDropdown
-                            width="200px"
+                            useMousePositioning
+                            width="300px"
                             chevron
                             trigger={<>{selectedGroups.length} selected groups</>} 
                             keepOpenOnClick={true}
+                            onChange={() =>
+                                console.log("closed")
+                            }
                         >
                             <>
                                 {groupItems.length < 1 ? 
@@ -1131,14 +1146,15 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
                                         item ?
                                             <Box
                                                 key={item.value}
-                                                onClick={clicked => {
-                                                    if (selectedGroups.includes(item.value)) {
-                                                        const newSelection = selectedGroups.filter(it => it != item.value);
-                                                        setSelectedGroups(newSelection);
-                                                    } else {
-                                                        const newSelection = selectedGroups.concat([item.value]);
-                                                        setSelectedGroups(newSelection);
-                                                    }
+                                                onClick={async clicked => {
+                                                    const newSelection = selectedGroups.includes(item.value) ?
+                                                        selectedGroups.filter(it => it != item.value) : selectedGroups.concat([item.value]);
+
+                                                    await callAPIWithErrorHandler({
+                                                        ...Api.updateInviteLinkGroupAssignment({token: editingLink, groups: newSelection})
+                                                    });
+                                                    
+                                                    fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
                                                 }}
                                             >
                                                 <Checkbox checked={selectedGroups.includes(item.value)} readOnly />
@@ -1170,28 +1186,29 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
                 {inviteLinksFromApi.data.items.map(link => (
                     <Box key={link.token} mb="10px">
                         <Flex justifyContent="space-between">
-                            <Tooltip
-                                left="-50%"
-                                top="1"
-                                mb="35px"
-                                trigger={(
-                                    <Flex flexDirection={"column"}>
-                                        <Input
-                                            readOnly
-                                            style={{"cursor": "pointer"}}
-                                            onClick={() => {
-                                                copyToClipboard({value: inviteLinkFromToken(link.token), message: "Link copied to clipboard"})
-                                            }}
-                                            mr={10}
-                                            value={inviteLinkFromToken(link.token)}
-                                            width="500px"
-                                        />
-                                        <Text fontSize={12}>This link will automatically expire in {daysLeftToTimestamp(link.expires)} days</Text>
-                                    </Flex>
-                                )}
-                            >
-                                Click to copy link to clipboard
-                            </Tooltip>
+
+                            <Flex flexDirection={"column"}>
+                                <Tooltip
+                                    left="-50%"
+                                    top="1"
+                                    mb="35px"
+                                    trigger={(
+                                            <Input
+                                                readOnly
+                                                style={{"cursor": "pointer"}}
+                                                onClick={() => {
+                                                    copyToClipboard({value: inviteLinkFromToken(link.token), message: "Link copied to clipboard"})
+                                                }}
+                                                mr={10}
+                                                value={inviteLinkFromToken(link.token)}
+                                                width="500px"
+                                            />
+                                    )}
+                                >
+                                    Click to copy link to clipboard
+                                </Tooltip>
+                                <Text fontSize={12}>This link will automatically expire in {daysLeftToTimestamp(link.expires)} days</Text>
+                            </Flex>
                             <Box>
                                 <Button
                                     mr="5px"

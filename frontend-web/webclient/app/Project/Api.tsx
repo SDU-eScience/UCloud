@@ -92,6 +92,16 @@ interface DeleteInviteLinkRequest {
     token: string;
 }
 
+interface UpdateInviteLinkRoleAssignmentRequest {
+    token: string;
+    role: string;
+}
+
+interface UpdateInviteLinkGroupAssignmentRequest {
+    token: string;
+    groups: string[];
+}
+
 interface RenameProjectRequest {
     id: string;
     newTitle: string;
@@ -172,6 +182,14 @@ class ProjectApi {
 
     public deleteInviteLink(request: DeleteInviteLinkRequest): APICallParameters {
         return apiUpdate(request, this.baseContext, "deleteInviteLink");
+    }
+
+    public updateInviteLinkRoleAssignment(request: UpdateInviteLinkRoleAssignmentRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "updateInviteLinkRoleAssignment");
+    }
+
+    public updateInviteLinkGroupAssignment(request: UpdateInviteLinkGroupAssignmentRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "updateInviteLinkGroupAssignment");
     }
 
     public deleteMember(request: BulkRequest<{username: string}>): APICallParameters {
