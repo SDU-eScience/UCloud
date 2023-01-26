@@ -239,6 +239,10 @@ function activateServiceRequest(service: string): string {
     })
 }
 
+function resetMessages(): void {
+    if (!isSocketReady(socket)) return;
+}
+
 export function replayMessages(generation: string, context: number, timestamp: number): void {
     if (!isSocketReady(socket)) return;
     socket.send(replayMessagesRequest(generation, context, timestamp));

@@ -688,9 +688,9 @@ fun exampleProducer(logFolder: File) {
                             debug.log(MessageImportance.THIS_IS_NORMAL, "📜 Log $it")
                             delay(50)
                         }
-                        debug.useContext(DebugContextType.DATABASE_TRANSACTION, "Database transaction") {
-                            debug.log(MessageImportance.THIS_IS_NORMAL, "sending query select * from fie.dog")
-                            debug.log(MessageImportance.THIS_IS_NORMAL, "got a response from the database")
+                        debug.useContext(DebugContextType.DATABASE_TRANSACTION, "💽 Database transaction") {
+                            debug.log(MessageImportance.THIS_IS_NORMAL, "📤 sending query select * from fie.dog")
+                            debug.log(MessageImportance.THIS_IS_NORMAL, "📥 got a response from the database")
                         }
                     }
                 }

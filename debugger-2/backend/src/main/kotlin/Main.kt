@@ -257,6 +257,10 @@ fun main(args: Array<String>) {
                         }.getOrNull() ?: continue
 
                         when (request) {
+                            is ClientRequest.ClearActiveContext -> {
+                                session.activeContext = arrayListOf(1)
+                            }
+
                             is ClientRequest.ReplayMessages -> {
                                 // Clear Log and Context Buffer
                                 session.clearContextMessages()
@@ -268,94 +272,8 @@ fun main(args: Array<String>) {
                                 val startTime = request.timestamp
                                 val endTime = startTime + 15.minutes.inWholeMilliseconds
 
-                                var foundLogs = 0
-
-                                var currentFileId = 1 // Note(Jonas): Seems to start at 1?
-
-                                // Read Ctx files, fetch relevant contexts, do for ALL contexts first, as we want contexts' children and grandchildren (done?)
-                                // Get contexts, build list of contexts IDs we can look up into (done?)
-                                // Use 15 minutes as time limit or when no more files. (done)
-
-                                outer@ while (ContextReader.exists(directory, generation, currentFileId)) {
-                                    var currentFile = ContextReader(directory, generation, currentFileId++)
-                                    // currentFile.logAllEntries()
-                                    currentFile.seekToEnd()
-                                    var fileEnd = currentFile.retrieve()?.timestamp ?: break@outer
-                                    currentFile.resetCursor()
-
-                                    // Find the file that contains our first potentially valid context
-                                    while (startTime > fileEnd) {
-                                        if (!ContextReader.exists(directory, generation, currentFileId)) break@outer
-                                        currentFile = ContextReader(directory, generation, currentFileId++)
-                                        currentFile.seekToEnd()
-                                        fileEnd = currentFile.retrieve()?.timestamp ?: break@outer
-                                        currentFile.resetCursor()
-                                    }
-
-                                    while (currentFile.next()) {
-                                        val currentEntry = currentFile.retrieve() ?: continue
-                                        if (currentEntry.timestamp < startTime) continue // keep looking
-                                        if (currentEntry.timestamp > endTime) break@outer // finished
-
-                                        if (currentEntry.parent.toLong() in session.activeContext) {
-                                            session.activeContext.add(currentEntry.id.toLong())
-                                            session.acceptContext(generation, currentEntry)
-                                        }
-
-                                        if (!currentFile.isValid(currentFile.cursor + 1)) {
-                                            if (ContextReader.exists(directory, generation, currentFileId)) {
-                                                currentFile = ContextReader(directory, generation, currentFileId++)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                session.flushContextMessage()
-
-                                var logFileId = 0
-                                var logs = ArrayList<BinaryDebugMessage<*>>()
-                                outer@ while (LogFileReader.exists(directory, generation, logFileId)) {
-                                    var logFile = LogFileReader(directory, generation, logFileId)
-
-                                    logFile.seekToEnd()
-                                    val end = logFile.retrieve()
-                                    var fileEnd = end?.timestamp ?: break@outer
-                                    logFile.resetCursor()
-                                    logFileId += 1
-                                    while (startTime > fileEnd) {
-                                        if (!LogFileReader.exists(directory, generation, logFileId)) {
-                                            break@outer
-                                        }
-                                        logFile = LogFileReader(directory, generation, logFileId)
-                                        logFile.seekToEnd()
-                                        fileEnd = logFile.retrieve()?.timestamp ?: break@outer
-                                        logFile.resetCursor()
-                                        logFileId += 1
-                                    }
-
-                                    while (logFile.next()) {
-                                        val currentEntry = logFile.retrieve() ?: continue
-                                        if (currentEntry.timestamp < startTime) continue // keep looking
-                                        if (currentEntry.timestamp > endTime) break@outer // finished
-
-                                        if (currentEntry.ctxId.toLong() in session.activeContext) {
-                                            session.acceptLogMessage(currentEntry)
-                                            logs.add(currentEntry)
-                                            foundLogs++
-                                        }
-
-                                        if (!logFile.isValid(logFile.cursor + 1)) {
-                                            if (LogFileReader.exists(directory, generation, logFileId)) {
-                                                logFile = LogFileReader(directory, generation, logFileId++)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                session.activeContext
-                                foundLogs
-                                session.flushLogsMessage()
-
+                                session.findContexts(startTime, endTime, directory, generation)
+                                session.findLogs(startTime, endTime, directory, generation)
                             }
 
                             is ClientRequest.ActivateService -> {
@@ -383,6 +301,88 @@ fun main(args: Array<String>) {
     }.start(wait = true)
 }
 
+suspend fun ClientSession.findContexts(startTime: Long, endTime: Long, directory: File, generation: Long) {
+    var currentFileId = 1 // Note(Jonas): Seems to start at 1?
+
+    outer@ while (ContextReader.exists(directory, generation, currentFileId)) {
+        var currentFile = ContextReader(directory, generation, currentFileId++)
+        // currentFile.logAllEntries()
+        currentFile.seekToEnd()
+        var fileEnd = currentFile.retrieve()?.timestamp ?: break@outer
+        currentFile.resetCursor()
+
+        // Find the file that contains our first potentially valid context
+        while (startTime > fileEnd) {
+            if (!ContextReader.exists(directory, generation, currentFileId)) break@outer
+            currentFile = ContextReader(directory, generation, currentFileId++)
+            currentFile.seekToEnd()
+            fileEnd = currentFile.retrieve()?.timestamp ?: break@outer
+            currentFile.resetCursor()
+        }
+
+        while (currentFile.next()) {
+            val currentEntry = currentFile.retrieve() ?: continue
+            if (currentEntry.timestamp < startTime) continue // keep looking
+            if (currentEntry.timestamp > endTime) break@outer // finished
+
+            if (currentEntry.parent.toLong() in activeContext) {
+                activeContext.add(currentEntry.id.toLong())
+                acceptContext(generation, currentEntry)
+            }
+
+            if (!currentFile.isValid(currentFile.cursor + 1)) {
+                if (ContextReader.exists(directory, generation, currentFileId)) {
+                    currentFile = ContextReader(directory, generation, currentFileId++)
+                }
+            }
+        }
+    }
+    flushContextMessage()
+}
+
+suspend fun ClientSession.findLogs(startTime: Long, endTime: Long, directory: File, generation: Long) {
+    var logFileId = 0
+    var logs = ArrayList<BinaryDebugMessage<*>>()
+    outer@ while (LogFileReader.exists(directory, generation, logFileId)) {
+        var logFile = LogFileReader(directory, generation, logFileId)
+
+        logFile.seekToEnd()
+        val end = logFile.retrieve()
+        var fileEnd = end?.timestamp ?: break@outer
+        logFile.resetCursor()
+        logFileId += 1
+        while (startTime > fileEnd) {
+            if (!LogFileReader.exists(directory, generation, logFileId)) {
+                break@outer
+            }
+            logFile = LogFileReader(directory, generation, logFileId)
+            logFile.seekToEnd()
+            fileEnd = logFile.retrieve()?.timestamp ?: break@outer
+            logFile.resetCursor()
+            logFileId += 1
+        }
+
+        while (logFile.next()) {
+            val currentEntry = logFile.retrieve() ?: continue
+            if (currentEntry.timestamp < startTime) continue // keep looking
+            if (currentEntry.timestamp > endTime) break@outer // finished
+
+            if (currentEntry.ctxId.toLong() in activeContext) {
+                acceptLogMessage(currentEntry)
+                logs.add(currentEntry)
+            }
+
+            if (!logFile.isValid(logFile.cursor + 1)) {
+                if (LogFileReader.exists(directory, generation, logFileId)) {
+                    logFile = LogFileReader(directory, generation, logFileId++)
+                }
+            }
+        }
+    }
+    logs
+    flushLogsMessage()
+}
+
 @Serializable
 sealed class ClientRequest {
     @Serializable
@@ -391,12 +391,16 @@ sealed class ClientRequest {
 
     @Serializable
     @SerialName("activate_service")
-    data class ActivateService(val service: String) : ClientRequest()
+    data class ActivateService(val service: String?) : ClientRequest()
 
     @Serializable
     @SerialName("set_session_state")
     data class SetSessionState(val query: String?, val filters: List<DebugContextType>, val level: MessageImportance?) :
         ClientRequest()
+
+    @Serializable
+    @SerialName("clear_active_context")
+    object ClearActiveContext : ClientRequest()
 }
 
 data class ClientSession(

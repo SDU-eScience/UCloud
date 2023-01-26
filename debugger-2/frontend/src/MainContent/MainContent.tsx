@@ -13,6 +13,7 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
 
     const setContext = React.useCallback((d: DebugContext) => {
         logStore.clearActiveContext();
+        console.log("Set context!");
         setActiveContext(current => {
             if (d === current) {
                 logStore.clearActiveContext();
@@ -39,20 +40,20 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
     return <div className="main-content">
         {!service ? <h3>Select a service to view requests</h3> :
             <>
-                <BreadCrumbs clearContext={() => setActiveContext(null)} routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
+                <BreadCrumbs clearContext={() => (setActiveContext(null), logStore.clearActiveContext())} routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
                 <RequestDetails activeContext={activeContext} />
                 <AutoSizer defaultHeight={200}>
                     {({height, width}) => {
                         const root = logStore.contextRoot();
                         if (root) {
-                            return <div className="card list" style={{height: "800px", width: "80vw"}}>
-                                <DebugContextRow key={root.ctx.id} setDebugContext={() => undefined} debugContext={root.ctx} ctxChildren={root.children} isActive={false} />
+                            return <div key={root.ctx.id} className="card list" style={{height: "800px", width: "80vw"}}>
+                                <DebugContextRow setDebugContext={() => undefined} debugContext={root.ctx} ctxChildren={root.children} isActive={false} />
                             </div>
                         }
                         return <List itemData={serviceLogs} height={height} width={width} itemSize={16} itemCount={serviceLogs.length} className="card list">
                             {({index, data}) => {
                                 const item = data[index];
-                                return <DebugContextRow setDebugContext={setContext} debugContext={item} isActive={activeContext === item} />
+                                return <DebugContextRow key={item.id} setDebugContext={setContext} debugContext={item} isActive={activeContext === item} />
                             }}
                         </List>;
                     }}
@@ -62,11 +63,12 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
     </div >
 }
 
-function DebugContextRow({debugContext, setDebugContext, isActive, ctxChildren}: {
+function DebugContextRow({debugContext, setDebugContext, isActive, ctxChildren, style}: {
     isActive: boolean;
     debugContext: DebugContext;
     setDebugContext(ctx: DebugContext): void;
     ctxChildren?: (DebugContextAndChildren | Log)[];
+    style?: React.CSSProperties | undefined;
 }): JSX.Element {
     const children = ctxChildren ?? [];
     return <>
@@ -75,21 +77,22 @@ function DebugContextRow({debugContext, setDebugContext, isActive, ctxChildren}:
             className="request-list-row flex"
             onClick={() => setDebugContext(debugContext)}
             data-selected={isActive}
+            style={style}
             data-haschildren={children.length > 0}
             data-has-error={[MessageImportance.THIS_IS_WRONG, MessageImportance.THIS_IS_DANGEROUS].includes(debugContext.importance)}
             data-is-odd={debugContext.importance === MessageImportance.THIS_IS_ODD}
         >
             <div>{debugContext.name}</div>
         </div>
-        <span>
+        <div style={{marginLeft: "24px"}}>
             {children.map(it => {
                 if ("children" in it) {
-                    return <span style={{marginLeft: "24px", borderLeft: "solid 1px black"}}><DebugContextRow key={it.ctx.id} debugContext={it.ctx} isActive={false} setDebugContext={() => undefined} ctxChildren={it.children} /></span>
+                    return <DebugContextRow style={{borderLeft: "solid 1px black"}} key={it.ctx.id} debugContext={it.ctx} isActive={false} setDebugContext={() => undefined} ctxChildren={it.children} />
                 } else {
-                    return <div style={{marginLeft: "24px", borderLeft: "solid 1px black"}} key={it.id} className="flex request-list-row">{it.message.previewOrContent}</div>
+                    return <div key={it.id} style={{borderLeft: "solid 1px black"}} className="flex request-list-row">{it.message.previewOrContent}</div>
                 }
             })}
-        </span>
+        </div>
     </>
 }
 
