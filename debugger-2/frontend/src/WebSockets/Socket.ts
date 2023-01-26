@@ -66,6 +66,7 @@ function initializeSocket() {
                 }
                 console.log(messages);
                 logStore.emitChange();
+                console.log(logStore.ctxMap);
                 console.log(logStore.entryCount);
                 break;
             }
@@ -121,9 +122,9 @@ export interface DebugContextAndChildren {
     children: (Log | DebugContextAndChildren)[]
 }
 
-let hasActiveContext = false;
+export let hasActiveContext = false;
 
-function isLog(input: Log | DebugContextAndChildren): input is Log {
+export function isLog(input: Log | DebugContextAndChildren): input is Log {
     return !("children" in input);
 }
 
@@ -142,7 +143,11 @@ export const logStore = new class {
     public clearActiveContext(): void {
         hasActiveContext = false;
         this.ctxMap = {};
+        this.activeContexts = null;
         this.entryCount = 0;
+
+        activateServiceRequest(null);
+        resetMessages();
     }
 
     public addDebugRoot(debugContext: DebugContext): void {
@@ -155,18 +160,19 @@ export const logStore = new class {
     }
 
     public addDebugContext(debugContext: DebugContext): void {
-        if (hasActiveContext) {
-            const newEntry = {ctx: debugContext, children: []};
-            this.ctxMap[debugContext.parent].children.push(newEntry);
-            this.ctxMap[debugContext.parent].children.sort((a, b) => {
-                const timestampA = isLog(a) ? a.timestamp : a.ctx.timestamp;
-                const timestampB = isLog(b) ? b.timestamp : b.ctx.timestamp;
-                return timestampA - timestampB;
-            });
-            this.ctxMap[debugContext.id] = newEntry;
-            this.entryCount++;
+        if (debugContext.type === 2) debugger;
+
+        if (debugContext.parent !== 1) {
+            if (this.activeContexts) {
+                const newEntry = {ctx: debugContext, children: []};
+                this.ctxMap[debugContext.parent].children.push(newEntry);
+                this.ctxMap[debugContext.parent].children.sort(logOrCtxSort);
+                this.ctxMap[debugContext.id] = newEntry;
+                this.entryCount++;
+            }
             return;
         }
+
 
         this.isDirty = true;
         if (!this.logs.content[activeService.service]) {
@@ -177,17 +183,11 @@ export const logStore = new class {
     }
 
     public addLog(log: Log): void {
-        if (hasActiveContext) {
+        if (this.activeContexts) {
             this.ctxMap[log.ctxId].children.push(log);
-            this.ctxMap[log.ctxId].children.sort((a, b) => {
-                const timestampA = isLog(a) ? a.timestamp : a.ctx.timestamp;
-                const timestampB = isLog(b) ? b.timestamp : b.ctx.timestamp;
-                return timestampA - timestampB;
-            });
+            this.ctxMap[log.ctxId].children.sort(logOrCtxSort);
             console.log(log.ctxId);
             this.entryCount++;
-        } else {
-            console.log(hasActiveContext)
         }
     }
 
@@ -212,6 +212,12 @@ export const logStore = new class {
         }
     }
 }();
+
+function logOrCtxSort(a: (Log | DebugContextAndChildren), b: (Log | DebugContextAndChildren)): number {
+    const timestampA = isLog(a) ? a.timestamp : a.ctx.timestamp;
+    const timestampB = isLog(b) ? b.timestamp : b.ctx.timestamp;
+    return timestampA - timestampB;
+}
 
 export const serviceStore = new class {
     private services: string[] = [];
@@ -246,7 +252,7 @@ export const serviceStore = new class {
     }
 }();
 
-function activateServiceRequest(service: string): string {
+function activateServiceRequest(service: string | null): string {
     return JSON.stringify({
         type: "activate_service",
         service,
@@ -255,7 +261,7 @@ function activateServiceRequest(service: string): string {
 
 function resetMessages(): void {
     if (!isSocketReady(socket)) return;
-
+    socket.send(JSON.stringify({type: "clear_active_context"}));
 }
 
 export function replayMessages(generation: string, context: number, timestamp: number): void {

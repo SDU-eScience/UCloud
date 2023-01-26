@@ -671,6 +671,8 @@ class BlobSystem(
     }
 }
 
+var ctxId = 0
+
 @Suppress("OPT_IN_USAGE")
 fun exampleProducer(logFolder: File) {
     runCatching { logFolder.deleteRecursively() }
@@ -683,12 +685,12 @@ fun exampleProducer(logFolder: File) {
         (0 until 1).map {
             GlobalScope.launch {
                 while (isActive) {
-                    debug.useContext(DebugContextType.BACKGROUND_TASK, "📯 Context $it") {
+                    debug.useContext(DebugContextType.BACKGROUND_TASK, "📯 Context $it, ${ctxId++}") {
                         repeat(10) {
                             debug.log(MessageImportance.THIS_IS_NORMAL, "📜 Log $it")
                             delay(50)
                         }
-                        debug.useContext(DebugContextType.DATABASE_TRANSACTION, "💽 Database transaction") {
+                        debug.useContext(DebugContextType.DATABASE_TRANSACTION, "💽 Database transaction $ctxId") {
                             debug.log(MessageImportance.THIS_IS_NORMAL, "📤 sending query select * from fie.dog")
                             debug.log(MessageImportance.THIS_IS_NORMAL, "📥 got a response from the database")
                         }

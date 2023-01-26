@@ -1,6 +1,6 @@
 import * as React from "react";
 import {DebugContext, DebugContextType, Log, MessageImportance} from "../WebSockets/Schema";
-import {activeService, DebugContextAndChildren, logStore, replayMessages, setSessionState} from "../WebSockets/Socket";
+import {activeService, DebugContextAndChildren, hasActiveContext, isLog, logStore, replayMessages, setSessionState} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -12,11 +12,9 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
     const logs = React.useSyncExternalStore(s => logStore.subscribe(s), () => logStore.getSnapshot())
 
     const setContext = React.useCallback((d: DebugContext) => {
-        logStore.clearActiveContext();
-        console.log("Set context!");
+        if (hasActiveContext) logStore.clearActiveContext();
         setActiveContext(current => {
             if (d === current) {
-                logStore.clearActiveContext();
                 return null;
             }
             logStore.addDebugRoot(d);
@@ -46,7 +44,7 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
                     {({height, width}) => {
                         const root = logStore.contextRoot();
                         if (root) {
-                            return <div key={root.ctx.id} className="card list" style={{height: "800px", width: "80vw"}}>
+                            return <div key={logStore.entryCount} className="card list" style={{height: "800px", width: "80vw"}}>
                                 <DebugContextRow setDebugContext={() => undefined} debugContext={root.ctx} ctxChildren={root.children} isActive={false} />
                             </div>
                         }
@@ -86,10 +84,10 @@ function DebugContextRow({debugContext, setDebugContext, isActive, ctxChildren, 
         </div>
         <div style={{marginLeft: "24px"}}>
             {children.map(it => {
-                if ("children" in it) {
-                    return <DebugContextRow style={{borderLeft: "solid 1px black"}} key={it.ctx.id} debugContext={it.ctx} isActive={false} setDebugContext={() => undefined} ctxChildren={it.children} />
-                } else {
+                if (isLog(it)) {
                     return <div key={it.id} style={{borderLeft: "solid 1px black"}} className="flex request-list-row">{it.message.previewOrContent}</div>
+                } else {
+                    return <DebugContextRow style={{borderLeft: "solid 1px black"}} key={it.ctx.id} debugContext={it.ctx} isActive={false} setDebugContext={() => undefined} ctxChildren={it.children} />
                 }
             })}
         </div>
@@ -105,7 +103,7 @@ function RequestDetails({activeContext}: {activeContext: DebugContext | null}): 
         </div>
         <div className="card query-details">
             <pre>
-                {activeContext.importance}
+                {activeContext.parent}
             </pre>
         </div>
     </div>;
@@ -114,6 +112,6 @@ function RequestDetails({activeContext}: {activeContext: DebugContext | null}): 
 function BreadCrumbs({routeComponents, setRouteComponents, clearContext}: {clearContext: () => void; routeComponents: string; setRouteComponents: (route: string) => void;}): JSX.Element {
     if (!routeComponents) return <div />
     return <div className="flex breadcrumb" style={{width: "100%"}}>
-        <span onClick={() => (clearContext(), logStore.clearActiveContext())}>/ Root</span>
+        <span onClick={clearContext}>/ Root</span>
     </div>;
 }

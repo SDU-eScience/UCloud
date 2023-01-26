@@ -5,6 +5,7 @@ import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
+import io.ktor.util.date.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -70,7 +71,6 @@ fun main(args: Array<String>) {
                 }
             }
 
-            /*
             val logWatcher = launch(Dispatchers.IO) {
                 val openLogFiles = ArrayList<LogFileReader>()
 
@@ -140,7 +140,7 @@ fun main(args: Array<String>) {
 
                     delay(50)
                 }
-            } */
+            }
 
             val contextWatcher = launch(Dispatchers.IO) {
                 val openContextFiles = ArrayList<ContextReader>()
@@ -258,7 +258,14 @@ fun main(args: Array<String>) {
 
                         when (request) {
                             is ClientRequest.ClearActiveContext -> {
-                                session.activeContext = arrayListOf(1)
+                                session.clearLogMessages()
+                                session.clearContextMessages()
+                                session.activeContext = arrayListOf(1L)
+                                val generation = trackedServices.get().values.find { it.title == session.activeService }?.generation ?: break
+                                val startTime = session.toReplayFrom ?: break
+                                session.toReplayFrom = null
+                                val endTime = getTimeMillis()
+                                session.findContexts(startTime, endTime, directory, generation)
                             }
 
                             is ClientRequest.ReplayMessages -> {
@@ -268,6 +275,7 @@ fun main(args: Array<String>) {
 
                                 session.activeContext = arrayListOf(request.context)
 
+                                session.toReplayFrom = getTimeMillis()
                                 val generation = request.generation.toLong()
                                 val startTime = request.timestamp
                                 val endTime = startTime + 15.minutes.inWholeMilliseconds
@@ -337,6 +345,7 @@ suspend fun ClientSession.findContexts(startTime: Long, endTime: Long, directory
             }
         }
     }
+    println(activeContext.size)
     flushContextMessage()
 }
 
@@ -412,6 +421,10 @@ data class ClientSession(
     var minimumLevel: MessageImportance = MessageImportance.THIS_IS_NORMAL,
     var filterQuery: String? = null,
     var activeService: String? = null,
+
+    // To denote when the user requested children of a specific debug context.
+    // Used to find out which contexts the user may have missed.
+    var toReplayFrom: Long? = null,
 
     val writeMutex: Mutex = Mutex(),
 
@@ -512,7 +525,7 @@ data class ClientSession(
         val services = trackedServices.get()
         val trackedService = services.values.find { it.title == service }
         if (trackedService == null || trackedService.generation != generation) return
-        if (!activeContext.contains(context.parent.toLong()) && !activeContext.contains(context.id.toLong())) return
+        if (!activeContext.contains(context.parent.toLong())) return
 
         writeMutex.withLock {
             if (newContextWriteBuffer.remaining() < DebugContextDescriptor.size) return
