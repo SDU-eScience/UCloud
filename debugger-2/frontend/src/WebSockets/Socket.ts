@@ -123,6 +123,10 @@ export interface DebugContextAndChildren {
 
 let hasActiveContext = false;
 
+function isLog(input: Log | DebugContextAndChildren): input is Log {
+    return !("children" in input);
+}
+
 export const logStore = new class {
     private logs: {content: Record<string, DebugContext[]>} = {content: {}};
     private activeContexts: DebugContextAndChildren | null = null;
@@ -154,6 +158,11 @@ export const logStore = new class {
         if (hasActiveContext) {
             const newEntry = {ctx: debugContext, children: []};
             this.ctxMap[debugContext.parent].children.push(newEntry);
+            this.ctxMap[debugContext.parent].children.sort((a, b) => {
+                const timestampA = isLog(a) ? a.timestamp : a.ctx.timestamp;
+                const timestampB = isLog(b) ? b.timestamp : b.ctx.timestamp;
+                return timestampA - timestampB;
+            });
             this.ctxMap[debugContext.id] = newEntry;
             this.entryCount++;
             return;
@@ -170,6 +179,11 @@ export const logStore = new class {
     public addLog(log: Log): void {
         if (hasActiveContext) {
             this.ctxMap[log.ctxId].children.push(log);
+            this.ctxMap[log.ctxId].children.sort((a, b) => {
+                const timestampA = isLog(a) ? a.timestamp : a.ctx.timestamp;
+                const timestampB = isLog(b) ? b.timestamp : b.ctx.timestamp;
+                return timestampA - timestampB;
+            });
             console.log(log.ctxId);
             this.entryCount++;
         } else {
@@ -241,6 +255,7 @@ function activateServiceRequest(service: string): string {
 
 function resetMessages(): void {
     if (!isSocketReady(socket)) return;
+
 }
 
 export function replayMessages(generation: string, context: number, timestamp: number): void {
