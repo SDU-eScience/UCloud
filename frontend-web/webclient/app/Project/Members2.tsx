@@ -1072,10 +1072,10 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
             );
 
             setSelectedGroups(
-                inviteLinksFromApi.data.items.find(it => it.token === editingLink)?.groupAssignment.map(it => it.id) ?? []
+                inviteLinksFromApi.data.items.find(it => it.token === editingLink)?.groupAssignment.map(it => it) ?? []
             );
         }
-    }, [editingLink]);
+    }, [editingLink, inviteLinksFromApi]);
 
     useEffect(() => {
         fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
@@ -1146,8 +1146,9 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
                                         item ?
                                             <Box
                                                 key={item.value}
-                                                onClick={async clicked => {
-                                                    const newSelection = selectedGroups.includes(item.value) ?
+                                                onClick={async _ => {
+                                                    const newSelection = selectedGroups.length < 1 ? [item.value] :
+                                                        selectedGroups.includes(item.value) ?
                                                         selectedGroups.filter(it => it != item.value) : selectedGroups.concat([item.value]);
 
                                                     await callAPIWithErrorHandler({

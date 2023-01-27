@@ -1253,10 +1253,24 @@ class ProjectService(
         val project = actorAndProject.requireProject()
         val token = UUID.randomUUID().toString()
 
-        // TODO(Brian): Check how many links are currently active
-
         ctx.withSession { session ->
             requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            val count = session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                },
+                """
+                    select * from project.invite_links where project_id = :project and now() < expires
+                """
+            ).rows.size
+
+            if (count >= 10) {
+                throw RPCException(
+                    "Unable to create more invitation links for this project",
+                    HttpStatusCode.BadRequest
+                )
+            }
 
             val success = session.sendPreparedStatement(
                 {
@@ -1292,14 +1306,15 @@ class ProjectService(
                     select * from project.invite_links
                     left join project.invite_link_group_assignments a on a.link_token = token
                     left join project.groups g on g.id = a.group_id
-                    where project_id = :project
+                    where project_id = :project and now() < expires
+                    order by expires desc
                 """
-            ).rows.map { row ->
+            ).rows.groupBy { it.getAs<UUID>("token") }.map { entry ->
                 ProjectInviteLink(
-                    row.getAs<UUID>("token").toString(),
-                    row.getAs<OffsetDateTime>("expires").toEpochSecond(),
-                    emptyList(),
-                    ProjectRole.valueOf(row.getString("role_assignment")!!)
+                    entry.key.toString(),
+                    entry.value.first().getAs<OffsetDateTime>("expires").toEpochSecond(),
+                    entry.value.mapNotNull { it.getString("group_id") },
+                    ProjectRole.valueOf(entry.value.first().getString("role_assignment")!!)
                 )
             }
         }
@@ -1350,7 +1365,35 @@ class ProjectService(
         request: ProjectsUpdateInviteLinkRoleAssignmentRequest,
         ctx: DBContext = db
     ) {
+        val project = actorAndProject.requireProject()
 
+        if (!listOf(ProjectRole.ADMIN, ProjectRole.USER).contains(request.role)) {
+            throw RPCException("Role assignment can only be either Admin or User", HttpStatusCode.BadRequest)
+        }
+
+        ctx.withSession { session ->
+            requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("token", request.token)
+                    setParameter("role", request.role.name)
+                },
+                """
+                    update project.invite_links
+                    set role_assignment = :role
+                    where project_id = :project and token = :token
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Unable to update role assignment",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
     }
 
     suspend fun updateInviteLinkGroupAssignment(
@@ -1358,7 +1401,29 @@ class ProjectService(
         request: ProjectsUpdateInviteLinkGroupAssignmentRequest,
         ctx: DBContext = db
     ) {
+        val project = actorAndProject.requireProject()
 
+        ctx.withSession { session ->
+            requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("token", request.token)
+                    setParameter("groups", request.groups)
+                },
+                """
+                    with new (group_id, token) as (
+                        select id, cast(:token as uuid) from project.groups where project = :project and id in (select unnest(cast(:groups as text[])))
+                    ), changed as (
+                        insert into project.invite_link_group_assignments (group_id, link_token)
+                        select * from new
+                        on conflict do nothing
+                    ) delete from project.invite_link_group_assignments
+                    where link_token = cast(:token as uuid) and (group_id, link_token) not in (select group_id, token from new)
+                """
+            )
+        }
     }
 
     suspend fun acceptInviteLink(actorAndProject: ActorAndProject, request: ProjectsAcceptInviteLinkRequest) {

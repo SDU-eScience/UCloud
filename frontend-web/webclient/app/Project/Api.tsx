@@ -84,7 +84,7 @@ export interface ProjectInvite {
 export interface ProjectInviteLink {
     token: string;
     expires: number;
-    groupAssignment: ProjectGroup[];
+    groupAssignment: string[];
     roleAssignment: ProjectRole;
 }
 
