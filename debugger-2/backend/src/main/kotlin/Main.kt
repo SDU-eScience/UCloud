@@ -5,6 +5,7 @@ import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
+import io.ktor.util.date.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -20,6 +21,7 @@ import kotlinx.serialization.Serializable
 import java.io.File
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.minutes
 
 data class TrackedService(val title: String, val generation: Long, val lastModified: Long)
 
@@ -35,23 +37,20 @@ fun main(args: Array<String>) {
         return
     }
 
-    @Suppress("OPT_IN_USAGE")
-    GlobalScope.launch {
+    @Suppress("OPT_IN_USAGE") GlobalScope.launch {
         coroutineScope {
             val serviceWatcher = launch(Dispatchers.IO) {
                 while (isActive) {
-                    val newServices = (directory.listFiles() ?: emptyArray())
-                        .filter { it.isFile && it.name.endsWith(".service") }
-                        .mapNotNull { serviceFile ->
-                            runCatching {
-                                val lines = serviceFile.readText().lines()
-                                TrackedService(lines[0], lines[1].toLongOrNull() ?: 0, serviceFile.lastModified())
-                            }.getOrNull()
-                        }
-                        .groupBy { it.title }
-                        .mapValues { (_, group) ->
-                            group.maxByOrNull { it.lastModified }!!
-                        }
+                    val newServices =
+                        (directory.listFiles() ?: emptyArray()).filter { it.isFile && it.name.endsWith(".service") }
+                            .mapNotNull { serviceFile ->
+                                runCatching {
+                                    val lines = serviceFile.readText().lines()
+                                    TrackedService(lines[0], lines[1].toLongOrNull() ?: 0, serviceFile.lastModified())
+                                }.getOrNull()
+                            }.groupBy { it.title }.mapValues { (_, group) ->
+                                group.maxByOrNull { it.lastModified }!!
+                            }
 
                     val oldServices = trackedServices.get()
 
@@ -258,12 +257,31 @@ fun main(args: Array<String>) {
                         }.getOrNull() ?: continue
 
                         when (request) {
+                            is ClientRequest.ClearActiveContext -> {
+                                session.clearLogMessages()
+                                session.clearContextMessages()
+                                session.activeContext = arrayListOf(1L)
+                                val generation = trackedServices.get().values.find { it.title == session.activeService }?.generation ?: break
+                                val startTime = session.toReplayFrom ?: break
+                                session.toReplayFrom = null
+                                val endTime = getTimeMillis()
+                                session.findContexts(startTime, endTime, directory, generation)
+                            }
+
                             is ClientRequest.ReplayMessages -> {
-                                session.activeContext = request.context
-                                // By this point, we have contextId, generation and timestamp. We should be able to look through a file and read.
-                                // Log file -should- be of names "${request.generation}-${id}.log", but how do we get .id?
-                                request.generation
-                                request.timestamp
+                                // Clear Log and Context Buffer
+                                session.clearContextMessages()
+                                session.clearLogMessages()
+
+                                session.activeContext = arrayListOf(request.context)
+
+                                session.toReplayFrom = getTimeMillis()
+                                val generation = request.generation.toLong()
+                                val startTime = request.timestamp
+                                val endTime = startTime + 15.minutes.inWholeMilliseconds
+
+                                session.findContexts(startTime, endTime, directory, generation)
+                                session.findLogs(startTime, endTime, directory, generation)
                             }
 
                             is ClientRequest.ActivateService -> {
@@ -277,6 +295,8 @@ fun main(args: Array<String>) {
                             }
                         }
                     }
+                } catch (ex: Throwable) {
+                    println(ex.stackTraceToString())
                 } finally {
                     sessionMutex.withLock {
                         sessions.remove(session)
@@ -289,6 +309,89 @@ fun main(args: Array<String>) {
     }.start(wait = true)
 }
 
+suspend fun ClientSession.findContexts(startTime: Long, endTime: Long, directory: File, generation: Long) {
+    var currentFileId = 1 // Note(Jonas): Seems to start at 1?
+
+    outer@ while (ContextReader.exists(directory, generation, currentFileId)) {
+        var currentFile = ContextReader(directory, generation, currentFileId++)
+        // currentFile.logAllEntries()
+        currentFile.seekToEnd()
+        var fileEnd = currentFile.retrieve()?.timestamp ?: break@outer
+        currentFile.resetCursor()
+
+        // Find the file that contains our first potentially valid context
+        while (startTime > fileEnd) {
+            if (!ContextReader.exists(directory, generation, currentFileId)) break@outer
+            currentFile = ContextReader(directory, generation, currentFileId++)
+            currentFile.seekToEnd()
+            fileEnd = currentFile.retrieve()?.timestamp ?: break@outer
+            currentFile.resetCursor()
+        }
+
+        while (currentFile.next()) {
+            val currentEntry = currentFile.retrieve() ?: continue
+            if (currentEntry.timestamp < startTime) continue // keep looking
+            if (currentEntry.timestamp > endTime) break@outer // finished
+
+            if (currentEntry.parent.toLong() in activeContext) {
+                activeContext.add(currentEntry.id.toLong())
+                acceptContext(generation, currentEntry)
+            }
+
+            if (!currentFile.isValid(currentFile.cursor + 1)) {
+                if (ContextReader.exists(directory, generation, currentFileId)) {
+                    currentFile = ContextReader(directory, generation, currentFileId++)
+                }
+            }
+        }
+    }
+    println(activeContext.size)
+    flushContextMessage()
+}
+
+suspend fun ClientSession.findLogs(startTime: Long, endTime: Long, directory: File, generation: Long) {
+    var logFileId = 0
+    var logs = ArrayList<BinaryDebugMessage<*>>()
+    outer@ while (LogFileReader.exists(directory, generation, logFileId)) {
+        var logFile = LogFileReader(directory, generation, logFileId)
+
+        logFile.seekToEnd()
+        val end = logFile.retrieve()
+        var fileEnd = end?.timestamp ?: break@outer
+        logFile.resetCursor()
+        logFileId += 1
+        while (startTime > fileEnd) {
+            if (!LogFileReader.exists(directory, generation, logFileId)) {
+                break@outer
+            }
+            logFile = LogFileReader(directory, generation, logFileId)
+            logFile.seekToEnd()
+            fileEnd = logFile.retrieve()?.timestamp ?: break@outer
+            logFile.resetCursor()
+            logFileId += 1
+        }
+
+        while (logFile.next()) {
+            val currentEntry = logFile.retrieve() ?: continue
+            if (currentEntry.timestamp < startTime) continue // keep looking
+            if (currentEntry.timestamp > endTime) break@outer // finished
+
+            if (currentEntry.ctxId.toLong() in activeContext) {
+                acceptLogMessage(currentEntry)
+                logs.add(currentEntry)
+            }
+
+            if (!logFile.isValid(logFile.cursor + 1)) {
+                if (LogFileReader.exists(directory, generation, logFileId)) {
+                    logFile = LogFileReader(directory, generation, logFileId++)
+                }
+            }
+        }
+    }
+    logs
+    flushLogsMessage()
+}
+
 @Serializable
 sealed class ClientRequest {
     @Serializable
@@ -297,12 +400,16 @@ sealed class ClientRequest {
 
     @Serializable
     @SerialName("activate_service")
-    data class ActivateService(val service: String) : ClientRequest()
+    data class ActivateService(val service: String?) : ClientRequest()
 
     @Serializable
     @SerialName("set_session_state")
     data class SetSessionState(val query: String?, val filters: List<DebugContextType>, val level: MessageImportance?) :
         ClientRequest()
+
+    @Serializable
+    @SerialName("clear_active_context")
+    object ClearActiveContext : ClientRequest()
 }
 
 data class ClientSession(
@@ -310,25 +417,29 @@ data class ClientSession(
     val session: WebSocketServerSession,
 
     // State, which is updated by messages from the client.
-    var activeContext: Long = 0,
+    var activeContext: ArrayList<Long> = arrayListOf(1L),
     var minimumLevel: MessageImportance = MessageImportance.THIS_IS_NORMAL,
     var filterQuery: String? = null,
     var activeService: String? = null,
+
+    // To denote when the user requested children of a specific debug context.
+    // Used to find out which contexts the user may have missed.
+    var toReplayFrom: Long? = null,
 
     val writeMutex: Mutex = Mutex(),
 
     // Buffers used for various messages. We keep a separate buffer per message type to make it slightly easier to
     // handle concurrency.
-    val newContextWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 512),
-    val newLogsWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 512),
-    val newServiceWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 32),
+    private val newContextWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 512),
+    private val newLogsWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 512),
+    private val newServiceWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 32),
 ) {
     init {
         // NOTE(Dan): This will force initialize all buffers with their metadata
         runBlocking {
-            flushServiceMessage()
-            flushContextMessage()
-            flushLogsMessage()
+            clearServiceMessages()
+            clearContextMessages()
+            clearLogMessages()
         }
     }
 
@@ -365,12 +476,34 @@ data class ClientSession(
         }
     }
 
+    suspend fun clearServiceMessages() {
+        writeMutex.withLock {
+            newServiceWriteBuffer.clear()
+            newServiceWriteBuffer.putLong(1)
+        }
+    }
+
+    suspend fun clearContextMessages() {
+        writeMutex.withLock {
+            newContextWriteBuffer.clear()
+            newContextWriteBuffer.putLong(2)
+        }
+    }
+
+    suspend fun clearLogMessages() {
+        writeMutex.withLock {
+            newLogsWriteBuffer.clear()
+            newLogsWriteBuffer.putLong(3)
+        }
+    }
+
     suspend fun acceptLogMessage(message: BinaryDebugMessage<*>) {
         val service = activeService ?: return
         if (message.importance.ordinal < minimumLevel.ordinal) return
         val services = trackedServices.get()
         val trackedService = services.values.find { it.title == service }
         if (trackedService == null || trackedService.generation != message.ctxGeneration) return
+        if (!activeContext.contains(message.ctxId.toLong())) return
 
         writeMutex.withLock {
             if (newLogsWriteBuffer.remaining() < FRAME_SIZE) return
@@ -392,6 +525,7 @@ data class ClientSession(
         val services = trackedServices.get()
         val trackedService = services.values.find { it.title == service }
         if (trackedService == null || trackedService.generation != generation) return
+        if (!activeContext.contains(context.parent.toLong())) return
 
         writeMutex.withLock {
             if (newContextWriteBuffer.remaining() < DebugContextDescriptor.size) return

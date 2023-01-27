@@ -17,6 +17,7 @@ import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.controllers.RequestContext
+import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
@@ -33,6 +34,7 @@ import dk.sdu.cloud.sql.bindStringNullable
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.utils.ResourceVerification
 import dk.sdu.cloud.utils.sendTerminalMessage
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -320,24 +322,14 @@ class GenericLicensePlugin : LicensePlugin {
         })
 
         ipcServer.addHandler(GenericLicenseIpc.retrieve.handler { user, request ->
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-
-            val result = ArrayList<GenericLicenseServer>()
-
             val retrievedLicense = LicenseControl.retrieve.call(
                 ResourceRetrieveRequest(LicenseIncludeFlags(), request.id),
                 rpcClient
             ).orThrow()
 
+            ResourceVerification.verifyAccessToResource(UserMapping.localIdToUCloudId(user.uid), retrievedLicense)
+
+            val result = ArrayList<GenericLicenseServer>()
             dbConnection.withSession { session ->
                 session.prepareStatement(
                     """
