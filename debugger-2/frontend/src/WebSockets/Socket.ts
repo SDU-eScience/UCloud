@@ -124,9 +124,11 @@ export interface DebugContextAndChildren {
 
 export let hasActiveContext = false;
 
-export function isLog(input: Log | DebugContextAndChildren): input is Log {
-    return !("children" in input);
+export function isLog(input: Log | DebugContext | DebugContextAndChildren): input is Log {
+    return "ctxId" in input;
 }
+
+
 
 export const logStore = new class {
     private logs: {content: Record<string, DebugContext[]>} = {content: {}};
@@ -162,23 +164,20 @@ export const logStore = new class {
     public addDebugContext(debugContext: DebugContext): void {
         if (debugContext.type === 2) debugger;
 
-        if (debugContext.parent !== 1) {
-            if (this.activeContexts) {
-                const newEntry = {ctx: debugContext, children: []};
-                this.ctxMap[debugContext.parent].children.push(newEntry);
-                this.ctxMap[debugContext.parent].children.sort(logOrCtxSort);
-                this.ctxMap[debugContext.id] = newEntry;
-                this.entryCount++;
-            }
+        if (this.activeContexts) {
+            const newEntry = {ctx: debugContext, children: []};
+            this.ctxMap[debugContext.parent].children.push(newEntry);
+            this.ctxMap[debugContext.parent].children.sort(logOrCtxSort);
+            this.ctxMap[debugContext.id] = newEntry;
+            this.entryCount++;
             return;
         }
 
-
-        this.isDirty = true;
         if (!this.logs.content[activeService.service]) {
             this.logs.content[activeService.service] = [debugContext];
         } else {
             this.logs.content[activeService.service].push(debugContext)
+            this.isDirty = true;
         }
     }
 

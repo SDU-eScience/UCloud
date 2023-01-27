@@ -5,24 +5,32 @@ import "./MainContent.css";
 import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 
+// Notes/Issues:
+// Fetching missing contexts sometimes misses some.
+// Double request sometimes happens, even without strictmode.
+// Filters not implemented in backend, I believe.
+// Route components don't work.
+// The List doesn't work correctly.
+// Frontend styling is generally not good.
+// We currently have an `activeContext`-variable. This should be able to accept logs, as they can be viewed.
+// Blob searching support is missing!
+
 export function MainContent({query, filters, levels}: {query: string, filters: Set<DebugContextType>, levels: string;}): JSX.Element {
     const [activeContext, setActiveContext] = React.useState<DebugContext | null>(null);
     const service = React.useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot());
-    const [routeComponents, setRouteComponents] = React.useState("");
+    const [routeComponents, setRouteComponents] = React.useState<(Log | DebugContext)[]>([]);
     const logs = React.useSyncExternalStore(s => logStore.subscribe(s), () => logStore.getSnapshot())
 
-    const setContext = React.useCallback((d: DebugContext) => {
+    const setContext = React.useCallback((d: DebugContext | null) => {
         if (hasActiveContext) logStore.clearActiveContext();
-        setActiveContext(current => {
-            if (d === current) {
-                return null;
-            }
-            logStore.addDebugRoot(d);
-            replayMessages(activeService.generation, d.id, d.timestamp);
-            return d;
-        });
-
-        setRouteComponents(d.id.toString())
+        if (d === null) {
+            setRouteComponents([])
+            return;
+        }
+        logStore.addDebugRoot(d);
+        replayMessages(activeService.generation, d.id, d.timestamp);
+        setRouteComponents([d]);
+        setActiveContext(d);
     }, [setActiveContext, setRouteComponents]);
 
     React.useEffect(() => {
@@ -38,7 +46,7 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
     return <div className="main-content">
         {!service ? <h3>Select a service to view requests</h3> :
             <>
-                <BreadCrumbs clearContext={() => (setActiveContext(null), logStore.clearActiveContext())} routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
+                <BreadCrumbs clearContext={() => setContext(null)} routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
                 <RequestDetails activeContext={activeContext} />
                 <AutoSizer defaultHeight={200}>
                     {({height, width}) => {
@@ -48,7 +56,7 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
                                 <DebugContextRow setDebugContext={() => undefined} debugContext={root.ctx} ctxChildren={root.children} isActive={false} />
                             </div>
                         }
-                        return <List itemData={serviceLogs} height={height} width={width} itemSize={16} itemCount={serviceLogs.length} className="card list">
+                        return <List itemData={serviceLogs} height={height} width={width} itemSize={22} itemCount={serviceLogs.length} className="card list">
                             {({index, data}) => {
                                 const item = data[index];
                                 return <DebugContextRow key={item.id} setDebugContext={setContext} debugContext={item} isActive={activeContext === item} />
@@ -109,9 +117,10 @@ function RequestDetails({activeContext}: {activeContext: DebugContext | null}): 
     </div>;
 }
 
-function BreadCrumbs({routeComponents, setRouteComponents, clearContext}: {clearContext: () => void; routeComponents: string; setRouteComponents: (route: string) => void;}): JSX.Element {
-    if (!routeComponents) return <div />
+function BreadCrumbs({routeComponents, setRouteComponents, clearContext}: {clearContext: () => void; routeComponents: (DebugContext | Log)[]; setRouteComponents: (route: (Log | DebugContext)[]) => void;}): JSX.Element {
+    if (routeComponents.length === 0) return <div />
     return <div className="flex breadcrumb" style={{width: "100%"}}>
         <span onClick={clearContext}>/ Root</span>
+        {routeComponents.map(it => <>/{isLog(it) ? <div>Log {it.typeString}</div> : <div>Ctx: {it.typeString}</div>}</>)}
     </div>;
 }

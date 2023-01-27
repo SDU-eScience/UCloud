@@ -265,7 +265,8 @@ fun main(args: Array<String>) {
                                 val startTime = session.toReplayFrom ?: break
                                 session.toReplayFrom = null
                                 val endTime = getTimeMillis()
-                                session.findContexts(startTime, endTime, directory, generation)
+                                session.findContexts(startTime, endTime, directory, generation, true)
+                                println(session.activeContext)
                             }
 
                             is ClientRequest.ReplayMessages -> {
@@ -309,7 +310,7 @@ fun main(args: Array<String>) {
     }.start(wait = true)
 }
 
-suspend fun ClientSession.findContexts(startTime: Long, endTime: Long, directory: File, generation: Long) {
+suspend fun ClientSession.findContexts(startTime: Long, endTime: Long, directory: File, generation: Long, dontAddToActiveContext: Boolean = false) {
     var currentFileId = 1 // Note(Jonas): Seems to start at 1?
 
     outer@ while (ContextReader.exists(directory, generation, currentFileId)) {
@@ -334,7 +335,7 @@ suspend fun ClientSession.findContexts(startTime: Long, endTime: Long, directory
             if (currentEntry.timestamp > endTime) break@outer // finished
 
             if (currentEntry.parent.toLong() in activeContext) {
-                activeContext.add(currentEntry.id.toLong())
+                if (!dontAddToActiveContext) activeContext.add(currentEntry.id.toLong())
                 acceptContext(generation, currentEntry)
             }
 
