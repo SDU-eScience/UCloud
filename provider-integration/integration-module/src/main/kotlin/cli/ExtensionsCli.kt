@@ -48,7 +48,7 @@ fun ExtensionsCli(controllerContext: ControllerContext) {
         val ipcClient = controllerContext.pluginContext.ipcClient
 
         fun sendHelp(): Nothing = sendCommandLineUsage("extensions", "Extension utility") {
-            subcommand("read", "Retrieves a batch of extension") {
+            subcommand("ls", "Retrieves a batch of extension") {
                 arg("--failures", optional = true, description = "Only show entries which failed")
                 arg(
                     "--extension=<path>",
@@ -72,19 +72,19 @@ fun ExtensionsCli(controllerContext: ControllerContext) {
                 )
             }
 
-            subcommand("delete", "Deletes one or more entries from the log") {
+            subcommand("rm", "Deletes one or more entries from the log") {
                 arg("id(s)", description = "Comma separated IDs")
             }
 
-            subcommand("view", "View details of an event") {
-                arg("id", description = "The ID (see read)")
+            subcommand("get", "View details of an event") {
+                arg("id", description = "The ID (see ls)")
             }
 
             subcommand("clear", "Deletes all entries")
         }
 
         when (args.getOrNull(0)) {
-            "read" -> {
+            "ls" -> {
                 val events = ipcClient.sendRequest(
                     ExtensionLogIpc.browse,
                     ExtensionLogFlags(
@@ -116,7 +116,7 @@ fun ExtensionsCli(controllerContext: ControllerContext) {
                 }
             }
 
-            "view" -> {
+            "get", "view" -> {
                 val id = args.getOrNull(1) ?: sendHelp()
 
                 val logEvent = runCatching {
@@ -144,7 +144,7 @@ fun ExtensionsCli(controllerContext: ControllerContext) {
                 }
             }
 
-            "delete" -> {
+            "rm", "delete" -> {
                 val ids = args.getOrNull(1)?.split(",")?.map { FindByStringId(it.trim()) } ?: sendHelp()
 
                 ipcClient.sendRequest(
