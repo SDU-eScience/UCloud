@@ -12,36 +12,106 @@ node {
     sh label: '', script: 'java -version'
     def jobName = "t"+currentBuild.startTimeInMillis
     echo (jobName)
-
-    echo sh(script: 'env|sort', returnStdout: true)
     //Make check on PR creator and specific branches. master, staging, PRs
-    if (
-        //env.BRANCH_NAME == 'jenkinsSetup' || 
-        //env.BRANCH_NAME == 'master' || 
-        //env.BRANCH_NAME == 'staging'
-        false
-        ) {
-        stage('Checkout') {
-            checkout(
-                [
-                    $class                           : 'GitSCM',
-                    branches                         : [
-                        [name: env.BRANCH_NAME]
-                    ],
-                    doGenerateSubmoduleConfigurations: false,
-                    extensions                       : [],
-                    submoduleCfg                     : [],
-                    userRemoteConfigs                : [
-                        [
-                            credentialsId: 'github',
-                            url          : 'https://github.com/SDU-eScience/UCloud.git'
-                        ]
+    stage('Checkout') {
+        checkout(
+            [
+                $class                           : 'GitSCM',
+                branches                         : [
+                    [name: env.BRANCH_NAME]
+                ],
+                doGenerateSubmoduleConfigurations: false,
+                extensions                       : [],
+                submoduleCfg                     : [],
+                userRemoteConfigs                : [
+                    [
+                        credentialsId: 'github',
+                        url          : 'https://github.com/SDU-eScience/UCloud.git'
                     ]
                 ]
-            )
+            ]
+        )
+    }
+
+    //Delete current environment if any
+
+    sh script: """
+        docker rm -f \$(docker ps -q) || true
+        docker volume rm -f \$(docker volume ls -q) || true
+        docker network rm  \$(docker network ls -q) || true
+        
+        docker rm -f \$(docker ps -q) || true
+        docker volume rm -f \$(docker volume ls -q) || true
+        docker network rm  \$(docker network ls -q) || true
+        
+        docker volume prune || true
+        docker network prune || true
+        docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
+    """
+
+    //Create new environment with providers installed
+
+    sh script: 'DEBUG_COMMANDS=true ; ./launcher init --all-providers'
+
+    //Create Snapshot of DB to test purpose. Use "t"+timestamp for UNIQUE ID
+
+    sh script: """
+        ./launcher snapshot ${jobName}
+    """
+
+    //run test
+
+    try {
+        sh script: """
+            cd integration-test 
+            export UCLOUD_LAUNCHER=\$PWD/launcher 
+            export UCLOUD_TEST_SNAPSHOT=${jobName} 
+            ./gradlew test --tests GiftTest
+        """
+
+        echo 'HELLO'
+    }
+    catch(Exception e) {
+        echo 'EX'
+
+        def logArray = currentBuild.rawBuild.getLog(50)
+        def log = ""
+        for (String s : logArray)
+        {
+            log += s + " ";
+        }
+        def startIndex = log.indexOf("FAILURE: Build failed with an exception")
+        def endIndex = log.indexOf("* Try:")
+        if (startIndex == -1) {
+            startIndex = 0
+        }
+        if (endIndex == -1) {
+            endIndex = log.length()-1
         }
 
-        //Delete current environment if any
+
+        sendAlert("""\
+            :warning: BuildFailed :warning:
+
+            ${log.substring(startIndex, endIndex)}
+        """.stripIndent()
+        )
+    }
+    finally {
+        junit '**/build/test-results/**/*.xml'
+
+        env.WORKSPACE = pwd()
+        def workspace = readFile "${env.WORKSPACE}/.compose/current.txt"
+
+        sh script: """
+            mkdir ./tmp
+            docker cp ${workspace}-backend-1:/tmp/service.log ./tmp/service.log
+            docker cp ${workspace}-backend-1:/var/log ./tmp/
+        """
+
+        archiveArtifacts artifacts: 'tmp/service.log', allowEmptyArchive: true
+        archiveArtifacts artifacts: 'tmp/log/ucloud/*.log', allowEmptyArchive: true
+
 
         sh script: """
             docker rm -f \$(docker ps -q) || true
@@ -55,118 +125,9 @@ node {
             docker volume prune || true
             docker network prune || true
             docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
+
+            rm -rf ./tmp
         """
-
-        //Create new environment with providers installed
-
-        sh script: 'DEBUG_COMMANDS=true ; ./launcher init --all-providers'
-
-        //Create Snapshot of DB to test purpose. Use "t"+timestamp for UNIQUE ID
-
-        sh script: """
-            ./launcher snapshot ${jobName}
-        """
-
-        //run test
-
-        try {
-            sh script: """
-                cd integration-test 
-                export UCLOUD_LAUNCHER=\$PWD/launcher 
-                export UCLOUD_TEST_SNAPSHOT=${jobName} 
-                ./gradlew test --tests GiftTest
-            """
-
-            echo 'HELLO'
-        }
-        catch(Exception e) {
-            echo 'EX'
-
-            def logArray = currentBuild.rawBuild.getLog(50)
-            def log = ""
-            for (String s : logArray)
-            {
-                log += s + " ";
-            }
-            def startIndex = log.indexOf("FAILURE: Build failed with an exception")
-            def endIndex = log.indexOf("* Try:")
-            if (startIndex == -1) {
-                startIndex = 0
-            }
-            if (endIndex == -1) {
-                endIndex = log.length()-1
-            }
-
-
-            //sendAlert("""\
-            //    :warning: BuildFailed :warning:
-//
- //               BackendFailed: 
-   //             ${log.substring(startIndex, endIndex)}
-    //        """.stripIndent()
-     //       )
-        }
-        finally {
-            junit '**/build/test-results/**/*.xml'
-
-            env.WORKSPACE = pwd()
-            def workspace = readFile "${env.WORKSPACE}/.compose/current.txt"
-
-            sh script: """
-                mkdir ./tmp
-                docker cp ${workspace}-backend-1:/tmp/service.log ./tmp/service.log
-                docker cp ${workspace}-backend-1:/var/log ./tmp/
-            """
-
-            archiveArtifacts artifacts: 'tmp/service.log', allowEmptyArchive: true
-            archiveArtifacts artifacts: 'tmp/log/ucloud/*.log', allowEmptyArchive: true
-
-
-            sh script: """
-                docker rm -f \$(docker ps -q) || true
-                docker volume rm -f \$(docker volume ls -q) || true
-                docker network rm  \$(docker network ls -q) || true
-                
-                docker rm -f \$(docker ps -q) || true
-                docker volume rm -f \$(docker volume ls -q) || true
-                docker network rm  \$(docker network ls -q) || true
-                
-                docker volume prune || true
-                docker network prune || true
-                docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
-
-                rm -rf ./tmp
-            """
-        }
-        
-//        rm -rf /tmp/log*
- //               rm /tmp/service.log
-        //sendAlert("Hello from Jenkins")
-
-        /*String frontendResult = runBuild("frontend-web/Jenkinsfile")
-        String backendResult = runBuild("backend/Jenkinsfile")
-        boolean hasError = false
-
-        if (frontendResult.startsWith("FAILURE")) {
-            sendAlert(frontendResult)
-            hasError = true
-        }
-
-        if (backendResult.startsWith("FAILURE")) {
-            sendAlert(backendResult)
-            hasError = true
-        }*/
-
-        //junit '**/build/test-results/**/*.xml'
-        //jacoco(
-        //    execPattern: '**/**.exec',
-        //    exclusionPattern: '**/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class',
-        //    sourcePattern: '**/src/main/kotlin/**'
-        //)
-
-        //if (hasError) {
-        //    error('Job failed - message have been sent.')
-        //}
     }
 }
 
