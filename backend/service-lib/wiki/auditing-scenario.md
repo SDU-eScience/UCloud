@@ -484,7 +484,7 @@ Should contain:
         "document" : {
           "sensitivity" : "SENSITIVE"
         },
-        "changeLog" : "GDPR"
+        "changeLog" : "WHAT EVER WE WROTE IN COMMENT"
       }
     }
   ]
