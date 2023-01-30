@@ -34,5 +34,6 @@ data class Configuration(
 )
 
 fun main(args: Array<String>) {
+    println("RUNNING")
     AccountingService.runAsStandalone(args)
 }
