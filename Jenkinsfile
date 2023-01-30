@@ -66,7 +66,7 @@ node {
             cd integration-test 
             export UCLOUD_LAUNCHER=\$PWD/launcher 
             export UCLOUD_TEST_SNAPSHOT=${jobName} 
-            ./gradlew test --tests GiftTest
+            ./gradlew test
         """
 
         echo 'HELLO'
