@@ -16,8 +16,9 @@ node {
     //Make check on PR creator and specific branches. master, staging, PRs
     if (
         //env.BRANCH_NAME == 'jenkinsSetup' || 
-        env.BRANCH_NAME == 'master' || 
-        env.BRANCH_NAME == 'staging'
+        //env.BRANCH_NAME == 'master' || 
+        //env.BRANCH_NAME == 'staging'
+        false
         ) {
         stage('Checkout') {
             checkout(
