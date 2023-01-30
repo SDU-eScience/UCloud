@@ -1,10 +1,13 @@
 import {useCloudAPI} from "@/Authentication/DataHook";
 import React, {useEffect} from "react";
+import {useDispatch} from "react-redux";
 import {useNavigate, useParams} from "react-router";
 import api, {AcceptInviteLinkResponse} from "./Api";
+import {dispatchSetProjectAction} from "./Redux";
 
 export const AcceptInviteLink: React.FunctionComponent = () => {
     const navigate = useNavigate();
+    const dispatch = useDispatch();
 
     const locationParams = useParams<{id: string;}>();
     let token = locationParams.id ? decodeURIComponent(locationParams.id) : undefined;
@@ -22,7 +25,7 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
 
     useEffect(() => {
         if (acceptedInvite) {
-            // TODO(Brian) Set active project
+            dispatchSetProjectAction(dispatch, acceptedInvite.data?.project);
             navigate("/projects");
         }
     }, [acceptedInvite]);
