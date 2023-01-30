@@ -1,8 +1,8 @@
 import {BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud";
-import {apiBrowse, apiCreate, apiRetrieve, apiUpdate, useCloudAPI, useGlobalCloudAPI} from "@/Authentication/DataHook";
+import {apiBrowse, apiCreate, apiRetrieve, apiUpdate, useCloudAPI, useCloudCommand, useGlobalCloudAPI} from "@/Authentication/DataHook";
 import {useSelector} from "react-redux";
 import {IconName} from "@/ui-components/Icon";
-import {useLocation, useParams} from "react-router";
+import {Navigate, useLocation, useNavigate, useParams} from "react-router";
 import {useCallback, useEffect, useState} from "react";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {emptyProject} from "./cache";
@@ -102,6 +102,14 @@ interface UpdateInviteLinkGroupAssignmentRequest {
     groups: string[];
 }
 
+interface AcceptInviteLinkRequest {
+    token: string;
+}
+
+export interface AcceptInviteLinkResponse {
+    project: string;
+}
+
 interface RenameProjectRequest {
     id: string;
     newTitle: string;
@@ -190,6 +198,10 @@ class ProjectApi {
 
     public updateInviteLinkGroupAssignment(request: UpdateInviteLinkGroupAssignmentRequest): APICallParameters {
         return apiUpdate(request, this.baseContext, "updateInviteLinkGroupAssignment");
+    }
+
+    public acceptInviteLink(request: AcceptInviteLinkRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "acceptInviteLink")
     }
 
     public deleteMember(request: BulkRequest<{username: string}>): APICallParameters {

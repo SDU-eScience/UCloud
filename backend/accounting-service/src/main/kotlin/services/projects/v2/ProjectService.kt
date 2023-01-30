@@ -1426,8 +1426,130 @@ class ProjectService(
         }
     }
 
-    suspend fun acceptInviteLink(actorAndProject: ActorAndProject, request: ProjectsAcceptInviteLinkRequest) {
+    suspend fun acceptInviteLink(
+        actorAndProject: ActorAndProject,
+        request: ProjectsAcceptInviteLinkRequest,
+        ctx: DBContext = db
+    ) : ProjectsAcceptInviteLinkResponse {
+        return ctx.withSession { session ->
+            val projectAndPi = session.sendPreparedStatement(
+                {
+                    setParameter("token", request.token)
+                },
+                """
+                    select project_id, username from project.project_members
+                    where
+                        role = 'PI' and
+                        project_id = (
+                            select project_id from project.invite_links where token = cast(:token as uuid) and now() < expires
+                        )
+                """
+            ).rows.first().let {
+                it.getString("project_id") to it.getString("username")
+            }
 
+            if (projectAndPi.first == null || projectAndPi.second == null) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            }
+
+            val piActor = ActorAndProject(
+                Actor.SystemOnBehalfOfUser(projectAndPi.second!!),
+                projectAndPi.first!!
+            )
+
+            createInvite(
+                piActor,
+                bulkRequestOf(ProjectsCreateInviteRequestItem(actorAndProject.actor.safeUsername())),
+                ctx
+            )
+
+            acceptInvite(
+                actorAndProject,
+                bulkRequestOf(FindByProjectId(projectAndPi.first!!)),
+                ctx
+            )
+
+            // TODO(Brian) Add to groups
+            // TODO(Brian) change role
+
+            ProjectsAcceptInviteLinkResponse(projectAndPi.first!!)
+        }
+
+        /*data class InviteLinkAssignment(
+            val project: String,
+            val role: ProjectRole,
+            val groups: List<String>
+        )
+
+        val project = db.withSession { session ->
+            val assignment = session.sendPreparedStatement(
+                {
+                    setParameter("token", request.token)
+                },
+                """
+                    select project_id, group_id, role_assignment from project.invite_links
+                    left join project.invite_link_group_assignments a on a.link_token = token
+                    left join project.groups g on g.id = a.group_id
+                    where now() < expires and token = :token
+                """
+            ).rows.groupBy { it.getString("project") }.map { entry ->
+                if (entry.key.isNullOrBlank()) {
+                    throw RPCException("Link expired", HttpStatusCode.BadRequest)
+                }
+
+                InviteLinkAssignment(
+                    entry.key!!,
+                    ProjectRole.valueOf(entry.value.first().getString("role_assignment") ?: "USER"),
+                    entry.value.mapNotNull { it.getString("group_id") }
+                )
+            }
+
+            if (assignment.size != 1 || assignment.first().project == null) {
+                throw RPCException("Link expired", HttpStatusCode.BadRequest)
+            }
+
+            val projectAssignment = assignment.first()
+
+            // Insert into project
+            val userInProject = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("project", projectAssignment.project)
+                        setParameter("role", projectAssignment.role.name)
+                    },
+                    """
+                        insert into project.project_members (created_at, modified_at, role, username, project_id) 
+                        values (now(), now(), :role, :username, :project)
+                        on conflict (username, project_id) do nothing
+                        returning username, project_id
+                    """
+                )
+                .rows
+                .map { it.getString(0)!! to it.getString(1)!! }.firstOrNull()
+                ?: throw RPCException(
+                    "Could not accept project link invite. Maybe it is no longer valid?",
+                    HttpStatusCode.BadRequest
+                )
+
+            val allGroup = locateOrCreateAllUsersGroup(userInProject.second, session)
+            val addToGroups = listOf(allGroup) + projectAssignment.groups
+            createGroupMember(
+                ActorAndProject(Actor.System, null),
+                BulkRequest(addToGroups.map { group -> GroupMember(userInProject.first, group) }),
+                ctx = session,
+                dispatchUpdate = false,
+                allowNoChange = true
+            )
+
+            updateHandlers.forEach { it(listOf(projectAssignment.project)) }
+
+            projectAssignment.project
+        }
+
+        projectCache.invalidate(actorAndProject.actor.safeUsername())
+
+        return ProjectsAcceptInviteLinkResponse(project)*/
     }
 
     suspend fun deleteMember(

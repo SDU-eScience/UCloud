@@ -1043,7 +1043,7 @@ function daysLeftToTimestamp(timestamp: number): number {
 }
 
 function inviteLinkFromToken(token: string): string {
-    return window.location.origin + "/app/projects/invite?id=" + token;
+    return window.location.origin + "/app/projects/invite/" + token;
 }
 
 

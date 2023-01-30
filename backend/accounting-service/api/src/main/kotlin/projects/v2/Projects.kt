@@ -342,7 +342,7 @@ implement(Descriptions.call) {
         httpUpdate(baseContext, "updateInviteLinkGroupAssignment")
     }
 
-    val acceptInviteLink = call("acceptInviteLink", ProjectsAcceptInviteLinkRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+    val acceptInviteLink = call("acceptInviteLink", ProjectsAcceptInviteLinkRequest.serializer(), ProjectsAcceptInviteLinkResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "acceptInviteLink")
     }
 
@@ -524,6 +524,12 @@ data class ProjectsUpdateInviteLinkGroupAssignmentRequest(
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class ProjectsAcceptInviteLinkRequest(
     val token: String
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ProjectsAcceptInviteLinkResponse(
+    val project: String
 )
 
 
