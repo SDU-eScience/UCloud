@@ -13,6 +13,7 @@ node {
     def jobName = "t"+currentBuild.startTimeInMillis
     echo (jobName)
     echo env.GIT_COMMITTER_EMAIL
+    echo env.GIT_COMMITTER_NAME
     //Make check on PR creator and specific branches. master, staging, PRs
     if (
         //env.BRANCH_NAME == 'jenkinsSetup' || 
