@@ -12,8 +12,8 @@ node {
     sh label: '', script: 'java -version'
     def jobName = "t"+currentBuild.startTimeInMillis
     echo (jobName)
-    echo env.COMMITTER_EMAIL
-    echo env.COMMITTER_NAME
+
+    echo sh(script: 'env|sort', returnStdout: true)
     //Make check on PR creator and specific branches. master, staging, PRs
     if (
         //env.BRANCH_NAME == 'jenkinsSetup' || 
