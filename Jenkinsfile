@@ -12,8 +12,13 @@ node {
     sh label: '', script: 'java -version'
     def jobName = "t"+currentBuild.startTimeInMillis
     echo (jobName)
+    echo env.GIT_COMMITTER_EMAIL
     //Make check on PR creator and specific branches. master, staging, PRs
-    if (env.BRANCH_NAME == 'jenkinsSetup') {
+    if (
+        //env.BRANCH_NAME == 'jenkinsSetup' || 
+        env.BRANCH_NAME == 'master' || 
+        env.BRANCH_NAME == 'staging'
+        ) {
         stage('Checkout') {
             checkout(
                 [
