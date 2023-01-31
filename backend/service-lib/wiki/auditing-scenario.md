@@ -33,33 +33,8 @@ Steps:
 Verification:
 
 ---
+
 Request #1:
-
-```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.createupload-$DATE/_search?pretty -d "
-{
-  \"query\": {
-    \"query_string\": {
-      \"query\": \"token.principal.username:$USERNAME\"
-    }
-  }
-}"
-```
-
-Should contain:
-
-```
-"requestJson" : {
-    "id" : "/RANDOM_ID/Audit-$DATE/file.txt",
-    "supportedProtocols" : [
-      "CHUNKED"
-    ],
-    "conflictPolicy" : "RENAME"
-}
-```
-
----
-Request #2:
 
 ```
 curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.createfolder-$DATE/_search?pretty -d "
@@ -82,6 +57,32 @@ Should contain:
       "conflictPolicy" : "RENAME"
     }
   ]
+}
+```
+
+---
+Request #2:
+
+```
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.createupload-$DATE/_search?pretty -d "
+{
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME\"
+    }
+  }
+}"
+```
+
+Should contain:
+
+```
+"requestJson" : {
+    "id" : "/RANDOM_ID/Audit-$DATE/file.txt",
+    "supportedProtocols" : [
+      "CHUNKED"
+    ],
+    "conflictPolicy" : "RENAME"
 }
 ```
 
@@ -113,6 +114,11 @@ Should contain:
   ]
 }
 ```
+
+Please note that the name is the same. The request we send is old path -> new path. It is 
+only after the backend has received the request that we find out there is a conflict. 
+We then use the conflictPolicy to decide what to do. In this case we rename it automatically
+by providing a (1), (2) etc. to the file name
 
 ---
 
@@ -478,7 +484,7 @@ Should contain:
         "document" : {
           "sensitivity" : "SENSITIVE"
         },
-        "changeLog" : "GDPR"
+        "changeLog" : "WHAT EVER WE WROTE IN COMMENT"
       }
     }
   ]

@@ -146,7 +146,7 @@ interface FilesEmptyTrashRequestItem {
 interface ExtraCallbacks {
     collection?: FileCollection;
     directory?: UFile;
-    // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in 
+    // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in
     // special case.
     allowMoveCopyOverride?: boolean;
     syncthingConfig?: SyncthingConfig;
@@ -406,7 +406,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         (cb.onSelectRestriction == null || cb.onSelectRestriction(cb.directory));
                 },
                 onClick: (selected, cb) => {
-                    cb.onSelect?.({
+                    cb.onSelect?.(cb.directory ?? {
                         id: "",
                         status: {type: "DIRECTORY"},
                         permissions: {myself: []},
@@ -1032,7 +1032,7 @@ async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeComman
             <>
                 <Heading.h2>Sensitive files not supported <Icon name="warning" color="red" size="32" /></Heading.h2>
                 <p>
-                    This provider (<ProviderTitle providerId={file.specification.product.provider} />) has declared 
+                    This provider (<ProviderTitle providerId={file.specification.product.provider} />) has declared
                     that they do not support sensitive data. This means that you <b>cannot/should not</b>:
 
                     <ul>

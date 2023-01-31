@@ -41,9 +41,6 @@ const val LINUX_FS_USER_UID = 11042
 class NativeFS(
     private val pathConverter: PathConverter,
 ) {
-    var disableChown = false
-    private val debug: DebugSystem? = debugSystem
-
     private fun openFile(file: InternalFile, flag: Int = 0): LinuxFileHandle {
         with(clib) {
             val components = file.components()
@@ -440,8 +437,10 @@ class NativeFS(
                 var i = 1
                 while (i < fileDescriptors.size) {
                     val previousFd = fileDescriptors[i - 1] ?: error("Should never happen. $fileDescriptors $components $i")
+                    log.info("Trying ${components[i]}")
 
                     if (didCreatePrevious && owner != null) {
+                        log.info("Changing the owner of ${components[i]}")
                         fchown(previousFd.fd, owner, owner)
                         didCreatePrevious = false
                     }
@@ -451,18 +450,26 @@ class NativeFS(
                     )
 
                     if (fileDescriptors[i] == null && clib.getErrno() == ENOENT) {
+                        log.info("Creating ${components[i]}")
                         val err = mkdirat(previousFd.fd, components[i], DEFAULT_DIR_MODE)
                         if (err < 0) {
                             log.debug("Could not create directories at $file")
                             throw FSException.NotFound()
                         }
                         didCreatePrevious = true
-                    } else {
-                        i++
+
+                        fileDescriptors[i] = LinuxFileHandle.createOrNull(
+                            openat(previousFd.fd, components[i], O_NOFOLLOW, 0)
+                        )
                     }
+
+                    i++
                 }
 
                 val finalFd = fileDescriptors.last() ?: throwExceptionBasedOnStatus(clib.getErrno())
+
+                log.info("didCreatePrevious = $didCreatePrevious owner = $owner")
+                if (didCreatePrevious && owner != null) fchown(finalFd.fd, owner, owner)
 
                 val error = mkdirat(finalFd.fd, components.last(), DEFAULT_DIR_MODE)
                 if (error != 0) {

@@ -23,10 +23,21 @@ class K8Pod(
 ) : PodBasedContainer() {
     private val namespace = pod.metadata!!.namespace!!
 
-    override suspend fun cancel() {
-        k8Client.deleteResource(
-            KubernetesResourceLocator.common.pod.withNameAndNamespace(pod.metadata!!.name!!, namespace,)
-        )
+    override suspend fun cancel(force: Boolean) {
+        try {
+            k8Client.deleteResource(
+                KubernetesResourceLocator.common.pod.withNameAndNamespace(pod.metadata!!.name!!, namespace,),
+                queryParameters = buildMap {
+                    if (force) put("force", "true")
+                }
+            )
+        } catch (ex: KubernetesException) {
+            if (ex.statusCode == HttpStatusCode.NotFound) {
+                // This is OK
+            } else {
+                throw ex
+            }
+        }
 
         if (rank == 0) {
             runCatching {

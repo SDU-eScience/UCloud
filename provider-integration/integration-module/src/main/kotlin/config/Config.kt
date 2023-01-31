@@ -638,7 +638,6 @@ fun loadConfiguration(): ConfigSchema {
                         ex is SerializationException && exMsg.contains("is not registered for poly") -> {
                             line("It looks like you have requested a configuration block which does not exist.")
                             line()
-                            println(exMsg)
 
                             val errorMessageRegex = Regex(
                                 "Class '(.+)' is not registered for polymorphic " +

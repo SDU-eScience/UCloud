@@ -62,9 +62,15 @@ class FeaturePublicIP(
                     prepare = {
                         bindString("id", network.id)
                         bindString("external", formatIpAddress(ipAddress.externalAddress))
-                        bindString("internal", formatIpAddress(
-                            remapAddress(ipAddress.externalAddress, ipAddress.externalSubnet, ipAddress.internalSubnet)
-                        ))
+                        bindString(
+                            "internal", formatIpAddress(
+                                remapAddress(
+                                    ipAddress.externalAddress,
+                                    ipAddress.externalSubnet,
+                                    ipAddress.internalSubnet
+                                )
+                            )
+                        )
                         bindString("owner", network.owner.project ?: network.owner.createdBy)
                     }
                 )
@@ -111,7 +117,7 @@ class FeaturePublicIP(
                     //language=postgresql
                     "select count(*)::bigint from ucloud_compute_network_ips where owner = :owner"
                 ).useAndInvoke(
-                    prepare = { bindString("owner", owner)},
+                    prepare = { bindString("owner", owner) },
                     readRow = { row -> row.getLong(0)!! }
                 )
                 val currentUsage = rows.singleOrNull() ?: 1L
@@ -140,7 +146,7 @@ class FeaturePublicIP(
                     //language=postgresql
                     "delete from ucloud_compute_bound_network_ips where network_ip_id = :id"
                 ).useAndInvokeAndDiscard(
-                    prepare = { bindString("id", ingress.id)}
+                    prepare = { bindString("id", ingress.id) }
                 )
 
                 session.prepareStatement(
@@ -157,6 +163,7 @@ class FeaturePublicIP(
 
     override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         val networks = job.networks
+        log.info("PublicIP for ${job.id} with ${networks.size} IPs attached on ${job.specification.replicas} replicas")
         if (networks.isEmpty()) return
 
         data class RetrievedIpAddress(val id: String, val internal: String, val external: String)
@@ -182,6 +189,9 @@ class FeaturePublicIP(
                     prepare = {
                         bindString("id", network.id)
                         bindString("jobId", job.id)
+
+                        log.info("Q1 id: ${network.id}")
+                        log.info("Q1 jobId: ${job.id}")
                     }
                 )
             }
@@ -196,25 +206,39 @@ class FeaturePublicIP(
                         where id = :network_id
                     """
                 ).useAndInvoke(
-                    prepare = { bindString("network_id", network.id) },
-                    readRow = { row -> RetrievedIpAddress(row.getString(0)!!, row.getString(1)!!, row.getString(2)!!) }
+                    prepare = {
+                        bindString("network_id", network.id)
+
+                        log.info("Q2 network_id: ${network.id}")
+                    },
+                    readRow = { row ->
+                        log.info("Reading row...")
+                        rows.add(
+                            RetrievedIpAddress(row.getString(0)!!, row.getString(1)!!, row.getString(2)!!).also { log.info(it.toString()) }
+                        )
+                    }
                 )
             }
 
             rows
         }
 
+        log.info("Rows are: $idsAndIps")
+
         idsAndIps.forEach { (id, ip) ->
+            log.info("Looking for $id $ip")
             val retrievedNetwork = NetworkIPControl.retrieve.call(
                 ResourceRetrieveRequest(NetworkIPFlags(), id),
                 k8.serviceClient
             ).orThrow()
+            log.info("Got a response $retrievedNetwork. Now mounting the thing")
 
             builder.mountIpAddress(
                 ip,
                 networkInterface,
                 run {
                     val openPorts = retrievedNetwork.specification.firewall?.openPorts ?: emptyList()
+                    log.info("These are the ports: $openPorts")
                     openPorts.flatMap { portRange ->
                         (portRange.start..portRange.end).map { port ->
                             Pair(port, portRange.protocol)
@@ -223,6 +247,7 @@ class FeaturePublicIP(
                 }
             )
 
+            log.info("Adding a status now!")
             k8.addStatus(job.id, "Successfully attached the following IP addresses: " +
                     idsAndIps.joinToString(", ") { it.external })
         }
@@ -234,7 +259,7 @@ class FeaturePublicIP(
                 //language=postgresql
                 "delete from ucloud_compute_bound_network_ips where job_id = :jobId"
             ).useAndInvokeAndDiscard(
-                prepare = { bindString("jobId", jobId)}
+                prepare = { bindString("jobId", jobId) }
             )
         }
     }
@@ -283,6 +308,21 @@ class FeaturePublicIP(
         return rows
     }
 
+    suspend fun deleteByExternalCidr(cidr: String) {
+        db.withSession { session ->
+            session.prepareStatement(
+                //language=postgresql
+                """
+                    delete from ucloud_compute_network_ip_pool
+                    where external_cidt = :cidr
+                """
+            ).useAndInvokeAndDiscard {
+                bindString("cidr", cidr)
+            }
+        }
+    }
+
+
     private suspend fun retrieveStatus(ctx: DBContext): K8NetworkStatus {
         return ctx.withSession { session ->
             val subnets = ArrayList<UIntRange>()
@@ -290,10 +330,10 @@ class FeaturePublicIP(
                 //language=postgresql
                 "select external_cidr from ucloud_compute_network_ip_pool"
             ).useAndInvoke {
-                    val external = it.getString(0)!!
-                    val validated = runCatching { validateCidr(external) }.getOrNull() ?: return@useAndInvoke
-                    subnets.add(validated)
-                }
+                val external = it.getString(0)!!
+                val validated = runCatching { validateCidr(external) }.getOrNull() ?: return@useAndInvoke
+                subnets.add(validated)
+            }
 
             val capacity = subnets.sumOf { it.last - it.first + 1u }
 
@@ -322,7 +362,7 @@ class FeaturePublicIP(
             session
                 .prepareStatement(
                     //language=postgresql
-                    "select external_cidr, internal_cidr from network_ip_pool"
+                    "select external_cidr, internal_cidr from ucloud_compute_network_ip_pool"
                 )
                 .useAndInvoke {
                     val subnet = K8Subnet(it.getString(0)!!, it.getString(1)!!)

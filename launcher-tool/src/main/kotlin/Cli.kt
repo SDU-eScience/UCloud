@@ -112,6 +112,21 @@ fun cliIntercept(args: List<String>) {
         "import-apps" -> {
             Commands.importApps()
         }
+
+        "add-provider" -> {
+            val provider = args.getOrNull(1) ?: printHelp()
+            Commands.createProvider(provider)
+        }
+
+        "snapshot" -> {
+            val snapshotName = args.getOrNull(1) ?: printHelp()
+            Commands.createSnapshot(snapshotName)
+        }
+
+        "restore" -> {
+            val snapshotName = args.getOrNull(1) ?: printHelp()
+            Commands.restoreSnapshot(snapshotName)
+        }
     }
     exitProcess(0)
 }

@@ -1120,8 +1120,8 @@ class FilesService(
             listOf(permission)
         ).associateBy { it.id }
 
-        return request.items.map { req ->
-            val coll = collections.getValue(idGetter(req))
+        return request.items.mapNotNull { req ->
+            val coll = collections[idGetter(req)] ?: return@mapNotNull null
             req to ProductRefOrResource.SomeResource(coll)
         }
     }

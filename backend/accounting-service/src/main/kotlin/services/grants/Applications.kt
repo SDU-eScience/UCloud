@@ -874,7 +874,9 @@ class GrantApplicationService(
                 }
 
                 // Note(Jonas): This would be called for each request, potentially setting reject multiple times, right?
+                println("STATE")
                 val newOverallState = if (update.newState == GrantApplication.State.REJECTED) {
+                    println("IF")
                     session.sendPreparedStatement(
                         {
                             setParameter("app_id", update.applicationId)
@@ -897,8 +899,10 @@ class GrantApplicationService(
                     )
                     update.newState
                 } else {
+                    println("ELSE")
                     val (approved, states) = retrieveGrantGiversStates(session, update.applicationId)
 
+                    println("$approved, $states" )
                     if (approved) {
                         session.sendPreparedStatement(
                             {
@@ -911,6 +915,7 @@ class GrantApplicationService(
                             """
                         )
                         val currentRevision = getCurrentRevision(session, update.applicationId)
+                        println("CURRENT REVISION: $currentRevision")
                         val parentId = session.sendPreparedStatement(
                             {
                                 setParameter("app_id", update.applicationId)
@@ -1202,6 +1207,7 @@ class GrantApplicationService(
         applicationId: Long,
         parentId: String?
     ) {
+        println("ON APPLICATION APPROVE")
         session.sendPreparedStatement(
             {
                 setParameter("id", applicationId)
@@ -1209,6 +1215,7 @@ class GrantApplicationService(
             },
             """select "grant".approve_application(:id, :parent::text)"""
         )
+        println("AFTER SQL APPROVE APPLICAIOTN")
         val createdProject = session.sendPreparedStatement("select project_id from grant_created_projects").rows
             .map { it.getString(0)!! }.singleOrNull()
 

@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 AS base
+FROM ubuntu:22.04 AS base
 
 # Dependencies
 RUN apt-get update
@@ -37,8 +37,6 @@ RUN apt-get update && apt-get install -y vim
 WORKDIR /usr/bin
 RUN ln -s /opt/ucloud/build/install/ucloud-integration-module/bin/ucloud-integration-module ucloud
 RUN ln -s /usr/local/sdkman/candidates/java/current/bin/java java
-COPY default_config /opt/ucloud-default-config
-RUN chmod +x /opt/ucloud-default-config/config_installer.sh 
 COPY --from=base  /usr/local/bin/func-e /usr/local/bin/getenvoy
 WORKDIR /opt/ucloud
 
@@ -49,32 +47,3 @@ RUN cp /etc/group /etc/group.orig
 RUN cp /etc/shadow /etc/shadow.orig
 
 WORKDIR /opt/ucloud
-
-
-
-
-### SLURM RELATED ###
-FROM giovtorres/slurm-docker-cluster:latest AS slurm-base
-
-
-FROM slurm-base as slurm-base-ssh
-#install sshd server
-RUN yum -y install openssh-server
-RUN yum -y install openmpi-devel Lmod
-
-#generate host keys
-RUN cd /etc/ssh && ssh-keygen -A
-
-# https://github.com/giovtorres/slurm-docker-cluster/blob/master/docker-entrypoint.sh
-COPY default_config/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chown  root:root /usr/local/bin/docker-entrypoint.sh
-RUN chmod 760 /usr/local/bin/docker-entrypoint.sh
-
-COPY default_config/slurm.conf /etc/slurm/slurm.conf
-
-
-FROM slurm-base-ssh as slurm-ssh-openmpi
-RUN yum -y install openmpi-devel Lmod python3
-RUN cp /etc/passwd /etc/passwd.orig
-RUN cp /etc/group /etc/group.orig
-RUN cp /etc/shadow /etc/shadow.orig
