@@ -592,17 +592,31 @@ export const ProjectMembers2: React.FunctionComponent = () => {
 
                     <SearchContainer>
                         {!isAdmin ? null : (
-                            <form onSubmit={onAddMember}>
-                                <Input
-                                    id="new-project-member"
-                                    placeholder="Username"
-                                    autoComplete="off"
-                                    ref={newMemberRef}
-                                    rightLabel
-                                />
+                            <>
+                                <form onSubmit={onAddMember}>
+                                    <Input
+                                        id="new-project-member"
+                                        placeholder="Username"
+                                        autoComplete="off"
+                                        ref={newMemberRef}
+                                        rightLabel
+                                    />
+                                    <Button attached type={"submit"}>Add</Button>
+                                    <Relative left="-95px" top="8px">
+                                        <Absolute>
+                                            <Tooltip tooltipContentWidth="160px" trigger={<HelpCircle />}>
+                                                <Text color="black" fontSize={12}>
+                                                    Your username can be found at the bottom of the sidebar next to
+                                                    {" "}<Icon name="id" />.
+                                                </Text>
+                                            </Tooltip>
+                                        </Absolute>
+                                    </Relative>
+                                </form>
                                 <Button
-                                    asSquare
-                                    color="green"
+                                    mb={10}
+                                    mr={10}
+                                    width={110}
                                     type="button"
                                     title="Invite with link"
                                     onClick={async () => {
@@ -615,20 +629,10 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                         );
                                     }}
                                 >
-                                    <Icon name="open" />
+                                    Invite link
                                 </Button>
-                                <Button attached type={"submit"}>Add</Button>
-                                <Relative left="-160px" top="8px">
-                                    <Absolute>
-                                        <Tooltip tooltipContentWidth="160px" trigger={<HelpCircle />}>
-                                            <Text color="black" fontSize={12}>
-                                                Your username can be found at the bottom of the sidebar next to
-                                                {" "}<Icon name="id" />.
-                                            </Text>
-                                        </Tooltip>
-                                    </Absolute>
-                                </Relative>
-                            </form>
+                            </>
+
                         )}
                         <form onSubmit={preventDefault}>
                             <Input
@@ -1224,7 +1228,6 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
 
                                 <ConfirmationButton
                                     color="red"
-                                    width={20}
                                     height={40}
                                     onAction={async () => {
                                         await callAPIWithErrorHandler({
@@ -1362,10 +1365,9 @@ const TwoColumnLayout = styled.div`
 
 const SearchContainer = styled(Flex)`
   flex-wrap: wrap;
+  justify-content: space-between;
 
   form {
-    flex-grow: 1;
-    flex-basis: 350px;
     display: flex;
     margin-right: 10px;
     margin-bottom: 10px;
