@@ -9,7 +9,7 @@ import {doNothing} from "@/UtilityFunctions";
 import {fontSize, FontSizeProps} from "styled-system";
 import {selectHoverColor, ThemeColor} from "@/ui-components/theme";
 
-const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string} & FontSizeProps>`
+const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string, actionText?: string} & FontSizeProps>`
     --progress-border: var(--background, #f00);
     --progress-active: var(--white, #f00);
     --progress-success: var(--color, #f00);
@@ -25,7 +25,7 @@ const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string}
     backface-visibility: hidden;
     -webkit-appearance: none;
     -webkit-tap-highlight-color: transparent;
-    min-width: ${p => p.asSquare ? "200px" : "250px"};
+    min-width: ${p => !p.actionText ? "50px" : p.asSquare ? "200px" : "250px" };
     background: var(--background, #f00);
     font-size: ${p => p.asSquare ? "16px" : "large"};
     font-weight: ${p => p.asSquare ? "400" : "700"};
@@ -219,7 +219,7 @@ const shakeDelta = 100;
 const tickRate = 50;
 
 export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
-    actionText: string,
+    actionText?: string,
     doneText?: string,
     icon?: IconName,
     align?: "left" | "center",
@@ -336,10 +336,12 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
                 <polyline points="18,7 11,16 6,12" />
             </svg>
         </div>
-        <ul>
-            <li>{showHelp ? "Hold to confirm" : props.actionText}</li>
-            <li>Hold to confirm</li>
-            <li>{props.doneText ?? "Done"}</li>
-        </ul>
+        {!props.actionText ? null : (
+            <ul>
+                <li>{showHelp ? "Hold to confirm" : props.actionText}</li>
+                <li>Hold to confirm</li>
+                <li>{props.doneText ?? "Done"}</li>
+            </ul>
+        )}
     </Wrapper>;
 };

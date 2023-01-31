@@ -53,6 +53,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {DropdownContent} from "@/ui-components/Dropdown";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ProductSelector} from "@/Products/Selector";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 // UI state management
 // ================================================================================
@@ -1213,24 +1214,27 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
                             <Box>
                                 <Button
                                     mr="5px"
+                                    height={40}
                                     onClick={() => 
                                         setEditingLink(link.token)
                                     }
                                 >
                                     <Icon name="edit" size={20} />
                                 </Button>
-                                <Button
+
+                                <ConfirmationButton
                                     color="red"
-                                    onClick={async () => {
+                                    width={20}
+                                    height={40}
+                                    onAction={async () => {
                                         await callAPIWithErrorHandler({
                                             ...Api.deleteInviteLink({token: link.token})
                                         });
 
                                         fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
                                     }}
-                                >
-                                    <Icon name="trash" size={20} />
-                                </Button>
+                                    icon="trash"
+                                />
                             </Box>
                         </Flex>
                     </Box>
