@@ -1348,15 +1348,6 @@ class ProjectService(
                     HttpStatusCode.BadRequest
                 )
             }
-
-            session.sendPreparedStatement(
-                {
-                    setParameter("token", request.token)
-                },
-                """
-                    delete from project.invite_link_group_assignments where link_token = :token
-                """
-            )
         }
     }
 
@@ -1506,6 +1497,16 @@ class ProjectService(
             )
 
             ProjectsAcceptInviteLinkResponse(projectAssignment.piActorAndProject.requireProject())
+        }
+    }
+
+    suspend fun cleanUpInviteLinks(ctx: DBContext = db) {
+        ctx.withSession { session ->
+            val cleaned = session.sendPreparedStatement("""
+                delete from project.invite_links where expires < now()
+            """).rowsAffected
+
+            log.debug("Cleaned up $cleaned expired project invite links")
         }
     }
 

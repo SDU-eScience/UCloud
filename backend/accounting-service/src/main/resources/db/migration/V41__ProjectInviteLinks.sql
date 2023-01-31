@@ -6,7 +6,7 @@ create table if not exists project.invite_links (
 );
 
 create table if not exists project.invite_link_group_assignments (
-    link_token uuid not null references project.invite_links(token),
+    link_token uuid not null references project.invite_links(token) on delete cascade,
     group_id varchar(255) not null references project.groups(id),
     primary key (link_token, group_id)
 );
