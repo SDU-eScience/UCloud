@@ -623,6 +623,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                         dialogStore.addDialog(
                                             <InviteLinkEditor
                                                 groups={groups}
+                                                project={project}
                                             />,
                                             doNothing,
                                             true
@@ -1052,7 +1053,7 @@ function inviteLinkFromToken(token: string): string {
 }
 
 
-const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefined)[]}> = ({groups}) => {
+const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (ProjectGroup | undefined)[]}> = ({project, groups}) => {
     const [inviteLinksFromApi, fetchInviteLinks] = useCloudAPI<PageV2<ProjectInviteLink>>({noop: true}, emptyPageV2);
     const [editingLink, setEditingLink] = useState<string|undefined>(undefined);
     const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
@@ -1083,7 +1084,11 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
     }, [editingLink, inviteLinksFromApi]);
 
     useEffect(() => {
-        fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
+        fetchInviteLinks({
+            ...Api.browseInviteLinks({itemsPerPage: 10}),
+            projectOverride: project.id
+
+        });
     }, []);
 
     return inviteLinksFromApi.data.items.length < 1 ? <>
@@ -1093,10 +1098,14 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
             <Button
                 onClick={async () => {
                     await callAPIWithErrorHandler({
-                        ...Api.createInviteLink()
+                        ...Api.createInviteLink(),
+                        projectOverride: project.id
                     });
 
-                    fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
+                    fetchInviteLinks({
+                        ...Api.browseInviteLinks({itemsPerPage: 10}),
+                        projectOverride: project.id
+                    });
                 }}
             >Create link</Button>
         </Box>
@@ -1121,10 +1130,14 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
                             options={roles}
                             onChange={async role => {
                                 await callAPIWithErrorHandler({
-                                    ...Api.updateInviteLinkRoleAssignment({token: editingLink, role: role})
+                                    ...Api.updateInviteLinkRoleAssignment({token: editingLink, role: role}),
+                                    projectOverride: project.id
                                 });
 
-                                fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
+                                fetchInviteLinks({
+                                    ...Api.browseInviteLinks({itemsPerPage: 10}),
+                                    projectOverride: project.id
+                                });
                             }}
                         />
                     </SelectBox> 
@@ -1157,10 +1170,14 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
                                                         selectedGroups.filter(it => it != item.value) : selectedGroups.concat([item.value]);
 
                                                     await callAPIWithErrorHandler({
-                                                        ...Api.updateInviteLinkGroupAssignment({token: editingLink, groups: newSelection})
+                                                        ...Api.updateInviteLinkGroupAssignment({token: editingLink, groups: newSelection}),
+                                                        projectOverride: project.id
                                                     });
                                                     
-                                                    fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
+                                                    fetchInviteLinks({
+                                                        ...Api.browseInviteLinks({itemsPerPage: 10}),
+                                                        projectOverride: project.id
+                                                    });
                                                 }}
                                             >
                                                 <Checkbox checked={selectedGroups.includes(item.value)} readOnly />
@@ -1180,10 +1197,14 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
                     <Button
                         onClick={async () => {
                             await callAPIWithErrorHandler({
-                                ...Api.createInviteLink()
+                                ...Api.createInviteLink(),
+                                projectOverride: project.id
                             });
 
-                            fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
+                            fetchInviteLinks({
+                                ...Api.browseInviteLinks({itemsPerPage: 10}),
+                                projectOverride: project.id
+                            });
                         }}
                     >Create link</Button>
                 </Box>
@@ -1231,10 +1252,14 @@ const InviteLinkEditor: React.FunctionComponent<{groups: (ProjectGroup | undefin
                                     height={40}
                                     onAction={async () => {
                                         await callAPIWithErrorHandler({
-                                            ...Api.deleteInviteLink({token: link.token})
+                                            ...Api.deleteInviteLink({token: link.token}),
+                                            projectOverride: project.id
                                         });
 
-                                        fetchInviteLinks({...Api.browseInviteLinks({itemsPerPage: 10})});
+                                        fetchInviteLinks({
+                                            ...Api.browseInviteLinks({itemsPerPage: 10}),
+                                            projectOverride: project.id
+                                        });
                                     }}
                                     icon="trash"
                                 />
