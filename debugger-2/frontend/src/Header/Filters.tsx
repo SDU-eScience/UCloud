@@ -25,11 +25,11 @@ export function Filters({
             </div>
         }>
             <div>
-                <div><label onClick={() => toggleFilter(DebugContextType.BACKGROUND_TASK)}><input type="checkbox" />Background Tasks</label></div>
-                <div><label onClick={() => toggleFilter(DebugContextType.CLIENT_REQUEST)}><input type="checkbox" />Client Request</label></div>
-                <div><label onClick={() => toggleFilter(DebugContextType.SERVER_REQUEST)}><input type="checkbox" />Server Request</label></div>
-                <div><label onClick={() => toggleFilter(DebugContextType.DATABASE_TRANSACTION)}><input type="checkbox" />Database Transaction</label></div>
-                <div><label onClick={() => toggleFilter(DebugContextType.OTHER)}><input type="checkbox" />Other</label></div>
+                <div><label><input type="checkbox" onChange={e => toggleFilter(DebugContextType.BACKGROUND_TASK)} checked={filters.has(DebugContextType.BACKGROUND_TASK)} />Background Tasks</label></div>
+                <div><label><input type="checkbox" onChange={() => toggleFilter(DebugContextType.CLIENT_REQUEST)} checked={filters.has(DebugContextType.CLIENT_REQUEST)}/>Client Request</label></div>
+                <div><label><input type="checkbox" onChange={() => toggleFilter(DebugContextType.SERVER_REQUEST)} checked={filters.has(DebugContextType.SERVER_REQUEST)}/>Server Request</label></div>
+                <div><label><input type="checkbox" onChange={() => toggleFilter(DebugContextType.DATABASE_TRANSACTION)} checked={filters.has(DebugContextType.DATABASE_TRANSACTION)}/>Database Transaction</label></div>
+                <div><label><input type="checkbox" onChange={() => toggleFilter(DebugContextType.OTHER)} checked={filters.has(DebugContextType.OTHER)}/>Other</label></div>
             </div>
         </Dropdown>
     </div>

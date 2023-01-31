@@ -19,7 +19,7 @@ import AutoSizer from "react-virtualized-auto-sizer";
 
 type LogOrCtx = Log | DebugContext;
 
-export function MainContent({query, filters, levels}: {query: string, filters: Set<DebugContextType>, levels: string;}): JSX.Element {
+export function MainContent(): JSX.Element {
     const [routeComponents, setRouteComponents] = React.useState<LogOrCtx[]>([]);
     const service = React.useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot());
     const logs = React.useSyncExternalStore(s => logStore.subscribe(s), () => logStore.getSnapshot())
@@ -34,10 +34,6 @@ export function MainContent({query, filters, levels}: {query: string, filters: S
         replayMessages(activeService.generation, d.id, d.timestamp);
         setRouteComponents([d]);
     }, [setRouteComponents]);
-
-    React.useEffect(() => {
-        setSessionState(query, filters, levels);
-    }, [query, filters, levels]);
 
     const serviceLogs = logs.content[service] ?? [];
     const activeContext = routeComponents.at(-1);

@@ -1,3 +1,4 @@
+import React from "react";
 import {useState, useSyncExternalStore, useMemo} from "react";
 import "./App.css";
 import {Filters} from "./Header/Filters";
@@ -7,7 +8,7 @@ import {SearchBar} from "./Header/SearchBar";
 import {MainContent} from "./MainContent/MainContent";
 import {Sidebar} from "./Sidebar/Sidebar";
 import {DebugContextType} from "./WebSockets/Schema";
-import {activeService, serviceStore} from "./WebSockets/Socket";
+import {activeService, serviceStore, setSessionState} from "./WebSockets/Socket";
 
 
 interface ServiceNode {
@@ -61,6 +62,10 @@ function App(): JSX.Element {
         return root;
     }, [services]);
 
+    React.useEffect(() => {
+        setSessionState(query, filters, level);
+    }, [query, filters, level]);
+
     return <>
         <Header>
             <SearchBar setQuery={setQuery} />
@@ -71,7 +76,7 @@ function App(): JSX.Element {
             <Sidebar>
                 <ServiceList services={serviceNodes} />
             </Sidebar>
-            <MainContent filters={filters} levels={level} query={query} />
+            <MainContent />
         </div>
     </>;
 }
