@@ -174,12 +174,10 @@ export class DebugContext {
         this.offset = offset;
     }
 
-    /* Context ID */
     get parent(): number {
         return readInt4(this.buffer, this.offset + 0);
     }
 
-    /* Also Context ID? */
     get id(): number {
         return readInt4(this.buffer, this.offset + 4);
     }
@@ -209,6 +207,17 @@ export class DebugContext {
     }
 }
 
+export enum DBTransactionEvent {
+    OPEN,
+    COMMIT,
+    ROLLBACK
+}
+
+export function getEvent(ctx: DebugContext): DBTransactionEvent {
+    // TODO(Jonas): Not ideal.
+    return readInt1((ctx as any).buffer, (ctx as any).offset + 22 + 108);
+}
+ 
 function readNameFromBuffer(buffer: DataView, offset: number, size: number) {
     const nameBytes = readBytes(buffer, offset, size);
     let end = nameBytes.indexOf(0);
@@ -222,5 +231,5 @@ export function getServiceName(buffer: DataView) {
 }
 
 export function getGenerationName(buffer: DataView) {
-    return readNameFromBuffer(buffer, 264 - 16, 16); 
+    return readNameFromBuffer(buffer, 264 - 16, 16);
 }

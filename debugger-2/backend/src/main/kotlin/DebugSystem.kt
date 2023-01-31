@@ -274,6 +274,7 @@ class BinaryDebugSystem(
                     type == DebugContextType.BACKGROUND_TASK -> "Task"
                     type == DebugContextType.CLIENT_REQUEST -> "Client request"
                     type == DebugContextType.SERVER_REQUEST -> "Server request"
+                    type == DebugContextType.DATABASE_TRANSACTION -> "Database transaction"
                     type == DebugContextType.OTHER -> "Other task"
                     else -> "Other task"
                 }

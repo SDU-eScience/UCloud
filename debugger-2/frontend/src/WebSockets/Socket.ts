@@ -122,13 +122,9 @@ export interface DebugContextAndChildren {
     children: (Log | DebugContextAndChildren)[]
 }
 
-export let hasActiveContext = false;
-
 export function isLog(input: Log | DebugContext | DebugContextAndChildren): input is Log {
     return "ctxId" in input;
 }
-
-
 
 export const logStore = new class {
     private logs: {content: Record<string, DebugContext[]>} = {content: {}};
@@ -143,7 +139,6 @@ export const logStore = new class {
     }
 
     public clearActiveContext(): void {
-        hasActiveContext = false;
         this.ctxMap = {};
         this.activeContexts = null;
         this.entryCount = 0;
@@ -153,7 +148,6 @@ export const logStore = new class {
     }
 
     public addDebugRoot(debugContext: DebugContext): void {
-        hasActiveContext = true;
         const newRoot = {ctx: debugContext, children: []};
         this.activeContexts = newRoot;
         this.ctxMap[debugContext.id] = newRoot;
@@ -162,8 +156,6 @@ export const logStore = new class {
     }
 
     public addDebugContext(debugContext: DebugContext): void {
-        if (debugContext.type === 2) debugger;
-
         if (this.activeContexts) {
             const newEntry = {ctx: debugContext, children: []};
             this.ctxMap[debugContext.parent].children.push(newEntry);
@@ -285,17 +277,22 @@ export function setSessionState(query: string, filters: Set<DebugContextType>, l
     });
     const req = setSessionStateRequest(
         nullIfEmpty(query),
-        debugContextFilters,
+        nullIfEmpty(debugContextFilters),
         nullIfEmpty(level)
     );
+    console.log(req);
     socket.send(req);
 }
 
-function nullIfEmpty(f: string): string | null {
-    return f === "" ? null : f;
+interface WithLength {
+    length: number;
 }
 
-export function setSessionStateRequest(query: string | null, filters: string[], level: string | null): string {
+function nullIfEmpty<T extends WithLength>(f: T): T | null {
+    return f.length === 0 ? null : f;
+}
+
+export function setSessionStateRequest(query: string | null, filters: string[] | null, level: string | null): string {
     return JSON.stringify({
         type: "set_session_state",
         query: query,

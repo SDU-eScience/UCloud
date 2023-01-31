@@ -260,13 +260,14 @@ fun main(args: Array<String>) {
                             is ClientRequest.ClearActiveContext -> {
                                 session.clearLogMessages()
                                 session.clearContextMessages()
-                                session.activeContext = arrayListOf(1L)
-                                val generation = trackedServices.get().values.find { it.title == session.activeService }?.generation ?: break
+                                session.activeContexts = arrayListOf(1L)
+                                val generation =
+                                    trackedServices.get().values.find { it.title == session.activeService }?.generation
+                                        ?: break
                                 val startTime = session.toReplayFrom ?: break
                                 session.toReplayFrom = null
                                 val endTime = getTimeMillis()
                                 session.findContexts(startTime, endTime, directory, generation, true)
-                                println(session.activeContext)
                             }
 
                             is ClientRequest.ReplayMessages -> {
@@ -274,7 +275,7 @@ fun main(args: Array<String>) {
                                 session.clearContextMessages()
                                 session.clearLogMessages()
 
-                                session.activeContext = arrayListOf(request.context)
+                                session.activeContexts = arrayListOf(request.context)
 
                                 session.toReplayFrom = getTimeMillis()
                                 val generation = request.generation.toLong()
@@ -292,7 +293,11 @@ fun main(args: Array<String>) {
                             is ClientRequest.SetSessionState -> {
                                 session.filterQuery = request.query
                                 session.minimumLevel = request.level ?: MessageImportance.THIS_IS_NORMAL
-                                // TODO(Jonas): Filters
+                                session.filters = request.filters
+                            }
+
+                            is ClientRequest.GetTextBlob -> {
+                                TODO()
                             }
                         }
                     }
@@ -310,7 +315,13 @@ fun main(args: Array<String>) {
     }.start(wait = true)
 }
 
-suspend fun ClientSession.findContexts(startTime: Long, endTime: Long, directory: File, generation: Long, dontAddToActiveContext: Boolean = false) {
+suspend fun ClientSession.findContexts(
+    startTime: Long,
+    endTime: Long,
+    directory: File,
+    generation: Long,
+    dontAddToActiveContext: Boolean = false
+) {
     var currentFileId = 1 // Note(Jonas): Seems to start at 1?
 
     outer@ while (ContextReader.exists(directory, generation, currentFileId)) {
@@ -329,13 +340,16 @@ suspend fun ClientSession.findContexts(startTime: Long, endTime: Long, directory
             currentFile.resetCursor()
         }
 
+        val filters = this.filters
         while (currentFile.next()) {
             val currentEntry = currentFile.retrieve() ?: continue
             if (currentEntry.timestamp < startTime) continue // keep looking
             if (currentEntry.timestamp > endTime) break@outer // finished
 
-            if (currentEntry.parent.toLong() in activeContext) {
-                if (!dontAddToActiveContext) activeContext.add(currentEntry.id.toLong())
+            if (currentEntry.parent.toLong() in activeContexts) {
+                // NOTE(Jonas): I guess this check makes sense as we wish to ignore the ctx and children of ignored ctxes.
+                if (filters != null && !filters.contains(currentEntry.type)) continue
+                if (!dontAddToActiveContext) activeContexts.add(currentEntry.id.toLong())
                 acceptContext(generation, currentEntry)
             }
 
@@ -346,7 +360,6 @@ suspend fun ClientSession.findContexts(startTime: Long, endTime: Long, directory
             }
         }
     }
-    println(activeContext.size)
     flushContextMessage()
 }
 
@@ -377,7 +390,7 @@ suspend fun ClientSession.findLogs(startTime: Long, endTime: Long, directory: Fi
             if (currentEntry.timestamp < startTime) continue // keep looking
             if (currentEntry.timestamp > endTime) break@outer // finished
 
-            if (currentEntry.ctxId.toLong() in activeContext) {
+            if (currentEntry.ctxId.toLong() in activeContexts) {
                 acceptLogMessage(currentEntry)
                 logs.add(currentEntry)
             }
@@ -389,7 +402,6 @@ suspend fun ClientSession.findLogs(startTime: Long, endTime: Long, directory: Fi
             }
         }
     }
-    logs
     flushLogsMessage()
 }
 
@@ -405,12 +417,20 @@ sealed class ClientRequest {
 
     @Serializable
     @SerialName("set_session_state")
-    data class SetSessionState(val query: String?, val filters: List<DebugContextType>, val level: MessageImportance?) :
+    data class SetSessionState(
+        val query: String?,
+        val filters: List<DebugContextType>?,
+        val level: MessageImportance?
+    ) :
         ClientRequest()
 
     @Serializable
     @SerialName("clear_active_context")
     object ClearActiveContext : ClientRequest()
+
+    @Serializable
+    @SerialName("get_text_blob")
+    data class GetTextBlob(val blobId: String) : ClientRequest()
 }
 
 data class ClientSession(
@@ -418,10 +438,11 @@ data class ClientSession(
     val session: WebSocketServerSession,
 
     // State, which is updated by messages from the client.
-    var activeContext: ArrayList<Long> = arrayListOf(1L),
+    var activeContexts: ArrayList<Long> = arrayListOf(1L),
     var minimumLevel: MessageImportance = MessageImportance.THIS_IS_NORMAL,
     var filterQuery: String? = null,
     var activeService: String? = null,
+    var filters: List<DebugContextType>? = null,
 
     // To denote when the user requested children of a specific debug context.
     // Used to find out which contexts the user may have missed.
@@ -504,7 +525,7 @@ data class ClientSession(
         val services = trackedServices.get()
         val trackedService = services.values.find { it.title == service }
         if (trackedService == null || trackedService.generation != message.ctxGeneration) return
-        if (!activeContext.contains(message.ctxId.toLong())) return
+        if (!activeContexts.contains(message.ctxId.toLong())) return
 
         writeMutex.withLock {
             if (newLogsWriteBuffer.remaining() < FRAME_SIZE) return
@@ -526,7 +547,9 @@ data class ClientSession(
         val services = trackedServices.get()
         val trackedService = services.values.find { it.title == service }
         if (trackedService == null || trackedService.generation != generation) return
-        if (!activeContext.contains(context.parent.toLong())) return
+        if (!activeContexts.contains(context.parent.toLong())) return
+        val filters = this.filters
+        if (filters != null && !filters.contains(context.type)) return
 
         writeMutex.withLock {
             if (newContextWriteBuffer.remaining() < DebugContextDescriptor.size) return
