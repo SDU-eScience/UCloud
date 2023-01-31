@@ -29,19 +29,19 @@ abstract class BaseResourceController<
     protected abstract fun retrieveApi(providerId: String): Api
     override fun configureIpc(server: IpcServer) {}
 
-    protected fun lookupPluginByProduct(productId: String): Plugin? {
+    protected fun CallHandler<*, *, *>.lookupPluginByProduct(productId: String): Plugin? {
         return retrievePlugins()?.find { plugin ->
             plugin.productAllocation.any { it.id == productId }
         }
     }
 
-    protected fun lookupPluginOrNull(product: ProductReference): Plugin? {
+    protected fun CallHandler<*, *, *>.lookupPluginOrNull(product: ProductReference): Plugin? {
         return retrievePlugins()?.find { plugin ->
             plugin.productAllocation.any { it.id == product.id && it.category == product.category }
         }
     }
 
-    protected fun lookupPlugin(product: ProductReference): Plugin {
+    protected fun CallHandler<*, *, *>.lookupPlugin(product: ProductReference): Plugin {
         return lookupPluginOrNull(product) ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
     }
 
@@ -69,7 +69,7 @@ abstract class BaseResourceController<
 
     protected data class ReorderedItem<T>(val originalIndex: Int, val item: T)
 
-    protected suspend fun <T> groupResources(
+    private suspend fun <T> CallHandler<*, *, *>.groupResources(
         plugins: Collection<Plugin>,
         items: List<T>,
         selector: suspend (T) -> Resource<*, *>,

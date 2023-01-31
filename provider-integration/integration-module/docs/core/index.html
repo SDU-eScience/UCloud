@@ -164,6 +164,23 @@
                 </doc-prop>
             </section>
         </doc-prop>
+
+        <doc-prop name="maintenance" type="section">
+            <p>
+                A section containing information about maintenance related activities.
+            </p>
+            <section>
+                <doc-prop name="alwaysAllowAccessFrom" type="string[]" default="[]">
+                    <p>
+                        A list of UCloud usernames which should always be able to use the service, even if a product
+                        is undergoing maintenance. This is useful to test the provider following some maintenance
+                        operation. This allows you to test the system, without giving access to all users. You must
+                        have a <code>localStorage</code> entry in your browser with the key
+                        <code>NO_MAINTENANCE_BLOCK</code> to be able to use the user-interface.
+                    </p>
+                </doc-prop>
+            </section>
+        </doc-prop>
     </doc-prop-container>
 
     <script src="/app.js"></script>

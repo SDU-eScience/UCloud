@@ -690,6 +690,8 @@ fun main(args: Array<String>) {
                 registerAlwaysOnCommandLines(controllerContext)
             }
 
+            MaintenanceSystem.initialize(controllerContext)
+
             if (serverMode is ServerMode.Plugin) {
                 cli?.execute(serverMode.name) // NOTE(Dan): Will always exit here
             }
