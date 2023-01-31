@@ -437,10 +437,8 @@ class NativeFS(
                 var i = 1
                 while (i < fileDescriptors.size) {
                     val previousFd = fileDescriptors[i - 1] ?: error("Should never happen. $fileDescriptors $components $i")
-                    log.info("Trying ${components[i]}")
 
                     if (didCreatePrevious && owner != null) {
-                        log.info("Changing the owner of ${components[i]}")
                         fchown(previousFd.fd, owner, owner)
                         didCreatePrevious = false
                     }
@@ -468,7 +466,6 @@ class NativeFS(
 
                 val finalFd = fileDescriptors.last() ?: throwExceptionBasedOnStatus(clib.getErrno())
 
-                log.info("didCreatePrevious = $didCreatePrevious owner = $owner")
                 if (didCreatePrevious && owner != null) fchown(finalFd.fd, owner, owner)
 
                 val error = mkdirat(finalFd.fd, components.last(), DEFAULT_DIR_MODE)

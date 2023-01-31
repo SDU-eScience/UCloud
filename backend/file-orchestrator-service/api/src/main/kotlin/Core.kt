@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.Maintenance
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.*
@@ -465,6 +466,7 @@ data class FSSupport(
     val stats: FSProductStatsSupport = FSProductStatsSupport(),
     val collection: FSCollectionSupport = FSCollectionSupport(),
     val files: FSFileSupport = FSFileSupport(),
+    override val maintenance: Maintenance? = null,
 ) : ProductSupport
 
 @UCloudApiDoc("Declares which stats a given product supports")

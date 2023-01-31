@@ -194,6 +194,7 @@ data class NetworkIPFlags(
 data class NetworkIPSupport(
     override val product: ProductReference,
     val firewall: Firewall = Firewall(),
+    override val maintenance: Maintenance? = null,
 ) : ProductSupport {
     @Serializable
     @UCloudApiStable
