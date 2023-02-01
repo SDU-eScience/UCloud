@@ -15,6 +15,10 @@ div.card {
     margin-top: 4px;
 }
 
+.full-width {
+    width: 100%;
+}
+
 div.card.details {
     height: 200px;
 }
@@ -69,4 +73,8 @@ div[data-haschildren="true"] {
 .leaf {
     width: auto;
     cursor: pointer;
+}
+
+.breadcrumb {
+
 }

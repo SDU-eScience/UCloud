@@ -1,6 +1,6 @@
 import * as React from "react";
 import {DBTransactionEvent, DebugContext, DebugContextType, getEvent, Log, MessageImportance} from "../WebSockets/Schema";
-import {activeService, DebugContextAndChildren, isLog, logStore, replayMessages, setSessionState} from "../WebSockets/Socket";
+import {activeService, DebugContextAndChildren, isLog, logStore, replayMessages} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -207,13 +207,13 @@ function BreadCrumbs({routeComponents, setRouteComponents, clearContext}: {clear
     }, [setRouteComponents, clearContext]);
 
     if (routeComponents.length === 0) return <div />
-    return <div className="flex breadcrumb" style={{width: "100%"}}>
+    return <div className="flex breadcrumb full-width">
         <div className="pointer" onClick={() => setToParentComponent(-1)}>Root</div>/
         {routeComponents.map((it, idx) => <div key={it.id} className="pointer" onClick={() => setToParentComponent(idx)}>{prettierString(it.typeString)} /</div>)}
     </div>;
 }
 
-function prettierString(str: string): string {
+export function prettierString(str: string): string {
     if (str.length === 0 || str.length === 1) return str;
     const lowerCasedAndReplaced = str.toLocaleLowerCase().replaceAll("_", " ");
     return lowerCasedAndReplaced[0].toLocaleUpperCase() + lowerCasedAndReplaced.slice(1);

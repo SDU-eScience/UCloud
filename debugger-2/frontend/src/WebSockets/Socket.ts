@@ -52,7 +52,6 @@ function initializeSocket() {
                     const ctx = new DebugContext(view, 8 + i * 388);
                     logStore.addDebugContext(ctx);
                 }
-                console.log(logStore.ctxMap)
                 logStore.emitChange();
                 break;
 
@@ -160,6 +159,9 @@ export const logStore = new class {
             const newEntry = {ctx: debugContext, children: []};
             this.ctxMap[debugContext.parent].children.push(newEntry);
             this.ctxMap[debugContext.parent].children.sort(logOrCtxSort);
+            if (this.ctxMap[debugContext.id]) {
+                console.log("Already filled!", debugContext.id);
+            }
             this.ctxMap[debugContext.id] = newEntry;
             this.entryCount++;
             return;
