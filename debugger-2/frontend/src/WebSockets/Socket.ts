@@ -155,6 +155,7 @@ export const logStore = new class {
     }
 
     public addDebugContext(debugContext: DebugContext): void {
+        this.isDirty = true;
         if (this.activeContexts) {
             const newEntry = {ctx: debugContext, children: []};
             this.ctxMap[debugContext.parent].children.push(newEntry);
@@ -171,7 +172,6 @@ export const logStore = new class {
             this.logs.content[activeService.service] = [debugContext];
         } else {
             this.logs.content[activeService.service].push(debugContext)
-            this.isDirty = true;
         }
     }
 
@@ -179,9 +179,9 @@ export const logStore = new class {
         if (this.activeContexts) {
             this.ctxMap[log.ctxId].children.push(log);
             this.ctxMap[log.ctxId].children.sort(logOrCtxSort);
-            console.log(log.ctxId);
             this.entryCount++;
         }
+        this.isDirty = true;
     }
 
     public subscribe(subscription: () => void) {

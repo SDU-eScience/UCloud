@@ -13,9 +13,10 @@ import AutoSizer from "react-virtualized-auto-sizer";
 //   Frontend styling is generally not good.
 //   Handle different types of ctx/logs to render.
 //   Blob searching support is missing!
-//   Double click required for getting a service's context.
 //   What happens when selecting a different service?
+//      - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected).
 //   Handle long-running situations where memory usage has become high.
+//   seekToEnd sometimes crashes.
 
 type LogOrCtx = Log | DebugContext;
 
@@ -35,35 +36,44 @@ export function MainContent(): JSX.Element {
         setRouteComponents([d]);
     }, [setRouteComponents]);
 
+    const onWheel: React.WheelEventHandler<HTMLDivElement> = React.useCallback(e => {
+        if (e.deltaY < 0) { }
+    }, []);
+
     const serviceLogs = logs.content[service] ?? [];
     const activeContext = routeComponents.at(-1);
 
-    return <div className="main-content">
+    return <div className="main-content" >
         {!service ? <h3>Select a service to view requests</h3> :
             <>
                 <BreadCrumbs clearContext={() => setContext(null)} routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
                 <RequestDetails key={activeContext?.id} activeContext={activeContext} />
-                <AutoSizer defaultHeight={200}>
-                    {({height, width}) => {
-                        const root = logStore.contextRoot();
-                        if (root) {
-                            return <div key={logStore.entryCount} className="card list" style={{height: "800px", width: "80vw"}}>
-                                <DebugContextRow setRouteComponents={ctx => setRouteComponents(ctx)} debugContext={root.ctx} ctxChildren={root.children} isActive={false} />
-                            </div>
-                        }
-                        return <List itemData={serviceLogs} height={height} width={width} itemSize={22} itemCount={serviceLogs.length} className="card list">
-                            {({index, data}) => {
-                                const item = data[index];
-                                return <DebugContextRow
-                                    key={item.id}
-                                    setRouteComponents={() => {setContext(item); setRouteComponents([item]);}}
-                                    debugContext={item}
-                                    isActive={activeContext === item}
-                                />
-                            }}
-                        </List>;
-                    }}
-                </AutoSizer>
+                <div onWheel={onWheel} style={{height: "100%", width: "100%"}}>
+                    <AutoSizer defaultHeight={200}>
+                        {({height, width}) => {
+                            const root = logStore.contextRoot();
+                            if (root) {
+                                return <List itemSize={logStore.entryCount * 22} height={height} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card list">
+                                    {({data}) => {
+                                        const root = data;
+                                        return <DebugContextRow setRouteComponents={ctx => setRouteComponents(ctx)} debugContext={root.ctx} ctxChildren={root.children} isActive={false} />
+                                    }}
+                                </List>
+                            }
+                            return <List itemData={serviceLogs} height={height} width={width} itemSize={22} itemCount={serviceLogs.length} className="card list">
+                                {({index, data}) => {
+                                    const item = data[index];
+                                    return <DebugContextRow
+                                        key={item.id}
+                                        setRouteComponents={() => {setContext(item); setRouteComponents([item]);}}
+                                        debugContext={item}
+                                        isActive={activeContext === item}
+                                    />
+                                }}
+                            </List>;
+                        }}
+                    </AutoSizer>
+                </div>
             </>
         }
     </div>
