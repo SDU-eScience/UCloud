@@ -63,8 +63,8 @@ node {
 
     try {
         sh script: """
-            cd integration-test 
-            export UCLOUD_LAUNCHER=\$PWD/launcher 
+            export UCLOUD_LAUNCHER=backend/launcher
+            cd integration-test  
             export UCLOUD_TEST_SNAPSHOT=${jobName} 
             ./gradlew test
         """
