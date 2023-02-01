@@ -66,7 +66,7 @@ node {
             export UCLOUD_LAUNCHER=\$PWD/launcher
             export UCLOUD_TEST_SNAPSHOT=${jobName} 
             cd integration-test 
-            ./gradlew integrationtest --tests GiftTest
+            ./gradlew integrationtest
         """
     }
     catch(Exception e) {
