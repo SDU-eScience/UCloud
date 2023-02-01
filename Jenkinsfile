@@ -65,8 +65,8 @@ node {
         sh script: """
             export UCLOUD_LAUNCHER=\$PWD/launcher
             export UCLOUD_TEST_SNAPSHOT=${jobName} 
-            cd ../integration-test --tests GiftTest
-            ./gradlew test
+            cd ../integration-test 
+            ./gradlew test --tests GiftTest
         """
 
         echo 'HELLO'
