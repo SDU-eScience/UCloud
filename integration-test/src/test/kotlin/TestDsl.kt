@@ -56,6 +56,7 @@ abstract class UCloudTest {
 
     private fun restoreSnapshot() {
         if (!firstTestEver.compareAndSet(true, false)) return
+        println(System.getenv("UCLOUD_LAUNCHER"))
         ExeCommand(
             listOf(
                 System.getenv("UCLOUD_LAUNCHER") ?: error("Could not find UCLOUD_LAUNCHER env variable"),
