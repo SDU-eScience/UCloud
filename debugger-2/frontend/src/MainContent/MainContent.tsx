@@ -18,6 +18,7 @@ import AutoSizer from "react-virtualized-auto-sizer";
 //  seekToEnd sometimes crashes.
 
 type LogOrCtx = Log | DebugContext;
+const ITEM_SIZE = 22;
 
 export function MainContent(): JSX.Element {
     const [routeComponents, setRouteComponents] = React.useState<LogOrCtx[]>([]);
@@ -40,12 +41,13 @@ export function MainContent(): JSX.Element {
 
     const onWheel: React.WheelEventHandler<HTMLDivElement> = React.useCallback(e => {
         if (e.deltaY < 0) { /* TODO(Jonas): Load previous. */}
+        console.log(e);
     }, []);
 
     const serviceLogs = logs.content[service] ?? [];
     const activeContext = routeComponents.at(-1);
 
-    return <div className="main-content" >
+    return <div className="main-content">
         {!service ? <h3>Select a service to view requests</h3> :
             <>
                 <BreadCrumbs clearContext={() => setContext(null)} routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
@@ -55,18 +57,18 @@ export function MainContent(): JSX.Element {
                         {({height, width}) => {
                             const root = logStore.contextRoot();
                             if (root) {
-                                return <List itemSize={logStore.entryCount * 22} height={height} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card">
-                                    {({data}) => {
-                                        const root = data;
-                                        return <DebugContextRow setRouteComponents={ctx => setRouteComponents(ctx)} debugContext={root.ctx} ctxChildren={root.children} isActive={false} />
+                                return <List itemSize={ITEM_SIZE} height={height} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card">
+                                    {({data: root, style}) => {
+                                        return <DebugContextRow style={style} setRouteComponents={ctx => setRouteComponents(ctx)} debugContext={root.ctx} ctxChildren={root.children} isActive={false} />
                                     }}
                                 </List>
                             }
-                            return <List itemData={serviceLogs} height={height} width={width} itemSize={22} itemCount={serviceLogs.length} className="card">
-                                {({index, data}) => {
+                            return <List itemData={serviceLogs} height={height} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
+                                {({index, data, isScrolling, style}) => {
                                     const item = data[index];
                                     return <DebugContextRow
                                         key={item.id}
+                                        style={style}
                                         setRouteComponents={() => {setContext(item); setRouteComponents([item]);}}
                                         debugContext={item}
                                         isActive={activeContext === item}
