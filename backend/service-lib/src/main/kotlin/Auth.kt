@@ -114,9 +114,6 @@ data class SecurityPrincipal(
     @UCloudApiDoc("The last name of the security principal. Can be empty.")
     val lastName: String,
 
-    @UCloudApiDoc("A numeric unique identifier for this principal. The username is the preferred unique identifier.")
-    val uid: Long,
-
     @UCloudApiDoc("The email of the user")
     val email: String? = null,
 
