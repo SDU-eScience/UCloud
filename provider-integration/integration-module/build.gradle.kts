@@ -18,7 +18,7 @@ repositories {
 
 dependencies {
     run {
-        val version = "2022.3.8-devel-weka.1"
+        val version = "2022.3.8"
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 
         ucloud("file-orchestrator-service-api")
