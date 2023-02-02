@@ -261,6 +261,30 @@ class LoadingIndicator(var prompt: String) {
     }
 
     fun display() {
+        if (isHeadless) {
+            thread = Thread {
+                println(prompt)
+
+                while (true) {
+                    val current = state.get()
+
+                    val tail = synchronized(messageQueueLock) {
+                        ArrayList(messageQueue).also {
+                            messageQueue.clear()
+                        }
+                    }
+
+                    for (message in tail) {
+                        println(message)
+                    }
+
+                    if (current != LoadingState.IN_PROGRESS) break
+
+                    Thread.sleep(50)
+                }
+            }.also { it.start() }
+            return
+        }
         val maxLineLength = TerminalFactory.get().width
 
         thread = Thread {
