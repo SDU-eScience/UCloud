@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services.wallets
 
+import com.github.jasync.sql.db.RowData
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
@@ -28,6 +29,7 @@ import dk.sdu.cloud.service.db.async.parameterList
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.serialization.decodeFromString
+import java.util.Comparator
 
 class AccountingService(
     val db: DBContext,
@@ -644,45 +646,55 @@ class AccountingService(
         actorAndProject: ActorAndProject,
         request: WalletBrowseRequest
     ): PageV2<Wallet> {
-        return db.paginateV2(
-            actorAndProject.actor,
-            request.normalize(),
-            create = { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("user", actorAndProject.actor.safeUsername())
-                        setParameter("project", actorAndProject.project)
-                        setParameter("filter_type", request.filterType?.name)
-                    },
-                    """
-                        declare c cursor for
-                        select accounting.wallet_to_json(w, wo, array_agg(alloc), pc)
-                        from
-                            accounting.wallets w join
-                            accounting.wallet_owner wo on w.owned_by = wo.id join
-                            accounting.wallet_allocations alloc on w.id = alloc.associated_wallet join
-                            accounting.product_categories pc on w.category = pc.id left join
-                            project.project_members pm on wo.project_id = pm.project_id
-                        where
-                            (
-                                (:project::text is null and wo.username = :user) or
-                                (:project::text is not null and pm.username = :user and pm.project_id = :project::text)
-                            ) and
-                            (
-                                :filter_type::accounting.product_type is null or
-                                pc.product_type = :filter_type::accounting.product_type
-                            )
-                        group by w.*, wo.*, pc.*, pc.provider, pc.category
-                        order by
-                            pc.provider, pc.category
-                    """,
-                    "Accounting Browse Wallets"
-                )
-            },
-            mapper = { _, rows ->
-                rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
+        return db.withSession { session ->
+            val itemsPerPage = request.normalize().itemsPerPage
+            val rows = session.sendPreparedStatement(
+                {
+                    setParameter("user", actorAndProject.actor.safeUsername())
+                    setParameter("project", actorAndProject.project)
+                    setParameter("filter_type", request.filterType?.name)
+                    setParameter("next", request.next?.toLongOrNull())
+                },
+                """
+                    select accounting.wallet_to_json(w, wo, array_agg(alloc), pc), w.id
+                    from
+                        accounting.wallets w join
+                        accounting.wallet_owner wo on w.owned_by = wo.id join
+                        accounting.wallet_allocations alloc on w.id = alloc.associated_wallet join
+                        accounting.product_categories pc on w.category = pc.id left join
+                        project.project_members pm on wo.project_id = pm.project_id
+                    where
+                        (
+                            (:project::text is null and wo.username = :user) or
+                            (:project::text is not null and pm.username = :user and pm.project_id = :project::text)
+                        ) and
+                        (
+                            :filter_type::accounting.product_type is null or
+                            pc.product_type = :filter_type::accounting.product_type
+                        ) and
+                        (
+                            :next::bigint is null or
+                            w.id > :next::bigint
+                        )
+                    group by w.*, wo.*, pc.*, pc.provider, pc.category, w.id
+                    order by w.id
+                    limit $itemsPerPage
+                """,
+                "Accounting Browse Wallets"
+            ).rows
+
+            val items = ArrayList<Wallet>()
+            var lastId = 0L
+
+            rows.forEach {
+                items.add(defaultMapper.decodeFromString(Wallet.serializer(), it.getString(0)!!))
+                lastId = it.getLong(1)!!
             }
-        )
+
+            val next = if (items.size < itemsPerPage) null else lastId.toString()
+
+            PageV2(itemsPerPage, items, next)
+        }
     }
 
     suspend fun browseTransactions(
@@ -743,96 +755,121 @@ class AccountingService(
         request: SubAllocationQuery,
         query: String? = null,
     ): PageV2<SubAllocation> {
-        return db.paginateV2(
-            actorAndProject.actor,
-            request.normalize(),
-            create = { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("username", actorAndProject.actor.safeUsername())
-                        setParameter("project", actorAndProject.project)
-                        setParameter("filter_type", request.filterType?.name)
-                        setParameter("query", query)
-                    },
-                    """
-                        declare c cursor for
-                        select
-                            jsonb_build_object(
-                                'id', alloc.id, 
-                                'path', alloc.allocation_path::text,
-                                
-                                'workspaceId', coalesce(alloc_project.id, alloc_owner.username),
-                                'workspaceTitle', coalesce(alloc_project.title, alloc_owner.username),
-                                'workspaceIsProject', alloc_project.id is not null,
-                                'projectPI', pm.username,
-                                'remaining', alloc.balance,
-                                'initialBalance', alloc.initial_balance,
-                                'productCategoryId', jsonb_build_object(
-                                    'name', pc.category,
-                                    'provider', pc.provider
-                                ),
-                                'productType', pc.product_type,
-                                'chargeType', pc.charge_type,
-                                'unit', pc.unit_of_price,
-                                'startDate', provider.timestamp_to_unix(alloc.start_date),
-                                'endDate', provider.timestamp_to_unix(alloc.end_date)
+        return db.withSession { session ->
+            val itemsPerPage = request.normalize().itemsPerPage
+            val rows = session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("project", actorAndProject.project)
+                    setParameter("filter_type", request.filterType?.name)
+                    setParameter("query", query)
+
+                    val nextParts = request.next?.split("-")
+                    setParameter("next_date", nextParts?.get(0))
+                    setParameter("next_alloc", nextParts?.get(1))
+                },
+                """
+                    select
+                        jsonb_build_object(
+                            'id', alloc.id, 
+                            'path', alloc.allocation_path::text,
+                            
+                            'workspaceId', coalesce(alloc_project.id, alloc_owner.username),
+                            'workspaceTitle', coalesce(alloc_project.title, alloc_owner.username),
+                            'workspaceIsProject', alloc_project.id is not null,
+                            'projectPI', pm.username,
+                            'remaining', alloc.balance,
+                            'initialBalance', alloc.initial_balance,
+                            'productCategoryId', jsonb_build_object(
+                                'name', pc.category,
+                                'provider', pc.provider
+                            ),
+                            'productType', pc.product_type,
+                            'chargeType', pc.charge_type,
+                            'unit', pc.unit_of_price,
+                            'startDate', provider.timestamp_to_unix(alloc.start_date),
+                            'endDate', provider.timestamp_to_unix(alloc.end_date)
+                        )
+                    from
+                        accounting.wallet_owner owner join
+                        accounting.wallets owner_wallets on owner.id = owner_wallets.owned_by join
+                        accounting.product_categories pc on owner_wallets.category = pc.id join
+
+                        accounting.wallet_allocations owner_allocations on
+                            owner_wallets.id = owner_allocations.associated_wallet join
+
+                        accounting.wallet_allocations alloc on
+                            owner_allocations.allocation_path @> alloc.allocation_path and
+                            owner_allocations.allocation_path != alloc.allocation_path join
+                        accounting.wallets alloc_wallet on alloc.associated_wallet = alloc_wallet.id join
+
+                        accounting.wallet_owner alloc_owner on alloc_wallet.owned_by = alloc_owner.id left join
+                        project.projects alloc_project on alloc_owner.project_id = alloc_project.id left join
+
+                        project.project_members owner_pm on
+                            owner.project_id = owner_pm.project_id and
+                            owner_pm.username = :username and
+                            (owner_pm.role = 'ADMIN' or owner_pm.role = 'PI') left join
+                        project.project_members pm on 
+                            alloc_project.id = pm.project_id  and
+                            pm.role = 'PI'
+                    where
+                        (
+                            (
+                                :project::text is not null and
+                                owner.project_id = :project and
+                                owner_pm.username is not null
+                            ) or
+                            (
+                                :project::text is null and
+                                owner.username = :username
                             )
-                        from
-                            accounting.wallet_owner owner join
-                            accounting.wallets owner_wallets on owner.id = owner_wallets.owned_by join
-                            accounting.product_categories pc on owner_wallets.category = pc.id join
+                        ) and
+                        (
+                            :filter_type::accounting.product_type is null or
+                            pc.product_type = :filter_type::accounting.product_type
+                        ) and
+                        (
+                            :query::text is null or
+                            alloc_project.title ilike '%' || :query || '%' or
+                            alloc_owner.username ilike '%' || :query || '%' or
+                            pc.category ilike '%' || :query || '%' or
+                            pc.provider ilike '%' || :query || '%'
+                        ) and
+                        (
+                            nlevel(owner_allocations.allocation_path) = nlevel(alloc.allocation_path) - 1
+                        ) and
+                        (
+                            :next_date::bigint is null or
+                            alloc.start_date > to_timestamp((:next_date::bigint) / 1000.0) or
+                            (alloc.start_date = to_timestamp((:next_date::bigint) / 1000.0) and alloc.id > :next_alloc::bigint)
+                        )
+                    order by alloc.start_date, alloc.id
+                    limit $itemsPerPage
+                """,
+                "Accounting Browse Allocations"
+            ).rows
 
-                            accounting.wallet_allocations owner_allocations on
-                                owner_wallets.id = owner_allocations.associated_wallet join
-
-                            accounting.wallet_allocations alloc on
-                                owner_allocations.allocation_path @> alloc.allocation_path and
-                                owner_allocations.allocation_path != alloc.allocation_path join
-                            accounting.wallets alloc_wallet on alloc.associated_wallet = alloc_wallet.id join
-
-                            accounting.wallet_owner alloc_owner on alloc_wallet.owned_by = alloc_owner.id left join
-                            project.projects alloc_project on alloc_owner.project_id = alloc_project.id left join
-
-                            project.project_members owner_pm on
-                                owner.project_id = owner_pm.project_id and
-                                owner_pm.username = :username and
-                                (owner_pm.role = 'ADMIN' or owner_pm.role = 'PI') left join
-                            project.project_members pm on 
-                                alloc_project.id = pm.project_id  and
-                                pm.role = 'PI'
-                        where
-                            (
-                                (
-                                    :project::text is not null and
-                                    owner.project_id = :project and
-                                    owner_pm.username is not null
-                                ) or
-                                (
-                                    :project::text is null and
-                                    owner.username = :username
-                                )
-                            ) and
-                            (
-                                :filter_type::accounting.product_type is null or
-                                pc.product_type = :filter_type::accounting.product_type
-                            ) and
-                            (
-                                :query::text is null or
-                                alloc_project.title ilike '%' || :query || '%' or
-                                alloc_owner.username ilike '%' || :query || '%' or
-                                pc.category ilike '%' || :query || '%' or
-                                pc.provider ilike '%' || :query || '%'
-                            ) and
-                            (
-                                nlevel(owner_allocations.allocation_path) = nlevel(alloc.allocation_path) - 1
-                            )
-                        order by alloc_owner.username, alloc_owner.project_id, pc.provider, pc.category, alloc.id
-                    """,
-                    "Accounting Browse Allocations"
+            val items = rows
+                .map<RowData, SubAllocation> { defaultMapper.decodeFromString(it.getString(0)!!) }
+                .sortedWith(
+                    Comparator
+                        .comparing<SubAllocation, Boolean> { it.workspaceIsProject }
+                        .thenComparing { a, b -> a.workspaceTitle.compareTo(b.workspaceTitle) }
+                        .thenComparing { a, b -> a.productType.name.compareTo(b.productType.name) }
+                        .thenComparing { a, b -> a.productCategoryId.provider.compareTo(b.productCategoryId.provider) }
+                        .thenComparing { a, b -> a.productCategoryId.name.compareTo(b.productCategoryId.name) }
                 )
-            },
-            mapper = { _, rows -> rows.map { defaultMapper.decodeFromString(it.getString(0)!!) } }
-        )
+
+            val next = if (items.size < itemsPerPage) {
+                null
+            } else {
+                val last = items.last()
+                "${last.startDate}-${last.id}"
+            }
+
+            PageV2(itemsPerPage, items, next)
+        }
     }
 
     suspend fun retrieveUsage(

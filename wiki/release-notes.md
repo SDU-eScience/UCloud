@@ -7,6 +7,24 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 02-02-23
+
+```
+✅  Deployment(elastic-management-service, 2022.3.8-elasticfix) (UP-TO-DATE)
+```
+
+## 02-02-23
+
+```
+✅  Deployment(accounting, 2022.3.8-accounting-fix.3) (UP-TO-DATE)
+```
+
+## 01-02-23
+
+```
+✅  Deployment(accounting, 2022.3.8-accounting-fix.2) (UP-TO-DATE)
+```
+
 ## 31-01-23
 
 ```
