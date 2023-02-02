@@ -4,6 +4,7 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.accounting.util.accountingPerformanceMitigations
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
@@ -26,6 +27,8 @@ class AccountingController(
         val chargeMutex = Mutex()
 
         implement(Accounting.charge) {
+//            println("CHARGEMELATER: $request")
+//            ok(BulkResponse(request.items.map { true }))
             if (accountingPerformanceMitigations) {
                 select {
                     chargeMutex.onLock {
@@ -57,6 +60,7 @@ class AccountingController(
 
         implement(Accounting.check) {
             ok(accounting.check(actorAndProject, request))
+//            ok(BulkResponse(request.items.map { true }))
         }
 
         implement(Accounting.transfer) {
