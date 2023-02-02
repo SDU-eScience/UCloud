@@ -15,8 +15,10 @@ For easy use pof the following curl commands create the following variables in t
 E.g on MacOS use 'export [variable_name]=[variable_value]'.
 
 - `$DATE` should be replaced with the current date (format YYYY.MM.DD)
-- `$USERNAME` should be replaced with your username. If using the user created for this purpose 
+- `$USERNAME1` should be replaced with your username. If using the user created for this purpose 
 this should be audit1.
+- `$USERNAME2` should be replaced with a second username. If using the user created for this purpose 
+this should be audit2
 - `$ELASTIC_USER` an admin user of the elastic cluster
 - `$ELASTIC_PASSWORD` matching password of the admin user
 
@@ -24,11 +26,12 @@ Steps:
 
 1. Create a directory called `Audit-$DATE`
 2. Upload a file called `file.txt` to the new directory
-3. Copy this file to the same directory using the rename strategy (default)
-4. Move the new copy to the trash
-5. Rename `file` to `renamed`
-6. Mark `renamed` as a favorite file
-7. Unmark `renamed` as a favorite file
+3. Check if other user can see the file
+4. Copy this file to the same directory using the rename strategy (default)
+5. Move the new copy to the trash
+6. Rename `file` to `renamed`
+7. Mark `renamed` as a favorite file
+8. Unmark `renamed` as a favorite file
 
 Verification:
 
@@ -89,6 +92,65 @@ Should contain:
 ---
 
 Request #3:
+
+Collection level
+```
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.collections.retrieve-$DATE/_search?pretty -d "
+{
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME2\"
+    }
+  }
+}"
+```
+
+Should contain:
+
+```
+        "requestJson" : {
+            "flags" : {
+              .
+              .
+              .
+            },
+            "id" : "43430"
+          },
+          "responseCode" : 404,
+
+```
+---
+Folder level:
+```
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.retrieve-$DATE/_search?pretty -d "
+{
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME2\"
+    }
+  }
+}"
+```
+
+Should contain:
+
+```
+   "requestJson" : {
+            "flags" : {
+              .
+              .
+              .
+            },
+            "id" : "/43430/Mojn"
+          },
+          "responseCode" : 400,
+
+
+```
+
+---
+
+Request #4:
 
 ```
 curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.copy-$DATE/_search?pretty -d "
