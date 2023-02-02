@@ -5,20 +5,20 @@ import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
-import dk.sdu.cloud.app.orchestrator.api.License
-import dk.sdu.cloud.app.orchestrator.api.LicenseControl
-import dk.sdu.cloud.app.orchestrator.api.LicenseIncludeFlags
-import dk.sdu.cloud.app.orchestrator.api.LicenseSupport
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
+import dk.sdu.cloud.cli.sendCommandLineUsage
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.controllers.RequestContext
+import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
@@ -28,12 +28,17 @@ import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.plugins.ipcServer
 import dk.sdu.cloud.plugins.rpcClient
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.bindIntNullable
 import dk.sdu.cloud.sql.bindStringNullable
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.utils.ResourceVerification
 import dk.sdu.cloud.utils.sendTerminalMessage
+import dk.sdu.cloud.utils.sendTerminalTable
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -56,51 +61,32 @@ class GenericLicensePlugin : LicensePlugin {
     override suspend fun PluginContext.initialize() {
         if (config.shouldRunAnyPluginCode()) {
             commandLineInterface?.addHandler(CliHandler("license") { args ->
-                fun printHelp(): Nothing {
-                    sendTerminalMessage {
-                        bold { inline("Usage: ") }
-                        code { line("ucloud license <command> [args]") }
-                        line()
-                        bold { line("Commands:") }
-
-                        run {
-                            bold { code { inline("  register ") } }
-                            code { inline("<name> <category> [--license=license] [--address=address:port]") }
-                            line(" - Registers or modifies a license server")
-
-                            code { inline("    name: ") }
-                            line("The product name of the license server, must match an entry in products.yaml")
-
-                            code { inline("    category: ") }
-                            line("The product category of the license server, must match an entry in products.yaml")
-
-                            code { inline("    --license: ") }
-                            line("A license key associated with the server, can be left blank.")
-
-                            code { inline("    --address: ") }
-                            line("A hostname and port combination associated with the license server")
-
-                            line()
-                        }
-
-                        run {
-                            bold { code { inline("  delete ") } }
-                            code { inline("<name> <category>") }
-                            line(" - Deletes a license server")
-                            line()
-                        }
-
-                        run {
-                            bold { code { inline("  list ") } }
-                            line(" - Lists all license servers registered with this module")
-                            line()
-                        }
+                fun printHelp(): Nothing = sendCommandLineUsage("license", "Manage license information") {
+                    subcommand("add", "Adds information about a license (this requires an already registered product)") {
+                        arg("name", description = "The name of the product (must be in products.yaml)")
+                        arg("category", description = "The category of the product (must be in products.yaml)")
+                        arg(
+                            "--license=<license>",
+                            optional = true,
+                            description = "The license key associated with the server, can be left omitted."
+                        )
+                        arg(
+                            "--address=<address>",
+                            optional = true,
+                            description = "A hostname and port combination associated with the license server, can be omitted."
+                        )
                     }
-                    exitProcess(0)
+
+                    subcommand("rm", "Removes information about a license. This does not delete the license from UCloud but will make it unusable.") {
+                        arg("name", description = "The name of the product")
+                        arg("category", description = "The category of the product")
+                    }
+
+                    subcommand("ls", "Lists all license servers registered with this module")
                 }
 
                 when (args.getOrNull(0)) {
-                    "register" -> {
+                    "add", "register" -> {
                         val name = args.getOrNull(1) ?: printHelp()
                         val category = args.getOrNull(2) ?: printHelp()
                         val license = args.find { it.startsWith("--license=") }?.removePrefix("--license=")
@@ -148,7 +134,7 @@ class GenericLicensePlugin : LicensePlugin {
                         }
                     }
 
-                    "delete" -> {
+                    "rm", "delete" -> {
                         val name = args.getOrNull(1) ?: printHelp()
                         val category = args.getOrNull(2) ?: printHelp()
 
@@ -170,7 +156,7 @@ class GenericLicensePlugin : LicensePlugin {
                         }
                     }
 
-                    "list" -> {
+                    "ls", "list" -> {
                         val results = try {
                             ipcClient.sendRequest(
                                 GenericLicenseIpc.browse,
@@ -186,34 +172,22 @@ class GenericLicensePlugin : LicensePlugin {
                             exitProcess(1)
                         }
 
-                        sendTerminalMessage {
-                            val nameColumn = 20
-                            val categoryColumn = 20
-                            val licenseColumn = 40
-                            val addressAndPortColumn = 40
-
-                            bold {
-                                inline("Name".padEnd(nameColumn))
-                                inline("Category".padEnd(categoryColumn))
-                                inline("License".padEnd(licenseColumn))
-                                inline("Address".padEnd(addressAndPortColumn))
-                                line()
-                                line(CharArray(120) { '-' }.concatToString())
-                            }
+                        sendTerminalTable {
+                            header("Name", 20)
+                            header("Category", 20)
+                            header("License", 40)
+                            header("Address", 40)
 
                             for (result in results.items) {
-                                inline(result.product.id.padEnd(nameColumn))
-                                inline(result.product.category.padEnd(categoryColumn))
-                                inline((result.license ?: "None specified").padEnd(licenseColumn))
-                                inline(
-                                    if (result.address != null && result.port != null) {
-                                        "${result.address}:${result.port}"
-                                    } else {
-                                        "None specified"
-                                    }.padEnd(addressAndPortColumn)
-                                )
-
-                                line()
+                                nextRow()
+                                cell(result.product.id)
+                                cell(result.product.category)
+                                cell(result.license ?: "None specified")
+                                cell(if (result.address != null && result.port != null) {
+                                    "${result.address}:${result.port}"
+                                } else {
+                                    "None specified"
+                                })
                             }
                         }
                     }
@@ -241,7 +215,6 @@ class GenericLicensePlugin : LicensePlugin {
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         insert into generic_license_servers (name, category, address, port, license)
                         values (:name, :category, :address::text, :port, :license::text)
@@ -267,7 +240,6 @@ class GenericLicensePlugin : LicensePlugin {
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         delete from generic_license_servers
                         where
@@ -320,24 +292,21 @@ class GenericLicensePlugin : LicensePlugin {
         })
 
         ipcServer.addHandler(GenericLicenseIpc.retrieve.handler { user, request ->
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-            // TODO Verify this request
-
-            val result = ArrayList<GenericLicenseServer>()
-
+            log.info("Retrieving information about license: ${user.uid} ${request.id}")
             val retrievedLicense = LicenseControl.retrieve.call(
                 ResourceRetrieveRequest(LicenseIncludeFlags(), request.id),
                 rpcClient
             ).orThrow()
+            log.info("We have received the following license: ${retrievedLicense}")
 
+            if (user.uid != 0) {
+                val ucloudUser = UserMapping.localIdToUCloudId(user.uid)
+                log.info("The UCloud user is: $ucloudUser")
+                ResourceVerification.verifyAccessToResource(ucloudUser, retrievedLicense)
+                log.info("This is OK")
+            }
+
+            val result = ArrayList<GenericLicenseServer>()
             dbConnection.withSession { session ->
                 session.prepareStatement(
                     """
@@ -369,6 +338,8 @@ class GenericLicensePlugin : LicensePlugin {
                 )
             }
 
+            log.info(("We found the following licenses: $result"))
+
             result.singleOrNull() ?: throw RPCException("Unknown license", HttpStatusCode.NotFound)
         })
     }
@@ -378,8 +349,20 @@ class GenericLicensePlugin : LicensePlugin {
     }
 
     override suspend fun RequestContext.create(resource: License): FindByStringId? {
-        // Do nothing
-        return null
+        LicenseControl.update.call(
+            bulkRequestOf(
+                ResourceUpdateAndId(
+                    resource.id,
+                    LicenseUpdate(
+                        Time.now(),
+                        LicenseState.READY,
+                        "License is ready for use"
+                    )
+                )
+            ),
+            rpcClient
+        ).orThrow()
+        return FindByStringId(resource.id)
     }
 
     override suspend fun RequestContext.delete(resource: License) {
@@ -401,6 +384,10 @@ class GenericLicensePlugin : LicensePlugin {
                 append(licenseInfo.license)
             }
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 

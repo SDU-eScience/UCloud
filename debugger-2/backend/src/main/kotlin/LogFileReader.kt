@@ -55,6 +55,10 @@ class LogFileReader(val directory: File, val generation: Long, val idx: Int) {
         return true
     }
 
+    fun resetCursor() {
+        cursor = 0
+    }
+
     fun jumpTo(idx: Int): Boolean {
         val oldCursor = cursor
         cursor = idx
@@ -68,7 +72,7 @@ class LogFileReader(val directory: File, val generation: Long, val idx: Int) {
     fun seekToEnd() {
         var min = 0
         var max = buf.capacity() / FRAME_SIZE
-        while (min != max) {
+        while (min < max) {
             cursor = ((max - min) / 2) + min
             if (isValid()) {
                 min = cursor + 1
@@ -76,6 +80,7 @@ class LogFileReader(val directory: File, val generation: Long, val idx: Int) {
                 max = cursor - 1
             }
         }
+        cursor = max
     }
 
     fun seekTimestamp(filterBefore: Long) {
@@ -121,3 +126,4 @@ class LogFileReader(val directory: File, val generation: Long, val idx: Int) {
         }
     }
 }
+

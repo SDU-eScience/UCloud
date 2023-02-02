@@ -4,7 +4,6 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.NormalizedPaginationRequestV2
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
-import dk.sdu.cloud.accounting.util.ProviderComms
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.invokeCall
 import dk.sdu.cloud.auth.api.AuthProviders
@@ -18,7 +17,6 @@ import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.paginateV2
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 
@@ -107,75 +105,84 @@ class ProviderIntegrationService(
         actorAndProject: ActorAndProject,
         request: NormalizedPaginationRequestV2
     ): PageV2<IntegrationBrowseResponseItem> {
-        return db.paginateV2(
-            actorAndProject.actor,
-            request,
-            create = { session ->
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("username", actorAndProject.actor.safeUsername())
-                        },
-                        """
-                            declare c cursor for
-                            with
-                                connected as (
-                                    select provider_id
-                                    from provider.connected_with
-                                    where
-                                        username = :username and
-                                        (expires_at is null or expires_at >= now())
-                                ),
-                                available as(
-                                    select p.resource, p.unique_name
-                                    from
-                                        project.project_members pm join
-                                        accounting.wallet_owner wo on
-                                            pm.project_id = wo.project_id and
-                                            pm.username = :username join
-                                        accounting.wallets w on w.owned_by = wo.id join
-                                        accounting.product_categories pc on w.category = pc.id join
-                                        provider.providers p on pc.provider = p.unique_name
-                                    union
-                                    select p.resource, p.unique_name
-                                    from
-                                        accounting.wallet_owner wo join
-                                        accounting.wallets w on w.owned_by = wo.id join
-                                        accounting.product_categories pc on w.category = pc.id join
-                                        provider.providers p on pc.provider = p.unique_name
-                                    where
-                                        wo.username = :username
-                                )
-                            select
-                                a.resource as provider_id,
-                                c.provider_id is not null as is_connected,
-                                a.unique_name as provider_name
+        return db.withSession { session ->
+            val itemsPerPage = request.itemsPerPage
+            val rows = session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("next", request.next?.toLongOrNull())
+                },
+                """
+                    with
+                        connected as (
+                            select provider_id
+                            from provider.connected_with
+                            where
+                                username = :username and
+                                (expires_at is null or expires_at >= now())
+                        ),
+                        available as(
+                            select p.resource, p.unique_name
                             from
-                                available a left join
-                                connected c on c.provider_id = a.resource
-                            order by provider_id
-                        """
-                    )
-            },
-            mapper = { _, rows ->
-                rows.mapNotNull { row ->
-                    val providerTitle = row.getString(2)!!
-                    val manifest = communicationCache.get(row.getLong(0)!!.toString())
+                                project.project_members pm join
+                                accounting.wallet_owner wo on
+                                    pm.project_id = wo.project_id and
+                                    pm.username = :username join
+                                accounting.wallets w on w.owned_by = wo.id join
+                                accounting.product_categories pc on w.category = pc.id join
+                                provider.providers p on pc.provider = p.unique_name
+                            union
+                            select p.resource, p.unique_name
+                            from
+                                accounting.wallet_owner wo join
+                                accounting.wallets w on w.owned_by = wo.id join
+                                accounting.product_categories pc on w.category = pc.id join
+                                provider.providers p on pc.provider = p.unique_name
+                            where
+                                wo.username = :username
+                        )
+                    select
+                        a.resource as provider_id,
+                        c.provider_id is not null as is_connected,
+                        a.unique_name as provider_name
+                    from
+                        available a left join
+                        connected c on c.provider_id = a.resource
+                    where
+                        (
+                            :next::bigint is null or
+                            a.resource > :next::bigint
+                        )
+                    order by provider_id
+                    limit $itemsPerPage
+                """
+            ).rows
 
-                    IntegrationBrowseResponseItem(
-                        row.getLong(0)!!.toString(),
-                        when {
-                            providerTitle == "ucloud" -> true // NOTE(Dan): Backwards compatible
-                            providerTitle == "aau" -> true // NOTE(Dan): Backwards compatible
-                            manifest != null && !manifest.manifest.enabled -> true
-                            else -> row.getBoolean(1)!!
-                        },
-                        providerTitle,
-                        manifest?.manifest?.requiresMessageSigning ?: false
-                    )
-                }
+            val items = rows.mapNotNull { row ->
+                val providerTitle = row.getString(2)!!
+                val manifest = communicationCache.get(row.getLong(0)!!.toString())
+
+                IntegrationBrowseResponseItem(
+                    row.getLong(0)!!.toString(),
+                    when {
+                        providerTitle == "ucloud" -> true // NOTE(Dan): Backwards compatible
+                        providerTitle == "aau" -> true // NOTE(Dan): Backwards compatible
+                        manifest != null && !manifest.manifest.enabled -> true
+                        else -> row.getBoolean(1)!!
+                    },
+                    providerTitle,
+                    manifest?.manifest?.requiresMessageSigning ?: false
+                )
             }
-        )
+
+            val next = if (items.size < itemsPerPage) {
+                null
+            } else {
+                items.last().provider
+            }
+
+            PageV2(itemsPerPage, items, next)
+        }
     }
 
     suspend fun clearConnection(

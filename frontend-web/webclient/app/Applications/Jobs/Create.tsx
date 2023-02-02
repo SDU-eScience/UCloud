@@ -105,7 +105,7 @@ export const Create: React.FunctionComponent = () => {
         }
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
         fetchPrevious(UCloud.compute.apps.findByName({appName}));
-    }, [appName, appVersion, provider]);
+    }, [appName, appVersion]);
 
     const application = applicationResp.data;
 

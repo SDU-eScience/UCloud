@@ -1,15 +1,25 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.PaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.cli.CliHandler
+import dk.sdu.cloud.cli.CommandLineSubCommand
+import dk.sdu.cloud.cli.genericCommandLineHandler
+import dk.sdu.cloud.cli.sendCommandLineUsage
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.controllers.ComputeSessionIpc
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.dbConnection
+import dk.sdu.cloud.ipc.IpcContainer
+import dk.sdu.cloud.ipc.IpcHandler
+import dk.sdu.cloud.ipc.handler
+import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.ComputePlugin
 import dk.sdu.cloud.plugins.ComputeSession
@@ -17,14 +27,21 @@ import dk.sdu.cloud.plugins.IngressPlugin
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.PublicIPPlugin
 import dk.sdu.cloud.plugins.SyncthingPlugin
+import dk.sdu.cloud.plugins.ipcClient
+import dk.sdu.cloud.plugins.ipcServer
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.plugins.storage.ucloud.UCloudFilePlugin
+import dk.sdu.cloud.utils.forEachGraal
+import dk.sdu.cloud.utils.sendTerminalTable
+import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.selects.select
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import kotlin.coroutines.coroutineContext
 
 class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
@@ -62,13 +79,13 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             }
 
         jobCache = VerifiedJobCache(rpcClient)
-        val nameAllocator = NameAllocator(pluginConfig.namespace)
+        val nameAllocator = NameAllocator(pluginConfig.kubernetes.namespace)
         k8 = K8DependenciesImpl(
             KubernetesClient(
-                if (pluginConfig.kubeSvcOverride != null) {
-                    KubernetesConfigurationSource.InClusterConfiguration(pluginConfig.kubeSvcOverride)
-                } else if (pluginConfig.kubeConfig != null) {
-                    KubernetesConfigurationSource.KubeConfigFile(pluginConfig.kubeConfig, null)
+                if (pluginConfig.kubernetes.serviceUrl != null) {
+                    KubernetesConfigurationSource.InClusterConfiguration(pluginConfig.kubernetes.serviceUrl)
+                } else if (pluginConfig.kubernetes.configPath != null) {
+                    KubernetesConfigurationSource.KubeConfigFile(pluginConfig.kubernetes.configPath, null)
                 } else {
                     KubernetesConfigurationSource.Auto
                 }
@@ -81,10 +98,10 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
         )
 
         runtime = when (pluginConfig.scheduler) {
-            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Volcano -> VolcanoRuntime(k8, pluginConfig.categoryToSelector,
-                pluginConfig.fakeIpMount, pluginConfig.usePortForwarding)
-            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> K8PodRuntime(k8.client, pluginConfig.namespace,
-                pluginConfig.categoryToSelector, pluginConfig.fakeIpMount, pluginConfig.usePortForwarding)
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Volcano -> VolcanoRuntime(k8, pluginConfig.kubernetes.categoryToSelector,
+                pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> K8PodRuntime(k8.client, pluginConfig.kubernetes.namespace,
+                pluginConfig.kubernetes.categoryToSelector, pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
         }
 
         nameAllocator.runtime = runtime
@@ -116,12 +133,12 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
         with(jobManagement) {
             register(
                 FeatureTask(
-                    pluginConfig.nodeToleration,
-                    pluginConfig.forceMinimumReservation,
-                    pluginConfig.useMachineSelector,
+                    pluginConfig.kubernetes.nodeToleration,
+                    pluginConfig.developmentMode.fakeMemoryAllocation,
+                    pluginConfig.kubernetes.useMachineSelector,
                     NodeConfiguration(
-                        pluginConfig.systemReservedCpuMillis,
-                        pluginConfig.systemReservedCpuMillis,
+                        pluginConfig.systemReserved.cpuMillis,
+                        pluginConfig.systemReserved.memGigabytes * 1000,
                         run {
                             val result = HashMap<String, NodeType>()
                             val allTypes = productAllocationResolved
@@ -159,6 +176,7 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             register(FeatureFirewall)
             register(FeatureFileOutput(files.pathConverter, files.fs))
             register(FeatureSshKeys(pluginConfig.ssh?.subnets ?: emptyList()))
+            syncthingService?.also { register(it) }
         }
     }
 
@@ -174,12 +192,18 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
     }
 
     override suspend fun resetTestData() {
-        for (attempt in 0 until 120) {
+        var shouldContinue = true
+        var attempt = 0
+        whileGraal({ shouldContinue && attempt < 120 }) {
             val containers = runtime.list()
-            if (containers.isEmpty()) break
+            if (containers.isEmpty()) {
+                shouldContinue = false
+                return@whileGraal
+            }
             if (attempt != 0) delay(1000)
 
-            containers.forEach { runCatching { it.cancel(true) } }
+            containers.forEachGraal { runCatching { it.cancel(true) } }
+            attempt++
         }
     }
 
@@ -442,7 +466,9 @@ class UCloudPublicIPPlugin : PublicIPPlugin {
     }
 
     override suspend fun PluginContext.initialize() {
+        registerCliHandler()
         if (!config.shouldRunServerCode()) return
+
         compute = (config.plugins.jobs[pluginName] as? UCloudComputePlugin)
             ?: error("UCloud ingress plugin must run with a matching compute plugin (with the same name)")
 
@@ -467,5 +493,85 @@ class UCloudPublicIPPlugin : PublicIPPlugin {
 
     override suspend fun RequestContext.delete(resource: NetworkIP) {
         ipMounter.delete(bulkRequestOf(resource))
+    }
+
+    private suspend fun PluginContext.registerCliHandler() {
+        commandLineInterface?.addHandler(CliHandler("uc-ip-pool") { args ->
+            val ipcClient = ipcClient
+
+            fun sendHelp(): Nothing = sendCommandLineUsage("uc-ip-pool", "View information about IPs in the public IP pool") {
+                subcommand("ls", "List the available ranges in the pool")
+
+                subcommand("rm", "Delete an entry in the pool") {
+                    arg(
+                        "externalSubnet",
+                        description = "The external IP subnet to remove from the pool. " +
+                                "This will _not_ invalidate already allocated IP addresses."
+                    )
+                }
+
+                subcommand("add", "Adds a new range to the pool") {
+                    arg("externalSubnet", description = "The external IP subnet to add to the pool. For example: 10.0.0.0/24.")
+                    arg("internalSubnet", description = "The internal IP subnet to add to the pool. For example: 10.0.0.0/24.")
+                }
+            }
+
+            genericCommandLineHandler {
+                when (args.getOrNull(0)) {
+                    "ls" -> {
+                        val result = ipcClient.sendRequest(Ipc.browse, PaginationRequestV2(250)).items
+                        sendTerminalTable {
+                            header("External subnet", 30)
+                            header("Internal subnet", 30)
+
+                            for (item in result) {
+                                nextRow()
+                                cell(item.externalCidr)
+                                cell(item.internalCidr)
+                            }
+                        }
+                    }
+
+                    "rm" -> {
+                        val externalSubnet = args.getOrNull(1) ?: sendHelp()
+                        ipcClient.sendRequest(Ipc.delete, FindByStringId(externalSubnet))
+                    }
+
+                    "add" -> {
+                        val externalSubnet = args.getOrNull(1) ?: sendHelp()
+                        val internalSubnet = args.getOrNull(2) ?: sendHelp()
+                        ipcClient.sendRequest(Ipc.create, bulkRequestOf(K8Subnet(externalSubnet, internalSubnet)))
+                    }
+
+                    else -> sendHelp()
+                }
+            }
+        })
+
+        if (config.shouldRunServerCode()) {
+            ipcServer.addHandler(Ipc.browse.handler { user, request ->
+                if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+                val items = ipMounter.browsePool()
+                PageV2(items.size, items, null)
+            })
+
+            ipcServer.addHandler(Ipc.create.handler { user, request ->
+                if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                ipMounter.addToPool(request)
+
+            })
+
+            ipcServer.addHandler(Ipc.delete.handler { user, request ->
+                if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                ipMounter.deleteByExternalCidr(request.id)
+            })
+        }
+    }
+
+    private object Ipc : IpcContainer("uc_ip_pool") {
+        val browse = browseHandler(PaginationRequestV2.serializer(), PageV2.serializer(K8Subnet.serializer()))
+        val delete = deleteHandler(FindByStringId.serializer(), Unit.serializer())
+        val create = createHandler(BulkRequest.serializer(K8Subnet.serializer()), Unit.serializer())
     }
 }

@@ -32,12 +32,12 @@ fun UCloudProjectCli(controllerContext: ControllerContext) {
     val config = pluginContext.config
     pluginContext.commandLineInterface?.addHandler(CliHandler("projects") { args ->
         fun sendHelp(): Nothing = sendCommandLineUsage("projects", "View information about relevant UCloud projects") {
-            subcommand("list", "View a list of relevant projects")
-            subcommand("retrieve", "Retrieve project information and members") {
+            subcommand("ls", "View a list of relevant projects")
+            subcommand("get", "Retrieve project information and members") {
                 arg("projectId", description = "Project ID retrieved from UCloud (see projects list)")
             }
 
-            subcommand("create", "Creates a UCloud project which will be a child of this provider's project") {
+            subcommand("add", "Creates a UCloud project which will be a child of this provider's project") {
                 arg("title", optional = false) {
                     description = "The title of the project, must be unique"
                 }
@@ -48,7 +48,7 @@ fun UCloudProjectCli(controllerContext: ControllerContext) {
 
         genericCommandLineHandler {
             when (args.getOrNull(0)) {
-                "list" -> {
+                "ls", "list" -> {
                     val projects = ipcClient.sendRequest(UCloudProjectIpc.browse, Unit)
 
                     sendTerminalTable {
@@ -69,7 +69,7 @@ fun UCloudProjectCli(controllerContext: ControllerContext) {
                     }
                 }
 
-                "retrieve" -> {
+                "get", "retrieve" -> {
                     val id = args.getOrNull(1) ?: sendHelp()
                     val projectInfo = ipcClient.sendRequest(UCloudProjectIpc.retrieve, FindByStringId(id))
                     val members = ipcClient.sendRequest(UCloudProjectIpc.retrieveMembers, FindByStringId(id))
@@ -98,7 +98,7 @@ fun UCloudProjectCli(controllerContext: ControllerContext) {
                     }
                 }
 
-                "create" -> {
+                "add", "create" -> {
                     val title = args.getOrNull(1) ?: sendHelp()
 
                     ipcClient.sendRequest(

@@ -7,6 +7,36 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 02-02-23
+
+```
+✅  Deployment(accounting, 2022.3.8-accounting-fix.3) (UP-TO-DATE)
+```
+
+## 01-02-23
+
+```
+✅  Deployment(accounting, 2022.3.8-accounting-fix.2) (UP-TO-DATE)
+```
+
+## 31-01-23
+
+```
+✅  Deployment(elastic-management-service, 2022.3.7) (UP-TO-DATE)
+```
+
+## 26-01-23
+
+```
+✅  Deployment(webclient, 2022.3.9) (UP-TO-DATE)
+```
+
+## 17-01-23
+
+```
+✅  Deployment(app-orchestrator, 2022.3.4) (UP-TO-DATE)
+```
+
 # 04-01-23
 
 Note that this was a DB migration change, as a result the service version didn't change.

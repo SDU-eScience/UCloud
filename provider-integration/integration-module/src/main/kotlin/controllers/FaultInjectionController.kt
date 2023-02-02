@@ -17,6 +17,8 @@ import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.sql.TemporaryView
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.utils.forEachGraal
+import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.delay
 import kotlin.math.absoluteValue
 import kotlin.random.Random
@@ -71,24 +73,31 @@ class FaultInjectionController(
                 // NOTE(Dan): This function is typically invoked after a database snapshot has been restored. This
                 // typically causes an interruption to the DB services for several seconds. Here we attempt to retry
                 // until the database is operational again.
-                for (attempt in 0 until 30) {
+                var attempt = 0
+                var shouldContinue = true
+                whileGraal({ shouldContinue && attempt < 30 }) {
                     val databaseIsFunctional = runCatching {
                         dbConnection.withSession { session ->
                             session.prepareStatement("select 1").useAndInvokeAndDiscard()
                         }
                     }.isSuccess
 
-                    if (databaseIsFunctional) break
+                    if (databaseIsFunctional) {
+                        shouldContinue = false
+                        return@whileGraal
+                    }
+
                     if (attempt >= 10) {
                         log.warn("Database is still not operational after a test snapshot restoration! " +
                                 "We have been waiting for at least $attempt seconds.")
                     }
 
+                    attempt++
                     delay(1000)
                 }
             }
 
-            controllerContext.configuration.plugins.jobs.values.forEach {
+            controllerContext.configuration.plugins.jobs.values.forEachGraal {
                 try {
                     it.resetTestData()
                 } catch (ex: Throwable) {

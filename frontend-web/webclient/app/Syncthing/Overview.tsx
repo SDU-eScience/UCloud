@@ -399,6 +399,11 @@ export const Overview: React.FunctionComponent = () => {
     }, [devices]);
 
     useEffectSkipMount(() => {
+        // TODO(Dan): Adding this constraint here because the frontend has started resetting everybody's configuration
+        //  in production. We will need to investigate this later. For now, don't attempt to update if we don't have
+        //  all the details yet.
+        if (folders.length === 0 && devices.length === 0) return;
+
         callAPI(Sync.api.updateConfiguration({
             provider: provider,
             productId: selectedProduct?.product.name ?? "syncthing",

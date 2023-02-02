@@ -50,7 +50,7 @@ fun ApplicationCli(controllerContext: ControllerContext) {
 
         try {
             when (args.firstOrNull()) {
-                "upload" -> {
+                "add", "upload" -> {
                     if (args.size != 2) {
                         sendHelp()
                         return@CliHandler
@@ -154,7 +154,7 @@ fun ApplicationCli(controllerContext: ControllerContext) {
 
         try {
             when (args.firstOrNull()) {
-                "upload" -> {
+                "add", "upload" -> {
                     if (args.size != 2) {
                         sendHelp()
                         return@CliHandler
