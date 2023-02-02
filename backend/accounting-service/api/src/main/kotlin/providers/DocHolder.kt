@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.ProductPriceUnit
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.Maintenance
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
@@ -77,6 +78,7 @@ data class ExampleResource(
 data class ExampleResourceSupport(
     override val product: ProductReference,
     val supportsBackwardsCounting: Supported = Supported.NOT_SUPPORTED,
+    override var maintenance: Maintenance? = null,
 ) : ProductSupport {
     @UCloudApiStable
     enum class Supported {

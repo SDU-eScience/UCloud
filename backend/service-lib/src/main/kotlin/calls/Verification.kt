@@ -28,6 +28,16 @@ fun checkSingleLine(
     if (!allowSpecial) checkNoSpecialCharacters(property, value)
 }
 
+fun checkTextLength(
+    property: KProperty<*>,
+    value: String,
+    minimumSize: Int = 1,
+    maximumSize: Int = 1024 * 16
+) {
+    if (value.length < minimumSize) throw RPCException("${property.name} is too short", HttpStatusCode.BadRequest)
+    if (value.length > maximumSize) throw RPCException("${property.name} is too long", HttpStatusCode.BadRequest)
+}
+
 fun checkNotBlank(property: KProperty<*>, value: String) {
     if (value.isBlank()) {
         throw RPCException("${property.name} cannot be blank", HttpStatusCode.BadRequest)

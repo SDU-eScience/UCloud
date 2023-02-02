@@ -8,13 +8,14 @@ import {
     setMachineReservationFromRef,
     validateMachineReservation
 } from "@/Applications/Jobs/Widgets/Machines";
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {MandatoryField} from "@/Applications/Jobs/Widgets/index";
 import {costOfDuration, Product, productCategoryEquals, ProductCompute} from "@/Accounting";
 import {emptyPageV2} from "@/DefaultObjects";
 import {joinToString} from "@/UtilityFunctions";
 import {useProjectId} from "@/Project/Api";
+import {ResolvedSupport} from "@/UCloud/ResourceApi";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";
@@ -59,6 +60,16 @@ export const ReservationParameter: React.FunctionComponent<{
     }, [wallet]);
 
     const allMachines = findRelevantMachinesForApplication(application, machineSupport.data, wallet.data);
+    const support = useMemo(() => {
+        const items: ResolvedSupport[] = [];
+        let productsByProvider = machineSupport.data.productsByProvider;
+        for (const provider of Object.keys(productsByProvider)) {
+            const providerProducts = productsByProvider[provider];
+            // TODO(Dan): We need to fix some of these types soon. We are still using a lot of the old generated stuff.
+            for (const item of providerProducts) items.push((item as unknown) as ResolvedSupport);
+        }
+        return items;
+    }, [machineSupport.data]);
 
     const recalculateCost = useCallback(() => {
         const {options} = validateReservation();
@@ -125,7 +136,7 @@ export const ReservationParameter: React.FunctionComponent<{
 
         <div>
             <Label>Machine type <MandatoryField /></Label>
-            <Machines machines={allMachines} onMachineChange={setSelectedMachine} />
+            <Machines machines={allMachines} support={support} onMachineChange={setSelectedMachine} />
             {errors["product"] ? <TextP color={"red"}>{errors["product"]}</TextP> : null}
         </div>
     </Box>

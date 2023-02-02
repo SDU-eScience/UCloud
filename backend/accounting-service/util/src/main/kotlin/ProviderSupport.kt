@@ -23,7 +23,7 @@ class ProviderSupport<Communication : ProviderComms, P : Product, Support : Prod
 ) {
     @Suppress("UNCHECKED_CAST")
     private val productCache = SimpleCache<ProductReference, P>(
-        maxAge = 60_000 * 15,
+        maxAge = 60_000 * 2,
         lookup = { ref ->
             val productResp = Products.retrieve.call(
                 ProductsRetrieveRequest(
@@ -45,7 +45,7 @@ class ProviderSupport<Communication : ProviderComms, P : Product, Support : Prod
     )
 
     private val providerProductCache = SimpleCache<String, List<ResolvedSupport<P, Support>>>(
-        maxAge = 60_000 * 15,
+        maxAge = 60_000 * 2,
         lookup = { provider ->
             runCatching {
                 val comm = providers.prepareCommunication(provider)
