@@ -68,13 +68,26 @@ internal fun mergeIndex(elastic: ElasticsearchClient, index: String, maxNumberOf
     )
 }
 
-internal fun getListOfIndices(elastic: ElasticsearchClient, indexRegex: String): List<String> {
+//If null given to indexRegex - all standard indices are returned: Http_logs, kubernetes and infrastructure
+internal fun getListOfIndices(elastic: ElasticsearchClient, indexRegex: String?): List<String> {
     return try {
-        elastic.indices().get(
-            GetIndexRequest.Builder()
-                .index(indexRegex)
-                .build()
-        ).result().keys.toList()
+        if (indexRegex == null) {
+            elastic.indices().get(
+                GetIndexRequest.Builder()
+                    .index(
+                        listOf("http_logs*", "kubernetes*", "infrastructure*")
+                    )
+                    .build()
+            ).result().keys.toList()
+        } else {
+            elastic.indices().get(
+                GetIndexRequest.Builder()
+                    .index(
+                        indexRegex
+                    )
+                    .build()
+            ).result().keys.toList()
+        }
     } catch (ex: ElasticsearchStatusException) {
         emptyList()
     }

@@ -25,7 +25,7 @@ fun SshKeyCli(controllerContext: ControllerContext) {
     val config = pluginContext.config
     pluginContext.commandLineInterface?.addHandler(CliHandler("ssh") { args ->
         fun sendHelp(): Nothing = sendCommandLineUsage("ssh", "View information about relevant SSH keys of users") {
-            subcommand("retrieve", "Retrieves the SSH keys of one or more users") {
+            subcommand("get", "Retrieves the SSH keys of one or more users") {
                 arg("outputDirectory") {
                     description = "Specifies the output directory to use"
                 }
@@ -39,7 +39,7 @@ fun SshKeyCli(controllerContext: ControllerContext) {
         val ipcClient = pluginContext.ipcClient
         genericCommandLineHandler {
             when (args.getOrNull(0)) {
-                "retrieve" -> {
+                "get" -> {
                     val users = args.getOrNull(2)?.split(",")?.map { it.trim() }?.takeIf { it.isNotEmpty() }
                         ?: sendHelp()
 

@@ -765,50 +765,6 @@ class ProjectQueryService(
         }
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    suspend fun findProjectsInNeedOfVerification(ctx: DBContext): Flow<ProjectForVerification> {
-        return ctx.withSession { session ->
-            channelFlow {
-                session.sendPreparedStatement(
-                    {
-                        setParameter("days", VERIFICATION_REQUIRED_EVERY_X_DAYS)
-                    },
-                    """
-                        declare c no scroll cursor for 
-                        
-                        select pm.project_id, pm.username, pm.role, p.title
-                        from 
-                             projects p,
-                             project_members pm,
-                             (
-                                 select project_id
-                                 from project.project_membership_verification v
-                                 group by project_id
-                                 having max(verification) <= (now() - (:days || ' day')::interval)
-                             ) as latest
-                             
-                        where 
-                            pm.project_id = p.id and
-                            pm.project_id = latest.project_id and 
-                            (pm.role = 'PI' or pm.role = 'ADMIN');
-
-                    """
-                )
-
-                session.sendQuery("fetch forward 100 from c").rows.forEach {
-                    send(
-                        ProjectForVerification(
-                            it["project_id"] as String,
-                            it["username"] as String,
-                            ProjectRole.valueOf(it["role"] as String),
-                            it["title"] as String
-                        )
-                    )
-                }
-            }
-        }
-    }
-
     suspend fun listOutgoingInvites(
         ctx: DBContext,
         requestedBy: String,

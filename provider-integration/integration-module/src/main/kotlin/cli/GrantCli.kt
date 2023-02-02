@@ -40,7 +40,7 @@ fun GrantCli(controllerContext: ControllerContext) {
     val config = pluginContext.config
     pluginContext.commandLineInterface?.addHandler(CliHandler("grants") { args ->
         fun sendHelp(): Nothing = sendCommandLineUsage("grants", "Tools to review grant allocations for projects") {
-            subcommand("list", "Retrieves a list of grants which has not yet been acknowledged by the provider")
+            subcommand("ls", "Retrieves a list of grants which has not yet been acknowledged by the provider")
             subcommand("acknowledge", "Acknowledges one or more grants removing them from the output of list") {
                 arg("projectId", description = "The project ID to acknowledge grants from")
             }
@@ -49,7 +49,7 @@ fun GrantCli(controllerContext: ControllerContext) {
         val ipcClient = pluginContext.ipcClient
         genericCommandLineHandler {
             when (args.getOrNull(0)) {
-                "list" -> {
+                "ls" -> {
                     val grants = ipcClient.sendRequest(GrantsIpc.retrieve, Unit).items
 
                     if (!isParsable) {

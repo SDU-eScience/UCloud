@@ -1,5 +1,3 @@
-# PostgreSQL
-
 UCloud uses [PostgreSQL](https://www.postgresql.org/) for its general purpose data-storage needs. Low-level access to
 the PostgreSQL database done via the [jasync-sql](https://github.com/jasync-sql/jasync-sql) library, which provides
 Kotlin co-routine support to avoid blocking our threads associated with our coroutines. In practice, access to Postgres
