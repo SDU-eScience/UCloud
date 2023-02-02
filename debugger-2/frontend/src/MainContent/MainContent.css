@@ -75,6 +75,8 @@ div[data-haschildren="true"] {
     cursor: pointer;
 }
 
-.breadcrumb {
-
+.breadcrumb::after {
+    content: '/';
+    padding-left: 8px;
+    padding-right: 8px;
 }

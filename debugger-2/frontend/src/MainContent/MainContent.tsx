@@ -6,17 +6,16 @@ import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 
 // Notes/Issues:
-//   Fetching missing contexts sometimes misses some.
-//   Double request sometimes happens, even without strictmode.
-//   Filters not implemented in backend, I believe.
-//   The List doesn't work correctly.
-//   Frontend styling is generally not good.
-//   Handle different types of ctx/logs to render.
-//   Blob searching support is missing!
-//   What happens when selecting a different service?
-//      - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected).
-//   Handle long-running situations where memory usage has become high.
-//   seekToEnd sometimes crashes.
+//  Fetching missing contexts sometimes misses some. Backend issue. Clicking the same ctx several times
+//  The List doesn't work correctly.
+//  Frontend styling is generally not good.
+//  Handle different types of ctx/logs to render.
+//  Blob searching support is missing!
+//  
+//  What happens when selecting a different service?
+//     - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected).
+//  Handle long-running situations where memory usage has become high.
+//  seekToEnd sometimes crashes.
 
 type LogOrCtx = Log | DebugContext;
 
@@ -27,7 +26,10 @@ export function MainContent(): JSX.Element {
 
     const setContext = React.useCallback((d: DebugContext | null) => {
         if (d === null) {
-            if (logStore.contextRoot() != null) logStore.clearActiveContext();
+            if (logStore.contextRoot() != null) {
+                console.log("clearActiveContext")
+                logStore.clearActiveContext();
+            }
             setRouteComponents([]);
             return;
         }
@@ -37,7 +39,7 @@ export function MainContent(): JSX.Element {
     }, [setRouteComponents]);
 
     const onWheel: React.WheelEventHandler<HTMLDivElement> = React.useCallback(e => {
-        if (e.deltaY < 0) { }
+        if (e.deltaY < 0) { /* TODO(Jonas): Load previous. */}
     }, []);
 
     const serviceLogs = logs.content[service] ?? [];
@@ -147,7 +149,7 @@ function RequestDetailsByType({activeContext}: {activeContext: LogOrCtx}): JSX.E
                 <div className="card query">
                     DATABASE_TRANSACTION
                     {event}, {asString}
-                    <pre>{activeContext.id}</pre>
+                    <pre>{activeContext.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
@@ -159,7 +161,7 @@ function RequestDetailsByType({activeContext}: {activeContext: LogOrCtx}): JSX.E
             return <>
                 <div className="card query">
                     SERVER_REQUEST
-                    <pre>{activeContext.id}</pre>
+                    <pre>{activeContext.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
@@ -171,7 +173,7 @@ function RequestDetailsByType({activeContext}: {activeContext: LogOrCtx}): JSX.E
             return <>
                 <div className="card query">
                     CLIENT_REQUEST
-                    <pre>{activeContext.id}</pre>
+                    <pre>{activeContext.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
@@ -183,7 +185,7 @@ function RequestDetailsByType({activeContext}: {activeContext: LogOrCtx}): JSX.E
             return <>
                 <div className="card query">
                     BACKGROUND_TASK
-                    <pre>{activeContext.id}</pre>
+                    <pre>{activeContext.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
@@ -195,7 +197,7 @@ function RequestDetailsByType({activeContext}: {activeContext: LogOrCtx}): JSX.E
             return <>
                 <div className="card query">
                     OTHER TODO
-                    <pre>{activeContext.id}</pre>
+                    <pre>{activeContext.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
@@ -217,9 +219,9 @@ function BreadCrumbs({routeComponents, setRouteComponents, clearContext}: {clear
     }, [setRouteComponents, clearContext]);
 
     if (routeComponents.length === 0) return <div />
-    return <div className="flex breadcrumb full-width">
-        <div className="pointer" onClick={() => setToParentComponent(-1)}>Root</div>/
-        {routeComponents.map((it, idx) => <div key={it.id} className="pointer" onClick={() => setToParentComponent(idx)}>{prettierString(it.typeString)} /</div>)}
+    return <div className="flex full-width">
+        <div className="breadcrumb pointer" onClick={() => setToParentComponent(-1)}>Root</div>
+        {routeComponents.map((it, idx) => <div key={it.id} className="breadcrumb pointer" onClick={() => setToParentComponent(idx)}>{prettierString(it.typeString)}</div>)}
     </div>;
 }
 

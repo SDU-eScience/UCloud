@@ -141,8 +141,6 @@ export const logStore = new class {
         this.ctxMap = {};
         this.activeContexts = null;
         this.entryCount = 0;
-
-        activateServiceRequest(null);
         resetMessages();
     }
 
