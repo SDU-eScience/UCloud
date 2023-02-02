@@ -110,27 +110,27 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
     }
 
     get ctxGeneration(): number {
-        return Number(readInt8(this.buffer, this.offset + 1));
+        return Number(readInt8(this.buffer, this.offset + 1)); // 1
     }
 
     get ctxParent(): number {
-        return readInt4(this.buffer, this.offset + 9);
+        return readInt4(this.buffer, this.offset + 9); // 1 + 8
     }
 
     get ctxId(): number {
-        return readInt4(this.buffer, this.offset + 13);
+        return readInt4(this.buffer, this.offset + 13); // 1 + 8 + 4
     }
 
     get timestamp(): number {
-        return Number(readInt8(this.buffer, this.offset + 17));
+        return Number(readInt8(this.buffer, this.offset + 17)); // 1 + 8 + 4 + 4
     }
 
     get importance(): MessageImportance {
-        return readInt1(this.buffer, this.offset + 25) as MessageImportance;
+        return readInt1(this.buffer, this.offset + 25) as MessageImportance; // 1 + 8 + 4 + 4 + 8
     }
 
     get id(): number {
-        return readInt4(this.buffer, this.offset + 26);
+        return readInt4(this.buffer, this.offset + 26); // 1 + 8 + 4 + 4 + 8 + 4
     }
 }
 
@@ -200,8 +200,12 @@ export class DebugContext {
         return debugContextToString(this.type);
     }
 
+    get timestamp(): number {
+        return Number(readInt8(this.buffer, this.offset + 10));
+    }
+
     get name(): string {
-        return readNameFromBuffer(this.buffer, this.offset + 14, 116);
+        return readNameFromBuffer(this.buffer, this.offset + 22, 108);
     }
 }
 

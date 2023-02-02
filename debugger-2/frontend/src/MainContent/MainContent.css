@@ -62,6 +62,10 @@ div.request-list-row:last-child {
     border-bottom: 1px solid black;
 }
 
+div[data-haschildren="true"] {
+    border-bottom: solid var(--black) 1px;
+}
+
 .leaf {
     width: auto;
     cursor: pointer;

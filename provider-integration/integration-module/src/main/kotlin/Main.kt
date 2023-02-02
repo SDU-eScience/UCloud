@@ -17,7 +17,6 @@ import dk.sdu.cloud.controllers.ControllerContext
 import dk.sdu.cloud.controllers.EnvoyConfigurationService
 import dk.sdu.cloud.controllers.IpcController
 import dk.sdu.cloud.debug.*
-import dk.sdu.cloud.io.CommonFile
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.ResourcePlugin
 import dk.sdu.cloud.plugins.SimplePluginContext
@@ -36,6 +35,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
+import dk.sdu.cloud.utils.ResourceVerification
 import dk.sdu.cloud.plugins.storage.posix.posixFilePermissionsFromInt
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
@@ -413,6 +413,12 @@ fun main(args: Array<String>) {
                 }
 
                 is ServerMode.Plugin -> null
+            }
+
+            // Resource verification (dependency for IPC server)
+            // -------------------------------------------------------------------------------------------------------
+            if (serverMode == ServerMode.Server) {
+                ResourceVerification.client = rpcClient!!
             }
 
             // IPC Server
