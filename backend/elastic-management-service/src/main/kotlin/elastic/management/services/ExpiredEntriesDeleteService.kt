@@ -116,7 +116,7 @@ class ExpiredEntriesDeleteService(
     }
 
     fun deleteExpiredAllIndices() {
-        val list = getListOfIndices(elastic, "*")
+        val list = getListOfIndices(elastic, null)
         list.forEach {
             log.info("Finding expired entries in $it")
             deleteExpired(it)
@@ -124,7 +124,7 @@ class ExpiredEntriesDeleteService(
     }
 
     fun deleteAllEmptyIndices(lowLevelRestClient: RestClient) {
-        val list = getListOfIndices(elastic, "*")
+        val list = getListOfIndices(elastic, null)
         list.forEach {
             if (getDocumentCountSum(listOf(it), lowLevelRestClient) == 0) {
                 deleteIndex(it, elastic)
