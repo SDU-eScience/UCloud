@@ -10,6 +10,9 @@ For details look in the `k8.kts` folders of each microservice.
 ## 02-02-23
 
 ```
+✅  Deployment(webclient, 2022.3.10) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2022.3.8) (UP-TO-DATE)
+✅  Deployment(file-orchestrator, 2022.3.8) (UP-TO-DATE)
 ✅  Deployment(elastic-management-service, 2022.3.8-elasticfix) (UP-TO-DATE)
 ```
 
