@@ -41,6 +41,7 @@ data class VerifiedConfig(
         val developmentMode: Boolean,
         val cors: Cors,
         val disableInsecureFileCheck: Boolean,
+        val maintenance: Maintenance,
     ) {
         data class Hosts(
             val ucloud: Host,
@@ -57,7 +58,11 @@ data class VerifiedConfig(
         )
 
         data class Cors(
-            val allowHosts: List<String>
+            val allowHosts: List<String>,
+        )
+
+        data class Maintenance(
+            val alwaysAllowAccessFrom: List<String>,
         )
     }
 
@@ -400,6 +405,10 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             emitError("core.allowRootMode is only allowed if core.launchRealUserInstances = false")
         }
 
+        val maintenance = VerifiedConfig.Core.Maintenance(
+            core.maintenance?.alwaysAllowAccessFrom ?: emptyList()
+        )
+
         VerifiedConfig.Core(
             certificate,
             providerId,
@@ -410,7 +419,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             core.allowRootMode,
             core.developmentMode ?: (core.hosts.ucloud.host == "backend"),
             cors,
-            core.disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy && core.developmentMode == true
+            core.disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy && core.developmentMode == true,
+            maintenance,
         )
     }
 

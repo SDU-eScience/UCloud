@@ -82,7 +82,7 @@ data class FileMetadataTemplate(
 @Serializable
 data class FileMetadataTemplateSupport(
     override val product: ProductReference = ProductReference("", "", Provider.UCLOUD_CORE_PROVIDER),
-    override val maintenance: Maintenance? = null,
+    override var maintenance: Maintenance? = null,
 ) : ProductSupport
 
 @Serializable

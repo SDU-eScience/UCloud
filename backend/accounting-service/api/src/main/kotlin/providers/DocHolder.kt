@@ -78,7 +78,7 @@ data class ExampleResource(
 data class ExampleResourceSupport(
     override val product: ProductReference,
     val supportsBackwardsCounting: Supported = Supported.NOT_SUPPORTED,
-    override val maintenance: Maintenance? = null,
+    override var maintenance: Maintenance? = null,
 ) : ProductSupport {
     @UCloudApiStable
     enum class Supported {

@@ -109,7 +109,7 @@ fun ProviderSpecification.addProviderInfoToRelativeUrl(url: String): String {
 @UCloudApiStable
 data class ProviderSupport(
     override val product: ProductReference,
-    override val maintenance: Maintenance? = null,
+    override var maintenance: Maintenance? = null,
 ) : ProductSupport
 
 @Serializable

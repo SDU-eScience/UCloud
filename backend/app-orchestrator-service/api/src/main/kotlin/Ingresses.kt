@@ -18,7 +18,7 @@ data class IngressSupport(
     val domainPrefix: String,
     val domainSuffix: String,
     override val product: ProductReference,
-    override val maintenance: Maintenance? = null,
+    override var maintenance: Maintenance? = null,
 ) : ProductSupport
 
 @Serializable

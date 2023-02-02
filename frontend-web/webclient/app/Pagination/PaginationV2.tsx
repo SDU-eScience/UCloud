@@ -45,6 +45,10 @@ export function ListV2<T>(props: PropsWithChildren<ListV2Props<T>>): JSX.Element
         return <HexSpin />;
     }
 
+    if (props.error) {
+        return <Box mt="6px"><Error error={props.error} /></Box>;
+    }
+
     if (props.page.items.length === 0) {
         if (!props.customEmptyPage) {
             return <div><Heading.h4>No results.</Heading.h4></div>;
@@ -54,7 +58,6 @@ export function ListV2<T>(props: PropsWithChildren<ListV2Props<T>>): JSX.Element
     }
 
     return <Box>
-        <Box mt="6px"><Error error={props.error} /></Box>
         {props.pageRenderer(allItems, { hasNext: props.page.next !== null })}
         {props.page.next || allItems.length > 1 ?
             <Box margin={"0 auto"} maxWidth={"500px"}>

@@ -192,7 +192,7 @@ data class ComputeSupport(
     @UCloudApiDoc("Support for `Tool`s using the `NATIVE` backend")
     val native: Native = Native(),
 
-    override val maintenance: Maintenance? = null,
+    override var maintenance: Maintenance? = null,
 ) : ProductSupport {
     interface UniversalBackendSupport {
         var enabled: Boolean?

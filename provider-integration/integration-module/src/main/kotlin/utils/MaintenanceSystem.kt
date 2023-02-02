@@ -18,6 +18,7 @@ import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.ipcClient
+import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.sql.bindLongNullable
 import dk.sdu.cloud.sql.bindStringNullable
 import dk.sdu.cloud.sql.useAndInvoke
@@ -381,6 +382,8 @@ object MaintenanceSystem {
                     )
                 }
 
+                maintenanceCache.clearAll()
+
                 id ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
             })
 
@@ -489,10 +492,14 @@ object MaintenanceSystem {
         }
     }
 
-    suspend fun fetchActiveMaintenancePeriods(): List<MaintenancePeriod> {
+    private val maintenanceCache = SimpleCache<Unit, List<MaintenancePeriod>>(maxAge = 30_000) {
         val now = System.currentTimeMillis()
-        return controllerContext.pluginContext.ipcClient.sendRequest(Ipc.browse, Unit).items
+        controllerContext.pluginContext.ipcClient.sendRequest(Ipc.browse, Unit).items
             .filter { now >= it.specification.startsAt }
+    }
+
+    suspend fun fetchActiveMaintenancePeriods(): List<MaintenancePeriod> {
+        return maintenanceCache.get(Unit) ?: emptyList()
     }
 }
 
@@ -509,10 +516,19 @@ data class MaintenancePeriod(
         val startsAt: Long,
         val endsAt: Long?
     )
-}
 
-fun MaintenancePeriod.matcher(): VerifiedConfig.Plugins.ProductMatcher {
-    return (VerifiedConfig.Plugins.ProductMatcher.parse(specification.productMatcher) as VerifyResult.Ok).result
+    fun toUCloudModel(): Maintenance {
+        return Maintenance(
+            specification.description,
+            specification.availability,
+            specification.startsAt,
+            specification.endsAt
+        )
+    }
+
+    fun matcher(): VerifiedConfig.Plugins.ProductMatcher {
+        return (VerifiedConfig.Plugins.ProductMatcher.parse(specification.productMatcher) as VerifyResult.Ok).result
+    }
 }
 
 @Serializable

@@ -15,7 +15,7 @@ import kotlinx.serialization.Serializable
 
 interface ProductSupport {
     val product: ProductReference
-    val maintenance: Maintenance?
+    var maintenance: Maintenance?
 }
 
 @Serializable

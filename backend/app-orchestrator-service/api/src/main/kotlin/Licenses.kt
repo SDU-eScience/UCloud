@@ -107,7 +107,7 @@ data class LicenseUpdate(
 @UCloudApiStable
 data class LicenseSupport(
     override val product: ProductReference,
-    override val maintenance: Maintenance? = null,
+    override var maintenance: Maintenance? = null,
 ) : ProductSupport
 
 @TSNamespace("compute.licenses")

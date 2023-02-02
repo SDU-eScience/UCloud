@@ -85,7 +85,7 @@ enum class ShareType {
 data class ShareSupport(
     val type: ShareType,
     override val product: ProductReference,
-    override val maintenance: Maintenance? = null,
+    override var maintenance: Maintenance? = null,
 ): ProductSupport
 
 @Serializable
