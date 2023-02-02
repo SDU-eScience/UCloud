@@ -695,6 +695,16 @@ fun exampleProducer(logFolder: File) {
                             debug.log(MessageImportance.THIS_IS_NORMAL, "📤 sending query select * from fie.dog")
                             debug.log(MessageImportance.THIS_IS_NORMAL, "📥 got a response from the database")
                         }
+
+                        debug.useContext(DebugContextType.BACKGROUND_TASK, "🎤 Singing cool stuff") {
+
+                        }
+                        debug.useContext(DebugContextType.BACKGROUND_TASK, "🤐 Zipping files") {
+                            debug.useContext(DebugContextType.SERVER_REQUEST, "😱 No! I won't zip!") {}
+                            debug.useContext(DebugContextType.SERVER_REQUEST, "😇 OK! I will!") {
+                                debug.log(MessageImportance.THIS_IS_NORMAL, "🎉 Finished!")
+                            }
+                        }
                     }
                 }
             }

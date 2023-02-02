@@ -6,7 +6,7 @@ import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 
 // Notes/Issues:
-//  Fetching missing contexts sometimes misses some. Backend issue. Clicking the same ctx several times
+//  Fetching missing contexts sometimes misses some. Backend issue. Clicking the same ctx several times doesn't always respond with every log. Seems to find ctxes.
 //  The List doesn't work correctly.
 //  Frontend styling is generally not good.
 //  Handle different types of ctx/logs to render.
@@ -55,14 +55,14 @@ export function MainContent(): JSX.Element {
                         {({height, width}) => {
                             const root = logStore.contextRoot();
                             if (root) {
-                                return <List itemSize={logStore.entryCount * 22} height={height} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card list">
+                                return <List itemSize={logStore.entryCount * 22} height={height} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card">
                                     {({data}) => {
                                         const root = data;
                                         return <DebugContextRow setRouteComponents={ctx => setRouteComponents(ctx)} debugContext={root.ctx} ctxChildren={root.children} isActive={false} />
                                     }}
                                 </List>
                             }
-                            return <List itemData={serviceLogs} height={height} width={width} itemSize={22} itemCount={serviceLogs.length} className="card list">
+                            return <List itemData={serviceLogs} height={height} width={width} itemSize={22} itemCount={serviceLogs.length} className="card">
                                 {({index, data}) => {
                                     const item = data[index];
                                     return <DebugContextRow
