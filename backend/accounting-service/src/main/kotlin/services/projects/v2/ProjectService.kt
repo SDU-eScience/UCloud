@@ -24,7 +24,6 @@ import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -33,9 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import java.time.LocalDateTime
 import java.time.OffsetDateTime
-import java.time.OffsetTime
 import java.util.*
 import kotlin.collections.ArrayList
 
