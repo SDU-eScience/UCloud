@@ -1045,7 +1045,7 @@ const groupMemberOperations: Operation<string, Callbacks>[] = [
 ];
 
 function daysLeftToTimestamp(timestamp: number): number {
-    return Math.floor((timestamp - timestampUnixMs()/1000) / 3600 / 24);
+    return Math.floor((timestamp - timestampUnixMs())/1000 / 3600 / 24);
 }
 
 function inviteLinkFromToken(token: string): string {

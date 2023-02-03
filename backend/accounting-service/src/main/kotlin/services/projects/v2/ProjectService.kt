@@ -33,7 +33,9 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import java.time.LocalDateTime
 import java.time.OffsetDateTime
+import java.time.OffsetTime
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -1249,11 +1251,11 @@ class ProjectService(
         }
     }
 
-    suspend fun createInviteLink(actorAndProject: ActorAndProject, ctx: DBContext = db) {
+    suspend fun createInviteLink(actorAndProject: ActorAndProject, ctx: DBContext = db): ProjectInviteLink {
         val project = actorAndProject.requireProject()
         val token = UUID.randomUUID().toString()
 
-        ctx.withSession { session ->
+        return ctx.withSession { session ->
             requireAdmin(actorAndProject.actor, listOf(project), session)
 
             val count = session.sendPreparedStatement(
@@ -1261,9 +1263,9 @@ class ProjectService(
                     setParameter("project", project)
                 },
                 """
-                    select * from project.invite_links where project_id = :project and now() < expires
+                    select count(*) from project.invite_links where project_id = :project and now() < expires
                 """
-            ).rows.size
+            ).rows.first().getLong("count") ?: 0
 
             if (count >= 10) {
                 throw RPCException(
@@ -1272,7 +1274,7 @@ class ProjectService(
                 )
             }
 
-            val success = session.sendPreparedStatement(
+            session.sendPreparedStatement(
                 {
                     setParameter("project", project)
                     setParameter("token", token)
@@ -1280,13 +1282,14 @@ class ProjectService(
                 """
                     insert into project.invite_links (project_id, token, expires) values
                         (:project, :token, now() + '30 days')
+                        returning project_id, token, expires, role_assignment
                 """
-            ).rowsAffected > 0
-
-            if (!success) {
-                throw RPCException(
-                    "Unable to create invitation link",
-                    HttpStatusCode.BadRequest
+            ).rows.firstNotNullOf {
+                ProjectInviteLink(
+                    it.getAs<UUID>("token").toString(),
+                    it.getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
+                    emptyList(),
+                    ProjectRole.valueOf(it.getString("role_assignment")!!)
                 )
             }
         }
@@ -1303,7 +1306,7 @@ class ProjectService(
                     setParameter("project", project)
                 },
                 """
-                    select * from project.invite_links
+                    select token, expires, role_assignment, group_id from project.invite_links
                     left join project.invite_link_group_assignments a on a.link_token = token
                     left join project.groups g on g.id = a.group_id
                     where project_id = :project and now() < expires
@@ -1312,7 +1315,7 @@ class ProjectService(
             ).rows.groupBy { it.getAs<UUID>("token") }.map { entry ->
                 ProjectInviteLink(
                     entry.key.toString(),
-                    entry.value.first().getAs<OffsetDateTime>("expires").toEpochSecond(),
+                    entry.value.first().getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
                     entry.value.mapNotNull { it.getString("group_id") },
                     ProjectRole.valueOf(entry.value.first().getString("role_assignment")!!)
                 )
@@ -1380,7 +1383,7 @@ class ProjectService(
 
             if (!success) {
                 throw RPCException(
-                    "Unable to update role assignment",
+                    "Link might not be valid anymore or have been deleted",
                     HttpStatusCode.BadRequest
                 )
             }
@@ -1405,13 +1408,17 @@ class ProjectService(
                 },
                 """
                     with new (group_id, token) as (
-                        select id, cast(:token as uuid) from project.groups where project = :project and id in (select unnest(cast(:groups as text[])))
+                        select id, cast(:token as uuid)
+                        from project.groups
+                        where project = :project and
+                            id in (select unnest(cast(:groups as text[])))
                     ), changed as (
                         insert into project.invite_link_group_assignments (group_id, link_token)
-                        select * from new
+                        select group_id, token from new
                         on conflict do nothing
                     ) delete from project.invite_link_group_assignments
-                    where link_token = cast(:token as uuid) and (group_id, link_token) not in (select group_id, token from new)
+                    where link_token = cast(:token as uuid) and
+                        (group_id, link_token) not in (select group_id, token from new)
                 """
             )
         }
@@ -1447,8 +1454,8 @@ class ProjectService(
                 """
             ).rows.groupBy { it.getString("project") }.map { entry ->
                 val project = entry.key
-                val pi = entry.value.first().getString("pi")
-                val role = entry.value.first().getString("role")
+                val pi = entry.value.firstOrNull()?.getString("pi")
+                val role = entry.value.firstOrNull()?.getString("role")
 
                 if (project == null || pi == null || role == null) {
                     throw RPCException("Link expired", HttpStatusCode.BadRequest)
@@ -1462,7 +1469,7 @@ class ProjectService(
                     ProjectRole.valueOf(role),
                     entry.value.mapNotNull { it.getString("group_id") }
                 )
-            }.firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            }.firstOrNull() ?: throw RPCException("Link expired", HttpStatusCode.BadRequest)
 
             createInvite(
                 projectAssignment.piActorAndProject,
