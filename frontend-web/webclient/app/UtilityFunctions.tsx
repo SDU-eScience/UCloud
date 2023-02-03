@@ -114,6 +114,7 @@ export const extensionType = (ext: string): ExtensionType => {
         case "xml":
         case "json":
         case "yml":
+        case "ini":
         case "sbatch":
             return "code";
         case "png":
@@ -313,7 +314,7 @@ export function copyToClipboard({value, message}: CopyToClipboard): void {
 }
 
 export function errorMessageOrDefault(
-    err: {request: XMLHttpRequest; response: any} | {status: number; response: string} | string,
+    err: {request: XMLHttpRequest; response: any} | {status: number; response: string} | string | any,
     defaultMessage: string
 ): string {
     if (!navigator.onLine) return "You seem to be offline.";

@@ -3,7 +3,7 @@
 # `IngressIncludeFlags`
 
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -167,7 +167,7 @@ data class IngressIncludeFlags(
 
 <details>
 <summary>
-<code>filterState</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.IngressState.md'>IngressState</a>?</code></code>
+<code>filterState</code>: <code><code><a href='#ingressstate'>IngressState</a>?</code></code>
 </summary>
 
 

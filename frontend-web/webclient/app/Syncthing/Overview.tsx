@@ -30,14 +30,16 @@ import {FilesBrowse} from "@/Files/Files";
 import {api as FilesApi, findSensitivity} from "@/UCloud/FilesApi";
 import {randomUUID, doNothing, removeTrailingSlash, useEffectSkipMount, copyToClipboard} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
-import {buildQueryString} from "@/Utilities/URIUtilities";
-import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
+import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
+import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
+import * as UCloud from "@/UCloud";
 
 import syncthingScreen1 from "@/Assets/Images/syncthing/syncthing-1.png";
 import syncthingScreen2 from "@/Assets/Images/syncthing/syncthing-2.png";
 import syncthingScreen3 from "@/Assets/Images/syncthing/syncthing-3.png";
 import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import Products from "@/Products/Products";
 
 // UI state management
 // ================================================================================
@@ -204,7 +206,7 @@ async function onAction(_: UIState, action: UIAction, cb: ActionCallbacks): Prom
         }
 
         case "ResetAll": {
-            callAPIWithErrorHandler(Sync.api.resetConfiguration({providerId: "ucloud"}));
+            callAPIWithErrorHandler(Sync.api.resetConfiguration({provider: cb.provider, productId: cb.productId}));
             break;
         }
     }
@@ -215,6 +217,8 @@ interface ActionCallbacks {
     pureDispatch: (action: UIAction) => void;
     requestReload: () => void; // NOTE(Dan): use when it is difficult to rollback a change
     requestJobReloader: () => void;
+    provider: string;
+    productId: string;
 }
 
 interface OperationCallbacks {
@@ -222,6 +226,8 @@ interface OperationCallbacks {
     dispatch: (action: UIAction) => void;
     requestReload: () => void;
     permissionProblems: string[];
+    provider: string;
+    productId: string;
 }
 
 // Primary user interface
@@ -242,9 +248,18 @@ export const Overview: React.FunctionComponent = () => {
     const folders = uiState?.folders ?? [];
     const servers = uiState?.servers ?? [];
 
+    const provider = getQueryParam(location.search, "provider");
+
+    const [selectedProduct, setSelectedProduct] = useState<UCloud.compute.ComputeProductSupportResolved|null>(null);
+
+    if (!provider) {
+        navigate("/drives");
+        return null;
+    }
+
     // UI callbacks and state manipulation
     const reload = useCallback(() => {
-        Sync.fetchConfig().then(config => {
+        Sync.fetchConfig(provider).then(config => {
             if (didUnmount.current) return;
             pureDispatch({type: "ReloadConfig", config});
         });
@@ -252,6 +267,12 @@ export const Overview: React.FunctionComponent = () => {
         Sync.fetchServers().then(servers => {
             if (didUnmount.current) return;
             pureDispatch({type: "ReloadServers", servers});
+        });
+
+        Sync.fetchProducts(provider).then(product => {
+            if (product.length > 0) {
+                setSelectedProduct(product[0]);
+            }
         });
     }, [pureDispatch]);
 
@@ -303,6 +324,8 @@ export const Overview: React.FunctionComponent = () => {
         pureDispatch,
         requestReload: reload,
         requestJobReloader,
+        provider,
+        productId: selectedProduct?.product.name ?? "syncthing"
     }), [navigate, pureDispatch, reload]);
 
     const dispatch = useCallback((action: UIAction) => {
@@ -315,6 +338,8 @@ export const Overview: React.FunctionComponent = () => {
         dispatch,
         requestReload: reload,
         permissionProblems,
+        provider,
+        productId: selectedProduct?.product.name ?? "syncthing"
     }), [navigate, dispatch, reload, permissionProblems]);
 
     const openWizard = useCallback(() => {
@@ -337,6 +362,11 @@ export const Overview: React.FunctionComponent = () => {
                 pathRef={pathRef}
                 onSelectRestriction={file => file.status.type === "DIRECTORY" && file.specification.product.id !== "share"}
                 onSelect={async (res) => {
+                    if (res.specification.product.provider != provider) {
+                         snackbarStore.addFailure("Only folders hosted at the same provider as the Syncthing server can be added", false);
+                        return;
+                    }
+
                     const sensitivity = await findSensitivity(res);
                     if (sensitivity == "SENSITIVE") {
                         snackbarStore.addFailure("Folder marked as sensitive cannot be added to Syncthing", false);
@@ -369,11 +399,17 @@ export const Overview: React.FunctionComponent = () => {
     }, [devices]);
 
     useEffectSkipMount(() => {
+        // TODO(Dan): Adding this constraint here because the frontend has started resetting everybody's configuration
+        //  in production. We will need to investigate this later. For now, don't attempt to update if we don't have
+        //  all the details yet.
+        if (folders.length === 0 && devices.length === 0) return;
+
         callAPI(Sync.api.updateConfiguration({
-            providerId: "ucloud",
+            provider: provider,
+            productId: selectedProduct?.product.name ?? "syncthing",
             config: {devices, folders}
         })).catch(() => reload());
-    }, [folders.length, devices.length]);
+    }, [folders.length, devices.length, selectedProduct]);
 
     useTitle("File Synchronization");
     useRefreshFunction(reload);
@@ -692,7 +728,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         enabled: selected => selected.length === 1,
         onClick: (_, cb) => {
             cb.dispatch({type: "ExpectServerUpdate"});
-            callAPIWithErrorHandler(Sync.api.restart({providerId: "ucloud"}));
+            callAPIWithErrorHandler(Sync.api.restart({provider: cb.provider, productId: cb.productId}));
         }
     },
     {

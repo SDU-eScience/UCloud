@@ -623,7 +623,7 @@ fun <T> bulkResponseOf(vararg items: T): BulkResponse<T> {
 @UCloudApiStable
 data class BulkResponse<T>(val responses: List<T>)
 
-@UCloudApiExperimental(ExperimentalLevel.BETA)
+@UCloudApiStable
 object ApiConventions : CallDescriptionContainer("api_conventions") {
     const val nonConformingApiWarning = """---
     
@@ -1380,17 +1380,7 @@ Examples:
 
 ---
 
-2: Request and response classes must be prefixed by their namespace
-
-Examples:
-
-- Correct: `JobsRetrieveRequest`
-- Correct: `JobsRetrieveResponse`
-- Incorrect: `RetrieveResponse` (Missing prefix)
-
----
-
-3: Request classes must use the `Request` suffix, response classes must use the `Response` suffix Examples:
+2: Request classes should use the `Request` suffix, response classes should use the `Response` suffix Examples:
 
 - Correct: `JobsRetrieveRequest`
 - Correct: `JobsRetrieveResponse`
@@ -1398,7 +1388,7 @@ Examples:
 
 ---
 
-4: `CallDescriptionContainer`s should be placed in a file named after the container
+3: `CallDescriptionContainer`s should be placed in a file named after the container
 
 - Correct: `Jobs.kt` containing `Jobs`
 - Incorrect: `JobDescriptions.kt` containing `Jobs`
@@ -1409,7 +1399,7 @@ Examples:
     }
 }
 
-@UCloudApiExperimental(ExperimentalLevel.BETA)
+@UCloudApiStable
 object ApiStability : CallDescriptionContainer("api_stability") {
     init {
         description = """

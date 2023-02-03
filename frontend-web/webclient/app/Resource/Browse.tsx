@@ -1,8 +1,11 @@
 import * as React from "react";
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {
+    Maintenance,
+    MaintenanceAvailability,
     ResolvedSupport,
     Resource,
+    ResourceAclEntry,
     ResourceApi,
     ResourceBrowseCallbacks,
     SupportByProvider,
@@ -20,7 +23,7 @@ import {Operations} from "@/ui-components/Operation";
 import {dateToString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/MainContainer/MainContainer";
 import {NamingField} from "@/UtilityComponents";
-import {doNothing, preventDefault, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
+import {doNothing, preventDefault, randomUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useSidebarPage} from "@/ui-components/Sidebar";
 import * as Heading from "@/ui-components/Heading";
@@ -46,6 +49,10 @@ import {useProject} from "@/Project/cache";
 import {useUState} from "@/Utilities/UState";
 import {connectionState} from "@/Providers/ConnectionState";
 import {ProductSelector} from "@/Products/Selector";
+import {sendNotification} from "@/Notifications";
+import {accounting} from "@/UCloud";
+import ProductReference = accounting.ProductReference;
+import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -137,6 +144,9 @@ function setStoredFilters(title: string, filters: Record<string, string>) {
     localStorage.setItem(`${title}:filters`, JSON.stringify(filters));
 }
 
+const maintenanceNotificationsSent = new Set<string>();
+let nextMaintenanceNotification = 0;
+
 export function ResourceBrowse<Res extends Resource, CB = undefined>(
     {
         onSelect, api, ...props
@@ -182,9 +192,14 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
 
     const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
+    const findMaintenanceStatus = (pRef: ProductReference): Maintenance | null | undefined => {
+        const productWithSupport = productsWithSupport.data.productsByProvider[pRef.provider]?.find(it =>
+            it.product.name === pRef.id && it.product.category.name === pRef.category);
+        return productWithSupport?.support?.maintenance;
+    };
     useEffect(() => {
         fetchProductsWithSupport(api.retrieveProducts())
-    }, []);
+    }, [Client.projectId]);
     const renaming = useRenamingState<Res>(
         () => renamingValue, [renamingValue],
         (a, b) => a.id === b.id, [],
@@ -384,11 +399,35 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
         const renderer: ItemRenderer<Res> = {...api.renderer};
         const RemainingStats = renderer.Stats;
         const NormalMainTitle = renderer.MainTitle;
+        const NormalIcon = renderer.Icon;
         const RemainingImportantStats = renderer.ImportantStats;
+        renderer.Icon = function icon(params) {
+            if (!params.resource) return NormalIcon ? <NormalIcon {...params} /> : null;
+            const maintenance = findMaintenanceStatus(params.resource.specification.product);
+            if (maintenance && !shouldAllowMaintenanceAccess()) {
+                return <Tooltip
+                    trigger={<Icon name={"warning"} size={params.size} color={maintenanceIconColor(maintenance)} />}
+                >
+                    {explainMaintenance(maintenance)}
+                </Tooltip>
+            }
+            return NormalIcon ? <NormalIcon {...params} /> : null;
+        };
         renderer.MainTitle = function mainTitle({resource}) {
+            const support = useMemo(() => {
+                const productsByProvider = productsWithSupport.data.productsByProvider;
+                const items: ResolvedSupport[] = [];
+                for (const provider of Object.keys(productsByProvider)) {
+                    const providerProducts = productsByProvider[provider];
+                    // TODO(Dan): We need to fix some of these types soon. We are still using a lot of the old generated stuff.
+                    for (const item of providerProducts) items.push((item as unknown) as ResolvedSupport);
+                }
+                return items;
+            }, [productsWithSupport.data]);
+
             if (resource === undefined) {
                 return !selectedProduct ?
-                    <ProductSelector products={products} onSelect={onProductSelected} selected={null} slim />
+                    <ProductSelector products={products} support={support} onSelect={onProductSelected} selected={null} slim />
                     :
                     <NamingField
                         confirmText={"Create"}
@@ -406,45 +445,46 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
                     <NormalMainTitle browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null;
             }
         };
-        renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
-            {!resource ? <>
-                {props.showCreatedAt === false ? null :
-                    <ListRowStat icon="calendar">{dateToString(timestampUnixMs())}</ListRowStat>}
-                {props.showCreatedBy === false ? null : <ListRowStat icon={"user"}>{Client.username}</ListRowStat>}
-                {props.showProduct === false || !selectedProduct ? null : <>
-                    <ListRowStat
-                        icon="cubeSolid">{selectedProduct.name} / {selectedProduct.category.name}</ListRowStat>
-                </>}
-            </> : <>
-                {props.showCreatedAt === false ? null :
-                    <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>}
-                {props.showCreatedBy === false || resource.owner.createdBy === "_ucloud" ? null :
-                    <div className="tooltip">
-                        <ListRowStat icon={"user"}>{" "}{resource.owner.createdBy}</ListRowStat>
-                        <div className="tooltip-content centered">
-                            <UserBox username={resource.owner.createdBy} />
+        renderer.Stats = props.withDefaultStats !== false ? ({resource}) => {
+            const filteredPermissions = filterPermissionOwner(resource?.owner.createdBy, resource?.permissions.others);
+            return (<>
+                {!resource ? <>
+                    {props.showCreatedAt === false ? null :
+                        <ListRowStat icon="calendar">{dateToString(timestampUnixMs())}</ListRowStat>}
+                    {props.showCreatedBy === false ? null : <ListRowStat icon={"user"}>{Client.username}</ListRowStat>}
+                    {props.showProduct === false || !selectedProduct ? null : <>
+                        <ListRowStat
+                            icon="cubeSolid">{selectedProduct.name} / {selectedProduct.category.name}</ListRowStat>
+                    </>}
+                </> : <>
+                    {props.showCreatedAt === false ? null :
+                        <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>}
+                    {props.showCreatedBy === false || resource.owner.createdBy === "_ucloud" ? null :
+                        <div className="tooltip">
+                            <ListRowStat icon={"user"}>{" "}{resource.owner.createdBy}</ListRowStat>
+                            <div className="tooltip-content centered">
+                                <UserBox username={resource.owner.createdBy} />
+                            </div>
                         </div>
-                    </div>
-                }
-                {props.showProduct === false || resource.specification.product.provider === UCLOUD_CORE ? null :
-                    <div className="tooltip">
-                        <ListRowStat icon={"cubeSolid"}>
-                            {" "}{resource.specification.product.id} / {resource.specification.product.category}
-                        </ListRowStat>
-                    </div>
-                }
-                {
-                    !resource.permissions.myself.includes("ADMIN") || resource.owner.project == null ? null :
-                        (props.showGroups === false ||
-                            resource.permissions.others == null ||
-                            resource.permissions.others.length <= 1) ?
-                            <ListRowStat>Not shared with any group</ListRowStat> :
-                            <ListRowStat>{resource.permissions.others.length == 1 ? "" : resource.permissions.others.length - 1} {resource.permissions.others.length > 2 ? "groups" : "group"}</ListRowStat>
-                }
-            </>}
-            {RemainingStats ?
-                <RemainingStats browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null}
-        </>) : renderer.Stats;
+                    }
+                    {props.showProduct === false || resource.specification.product.provider === UCLOUD_CORE ? null :
+                        <div className="tooltip">
+                            <ListRowStat icon={"cubeSolid"}>
+                                {" "}{resource.specification.product.id} / {resource.specification.product.category}
+                            </ListRowStat>
+                        </div>
+                    }
+                    {
+                        !resource.permissions.myself.includes("ADMIN") || resource.owner.project == null ? null :
+                            (props.showGroups === false || filteredPermissions.length === 0) ?
+                                <ListRowStat>Not shared with any group</ListRowStat> :
+                                <ListRowStat>{filteredPermissions.length === 0 ? "" : filteredPermissions.length} {filteredPermissions.length > 1 ? "groups" : "group"}</ListRowStat>
+                    }
+                </>}
+                {RemainingStats ?
+                    <RemainingStats browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null}
+            </>)
+        } : renderer.Stats;
         renderer.ImportantStats = ({resource, callbacks, browseType}) => {
             return <>
                 {RemainingImportantStats ?
@@ -494,6 +534,45 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
     const pageSize = useRef(0);
 
     const navigateCallback = useCallback((item: Res) => {
+        const pRef = item.specification.product;
+        const maintenance = findMaintenanceStatus(pRef);
+        if (maintenance) {
+            const availability = maintenance.availability;
+            const now = timestampUnixMs();
+
+            if (now > nextMaintenanceNotification || !shouldAllowMaintenanceAccess()) {
+                nextMaintenanceNotification = now + (1000 * 60 * 2);
+
+                const pRefString = `${pRef.id}/${pRef.category}/${pRef.provider}`;
+                if (!maintenanceNotificationsSent.has(pRefString)) {
+                    maintenanceNotificationsSent.add(pRefString);
+
+                    sendNotification({
+                        icon: "warning",
+                        iconColor: maintenanceIconColor(maintenance),
+                        title: `${pRef.category} is under maintenance`,
+                        body: maintenance.description,
+                        isPinned: false,
+                        uniqueId: randomUUID(),
+                        onAction: () => {
+                            const anchor = document.createElement("a");
+                            anchor.target = "_blank";
+                            anchor.href = "https://status.cloud.sdu.dk";
+                            document.body.append(anchor);
+                            anchor.click();
+                            anchor.remove();
+                        },
+                    });
+                } else {
+                    snackbarStore.addFailure(`${pRef.category} is under maintenance`, false);
+                }
+            }
+
+            if (availability === MaintenanceAvailability.NO_SERVICE) {
+                if (!shouldAllowMaintenanceAccess()) return;
+            }
+        }
+
         if (providerConnection.canConnectToProvider(item.specification.product.provider)) {
             snackbarStore.addFailure("You must connect to the provider before you can consume resources", true);
             return;
@@ -620,7 +699,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
             </List>
         </>
     }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport, renaming,
-        viewProperties, operations, providerConnection.lastRefresh]);
+        viewProperties, operations, providerConnection.lastRefresh, callbacks]);
 
     if (!isEmbedded) {
         useTitle(api.titlePlural);
@@ -722,6 +801,13 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
             </Flex>}
         />
     }
+}
+
+function filterPermissionOwner(owner?: string, entries?: ResourceAclEntry[]): ResourceAclEntry[] {
+    if (!entries) return [];
+    return entries.filter(it => {
+        return !(it.entity.type === "user" && it.entity.username === owner);
+    });
 }
 
 function UserBox(props: {username: string}) {

@@ -48,41 +48,6 @@ ProviderSpecification(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* This example shows an example provider. The provider's specification contains basic contact
-information. This information is used by UCloud when it needs to communicate with a provider. */
-
-// Authenticated as admin
-await callAPI(ProvidersApi.retrieveSpecification(
-    {
-        "id": "51231"
-    }
-);
-
-/*
-{
-    "id": "example",
-    "domain": "provider.example.com",
-    "https": true,
-    "port": 443,
-    "product": {
-        "id": "",
-        "category": "",
-        "provider": "ucloud_core"
-    }
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 

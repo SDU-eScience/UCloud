@@ -24,9 +24,8 @@ class ContactBookService(private val elasticDao: ContactBookElasticDao) {
 
     fun listAllContactsForUser(fromUser: String, serviceOrigin: ServiceOrigin): List<String> {
         val allContacts = elasticDao.getAllContactsForUser(fromUser, serviceOrigin.name)
-        return allContacts.hits.map {
-            val hit = defaultMapper.decodeFromString<ElasticIndexedContact>(it.sourceAsString)
-            hit.toUser
+        return allContacts.mapNotNull {
+            it.source()?.toUser
         }
     }
 
@@ -37,9 +36,8 @@ class ContactBookService(private val elasticDao: ContactBookElasticDao) {
             return emptyList()
         }
         val matchingContacts = elasticDao.queryContacts(fromUser, normalizedQuery, serviceOrigin.name)
-        return matchingContacts.hits.map {
-            val hit = defaultMapper.decodeFromString<ElasticIndexedContact>(it.sourceAsString)
-            hit.toUser
+        return matchingContacts.mapNotNull {
+            it.source()?.toUser
         }
     }
 }

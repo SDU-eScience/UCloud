@@ -3,13 +3,13 @@
 # `CloseApplicationRequest`
 
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
 data class CloseApplicationRequest(
-    val requestId: Long,
+    val applicationId: String,
 )
 ```
 
@@ -20,7 +20,7 @@ data class CloseApplicationRequest(
 
 <details>
 <summary>
-<code>requestId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>applicationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 

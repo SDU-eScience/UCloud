@@ -1588,7 +1588,8 @@ class AccountingTest : IntegrationTest() {
                                     findWallet(subproject.client, sampleStorageDifferential.category)?.allocations?.first()?.id!!,
                                     1000L,
                                     "new deposit",
-                                    transactionId = UUID.randomUUID().toString()
+                                    transactionId = UUID.randomUUID().toString(),
+                                    isProject = true
                                 )
                             ),
                             subproject.client

@@ -185,7 +185,8 @@ class LowFundsJobTest : IntegrationTest() {
                                         allocationId,
                                         input.refillAmount,
                                         "deposit",
-                                        transactionId = UUID.randomUUID().toString()
+                                        transactionId = UUID.randomUUID().toString(),
+                                        isProject = true
                                     )
                                 ),
                                 sourceUser.client

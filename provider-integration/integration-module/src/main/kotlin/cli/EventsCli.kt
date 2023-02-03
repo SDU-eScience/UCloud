@@ -14,10 +14,10 @@ import dk.sdu.cloud.utils.sendTerminalTable
 fun EventsCli(controllerContext: ControllerContext) {
     controllerContext.pluginContext.commandLineInterface?.addHandler(CliHandler("events") { args ->
         fun sendHelp(): Nothing = sendCommandLineUsage("events", "Manage events from UCloud/Core") {
-            subcommand("read", "Reads a list of unhandled events from UCloud/Core")
+            subcommand("ls", "Reads a list of unhandled events from UCloud/Core")
 
             subcommand(
-                "delete",
+                "rm",
                 "Manually remove an unhandled event from the queue. This means that no plugin will handle the event."
             ) {
                 arg("id", description = "The event ID, see the read command for more details")
@@ -36,7 +36,7 @@ fun EventsCli(controllerContext: ControllerContext) {
         val ipcClient = controllerContext.pluginContext.ipcClient
 
         when (args.getOrNull(0)) {
-            "read" -> {
+            "ls" -> {
                 val notifications = ipcClient.sendRequest(EventIpc.browse, Unit).items
 
                 sendTerminalTable {
@@ -79,7 +79,7 @@ fun EventsCli(controllerContext: ControllerContext) {
                 }
             }
 
-            "delete" -> {
+            "rm" -> {
                 val id = args.getOrNull(1) ?: sendHelp()
                 ipcClient.sendRequest(EventIpc.delete, FindByStringId(id))
                 sendTerminalMessage { green { line("OK") } }

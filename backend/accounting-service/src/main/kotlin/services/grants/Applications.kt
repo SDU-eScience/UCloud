@@ -1201,7 +1201,6 @@ class GrantApplicationService(
         parentId: String?,
         actorAndProject: ActorAndProject
     ) {
-
         val application = retrieveGrantApplication(applicationId, actorAndProject , session)
 
         //creating project and PI if newProject and returning workspaceID

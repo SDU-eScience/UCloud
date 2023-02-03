@@ -7,6 +7,7 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.Maintenance
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
@@ -30,6 +31,7 @@ typealias JobsProviderExtendResponse = BulkResponse<Unit?>
 
 @Serializable
 @UCloudApiDoc("A request to extend the timeAllocation of a Job")
+@UCloudApiStable
 data class JobsProviderExtendRequestItem(
     @UCloudApiDoc("The affected Job")
     val job: Job,
@@ -38,6 +40,7 @@ data class JobsProviderExtendRequestItem(
 )
 
 @Serializable
+@UCloudApiStable
 data class JobsProviderSuspendRequestItem(
     val job: Job,
 ) 
@@ -45,6 +48,7 @@ typealias JobsProviderSuspendRequest = BulkRequest<JobsProviderSuspendRequestIte
 typealias JobsProviderSuspendResponse = BulkResponse<Unit?>
 
 @Serializable
+@UCloudApiStable
 data class JobsProviderUnsuspendRequestItem(
     val job: Job,
 )
@@ -53,20 +57,24 @@ typealias JobsProviderUnsuspendResponse = BulkResponse<Unit?>
 
 @Serializable
 @UCloudApiDoc("A request to start/stop a follow session")
+@UCloudApiStable
 sealed class JobsProviderFollowRequest {
     @Serializable
     @SerialName("init")
     @UCloudApiDoc("Start a new follow session for a given Job")
+    @UCloudApiStable
     data class Init(val job: Job) : JobsProviderFollowRequest()
 
     @Serializable
     @SerialName("cancel")
     @UCloudApiDoc("Stop an existing follow session for a given Job")
+    @UCloudApiStable
     data class CancelStream(val streamId: String) : JobsProviderFollowRequest()
 }
 
 @Serializable
 @UCloudApiDoc("A message emitted by the Provider in a follow session")
+@UCloudApiStable
 data class JobsProviderFollowResponse(
     @UCloudApiDoc(
         """
@@ -115,6 +123,7 @@ typealias JobsProviderOpenInteractiveSessionRequest = BulkRequest<JobsProviderOp
 
 @Serializable
 @UCloudApiDoc("A request for opening a new interactive session (e.g. terminal)")
+@UCloudApiStable
 data class JobsProviderOpenInteractiveSessionRequestItem(
     @UCloudApiDoc("The fully resolved Job")
     val job: Job,
@@ -133,6 +142,7 @@ data class JobsProviderOpenInteractiveSessionRequestItem(
 typealias JobsProviderOpenInteractiveSessionResponse = BulkResponse<OpenSession?>
 
 @Serializable
+@UCloudApiStable
 data class JobsProviderUtilizationRequest(
     val categoryId: String
 )
@@ -140,6 +150,7 @@ data class JobsProviderUtilizationRequest(
 typealias JobsProviderUtilizationResponse = JobsRetrieveUtilizationResponse
 
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 data class CpuAndMemory(
     @UCloudApiDoc(
         """
@@ -159,6 +170,7 @@ data class CpuAndMemory(
 )
 
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 data class QueueStatus(
     @UCloudApiDoc("The number of jobs running in the system")
     val running: Int,
@@ -167,6 +179,7 @@ data class QueueStatus(
 )
 
 @Serializable
+@UCloudApiStable
 data class ComputeSupport(
     override val product: ProductReference,
 
@@ -178,6 +191,8 @@ data class ComputeSupport(
 
     @UCloudApiDoc("Support for `Tool`s using the `NATIVE` backend")
     val native: Native = Native(),
+
+    override var maintenance: Maintenance? = null,
 ) : ProductSupport {
     interface UniversalBackendSupport {
         var enabled: Boolean?
@@ -201,6 +216,7 @@ data class ComputeSupport(
     }
 
     @Serializable
+    @UCloudApiStable
     data class Docker(
         @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
         override var enabled: Boolean? = null,
@@ -221,6 +237,7 @@ data class ComputeSupport(
     ) : UniversalBackendSupport, WithPeers, WithWeb
 
     @Serializable
+    @UCloudApiStable
     data class VirtualMachine(
         @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
         override var enabled: Boolean? = null,
@@ -239,6 +256,7 @@ data class ComputeSupport(
     ) : UniversalBackendSupport, WithSuspension
 
     @Serializable
+    @UCloudApiStable
     data class Native(
         @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
         override var enabled: Boolean? = null,
@@ -257,14 +275,7 @@ data class ComputeSupport(
     ) : UniversalBackendSupport, WithWeb
 }
 
-@Serializable
-data class ComputeProductSupport(
-    val product: ProductReference,
-    val support: ComputeSupport,
-)
-
-@OptIn(ExperimentalStdlibApi::class)
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecification, JobUpdate, JobIncludeFlags,
         JobStatus, Product.Compute, ComputeSupport>("jobs", provider) {
     override fun toString() = "JobsProvider($baseContext)"
@@ -315,7 +326,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
             
             ---
 
-            ## Multi-replica Jobs
+            ## Multi-replica Jobs (Container backend)
             
             
             A `Job` can be scheduled on more than one replica. The orchestrator requires that backends execute the exact same
@@ -347,7 +358,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
             by requesting, at `Job` startup, networking with an existing job. This will configure the firewall accordingly and allow
             networking between the two `Job`s. This will also automatically provide user-friendly hostnames for the `Job`.
 
-            ## The `/work`ing directory
+            ## The `/work`ing directory (Container backend)
             
             UCloud assumes that the `/work` directory is available for data which needs to be persisted. It is expected
             that files left directly in this directory is placed in the `output` folder of the `Job`. 
@@ -960,6 +971,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         typeOfIfPossible<CommonErrorMessage>(),
     )
 
+    @UCloudApiExperimental(ExperimentalLevel.BETA)
     val retrieveUtilization = call("retrieveUtilization", JobsProviderUtilizationRequest.serializer(), JobsProviderUtilizationResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "utilization", roles = Roles.PRIVILEGED)
 

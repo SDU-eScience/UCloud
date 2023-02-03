@@ -10,7 +10,7 @@ import {ToggleSetHook, useToggleSet} from "@/Utilities/ToggleSet";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {NamingField} from "@/UtilityComponents";
 import {ListRow, ListStatContainer} from "@/ui-components/List";
-import {displayErrorMessageOrDefault, doNothing, EmptyObject} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing, EmptyObject, errorMessageOrDefault} from "@/UtilityFunctions";
 import {Dispatch} from "redux";
 import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {useDispatch} from "react-redux";
@@ -43,7 +43,7 @@ interface BrowseProps<T> {
 export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>): JSX.Element | null {
     const hasPreloadedResources = !!props.preloadedResources;
     const [remoteResources, setRemoteResources] = useState<PageV2<T>>(emptyPageV2);
-    const [error, setError] = useState<APIError | undefined>(undefined)
+    const [error, setError] = useState<string | undefined>(undefined)
     const [loading, invokeCommand] = useCloudCommand();
     const [infScroll, setInfScroll] = useState(0);
     const resources = useMemo(() =>
@@ -62,19 +62,19 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
     }
 
     const reload = useCallback(async () => {
+        setError(undefined);
         if (hasPreloadedResources) return;
         try {
-            const result = await invokeCommand<PageV2<T>>(props.generateCall());
+            const result = await invokeCommand<PageV2<T>>(
+                props.generateCall(),
+                { defaultErrorHandler: false }
+            );
             if (result != null) {
                 setInfScroll(prev => prev + 1);
                 setRemoteResources(result);
             }
         } catch (e) {
-            if ("why" in e) {
-                setError(e);
-            } else {
-                displayErrorMessageOrDefault(e, "Failed to load more entries. ");
-            }
+            setError(errorMessageOrDefault(e, "Failed to load the page. Try again later."));
         }
         if (props.onReload) props.onReload();
     }, [props.generateCall, props.onReload, hasPreloadedResources]);
@@ -82,26 +82,25 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
     if (props.reloadRef) props.reloadRef.current = reload;
 
     const loadMore = useCallback(async () => {
+        setError(undefined);
         if (hasPreloadedResources) return;
         if (resources.next) {
             try {
-                const result = await invokeCommand<PageV2<T>>(props.generateCall(resources.next), {defaultErrorHandler: false});
-                if (result != null) {
-                    setRemoteResources(result);
-                }
+                const result = await invokeCommand<PageV2<T>>(
+                    props.generateCall(resources.next),
+                    { defaultErrorHandler: false }
+                );
+
+                if (result != null) setRemoteResources(result);
             } catch (e) {
-                if ("why" in e) {
-                    setError(e);
-                } else {
-                    displayErrorMessageOrDefault(e, "Failed to load more entries. ");
-                }
+                setError(errorMessageOrDefault(e, "Failed to load the page. Try again later."));
             }
         }
     }, [props.generateCall, hasPreloadedResources, resources.next]);
 
     if (props.toggleSet) props.toggleSet.allItems.current = resources.items;
 
-    useEffect(() => {reload()}, [reload]);
+    useEffect(() => { reload().then(doNothing).catch(doNothing) }, [reload]);
 
     if (props.setRefreshFunction !== false) {
         useRefreshFunction(reload);
@@ -112,7 +111,7 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
     return <>
         {props.isSearch && props.browseType === BrowseType.MainContent ? <SmallScreenSearchField /> : null}
         <Pagination.ListV2 page={resources} pageRenderer={props.pageRenderer} loading={isLoading}
-            onLoadMore={loadMore} customEmptyPage={props.pageRenderer([], {hasNext: false})} error={error?.why}
+            onLoadMore={loadMore} customEmptyPage={props.pageRenderer([], {hasNext: false})} error={error}
             infiniteScrollGeneration={infScroll} dataIsStatic={hasPreloadedResources} />
     </>
 }

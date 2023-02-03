@@ -295,7 +295,7 @@ class VolcanoContainer(
         )
     }
 
-    override suspend fun cancel() {
+    override suspend fun cancel(force: Boolean) {
         if (rank != 0) return // Only perform deletions on the root job
 
         runCatching {
@@ -303,7 +303,10 @@ class VolcanoContainer(
                 KubernetesResourceLocator.common.volcanoJob.withNameAndNamespace(
                     volcanoJob.metadata!!.name!!,
                     volcanoJob.metadata!!.namespace!!,
-                )
+                ),
+                queryParameters = buildMap {
+                    if (force) put("force", "true")
+                }
             )
         }
 

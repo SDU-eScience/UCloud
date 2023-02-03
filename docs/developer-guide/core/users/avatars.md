@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / [Users](/docs/developer-guide/core/users/README.md) / Avatars
 # Avatars
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Provides user avatars. User avatars are provided by the https://avataaars.com/ library._
 
@@ -46,15 +46,15 @@ changes are expected:
 <tbody>
 <tr>
 <td><a href='#findavatar'><code>findAvatar</code></a></td>
-<td><i>No description</i></td>
+<td>Request the avatar of the current user.</td>
 </tr>
 <tr>
 <td><a href='#findbulk'><code>findBulk</code></a></td>
-<td><i>No description</i></td>
+<td>Request the avatars of one or more users by username.</td>
 </tr>
 <tr>
 <td><a href='#update'><code>update</code></a></td>
-<td><i>No description</i></td>
+<td>Update the avatar of the current user.</td>
 </tr>
 </tbody></table>
 
@@ -93,10 +93,11 @@ changes are expected:
 
 ### `findAvatar`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request the avatar of the current user._
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -106,10 +107,11 @@ changes are expected:
 
 ### `findBulk`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Request the avatars of one or more users by username._
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -119,10 +121,11 @@ changes are expected:
 
 ### `update`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Update the avatar of the current user._
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -135,7 +138,7 @@ changes are expected:
 
 ### `SerializedAvatar`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -315,7 +318,7 @@ data class SerializedAvatar(
 
 ### `FindBulkRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -351,7 +354,7 @@ data class FindBulkRequest(
 
 ### `FindBulkResponse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

@@ -6,23 +6,26 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
+import java.util.concurrent.atomic.AtomicInteger
 
 // NOTE(Dan): This is just something I am trying out. This might be an awful idea, or it might be a significantly
 // better idea than the `_to_json` procedures we currently have in the backend.
 data class TemporaryView<T>(
     val serializer: KSerializer<T>,
-    private val doRegister: suspend (session: DBContext.Connection) -> Unit
+    private var myGeneration: Int,
+    private val doRegister: suspend (session: DBContext.Connection) -> Unit,
 ) {
     private val registeredIn = BooleanArray(DB_CONNECTION_POOL_SIZE)
     private val mutex = Mutex()
 
     suspend fun createIfNeeded(session: DBContext.Connection) {
         if (session is JdbcConnection) {
-            if (!registeredIn[session._connectionTicket]) {
+            if (myGeneration != testGeneration.get() || !registeredIn[session._connectionTicket]) {
                 mutex.withLock {
-                    if (registeredIn[session._connectionTicket]) return
+                    if (registeredIn[session._connectionTicket] && myGeneration == testGeneration.get()) return
                     doRegister(session)
                     registeredIn[session._connectionTicket] = true
+                    myGeneration = testGeneration.get()
                 }
             }
         } else {
@@ -31,6 +34,10 @@ data class TemporaryView<T>(
     }
 
     companion object {
+        // NOTE(Dan): This integer tracks how many times a test has reset the system. This value is saved when a view
+        // is generated. createIfNeeded will use this to re-create if the value ever changes.
+        private val testGeneration = AtomicInteger(0)
+
         @OptIn(ExperimentalSerializationApi::class)
         fun <T> generate(
             serializer: KSerializer<T>,
@@ -38,7 +45,7 @@ data class TemporaryView<T>(
             viewName: String = tableName + "_json",
             propertyToColumnGenerator: (property: String) -> RawSql = ::defaultSqlPropertyExtractor,
         ): TemporaryView<T> {
-            return TemporaryView(serializer) { session ->
+            return TemporaryView(serializer, testGeneration.get()) { session ->
                 session.prepareStatement(
                     buildString {
                         append("create or replace temporary view $viewName as select row.*, jsonb_build_object(")
@@ -52,6 +59,10 @@ data class TemporaryView<T>(
                     }
                 ).useAndInvokeAndDiscard()
             }
+        }
+
+        fun notifyTestReset() {
+            testGeneration.getAndIncrement()
         }
     }
 }

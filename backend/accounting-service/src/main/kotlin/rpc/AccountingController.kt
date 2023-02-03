@@ -6,6 +6,10 @@ import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.CallHandler
+import dk.sdu.cloud.accounting.util.accountingPerformanceMitigations
+import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
@@ -19,7 +23,6 @@ class AccountingController(
     private val notifications: DepositNotificationService,
     private val client: AuthenticatedClient,
 ) : Controller {
-
     private fun <R : Any, S : Any, E : Any> RpcServer.implementOrDispatch(
         call: CallDescription<R, S, E>,
         handler: suspend CallHandler<R, S, E>.() -> Unit,
@@ -38,7 +41,6 @@ class AccountingController(
             }
         }
     }
-
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implementOrDispatch(Accounting.charge) {
             ok(accounting.charge(actorAndProject, request))

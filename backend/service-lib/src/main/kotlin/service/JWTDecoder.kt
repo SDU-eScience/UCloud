@@ -68,7 +68,6 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
         role,
         firstNames,
         lastName,
-        validatedToken.getClaim("uid").asLong(),
         email,
         twoFactorAuthentication,
         principalType,

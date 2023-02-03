@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.orchestrator.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.Maintenance
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
@@ -80,7 +81,8 @@ data class FileMetadataTemplate(
 
 @Serializable
 data class FileMetadataTemplateSupport(
-    override val product: ProductReference = ProductReference("", "", Provider.UCLOUD_CORE_PROVIDER)
+    override val product: ProductReference = ProductReference("", "", Provider.UCLOUD_CORE_PROVIDER),
+    override var maintenance: Maintenance? = null,
 ) : ProductSupport
 
 @Serializable
@@ -103,6 +105,7 @@ This means that a metadata document might exist for every user who has/had acces
 }
 
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 data class FileMetadataHistory(
     val templates: Map<String, FileMetadataTemplate>,
     val metadata: Map<String, List<FileMetadataOrDeleted>>

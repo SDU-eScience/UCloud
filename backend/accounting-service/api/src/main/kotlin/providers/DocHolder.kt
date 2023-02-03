@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.ProductPriceUnit
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.Maintenance
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
@@ -23,6 +24,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @UCloudApiExampleValue
+@UCloudApiStable
 data class ExampleResource(
     override val id: String,
     override val specification: Spec,
@@ -34,6 +36,7 @@ data class ExampleResource(
 ) : Resource<Product, ExampleResourceSupport> {
     @UCloudApiExampleValue
     @Serializable
+    @UCloudApiStable
     data class Spec(
         val start: Int,
         val target: Int,
@@ -42,6 +45,7 @@ data class ExampleResource(
 
     @UCloudApiExampleValue
     @Serializable
+    @UCloudApiStable
     data class Update(
         override val timestamp: Long = 0L,
         override val status: String? = null,
@@ -50,15 +54,16 @@ data class ExampleResource(
     ) : ResourceUpdate
 
     @UCloudApiExampleValue
+    @UCloudApiStable
     enum class State {
         PENDING,
         RUNNING,
         DONE,
     }
 
-
     @UCloudApiExampleValue
     @Serializable
+    @UCloudApiStable
     data class Status(
         val state: State,
         val value: Int,
@@ -69,10 +74,13 @@ data class ExampleResource(
 
 @UCloudApiExampleValue
 @Serializable
+@UCloudApiStable
 data class ExampleResourceSupport(
     override val product: ProductReference,
     val supportsBackwardsCounting: Supported = Supported.NOT_SUPPORTED,
+    override var maintenance: Maintenance? = null,
 ) : ProductSupport {
+    @UCloudApiStable
     enum class Supported {
         SUPPORTED,
         NOT_SUPPORTED
@@ -81,6 +89,7 @@ data class ExampleResourceSupport(
 
 @UCloudApiExampleValue
 @Serializable
+@UCloudApiStable
 data class ExampleResourceFlags(
     val filterState: ExampleResource.State? = null,
     override val includeOthers: Boolean = false,
@@ -131,6 +140,7 @@ typealias ExampleResourcesSuper = ResourceApi<ExampleResource, ExampleResource.S
         ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>
 
 @OptIn(UCloudApiExampleValue::class)
+@UCloudApiStable
 object Resources : ExampleResourcesSuper("example") {
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
@@ -196,7 +206,7 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
             catalog of UCloud. As a result, UCloud/Core can fulfil some operations without involving the provider. 
             In particular, UCloud/Core performs many read operations without the provider's involvement.
 
-            End-users interact with all resources through a standarized API. The API provides common CRUD operations 
+            End-users interact with all resources through a standardized API. The API provides common CRUD operations 
             along with permission related operations. Concrete resources further extend this API with resource specific 
             tasks. For example, virtual machines expose an operation to shut down the machine. 
 
@@ -592,6 +602,7 @@ concepts described [here](/docs/developer-guide/orchestration/resources.md).
 }
 
 @UCloudApiExampleValue
+@UCloudApiStable
 object ResourceProvider : ResourceProviderApi<ExampleResource, ExampleResource.Spec, ExampleResource.Update,
         ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>("example", "PROVIDERID") {
     @OptIn(ExperimentalStdlibApi::class)
@@ -742,6 +753,7 @@ The examples in this section follow the same scenario as the end-user API.
 }
 
 @UCloudApiExampleValue
+@UCloudApiStable
 object ResourceControl : ResourceControlApi<ExampleResource, ExampleResource.Spec, ExampleResource.Update,
         ExampleResourceFlags, ExampleResource.Status, Product, ExampleResourceSupport>("example") {
     @OptIn(ExperimentalStdlibApi::class)

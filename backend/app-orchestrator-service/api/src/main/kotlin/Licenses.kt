@@ -11,6 +11,7 @@ import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.Serializable
 
 @Serializable
+@UCloudApiStable
 data class LicenseIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
@@ -30,12 +31,13 @@ data class LicenseIncludeFlags(
 ) : ResourceIncludeFlags
 
 @Serializable
+@UCloudApiStable
 data class LicenseSpecification(
     @UCloudApiDoc("The product used for the `License`")
     override val product: ProductReference,
 ) : ResourceSpecification
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 @UCloudApiDoc("A `License` for use in `Job`s")
 @Serializable
 data class License(
@@ -60,6 +62,7 @@ data class License(
 
 @UCloudApiDoc("The status of an `License`")
 @Serializable
+@UCloudApiStable
 data class LicenseStatus(
     val state: LicenseState,
     override var resolvedSupport: ResolvedSupport<Product.License, LicenseSupport>? = null,
@@ -67,7 +70,7 @@ data class LicenseStatus(
     override val boundTo: List<String> = emptyList()
 ) : JobBoundStatus<Product.License, LicenseSupport>
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 @Serializable
 enum class LicenseState {
     @UCloudApiDoc(
@@ -85,7 +88,7 @@ enum class LicenseState {
     UNAVAILABLE
 }
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 @Serializable
 data class LicenseUpdate(
     @UCloudApiDoc("A timestamp for when this update was registered by UCloud")
@@ -101,10 +104,14 @@ data class LicenseUpdate(
 ) : JobBoundUpdate<LicenseState>
 
 @Serializable
-data class LicenseSupport(override val product: ProductReference) : ProductSupport
+@UCloudApiStable
+data class LicenseSupport(
+    override val product: ProductReference,
+    override var maintenance: Maintenance? = null,
+) : ProductSupport
 
 @TSNamespace("compute.licenses")
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 object Licenses : ResourceApi<License, LicenseSpecification, LicenseUpdate, LicenseIncludeFlags, LicenseStatus,
         Product.License, LicenseSupport>("licenses") {
     @OptIn(ExperimentalStdlibApi::class)
@@ -138,7 +145,7 @@ In most cases, a license is a parameter of an $Application .
 
 ---
 
-📝 NOTE: UCloud does not store any information about license keys, servers or any other credentials. It is 
+__📝 NOTE:__ UCloud does not store any information about license keys, servers or any other credentials. It is 
 the responsibility of the provider to store this information.
 
 ---
@@ -212,6 +219,7 @@ the responsibility of the provider to store this information.
 }
 
 @TSNamespace("compute.licenses.control")
+@UCloudApiStable
 object LicenseControl : ResourceControlApi<License, LicenseSpecification, LicenseUpdate, LicenseIncludeFlags,
         LicenseStatus, Product.License, LicenseSupport>("licenses") {
     @OptIn(ExperimentalStdlibApi::class)
@@ -233,6 +241,7 @@ object LicenseControl : ResourceControlApi<License, LicenseSpecification, Licens
     )
 }
 
+@UCloudApiStable
 open class LicenseProvider(provider: String) : ResourceProviderApi<License, LicenseSpecification, LicenseUpdate,
         LicenseIncludeFlags, LicenseStatus, Product.License, LicenseSupport>("licenses", provider) {
     @OptIn(ExperimentalStdlibApi::class)

@@ -19,6 +19,20 @@ import {NavigateFunction} from "react-router";
 
 export interface ProductSupport {
     product: ProductReference;
+    maintenance?: Maintenance | null;
+}
+
+export interface Maintenance {
+    description: string;
+    startsAt: number;
+    estimatedEndsAt?: number | null;
+    availability: MaintenanceAvailability;
+}
+
+export enum MaintenanceAvailability {
+    MINOR_DISRUPTION = "MINOR_DISRUPTION",
+    MAJOR_DISRUPTION = "MAJOR_DISRUPTION",
+    NO_SERVICE = "NO_SERVICE",
 }
 
 export interface ResolvedSupport<P extends Product = Product, S extends ProductSupport = ProductSupport> {

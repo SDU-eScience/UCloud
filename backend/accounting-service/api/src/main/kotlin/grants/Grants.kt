@@ -13,15 +13,18 @@ fun Long.creditsToDKK(): Long = this / 1_000_000
 
 
 @Serializable
+@UCloudApiStable
 data class UpdateApplicationState(val applicationId: Long, val newState: GrantApplication.State, val notify: Boolean = true)
 typealias UpdateApplicationStateResponse = Unit
 
 
 @Serializable
+@UCloudApiStable
 data class CloseApplicationRequest(val applicationId: String)
 typealias CloseApplicationResponse = Unit
 
 @Serializable
+@UCloudApiStable
 data class TransferApplicationRequest(
     val applicationId: Long,
     val transferToProjectId: String,
@@ -30,6 +33,7 @@ data class TransferApplicationRequest(
 typealias TransferApplicationResponse = Unit
 
 @Serializable
+@UCloudApiStable
 enum class GrantApplicationFilter {
     SHOW_ALL,
     ACTIVE,
@@ -40,7 +44,9 @@ interface BrowseApplicationFlags {
     val includeIngoingApplications: Boolean
     val includeOutgoingApplications: Boolean
 }
+
 @Serializable
+@UCloudApiStable
 data class BrowseApplicationsRequest(
     val filter: GrantApplicationFilter = GrantApplicationFilter.ACTIVE,
 
@@ -58,6 +64,7 @@ typealias SubmitApplicationRequest = CreateApplication
 typealias SubmitApplicationResponse = BulkResponse<FindByLongId>
 
 @Serializable
+@UCloudApiStable
 data class EditApplicationRequest(
     val applicationId: Long,
     val document: GrantApplication.Document
@@ -65,6 +72,7 @@ data class EditApplicationRequest(
 typealias EditApplicationResponse = Unit
 
 @Serializable
+@UCloudApiStable
 data class CreateApplication(
     val document: GrantApplication.Document
 ) {
@@ -76,6 +84,7 @@ data class CreateApplication(
 }
 
 @Serializable
+@UCloudApiStable
 data class GrantApplication(
     @UCloudApiDoc("""
         A unique identifier representing a GrantApplication
@@ -112,6 +121,7 @@ data class GrantApplication(
 
     @Serializable
     @SerialName("revision")
+    @UCloudApiStable
     data class Revision(
         @UCloudApiDoc("Timestamp indicating when this revision was made")
         val createdAt: Long,
@@ -121,68 +131,70 @@ data class GrantApplication(
 
         @UCloudApiDoc(
             """
-        A number indicating which revision this is
+                A number indicating which revision this is
 
-        Revision numbers are guaranteed to be unique and always increasing. The first revision number must be 0.
-        The backend does not guarantee that revision numbers are issued without gaps. Thus it is allowed for the
-        first revision to be 0 and the second revision to be 10.
-    """
+                Revision numbers are guaranteed to be unique and always increasing. The first revision number must be 0.
+                The backend does not guarantee that revision numbers are issued without gaps. Thus it is allowed for the
+                first revision to be 0 and the second revision to be 10.
+            """
         )
         val revisionNumber: Int,
 
         @UCloudApiDoc("Contains the application form from the end-user")
         val document: Document
     )
+
     @Serializable
     @SerialName("document")
+    @UCloudApiStable
     data class Document(
         @UCloudApiDoc(
             """
-        Describes the recipient of resources, should the application be accepted
+                Describes the recipient of resources, should the application be accepted
 
-        Updateable by: Original creator (createdBy of application)
-        Immutable after creation: Yes
-    """
+                Updateable by: Original creator (createdBy of application)
+                Immutable after creation: Yes
+            """
         )
         val recipient: Recipient,
 
         @UCloudApiDoc(
             """
-        Describes the allocations for resources which are requested by this application
+                Describes the allocations for resources which are requested by this application
 
-        Updateable by: Original creator and grant givers
-        Immutable after creation: No
-    """
+                Updateable by: Original creator and grant givers
+                Immutable after creation: No
+            """
         )
         val allocationRequests: List<AllocationRequest>,
 
         @UCloudApiDoc(
             """
-        A form describing why these resources are being requested
+                A form describing why these resources are being requested
 
-        Updateable by: Original creator
-        Immutable after creation: No
-    """
+                Updateable by: Original creator
+                Immutable after creation: No
+            """
         )
         val form: Form,
 
         @UCloudApiDoc(
             """
-        A reference used for out-of-band book-keeping
+                A reference used for out-of-band book-keeping
 
-        Updateable by: Grant givers
-        Immutable after creation: No
-    """
+                Updateable by: Grant givers
+                Immutable after creation: No
+            """
         )
         val referenceId: String? = null,
 
         @UCloudApiDoc(
             """
-        A comment describing why this change was made
+                A comment describing why this change was made
 
-        Update by: Original creator and grant givers
-        Immutable after creation: No. First revision must always be null.
-    """
+                Update by: Original creator and grant givers
+                Immutable after creation: No. First revision must always be null.
+            """
         )
         val revisionComment: String? = null,
 
@@ -193,24 +205,33 @@ data class GrantApplication(
         )
         val parentProjectId: String? = null
     )
+
     @Serializable
     @SerialName("form")
+    @UCloudApiStable
     sealed class Form {
         @Serializable
         @SerialName("plain_text")
         data class PlainText(val text: String): Form()
     }
+
     @Serializable
     @SerialName("recipient")
+    @UCloudApiStable
     sealed class Recipient {
         @Serializable
         @SerialName("existingProject")
+        @UCloudApiStable
         data class ExistingProject(val id: String) : Recipient()
+
         @Serializable
         @SerialName("newProject")
+        @UCloudApiStable
         data class NewProject(val title: String) : Recipient()
+
         @Serializable
         @SerialName("personalWorkspace")
+        @UCloudApiStable
         data class PersonalWorkspace(val username: String) : Recipient()
 
         companion object {
@@ -219,8 +240,11 @@ data class GrantApplication(
             const val NEW_PROJECT_TYPE = "new_project"
         }
     }
+
     @Serializable
     @SerialName("allocation_request")
+    @UCloudApiOwnedBy(Grants::class)
+    @UCloudApiStable
     data class AllocationRequest(
         val category: String,
         val provider: String,
@@ -229,14 +253,18 @@ data class GrantApplication(
         val sourceAllocation: Long? = null,
         val period: Period,
     )
+
     @Serializable
     @SerialName("period")
+    @UCloudApiStable
     data class Period(
         val start: Long?,
         val end: Long?,
     )
+
     @Serializable
     @SerialName("status")
+    @UCloudApiStable
     data class Status(
         val overallState: State,
         val stateBreakdown: List<GrantGiverApprovalState>,
@@ -245,23 +273,29 @@ data class GrantApplication(
         val projectTitle: String?,
         val projectPI: String
     )
+
     @Serializable
     @SerialName("grant_giver_approval_state")
+    @UCloudApiStable
     data class GrantGiverApprovalState(
         val projectId: String,
         val projectTitle: String,
         val state: State,
     )
+
     @Serializable
     @SerialName("state")
+    @UCloudApiStable
     enum class State {
         APPROVED,
         REJECTED,
         CLOSED,
         IN_PROGRESS
     }
+
     @Serializable
     @SerialName("comment")
+    @UCloudApiStable
     data class Comment(
         val id: String,
         val username: String,
@@ -271,10 +305,12 @@ data class GrantApplication(
 }
 
 @Serializable
+@UCloudApiStable
 data class RetrieveApplicationRequest(val id: Long)
 typealias RetrieveApplicationResponse = GrantApplication
 
 @Serializable
+@UCloudApiStable
 data class BrowseProjectsRequest(
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -283,10 +319,13 @@ data class BrowseProjectsRequest(
 ) : WithPaginationRequestV2
 
 typealias BrowseProjectsResponse = PageV2<ProjectWithTitle>
+
 @Serializable
+@UCloudApiStable
 data class ProjectWithTitle(val projectId: String, val title: String)
 
 @Serializable
+@UCloudApiStable
 data class GrantsBrowseAffiliationsRequest(
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -296,6 +335,7 @@ data class GrantsBrowseAffiliationsRequest(
 typealias GrantsBrowseAffiliationsResponse = PageV2<ProjectWithTitle>
 
 @Serializable
+@UCloudApiStable
 data class GrantsBrowseAffiliationsByResourceRequest(
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -306,6 +346,7 @@ data class GrantsBrowseAffiliationsByResourceRequest(
 typealias GrantsBrowseAffiliationsByResourceResponse = PageV2<ProjectWithTitle>
 
 @Serializable
+@UCloudApiStable
 data class GrantsBrowseProductsRequest(
     val projectId: String,
     val recipientType: String,
@@ -314,10 +355,12 @@ data class GrantsBrowseProductsRequest(
 )
 
 @Serializable
+@UCloudApiStable
 data class GrantsBrowseProductsResponse(
     val availableProducts: List<Product>
 )
 
+@UCloudApiStable
 object Grants : CallDescriptionContainer("grant") {
     val baseContext = "/api/grant"
 
@@ -331,27 +374,16 @@ storage. There are only two ways of receiving any credits, either through an adm
 credits or by receiving them from a project.
 
 Grants acts as a more user-friendly gateway to receiving resources from a project. Every
-`Application` goes through the following steps:
+`GrantApplication` goes through the following steps:
 
 1. User submits application to relevant project using `Grants.submitApplication`
-2. Project administrator of `Application.resourcesOwnedBy` reviews the application
-   - User and reviewer can comment on the application via `Grants.commentOnApplication`
+2. All grant approvers must review the application
+   - User and reviewer can comment on the application via `GrantComments.createComment`
    - User and reviewer can perform edits to the application via `Grants.editApplication`
-3. Reviewer either performs `Grants.closeApplication` or `Grants.approveApplication`
-4. If the `Application` was approved then resources are granted to the `Application.grantRecipient`
-
-${ApiConventions.nonConformingApiWarning}
+3. Reviewer either performs `Grants.updateApplicationState` to approve or reject
+4. If the `GrantApplication` was approved then resources are granted to the `GrantApplication.recipient`
         """.trimIndent()
     }
-
-    /**
-     *
-     *
-     *
-     *
-     * @see isEnabled
-     * @see setEnabledStatus
-     */
 
     val submitApplication =
         call(
@@ -366,10 +398,10 @@ ${ApiConventions.nonConformingApiWarning}
             )
 
             documentation {
-                summary = "Submits an [Application] to a project"
+                summary = "Submits a $TYPE_REF GrantApplication to a project"
                 description = """
                      In order for the user to submit an application they must match any criteria in
-                     [ProjectApplicationSettings.allowRequestsFrom]. If they are not the request will fail.
+                     `ProjectApplicationSettings.allowRequestsFrom`. If they are not the request will fail.
                 """.trimIndent()
             }
         }
@@ -382,8 +414,8 @@ ${ApiConventions.nonConformingApiWarning}
         )
 
        documentation {
-            summary = "Approves or rejects an existing [GrantApplication]. If accepted by all grant givers this will " +
-                "trigger granting of resources to the [GrantApplication.Document.recipient ]. "
+            summary = "Approves or rejects an existing $TYPE_REF GrantApplication. If accepted by all grant givers this will " +
+                "trigger granting of resources to the `GrantApplication.Document.recipient`. "
             description = "Only the grant reviewer can perform this action."
         }
     }
@@ -402,7 +434,7 @@ ${ApiConventions.nonConformingApiWarning}
         )
 
         documentation {
-            summary = "Performs an edit to an existing [GrantApplication]"
+            summary = "Performs an edit to an existing $TYPE_REF GrantApplication"
             description = "Both the creator and any of the grant reviewers are allowed to edit the application."
         }
     }
@@ -419,9 +451,9 @@ ${ApiConventions.nonConformingApiWarning}
         )
 
         documentation {
-            summary = "Closes an existing [GrantApplication]"
-            description = "This action is identical to [rejectApplication] except it can be performed by the " +
-                "[GrantApplication] creator."
+            summary = "Closes an existing $TYPE_REF GrantApplication"
+            description = "This action is identical to rejecting the $TYPE_REF GrantApplication using " +
+                "`updateApplicationState` except it can be performed by the $TYPE_REF GrantApplication creator."
         }
     }
 
@@ -455,9 +487,9 @@ ${ApiConventions.nonConformingApiWarning}
             )
 
             documentation {
-                summary = "List active [GrantApplication]s"
-                description = """Lists active [GrantApplication]s which are relevant to a project. By using
-                    [BrowseApplicationFlags] it is possible to filter on ingoing and/or outgoing.
+                summary = "List active $TYPE_REF GrantApplication s"
+                description = """Lists active `GrantApplication`s which are relevant to a project. By using
+                    $TYPE_REF BrowseApplicationFlags it is possible to filter on ingoing and/or outgoing.
                 """.trimIndent()
             }
         }
@@ -474,10 +506,10 @@ ${ApiConventions.nonConformingApiWarning}
         )
 
         documentation {
-            summary = "Endpoint for users to browse projects which they can send grant [Application]s to"
+            summary = "Endpoint for users to browse projects which they can send a $TYPE_REF GrantApplication to"
             description = """
                  Concretely, this will return a list for which the user matches the criteria listed in
-                 [ProjectApplicationSettings.allowRequestsFrom].
+                 `ProjectApplicationSettings.allowRequestsFrom`.
             """.trimIndent()
         }
     }
@@ -518,7 +550,6 @@ ${ApiConventions.nonConformingApiWarning}
         )
     }
 
-    // This needs to be last
     val retrieveApplication = call(
         "viewApplication",
         RetrieveApplicationRequest.serializer(),
@@ -530,9 +561,9 @@ ${ApiConventions.nonConformingApiWarning}
         )
 
         documentation {
-            summary = "Retrieves an active [Application]"
+            summary = "Retrieves an active $TYPE_REF GrantApplication"
             description = """
-                Only the creator and grant reviewers are allowed to view any given [Application].
+                Only the creator and grant reviewers are allowed to view any given $TYPE_REF GrantApplication.
             """.trimIndent()
         }
     }

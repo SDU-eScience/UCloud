@@ -1,7 +1,7 @@
 import {
     CREATE_TAG,
     DELETE_TAG, findSupport, PERMISSIONS_TAG,
-    ProductSupport, Resource,
+    ProductSupport, ResolvedSupport, Resource,
     ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,
     ResourceSpecification,
@@ -80,8 +80,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
     renderer: ItemRenderer<FileCollection> = {
         MainTitle({resource}) {return <>{resource?.specification?.title ?? ""}</>},
         Icon({resource, size}) {
-            if (resource && resource.specification.product.id === "share" &&
-                resource.specification.product.provider === UCLOUD_PROVIDER) {
+            if (resource && resource.specification.product.id === "share") {
                 return <Icon name={"ftSharesFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />
             }
             return <Icon name={"ftFileSystem"} size={size} />
@@ -146,7 +145,12 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                 // Note(Jonas): Creation can be done as long as user is ADMIN and at least one provider allows it,
                 // so this should be correct, unless I'm missing something.
                 let anySupported = false;
-                Object.keys(cb.supportByProvider.productsByProvider).forEach(it => {
+                const productsByProviderKeys = Object.keys(cb.supportByProvider.productsByProvider);
+                if (productsByProviderKeys.length === 0) {
+                    return "You have no resources to create drives for."
+                }
+
+                productsByProviderKeys.forEach(it => {
                     const supports = cb.supportByProvider.productsByProvider[it];
                     for (const entry of supports) {
                         const support = entry.support as FileCollectionSupport;

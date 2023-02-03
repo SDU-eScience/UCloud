@@ -13,17 +13,18 @@ typealias ProductArea = ProductType
 @UCloudApiOwnedBy(Products::class)
 @UCloudApiDoc(
     """
-    A classifier for a $TYPE_REF Product
-    
-    For more information, see the individual $TYPE_REF Product s:
-    
-    - `STORAGE`: See $TYPE_REF Product.Storage
-    - `COMPUTE`: See $TYPE_REF Product.Compute
-    - `INGRESS`: See $TYPE_REF Product.Ingress
-    - `LICENSE`: See $TYPE_REF Product.License
-    - `NETWORK_IP`: See $TYPE_REF Product.NetworkIP
-"""
+        A classifier for a $TYPE_REF Product
+        
+        For more information, see the individual $TYPE_REF Product s:
+        
+        - `STORAGE`: See $TYPE_REF Product.Storage
+        - `COMPUTE`: See $TYPE_REF Product.Compute
+        - `INGRESS`: See $TYPE_REF Product.Ingress
+        - `LICENSE`: See $TYPE_REF Product.License
+        - `NETWORK_IP`: See $TYPE_REF Product.NetworkIP
+    """
 )
+@UCloudApiStable
 enum class ProductType {
     @UCloudApiDoc("See Product.Storage")
     STORAGE,
@@ -43,12 +44,14 @@ enum class ProductType {
 
 @Serializable
 @UCloudApiOwnedBy(Products::class)
+@UCloudApiStable
 enum class ChargeType {
     ABSOLUTE,
     DIFFERENTIAL_QUOTA
 }
 
 @UCloudApiOwnedBy(Products::class)
+@UCloudApiStable
 enum class ProductPriceUnit {
     CREDITS_PER_UNIT,
     PER_UNIT,
@@ -64,6 +67,7 @@ enum class ProductPriceUnit {
 
 @Serializable
 @UCloudApiOwnedBy(Products::class)
+@UCloudApiStable
 data class ProductCategoryId(
     val name: String,
     val provider: String
@@ -79,7 +83,8 @@ data class ProductCategoryId(
 
 @Serializable
 @UCloudApiOwnedBy(Products::class)
-@UCloudApiDoc("Contains a unique reference to a [Product](/backend/accounting-service/README.md)")
+@UCloudApiDoc("Contains a unique reference to a Product")
+@UCloudApiStable
 data class ProductReference(
     @UCloudApiDoc("The `Product` ID")
     val id: String,
@@ -95,22 +100,23 @@ data class ProductReference(
 @UCloudApiOwnedBy(Products::class)
 @UCloudApiDoc(
     """
-    Products define the services exposed by a Provider.
-    
-    For more information see [this](/docs/developer-guide/accounting-and-projects/products.md) page.
-"""
+        Products define the services exposed by a Provider.
+        
+        For more information see [this](/docs/developer-guide/accounting-and-projects/products.md) page.
+    """
 )
+@UCloudApiStable
 sealed class Product : DocVisualizable {
     @UCloudApiDoc("The category groups similar products together, it also defines which provider owns the product")
     abstract val category: ProductCategoryId
 
     @UCloudApiDoc(
         """
-        The price of a single unit in a single period
-        
-        For more information go 
-        [here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
-    """
+            The price of a single unit in a single period
+            
+            For more information go 
+            [here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
+        """
     )
     abstract val pricePerUnit: Long
 
@@ -123,7 +129,7 @@ sealed class Product : DocVisualizable {
     @UCloudApiDoc("A integer used for changing the order in which products are displayed (ascending order)")
     abstract val priority: Int
 
-    @UCloudApiDoc("A version number for this Product, managed by UCloud")
+    @UCloudApiDoc("This property is no longer used.")
     @Deprecated("No longer used")
     abstract val version: Int
 
@@ -217,13 +223,14 @@ sealed class Product : DocVisualizable {
     @SerialName("storage")
     @UCloudApiDoc(
         """
-        A storage Product
-        
-        | Unit | API |
-        |------|-----|
-        | Measured in GB (10⁹ bytes. 1 byte = 1 octet) | [Click here](/docs/developer-guide/orchestration/storage/files.md) |
-    """
+            A storage Product
+            
+            | Unit | API |
+            |------|-----|
+            | Measured in GB (10⁹ bytes. 1 byte = 1 octet) | [Click here](/docs/developer-guide/orchestration/storage/files.md) |
+        """
     )
+    @UCloudApiStable
     data class Storage(
         override val name: String,
         override val pricePerUnit: Long,
@@ -249,13 +256,14 @@ sealed class Product : DocVisualizable {
     @SerialName("compute")
     @UCloudApiDoc(
         """
-        A compute Product
-        
-        | Unit | API |
-        |------|-----|
-        | Measured in hyper-threaded cores (vCPU) | [Click here](/docs/developer-guide/orchestration/compute/jobs.md) |
-    """
+            A compute Product
+            
+            | Unit | API |
+            |------|-----|
+            | Measured in hyper-threaded cores (vCPU) | [Click here](/docs/developer-guide/orchestration/compute/jobs.md) |
+        """
     )
+    @UCloudApiStable
     data class Compute(
         override val name: String,
         override val pricePerUnit: Long,
@@ -308,13 +316,14 @@ sealed class Product : DocVisualizable {
     @SerialName("ingress")
     @UCloudApiDoc(
         """
-        An ingress Product
-        
-        | Unit | API |
-        |------|-----|
-        | Measured in number of ingresses | [Click here](/docs/developer-guide/orchestration/compute/ingress.md) |
-    """
+            An ingress Product
+            
+            | Unit | API |
+            |------|-----|
+            | Measured in number of ingresses | [Click here](/docs/developer-guide/orchestration/compute/ingress.md) |
+        """
     )
+    @UCloudApiStable
     data class Ingress(
         override val name: String,
         override val pricePerUnit: Long,
@@ -340,13 +349,14 @@ sealed class Product : DocVisualizable {
     @SerialName("license")
     @UCloudApiDoc(
         """
-        A license Product
-        
-        | Unit | API |
-        |------|-----|
-        | Measured in number of licenses | [Click here](/docs/developer-guide/orchestration/compute/license.md) |
-    """
+            A license Product
+            
+            | Unit | API |
+            |------|-----|
+            | Measured in number of licenses | [Click here](/docs/developer-guide/orchestration/compute/license.md) |
+        """
     )
+    @UCloudApiStable
     data class License(
         override val name: String,
         override val pricePerUnit: Long,
@@ -373,13 +383,14 @@ sealed class Product : DocVisualizable {
     @SerialName("network_ip")
     @UCloudApiDoc(
         """
-        An IP address Product
-        
-        | Unit | API |
-        |------|-----|
-        | Measured in number of IP addresses | [Click here](/docs/developer-guide/orchestration/compute/ips.md) |
-    """
+            An IP address Product
+            
+            | Unit | API |
+            |------|-----|
+            | Measured in number of IP addresses | [Click here](/docs/developer-guide/orchestration/compute/ips.md) |
+        """
     )
+    @UCloudApiStable
     data class NetworkIP(
         override val name: String,
         override val pricePerUnit: Long,
@@ -480,6 +491,7 @@ interface ProductFlags {
 }
 
 @Serializable
+@UCloudApiStable
 data class ProductsBrowseRequest(
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -500,6 +512,7 @@ data class ProductsBrowseRequest(
 typealias ProductsBrowseResponse = PageV2<Product>
 
 @Serializable
+@UCloudApiStable
 data class ProductsRetrieveRequest(
     override val filterName: String,
     override val filterCategory: String,
@@ -512,7 +525,7 @@ data class ProductsRetrieveRequest(
     override val includeMaxBalance: Boolean? = null,
 ) : ProductFlags
 
-@OptIn(ExperimentalStdlibApi::class)
+@UCloudApiStable
 object Products : CallDescriptionContainer("products") {
     const val baseContext = "/api/products"
 

@@ -72,6 +72,37 @@ restartsvc() {
     startsvc;
 }
 
+installpsql() {
+    if ! hash psql &> /dev/null ; then
+        apt-get update && apt-get install postgresql-client -y
+    fi
+}
+
+snapshot() {
+    installpsql;
+    local name=$1
+    export PGPASSWORD=postgrespassword
+
+    psql -h localhost -U postgres -c "select pg_terminate_backend(pg_stat_activity.pid) from pg_stat_activity where pg_stat_activity.datname = 'postgres' and pid <> pg_backend_pid();"
+    psql -h localhost -U postgres -c "drop database if exists $name"
+    psql -h localhost -U postgres -c "create database $name with template postgres"
+
+    unset PGPASSWORD
+}
+
+restoresnapshot() {
+    installpsql;
+    local name=$1
+    export PGPASSWORD=postgrespassword
+
+    psql -h localhost -d $name -U postgres -c "select pg_terminate_backend(pg_stat_activity.pid) from pg_stat_activity where pg_stat_activity.datname = 'postgres' and pid <> pg_backend_pid();"
+    psql -h localhost -d $name -U postgres -c "select pg_terminate_backend(pg_stat_activity.pid) from pg_stat_activity where pg_stat_activity.datname = '$name' and pid <> pg_backend_pid();"
+    psql -h localhost -d $name -U postgres -c "drop database if exists postgres"
+    psql -h localhost -d $name -U postgres -c "create database postgres with template $name"
+
+    unset PGPASSWORD
+}
+
 case $1 in
     start)
         startsvc;
@@ -84,5 +115,14 @@ case $1 in
     restart)
         restartsvc;
         ;;
+
+    snapshot)
+        snapshot $2;
+        ;;
+
+    restore)
+        restoresnapshot $2;
+        ;;
+
 esac
 

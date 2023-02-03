@@ -12,6 +12,8 @@ interface DataListProps {
     placeholder: string;
     width?: number | string;
     clearOnSelect?: boolean;
+    rightLabel?: boolean;
+    leftLabel?: boolean;
 }
 export class DataList extends React.PureComponent<DataListProps, {
     text: string;
@@ -50,6 +52,8 @@ export class DataList extends React.PureComponent<DataListProps, {
                 trigger={(
                     <FormField>
                         <Input
+                            leftLabel={this.props.leftLabel}
+                            rightLabel={this.props.rightLabel}
                             placeholder={this.props.placeholder}
                             autoComplete="off"
                             type="text"

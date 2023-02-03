@@ -17,7 +17,6 @@ import dk.sdu.cloud.controllers.ControllerContext
 import dk.sdu.cloud.controllers.EnvoyConfigurationService
 import dk.sdu.cloud.controllers.IpcController
 import dk.sdu.cloud.debug.*
-import dk.sdu.cloud.io.CommonFile
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.ResourcePlugin
 import dk.sdu.cloud.plugins.SimplePluginContext
@@ -36,6 +35,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
+import dk.sdu.cloud.utils.ResourceVerification
 import dk.sdu.cloud.plugins.storage.posix.posixFilePermissionsFromInt
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
@@ -160,6 +160,7 @@ fun main(args: Array<String>) {
                 is ServerMode.Plugin -> "plugin-${Time.now()}"
                 ServerMode.Server -> "server"
                 ServerMode.User -> "user-${clib.getuid()}"
+                else -> "unknown"
             }
 
             run {
@@ -174,7 +175,7 @@ fun main(args: Array<String>) {
                 val configurator = JoranConfigurator()
                 configurator.context = ctx
                 ctx.reset()
-                configurator.doConfigure(logbackConfiguration(logDir, logModule).encodeToByteArray().inputStream())
+                configurator.doConfigure(logbackConfiguration(logDir, config.core.providerId, logModule).encodeToByteArray().inputStream())
             }
 
             run {
@@ -332,9 +333,7 @@ fun main(args: Array<String>) {
                         allowHost(selfHost.substringAfter("://"), listOf(selfHost.substringBefore("://")))
                     }
 
-                    println(config.core.cors.allowHosts.toString())
                     config.core.cors.allowHosts.forEach {
-                        println("Setting $it")
                         allowHost(it.removePrefix("https://").removePrefix("http://"), listOf("https", "http"))
                     }
 
@@ -414,6 +413,12 @@ fun main(args: Array<String>) {
                 }
 
                 is ServerMode.Plugin -> null
+            }
+
+            // Resource verification (dependency for IPC server)
+            // -------------------------------------------------------------------------------------------------------
+            if (serverMode == ServerMode.Server) {
+                ResourceVerification.client = rpcClient!!
             }
 
             // IPC Server
@@ -571,7 +576,8 @@ fun main(args: Array<String>) {
                     )
                 }
             }.absolutePath
-            val debugSystem = when (serverMode) {
+            val debugSystem: DebugSystem? = when (serverMode) {
+                /*
                 ServerMode.Server -> CommonDebugSystem(
                     "IM/Server",
                     CommonFile(structuredLogs),
@@ -583,6 +589,7 @@ fun main(args: Array<String>) {
                     CommonFile(structuredLogs),
                     debugTransformer
                 )
+                 */
 
                 else -> null
             }
@@ -689,6 +696,8 @@ fun main(args: Array<String>) {
                 registerAlwaysOnCommandLines(controllerContext)
             }
 
+            MaintenanceSystem.initialize(controllerContext)
+
             if (serverMode is ServerMode.Plugin) {
                 cli?.execute(serverMode.name) // NOTE(Dan): Will always exit here
             }
@@ -705,6 +714,7 @@ fun main(args: Array<String>) {
                     ShareController(controllerContext),
                     ConnectionController(controllerContext, envoyConfig),
                     EventController(controllerContext),
+                    FaultInjectionController(controllerContext),
                 )
             }
 
@@ -725,7 +735,7 @@ fun main(args: Array<String>) {
                 stats.add("Mode" to serverMode.toString())
                 stats.add(empty)
                 stats.add("All logs" to config.core.logs.directory)
-                stats.add("My logs" to "${config.core.logs.directory}/$logModule-ucloud.log")
+                stats.add("My logs" to "${config.core.logs.directory}/${config.core.providerId}-$logModule.log")
                 if (serverMode == ServerMode.Server) {
                     val embeddedConfig = config.server.database.embeddedDataDirectory
                     if (embeddedConfig != null) {

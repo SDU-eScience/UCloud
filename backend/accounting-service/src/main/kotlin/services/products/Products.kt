@@ -3,8 +3,6 @@ package dk.sdu.cloud.accounting.services.products
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
-import dk.sdu.cloud.accounting.util.PartialQuery
-import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -162,77 +160,87 @@ class ProductService(
         actorAndProject: ActorAndProject,
         request: ProductsRetrieveRequest
     ): Product {
-        return db.withSession { session ->
-            val (params, query) = queryProducts(actorAndProject, request, null)
-            session.sendPreparedStatement(
-                params,
-                query,
-            ).rows
-                .singleOrNull()
-                ?.let {
-                    decodeProduct(actorAndProject, it.getString(0)!!, request)
-                }
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        }
+        return browse(
+            actorAndProject,
+            ProductsBrowseRequest(
+                filterName = request.filterName,
+                filterCategory = request.filterCategory,
+                filterProvider = request.filterProvider,
+                filterArea = request.filterArea,
+                includeBalance = request.includeBalance
+            )
+        ).items.singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 
     suspend fun browse(
         actorAndProject: ActorAndProject,
         request: ProductsBrowseRequest
     ): PageV2<Product> {
-        return db.paginateV2(
-            actorAndProject.actor,
-            request.normalize(),
-            create = { session ->
-                val (params, query) = queryProducts(actorAndProject, request, request.showAllVersions)
-                session.sendPreparedStatement(
-                    params,
-                    """
-                        declare c cursor for 
-                        $query
-                    """
-                )
-            },
-            mapper = {_, rows ->
-                rows.map {
-                    decodeProduct(actorAndProject, it.getString(0)!!, request)
-                }
-            }
-        )
-    }
+        return db.withSession { session ->
+            val itemsPerPage = request.normalize().itemsPerPage
+            val rows = session.sendPreparedStatement(
+                {
+                    setParameter("name_filter", request.filterName)
+                    setParameter("provider_filter", request.filterProvider)
+                    setParameter("product_filter", request.filterArea?.name)
+                    setParameter("category_filter", request.filterCategory)
+                    setParameter("version_filter", request.filterVersion)
+                    setParameter("include_balance", request.includeBalance == true)
+                    setParameter("accountId", actorAndProject.project ?: actorAndProject.actor.safeUsername())
+                    setParameter("account_is_project", actorAndProject.project != null)
 
-
-    private fun queryProducts(actorAndProject: ActorAndProject, flags: ProductFlags, showAllVersions: Boolean?): PartialQuery {
-        return PartialQuery(
-            {
-                setParameter("name_filter", flags.filterName)
-                setParameter("provider_filter", flags.filterProvider)
-                setParameter("product_filter", flags.filterArea?.name)
-                setParameter("category_filter", flags.filterCategory)
-                setParameter("version_filter", flags.filterVersion)
-                setParameter("show_all_versions", showAllVersions == true)
-                setParameter("include_balance", flags.includeBalance == true)
-                setParameter("accountId", actorAndProject.project ?: actorAndProject.actor.safeUsername())
-                setParameter("account_is_project", actorAndProject.project != null)
-            },
-            """
-                with my_wallets as (
-                    select wa.category as wallet_category, wa.id as wallet_id, username, project_id, provider, balance
+                    val nextParts = request.next?.split("-")?.takeIf { it.size == 3 }
+                    setParameter("next_provider", nextParts?.get(0))
+                    setParameter("next_category", nextParts?.get(1))
+                    setParameter("next_name", nextParts?.get(2))
+                },
+                """
+                    with my_wallets as (
+                        select wa.category as wallet_category, wa.id as wallet_id, username, project_id, provider, balance
+                        from
+                            accounting.wallets wa join
+                            accounting.wallet_owner wo on wo.id = wa.owned_by join
+                            accounting.product_categories pc on pc.id = wa.category left join
+                            (
+                                select sum(walloc.balance) balance, wa.id
+                                from
+                                    accounting.wallets wa join
+                                    accounting.wallet_allocations walloc on wa.id = walloc.associated_wallet
+                                group by wa.id
+                            ) as balances on (:include_balance and balances.id = wa.id)
+                        where
+                            (
+                                (not :account_is_project and wo.username = :accountId) or
+                                (:account_is_project and wo.project_id = :accountId)
+                            ) and
+                            (
+                                :category_filter::text is null or
+                                pc.category = :category_filter
+                            ) and
+                            (
+                                :provider_filter::text is null or
+                                pc.provider = :provider_filter
+                            ) and
+                            (
+                                :product_filter::accounting.product_type is null or
+                                pc.product_type = :product_filter
+                            )
+                    )
+                    select accounting.product_to_json(
+                        p,
+                        pc,
+                        (CASE WHEN :include_balance = true THEN (coalesce(balance::bigint, 0)) END)
+                    )
                     from
-                        accounting.wallets wa join
-                        accounting.wallet_owner wo on wo.id = wa.owned_by join
-                        accounting.product_categories pc on pc.id = wa.category left join
-                        (
-                            select sum(walloc.balance) balance, wa.id
-                            from
-                                accounting.wallets wa join
-                                accounting.wallet_allocations walloc on wa.id = walloc.associated_wallet
-                            group by wa.id
-                        ) as balances on (:include_balance and balances.id = wa.id)
+                        accounting.products p join
+                        accounting.product_categories pc on pc.id = p.category left outer join
+                        my_wallets mw on (pc.id = mw.wallet_category and pc.provider = mw.provider)
                     where
                         (
-                            (not :account_is_project and wo.username = :accountId) or
-                            (:account_is_project and wo.project_id = :accountId)
+                            (:next_provider::text is null or :next_category::text is null or :next_name::text is null) or
+                            pc.provider > :next_provider::text or
+                            (pc.provider = :next_provider::text and pc.category > :next_category::text) or
+                            (pc.provider = :next_provider::text and pc.category = :next_category::text and p.name > :next_name::text)
                         ) and
                         (
                             :category_filter::text is null or
@@ -242,63 +250,45 @@ class ProductService(
                             :provider_filter::text is null or
                             pc.provider = :provider_filter
                         ) and
+
                         (
                             :product_filter::accounting.product_type is null or
                             pc.product_type = :product_filter
-                        )
-                )
-                select accounting.product_to_json(
-                    p,
-                    pc,
-                    (CASE WHEN :include_balance = true THEN (coalesce(balance::bigint, 0)) END)
-                )
-                from
-                    accounting.products p join
-                    accounting.product_categories pc on pc.id = p.category left outer join
-                    my_wallets mw on (pc.id = mw.wallet_category and pc.provider = mw.provider)
-                where
-                    (
-                        :category_filter::text is null or
-                        pc.category = :category_filter
-                    ) and
-                    (
-                        :provider_filter::text is null or
-                        pc.provider = :provider_filter
-                    ) and
-
-                    (
-                        :product_filter::accounting.product_type is null or
-                        pc.product_type = :product_filter
-                    ) and
-                    (
-                        :name_filter::text is null or
-                        p.name = :name_filter
-                    ) and
-                    (
-                        not :include_balance or
+                        ) and
                         (
-                            (mw.balance is not null and mw.balance > 0) or
-                            (p.free_to_use)
-                        )
-                    ) and
-                    (
-                        :show_all_versions or
-                        p.version = (
-                            select max(version) highest_version
-                            from accounting.products p2
-                            where (
-                                (
-                                    :version_filter::bigint is null or
-                                    version = :version_filter
-                                ) and
-                                p.name = p2.name and
-                                p.category = p2.category
+                            :name_filter::text is null or
+                            p.name = :name_filter
+                        ) and
+                        (
+                            not :include_balance or
+                            (
+                                (mw.balance is not null and mw.balance > 0) or
+                                (p.free_to_use)
                             )
                         )
-                    )
-                order by pc.provider, pc.category
-            """
-        )
+                    order by pc.provider, pc.category, p.name
+                    limit $itemsPerPage;
+                """
+            ).rows
+
+            val result = rows.map { defaultMapper.decodeFromString(Product.serializer(), it.getString(0)!!) }
+            val next = if (result.size < itemsPerPage) {
+                null
+            } else buildString {
+                val last = result.last()
+                append(last.category.provider)
+                append('-')
+                append(last.category.name)
+                append('-')
+                append(last.name)
+            }
+
+            PageV2(
+                itemsPerPage,
+                result,
+                next
+            )
+        }
     }
 
     private fun requirePermission(actor: Actor, providerId: String, readOnly: Boolean) {

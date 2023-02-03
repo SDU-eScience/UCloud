@@ -224,7 +224,7 @@ const hardcodedSshSupport: { providerId: string; support: string[] }[] = [
     { providerId: "ucloud", support: [] },
     { providerId: "aau", support: ["None, keys are added through the application"] },
     { providerId: "hippo", support: ["SSH to frontend"] },
-    { providerId: "sophia", support: [] },
+    { providerId: "sophia", support: ["SSH to frontend"] },
     { providerId: "lumi", support: [] },
 ];
 

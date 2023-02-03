@@ -26,7 +26,7 @@ creation of this document. Each Project Leader have the responsibility for valid
 
 ## The Development Cycle
 
-UCloud uses an __agile methodology__ for development and deployment, which will also be used for this project The method
+UCloud uses an __agile methodology__ for development and deployment, which will also be used for this project. The method
 is commonly used for complex projects like this one, and it emphasizes collaboration, flexibility, continuous
 improvement, and high-quality results.
 
@@ -63,10 +63,10 @@ assigned to individual issues.
 ### Initial testing
 
 Eventually code will reach a functional stage. At this point the issue becomes "ready for initial testing". In this
-stage, the code is tested by the assigned developer.  Code is tested both manually and automatically. Automatic tests
-are executed by Jenkins and include both unit and integration testing. Manual testing is performed on a development
-system. The development system contains a software and hardware stack similar to the one used in the production
-environment. This allows us to more accurately test code.
+stage, the code is tested by the assigned developer.  Code can be tested both manually and automatically. Automatic
+tests are executed by Jenkins and include both unit and integration testing. Manual testing is performed on a 
+development system. The development system contains a software and hardware stack similar to the one used in the 
+production environment. This allows us to more accurately test code.
 
 ### Code review
 
@@ -78,11 +78,10 @@ accept the proposed change, the code is merged into the master branch and the as
 ### Staging and Alpha testing
 
 Changes made to the software base of UCloud through issues are bundled together to form a release-candidate. This
-_release-candidate_ is deployed to the staging environment of UCloud. The staging environment is similar to both the
-development and production environment. This release candidate goes through internal alpha testing.  New issues may
-arise from alpha testing, which are inserted in the backlog. Depending on the nature of the issue, these may block the
-release candidate from release or can simply be dealt with in later releases. Once the release candidate has passed
-internal alpha testing, it is deployed to the production environment.
+_release-candidate_ is deployed to the development environment of UCloud. This release candidate goes through internal 
+alpha testing.  New issues may arise from alpha testing, which are inserted in the backlog. Depending on the nature of 
+the issue, these may block the release candidate from release or can simply be dealt with in later releases. Once the 
+release candidate has passed internal alpha testing, it is deployed to the production environment.
 
 ### Deployment
 
@@ -110,7 +109,7 @@ it will be provided in collaboration with the back-offices at the national HPC c
 
 ### Internal Artifact Repositories
 
-We use a number of internal repositories for storing software artifacts. The details are discussed 
+We use a number of internal repositories for storing software artifacts. The details are discussed
 [here](./deployment.md).
 
 ### External Libraries
@@ -146,7 +145,9 @@ Tickets are initiated through 3 main sources:
 ## Incident handling / Corrective Actions / Continual improvement
 
 GitHub holds all issues, external and internal feature requests etc. All issues are being classified when it is
-initialised by a user.
+initialised by a user. Due to the public nature of our GitHub issues, sensitive topics are never discussed in these.
+If there is a risk that an issue could leak information about an ongoing security issue, then such details must never be
+discussed on GitHub. Instead, the normal procedures for communication and incident reporting should be used instead.
 
 The Project Leader confirms the classification when the issue is being assigned to a developer.
 
@@ -160,11 +161,11 @@ Project Leaders and ISMS admin regularly meets and evaluates the incidents and u
 
 ## Monitoring and Auditing
 
-All relevant logs are consumed using the ELK stack and presented in real time.
+All relevant logs are consumed using the ElasticSearch, FileBeat and Kibana stack and presented in real time.
 The output is mainly presented as Kibana and Grafana views using a number of
-thresholds for the system events. The auditing system is described [here](../auditing.md).
+thresholds for the system events. The auditing system is described [here](./auditing.md).
 
-The support team monitors the output.
+The relevant teams monitor the output.
 
 The output can be grouped in 2 categories:
 
@@ -183,7 +184,7 @@ If the messages from the alerting/monitoring services contains alerts/notificati
 project leaders and the rest of the support team by the user of the Security Slack Channel.  In the case that this is
 unknown behavior and a potential risk is seen, an issue is created.
 
-![](/backend/service-lib/wiki/securityFlow.png)
+![](/backend/service-lib/wiki/SecurityFlowUpdate.png)
 
 Our GitHub issue tracker is not used for security incidents, given that it is public. Instead, our Jira incident service
 desk is used for this purpose.
@@ -196,3 +197,4 @@ SDU. This test is performed automatically by tools.
 Each month https://cloud.sdu.dk is scanned and penetration tested by the security department at SDU.
 
 We also perform internal audits at SDU. These are performed periodically and at least once a year.
+

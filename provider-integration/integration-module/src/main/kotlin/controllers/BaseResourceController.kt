@@ -2,6 +2,7 @@ package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.Maintenance
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.calls.BulkRequest
@@ -10,11 +11,15 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.config.ProductReferenceWithoutProvider
+import dk.sdu.cloud.config.removeProvider
 import dk.sdu.cloud.ipc.IpcServer
 import dk.sdu.cloud.plugins.ResourcePlugin
 import dk.sdu.cloud.provider.api.Resource
 import dk.sdu.cloud.service.Controller
 import kotlinx.coroutines.runBlocking
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.utils.MaintenanceSystem
 
 abstract class BaseResourceController<
     P : Product,
@@ -28,13 +33,50 @@ abstract class BaseResourceController<
     protected abstract fun retrieveApi(providerId: String): Api
     override fun configureIpc(server: IpcServer) {}
 
-    protected fun lookupPluginOrNull(product: ProductReference): Plugin? {
-        return retrievePlugins()?.find { plugin ->
-            plugin.productAllocation.any { it.id == product.id && it.category == product.category }
+    private suspend fun CallHandler<*, *, *>.checkForProductMaintenance(reference: ProductReference) {
+        // Nothing to check if we are allowed always
+        if (ucloudUsername in controllerContext.configuration.core.maintenance.alwaysAllowAccessFrom) return
+
+        val periods = MaintenanceSystem.fetchActiveMaintenancePeriods()
+        val product = ProductReferenceWithoutProvider(reference.id, reference.category)
+        for (period in periods) {
+            if (period.specification.availability != Maintenance.Availability.NO_SERVICE) continue
+
+            val matcher = period.matcher()
+            if (matcher.match(product) > 0) {
+                throw RPCException(
+                    "Unavailable due to maintenance. ${period.specification.description}",
+                    HttpStatusCode.BadGateway,
+                    "MAINTENANCE"
+                )
+            }
         }
     }
 
-    protected fun lookupPlugin(product: ProductReference): Plugin {
+    protected suspend fun CallHandler<*, *, *>.lookupPluginByFilter(
+        filter: (ProductReferenceWithoutProvider) -> Boolean
+    ): Plugin? {
+        for (plugin in retrievePlugins() ?: emptyList()) {
+            val product = plugin.productAllocation.find(filter)
+            if (product != null) {
+                checkForProductMaintenance(
+                    ProductReference(product.id, product.category, controllerContext.configuration.core.providerId)
+                )
+                return plugin
+            }
+        }
+        return null
+    }
+
+    protected suspend fun CallHandler<*, *, *>.lookupPluginByProduct(productId: String): Plugin? {
+        return lookupPluginByFilter { it.id == productId }
+    }
+
+    protected suspend fun CallHandler<*, *, *>.lookupPluginOrNull(product: ProductReference): Plugin? {
+        return lookupPluginByFilter { it.id == product.id && it.category == product.category }
+    }
+
+    protected suspend fun CallHandler<*, *, *>.lookupPlugin(product: ProductReference): Plugin {
         return lookupPluginOrNull(product) ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
     }
 
@@ -62,7 +104,7 @@ abstract class BaseResourceController<
 
     protected data class ReorderedItem<T>(val originalIndex: Int, val item: T)
 
-    protected suspend fun <T> groupResources(
+    private suspend fun <T> CallHandler<*, *, *>.groupResources(
         plugins: Collection<Plugin>,
         items: List<T>,
         selector: suspend (T) -> Resource<*, *>,
@@ -84,7 +126,6 @@ abstract class BaseResourceController<
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         val plugins = retrievePlugins()
         if (plugins == null) {
-            println("No plugins active for ${this@BaseResourceController::class.simpleName}")
             return
         }
         val api = retrieveApi(controllerContext.configuration.core.providerId)
@@ -103,30 +144,38 @@ abstract class BaseResourceController<
         implement(api.retrieveProducts) {
             if (!config.shouldRunServerCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            runBlocking {
-                ok(
-                    BulkResponse(
-                        plugins
-                            .flatMap { plugin ->
-                                val products = plugin.productAllocation
-                                with(requestContext(controllerContext)) {
-                                    with(plugin) {
-                                        val providerId = controllerContext.configuration.core.providerId
-                                        retrieveProducts(
-                                            products.map { product ->
-                                                ProductReference(
-                                                    product.id,
-                                                    product.category,
-                                                    providerId
-                                                )
-                                            }
-                                        ).responses
-                                    }
+            val maintenancePeriods = MaintenanceSystem.fetchActiveMaintenancePeriods()
+
+            val productSupportItems = plugins.flatMap { plugin ->
+                val products = plugin.productAllocation
+                with(requestContext(controllerContext)) {
+                    with(plugin) {
+                        val providerId = controllerContext.configuration.core.providerId
+                        val supportItems = retrieveProducts(
+                            products.map { product ->
+                                ProductReference(
+                                    product.id,
+                                    product.category,
+                                    providerId
+                                )
+                            }
+                        ).responses
+
+                        for (period in maintenancePeriods) {
+                            val matcher = period.matcher()
+                            for (item in supportItems) {
+                                if (matcher.match(item.product.removeProvider()) > 0) {
+                                    item.maintenance = period.toUCloudModel()
                                 }
                             }
-                    )
-                )
+                        }
+
+                        supportItems
+                    }
+                }
             }
+
+            ok(BulkResponse(productSupportItems))
         }
 
         api.delete?.let { delete ->
@@ -182,5 +231,9 @@ abstract class BaseResourceController<
         }
 
         configureCustomEndpoints(plugins, api)
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

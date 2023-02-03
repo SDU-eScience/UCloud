@@ -19,7 +19,6 @@ import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.IpcServer
 import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.plugins.AllocationPlugin
-import dk.sdu.cloud.plugins.OnResourceAllocationResult
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.project.api.v2.ProjectNotification
 import dk.sdu.cloud.project.api.v2.ProjectNotifications
@@ -81,6 +80,7 @@ class EventController(
     private var isPaused = false
 
     private val nextPull = AtomicLong(0L)
+    private var pullRequested = false
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         if (!controllerContext.configuration.shouldRunServerCode()) return
@@ -165,7 +165,7 @@ class EventController(
     }
 
     private fun triggerPullRequest() {
-        nextPull.set(0L)
+        pullRequested = true
     }
 
     private fun startLoop() {
@@ -194,7 +194,9 @@ class EventController(
 
     private suspend fun loopNotifications() {
         val now = Time.now()
-        if (now >= nextPull.get()) {
+        val nextPullValue = nextPull.get()
+        if (now >= nextPullValue || pullRequested) {
+            pullRequested = false
             try {
                 // NOTE(Dan): It is crucial that events are _always_ processed in this order, regardless of
                 // how the pull requests arrive at the provider. We must know about a new project _before_ any
@@ -214,7 +216,9 @@ class EventController(
             }
 
             // NOTE(Dan): We always pull once a minute, even if we aren't told to do so.
-            nextPull.set(now + 60_000L)
+            // NOTE(Dan): Only change the value if it wasn't changed while we were processing the notifications. If
+            // it has changed while processing, it means we have events already pending again.
+            nextPull.compareAndSet(nextPullValue, now + 60_000L)
         }
         delay(1000)
     }
@@ -346,25 +350,23 @@ class EventController(
 
             notifications = notifications.filter { event ->
                 val owner = event.owner
-                owner !is WalletOwner.Project || owner.projectId !in projectsToIgnore
+
+                val shouldIgnoreProject = owner is WalletOwner.Project && owner.projectId in projectsToIgnore
+                if (shouldIgnoreProject) return@filter false
+
+                val isRegistered = ResourceOwnerWithId.load(owner, controllerContext.pluginContext) != null
+                if (!isRegistered) return@filter false
+
+                true
             }
         }
 
-        val singles = processAllocationsSingles(notifications)
-        val totals = processAllocationsTotals(notifications)
-        val combined = totals.mapIndexed { idx, value ->
-            value ?: singles[idx]
-        }
+        processAllocationsSingles(notifications)
+        processAllocationsTotals(notifications)
 
         val items = ArrayList<DepositNotificationsMarkAsReadRequestItem>()
-        for ((index, res) in combined.withIndex()) {
-            if (res == null) continue
-            items.add(
-                DepositNotificationsMarkAsReadRequestItem(
-                    notifications[index].id,
-                    (res as? OnResourceAllocationResult.ManageThroughProvider)?.uniqueId
-                )
-            )
+        for (notification in notifications) {
+            items.add(DepositNotificationsMarkAsReadRequestItem(notification.id))
         }
 
         if (items.isNotEmpty()) {
@@ -383,8 +385,7 @@ class EventController(
         )
     }
 
-    private suspend fun processAllocationsSingles(notifications: List<DepositNotification>): Array<OnResourceAllocationResult?> {
-        val output = arrayOfNulls<OnResourceAllocationResult>(notifications.size)
+    private suspend fun processAllocationsSingles(notifications: List<DepositNotification>) {
         val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, AllocationNotificationSingle>>>()
 
         outer@ for ((idx, notification) in notifications.withIndex()) {
@@ -418,11 +419,6 @@ class EventController(
                     val response = with(allocationPlugin) {
                         onResourceAllocationSingle(list.map { it.second })
                     }
-
-                    for ((request, pluginResponse) in list.zip(response)) {
-                        val (origIdx, _) = request
-                        output[origIdx] = pluginResponse
-                    }
                 }
             }
 
@@ -440,12 +436,9 @@ class EventController(
                 onResourceAllocationSingle(notificationsByType.entries.flatMap { (_, allocs) -> allocs.map { it.second } })
             }
         }
-
-        return output
     }
 
-    private suspend fun processAllocationsTotals(notifications: List<DepositNotification>): Array<OnResourceAllocationResult?> {
-        val output = arrayOfNulls<OnResourceAllocationResult>(notifications.size)
+    private suspend fun processAllocationsTotals(notifications: List<DepositNotification>) {
         val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, AllocationNotificationTotal>>>()
         outer@ for ((idx, notification) in notifications.withIndex()) {
             val combinedProviderSummary = Wallets.retrieveProviderSummary.call(
@@ -482,13 +475,8 @@ class EventController(
 
             with(controllerContext.pluginContext) {
                 if (allocationPlugin != null) {
-                    val response = with(allocationPlugin) {
+                    with(allocationPlugin) {
                         onResourceAllocationTotal(list.map { it.second })
-                    }
-
-                    for ((request, pluginResponse) in list.zip(response)) {
-                        val (origIdx, _) = request
-                        output[origIdx] = pluginResponse
                     }
                 }
             }
@@ -507,8 +495,6 @@ class EventController(
                 onResourceAllocationTotal(notificationsByType.entries.flatMap { (_, allocs) -> allocs.map { it.second } })
             }
         }
-
-        return output
     }
 
     private suspend fun notifyPlugins(notification: AllocationNotificationTotal) {

@@ -2,119 +2,133 @@ properties([
     buildDiscarder(logRotator(numToKeepStr: '30')),
 ])
 
-def label = "worker-${UUID.randomUUID().toString()}"
-def postgresPassword = UUID.randomUUID().toString()
 
 // NOTE(Dan): We should definitely not attempt to run these builds on untrusted builds. The Kubernetes cluster we start
 // is capable of doing quite a lot of damage. We should at the very least not run Kubernetes based tests on untrusted
 // builds.
 
-podTemplate(
-    label: label, 
-    containers: [
-        containerTemplate(
-            name: 'jnlp', 
-            image: 'jenkins/jnlp-slave:latest-jdk11', 
-            args: '${computer.jnlpmac} ${computer.name}'
-        ),
-        
-        containerTemplate(
-            name: 'test', 
-            image: 'dreg.cloud.sdu.dk/ucloud/test-runner:2022.1.0', 
-            command: 'cat', 
-            ttyEnabled: true,
-            envVars: [
-                containerEnvVar(key: 'POSTGRES_PASSWORD', value: postgresPassword)
-            ]
-        ),
 
-        containerTemplate(
-            name: 'k3s',
-            image: 'rancher/k3s:v1.21.6-rc2-k3s1',
-            args: 'server --cluster-cidr 10.44.0.0/16 --service-cidr 10.45.0.0/16 --cluster-dns 10.45.0.10 --cluster-domain cluster2.local',
-            privileged: true,
-            envVars: [
-                containerEnvVar(key: 'K3S_KUBECONFIG_OUTPUT', value: '/output/kubeconfig.yaml'),
-                containerEnvVar(key: 'K3s_KUBECONFIG_MODE', value: '666'),
-            ]
-        ),
-
-        containerTemplate(
-            name: 'redis',
-            image: 'redis:5.0.9'
-        ),
-
-        containerTemplate(
-            name: 'elastic',
-            image: 'docker.elastic.co/elasticsearch/elasticsearch:7.10.2',
-            envVars: [
-                containerEnvVar(key: 'discovery.type', value: 'single-node')
-            ]
-        ),
-
-        containerTemplate(
-            name: 'postgres',
-            image: 'postgres:13.3',
-            envVars: [
-                containerEnvVar(key: 'POSTGRES_PASSWORD', value: postgresPassword)
+node {
+    sh label: '', script: 'java -version'
+    def jobName = "t"+currentBuild.startTimeInMillis
+    echo (jobName)
+    //Make check on PR creator and specific branches. master, staging, PRs
+    stage('Checkout') {
+        checkout(
+            [
+                $class                           : 'GitSCM',
+                branches                         : [
+                    [name: env.BRANCH_NAME]
+                ],
+                doGenerateSubmoduleConfigurations: false,
+                extensions                       : [],
+                submoduleCfg                     : [],
+                userRemoteConfigs                : [
+                    [
+                        credentialsId: 'github',
+                        url          : 'https://github.com/SDU-eScience/UCloud.git'
+                    ]
+                ]
             ]
         )
-    ],
-    volumes: [
-      emptyDirVolume(mountPath: '/tmp', memory: false),
-      emptyDirVolume(mountPath: '/output', memory: false)
-    ]
-) {
-    node (label) {
-        sh label: '', script: 'java -version'
-        if (env.BRANCH_NAME == 'master') {
-            stage('Checkout') {
-                checkout(
-                    [
-                        $class                           : 'GitSCM',
-                        branches                         : [
-                            [name: env.BRANCH_NAME]
-                        ],
-                        doGenerateSubmoduleConfigurations: false,
-                        extensions                       : [],
-                        submoduleCfg                     : [],
-                        userRemoteConfigs                : [
-                            [
-                                credentialsId: 'github',
-                                url          : 'https://github.com/SDU-eScience/SDUCloud.git'
-                            ]
-                        ]
-                    ]
-                )
-            }
+    }
 
-            String frontendResult = runBuild("frontend-web/Jenkinsfile")
-            String backendResult = runBuild("backend/Jenkinsfile")
-            boolean hasError = false
+    //Delete current environment if any
 
-            if (frontendResult.startsWith("FAILURE")) {
-                sendAlert(frontendResult)
-                hasError = true
-            }
+    sh script: """
+        docker rm -f \$(docker ps -q) || true
+        docker volume rm -f \$(docker volume ls -q) || true
+        docker network rm  \$(docker network ls -q) || true
+        
+        docker rm -f \$(docker ps -q) || true
+        docker volume rm -f \$(docker volume ls -q) || true
+        docker network rm  \$(docker network ls -q) || true
+        
+        docker volume prune || true
+        docker network prune || true
+        docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
+    """
 
-            if (backendResult.startsWith("FAILURE")) {
-                sendAlert(backendResult)
-                hasError = true
-            }
+    //Create new environment with providers installed
 
-            junit '**/build/test-results/**/*.xml'
-            jacoco(
-                execPattern: '**/**.exec',
-                exclusionPattern: '**/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class',
-                sourcePattern: '**/src/main/kotlin/**'
-            )
+    sh script: 'DEBUG_COMMANDS=true ; ./launcher init --all-providers'
 
-            if (hasError) {
-                error('Job failed - message have been sent.')
-            }
+    //Create Snapshot of DB to test purpose. Use "t"+timestamp for UNIQUE ID
+
+    sh script: """
+        ./launcher snapshot ${jobName}
+    """
+
+    //run test
+
+    try {
+        sh script: """
+            export UCLOUD_LAUNCHER=\$PWD/launcher
+            export UCLOUD_TEST_SNAPSHOT=${jobName} 
+            cd integration-test 
+            ./gradlew integrationtest
+        """
+    }
+    catch(Exception e) {
+        echo 'EX'
+
+        def logArray = currentBuild.rawBuild.getLog(50)
+        def log = ""
+        for (String s : logArray)
+        {
+            log += s + " ";
         }
+        def startIndex = log.indexOf("FAILURE: Build failed with an exception")
+        def endIndex = log.indexOf("* Try:")
+        if (startIndex == -1) {
+            startIndex = 0
+        }
+        if (endIndex == -1) {
+            endIndex = log.length()-1
+        }
+
+
+        sendAlert("""\
+            :warning: BuildFailed :warning:
+
+            ${log.substring(startIndex, endIndex)}
+        """.stripIndent()
+        )
+    }
+    finally {
+        junit '**/build/test-results/**/*.xml'
+
+        env.WORKSPACE = pwd()
+        def workspace = readFile "${env.WORKSPACE}/.compose/current.txt"
+
+        sh script: """
+            mkdir ./tmp
+            docker cp ${workspace}-backend-1:/tmp/service.log ./tmp/service.log
+            docker cp ${workspace}-backend-1:/var/log ./tmp/
+        """
+
+        archiveArtifacts artifacts: 'tmp/service.log', allowEmptyArchive: true
+        archiveArtifacts artifacts: 'tmp/log/ucloud/*.log', allowEmptyArchive: true
+
+
+        sh script: """
+            docker rm -f \$(docker ps -q) || true
+            docker volume rm -f \$(docker volume ls -q) || true
+            docker network rm  \$(docker network ls -q) || true
+            
+            docker rm -f \$(docker ps -q) || true
+            docker volume rm -f \$(docker volume ls -q) || true
+            docker network rm  \$(docker network ls -q) || true
+            
+            docker volume prune || true
+            docker network prune || true
+            docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
+
+            rm -rf ./tmp
+        """
     }
 }
+
 
 String runBuild(String item) {
     def loaded = load(item)

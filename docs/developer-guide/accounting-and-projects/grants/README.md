@@ -8,4 +8,8 @@
 # Grants
 
  - [Allocation Process](/docs/developer-guide/accounting-and-projects/grants/grants.md)
+ - [Grant Administration](/docs/developer-guide/accounting-and-projects/grants/grant-admin.md)
+ - [Grant Settings](/docs/developer-guide/accounting-and-projects/grants/grant-settings.md)
+ - [Grant Settings (Logo)](/docs/developer-guide/accounting-and-projects/grants/grant-settings-logo.md)
+ - [Grant Settings (Description)](/docs/developer-guide/accounting-and-projects/grants/grant-settings-description.md)
  - [Gifts](/docs/developer-guide/accounting-and-projects/grants/gifts.md)

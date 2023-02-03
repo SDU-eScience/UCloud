@@ -1,1 +1,1 @@
-Read more about documentation [here](/docs/developer-guide/core/api-conventions.md).
+Read more [here](/docs/developer-guide/core/api-conventions.md).

@@ -21,7 +21,7 @@ import formatDistance from "date-fns/formatDistance";
 import {Spacer} from "@/ui-components/Spacer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {isAdminOrPI, useProjectFromParams} from "./Api";
-import { ProviderTitle } from "@/Providers/ProviderTitle";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
 
 export interface SubAllocation {
     id: string;
@@ -80,7 +80,7 @@ function Allocations(): JSX.Element {
     }, [setFilters]);
 
     const reloadPage = useCallback(async () => {
-        const projectOverride = isPersonalWorkspace ? undefined : projectId;
+        const projectOverride = isPersonalWorkspace ? "" : projectId;
         await Promise.allSettled([
             fetchWallets({...browseWallets({itemsPerPage: 50, ...filters}), projectOverride}),
             fetchAllocations({...browseSubAllocations({itemsPerPage: 250, ...filters}), projectOverride})
@@ -94,8 +94,8 @@ function Allocations(): JSX.Element {
 
     useRefreshFunction(reloadPage);
 
-    const onSubAllocationQuery = useCallback((query: string) => {
-        fetchAllocations({...searchSubAllocations({query, itemsPerPage: 250}), projectOverride: projectId});
+    const onSubAllocationQuery = useCallback(async (query: string) => {
+        await fetchAllocations({...searchSubAllocations({query, itemsPerPage: 250}), projectOverride: projectId});
         setAllocationGeneration(prev => prev + 1);
     }, [projectId]);
 

@@ -7,6 +7,7 @@ import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.Maintenance
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
@@ -15,7 +16,6 @@ import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.provider.api.Resource
-import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceIncludeFlags
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
@@ -29,6 +29,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class Share(
     override val id: String,
     override val specification: Spec,
@@ -39,6 +40,7 @@ data class Share(
     override val permissions: ResourcePermissions?
 ) : Resource<Product.Storage, ShareSupport> {
     @Serializable
+    @UCloudApiInternal(InternalLevel.STABLE)
     data class Spec(
         val sharedWith: String,
         val sourceFilePath: String,
@@ -48,6 +50,7 @@ data class Share(
 
     @Serializable
     @UCloudApiOwnedBy(Shares::class)
+    @UCloudApiInternal(InternalLevel.STABLE)
     data class Update(
         val newState: State,
         val shareAvailableAt: String?,
@@ -56,6 +59,7 @@ data class Share(
     ) : ResourceUpdate
 
     @Serializable
+    @UCloudApiInternal(InternalLevel.STABLE)
     data class Status(
         val shareAvailableAt: String?,
         val state: State,
@@ -63,6 +67,7 @@ data class Share(
         override var resolvedProduct: Product.Storage? = null,
     ) : ResourceStatus<Product.Storage, ShareSupport>
 
+    @UCloudApiInternal(InternalLevel.STABLE)
     enum class State {
         APPROVED,
         REJECTED,
@@ -70,17 +75,21 @@ data class Share(
     }
 }
 
+@UCloudApiInternal(InternalLevel.STABLE)
 enum class ShareType {
     UCLOUD_MANAGED_COLLECTION
 }
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class ShareSupport(
     val type: ShareType,
-    override val product: ProductReference
+    override val product: ProductReference,
+    override var maintenance: Maintenance? = null,
 ): ProductSupport
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class ShareFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
@@ -105,18 +114,21 @@ data class ShareFlags(
 typealias SharesUpdatePermissionsRequest = BulkRequest<SharesUpdatePermissionsRequestItem>
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class SharesUpdatePermissionsRequestItem(
     val id: String,
     val permissions: List<Permission>
 )
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class OutgoingShareGroup(
     val sourceFilePath: String,
     val storageProduct: ProductReference,
     val sharePreview: List<Preview>,
 ) {
     @Serializable
+    @UCloudApiInternal(InternalLevel.STABLE)
     data class Preview(
         val sharedWith: String,
         val permissions: List<Permission>,
@@ -126,6 +138,7 @@ data class OutgoingShareGroup(
 }
 
 @Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
 data class SharesBrowseOutgoingRequest(
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -133,6 +146,7 @@ data class SharesBrowseOutgoingRequest(
     override val itemsToSkip: Long? = null
 ) : WithPaginationRequestV2
 
+@UCloudApiInternal(InternalLevel.STABLE)
 object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
         Product.Storage, ShareSupport>("shares") {
     @OptIn(ExperimentalStdlibApi::class)
@@ -281,6 +295,7 @@ how to use this feature. We generally recommend that you use a full-blown projec
     override val search get() = super.search!!
 }
 
+@UCloudApiInternal(InternalLevel.STABLE)
 object SharesControl : ResourceControlApi<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
         Product.Storage, ShareSupport>("shares") {
     @OptIn(ExperimentalStdlibApi::class)
@@ -302,6 +317,7 @@ object SharesControl : ResourceControlApi<Share, Share.Spec, Share.Update, Share
     )
 }
 
+@UCloudApiInternal(InternalLevel.STABLE)
 open class SharesProvider(provider: String) : ResourceProviderApi<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
         Product.Storage, ShareSupport>("shares", provider) {
     @OptIn(ExperimentalStdlibApi::class)

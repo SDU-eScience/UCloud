@@ -28,7 +28,6 @@ import {addStandardDialog, addStandardInputDialog, NamingField} from "@/UtilityC
 import {preventDefault} from "@/UtilityFunctions";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {IconName} from "@/ui-components/Icon";
 import {bulkRequestOf} from "@/DefaultObjects";
 import * as Heading from "@/ui-components/Heading";
@@ -47,6 +46,7 @@ import {emptyPageV2} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
 
 // UI state management
 // ================================================================================
@@ -600,8 +600,9 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                                 title: "Bulk invite",
                                                 type: "textarea",
                                                 confirmText: "Invite users",
-                                                width: "450px",
-                                                help: (<>Enter usernames in the box below. One username per line.</>)
+                                                rows: 8,
+                                                width: "460px",
+                                                help: (<>Enter usernames in the box below. One username per line.</>),
                                             });
 
                                             const usernames = res.result
@@ -764,7 +765,7 @@ const MemberRenderer: ItemRenderer<ProjectMember, Callbacks> = {
         const avatars = useAvatars();
         if (!resource) return null;
 
-        return <UserAvatar avatar={avatars.cache[resource.username] ?? defaultAvatar} />;
+        return <UserAvatar avatar={avatars.avatar(resource.username)} />;
     },
 
     MainTitle: ({resource}) => {
@@ -933,7 +934,7 @@ const InviteRenderer: ItemRenderer<ProjectInvite> = {
     Icon: ({resource}) => {
         const avatars = useAvatars();
         if (!resource) return null;
-        return <><UserAvatar avatar={avatars.cache[resource.recipient] ?? defaultAvatar} /></>;
+        return <UserAvatar avatar={avatars.avatar(resource.recipient)} />;
     },
 
     MainTitle: ({resource}) => {
@@ -1018,7 +1019,7 @@ const GroupMemberRenderer: ItemRenderer<string> = {
     Icon: ({resource}) => {
         const avatars = useAvatars();
         if (!resource) return null;
-        return <UserAvatar avatar={avatars.cache[resource] ?? defaultAvatar} />;
+        return <UserAvatar avatar={avatars.avatar(resource)} />;
     },
     MainTitle: ({resource}) => <>{resource}</>,
 };

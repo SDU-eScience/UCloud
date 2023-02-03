@@ -37,7 +37,6 @@ object PrincipalTable : SQLTable("principals") {
     val role = text("role", notNull = true)
     val createdAt = timestamp("created_at", notNull = true)
     val modifiedAt = timestamp("modified_at", notNull = true)
-    val uid = long("uid", notNull = true)
     val firstNames = text("first_names")
     val lastName = text("last_name")
     val orcId = text("orc_id")
@@ -75,7 +74,6 @@ fun RowData.toPrincipal(totpStatus: Boolean): Principal {
                 getField(PrincipalTable.phoneNumber),
                 getField(PrincipalTable.orcId),
                 getField(PrincipalTable.email),
-                getField(PrincipalTable.uid),
                 getField(PrincipalTable.serviceLicenseAgreement),
                 getField(PrincipalTable.orgId),
                 getField(PrincipalTable.wayfId)
@@ -91,7 +89,6 @@ fun RowData.toPrincipal(totpStatus: Boolean): Principal {
                 getField(PrincipalTable.phoneNumber),
                 getField(PrincipalTable.orcId),
                 getField(PrincipalTable.email),
-                getField(PrincipalTable.uid),
                 totpStatus,
                 getField(PrincipalTable.serviceLicenseAgreement),
                 getField(PrincipalTable.orgId),
@@ -311,37 +308,6 @@ class UserAsyncDAO(
     }
 
     /**
-     * Finds all [Principal]s by their [Principal.uid]
-     */
-    suspend fun findAllByUIDs(db: DBContext, uids: List<Long>): Map<Long, Principal?> {
-        val users = db.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("uids", uids)
-                    },
-                    """
-                        SELECT *
-                        FROM principals
-                        WHERE uid IN (select unnest(:uids::bigint[]))
-                    """
-                ).rows
-        }
-        val twoFactorStatus = twoFactorDAO.findStatusBatched(db, users.map { it.getField(PrincipalTable.id) })
-
-        val usersWeFound = users
-            .map { rowData ->
-                rowData.toPrincipal(twoFactorStatus.getValue(rowData.getField(PrincipalTable.id)))
-            }
-            .associateBy { it.uid }
-
-        val usersWeDidntFind = uids.filter { it !in usersWeFound }
-        val nullEntires = usersWeDidntFind.map { it to null as Principal? }.toMap()
-
-        return usersWeFound + nullEntires
-    }
-
-    /**
      * Finds all [Principal]s by [prefix]. This is used for username generation.
      */
     suspend fun findByUsernamePrefix(db: DBContext, prefix: String): List<Principal> {
@@ -451,7 +417,6 @@ class UserAsyncDAO(
                             set(PrincipalTable.role, principal.role.toString())
                             set(PrincipalTable.createdAt, timestampToLocalDateTime(Time.now()))
                             set(PrincipalTable.modifiedAt, timestampToLocalDateTime(Time.now()))
-                            set(PrincipalTable.uid, principal.uid)
                             set(PrincipalTable.firstNames, principal.firstNames)
                             set(PrincipalTable.lastName, principal.lastName)
                             set(PrincipalTable.orcId, principal.orcId)
@@ -474,7 +439,6 @@ class UserAsyncDAO(
                             set(PrincipalTable.lastName, principal.lastName)
                             set(PrincipalTable.phoneNumber, principal.phoneNumber)
                             set(PrincipalTable.orcId, principal.orcId)
-                            set(PrincipalTable.uid, principal.uid)
                             set(PrincipalTable.email, principal.email)
                             set(PrincipalTable.serviceLicenseAgreement, principal.serviceLicenseAgreement)
                             set(PrincipalTable.hashedPassword, principal.password)
@@ -489,7 +453,6 @@ class UserAsyncDAO(
                             set(PrincipalTable.role, principal.role.toString())
                             set(PrincipalTable.createdAt, timestampToLocalDateTime(Time.now()))
                             set(PrincipalTable.modifiedAt, timestampToLocalDateTime(Time.now()))
-                            set(PrincipalTable.uid, principal.uid)
                         }
                     else -> {
                         throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unknown principal type")

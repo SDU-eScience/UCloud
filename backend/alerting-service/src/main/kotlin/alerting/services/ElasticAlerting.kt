@@ -1,5 +1,8 @@
 package dk.sdu.cloud.alerting.services
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch.cluster.GetClusterSettingsRequest
+import co.elastic.clients.elasticsearch.cluster.HealthRequest
 import dk.sdu.cloud.alerting.Configuration
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -24,7 +27,7 @@ enum class Status(val isError: Boolean, val failuresForATrigger: Int) {
 }
 
 class ElasticAlerting(
-    private val elastic: RestHighLevelClient,
+    private val elastic: ElasticsearchClient,
     private val client: AuthenticatedClient,
     private val testMode: Boolean = false
 ) {
@@ -73,17 +76,17 @@ class ElasticAlerting(
     private suspend fun checkClusterStatus() {
         for (i in 1..3) {
             try {
-                val clusterResponse = elastic.cluster().health(ClusterHealthRequest(), RequestOptions.DEFAULT)
+                val clusterResponse = elastic.cluster().health(HealthRequest.Builder().build())
                 log.debug("Current Status: $status, errorCount = $errorCount")
-                if (clusterResponse.status.toString() == Status.RED.name) {
+                if (clusterResponse.status().toString().uppercase() == Status.RED.name) {
                     status = Status.RED
                     return
                 }
-                if (clusterResponse.status.toString() == Status.YELLOW.name) {
+                if (clusterResponse.status().toString().uppercase() == Status.YELLOW.name) {
                     status = Status.YELLOW
                     return
                 }
-                if (clusterResponse.status.toString() == Status.GREEN.name) {
+                if (clusterResponse.status().toString().uppercase() == Status.GREEN.name) {
                     status = Status.GREEN
                     errorCount = 0
                     if (alertSent) {
@@ -181,15 +184,15 @@ class ElasticAlerting(
         val alertLimit = configuration.limits?.alertWhenNumberOfShardsAvailableIsLessThan ?: 500
         var alertSent = false
         while (true) {
-            val healthResponse = elastic.cluster().health(ClusterHealthRequest(), RequestOptions.DEFAULT)
+            val healthResponse = elastic.cluster().health(HealthRequest.Builder().build())
 
-            val numberOfActiveShards = healthResponse.activeShards
-            val numberOfDataNodes = healthResponse.numberOfDataNodes
+            val numberOfActiveShards = healthResponse.activeShards()
+            val numberOfDataNodes = healthResponse.numberOfDataNodes()
 
             log.info("Number of Active shards: $numberOfActiveShards")
 
-            val settingsResponse = elastic.cluster().getSettings(ClusterGetSettingsRequest(), RequestOptions.DEFAULT)
-            val maximumNumberOfShardsPerDataNode = settingsResponse.getSetting("cluster.max_shards_per_node") ?: "10000"
+            val settingsResponse = elastic.cluster().getSettings(GetClusterSettingsRequest.Builder().build())
+            val maximumNumberOfShardsPerDataNode = settingsResponse.persistent()["max_shards_per_node"]?.toString() ?: "10000"
 
             val totalMaximumNumberOfShards = maximumNumberOfShardsPerDataNode.toInt() * numberOfDataNodes
 

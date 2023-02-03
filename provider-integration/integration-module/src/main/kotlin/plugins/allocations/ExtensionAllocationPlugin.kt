@@ -1,7 +1,6 @@
 package dk.sdu.cloud.plugins.allocations
 
 import dk.sdu.cloud.config.*
-import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.plugins.*
 import kotlinx.serialization.builtins.serializer
 
@@ -15,20 +14,18 @@ class ExtensionAllocationPlugin : AllocationPlugin {
 
     override suspend fun PluginContext.onResourceAllocationTotal(
         notifications: List<AllocationNotificationTotal>
-    ): List<OnResourceAllocationResult> {
+    ) {
         for (notification in notifications) {
             onAllocationTotal.optionalInvoke(this, pluginConfig.extensions.onAllocationTotal, notification)
         }
-        return notifications.map { OnResourceAllocationResult.ManageThroughUCloud }
     }
 
     override suspend fun PluginContext.onResourceAllocationSingle(
         notifications: List<AllocationNotificationSingle>
-    ): List<OnResourceAllocationResult> {
+    ) {
         for (notification in notifications) {
             onAllocationSingle.optionalInvoke(this, pluginConfig.extensions.onAllocationSingle, notification)
         }
-        return notifications.map { OnResourceAllocationResult.ManageThroughUCloud }
     }
 
     override suspend fun PluginContext.onResourceSynchronizationTotal(notifications: List<AllocationNotificationTotal>) {
@@ -44,8 +41,8 @@ class ExtensionAllocationPlugin : AllocationPlugin {
     }
 
     private companion object Extensions {
-        val onAllocationTotal = extension(AllocationNotificationTotal.serializer(), OnResourceAllocationResult.serializer())
-        val onAllocationSingle = extension(AllocationNotificationSingle.serializer(), OnResourceAllocationResult.serializer())
+        val onAllocationTotal = extension(AllocationNotificationTotal.serializer(), Unit.serializer())
+        val onAllocationSingle = extension(AllocationNotificationSingle.serializer(), Unit.serializer())
         val onSynchronizationTotal = extension(AllocationNotificationTotal.serializer(), Unit.serializer())
         val onSynchronizationSingle = extension(AllocationNotificationSingle.serializer(), Unit.serializer())
     }

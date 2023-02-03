@@ -21,11 +21,12 @@ class DialogStore {
     }
 
     public addDialog = (dialog: JSX.Element, onCancel: () => void, addToFront = false, style?: Record<string, any>): void => {
+        const d = {dialog, onCancel, style};
         const dialogs = addToFront ?
-            [{dialog, onCancel, style}, ...this.dialogs] :
-            [...this.dialogs, {dialog, onCancel}];
+            [d, ...this.dialogs] :
+            [...this.dialogs, d];
         this.dialogs = dialogs;
-        this.subscribers.forEach(it => it(dialogs.map(el => ({element: el.dialog, style: el.style}))));
+        this.subscribers.forEach(it => it(dialogs.map(el => ({element: el.dialog, style: el.style, onCancel: onCancel}))));
     };
 
     public success(): void {

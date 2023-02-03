@@ -5,6 +5,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -26,6 +27,7 @@ import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.secureToken
+import dk.sdu.cloud.plugins.SyncthingPlugin
 import dk.sdu.cloud.utils.shellTracer
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -252,6 +254,13 @@ class ComputeController(
             ok(result)
         }
 
+        implement(api.unsuspend) {
+            dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
+                with(plugin) { createBulk(BulkRequest(request.items.map { it.job })) }
+            }
+            ok(BulkResponse(request.items.map { null }))
+        }
+
         implement(api.terminate) {
             if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
@@ -338,6 +347,115 @@ class ComputeController(
                 }
             }
         }
+
+        val syncthingProvider = SyncthingProvider(controllerContext.configuration.core.providerId)
+        implement(syncthingProvider.retrieveConfiguration) {
+            val plugin = lookupPluginByProduct(request.productId)
+
+            if (plugin == null) {
+                log.error("Unable to find Syncthing product in configuration")
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.BadRequest,
+                    "Syncthing is not supported by this provider"
+                )
+            }
+
+            if (plugin !is SyncthingPlugin) {
+                log.error("Plugin ${plugin.pluginTitle} does not support Syncthing")
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.InternalServerError
+                )
+            }
+
+            ok(
+                with(requestContext(controllerContext)) {
+                    with(plugin) {
+                        retrieveSyncthingConfiguration(request)
+                    }
+                }
+            )
+        }
+
+        implement(syncthingProvider.updateConfiguration) {
+            val plugin = lookupPluginByProduct(request.productId)
+
+            if (plugin == null) {
+                log.error("Unable to find Syncthing product in configuration")
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.BadRequest,
+                    "Syncthing is not supported by this provider"
+                )
+            }
+
+            if (plugin !is SyncthingPlugin) {
+                log.error("Plugin ${plugin.pluginTitle} does not support Syncthing")
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.InternalServerError
+                )
+            }
+
+            ok(
+                with(requestContext(controllerContext)) {
+                    with(plugin) {
+                        updateSyncthingConfiguration(request)
+                    }
+                }
+            )
+        }
+
+        implement(syncthingProvider.resetConfiguration) {
+            val plugin = lookupPluginByProduct(request.productId)
+
+            if (plugin == null) {
+                log.error("Unable to find Syncthing product in configuration")
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.BadRequest,
+                    "Syncthing is not supported by this provider"
+                )
+            }
+
+            if (plugin !is SyncthingPlugin) {
+                log.error("Plugin ${plugin.pluginTitle} does not support Syncthing")
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.InternalServerError
+                )
+            }
+
+            ok(
+                with(requestContext(controllerContext)) {
+                    with(plugin) {
+                        resetSyncthingConfiguration(request)
+                    }
+                }
+            )
+        }
+
+        implement(syncthingProvider.restart) {
+            val plugin = lookupPluginByProduct(request.productId)
+
+            if (plugin == null) {
+                log.error("Unable to find Syncthing product in configuration")
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.BadRequest,
+                    "Syncthing is not supported by this provider"
+                )
+            }
+
+            if (plugin !is SyncthingPlugin) {
+                log.error("Plugin ${plugin.pluginTitle} does not support Syncthing")
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.InternalServerError
+                )
+            }
+
+            ok(
+                with(requestContext(controllerContext)) {
+                    with(plugin) {
+                        restartSyncthing(request)
+                    }
+                }
+            )
+        }
     }
 
     override fun onServerReady(rpcServer: RpcServer) {
@@ -414,8 +532,6 @@ class ComputeController(
                         path = "/",
                         domain = ingressDomain
                     )
-
-                    println("Setting cookie on $ingressDomain ${call.request.origin} ${call.request.host()}")
 
                     call.respondRedirect("http://$ingressDomain")
                 } catch (ex: RPCException) {

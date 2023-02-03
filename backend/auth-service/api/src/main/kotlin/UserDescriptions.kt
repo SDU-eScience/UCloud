@@ -14,7 +14,7 @@ import kotlinx.serialization.builtins.serializer
 data class LookupUsersRequest(val users: List<String>)
 
 @Serializable
-data class UserLookup(val subject: String, val uid: Long, val role: Role)
+data class UserLookup(val subject: String, val role: Role)
 
 @Serializable
 data class LookupUsersResponse(val results: Map<String, UserLookup?>)
@@ -86,12 +86,6 @@ data class ChangePasswordRequest(val currentPassword: String, val newPassword: S
 @Serializable
 data class ChangePasswordWithResetRequest(val userId: String, val newPassword: String)
 
-@Serializable
-data class LookupUIDRequest(val uids: List<Long>)
-
-@Serializable
-data class LookupUIDResponse(val users: Map<Long, UserLookup?>)
-
 object UserDescriptions : CallDescriptionContainer("auth.users") {
     const val baseContext = "/auth/users"
 
@@ -134,6 +128,10 @@ ${ApiConventions.nonConformingApiWarning}
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Request creation of a new $TYPE_REF PASSWORD user."
+        }
     }
 
     val updateUserInfo = call("updateUserInfo", UpdateUserInfoRequest.serializer(), UpdateUserInfoResponse.serializer(), CommonErrorMessage.serializer()) {
@@ -151,6 +149,10 @@ ${ApiConventions.nonConformingApiWarning}
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Request update of information about the current user."
+        }
     }
 
     val getUserInfo = call("getUserInfo", GetUserInfoRequest.serializer(), GetUserInfoResponse.serializer(), CommonErrorMessage.serializer()) {
@@ -165,6 +167,10 @@ ${ApiConventions.nonConformingApiWarning}
                 using(baseContext)
                 +"userInfo"
             }
+        }
+
+        documentation {
+            summary = "Request information about the current user."
         }
     }
 
@@ -205,6 +211,10 @@ ${ApiConventions.nonConformingApiWarning}
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Request change of the password of the current user (if $TYPE_REF PASSWORD user)."
+        }
     }
 
     val changePasswordWithReset = call("changePasswordWithReset", ChangePasswordWithResetRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
@@ -215,7 +225,7 @@ ${ApiConventions.nonConformingApiWarning}
             access = AccessRight.READ_WRITE
         }
 
-      http {
+        http {
             method = HttpMethod.Post
             path {
                 using(baseContext)
@@ -224,6 +234,14 @@ ${ApiConventions.nonConformingApiWarning}
             }
 
             body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Request reset of password of a $TYPE_REF PASSWORD user."
+            description = """
+                This request can only be called by other services, and is used by the `PasswordResetService` to reset a
+                user's password in case they are unable to log in. Read more in [Password Reset](authentication/password-reset.md).
+            """.trimIndent()
         }
     }
 
@@ -260,6 +278,10 @@ ${ApiConventions.nonConformingApiWarning}
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Request the email of a user."
+        }
     }
 
     val lookupUserWithEmail = call("lookupUserWithEmail", LookupUserWithEmailRequest.serializer(), LookupUserWithEmailResponse.serializer(), CommonErrorMessage.serializer()) {
@@ -274,24 +296,6 @@ ${ApiConventions.nonConformingApiWarning}
                 using(baseContext)
                 +"lookup"
                 +"with-email"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val lookupUID = call("lookupUID", LookupUIDRequest.serializer(), LookupUIDResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"lookup-uid"
             }
 
             body { bindEntireRequestFromBody() }

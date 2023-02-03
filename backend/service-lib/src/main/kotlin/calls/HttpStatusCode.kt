@@ -19,6 +19,8 @@ data class HttpStatusCode(val value: Int, val description: String) {
         return value
     }
 
+    override fun toString() = "$value $description"
+
     companion object {
         val values = Array(600) { HttpStatusCode(it, "S$it") }
 

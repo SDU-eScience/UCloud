@@ -9,6 +9,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
 @Serializable
+@UCloudApiStable
 data class ChunkedUploadProtocolUploadChunkRequest(
     val token: String,
     val offset: Long,
@@ -16,6 +17,7 @@ data class ChunkedUploadProtocolUploadChunkRequest(
 
 typealias ChunkedUploadProtocolUploadChunkResponse = Unit
 
+@UCloudApiStable
 class ChunkedUploadProtocol(namespace: String, val endpoint: String) : CallDescriptionContainer(namespace) {
     val uploadChunk = call("uploadChunk", ChunkedUploadProtocolUploadChunkRequest.serializer(), ChunkedUploadProtocolUploadChunkResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {

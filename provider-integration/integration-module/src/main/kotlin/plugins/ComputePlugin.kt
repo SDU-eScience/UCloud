@@ -87,6 +87,29 @@ interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, C
     suspend fun ShellContext.handleShellSession(request: ShellRequest.Initialize) {
         // Do nothing
     }
+
+    /**
+     * Invoked after an integration test has run. Plugins should attempt to clear all user jobs in this function. By
+     * default, this function does nothing.
+     *
+     * Any exception thrown by this function is logged but otherwise ignored.
+     */
+    suspend fun resetTestData() {}
+}
+
+interface SyncthingPlugin {
+    suspend fun RequestContext.retrieveSyncthingConfiguration(
+        request: IAppsProviderRetrieveConfigRequest<SyncthingConfig>
+    ): IAppsProviderRetrieveConfigResponse<SyncthingConfig>
+    suspend fun RequestContext.updateSyncthingConfiguration(
+        request: IAppsProviderUpdateConfigRequest<SyncthingConfig>
+    ): IAppsProviderUpdateConfigResponse<SyncthingConfig>
+    suspend fun RequestContext.resetSyncthingConfiguration(
+        request: IAppsProviderResetConfigRequest<SyncthingConfig>
+    ): IAppsProviderResetConfigResponse<SyncthingConfig>
+    suspend fun RequestContext.restartSyncthing(
+        request: IAppsProviderRestartRequest<SyncthingConfig>
+    ): IAppsProviderRestartResponse<SyncthingConfig>
 }
 
 abstract class EmptyComputePlugin : ComputePlugin {

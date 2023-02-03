@@ -5,6 +5,7 @@ import ComputeProductReference = accounting.ProductReference;
 import { Product, productCategoryEquals, ProductCompute } from "@/Accounting";
 import * as UCloud from "@/UCloud";
 import { ProductSelector } from "@/Products/Selector";
+import {ResolvedSupport} from "@/UCloud/ResourceApi";
 
 export const reservationMachine = "reservation-machine";
 
@@ -45,6 +46,7 @@ export function findRelevantMachinesForApplication(
 
 export const Machines: React.FunctionComponent<{
     machines: ProductCompute[];
+    support: ResolvedSupport[];
     onMachineChange?: (product: ProductCompute) => void;
 }> = props => {
     const [selected, setSelectedOnlyByListener] = useState<ProductCompute | null>(null);
@@ -91,6 +93,7 @@ export const Machines: React.FunctionComponent<{
                 products={filteredMachines}
                 selected={selected}
                 onSelect={setMachineReservation}
+                support={props.support}
             />
         </>
     )

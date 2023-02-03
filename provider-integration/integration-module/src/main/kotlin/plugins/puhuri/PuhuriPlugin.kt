@@ -517,9 +517,8 @@ class PuhuriAllocationPlugin : AllocationPlugin {
 
     override suspend fun PluginContext.onResourceAllocationSingle(
         notifications: List<AllocationNotificationSingle>
-    ): List<OnResourceAllocationResult> {
+    ) {
         puhuriPlugin.onAllocations(notifications)
-        return notifications.map { OnResourceAllocationResult.ManageThroughUCloud }
     }
 
     override suspend fun PluginContext.onResourceSynchronizationSingle(notifications: List<AllocationNotificationSingle>) {

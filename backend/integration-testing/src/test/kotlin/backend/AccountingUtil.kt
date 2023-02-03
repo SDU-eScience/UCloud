@@ -112,7 +112,8 @@ suspend fun prepareProjectChain(
                         "Deposit",
                         chainFromRoot[index].startDate,
                         chainFromRoot[index].endDate,
-                        transactionId = UUID.randomUUID().toString()
+                        transactionId = UUID.randomUUID().toString(),
+                        isProject = true
                     )
                 )
                 Accounting.deposit.call(request, previousPi).orThrow()

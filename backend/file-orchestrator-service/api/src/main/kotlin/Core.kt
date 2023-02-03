@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.Maintenance
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.calls.*
@@ -13,6 +14,7 @@ import kotlinx.serialization.json.JsonObject
 
 @Serializable
 @UCloudApiDoc("A hint to clients about which icon should be used in user-interfaces when representing a `UFile`", importance = 102)
+@UCloudApiStable
 enum class FileIconHint {
     @UCloudApiDoc("A directory containing 'starred' items")
     DIRECTORY_STAR,
@@ -29,6 +31,7 @@ enum class FileIconHint {
 
 @Serializable
 @UCloudApiDoc("The type of a `UFile`", importance = 101)
+@UCloudApiStable
 enum class FileType {
     @UCloudApiDoc("A regular file")
     FILE,
@@ -39,6 +42,7 @@ enum class FileType {
     @UCloudApiDoc("A soft symbolic link which points to a different file path")
     SOFT_LINK,
 
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("Indicates that there used to be a file with metadata here, but the file no longer exists")
     DANGLING_METADATA
 }
@@ -46,6 +50,7 @@ enum class FileType {
 typealias FilePermission = Permission
 
 @Serializable
+@UCloudApiStable
 data class UFileIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
@@ -81,6 +86,7 @@ This value is `true` by default """)
 ) : ResourceIncludeFlags
 
 @Serializable
+@UCloudApiStable
 @UCloudApiDoc("""
 A $TYPE_REF UFile is a resource for storing, retrieving and organizing data in UCloud
     
@@ -221,7 +227,7 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
     override val updates: List<UFileUpdate> = emptyList()
 }
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 @UCloudApiDoc("General system-level stats about a file", importance = 400)
 @Serializable
 data class UFileStatus(
@@ -254,7 +260,7 @@ data class UFileStatus(
     override var resolvedProduct: Product.Storage? = null,
 ) : ResourceStatus<Product.Storage, FSSupport>
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 @UCloudApiDoc("", importance = 98)
 @Serializable
 data class UFileSpecification(
@@ -263,13 +269,14 @@ data class UFileSpecification(
 ) : ResourceSpecification
 
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 sealed class FileMetadataOrDeleted {
     abstract val id: String
     abstract val status: FileMetadataDocument.Status
     abstract val createdAt: Long
     abstract val createdBy: String
 
-    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    @UCloudApiExperimental(ExperimentalLevel.BETA)
     @UCloudApiDoc("Indicates that the metadata document has been deleted is no longer in use", importance = 96)
     @Serializable
     @SerialName("deleted")
@@ -285,7 +292,7 @@ sealed class FileMetadataOrDeleted {
     ) : FileMetadataOrDeleted()
 }
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 @UCloudApiDoc("A metadata document which conforms to a `FileMetadataTemplate`", importance = 97)
 @Serializable
 @SerialName("metadata")
@@ -300,6 +307,7 @@ data class FileMetadataDocument(
     @Serializable
     @UCloudApiDoc("Specification of a FileMetadataDocument", importance = 96)
     @UCloudApiOwnedBy(FileMetadata::class)
+    @UCloudApiExperimental(ExperimentalLevel.BETA)
     data class Spec(
         @UCloudApiDoc("The ID of the `FileMetadataTemplate` that this document conforms to")
         val templateId: String,
@@ -314,6 +322,7 @@ data class FileMetadataDocument(
     @Serializable
     @UCloudApiDoc("The current status of a metadata document", importance = 95)
     @UCloudApiOwnedBy(FileMetadata::class)
+    @UCloudApiExperimental(ExperimentalLevel.BETA)
     data class Status(
         val approval: ApprovalStatus,
     )
@@ -321,30 +330,35 @@ data class FileMetadataDocument(
     @Serializable
     @UCloudApiDoc("The approval status of a metadata document", importance = 94)
     @UCloudApiOwnedBy(FileMetadata::class)
+    @UCloudApiExperimental(ExperimentalLevel.BETA)
     sealed class ApprovalStatus {
         @Serializable
         @SerialName("approved")
         @UCloudApiDoc("The metadata change has been approved by an admin in the workspace", importance = 93)
+        @UCloudApiExperimental(ExperimentalLevel.BETA)
         class Approved(val approvedBy: String) : ApprovalStatus()
 
         @Serializable
         @SerialName("pending")
         @UCloudApiDoc("The metadata document has not yet been approved", importance = 92)
+        @UCloudApiExperimental(ExperimentalLevel.BETA)
         object Pending : ApprovalStatus()
 
         @Serializable
         @SerialName("rejected")
         @UCloudApiDoc("The metadata document has been rejected by an admin of the workspace", importance = 91)
+        @UCloudApiExperimental(ExperimentalLevel.BETA)
         class Rejected(val rejectedBy: String) : ApprovalStatus()
 
         @Serializable
         @SerialName("not_required")
         @UCloudApiDoc("The metadata document does not require approval", importance = 90)
+        @UCloudApiExperimental(ExperimentalLevel.BETA)
         object NotRequired : ApprovalStatus()
     }
 }
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 @UCloudApiDoc("A policy for how UCloud should handle potential naming conflicts for certain operations (e.g. copy)")
 @Serializable
 enum class WriteConflictPolicy {
@@ -369,7 +383,7 @@ Note: This mode is not supported for all operations.
     MERGE_RENAME
 }
 
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiStable
 @UCloudApiDoc("""
     Filter for member files. 
     
@@ -384,6 +398,7 @@ enum class MemberFilesFilter {
     DONT_FILTER_COLLECTIONS,
 }
 
+@UCloudApiStable
 @Serializable
 data class FileCollectionIncludeFlags(
     val filterMemberFiles: MemberFilesFilter? = null,
@@ -404,12 +419,7 @@ data class FileCollectionIncludeFlags(
     override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
-// This would also be able to replace the repository, since the ACL could replicate this
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
-@UCloudApiDoc(
-    """
-"""
-)
+@UCloudApiStable
 @Serializable
 data class FileCollection(
     override val id: String, // corresponds to the path prefix
@@ -422,6 +432,7 @@ data class FileCollection(
     override val providerGeneratedId: String? = null
 ) : Resource<Product.Storage, FSSupport> {
     @Serializable
+    @UCloudApiStable
     data class Spec(
         val title: String,
         override val product: ProductReference,
@@ -433,12 +444,14 @@ data class FileCollection(
 
     @Serializable
     @UCloudApiOwnedBy(FileCollections::class)
+    @UCloudApiStable
     data class Update(
         override val timestamp: Long,
         override val status: String?,
     ) : ResourceUpdate
 
     @Serializable
+    @UCloudApiStable
     data class Status(
         override var resolvedSupport: ResolvedSupport<Product.Storage, FSSupport>? = null,
         override var resolvedProduct: Product.Storage? = null,
@@ -447,15 +460,18 @@ data class FileCollection(
 
 @Serializable
 @UCloudApiOwnedBy(FileCollections::class)
+@UCloudApiStable
 data class FSSupport(
     override val product: ProductReference,
     val stats: FSProductStatsSupport = FSProductStatsSupport(),
     val collection: FSCollectionSupport = FSCollectionSupport(),
     val files: FSFileSupport = FSFileSupport(),
+    override var maintenance: Maintenance? = null,
 ) : ProductSupport
 
 @UCloudApiDoc("Declares which stats a given product supports")
 @Serializable
+@UCloudApiStable
 data class FSProductStatsSupport(
     val sizeInBytes: Boolean? = null,
     val sizeIncludingChildrenInBytes: Boolean? = null,
@@ -471,6 +487,7 @@ data class FSProductStatsSupport(
 
 @UCloudApiDoc("Declares which `FileCollection` operations are supported for a product")
 @Serializable
+@UCloudApiStable
 data class FSCollectionSupport(
     val aclModifiable: Boolean? = null,
 
@@ -480,6 +497,7 @@ data class FSCollectionSupport(
 )
 
 @UCloudApiDoc("Declares which file-level operations a product supports")
+@UCloudApiStable
 @Serializable
 data class FSFileSupport(
     val aclModifiable: Boolean = false,

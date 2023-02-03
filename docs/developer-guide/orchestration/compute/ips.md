@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Orchestration of Resources](/docs/developer-guide/orchestration/README.md) / [Compute](/docs/developer-guide/orchestration/compute/README.md) / Public IPs (NetworkIP)
 # Public IPs (NetworkIP)
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Network IPs grant users access to an IP address resource._
 
@@ -341,192 +341,6 @@ NetworkIP(
 
 <details>
 <summary>
-<b>Communication Flow:</b> TypeScript
-</summary>
-
-```typescript
-
-/* In this example we will see how to create and manage a public IP address */
-
-// Authenticated as user
-await callAPI(NetworkipsApi.retrieveProducts(
-    {
-    }
-);
-
-/*
-{
-    "productsByProvider": {
-        "example": [
-            {
-                "product": {
-                    "balance": null,
-                    "name": "example-ip",
-                    "pricePerUnit": 1,
-                    "category": {
-                        "name": "example-id",
-                        "provider": "example"
-                    },
-                    "description": "A public IP address",
-                    "priority": 0,
-                    "version": 1,
-                    "freeToUse": false,
-                    "unitOfPrice": "PER_UNIT",
-                    "chargeType": "ABSOLUTE",
-                    "hiddenInGrantApplications": false,
-                    "productType": "NETWORK_IP"
-                },
-                "support": {
-                    "product": {
-                        "id": "example-ip",
-                        "category": "example-ip",
-                        "provider": "example"
-                    },
-                    "firewall": {
-                        "enabled": true
-                    }
-                }
-            }
-        ]
-    }
-}
-*/
-
-/* We have a single product available to us. It supports the firewall feature. */
-
-await callAPI(NetworkipsApi.create(
-    {
-        "items": [
-            {
-                "product": {
-                    "id": "example-ip",
-                    "category": "example-ip",
-                    "provider": "example"
-                },
-                "firewall": {
-                    "openPorts": [
-                        {
-                            "start": 1000,
-                            "end": 1100,
-                            "protocol": "TCP"
-                        }
-                    ]
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-    "responses": [
-        {
-            "id": "5123"
-        }
-    ]
-}
-*/
-
-/* The IP address has been created and has ID 5123 */
-
-
-/* Updating the firewall causes existing ports to be removed. */
-
-await callAPI(NetworkipsApi.updateFirewall(
-    {
-        "items": [
-            {
-                "id": "5123",
-                "firewall": {
-                    "openPorts": [
-                        {
-                            "start": 80,
-                            "end": 80,
-                            "protocol": "TCP"
-                        }
-                    ]
-                }
-            }
-        ]
-    }
-);
-
-/*
-{
-}
-*/
-
-/* We can read the current state by retrieving the resource */
-
-await callAPI(NetworkipsApi.retrieve(
-    {
-        "flags": {
-            "filterState": null,
-            "includeOthers": false,
-            "includeUpdates": false,
-            "includeSupport": false,
-            "includeProduct": false,
-            "filterCreatedBy": null,
-            "filterCreatedAfter": null,
-            "filterCreatedBefore": null,
-            "filterProvider": null,
-            "filterProductId": null,
-            "filterProductCategory": null,
-            "filterProviderIds": null,
-            "filterIds": null,
-            "hideProductId": null,
-            "hideProductCategory": null,
-            "hideProvider": null
-        },
-        "id": "5123"
-    }
-);
-
-/*
-{
-    "id": "5123",
-    "specification": {
-        "product": {
-            "id": "example-ip",
-            "category": "example-ip",
-            "provider": "example"
-        },
-        "firewall": {
-            "openPorts": [
-                {
-                    "start": 80,
-                    "end": 80,
-                    "protocol": "TCP"
-                }
-            ]
-        }
-    },
-    "owner": {
-        "createdBy": "user",
-        "project": null
-    },
-    "createdAt": 1635170395571,
-    "status": {
-        "state": "READY",
-        "boundTo": [
-        ],
-        "ipAddress": null,
-        "resolvedSupport": null,
-        "resolvedProduct": null
-    },
-    "updates": [
-    ],
-    "resolvedProduct": null,
-    "permissions": null
-}
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
 <b>Communication Flow:</b> Curl
 </summary>
 
@@ -695,7 +509,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/networkips/retriev
 
 ### `browse`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -709,7 +523,7 @@ _Browses the catalog of available resources_
 
 ### `retrieve`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -723,7 +537,7 @@ _Retrieve a single resource_
 
 ### `retrieveProducts`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -745,7 +559,7 @@ See also:
 
 ### `search`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -759,7 +573,7 @@ _Searches the catalog of available resources_
 
 ### `create`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -773,7 +587,7 @@ _Creates one or more resources_
 
 ### `delete`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -787,7 +601,7 @@ _Deletes one or more resources_
 
 ### `init`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -805,7 +619,7 @@ the request.
 
 ### `updateAcl`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -819,7 +633,7 @@ _Updates the ACL attached to a resource_
 
 ### `updateFirewall`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -835,7 +649,7 @@ _Updates the ACL attached to a resource_
 
 ### `FirewallAndId`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -883,7 +697,7 @@ data class FirewallAndId(
 
 ### `IPProtocol`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -931,7 +745,7 @@ enum class IPProtocol {
 
 ### `NetworkIP`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A `NetworkIP` for use in `Job`s_
@@ -1067,7 +881,7 @@ A null value indicates that permissions are not supported by this resource type.
 
 ### `NetworkIPFlags`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1283,7 +1097,7 @@ data class NetworkIPFlags(
 
 ### `NetworkIPSpecification`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1331,7 +1145,7 @@ data class NetworkIPSpecification(
 
 ### `NetworkIPSpecification.Firewall`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1367,7 +1181,7 @@ data class Firewall(
 
 ### `NetworkIPState`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1428,7 +1242,7 @@ This state can be used to indicate downtime or service interruptions by the prov
 
 ### `NetworkIPStatus`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The status of an `NetworkIP`_
@@ -1514,7 +1328,7 @@ This attribute is not included by default unless `includeProduct` is specified.
 
 ### `NetworkIPSupport`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1562,7 +1376,7 @@ data class NetworkIPSupport(
 
 ### `NetworkIPSupport.Firewall`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1598,7 +1412,7 @@ data class Firewall(
 
 ### `NetworkIPUpdate`
 
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1694,7 +1508,7 @@ data class NetworkIPUpdate(
 
 ### `PortRangeAndProto`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

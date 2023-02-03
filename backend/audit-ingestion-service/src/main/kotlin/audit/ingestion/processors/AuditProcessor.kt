@@ -1,5 +1,10 @@
 package dk.sdu.cloud.audit.ingestion.processors
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch.core.BulkRequest
+import co.elastic.clients.elasticsearch.core.IndexRequest
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
+import co.elastic.clients.elasticsearch.core.bulk.IndexOperation
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStream
@@ -8,11 +13,6 @@ import dk.sdu.cloud.service.Loggable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
-import org.elasticsearch.action.bulk.BulkRequest
-import org.elasticsearch.action.index.IndexRequest
-import org.elasticsearch.client.RequestOptions
-import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.xcontent.XContentType
 import java.net.ConnectException
 import java.time.Instant
 import java.time.LocalDate
@@ -31,7 +31,7 @@ object HttpLogsStream : EventStream<String> {
 
 class AuditProcessor(
     private val events: EventStreamService,
-    private val client: RestHighLevelClient,
+    private val client: ElasticsearchClient,
     private val isDevMode: Boolean = false,
 ) {
     private val didWarnAboutDevMode = AtomicBoolean(false)
@@ -64,21 +64,28 @@ class AuditProcessor(
                 .groupBy { (requestName, _) -> requestName }
                 .flatMap { (requestName, batch) ->
                     val dateSuffix = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
-                    val indexName = "http_logs_$requestName-$dateSuffix".toLowerCase()
+                    val indexName = "http_logs_$requestName-$dateSuffix".lowercase()
 
                     log.trace("Inserting ${batch.size} elements into $indexName")
 
                     batch
                         .map { (_, doc) ->
-                            IndexRequest(indexName).apply {
-                                source(defaultMapper.encodeToString(doc).encodeToByteArray(), XContentType.JSON)
-                            }
+                            BulkOperation.Builder()
+                                .index(
+                                    IndexOperation.Builder<JsonElement>()
+                                        .index(indexName)
+                                        .document(
+                                            doc
+                                        )
+                                        .build()
+                                )
+                                .build()
                         }
                 }
                 .chunked(1000)
                 .forEach { chunk ->
                     try {
-                        client.bulk(BulkRequest().also { it.add(chunk) }, RequestOptions.DEFAULT)
+                        client.bulk(BulkRequest.Builder().operations(chunk).build())
                     } catch (ex: Throwable) {
                         if (ex is ExecutionException || ex is ConnectException || ex.cause is ExecutionException || ex.cause is ConnectException) {
                             if (isDevMode) {

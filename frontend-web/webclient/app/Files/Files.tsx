@@ -21,7 +21,7 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {Box, Button, Flex, Icon, Link, List, Text} from "@/ui-components";
-import {PageV2} from "@/UCloud";
+import {PageV2, compute } from "@/UCloud";
 import {ListV2} from "@/Pagination";
 import styled from "styled-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
@@ -66,6 +66,7 @@ export const FilesBrowse: React.FunctionComponent<{
     // UI state
     const didUnmount = useDidUnmount();
     const [syncthingConfig, setSyncthingConfig] = useState<SyncthingConfig | null>(null);
+    const [syncthingProduct, setSyncthingProduct] = useState<compute.ComputeProductSupportResolved | null>(null);
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
     const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);
     const [drives, setDrives] = useState<PageV2<FileCollection>>(emptyPageV2);
@@ -125,32 +126,37 @@ export const FilesBrowse: React.FunctionComponent<{
     }, [navigateToPath]);
 
     const setSynchronization = useCallback((file: UFile, shouldAdd: boolean) => {
-        setSyncthingConfig((conf) => {
-            if (!conf) return conf;
-            const newConf = deepCopy(conf);
+        setSyncthingConfig((config) => {
+            if (!config) return config;
+            const newConfig = deepCopy(config);
 
-            const folders = newConf?.folders ?? []
+            const folders = newConfig?.folders ?? []
 
             if (shouldAdd) {
                 const newFolders = [...folders];
-                newConf.folders = newFolders;
+                newConfig.folders = newFolders;
 
                 if (newFolders.every(it => it.ucloudPath !== file.id)) {
                     newFolders.push({id: randomUUID(), ucloudPath: file.id});
                 }
             } else {
-                newConf.folders = folders.filter(it => it.ucloudPath !== file.id);
+                newConfig.folders = folders.filter(it => it.ucloudPath !== file.id);
             }
 
-            invokeCommand(Sync.api.updateConfiguration({providerId: "ucloud", config: newConf}))
-                .catch(e => {
-                    if (didUnmount.current) return;
-                    defaultErrorHandler(e);
-                    setSyncthingConfig(conf);
-                });
-            return newConf;
+            if (!collection.data?.specification.product.provider) return config;
+
+            invokeCommand(Sync.api.updateConfiguration({
+                provider: collection.data?.specification.product.provider,
+                productId: "syncthing",
+                config: newConfig
+            })).catch(e => {
+                if (didUnmount.current) return;
+                defaultErrorHandler(e);
+                setSyncthingConfig(config);
+            });
+            return newConfig;
         });
-    }, []);
+    }, [collection.data?.specification.product.provider]);
 
     React.useEffect(() => {
         if (collection.data) {
@@ -215,13 +221,28 @@ export const FilesBrowse: React.FunctionComponent<{
     }, []);
 
     useEffect(() => {
+        //NOTE(Brian): Load relevant Syncthing product
+
+        if (!collection.data?.specification.product.provider) return;
+
+        Sync.fetchProducts(collection.data.specification.product.provider).then(products => {
+            if (products.length > 0) {
+                setSyncthingProduct(products[0]);
+            }
+        });
+    }, [collection.data, localActiveProject]);
+
+
+    useEffect(() => {
         // NOTE(Dan): Load relevant synchronization configuration. We don't currently reload any of this information,
         // but maybe we should.
-        Sync.fetchConfig().then(config => {
-            if (didUnmount.current) return;
-            setSyncthingConfig(config);
-        });
-    }, []);
+
+        if (!syncthingProduct) return;
+        if (didUnmount.current) return;
+        Sync.fetchConfig(syncthingProduct.product.category.provider)
+            .then(config => setSyncthingConfig(config))
+            .catch(doNothing);
+    }, [collection.data, path, localActiveProject, syncthingProduct]);
 
     useEffect(() => {
         // NOTE(Dan): The uploader component, triggered by one of the operations, need to know about the current folder.
@@ -376,57 +397,58 @@ export const FilesBrowse: React.FunctionComponent<{
                 </Text>
             </Flex>}
             <Flex>
-                <DriveDropdown iconName="hdd">
-                    <ListV2
-                        loading={loading}
-                        onLoadMore={() => invokeCommand(FileCollectionsApi.browse({
-                            itemsPerPage: 25,
-                            next: drives.next,
-                            filterMemberFiles: "all"
-                        } as any)).then(page => setDrives(page)).catch(e => console.log(e))}
-                        page={drives}
-                        pageRenderer={items => (
-                            <List maxHeight={"200px"} overflowX="hidden" overflowY={"scroll"} childPadding={"8px"} bordered={false}>
-                                {items.map(drive => (
-                                    <DriveInDropdown
-                                        key={drive.id}
-                                        className="expandable-row-child"
-                                        onClick={() => {
-                                            navigateToPath(navigate, `/${drive.id}`);
-                                            setActiveProviderId(drive.specification.product.provider);
-                                        }}
-                                    >
-                                        {drive.specification.title}
-                                        <Box ml="auto" my="auto">
-                                            <ProviderLogo size={24} providerId={drive.specification.product.provider} />
-                                        </Box>
-                                    </DriveInDropdown>
-                                ))}
-                            </List>
-                        )}
-                    />
-                </DriveDropdown>
-                <BreadCrumbsBase embedded={browseType === BrowseType.Embedded}
-                    className={browseType == BrowseType.MainContent ? "isMain" : undefined}>
-                    {breadcrumbs.map((it, idx) => (
-                        <span data-component={"crumb"} key={it} test-tag={it} title={it}
-                            onClick={() => {
-                                navigateToPath(
-                                    navigate,
-                                    "/" + joinToString(components.slice(0, idx + 1), "/")
-                                );
-                            }}
-                        >
-                            {it}
-                        </span>
-                    ))}
-                    <Flex my="auto" ml="12px"><ProviderLogo size={32} providerId={activeProviderId} /></Flex>
-                </BreadCrumbsBase>
+                {collection.data ? <>
+                    <DriveDropdown iconName="hdd">
+                        <ListV2
+                            loading={loading}
+                            onLoadMore={() => invokeCommand(FileCollectionsApi.browse({
+                                itemsPerPage: 25,
+                                next: drives.next,
+                                filterMemberFiles: "all"
+                            } as any)).then(page => setDrives(page)).catch(e => console.log(e))}
+                            page={drives}
+                            pageRenderer={items => (
+                                <List maxHeight={"200px"} overflowX="hidden" overflowY={"scroll"} childPadding={"8px"} bordered={false}>
+                                    {items.map(drive => (
+                                        <DriveInDropdown
+                                            key={drive.id}
+                                            className="expandable-row-child"
+                                            onClick={() => {
+                                                navigateToPath(navigate, `/${drive.id}`);
+                                                setActiveProviderId(drive.specification.product.provider);
+                                            }}
+                                        >
+                                            {drive.specification.title}
+                                            <Box ml="auto" my="auto">
+                                                <ProviderLogo size={24} providerId={drive.specification.product.provider} />
+                                            </Box>
+                                        </DriveInDropdown>
+                                    ))}
+                                </List>
+                            )}
+                        />
+                    </DriveDropdown>
+
+                    <BreadCrumbsBase embedded={browseType === BrowseType.Embedded}
+                        className={browseType == BrowseType.MainContent ? "isMain" : undefined}>
+                        {breadcrumbs.map((it, idx) => (
+                            <span data-component={"crumb"} key={it} test-tag={it} title={it}
+                                onClick={() => {
+                                    navigateToPath(
+                                        navigate,
+                                        "/" + joinToString(components.slice(0, idx + 1), "/")
+                                    );
+                                }}
+                            >
+                                {it}
+                            </span>
+                        ))}
+                        <Flex my="auto" ml="12px"><ProviderLogo size={32} providerId={activeProviderId} /></Flex>
+                    </BreadCrumbsBase>
+                </> : null}
             </Flex>
         </Box>;
     }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject, props.isSearch, activeProviderId]);
-
-    const hasSyncCookie = true;
 
     return <ResourceBrowse
         api={FilesApi}
@@ -437,18 +459,18 @@ export const FilesBrowse: React.FunctionComponent<{
         onInlineCreation={onInlineCreation}
         onRename={onRename}
         emptyPage={
-            <>
-                {props.isSearch ?
-                    <>
-                        UCloud is currently searching for files. This search may use your current folder as a starting
-                        point. If you do not get any results, try to select a different folder before starting your
-                        search.
-                    </> :
-                    <>
-                        No files found. Click &quot;Create folder&quot; or &quot;Upload files&quot;.
-                    </>
-                }
-            </>
+            props.isSearch ?
+                <>
+                    UCloud is currently searching for files. This search may use your current folder as a starting
+                    point. If you do not get any results, try to select a different folder before starting your
+                    search.
+                </> :
+                <>
+                    {collection.data ?
+                        <>No files found. Click &quot;Create folder&quot; or &quot;Upload files&quot;.</> :
+                        `${localActiveProject ? "This project" : "Your workspace"} has no drives. Select a different project/workspace to select a file.`
+                    }
+                </>
         }
         isSearch={props.isSearch}
         additionalFilters={additionalFilters}
@@ -464,8 +486,8 @@ export const FilesBrowse: React.FunctionComponent<{
         extraSidebar={
             <>
                 <Box flexGrow={1} />
-                {!hasSyncCookie ? null :
-                    <Link to={"/syncthing"}>
+                {!syncthingConfig ? null :
+                    <Link to={`/syncthing?provider=${collection.data?.specification.product.provider}`}>
                         <Button>Manage synchronization (BETA)</Button>
                     </Link>
                 }

@@ -24,13 +24,6 @@ sealed class Principal {
      */
     abstract val role: Role
 
-    /**
-     * A unique numeric id for this principal. This is suitable for systems that require numeric identifiers.
-     * Use of [id] is strongly preferred.
-     */
-    @Deprecated("Will be removed in future release")
-    abstract val uid: Long
-
     protected open fun validate() {
         require(id.isNotEmpty()) { "ID cannot be empty!" }
         require(!id.startsWith("__")) { "A principal's ID cannot start with '__'" }
@@ -80,8 +73,6 @@ sealed class Person : Principal() {
         override val phoneNumber: String? = null,
         override val orcId: String? = null,
         override val email: String? = null,
-        @Deprecated("Will be removed in future release")
-        override val uid: Long = 0,
         override val serviceLicenseAgreement: Int,
 
         /**
@@ -122,8 +113,6 @@ sealed class Person : Principal() {
         override val phoneNumber: String? = null,
         override val orcId: String? = null,
         override val email: String? = null,
-        @Deprecated("Will be removed in future release")
-        override val uid: Long = 0,
         override val twoFactorAuthentication: Boolean,
         override val serviceLicenseAgreement: Int,
         val organizationId: String?,
@@ -160,7 +149,6 @@ sealed class Person : Principal() {
             if (phoneNumber != other.phoneNumber) return false
             if (orcId != other.orcId) return false
             if (email != other.email) return false
-            if (uid != other.uid) return false
             if (twoFactorAuthentication != other.twoFactorAuthentication) return false
             if (serviceLicenseAgreement != other.serviceLicenseAgreement) return false
             if (displayName != other.displayName) return false
@@ -177,7 +165,6 @@ sealed class Person : Principal() {
             result = 31 * result + (phoneNumber?.hashCode() ?: 0)
             result = 31 * result + (orcId?.hashCode() ?: 0)
             result = 31 * result + (email?.hashCode() ?: 0)
-            result = 31 * result + uid.hashCode()
             result = 31 * result + twoFactorAuthentication.hashCode()
             result = 31 * result + serviceLicenseAgreement
             result = 31 * result + displayName.hashCode()
@@ -195,8 +182,6 @@ data class ServicePrincipal(
     override val id: String,
     override val role: Role,
 ) : Principal() {
-    @Suppress("OverridingDeprecatedMember")
-    override val uid: Long = -1
     init {
         validate()
         require(id.startsWith("_")) { "A service's ID should start with a single underscore" }
@@ -209,9 +194,6 @@ data class ProviderPrincipal(
     override val id: String,
 ) : Principal() {
     override val role: Role = Role.PROVIDER
-
-    @Suppress("OverridingDeprecatedMember")
-    override val uid: Long = -1
 
     init {
         validate()

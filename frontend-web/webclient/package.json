@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "2022.2.94",
+    "version": "2022.3.9",
     "description": "UCloud",
     "author": "IMADA - eScience Center, SDU",
     "scripts": {
@@ -45,7 +45,7 @@
         "styled-components": "5.3.6",
         "styled-system": "5.1.5",
         "svgi": "1.1.1",
-        "ua-parser-js": "1.0.32",
+        "ua-parser-js": "1.0.33",
         "vfile": "5.3.5",
         "xterm": "4.19.0",
         "xterm-addon-fit": "0.5.0"

@@ -1,6 +1,12 @@
 package dk.sdu.cloud.accounting.services.wallets
 
 import dk.sdu.cloud.*
+import com.github.jasync.sql.db.RowData
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
@@ -17,6 +23,7 @@ import dk.sdu.cloud.service.db.async.paginateV2
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.serialization.decodeFromString
+import java.util.Comparator
 
 class AccountingService(
     val db: DBContext,
@@ -249,60 +256,64 @@ class AccountingService(
         actorAndProject: ActorAndProject,
         request: WalletBrowseRequest
     ): PageV2<Wallet> {
-        return db.paginateV2(
-            actorAndProject.actor,
-            request.normalize(),
-            create = { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("user", actorAndProject.actor.safeUsername())
-                        setParameter("project", actorAndProject.project)
-                        setParameter("filter_type", request.filterType?.name)
-                        setParameter("filter_empty", request.filterEmptyAllocations)
-                    },
-                    """
-                        declare c cursor for
-                        select accounting.wallet_to_json(w, wo, array_agg(alloc), pc)
-                        from
-                            accounting.wallets w join
-                            accounting.wallet_owner wo on w.owned_by = wo.id join
-                            accounting.wallet_allocations alloc on w.id = alloc.associated_wallet join
-                            accounting.product_categories pc on w.category = pc.id left join
-                            project.project_members pm on wo.project_id = pm.project_id
-                        where
+        return db.withSession { session ->
+            val itemsPerPage = request.normalize().itemsPerPage
+            val rows = session.sendPreparedStatement(
+                {
+                    setParameter("user", actorAndProject.actor.safeUsername())
+                    setParameter("project", actorAndProject.project)
+                    setParameter("filter_type", request.filterType?.name)
+                    setParameter("next", request.next?.toLongOrNull())
+                },
+                """
+                    select accounting.wallet_to_json(w, wo, array_agg(alloc), pc)    
+                    from
+                        accounting.wallets w join
+                        accounting.wallet_owner wo on w.owned_by = wo.id join
+                        accounting.wallet_allocations alloc on w.id = alloc.associated_wallet join
+                        accounting.product_categories pc on w.category = pc.id left join
+                        project.project_members pm on wo.project_id = pm.project_id
+                    where
+                        (
+                            (:project::text is null and wo.username = :user) or
+                            (:project::text is not null and pm.username = :user and pm.project_id = :project::text)
+                        ) and
+                        (
+                            :filter_type::accounting.product_type is null or
+                            pc.product_type = :filter_type::accounting.product_type
+                        ) and (
+                            :filter_empty::bool is null or 
                             (
-                                (:project::text is null and wo.username = :user) or
-                                (:project::text is not null and pm.username = :user and pm.project_id = :project::text)
-                            ) and
-                            (
-                                :filter_type::accounting.product_type is null or
-                                pc.product_type = :filter_type::accounting.product_type
-                            ) and (
-                                :filter_empty::bool is null or 
-                                (
-                                    :filter_empty = true and
-                                    alloc.balance > 0
-                                ) or (
-                                    :filter_empty = false
-                                )
+                                :filter_empty = true and
+                                alloc.balance > 0
+                            ) or (
+                                :filter_empty = false
                             )
-                        group by w.*, wo.*, pc.*, pc.provider, pc.category
-                        order by
-                            pc.provider, pc.category
-                    """,
-                    "Accounting Browse Wallets"
-                )
-            },
-            mapper = { _, rows ->
-                rows.map {
-                    var wallet = defaultMapper.decodeFromString<Wallet>(it.getString(0)!!)
-                    if (request.includeMaxUsableBalance == true) {
-                        wallet = processor.includeMaxUsableBalance(wallet, request.filterEmptyAllocations)
-                    }
-                    wallet
-                }
+                        ) and 
+                        (
+                            :next::bigint is null or
+                            w.id > :next::bigint
+                        )
+                    group by w.*, wo.*, pc.*, pc.provider, pc.category
+                    order by
+                        pc.provider, pc.category
+                    limit $itemsPerPage
+                """,
+                "Accounting Browse Wallets"
+            ).rows
+
+            val items = ArrayList<Wallet>()
+            var lastId = 0L
+
+            rows.forEach {
+                items.add(defaultMapper.decodeFromString(Wallet.serializer(), it.getString(0)!!))
+                lastId = it.getLong(1)!!
             }
-        )
+
+            val next = if (items.size < itemsPerPage) null else lastId.toString()
+
+            PageV2(itemsPerPage, items, next)
+        }
     }
 
     suspend fun browseTransactions(

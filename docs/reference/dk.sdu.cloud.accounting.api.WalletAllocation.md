@@ -18,6 +18,8 @@ data class WalletAllocation(
     val startDate: Long,
     val endDate: Long?,
     val grantedIn: Long?,
+    val canAllocate: Boolean?,
+    val allowSubAllocationsToAllocate: Boolean?,
 )
 ```
 You can find more information about WalletAllocations
@@ -109,6 +111,28 @@ Note that this allocation path will always include, as its last element, this al
 <details>
 <summary>
 <code>grantedIn</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> ID reference to which grant application this allocation was granted in
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>canAllocate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> A property which indicates if this allocation can be used to create sub-allocations
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>allowSubAllocationsToAllocate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> A property which indicates that new sub-allocations of this allocation by default should have canAllocate = true
 </summary>
 
 

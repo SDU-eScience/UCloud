@@ -46,10 +46,11 @@ class SyncthingService(
         request: IAppsRetrieveConfigRequest<SyncthingConfig>
     ): IAppsRetrieveConfigResponse<SyncthingConfig> {
         return providers.invokeCall(
-            request.providerId,
+            request.provider,
             actorAndProject,
-            { SyncthingProvider(request.providerId).retrieveConfiguration },
+            { SyncthingProvider(request.provider).retrieveConfiguration },
             IAppsProviderRetrieveConfigRequest(
+                request.productId,
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
             ),
             actorAndProject.signedIntentFromUser,
@@ -98,10 +99,11 @@ class SyncthingService(
         }
 
         return providers.invokeCall(
-            request.providerId,
+            request.provider,
             actorAndProject,
-            { SyncthingProvider(request.providerId).updateConfiguration },
+            { SyncthingProvider(request.provider).updateConfiguration },
             IAppsProviderUpdateConfigRequest(
+                request.productId,
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
                 newConfig,
                 request.expectedETag,
@@ -115,10 +117,11 @@ class SyncthingService(
         request: IAppsResetConfigRequest<SyncthingConfig>
     ): IAppsResetConfigResponse<SyncthingConfig> {
         return providers.invokeCall(
-            request.providerId,
+            request.provider,
             actorAndProject,
-            { SyncthingProvider(request.providerId).resetConfiguration },
+            { SyncthingProvider(request.provider).resetConfiguration },
             IAppsProviderResetConfigRequest(
+                request.productId,
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
                 request.expectedETag,
             ),
@@ -131,10 +134,11 @@ class SyncthingService(
         request: IAppsRestartRequest<SyncthingConfig>
     ): IAppsRestartResponse<SyncthingConfig> {
         return providers.invokeCall(
-            request.providerId,
+            request.provider,
             actorAndProject,
-            { SyncthingProvider(request.providerId).restart },
+            { SyncthingProvider(request.provider).restart },
             IAppsProviderRestartRequest(
+                request.productId,
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
             ),
             actorAndProject.signedIntentFromUser,

@@ -20,7 +20,6 @@ import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "@/UC
 import {apiBrowse, apiUpdate} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {fileName} from "@/Utilities/FileUtilities";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {preventDefault, stopPropagation, useEffectSkipMount} from "@/UtilityFunctions";
 import {useCallback, useState} from "react";
@@ -91,7 +90,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             const avatars = useAvatars();
             if (resource?.owner?.createdBy === Client.username) {
                 return <UserAvatar
-                    avatar={avatars.cache[resource!.specification.sharedWith] ?? defaultAvatar}
+                    avatar={avatars.avatar(resource!.specification.sharedWith)}
                     width={size}
                     height={size}
                     mx={"0"}
@@ -112,15 +111,16 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             const [isValid, setIsValid] = useState(true);
 
             const validate = useCallback(async (resource: Share) => {
-                if (!resource || !resource.status.shareAvailableAt) return;
-                try {
-                    const result = await callbacks.invokeCommand(
-                        FilesApi.retrieve({id: resource.status.shareAvailableAt}), {defaultErrorHandler: false}
-                    );
-                    // Do nothing. It's valid.
-                } catch (e) {
-                    setIsValid(false);
-                }
+                // Note(Jonas): Remove for now as it is being triggered way too often.
+                // if (!resource || !resource.status.shareAvailableAt) return;
+                // try {
+                //     const result = await callbacks.invokeCommand(
+                //         FilesApi.retrieve({id: resource.status.shareAvailableAt}), {defaultErrorHandler: false}
+                //     );
+                //     // Do nothing. It's valid.
+                // } catch (e) {
+                //     setIsValid(false);
+                // }
             }, [resource, callbacks]);
 
             React.useEffect(() => {

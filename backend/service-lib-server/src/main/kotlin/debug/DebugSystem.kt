@@ -51,7 +51,7 @@ class DebugSystemFeature : MicroFeature, DebugSystem {
         delegate = CommonDebugSystem(
             serviceDescription.name,
             directory,
-            if (ctx.developmentModeEnabled) DebugMessageTransformer.Development else DebugMessageTransformer.Disabled
+            /*if (ctx.developmentModeEnabled) DebugMessageTransformer.Development else*/ DebugMessageTransformer.Disabled
         )
 
         installCommon(ctx.client)
