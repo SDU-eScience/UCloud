@@ -34,7 +34,7 @@ class Server(private val config: MailConfiguration, override val micro: Micro) :
 
         if (micro.commandLineArguments.contains("--send-test-mail")) {
             try {
-                val principal = SecurityPrincipal("_password-reset", Role.SERVICE, "", "", 0)
+                val principal = SecurityPrincipal("_password-reset", Role.SERVICE, "", "")
                 runBlocking {
                     mailService.send(principal, "support@imada.sdu.dk", Mail.NewCommentOnApplicationMail("Test", "Testing...", "test"), true, true)
                 }

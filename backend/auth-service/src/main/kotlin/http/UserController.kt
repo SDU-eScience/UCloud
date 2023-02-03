@@ -158,7 +158,7 @@ class UserController(
                 LookupUsersResponse(
                     db.withTransaction { session ->
                         userDAO.findAllByIds(session, request.users).mapValues { (_, principal) ->
-                            principal?.let { UserLookup(it.id, it.uid, it.role) }
+                            principal?.let { UserLookup(it.id, it.role) }
                         }
                     }
                 )
@@ -184,18 +184,6 @@ class UserController(
                         user.userId,
                         user.firstNames,
                         user.lastName
-                    )
-                }
-            )
-        }
-
-        implement(UserDescriptions.lookupUID) {
-            ok(
-                db.withTransaction { session ->
-                    LookupUIDResponse(
-                        userDAO.findAllByUIDs(session, request.uids).mapValues { (_, principal) ->
-                            principal?.let { UserLookup(it.id, it.uid, it.role) }
-                        }
                     )
                 }
             )
