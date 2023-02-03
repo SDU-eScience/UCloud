@@ -10,8 +10,6 @@ import {Sidebar} from "./Sidebar/Sidebar";
 import {DebugContextType} from "./WebSockets/Schema";
 import {activeService, serviceStore, setSessionState} from "./WebSockets/Socket";
 
-const USE_DUMMY = true;
-
 interface ServiceNode {
     serviceName: string;
     absolutePath: string;
@@ -60,7 +58,6 @@ function App(): JSX.Element {
         for (const service of services) {
             addServiceFromRootNode(service, root)
         }
-        if (USE_DUMMY) addServiceFromRootNode("some/dummy/service", root);
         return root;
     }, [services]);
 

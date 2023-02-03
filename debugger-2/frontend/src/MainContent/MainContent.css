@@ -1,10 +1,10 @@
 .main-content {
     position: unset;
-    padding: 15px 13px 25px 18px;
+    padding: 14px 24px 0px 24px;
     width: 100%;
     margin-top: 36px;
     margin-left: 190px;
-    height: calc(100vh - 96px);
+    height: calc(100vh - 60px);
 }
 
 div.card {
@@ -79,4 +79,8 @@ div[data-haschildren="true"] {
     content: '/';
     padding-left: 8px;
     padding-right: 8px;
+}
+
+.left-border-black {
+    border-left: solid 1px var(--black);
 }

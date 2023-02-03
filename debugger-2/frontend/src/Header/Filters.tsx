@@ -32,10 +32,10 @@ export function Filters({filters, setFilters}: {
         }
     }
 
-    return <div style={{marginRight: "8px"}}>
+    return <div className="mr-8px">
         <Dropdown trigger={
             <div className="header-dropdown flex vertically-centered">
-                <span className="vertically-centered" style={{marginLeft: "12px"}}>Filters: {joinedFilters}</span>
+                <span className="vertically-centered ml-12px">Filters: {joinedFilters}</span>
             </div>
         }>
             <div>
@@ -44,7 +44,11 @@ export function Filters({filters, setFilters}: {
                 <div><label><input type="checkbox" onChange={() => toggleFilter(DebugContextType.SERVER_REQUEST)} checked={localFilters.has(DebugContextType.SERVER_REQUEST)} />Server Request</label></div>
                 <div><label><input type="checkbox" onChange={() => toggleFilter(DebugContextType.DATABASE_TRANSACTION)} checked={localFilters.has(DebugContextType.DATABASE_TRANSACTION)} />Database Transaction</label></div>
                 <div><label><input type="checkbox" onChange={() => toggleFilter(DebugContextType.OTHER)} checked={localFilters.has(DebugContextType.OTHER)} />Other</label></div>
-                <div className="flex" style={{marginBottom: "6px"}}><button disabled={!isDirty} className="button" style={{marginLeft: "auto", marginRight: "auto", textAlign: "center"}} onClick={applyFilters}>Apply filters</button></div>
+                <div className="flex mb-8px">
+                    <button disabled={!isDirty} className="button filter-button" onClick={applyFilters}>
+                        Apply filters
+                    </button>
+                </div>
             </div>
         </Dropdown>
     </div>

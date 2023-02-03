@@ -6,12 +6,12 @@ import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 
 // Notes/Issues:
-//  Fetching missing contexts sometimes misses some. Backend issue. Clicking the same ctx several times doesn't always respond with every log. Seems to find ctxes.
-//  The List doesn't work correctly.
+//  Fetching missing contexts sometimes misses some. Backend issue. 
+//  Clicking the same ctx several times doesn't always respond with every log. Seems to find ctxes.
 //  Frontend styling is generally not good.
 //  Handle different types of ctx/logs to render.
 //  Blob searching support is missing!
-//  
+//  Height of list is too high when active context/log.
 //  What happens when selecting a different service?
 //     - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected).
 //  Handle long-running situations where memory usage has become high.
@@ -39,11 +39,6 @@ export function MainContent(): JSX.Element {
         setRouteComponents([d]);
     }, [setRouteComponents]);
 
-    const onWheel: React.WheelEventHandler<HTMLDivElement> = React.useCallback(e => {
-        if (e.deltaY < 0) { /* TODO(Jonas): Load previous. */}
-        console.log(e);
-    }, []);
-
     const serviceLogs = logs.content[service] ?? [];
     const activeContext = routeComponents.at(-1);
 
@@ -52,32 +47,37 @@ export function MainContent(): JSX.Element {
             <>
                 <BreadCrumbs clearContext={() => setContext(null)} routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
                 <RequestDetails key={activeContext?.id} activeContext={activeContext} />
-                <div onWheel={onWheel} style={{height: "100%", width: "100%"}}>
-                    <AutoSizer defaultHeight={200}>
-                        {({height, width}) => {
-                            const root = logStore.contextRoot();
-                            if (root) {
-                                return <List itemSize={ITEM_SIZE} height={height} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card">
-                                    {({data: root, style}) => {
-                                        return <DebugContextRow style={style} setRouteComponents={ctx => setRouteComponents(ctx)} debugContext={root.ctx} ctxChildren={root.children} isActive={false} />
-                                    }}
-                                </List>
-                            }
-                            return <List itemData={serviceLogs} height={height} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
-                                {({index, data, isScrolling, style}) => {
-                                    const item = data[index];
-                                    return <DebugContextRow
-                                        key={item.id}
+                <AutoSizer defaultHeight={200}>
+                    {({height, width}) => {
+                        const root = logStore.contextRoot();
+                        if (root) {
+                            return <List itemSize={ITEM_SIZE} height={height} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card">
+                                {({data: root, style}) =>
+                                    <DebugContextRow
                                         style={style}
-                                        setRouteComponents={() => {setContext(item); setRouteComponents([item]);}}
-                                        debugContext={item}
-                                        isActive={activeContext === item}
+                                        setRouteComponents={ctx => setRouteComponents(ctx)}
+                                        debugContext={root.ctx}
+                                        ctxChildren={root.children}
+                                        isActive={false}
                                     />
-                                }}
-                            </List>;
-                        }}
-                    </AutoSizer>
-                </div>
+                                }
+                            </List>
+                        }
+                        return <List itemData={serviceLogs} height={height} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card" data-activecontext={activeContext == null}>
+                            {({index, data, isScrolling, style}) => {
+                                const item = data[index];
+                                console.log(isScrolling);
+                                return <DebugContextRow
+                                    key={item.id}
+                                    style={style}
+                                    setRouteComponents={() => {setContext(item); setRouteComponents([item]);}}
+                                    debugContext={item}
+                                    isActive={activeContext === item}
+                                />
+                            }}
+                        </List>;
+                    }}
+                </AutoSizer>
             </>
         }
     </div>
@@ -104,10 +104,10 @@ function DebugContextRow({debugContext, setRouteComponents, isActive, ctxChildre
         >
             <div>{debugContext.name}</div>
         </div>
-        <div style={{marginLeft: "24px"}}>
+        <div className="ml-24px">
             {children.map(it => {
                 if (isLog(it)) {
-                    return <div key={it.id} onClick={() => setRouteComponents([debugContext, it])} style={{borderLeft: "solid 1px black"}} className="flex request-list-row">{it.message.previewOrContent}</div>
+                    return <div key={it.id} onClick={() => setRouteComponents([debugContext, it])} className="flex request-list-row left-border-black">{it.message.previewOrContent}</div>
                 } else {
                     return <DebugContextRow
                         key={it.ctx.id}
