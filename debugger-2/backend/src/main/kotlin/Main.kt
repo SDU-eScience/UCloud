@@ -340,16 +340,14 @@ suspend fun ClientSession.findContexts(
             currentFile.resetCursor()
         }
 
-        val filters = this.filters
         while (currentFile.next()) {
             val currentEntry = currentFile.retrieve() ?: continue
             if (currentEntry.timestamp < startTime) continue // keep looking
             if (currentEntry.timestamp > endTime) break@outer // finished
 
             if (currentEntry.parent.toLong() in activeContexts) {
-                // NOTE(Jonas): I guess this check makes sense as we wish to ignore the ctx and children of ignored ctxes.
-                if (filters != null && !filters.contains(currentEntry.type)) continue
-                if (!dontAddToActiveContext) activeContexts.add(currentEntry.id.toLong())
+                // NOTE(Jonas): Ignore the ctx and children of ignored ctxes.
+                if (!dontAddToActiveContext && !skipContext(generation, currentEntry)) activeContexts.add(currentEntry.id.toLong())
                 acceptContext(generation, currentEntry)
             }
 
@@ -542,14 +540,20 @@ data class ClientSession(
         }
     }
 
-    suspend fun acceptContext(generation: Long, context: DebugContextDescriptor) {
-        val service = activeService ?: return
+    fun skipContext(generation: Long, context: DebugContextDescriptor): Boolean {
+        val service = activeService ?: return true
         val services = trackedServices.get()
         val trackedService = services.values.find { it.title == service }
-        if (trackedService == null || trackedService.generation != generation) return
-        if (!activeContexts.contains(context.parent.toLong())) return
+        if (trackedService == null || trackedService.generation != generation) return true
+        if (!activeContexts.contains(context.parent.toLong())) return true
+        if (context.importance < this.minimumLevel) return true
         val filters = this.filters
-        if (filters != null && !filters.contains(context.type)) return
+        if (filters != null && !filters.contains(context.type)) return true
+        return false
+    }
+
+    suspend fun acceptContext(generation: Long, context: DebugContextDescriptor) {
+        if (skipContext(generation, context)) return
 
         writeMutex.withLock {
             if (newContextWriteBuffer.remaining() < DebugContextDescriptor.size) return

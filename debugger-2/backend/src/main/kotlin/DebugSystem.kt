@@ -260,7 +260,7 @@ class BinaryDebugSystem(
     suspend fun <T> useContext(
         type: DebugContextType,
         initialName: String? = null,
-        initialImportance: MessageImportance = MessageImportance.IMPLEMENTATION_DETAIL,
+        initialImportance: MessageImportance = MessageImportance.THIS_IS_NORMAL,
         block: suspend () -> T
     ) {
         val descriptor = allocateContext()
