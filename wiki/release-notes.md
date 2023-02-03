@@ -11,7 +11,7 @@ For details look in the `k8.kts` folders of each microservice.
 
 ```
 ✅  Deployment(app-store, 2022.3.11) (UP-TO-DATE)
-✅  Deployment(auth, 2022.3.11) (UP-TO-DATE)
+✅  Deployment(auth, 2022.3.11) (UP-TO-DATE) (rolled back to 2022.2.76)
 ```
 
 ## 02-02-23
