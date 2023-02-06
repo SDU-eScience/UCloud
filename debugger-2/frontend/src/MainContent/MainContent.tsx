@@ -6,16 +6,17 @@ import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 
 // Notes/Issues:
-//  Fetching missing contexts sometimes misses some. Backend issue. 
-//  Clicking the same ctx several times doesn't always respond with every log. Seems to find ctxes.
+//  Fetching missing contexts sometimes misses some. Backend solution timing-issue. 
 //  Frontend styling is generally not good.
 //  Handle different types of ctx/logs to render.
 //  Blob searching support is missing!
-//  Height of list is too high when active context/log.
+//  Height of list is too high when active context/log. (Sort of fixed).
 //  What happens when selecting a different service?
 //     - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected).
 //  Handle long-running situations where memory usage has become high.
-//  seekToEnd sometimes crashes.
+//  seekToEnd (Contexts) sometimes crashes.
+//  Finding logs, even with contexts found, sometimes returns empty result.
+//  Clicking the same ctx several times doesn't always respond with every log. Seems to find ctxes.
 
 type LogOrCtx = Log | DebugContext;
 const ITEM_SIZE = 22;
@@ -51,28 +52,26 @@ export function MainContent(): JSX.Element {
                     {({height, width}) => {
                         const root = logStore.contextRoot();
                         if (root) {
-                            return <List itemSize={ITEM_SIZE} height={height} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card">
+                            return <List itemSize={ITEM_SIZE} height={height * 0.72 /* TODO(Jonas): This won't work on dynamic heights. */} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card">
                                 {({data: root, style}) =>
                                     <DebugContextRow
                                         style={style}
+                                        activeLogOrCtx={activeContext}
                                         setRouteComponents={ctx => setRouteComponents(ctx)}
                                         debugContext={root.ctx}
                                         ctxChildren={root.children}
-                                        isActive={false}
                                     />
                                 }
                             </List>
                         }
-                        return <List itemData={serviceLogs} height={height} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card" data-activecontext={activeContext == null}>
+                        return <List itemData={serviceLogs} height={height} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
                             {({index, data, isScrolling, style}) => {
                                 const item = data[index];
-                                console.log(isScrolling);
                                 return <DebugContextRow
                                     key={item.id}
                                     style={style}
                                     setRouteComponents={() => {setContext(item); setRouteComponents([item]);}}
                                     debugContext={item}
-                                    isActive={activeContext === item}
                                 />
                             }}
                         </List>;
@@ -83,9 +82,9 @@ export function MainContent(): JSX.Element {
     </div>
 }
 
-function DebugContextRow({debugContext, setRouteComponents, isActive, ctxChildren, style}: {
-    isActive: boolean;
+function DebugContextRow({debugContext, setRouteComponents, ctxChildren, style, activeLogOrCtx}: {
     debugContext: DebugContext;
+    activeLogOrCtx?: LogOrCtx;
     setRouteComponents(ctx: LogOrCtx[]): void;
     ctxChildren?: (DebugContextAndChildren | Log)[];
     style?: React.CSSProperties | undefined;
@@ -96,7 +95,7 @@ function DebugContextRow({debugContext, setRouteComponents, isActive, ctxChildre
             key={debugContext.id}
             className="request-list-row flex"
             onClick={() => setRouteComponents([debugContext])}
-            data-selected={isActive}
+            data-selected={activeLogOrCtx === debugContext}
             style={style}
             data-haschildren={children.length > 0}
             data-has-error={hasError(debugContext.importance)}
@@ -107,14 +106,14 @@ function DebugContextRow({debugContext, setRouteComponents, isActive, ctxChildre
         <div className="ml-24px">
             {children.map(it => {
                 if (isLog(it)) {
-                    return <div key={it.id} onClick={() => setRouteComponents([debugContext, it])} className="flex request-list-row left-border-black">{it.message.previewOrContent}</div>
+                    return <div key={it.id} data-selected={it === activeLogOrCtx} onClick={() => setRouteComponents([debugContext, it])} className="flex request-list-row left-border-black">{it.message.previewOrContent}</div>
                 } else {
                     return <DebugContextRow
                         key={it.ctx.id}
                         setRouteComponents={ctx => setRouteComponents([debugContext, ...ctx])}
                         style={{borderLeft: "solid 1px black"}}
+                        activeLogOrCtx={activeLogOrCtx}
                         debugContext={it.ctx}
-                        isActive={false}
                         ctxChildren={it.children}
                     />
                 }
