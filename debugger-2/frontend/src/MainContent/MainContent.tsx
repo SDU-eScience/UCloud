@@ -10,7 +10,6 @@ import AutoSizer from "react-virtualized-auto-sizer";
 //  Frontend styling is generally not good.
 //  Handle different types of ctx/logs to render.
 //  Blob searching support is missing!
-//  Height of list is too high when active context/log. (Sort of fixed).
 //  What happens when selecting a different service?
 //     - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected).
 //  Handle long-running situations where memory usage has become high.
@@ -50,9 +49,10 @@ export function MainContent(): JSX.Element {
                 <RequestDetails key={activeContext?.id} activeContext={activeContext} />
                 <AutoSizer defaultHeight={200}>
                     {({height, width}) => {
+                        console.log(height);
                         const root = logStore.contextRoot();
                         if (root) {
-                            return <List itemSize={ITEM_SIZE} height={height * 0.72 /* TODO(Jonas): This won't work on dynamic heights. */} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card">
+                            return <List itemSize={ITEM_SIZE} height={height - 225 /* TODO(Jonas): This won't work on dynamic heights. */} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card">
                                 {({data: root, style}) =>
                                     <DebugContextRow
                                         style={style}
