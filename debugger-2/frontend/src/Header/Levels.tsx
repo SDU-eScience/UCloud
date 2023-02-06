@@ -12,7 +12,7 @@ export function Levels({level, setLevel}: {level: string; setLevel(level: string
         </div>
     }>
         {Importances.map(it =>
-            <div key={it} onClick={() => setLevel(it as string)} data-row-active={it === level} className="dropdown-row">
+            <div key={it} onClick={() => setLevel((it === level ? "" : it as string))} data-row-active={it === level} className="dropdown-row">
                 {it}
             </div>
         )}

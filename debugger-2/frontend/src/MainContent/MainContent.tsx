@@ -65,7 +65,7 @@ export function MainContent(): JSX.Element {
                             </List>
                         }
                         return <List itemData={serviceLogs} height={height} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
-                            {({index, data, isScrolling, style}) => {
+                            {({index, data, style}) => {
                                 const item = data[index];
                                 return <DebugContextRow
                                     key={item.id}
