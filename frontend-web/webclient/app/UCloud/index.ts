@@ -4786,13 +4786,11 @@ export type Person = PersonNS.ByWAYF | PersonNS.ByPassword
 export interface ServicePrincipal {
     id: string,
     role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
-    uid: number /* int64 */,
     type: ("service"),
 }
 export interface ProviderPrincipal {
     id: string,
     role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
-    uid: number /* int64 */,
     type: ("provider"),
 }
 export interface GetPrincipalRequest {
@@ -4811,7 +4809,6 @@ export interface LookupUsersResponse {
 }
 export interface UserLookup {
     subject: string,
-    uid: number /* int64 */,
     role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
 }
 export interface LookupUsersRequest {
@@ -4831,12 +4828,7 @@ export interface LookupUserWithEmailResponse {
 export interface LookupUserWithEmailRequest {
     email: string,
 }
-export interface LookupUIDResponse {
-    users: Record<string, UserLookup>,
-}
-export interface LookupUIDRequest {
-    uids: number /* int64 */[],
-}
+
 export interface Create2FACredentialsResponse {
     otpAuthUri: string,
     qrCodeB64Data: string,
@@ -4989,18 +4981,6 @@ export function lookupUserWithEmail(
         context: "",
         method: "POST",
         path: "/auth/users" + "/lookup" + "/with-email",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function lookupUID(
-    request: LookupUIDRequest
-): APICallParameters<LookupUIDRequest, LookupUIDResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/auth/users" + "/lookup-uid",
         parameters: request,
         reloadId: Math.random(),
         payload: request,
@@ -5200,7 +5180,6 @@ export interface ByWAYF {
     phoneNumber?: string,
     orcId?: string,
     email?: string,
-    uid: number /* int64 */,
     serviceLicenseAgreement: number /* int32 */,
     organizationId: string,
     wayfId: string,
@@ -5217,7 +5196,6 @@ export interface ByPassword {
     phoneNumber?: string,
     orcId?: string,
     email?: string,
-    uid: number /* int64 */,
     twoFactorAuthentication: boolean,
     serviceLicenseAgreement: number /* int32 */,
     displayName: string,

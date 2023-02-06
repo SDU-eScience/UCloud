@@ -190,7 +190,6 @@ case '/auth/users/password/reset': return 'auth.users.changePasswordWithReset';
 case '/auth/users/lookup': return 'auth.users.lookupUsers';
 case '/auth/users/lookup/email': return 'auth.users.lookupEmail';
 case '/auth/users/lookup/with-email': return 'auth.users.lookupUserWithEmail';
-case '/auth/users/lookup-uid': return 'auth.users.lookupUID';
 case '/auth/users/iterator/open': return 'auth.users.openUserIterator';
 case '/auth/users/iterator/next': return 'auth.users.fetchNextIterator';
 case '/auth/users/iterator/close': return 'auth.users.closeIterator';
