@@ -28,8 +28,6 @@ class PasswordController(
                     throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                 }
 
-                println(params)
-
                 val username = params["username"]?.firstOrNull()
                 val password = params["password"]?.firstOrNull()
                 val service = params["service"]?.firstOrNull()

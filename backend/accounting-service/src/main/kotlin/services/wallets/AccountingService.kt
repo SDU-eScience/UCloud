@@ -263,10 +263,11 @@ class AccountingService(
                     setParameter("user", actorAndProject.actor.safeUsername())
                     setParameter("project", actorAndProject.project)
                     setParameter("filter_type", request.filterType?.name)
+                    setParameter("filter_empty", request.filterEmptyAllocations)
                     setParameter("next", request.next?.toLongOrNull())
                 },
                 """
-                    select accounting.wallet_to_json(w, wo, array_agg(alloc), pc)    
+                    select accounting.wallet_to_json(w, wo, array_agg(alloc), pc), w.id
                     from
                         accounting.wallets w join
                         accounting.wallet_owner wo on w.owned_by = wo.id join
@@ -294,9 +295,8 @@ class AccountingService(
                             :next::bigint is null or
                             w.id > :next::bigint
                         )
-                    group by w.*, wo.*, pc.*, pc.provider, pc.category
-                    order by
-                        pc.provider, pc.category
+                    group by w.*, wo.*, pc.*, pc.provider, pc.category, w.id
+                    order by w.id
                     limit $itemsPerPage
                 """,
                 "Accounting Browse Wallets"
@@ -374,9 +374,12 @@ class AccountingService(
         request: SubAllocationQuery,
         query: String? = null,
     ): PageV2<SubAllocation> {
+        println("browsing")
         val owner = if (actorAndProject.project == null) actorAndProject.actor.safeUsername() else actorAndProject.project!!
 
         val hits = processor.browseSubAllocations(AccountingRequest.BrowseSubAllocations(actorAndProject.actor, owner, request.filterType, query))
+        println("Hits: ${hits.allocations}")
+
         if (hits.allocations.isEmpty()) { return PageV2(request.itemsPerPage ?: 50, emptyList(), null) }
 
         val numberOfItems = request.itemsPerPage ?: 50

@@ -325,15 +325,15 @@ const WalletViewer: React.FunctionComponent<{wallet: Wallet}> = ({wallet}) => {
     </>
 }
 
-function availableBalance(allocation: WalletAllocation, wallet: Wallet) :JSX.Element {
-    let maxBalance = allocation.maxUsableBalance ?? allocation.balance
-    if ((maxBalance - allocation.initialBalance) == (allocation.balance - allocation.initialBalance)) {
+function AvailableBalance(props: {allocation: WalletAllocation, wallet: Wallet}) :JSX.Element {
+    let maxBalance = props.allocation.maxUsableBalance ?? props.allocation.balance
+    if ((maxBalance - props.allocation.initialBalance) == (props.allocation.balance - props.allocation.initialBalance)) {
         return <div>
-            {usageExplainer(maxBalance, wallet.productType, wallet.chargeType, wallet.unit)} available
+            {usageExplainer(maxBalance, props.wallet.productType, props.wallet.chargeType, wallet.unit)} available
         </div>
     } else {
         return <Flex>
-            {usageExplainer(maxBalance, wallet.productType, wallet.chargeType, wallet.unit)} available <Tooltip
+            {usageExplainer(maxBalance, props.wallet.productType, props.wallet.chargeType, props.wallet.unit)} available <Tooltip
                 right="0"
                 bottom="1"
                 tooltipContentWidth="115px"
@@ -365,7 +365,7 @@ export const AllocationViewer: React.FunctionComponent<{
                     <Box flexGrow={1} />
                 </Flex>}
                 <div>{usageExplainer(allocation.initialBalance - allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} used</div>
-                {availableBalance(allocation, wallet)}
+                <AvailableBalance allocation={allocation} wallet={wallet} />
                 <div>{usageExplainer(allocation.initialBalance, wallet.productType, wallet.chargeType, wallet.unit)} allocated</div>
                 <Box flexGrow={1} mt={"8px"} />
                 <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate} /></div>

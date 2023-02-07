@@ -134,7 +134,6 @@ function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => voi
     const {pathname} = window.location;
     runThisFunction();
     const splitPath = pathname.split("/").filter(it => it);
-    console.log(splitPath);
     if (pathname === "/app/files") {
         navigate("/drives")
     } else if (splitPath.length === 3) {
@@ -148,7 +147,7 @@ function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => voi
     }
     initializeResources();
     refresh?.();
-}
+}''
 
 const HoverBox = styled.div`
     display: inline-flex;

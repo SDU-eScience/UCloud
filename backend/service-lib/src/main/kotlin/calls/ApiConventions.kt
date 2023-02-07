@@ -602,7 +602,7 @@ verification API to cleanup these resources later.
 @UCloudApiStable
 data class BulkRequest<out T : Any>(val items: List<T>) {
     init {
-        if (items.size > 1_000 || items.isEmpty()) throw RPCException("BulkRequest must not be empty or exceed limit", HttpStatusCode.BadRequest)
+        if (items.size > 1_000 || items.isEmpty()) throw RPCException("BulkRequest must not be empty or exceed limit of 1000 items", HttpStatusCode.BadRequest)
     }
 }
 

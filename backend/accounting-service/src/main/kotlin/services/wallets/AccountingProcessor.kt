@@ -377,6 +377,7 @@ class AccountingProcessor(
             while (isActive) {
                 try {
                     becomeMasterAndListen(lock)
+                    println("IS MASTER")
                 } catch (ex: Throwable) {
                     debug.logThrowable("Error happened when attempting to lock service", ex)
                 }
@@ -396,6 +397,7 @@ class AccountingProcessor(
         // NOTE(Dan): Delay the initial scan to wait for server to be ready (needed for local dev)
         delay(15_000)
 
+        println("LOADSUNG DB")
         debug.enterContext("Loading accounting database") {
             loadDatabase()
             logExit("Success")
@@ -459,21 +461,30 @@ class AccountingProcessor(
     }
 
     suspend fun sendRequest(request: AccountingRequest): AccountingResponse {
+        println("SENDIGN REQUST $request")
         val id = requestIdGenerator.getAndIncrement()
         request.id = id
+        println(processorLock.isLocked)
         return if(!processorLock.isLocked) {
              coroutineScope {
                 val collector = async {
                     var result: AccountingResponse? = null
+                    println("RESUKLTS: $result")
+                    println("RESPOINSE: $responses.")
                     responses.takeWhile {
+                        println(responses)
                         if (it.id == id) result = it
                         it.id != id
                     }.collect()
+                    println(result)
                     result ?: error("No response was ever received")
                 }
-
+                println("sending")
                 requests.send(request)
-                collector.await()
+                 println("waiting")
+                val k = collector.await()
+                 println("done Waiting")
+                 k
             }
         } else {
            AccountingResponse.Error("System is locked. Syncing to DB before process shutdown", 423)
@@ -492,6 +503,7 @@ class AccountingProcessor(
     }
 
     private suspend fun handleRequest(request: AccountingRequest): AccountingResponse {
+        println("HANDLIGN REQUEST: $request")
         val result = when (request) {
             is AccountingRequest.RootDeposit -> rootDeposit(request)
             is AccountingRequest.Deposit -> deposit(request)
@@ -1631,6 +1643,7 @@ class AccountingProcessor(
     private suspend fun browseSubAllocations(
         request: AccountingRequest.BrowseSubAllocations
     ): AccountingResponse {
+        println("In processor browse")
         val currentProjectWalletsIds = wallets.mapNotNull { if (it?.owner == request.owner) it.id else null }
         val currentProjectAllocations = mutableListOf<Int>()
         val subAllocations = mutableListOf<WalletAllocation>()
@@ -1642,6 +1655,9 @@ class AccountingProcessor(
                 subAllocations.add(it)
             }
         }
+        println("curretnProjectWallet: $currentProjectWalletsIds")
+        println("currentAllocations: $currentProjectAllocations")
+
         val list = subAllocations.mapNotNull { allocation ->
             val wall = wallets[allocation.associatedWallet]
             if (wall != null) {
@@ -1664,6 +1680,8 @@ class AccountingProcessor(
                 )
             } else null
         }
+        println("List: $list")
+
         val filteredList = if (request.query == null) {
             list
         } else {
@@ -1674,6 +1692,7 @@ class AccountingProcessor(
                     it.productCategoryId.provider.contains(query)
             }
         }
+        println("FILTERNED: $filteredList")
         return AccountingResponse.BrowseSubAllocations(filteredList)
     }
 
