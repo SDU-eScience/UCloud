@@ -150,7 +150,7 @@ export type GrantsRetrieveAffiliationsResponse = PageV2<UCloud.grant.ProjectWith
 
 export function isAllocationSuitableForSubAllocation(alloc: WalletAllocation): boolean {
     const now = timestampUnixMs();
-    return (alloc.endDate == null || alloc.endDate < now) &&
+    return (alloc.endDate == null || now < alloc.endDate) &&
         alloc.localBalance > 0 &&
         alloc.canAllocate;
 }

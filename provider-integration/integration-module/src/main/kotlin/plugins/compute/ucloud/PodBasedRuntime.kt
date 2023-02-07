@@ -39,7 +39,7 @@ abstract class PodBasedContainer : Container {
             val limit = pod.spec?.containers?.getOrNull(0)?.resources?.limits?.get("memory")?.jsonPrimitive
                 ?.contentOrNull ?: "1Gi"
 
-            return (memoryStringToBytes(limit) / (1024 * 1024)).toInt()
+            return (memoryStringToBytes(limit) / (1000 * 1000)).toInt()
         }
 
     override val gpus: Int
@@ -279,7 +279,7 @@ abstract class PodBasedBuilder : ContainerBuilder {
                 name = "shm",
                 emptyDir = Volume.EmptyDirVolumeSource(
                     medium = "Memory",
-                    sizeLimit = "${sharedMemorySizeMegabytes}Mi"
+                    sizeLimit = "${sharedMemorySizeMegabytes}M"
                 )
             )
         )
@@ -315,7 +315,9 @@ abstract class PodBasedBuilder : ContainerBuilder {
                     fsType = "ext4",
                     options = JsonObject(
                         mapOf(
-                            "addr" to JsonPrimitive(ipAddress),
+                            // NOTE(Dan): /16 is required for our new infrastructure. We might need to move this into
+                            // some sort of configuration later.
+                            "addr" to JsonPrimitive("$ipAddress/16"),
                             "iface" to JsonPrimitive(networkInterface)
                         )
                     )
@@ -355,7 +357,7 @@ abstract class PodBasedBuilder : ContainerBuilder {
 
     override var memoryMegabytes: Int
         get() = error("Read not supported")
-        set(value) = addResource("memory", "${value}Mi")
+        set(value) = addResource("memory", "${value}M")
 
     override var gpus: Int
         get() = error("Read not supported")
@@ -384,5 +386,11 @@ abstract class PodBasedBuilder : ContainerBuilder {
         get() = error("read not allowed")
         set(value) {
             container.workingDir = value
+        }
+
+    override var runtime: String?
+        get() = error("read not allowed")
+        set(value) {
+            podSpec.runtimeClassName = value
         }
 }

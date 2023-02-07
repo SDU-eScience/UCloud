@@ -8,6 +8,7 @@ import dk.sdu.cloud.app.store.api.SshDescription
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.ConfigSchema.Plugins.Jobs.UCloud.SshSubnet
 import dk.sdu.cloud.dbConnection
@@ -133,7 +134,12 @@ class FeatureSshKeys(
         val relevantKeys = JobsControl.browseSshKeys.call(
             JobsControlBrowseSshKeys(rootJob.jobId),
             k8.serviceClient
-        ).orThrow()
+        ).orNull()
+
+        if (relevantKeys == null) {
+            k8.addStatus(rootJob.jobId, "SSH: Failure! Unable to install keys. Try again later.")
+            return
+        }
 
         // NOTE(Dan): We only mount the keys in the rootJob right now. It might be better if we connect all of them.
         rootJob.openShell(listOf("/usr/bin/sh")) {

@@ -2,41 +2,26 @@ package dk.sdu.cloud
 
 import com.fasterxml.jackson.databind.JsonNode
 import dk.sdu.cloud.accounting.AccountingService
-import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.api.projects.*
-import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.alerting.AlertingService
-import dk.sdu.cloud.app.kubernetes.AppKubernetesService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
-import dk.sdu.cloud.app.store.api.AppStore
-import dk.sdu.cloud.app.store.api.CreateTagsRequest
-import dk.sdu.cloud.app.store.api.ToolStore
 import dk.sdu.cloud.audit.ingestion.AuditIngestionService
 import dk.sdu.cloud.auth.AuthService
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.avatar.AvatarService
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
 import dk.sdu.cloud.slack.SlackService
-import dk.sdu.cloud.file.ucloud.FileUcloudService
 import dk.sdu.cloud.mail.MailService
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.news.NewsService
 import dk.sdu.cloud.notification.NotificationService
 import dk.sdu.cloud.password.reset.PasswordResetService
-import dk.sdu.cloud.project.api.CreateProjectRequest
-import dk.sdu.cloud.project.api.Projects
-import dk.sdu.cloud.provider.api.ProviderIncludeFlags
-import dk.sdu.cloud.provider.api.ProviderSpecification
-import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.support.SupportService
 import dk.sdu.cloud.task.TaskService
-import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -44,7 +29,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.apache.logging.log4j.Level
-import java.io.File
 import kotlin.system.exitProcess
 
 object Launcher : Loggable {
@@ -65,9 +49,7 @@ val services = setOf<Service>(
     NotificationService,
     PasswordResetService,
     FileOrchestratorService,
-    FileUcloudService,
     SupportService,
-    AppKubernetesService,
     TaskService,
     AlertingService,
     SlackService
@@ -76,7 +58,7 @@ val services = setOf<Service>(
 enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Boolean) {
     Full("full", { true }),
 
-    FullNoProviders("no-providers", { it != AppKubernetesService && it != FileUcloudService }),
+    FullNoProviders("no-providers", { true }),
 
     Core("core", { svc ->
         when (svc) {
@@ -108,15 +90,6 @@ enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Bool
         when (svc) {
             AppOrchestratorService,
             FileOrchestratorService -> true
-
-            else -> false
-        }
-    }),
-
-    Providers("providers", { svc ->
-        when (svc) {
-            AppKubernetesService,
-            FileUcloudService -> true
 
             else -> false
         }

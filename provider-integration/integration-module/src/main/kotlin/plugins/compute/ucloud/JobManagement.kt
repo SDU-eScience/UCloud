@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.enterContext
 import dk.sdu.cloud.debug.everything
@@ -65,6 +66,7 @@ class JobManagement(
     private val jobCache: VerifiedJobCache,
     private val maintenance: MaintenanceService,
     val resources: ResourceCache,
+    val pluginConfig: ConfigSchema.Plugins.Jobs.UCloud,
 ) {
     private val features = ArrayList<JobFeature>()
     val readOnlyFeatures: List<JobFeature>

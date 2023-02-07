@@ -175,7 +175,14 @@ fun main(args: Array<String>) {
                 val configurator = JoranConfigurator()
                 configurator.context = ctx
                 ctx.reset()
-                configurator.doConfigure(logbackConfiguration(logDir, config.core.providerId, logModule).encodeToByteArray().inputStream())
+                configurator.doConfigure(
+                    logbackConfiguration(
+                        logDir,
+                        config.core.providerId,
+                        logModule,
+                        config.core.logs.preferStdout
+                    ).encodeToByteArray().inputStream()
+                )
             }
 
             run {

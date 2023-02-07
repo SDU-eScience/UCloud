@@ -7,6 +7,16 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 07-02-23
+
+```
+✅  Deployment(webclient, 2022.3.14) (UP-TO-DATE)
+-- app-kubernetes has been turned off --
+-- file-ucloud has been turned off --
+
+Type 1/SDU Provider @ 2022.3.14
+```
+
 ## 03-02-23
 
 ```
