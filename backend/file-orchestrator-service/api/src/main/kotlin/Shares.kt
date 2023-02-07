@@ -157,6 +157,12 @@ data class ShareInviteLink(
 
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class SharesCreateInviteLinkRequest(
+    val path: String
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class SharesBrowseInviteLinksRequest(
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -329,7 +335,7 @@ how to use this feature. We generally recommend that you use a full-blown projec
         httpBrowse(baseContext, "outgoing")
     }
 
-    val createInviteLink = call("createInviteLink", Unit.serializer(), ShareInviteLink.serializer(), CommonErrorMessage.serializer()) {
+    val createInviteLink = call("createInviteLink", SharesCreateInviteLinkRequest.serializer(), ShareInviteLink.serializer(), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, "inviteLinks")
     }
 
