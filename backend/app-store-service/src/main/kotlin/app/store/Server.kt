@@ -135,7 +135,7 @@ class Server(override val micro: Micro) : CommonServer {
         if (micro.commandLineArguments.contains("--migrate-apps-to-elastic")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                val dummyUser = SecurityPrincipal("admin@dev", Role.ADMIN, "admin", "admin", 42000)
+                val dummyUser = SecurityPrincipal("admin@dev", Role.ADMIN, "admin", "admin")
                 runBlocking {
                     db.withSession { session ->
                         val apps = applicationDAO.getAllApps(session, dummyUser)

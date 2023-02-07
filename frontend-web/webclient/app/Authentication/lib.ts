@@ -588,7 +588,6 @@ export class HttpClient {
 
 export interface JWT {
     sub: string;
-    uid: number;
     lastName?: string;
     aud: string;
     role: string;
