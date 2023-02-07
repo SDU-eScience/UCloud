@@ -146,6 +146,45 @@ data class SharesBrowseOutgoingRequest(
     override val itemsToSkip: Long? = null
 ) : WithPaginationRequestV2
 
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ShareInviteLink(
+    val token: String,
+    val path: String,
+    val expires: Long,
+    val permissions: List<Permission>
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class SharesBrowseInviteLinksRequest(
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null
+) : WithPaginationRequestV2
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class SharesDeleteInviteLinkRequest(
+    val token: String
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class SharesUpdateInviteLinkPermissionsRequest(
+    val token: String,
+    val permissions: List<Permission>
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class SharesAcceptInviteLinkRequest(
+    val token: String
+)
+
+typealias SharesAcceptInviteLinkResponse = Share
+
 @UCloudApiInternal(InternalLevel.STABLE)
 object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
         Product.Storage, ShareSupport>("shares") {
@@ -288,6 +327,26 @@ how to use this feature. We generally recommend that you use a full-blown projec
 
     val browseOutgoing = call("browseOutgoing", SharesBrowseOutgoingRequest.serializer(), PageV2.serializer(OutgoingShareGroup.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext, "outgoing")
+    }
+
+    val createInviteLink = call("createInviteLink", Unit.serializer(), ShareInviteLink.serializer(), CommonErrorMessage.serializer()) {
+        httpCreate(baseContext, "inviteLinks")
+    }
+
+    val browseInviteLinks = call("browseInviteLinks", SharesBrowseInviteLinksRequest.serializer(), PageV2.serializer(ShareInviteLink.serializer()), CommonErrorMessage.serializer()) {
+        httpBrowse(baseContext, "inviteLinks")
+    }
+
+    val deleteInviteLink = call("deleteInviteLink", SharesDeleteInviteLinkRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "deleteInviteLink")
+    }
+
+    val updateInvitePermissions = call("updateInviteLinkPermissions", SharesUpdateInviteLinkPermissionsRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "updateInviteLinkPermissions")
+    }
+
+    val acceptInviteLink = call("acceptInviteLink", SharesAcceptInviteLinkRequest.serializer(), SharesAcceptInviteLinkResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "acceptInviteLink")
     }
 
     override val create get() = super.create!!
