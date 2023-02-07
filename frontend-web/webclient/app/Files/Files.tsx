@@ -47,7 +47,7 @@ export const FilesBrowse: React.FunctionComponent<{
     forceNavigationToPage?: boolean;
     allowMoveCopyOverride?: boolean;
 }> = props => {
-    const shouldUseStreamingSearch = onDevSite() || inDevEnvironment();
+    const shouldUseStreamingSearch = true;
 
     // Input parameters and configuration
     const lightTheme = isLightThemeStored();

@@ -235,7 +235,7 @@ class VolcanoContainer(
     override val k8Client: KubernetesClient get() = k8.client
     override val annotations: Map<String, String>
         get() {
-            val annotationEntries = pod.metadata?.annotations?.entries ?: emptySet()
+            val annotationEntries = volcanoJob.metadata?.annotations?.entries ?: emptySet()
             return annotationEntries.associate { it.key to it.value.toString() }
         }
 

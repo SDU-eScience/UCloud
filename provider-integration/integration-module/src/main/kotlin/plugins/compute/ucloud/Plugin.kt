@@ -8,7 +8,6 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.cli.CliHandler
-import dk.sdu.cloud.cli.CommandLineSubCommand
 import dk.sdu.cloud.cli.genericCommandLineHandler
 import dk.sdu.cloud.cli.sendCommandLineUsage
 import dk.sdu.cloud.config.ConfigSchema
@@ -17,7 +16,6 @@ import dk.sdu.cloud.controllers.ComputeSessionIpc
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.ipc.IpcContainer
-import dk.sdu.cloud.ipc.IpcHandler
 import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.logThrowable
@@ -40,7 +38,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.selects.select
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlin.coroutines.coroutineContext
 
@@ -112,7 +109,8 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             runtime,
             jobCache,
             MaintenanceService(dbConnection, k8),
-            ResourceCache(k8)
+            ResourceCache(k8),
+            pluginConfig
         )
 
         logService = K8LogService(k8, runtime)
@@ -149,7 +147,7 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
                                 val cpu = machines.maxByOrNull { it.cpu ?: 1 }?.cpu ?: 1
                                 val mem = machines.maxByOrNull { it.memoryInGigs ?: 1 }?.memoryInGigs ?: 1
                                 val gpu = machines.maxByOrNull { it.gpu ?: 0 }?.gpu ?: 0
-                                result[category] = NodeType(cpu * 1000, mem * 1024, gpu)
+                                result[category] = NodeType(cpu * 1000, mem * 1000, gpu)
                             }
 
                             result

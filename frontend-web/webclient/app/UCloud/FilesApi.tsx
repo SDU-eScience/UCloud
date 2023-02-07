@@ -702,6 +702,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     });
                 },
             },
+            /*
             {
                 // Item row synchronization
                 text: synchronizationOpText,
@@ -721,6 +722,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     synchronizationOpOnClick([cb.directory], cb);
                 }
             },
+             */
             {
                 text: "Open terminal",
                 primary: true,

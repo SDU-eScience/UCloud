@@ -301,7 +301,7 @@ class FeaturePublicIP(
                 //language=postgresql
                 """
                     delete from ucloud_compute_network_ip_pool
-                    where external_cidt = :cidr
+                    where external_cidr = :cidr
                 """
             ).useAndInvokeAndDiscard {
                 bindString("cidr", cidr)
