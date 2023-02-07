@@ -102,7 +102,7 @@ node {
         def workspace = readFile "${env.WORKSPACE}/.compose/current.txt"
 
         sh script: """
-            mkdir ./tmp
+            mkdir ./tmp || true
             docker cp ${workspace}-backend-1:/tmp/service.log ./tmp/service.log
             docker cp ${workspace}-backend-1:/var/log ./tmp/
         """
