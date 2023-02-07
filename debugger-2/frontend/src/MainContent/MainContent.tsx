@@ -7,6 +7,7 @@ import AutoSizer from "react-virtualized-auto-sizer";
 
 // Notes/Issues:
 //  Fetching missing contexts sometimes misses some. Backend solution timing-issue. 
+//  Handle same service, new generation
 //  Frontend styling is generally not good.
 //  Handle different types of ctx/logs to render.
 //  Blob searching support is missing!
@@ -52,7 +53,7 @@ export function MainContent(): JSX.Element {
                         console.log(height);
                         const root = logStore.contextRoot();
                         if (root) {
-                            return <List itemSize={ITEM_SIZE} height={height - 225 /* TODO(Jonas): This won't work on dynamic heights. */} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card">
+                            return <List itemSize={ITEM_SIZE} height={height - 225} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card">
                                 {({data: root, style}) =>
                                     <DebugContextRow
                                         style={style}

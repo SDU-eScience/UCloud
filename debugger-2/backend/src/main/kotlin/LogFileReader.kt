@@ -4,7 +4,7 @@ import java.io.File
 import java.io.RandomAccessFile
 import java.nio.channels.FileChannel
 
-class LogFileReader(val directory: File, val generation: Long, val idx: Int) {
+class LogFileReader(directory: File, val generation: Long, val idx: Int) {
     private val file = File(directory, "$generation-$idx.log")
     private val logChannel = RandomAccessFile(file, "r").channel
     private val buf = logChannel.map(FileChannel.MapMode.READ_ONLY, 0, logChannel.size())
@@ -81,6 +81,14 @@ class LogFileReader(val directory: File, val generation: Long, val idx: Int) {
             }
         }
         cursor = max
+    }
+
+    fun seekLastTimestamp(): Long? {
+        val cursorPosition = this.cursor
+        seekToEnd()
+        val ts = this.retrieve()?.timestamp
+        this.cursor = cursorPosition
+        return ts
     }
 
     fun seekTimestamp(filterBefore: Long) {

@@ -200,7 +200,7 @@ fun main(args: Array<String>) {
                         for (contextFile in openContextFiles) {
                             while (contextFile.next()) {
                                 val message = contextFile.retrieve() ?: break
-                                println("${message.importance} ${message.name} ${message.id} ${message.parent}")
+                                // println("${message.importance} ${message.name} ${message.id} ${message.parent}")
 
                                 sessionMutex.withLock {
                                     for (session in sessions) {
@@ -315,6 +315,7 @@ fun main(args: Array<String>) {
     }.start(wait = true)
 }
 
+var recursionCounts = 0
 suspend fun ClientSession.findContexts(
     startTime: Long,
     endTime: Long,
@@ -322,38 +323,40 @@ suspend fun ClientSession.findContexts(
     generation: Long,
     dontAddToActiveContext: Boolean = false
 ) {
-    var currentFileId = 1 // Note(Jonas): Seems to start at 1?
+    var ctxFileId = 1 // Note(Jonas): Seems to start at 1?
 
-    outer@ while (ContextReader.exists(directory, generation, currentFileId)) {
-        var currentFile = ContextReader(directory, generation, currentFileId++)
-        // currentFile.logAllEntries()
-        currentFile.seekToEnd()
-        var fileEnd = currentFile.retrieve()?.timestamp ?: break@outer
-        currentFile.resetCursor()
+    outer@ while (ContextReader.exists(directory, generation, ctxFileId)) {
+        var currentFile = ContextReader(directory, generation, ctxFileId)
+        var fileEnd = currentFile.seekLastTimestamp() ?: break@outer
 
         // Find the file that contains our first potentially valid context
         while (startTime > fileEnd) {
-            if (!ContextReader.exists(directory, generation, currentFileId)) break@outer
-            currentFile = ContextReader(directory, generation, currentFileId++)
-            currentFile.seekToEnd()
-            fileEnd = currentFile.retrieve()?.timestamp ?: break@outer
-            currentFile.resetCursor()
+            if (!ContextReader.exists(directory, generation, ++ctxFileId)) break@outer
+            currentFile = ContextReader(directory, generation, ctxFileId)
+            fileEnd = currentFile.seekLastTimestamp() ?: break@outer
         }
 
         while (currentFile.next()) {
-            val currentEntry = currentFile.retrieve() ?: continue
+            val currentEntry = currentFile.retrieve() ?: break@outer
             if (currentEntry.timestamp < startTime) continue // keep looking
             if (currentEntry.timestamp > endTime) break@outer // finished
 
             if (currentEntry.parent.toLong() in activeContexts) {
                 // NOTE(Jonas): Ignore the ctx and children of ignored ctxes.
-                if (!dontAddToActiveContext && !skipContext(generation, currentEntry)) activeContexts.add(currentEntry.id.toLong())
+                // TODO(Jonas): the 'skipContext'-call is also made inside `acceptContext`. Once would be fine.
+                if (!dontAddToActiveContext && !skipContext(
+                        generation,
+                        currentEntry
+                    )
+                ) activeContexts.add(currentEntry.id.toLong())
                 acceptContext(generation, currentEntry)
             }
 
             if (!currentFile.isValid(currentFile.cursor + 1)) {
-                if (ContextReader.exists(directory, generation, currentFileId)) {
-                    currentFile = ContextReader(directory, generation, currentFileId++)
+                if (ContextReader.exists(directory, generation, ++ctxFileId)) {
+                    currentFile = ContextReader(directory, generation, ctxFileId)
+                } else {
+                    break@outer
                 }
             }
         }
@@ -363,42 +366,42 @@ suspend fun ClientSession.findContexts(
 
 suspend fun ClientSession.findLogs(startTime: Long, endTime: Long, directory: File, generation: Long) {
     var logFileId = 0
-    var logs = ArrayList<BinaryDebugMessage<*>>()
+    var logCount = 0
     outer@ while (LogFileReader.exists(directory, generation, logFileId)) {
         var logFile = LogFileReader(directory, generation, logFileId)
+        var fileEnd = logFile.seekLastTimestamp() ?: break@outer
 
-        logFile.seekToEnd()
-        val end = logFile.retrieve()
-        var fileEnd = end?.timestamp ?: break@outer
-        logFile.resetCursor()
-        logFileId += 1
         while (startTime > fileEnd) {
-            if (!LogFileReader.exists(directory, generation, logFileId)) {
-                break@outer
-            }
+            if (!LogFileReader.exists(directory, generation, ++logFileId)) break@outer
             logFile = LogFileReader(directory, generation, logFileId)
-            logFile.seekToEnd()
-            fileEnd = logFile.retrieve()?.timestamp ?: break@outer
-            logFile.resetCursor()
-            logFileId += 1
+            fileEnd = logFile.seekLastTimestamp() ?: break@outer
         }
 
         while (logFile.next()) {
-            val currentEntry = logFile.retrieve() ?: continue
+            val currentEntry = logFile.retrieve() ?: break@outer
             if (currentEntry.timestamp < startTime) continue // keep looking
-            if (currentEntry.timestamp > endTime) break@outer // finished
+            if (currentEntry.timestamp > endTime)  break@outer // finished
 
             if (currentEntry.ctxId.toLong() in activeContexts) {
+                logCount++
                 acceptLogMessage(currentEntry)
-                logs.add(currentEntry)
             }
 
             if (!logFile.isValid(logFile.cursor + 1)) {
-                if (LogFileReader.exists(directory, generation, logFileId)) {
-                    logFile = LogFileReader(directory, generation, logFileId++)
+                if (LogFileReader.exists(directory, generation, ++logFileId)) {
+                    logFile = LogFileReader(directory, generation, ++logFileId)
+                } else {
+                    break@outer
                 }
             }
         }
+    }
+    if (logCount == 0) {
+        logFileId; startTime; endTime; directory; this.activeContexts
+        println("Doing a recursive run: ${recursionCounts++}, got to file: $logFileId")
+        findLogs(startTime, endTime, directory, generation)
+        recursionCounts = 0
+        return
     }
     flushLogsMessage()
 }

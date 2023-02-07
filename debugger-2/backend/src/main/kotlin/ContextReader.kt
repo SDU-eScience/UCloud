@@ -4,6 +4,8 @@ import java.io.File
 import java.nio.channels.FileChannel
 import java.nio.file.StandardOpenOption
 
+const val DESCRIPTOR_OFFSET = 4096
+
 class ContextReader(directory: File, val generation: Long, val idx: Int) {
     private val channel = FileChannel.open(
         File(directory, buildContextFilePath(generation, idx)).toPath(),
@@ -13,17 +15,17 @@ class ContextReader(directory: File, val generation: Long, val idx: Int) {
     @PublishedApi
     internal val buf = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size())
 
-    private val descriptor = DebugContextDescriptor(buf, 4096)
+    private val descriptor = DebugContextDescriptor(buf, DESCRIPTOR_OFFSET)
 
     var cursor = 0
         private set
 
     fun isValid(idx: Int = cursor): Boolean {
         return retrieve(idx) != null
-    }   
+    }
 
     fun retrieve(idx: Int = cursor): DebugContextDescriptor? {
-        descriptor.offset = idx * DebugContextDescriptor.size + 4096
+        descriptor.offset = idx * DebugContextDescriptor.size + DESCRIPTOR_OFFSET
         if (descriptor.id == 0) return null
         return descriptor
     }
@@ -65,6 +67,14 @@ class ContextReader(directory: File, val generation: Long, val idx: Int) {
             }
         }
         cursor = max
+    }
+
+    fun seekLastTimestamp(): Long? {
+        val cursorPosition = this.cursor
+        seekToEnd()
+        val ts = this.retrieve()?.timestamp
+        this.cursor = cursorPosition
+        return ts
     }
 
     fun resetCursor() {
