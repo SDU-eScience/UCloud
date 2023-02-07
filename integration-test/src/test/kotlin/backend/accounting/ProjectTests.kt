@@ -3,11 +3,8 @@ package dk.sdu.cloud.integration.backend.accounting
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.integration.IntegrationTest
-import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.project.api.v2.*
-import kotlin.test.assertFails
-import kotlin.test.assertNotEquals
 
 class ProjectTests : IntegrationTest() {
 
