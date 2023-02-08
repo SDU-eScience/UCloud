@@ -11,6 +11,7 @@ For details look in the `k8.kts` folders of each microservice.
 
 ```
 ✅  Deployment(accounting, 2022.3.15) (UP-TO-DATE)
+Type 1/SDU Provider @ 2022.3.20
 ```
 
 ## 07-02-23

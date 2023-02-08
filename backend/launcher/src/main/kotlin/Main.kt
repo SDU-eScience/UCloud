@@ -22,6 +22,7 @@ import dk.sdu.cloud.password.reset.PasswordResetService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.support.SupportService
 import dk.sdu.cloud.task.TaskService
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
