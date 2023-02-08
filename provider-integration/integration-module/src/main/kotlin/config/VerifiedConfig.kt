@@ -41,6 +41,7 @@ data class VerifiedConfig(
         val developmentMode: Boolean,
         val cors: Cors,
         val disableInsecureFileCheck: Boolean,
+        val maintenance: Maintenance,
     ) {
         data class Hosts(
             val ucloud: Host,
@@ -53,11 +54,16 @@ data class VerifiedConfig(
 
         data class Logs(
             val directory: String,
-            val trace: List<ConfigSchema.Core.Logs.Tracer>
+            val trace: List<ConfigSchema.Core.Logs.Tracer>,
+            val preferStdout: Boolean,
         )
 
         data class Cors(
-            val allowHosts: List<String>
+            val allowHosts: List<String>,
+        )
+
+        data class Maintenance(
+            val alwaysAllowAccessFrom: List<String>,
         )
     }
 
@@ -388,7 +394,13 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
             val trace = config.core.logs?.trace ?: emptyList()
 
-            VerifiedConfig.Core.Logs(directory, trace)
+            val preferStdout = core.logs?.preferStdout ?: false
+            if (preferStdout && core.launchRealUserInstances) {
+                emitError("core.logs.preferStdout cannot be true when core.launchRealUserInstances is also true " +
+                        "(logs would be discarded)")
+            }
+
+            VerifiedConfig.Core.Logs(directory, trace, core.logs?.preferStdout ?: false)
         }
 
         val cors = run {
@@ -400,6 +412,10 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             emitError("core.allowRootMode is only allowed if core.launchRealUserInstances = false")
         }
 
+        val maintenance = VerifiedConfig.Core.Maintenance(
+            core.maintenance?.alwaysAllowAccessFrom ?: emptyList()
+        )
+
         VerifiedConfig.Core(
             certificate,
             providerId,
@@ -410,7 +426,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             core.allowRootMode,
             core.developmentMode ?: (core.hosts.ucloud.host == "backend"),
             cors,
-            core.disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy && core.developmentMode == true
+            core.disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy && core.developmentMode == true,
+            maintenance,
         )
     }
 

@@ -32,7 +32,7 @@ class UtilizationService(
         var memory = 0L
         for (job in jobs) {
             vCpu += job.vCpuMillis / 1000
-            memory += job.memoryMegabytes * (1024 * 1024)
+            memory += job.memoryMegabytes * (1000 * 1000)
         }
 
         return CpuAndMemory(vCpu, memory)

@@ -45,6 +45,8 @@ data class ConfigSchema(
         // NOTE(Dan): Some setups with docker compose doesn't correctly handle file permissions. We have this option to
         // just disable the insecure file check. This setting only works in development mode.
         val disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy: Boolean = false,
+
+        val maintenance: Maintenance? = null,
     ) {
         @Serializable
         data class Hosts(
@@ -59,6 +61,7 @@ data class ConfigSchema(
 
         @Serializable
         data class Logs(
+            val preferStdout: Boolean = false,
             val directory: String? = null,
             val trace: List<Tracer>? = emptyList(),
         ) {
@@ -70,6 +73,11 @@ data class ConfigSchema(
         @Serializable
         data class Cors(
             val allowHosts: List<String>? = null
+        )
+
+        @Serializable
+        data class Maintenance(
+            val alwaysAllowAccessFrom: List<String> = emptyList()
         )
     }
 
@@ -438,6 +446,7 @@ data class ConfigSchema(
                     val nodeToleration: TolerationKeyAndValue? = null,
                     val useMachineSelector: Boolean = false,
                     val categoryToSelector: Map<String, String> = emptyMap(),
+                    val categoryToCustomRuntime: Map<String, String> = emptyMap(),
                 )
 
                 @Serializable

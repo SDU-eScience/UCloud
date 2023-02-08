@@ -8,6 +8,7 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.Maintenance
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
@@ -106,7 +107,10 @@ fun ProviderSpecification.addProviderInfoToRelativeUrl(url: String): String {
 @Serializable
 @UCloudApiDoc("A placeholder document used only to conform with the Resources API")
 @UCloudApiStable
-data class ProviderSupport(override val product: ProductReference) : ProductSupport
+data class ProviderSupport(
+    override val product: ProductReference,
+    override var maintenance: Maintenance? = null,
+) : ProductSupport
 
 @Serializable
 @UCloudApiDoc("A placeholder document used only to conform with the Resources API")

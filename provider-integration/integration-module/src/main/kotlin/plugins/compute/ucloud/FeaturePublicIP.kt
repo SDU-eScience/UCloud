@@ -163,7 +163,6 @@ class FeaturePublicIP(
 
     override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         val networks = job.networks
-        log.info("PublicIP for ${job.id} with ${networks.size} IPs attached on ${job.specification.replicas} replicas")
         if (networks.isEmpty()) return
 
         data class RetrievedIpAddress(val id: String, val internal: String, val external: String)
@@ -189,9 +188,6 @@ class FeaturePublicIP(
                     prepare = {
                         bindString("id", network.id)
                         bindString("jobId", job.id)
-
-                        log.info("Q1 id: ${network.id}")
-                        log.info("Q1 jobId: ${job.id}")
                     }
                 )
             }
@@ -208,11 +204,8 @@ class FeaturePublicIP(
                 ).useAndInvoke(
                     prepare = {
                         bindString("network_id", network.id)
-
-                        log.info("Q2 network_id: ${network.id}")
                     },
                     readRow = { row ->
-                        log.info("Reading row...")
                         rows.add(
                             RetrievedIpAddress(row.getString(0)!!, row.getString(1)!!, row.getString(2)!!).also { log.info(it.toString()) }
                         )
@@ -223,22 +216,17 @@ class FeaturePublicIP(
             rows
         }
 
-        log.info("Rows are: $idsAndIps")
-
         idsAndIps.forEach { (id, ip) ->
-            log.info("Looking for $id $ip")
             val retrievedNetwork = NetworkIPControl.retrieve.call(
                 ResourceRetrieveRequest(NetworkIPFlags(), id),
                 k8.serviceClient
             ).orThrow()
-            log.info("Got a response $retrievedNetwork. Now mounting the thing")
 
             builder.mountIpAddress(
                 ip,
                 networkInterface,
                 run {
                     val openPorts = retrievedNetwork.specification.firewall?.openPorts ?: emptyList()
-                    log.info("These are the ports: $openPorts")
                     openPorts.flatMap { portRange ->
                         (portRange.start..portRange.end).map { port ->
                             Pair(port, portRange.protocol)
@@ -247,7 +235,6 @@ class FeaturePublicIP(
                 }
             )
 
-            log.info("Adding a status now!")
             k8.addStatus(job.id, "Successfully attached the following IP addresses: " +
                     idsAndIps.joinToString(", ") { it.external })
         }
@@ -314,7 +301,7 @@ class FeaturePublicIP(
                 //language=postgresql
                 """
                     delete from ucloud_compute_network_ip_pool
-                    where external_cidt = :cidr
+                    where external_cidr = :cidr
                 """
             ).useAndInvokeAndDiscard {
                 bindString("cidr", cidr)

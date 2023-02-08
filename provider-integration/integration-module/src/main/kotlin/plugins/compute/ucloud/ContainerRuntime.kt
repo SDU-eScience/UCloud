@@ -64,6 +64,8 @@ interface ContainerBuilder {
     var shouldAllowRoot: Boolean
     var workingDirectory: String
 
+    var runtime: String?
+
     var productCategoryRequired: String?
     var vCpuMillis: Int
     var memoryMegabytes: Int

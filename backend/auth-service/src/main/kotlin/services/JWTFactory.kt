@@ -30,7 +30,6 @@ class JWTFactory(
     private fun JWTCreator.Builder.writeStandardClaims(user: Principal) {
         withSubject(user.id)
         withClaim("role", user.role.name)
-        withClaim("uid", user.uid)
 
         withIssuer("cloud.sdu.dk")
 

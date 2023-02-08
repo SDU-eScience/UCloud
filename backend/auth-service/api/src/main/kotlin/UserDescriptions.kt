@@ -14,7 +14,7 @@ import kotlinx.serialization.builtins.serializer
 data class LookupUsersRequest(val users: List<String>)
 
 @Serializable
-data class UserLookup(val subject: String, val uid: Long, val role: Role)
+data class UserLookup(val subject: String, val role: Role)
 
 @Serializable
 data class LookupUsersResponse(val results: Map<String, UserLookup?>)
@@ -85,12 +85,6 @@ data class ChangePasswordRequest(val currentPassword: String, val newPassword: S
 
 @Serializable
 data class ChangePasswordWithResetRequest(val userId: String, val newPassword: String)
-
-@Serializable
-data class LookupUIDRequest(val uids: List<Long>)
-
-@Serializable
-data class LookupUIDResponse(val users: Map<Long, UserLookup?>)
 
 object UserDescriptions : CallDescriptionContainer("auth.users") {
     const val baseContext = "/auth/users"
@@ -302,24 +296,6 @@ ${ApiConventions.nonConformingApiWarning}
                 using(baseContext)
                 +"lookup"
                 +"with-email"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val lookupUID = call("lookupUID", LookupUIDRequest.serializer(), LookupUIDResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"lookup-uid"
             }
 
             body { bindEntireRequestFromBody() }

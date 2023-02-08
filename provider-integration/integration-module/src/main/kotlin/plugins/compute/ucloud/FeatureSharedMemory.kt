@@ -12,6 +12,6 @@ object FeatureSharedMemory : JobFeature {
     override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         val product = resources.findResources(job).product
         val sizeInGigs = product.memoryInGigs ?: 1
-        builder.mountSharedMemory((sizeInGigs * 1024).toLong())
+        builder.mountSharedMemory((sizeInGigs * 1000).toLong())
     }
 }

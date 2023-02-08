@@ -314,7 +314,7 @@ export function copyToClipboard({value, message}: CopyToClipboard): void {
 }
 
 export function errorMessageOrDefault(
-    err: {request: XMLHttpRequest; response: any} | {status: number; response: string} | string,
+    err: {request: XMLHttpRequest; response: any} | {status: number; response: string} | string | any,
     defaultMessage: string
 ): string {
     if (!navigator.onLine) return "You seem to be offline.";
@@ -444,7 +444,6 @@ export function parseJWT(encodedJWT: string): JWT | null {
     const decoded = b64DecodeUnicode(right);
     const parsed = JSON.parse(decoded);
     const isValid = "sub" in parsed &&
-        "uid" in parsed &&
         "aud" in parsed &&
         "role" in parsed &&
         "iss" in parsed &&

@@ -483,9 +483,9 @@ function IngressEntry({id}: {id: string}): JSX.Element {
     const [ingress] = useCloudAPI<Ingress | null>(IngressApi.retrieve({id}), null);
     if (ingress.data == null) return <div />
     const {domain} = ingress.data.specification;
-    const httpDomain = domain.startsWith("https://") ? domain : "https://" + domain;
+
     return <Truncate width={1}>
-        <ExternalLink title={domain} href={httpDomain}>{domain}</ExternalLink>
+        <Link to={`/applications/web/${id}/${0}?hide-frame`} target={"_blank"}>{domain}</Link>
     </Truncate>
 }
 

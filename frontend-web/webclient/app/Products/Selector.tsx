@@ -1,12 +1,11 @@
-import { priceExplainer, Product, ProductCompute, ProductType } from "@/Accounting";
+import {priceExplainer, Product, productCategoryEquals, ProductCompute, ProductType} from "@/Accounting";
 import { Client } from "@/Authentication/HttpClientInstance";
 import { NoResultsCardBody } from "@/Dashboard/Dashboard";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import { connectionState } from "@/Providers/ConnectionState";
 import { ProviderLogo } from "@/Providers/ProviderLogo";
-import { getProviderTitle, ProviderTitle } from "@/Providers/ProviderTitle";
-import { Box, Button, Icon, Input, Link, theme } from "@/ui-components";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import { getProviderTitle } from "@/Providers/ProviderTitle";
+import {Box, Button, Icon, Input, Link, theme, Tooltip} from "@/ui-components";
 import Table, { TableCell, TableRow } from "@/ui-components/Table";
 import { useUState } from "@/Utilities/UState";
 import { grantsLink, stopPropagation } from "@/UtilityFunctions";
@@ -14,6 +13,8 @@ import * as React from "react";
 import ReactDOM from "react-dom";
 import styled from "styled-components";
 import { boxShadow, BoxShadowProps } from "styled-system";
+import {ResolvedSupport} from "@/UCloud/ResourceApi";
+import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
 
 const NEED_CONNECT = "need-connection";
 
@@ -22,6 +23,7 @@ const dropdownPortal = "product-selector-portal";
 
 export const ProductSelector: React.FunctionComponent<{
     products: Product[];
+    support?: ResolvedSupport[];
     selected: Product | null;
     type?: ProductType;
     slim?: boolean;
@@ -126,7 +128,7 @@ export const ProductSelector: React.FunctionComponent<{
     const minimumWidth = 500 + headers.length * 90;
     let dialogWidth = Math.min(Math.max(minimumWidth, boxRect.width), window.innerWidth - boxRect.x - 16);
     {
-        const dialogOutOfBounds = (): boolean => dialogX <= 0 || dialogY <= 0 || 
+        const dialogOutOfBounds = (): boolean => dialogX <= 0 || dialogY <= 0 ||
             dialogY + dialogHeight >= window.innerHeight || dialogHeight < 200;
 
         // Attempt to move the dialog box up a bit
@@ -252,7 +254,7 @@ export const ProductSelector: React.FunctionComponent<{
             <Icon name="chevronDown" />
         </SelectorBox>
 
-        {!isOpen ? null : 
+        {!isOpen ? null :
             ReactDOM.createPortal(
                 <SelectorDialog style={{ left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight }} onClick={stopPropagation}>
                     {props.loading && props.products.length === 0 ? <>
@@ -315,7 +317,15 @@ export const ProductSelector: React.FunctionComponent<{
                                                 }
                                             </tr>
                                         } else {
-                                            const isDisabled = connectionState.canConnectToProvider(p.category.provider);
+                                            const maintenance = (props.support ?? []).find(s =>
+                                                s.product.name === p.name &&
+                                                    productCategoryEquals(s.product.category, p.category)
+                                            )?.support?.maintenance;
+
+                                            const isDisabled =
+                                                connectionState.canConnectToProvider(p.category.provider) ||
+                                                (maintenance?.availability === "NO_SERVICE" && !shouldAllowMaintenanceAccess());
+
                                             const onClick = () => {
                                                 if (isDisabled) return;
                                                 props.onSelect(p);
@@ -323,7 +333,22 @@ export const ProductSelector: React.FunctionComponent<{
                                             }
 
                                             return <TableRow key={i} onClick={onClick} className={isDisabled ? "disabled" : undefined}>
-                                                <TableCell><ProviderLogo providerId={p.category.provider} size={24} /></TableCell>
+                                                <TableCell>
+                                                    {maintenance ?
+                                                        <Tooltip
+                                                            trigger={
+                                                                <Icon
+                                                                    name="warning"
+                                                                    color={maintenanceIconColor(maintenance)}
+                                                                    size={24}
+                                                                />
+                                                            }
+                                                        >
+                                                            {explainMaintenance(maintenance)}
+                                                        </Tooltip> :
+                                                        <ProviderLogo providerId={p.category.provider} size={24} />
+                                                    }
+                                                </TableCell>
                                                 <TableCell><ProductName product={p} /></TableCell>
                                                 <ProductStats product={p} />
                                                 <TableCell>{priceExplainer(p)}</TableCell>

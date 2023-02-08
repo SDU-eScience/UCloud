@@ -175,7 +175,14 @@ fun main(args: Array<String>) {
                 val configurator = JoranConfigurator()
                 configurator.context = ctx
                 ctx.reset()
-                configurator.doConfigure(logbackConfiguration(logDir, config.core.providerId, logModule).encodeToByteArray().inputStream())
+                configurator.doConfigure(
+                    logbackConfiguration(
+                        logDir,
+                        config.core.providerId,
+                        logModule,
+                        config.core.logs.preferStdout
+                    ).encodeToByteArray().inputStream()
+                )
             }
 
             run {
@@ -695,6 +702,8 @@ fun main(args: Array<String>) {
             if (serverMode is ServerMode.Plugin || serverMode == ServerMode.Server) {
                 registerAlwaysOnCommandLines(controllerContext)
             }
+
+            MaintenanceSystem.initialize(controllerContext)
 
             if (serverMode is ServerMode.Plugin) {
                 cli?.execute(serverMode.name) // NOTE(Dan): Will always exit here

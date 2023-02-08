@@ -1,6 +1,8 @@
 import * as React from "react";
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {
+    Maintenance,
+    MaintenanceAvailability,
     ResolvedSupport,
     Resource,
     ResourceAclEntry,
@@ -21,7 +23,7 @@ import {Operations} from "@/ui-components/Operation";
 import {dateToString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/MainContainer/MainContainer";
 import {NamingField} from "@/UtilityComponents";
-import {doNothing, preventDefault, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
+import {doNothing, preventDefault, randomUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useSidebarPage} from "@/ui-components/Sidebar";
 import * as Heading from "@/ui-components/Heading";
@@ -47,6 +49,10 @@ import {useProject} from "@/Project/cache";
 import {useUState} from "@/Utilities/UState";
 import {connectionState} from "@/Providers/ConnectionState";
 import {ProductSelector} from "@/Products/Selector";
+import {sendNotification} from "@/Notifications";
+import {accounting} from "@/UCloud";
+import ProductReference = accounting.ProductReference;
+import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -138,6 +144,9 @@ function setStoredFilters(title: string, filters: Record<string, string>) {
     localStorage.setItem(`${title}:filters`, JSON.stringify(filters));
 }
 
+const maintenanceNotificationsSent = new Set<string>();
+let nextMaintenanceNotification = 0;
+
 export function ResourceBrowse<Res extends Resource, CB = undefined>(
     {
         onSelect, api, ...props
@@ -183,6 +192,11 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
 
     const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
+    const findMaintenanceStatus = (pRef: ProductReference): Maintenance | null | undefined => {
+        const productWithSupport = productsWithSupport.data.productsByProvider[pRef.provider]?.find(it =>
+            it.product.name === pRef.id && it.product.category.name === pRef.category);
+        return productWithSupport?.support?.maintenance;
+    };
     useEffect(() => {
         fetchProductsWithSupport(api.retrieveProducts())
     }, [Client.projectId]);
@@ -385,11 +399,35 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
         const renderer: ItemRenderer<Res> = {...api.renderer};
         const RemainingStats = renderer.Stats;
         const NormalMainTitle = renderer.MainTitle;
+        const NormalIcon = renderer.Icon;
         const RemainingImportantStats = renderer.ImportantStats;
+        renderer.Icon = function icon(params) {
+            if (!params.resource) return NormalIcon ? <NormalIcon {...params} /> : null;
+            const maintenance = findMaintenanceStatus(params.resource.specification.product);
+            if (maintenance && !shouldAllowMaintenanceAccess()) {
+                return <Tooltip
+                    trigger={<Icon name={"warning"} size={params.size} color={maintenanceIconColor(maintenance)} />}
+                >
+                    {explainMaintenance(maintenance)}
+                </Tooltip>
+            }
+            return NormalIcon ? <NormalIcon {...params} /> : null;
+        };
         renderer.MainTitle = function mainTitle({resource}) {
+            const support = useMemo(() => {
+                const productsByProvider = productsWithSupport.data.productsByProvider;
+                const items: ResolvedSupport[] = [];
+                for (const provider of Object.keys(productsByProvider)) {
+                    const providerProducts = productsByProvider[provider];
+                    // TODO(Dan): We need to fix some of these types soon. We are still using a lot of the old generated stuff.
+                    for (const item of providerProducts) items.push((item as unknown) as ResolvedSupport);
+                }
+                return items;
+            }, [productsWithSupport.data]);
+
             if (resource === undefined) {
                 return !selectedProduct ?
-                    <ProductSelector products={products} onSelect={onProductSelected} selected={null} slim />
+                    <ProductSelector products={products} support={support} onSelect={onProductSelected} selected={null} slim />
                     :
                     <NamingField
                         confirmText={"Create"}
@@ -496,6 +534,45 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
     const pageSize = useRef(0);
 
     const navigateCallback = useCallback((item: Res) => {
+        const pRef = item.specification.product;
+        const maintenance = findMaintenanceStatus(pRef);
+        if (maintenance) {
+            const availability = maintenance.availability;
+            const now = timestampUnixMs();
+
+            if (now > nextMaintenanceNotification || !shouldAllowMaintenanceAccess()) {
+                nextMaintenanceNotification = now + (1000 * 60 * 2);
+
+                const pRefString = `${pRef.id}/${pRef.category}/${pRef.provider}`;
+                if (!maintenanceNotificationsSent.has(pRefString)) {
+                    maintenanceNotificationsSent.add(pRefString);
+
+                    sendNotification({
+                        icon: "warning",
+                        iconColor: maintenanceIconColor(maintenance),
+                        title: `${pRef.category} is under maintenance`,
+                        body: maintenance.description,
+                        isPinned: false,
+                        uniqueId: randomUUID(),
+                        onAction: () => {
+                            const anchor = document.createElement("a");
+                            anchor.target = "_blank";
+                            anchor.href = "https://status.cloud.sdu.dk";
+                            document.body.append(anchor);
+                            anchor.click();
+                            anchor.remove();
+                        },
+                    });
+                } else {
+                    snackbarStore.addFailure(`${pRef.category} is under maintenance`, false);
+                }
+            }
+
+            if (availability === MaintenanceAvailability.NO_SERVICE) {
+                if (!shouldAllowMaintenanceAccess()) return;
+            }
+        }
+
         if (providerConnection.canConnectToProvider(item.specification.product.provider)) {
             snackbarStore.addFailure("You must connect to the provider before you can consume resources", true);
             return;
