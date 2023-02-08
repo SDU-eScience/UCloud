@@ -59,18 +59,22 @@ node {
             endIndex = log.length()-1
         }
 
-
-        sendAlert("""\
-            :warning: BuildFailed on ${env.BRANCH_NAME} :warning:
-
-            ${log.substring(startIndex, endIndex)}
-        """.stripIndent()
-        )
-
         if(log.substring(startIndex, endIndex).contains("Compilation error")) {
             compileFail = true
         } 
-        throw e
+
+        if (compileFail) {
+            sendAlert("""\
+                :warning: Build failed on ${env.BRANCH_NAME} :warning:
+
+                Does not compile
+
+                ${log.substring(startIndex, endIndex)}
+            """.stripIndent()
+            )
+
+            throw e
+        }
     }
     
 
