@@ -133,11 +133,11 @@ node {
         }
 
 
-        //sendAlert("""\
-        //    :warning: BuildFailed on ${env.BRANCH_NAME} :warning:
-//
-//            ${log.substring(startIndex, endIndex)}
-  //      """.stripIndent()
+        sendAlert("""\
+            :warning: Integration Test on ${env.BRANCH_NAME} failed :warning:
+
+            ${log.substring(startIndex, endIndex)}
+        """.stripIndent()
     //    )
 
         if(log.substring(startIndex, endIndex).contains("Compilation error")) {
