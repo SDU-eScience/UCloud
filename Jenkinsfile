@@ -15,8 +15,6 @@ node {
     def compileFail = false
     def testFail = false
 
-    currentBuild.result = "FAILURE"
-
     echo (jobName)
     //Make check on PR creator and specific branches. master, staging, PRs
     stage('Checkout') {
@@ -181,10 +179,10 @@ node {
         """
 
         if(compileFail) {
-            setBuildResult('FAILURE')
+            currentBuild.result = "FAILURE"
         } 
         if(testFail) {
-            setBuildResult('UNSTABLE')
+            currentBuild.result = "UNSTABLE"
         }
     }
 }
