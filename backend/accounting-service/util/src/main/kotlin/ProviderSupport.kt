@@ -12,6 +12,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.toReadableStacktrace
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
 import kotlin.coroutines.coroutineContext
@@ -65,8 +66,7 @@ class ProviderSupport<Communication : ProviderComms, P : Product, Support : Prod
                         .thenComparing<String> { it.product.name }
                 )
             }.getOrElse {
-                log.debug("Unable to fetch support for $provider")
-                log.debug(it.stackTraceToString())
+                log.info("Unable to fetch support for $provider\n${it.toReadableStacktrace()}")
                 null
             }
         }
