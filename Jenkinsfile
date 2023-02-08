@@ -145,6 +145,15 @@ node {
         } else {
             testFail = true
         }
+
+        if(compileFail) {
+            setBuildResult('FAILURE')
+        } 
+        if(testFail) {
+            setBuildResult('UNSTABLE')
+        }
+
+        throw e
     }
     finally {
         junit '**/build/test-results/**/*.xml'
