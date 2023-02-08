@@ -59,6 +59,9 @@ node {
         ./launcher snapshot ${jobName}
     """
 
+    def compileFail = false
+    def testFail = false
+
     //run test
 
     try {
@@ -88,12 +91,18 @@ node {
         }
 
 
-        sendAlert("""\
-            :warning: BuildFailed :warning:
+        //sendAlert("""\
+        //    :warning: BuildFailed on ${env.BRANCH_NAME} :warning:
+//
+//            ${log.substring(startIndex, endIndex)}
+  //      """.stripIndent()
+    //    )
 
-            ${log.substring(startIndex, endIndex)}
-        """.stripIndent()
-        )
+        if(log.substring(startIndex, endIndex).contains("Compilation error")) {
+            compileFail = true
+        } else {
+            testFail = true
+        }
     }
     finally {
         junit '**/build/test-results/**/*.xml'
@@ -126,6 +135,13 @@ node {
 
             rm -rf ./tmp
         """
+
+        if(compileFail) {
+            setBuildResult('FAILURE')
+        } 
+        if(testFail) {
+            setBuildResult('UNSTABLE')
+        }
     }
 }
 
