@@ -116,6 +116,7 @@ node {
             export UCLOUD_LAUNCHER=\$PWD/launcher
             export UCLOUD_TEST_SNAPSHOT=${jobName} 
             cd integration-test 
+            pwd
             ./gradlew integrationtest
         """
     }
