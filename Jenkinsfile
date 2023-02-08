@@ -15,6 +15,8 @@ node {
     def compileFail = false
     def testFail = false
 
+    setBuildResult('FAILURE')
+
     echo (jobName)
     //Make check on PR creator and specific branches. master, staging, PRs
     stage('Checkout') {
@@ -145,15 +147,6 @@ node {
         } else {
             testFail = true
         }
-
-        if(compileFail) {
-            setBuildResult('FAILURE')
-        } 
-        if(testFail) {
-            setBuildResult('UNSTABLE')
-        }
-
-        throw e
     }
     finally {
         junit '**/build/test-results/**/*.xml'
