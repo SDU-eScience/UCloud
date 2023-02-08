@@ -10,6 +10,7 @@ class AvatarService(
     private val dao: AvatarAsyncDao
 ) {
     suspend fun upsert(user: String, avatar: Avatar) {
+        printl("jgkal")
         db.withSession{ dao.upsert(it, user, avatar) }
     }
 
