@@ -15,7 +15,7 @@ node {
     def compileFail = false
     def testFail = false
 
-    setBuildResult('FAILURE')
+    currentBuild.result = "FAILURE"
 
     echo (jobName)
     //Make check on PR creator and specific branches. master, staging, PRs
