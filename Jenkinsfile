@@ -14,7 +14,12 @@ node {
 
     def compileFail = false
     def testFail = false
-
+    def branchName = ""
+    if (env.BRANCH_NAME.startsWith("PR-")) {
+        branchName = env.CHANGE_BRANCH
+    } else {
+        env.BRANCH_NAME
+    }
     echo (jobName)
     //Make check on PR creator and specific branches. master, staging, PRs
     stage('Checkout') {
@@ -22,7 +27,7 @@ node {
             [
                 $class                           : 'GitSCM',
                 branches                         : [
-                    [name: env.BRANCH_NAME]
+                    [name: branchName]
                 ],
                 doGenerateSubmoduleConfigurations: false,
                 extensions                       : [],
