@@ -411,17 +411,17 @@ class DebugContextDescriptor(buf: ByteBuffer, ptr: Int) : BinaryFrame(buf, ptr) 
     override val schema = Schema
 
     companion object Schema : BinaryFrameSchema() {
-        val parent = int4()
-        val id = int4()
+        val parent = int4()                        // 4
+        val id = int4()                            // 4 + 4
 
-        val importance = enum<MessageImportance>()
-        val type = enum<DebugContextType>()
-        val timestamp = int8()
-        val rsv1 = int1()
-        val rsv2 = int1()
+        val importance = enum<MessageImportance>() // 4 + 4 + 1
+        val type = enum<DebugContextType>()        // 4 + 4 + 1 + 1
+        val timestamp = int8()                     // 4 + 4 + 1 + 1 + 8
+        val rsv1 = int1()                          // 4 + 4 + 1 + 1 + 8 + 1
+        val rsv2 = int1()                          // 4 + 4 + 1 + 1 + 8 + 1 + 1
 
-        val name = bytes(108)
-        val children = bytes(256)
+        val name = bytes(108)                // 4 + 4 + 1 + 1 + 8 + 1 + 1 + (108 + 2)
+        val children = bytes(256)            // 4 + 4 + 1 + 1 + 8 + 1 + 1 + (108 + 2) + (256 + 2) = 388
     }
 }
 

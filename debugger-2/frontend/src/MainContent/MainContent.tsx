@@ -1,5 +1,5 @@
 import * as React from "react";
-import {DBTransactionEvent, DebugContext, DebugContextType, getEvent, Log, MessageImportance} from "../WebSockets/Schema";
+import {DBTransactionEvent, DebugContext, DebugContextType, getEvent, Log, MessageImportance, messageImportanceToString} from "../WebSockets/Schema";
 import {activeService, DebugContextAndChildren, isLog, logStore, replayMessages} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList as List} from "react-window";
@@ -134,28 +134,40 @@ function isOdd(importance: MessageImportance): boolean {
 function RequestDetails({activeContext}: {activeContext: LogOrCtx | undefined}): JSX.Element {
     if (!activeContext) return <div />;
     return <div className="card details flex">
-        <RequestDetailsByType activeContext={activeContext} />
+        <RequestDetailsByType activeContextOrLog={activeContext} />
     </div>;
 }
 
-function RequestDetailsByType({activeContext}: {activeContext: LogOrCtx}): JSX.Element {
-    if (isLog(activeContext)) {
-        return <div>{activeContext.message.previewOrContent}</div>
+const DATE_FORMAT = new Intl.DateTimeFormat("en-UK", {dateStyle: "short", timeStyle: "long"});
+
+function RequestDetailsByType({activeContextOrLog}: {activeContextOrLog: LogOrCtx}): JSX.Element {
+    if (isLog(activeContextOrLog)) {
+        return <>
+            <div className="card query">
+                <LogText />
+            </div>
+            <div className="card query-details">
+                Timestamp: {DATE_FORMAT.format(activeContextOrLog.timestamp)}<br/>
+                Type: {activeContextOrLog.typeString}<br/>
+                Context ID: {activeContextOrLog.ctxId}<br/>
+                Importance: {messageImportanceToString(activeContextOrLog.importance)}
+            </div>
+        </>
     }
 
-    switch (activeContext.type) {
+    switch (activeContextOrLog.type) {
         case DebugContextType.DATABASE_TRANSACTION:
-            const event = getEvent(activeContext);
+            const event = getEvent(activeContextOrLog);
             const asString = DBTransactionEvent[event];
             return <>
                 <div className="card query">
                     DATABASE_TRANSACTION
                     {event}, {asString}
-                    <pre>{activeContext.name}</pre>
+                    <pre>{activeContextOrLog.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
-                        {activeContext.id}
+                        {activeContextOrLog.id}
                     </pre>
                 </div>
             </>;
@@ -163,11 +175,11 @@ function RequestDetailsByType({activeContext}: {activeContext: LogOrCtx}): JSX.E
             return <>
                 <div className="card query">
                     SERVER_REQUEST
-                    <pre>{activeContext.name}</pre>
+                    <pre>{activeContextOrLog.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
-                        {activeContext.id}
+                        {activeContextOrLog.id}
                     </pre>
                 </div>
             </>;
@@ -175,11 +187,11 @@ function RequestDetailsByType({activeContext}: {activeContext: LogOrCtx}): JSX.E
             return <>
                 <div className="card query">
                     CLIENT_REQUEST
-                    <pre>{activeContext.name}</pre>
+                    <pre>{activeContextOrLog.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
-                        {activeContext.id}
+                        {activeContextOrLog.id}
                     </pre>
                 </div>
             </>;
@@ -187,11 +199,11 @@ function RequestDetailsByType({activeContext}: {activeContext: LogOrCtx}): JSX.E
             return <>
                 <div className="card query">
                     BACKGROUND_TASK
-                    <pre>{activeContext.name}</pre>
+                    <pre>{activeContextOrLog.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
-                        {activeContext.id}
+                        {activeContextOrLog.id}
                     </pre>
                 </div>
             </>;
@@ -199,15 +211,21 @@ function RequestDetailsByType({activeContext}: {activeContext: LogOrCtx}): JSX.E
             return <>
                 <div className="card query">
                     OTHER TODO
-                    <pre>{activeContext.name}</pre>
+                    <pre>{activeContextOrLog.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
-                        {activeContext.id}
+                        {activeContextOrLog.id}
                     </pre>
                 </div>
             </>;
     }
+}
+
+
+
+function LogText(): JSX.Element {
+    return <div />
 }
 
 function BreadCrumbs({routeComponents, setRouteComponents, clearContext}: {clearContext(): void; routeComponents: LogOrCtx[]; setRouteComponents: React.Dispatch<React.SetStateAction<LogOrCtx[]>>}): JSX.Element {

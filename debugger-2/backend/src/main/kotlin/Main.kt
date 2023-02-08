@@ -380,7 +380,7 @@ suspend fun ClientSession.findLogs(startTime: Long, endTime: Long, directory: Fi
         while (logFile.next()) {
             val currentEntry = logFile.retrieve() ?: break@outer
             if (currentEntry.timestamp < startTime) continue // keep looking
-            if (currentEntry.timestamp > endTime)  break@outer // finished
+            if (currentEntry.timestamp > endTime) break@outer // finished
 
             if (currentEntry.ctxId.toLong() in activeContexts) {
                 logCount++
@@ -422,8 +422,7 @@ sealed class ClientRequest {
         val query: String?,
         val filters: List<DebugContextType>?,
         val level: MessageImportance?
-    ) :
-        ClientRequest()
+    ) : ClientRequest()
 
     @Serializable
     @SerialName("clear_active_context")
@@ -574,9 +573,6 @@ data class ClientSession(
     }
 
     suspend fun acceptService(serviceName: String, generation: Long) {
-        // NOTE(Jonas): An additional byte (type) is in the buffer ahead of this, making it 264 bytes long in total.
-        val MAX_GENERATION_LENGTH = 16
-        val MAX_SERVICENAME_LENGTH = 256 - MAX_GENERATION_LENGTH
 
         writeMutex.withLock {
             val encodedServiceName = serviceName.encodeToByteArray()
@@ -597,3 +593,7 @@ data class ClientSession(
         }
     }
 }
+
+// NOTE(Jonas): An additional byte (type) is in the buffer ahead of this, making it 264 bytes long in total.
+const val MAX_GENERATION_LENGTH = 16
+const val MAX_SERVICENAME_LENGTH = 256 - MAX_GENERATION_LENGTH
