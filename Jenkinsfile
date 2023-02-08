@@ -138,7 +138,7 @@ node {
 
             ${log.substring(startIndex, endIndex)}
         """.stripIndent()
-    //    )
+        )
 
         if(log.substring(startIndex, endIndex).contains("Compilation error")) {
             compileFail = true
