@@ -11,6 +11,10 @@ properties([
 node {
     sh label: '', script: 'java -version'
     def jobName = "t"+currentBuild.startTimeInMillis
+
+    def compileFail = false
+    def testFail = false
+
     echo (jobName)
     //Make check on PR creator and specific branches. master, staging, PRs
     stage('Checkout') {
@@ -32,6 +36,43 @@ node {
             ]
         )
     }
+
+    try {
+        sh script: """
+            cd backend
+            ./gradlew build
+        """    
+    }
+    catch(Exception e) {
+        def logArray = currentBuild.rawBuild.getLog(50)
+        def log = ""
+        for (String s : logArray)
+        {
+            log += s + " ";
+        }
+        def startIndex = log.indexOf("FAILURE: Build failed with an exception")
+        def endIndex = log.indexOf("* Try:")
+        if (startIndex == -1) {
+            startIndex = 0
+        }
+        if (endIndex == -1) {
+            endIndex = log.length()-1
+        }
+
+
+        sendAlert("""\
+            :warning: BuildFailed on ${env.BRANCH_NAME} :warning:
+
+            ${log.substring(startIndex, endIndex)}
+        """.stripIndent()
+        )
+
+        if(log.substring(startIndex, endIndex).contains("Compilation error")) {
+            compileFail = true
+        } 
+        throw e
+    }
+    
 
     //Delete current environment if any
 
@@ -58,9 +99,6 @@ node {
     sh script: """
         ./launcher snapshot ${jobName}
     """
-
-    def compileFail = false
-    def testFail = false
 
     //run test
 
