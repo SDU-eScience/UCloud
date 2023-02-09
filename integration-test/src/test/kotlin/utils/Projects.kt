@@ -152,7 +152,6 @@ suspend fun addMemberToProject(
     username: String,
     role: ProjectRole = ProjectRole.USER
 ) {
-    prinl()
     Projects.createInvite.call(
         bulkRequestOf(
             ProjectsCreateInviteRequestItem(username)
