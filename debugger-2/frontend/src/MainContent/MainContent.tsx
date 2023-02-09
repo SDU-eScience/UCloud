@@ -1,6 +1,6 @@
 import * as React from "react";
 import {DBTransactionEvent, DebugContext, DebugContextType, getEvent, Log, MessageImportance, messageImportanceToString} from "../WebSockets/Schema";
-import {activeService, DebugContextAndChildren, isLog, logStore, replayMessages} from "../WebSockets/Socket";
+import {activeService, DebugContextAndChildren, fetchTextBlob, isLog, logStore, replayMessages} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -230,18 +230,20 @@ type LogMessageExtraCache = Record<number, MessageAndString | undefined>;
 const LOG_MESSAGE_CACHE: LogMessageExtraCache = {}
 
 function LogText({log}: {log: Log}): JSX.Element {
-    const hasMessageOverflow = log.message.overflowIdentifier;
-    const hasExtraOverflow = log.extra.overflowIdentifier;
+    const messageOverflow = log.message.overflowIdentifier;
+    const extraOverflow = log.extra.overflowIdentifier;
     React.useEffect(() => {
-        if (hasMessageOverflow === undefined) return;
+        if (messageOverflow === undefined) return;
         if (LOG_MESSAGE_CACHE[log.id]?.message) return;
         // fetch message!
-        console.log("will fetch message");
-        if (hasExtraOverflow === undefined) return;
+        fetchTextBlob(activeService.generation, messageOverflow);
+        console.log("will fetch message", messageOverflow);
+        if (extraOverflow === undefined) return;
         if (LOG_MESSAGE_CACHE[log.id]?.extra) return;
         // fetch extra!
-        console.log("will fetch extra");
-    }, [hasMessageOverflow, hasExtraOverflow, log.id]);
+        fetchTextBlob(activeService.generation, extraOverflow);
+        console.log("will fetch extra", extraOverflow);
+    }, [messageOverflow, extraOverflow, log]);
     return <pre>
         {log.message.previewOrContent}<br />
         {log.extra.previewOrContent}<br />

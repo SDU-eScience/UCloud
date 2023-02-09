@@ -29,21 +29,27 @@ export interface LargeText {
 
 const textDecoder = new TextDecoder();
 
+const OVERFLOW_PREFIX = "#OF#";
+const OVERFLOW_SEP = "#";
 function readText(buffer: DataView, offset: number, maxSize: number): LargeText {
     const u8a = new Uint8Array(buffer.buffer);
     let slice = u8a.slice(offset, offset + maxSize);
     const endIndex = slice.indexOf(0);
     slice = u8a.slice(offset, offset + endIndex);
     const decodedSlice = textDecoder.decode(slice);
-    if (decodedSlice.startsWith("#OF#")) {
+    if (decodedSlice.startsWith(OVERFLOW_PREFIX)) {
         const withoutPrefix = decodedSlice.substring(4);
-        const posIdx = withoutPrefix.indexOf("#");
+        console.log(decodedSlice);
+        //#OF#47125#👾 Log with text so long, that is starts to go into the overflow buffer that we sometimes need to be able to acces
+        const posIdx = withoutPrefix.indexOf(OVERFLOW_SEP);
         if (posIdx <= -1) {
             return {previewOrContent: "Invalid blob"};
         }
 
-        const overflowIdentifier = decodedSlice.substring(0, posIdx);
-        const previewOrContent = decodedSlice.substring(posIdx + 1);
+        const overflowIdentifier = withoutPrefix.substring(0, posIdx);
+        console.log("overflowIdentifier", overflowIdentifier);
+        const previewOrContent = withoutPrefix.substring(posIdx + 1);
+        console.log("previewOrContent", previewOrContent)
         return {previewOrContent, overflowIdentifier};
     }
 
@@ -217,7 +223,7 @@ export function getEvent(ctx: DebugContext): DBTransactionEvent {
     // TODO(Jonas): Not ideal.
     return readInt1((ctx as any).buffer, (ctx as any).offset + 22 + 108);
 }
- 
+
 function readNameFromBuffer(buffer: DataView, offset: number, size: number) {
     const nameBytes = readBytes(buffer, offset, size);
     let end = nameBytes.indexOf(0);

@@ -57,20 +57,22 @@ function initializeSocket() {
 
             case 3: {
                 const numberOfEntries = (message.length - 8) / 256;
-                const messages: string[] = []
                 for (let i = 0; i < numberOfEntries; i++) {
                     const log = new Log(view, 8 + i * 256);
-                    messages.push(log.message.previewOrContent);
                     logStore.addLog(log);
                 }
-                console.log(messages);
                 logStore.emitChange();
-                console.log(logStore.ctxMap);
-                console.log(logStore.entryCount);
+                break;
+            }
+            case 4: {
+                console.log("hello");
+                // We already have the type here (Blob) - Long
+                // Get length of blob - Int
+                // Get text - Int value length
                 break;
             }
             default: {
-                console.log(Number(view.getBigInt64(0, false)))
+                console.log("preceding number we got", Number(view.getBigInt64(0, false)))
             }
         }
     };
@@ -298,6 +300,20 @@ export function setSessionStateRequest(query: string | null, filters: string[] |
         query: query,
         filters: filters,
         level: level,
+    });
+}
+
+export function fetchTextBlob(generation: string, blobId: string): void {
+    if (!isSocketReady(socket)) return;
+    const req = fetchTextBlobRequest(generation, blobId);
+    socket.send(req);
+}
+
+function fetchTextBlobRequest(generation: string, blobId: string) {
+    return JSON.stringify({
+        type: "fetch_text_blob",
+        generation,
+        id: blobId  
     });
 }
 

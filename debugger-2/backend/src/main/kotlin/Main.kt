@@ -296,8 +296,19 @@ fun main(args: Array<String>) {
                                 session.filters = request.filters
                             }
 
-                            is ClientRequest.GetTextBlob -> {
-                                TODO()
+                            is ClientRequest.FetchTextBlob -> {
+                                val generation = request.generation.toLong()
+                                val id = request.id.toInt()
+                                val result = findBlobEntry(directory, generation, id)
+                                if (result != null) {
+                                    val newBlobWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(result.size + 8)
+                                    newBlobWriteBuffer.putLong(4)
+                                    // Note(Jonas): We should probably put the blob length here as well.
+                                    newBlobWriteBuffer.putInt(result.size)
+                                    newBlobWriteBuffer.put(result)
+                                    session.session.send(Frame.Binary(true, newBlobWriteBuffer))
+                                    // Note(Jonas): Anything else we need to do? E.g. cleaning?
+                                }
                             }
                         }
                     }
@@ -406,6 +417,15 @@ suspend fun ClientSession.findLogs(startTime: Long, endTime: Long, directory: Fi
     flushLogsMessage()
 }
 
+fun findBlobEntry(directory: File, generation: Long, blobId: Int): ByteArray? {
+    var fileId = 0
+    outer@ while (BlobSystem.exists(directory, generation, fileId++)) {
+        val blobSystem = BlobSystem(directory, generation, fileId)
+        return blobSystem.getBlob(blobId) ?: continue
+    }
+    return null
+}
+
 @Serializable
 sealed class ClientRequest {
     @Serializable
@@ -429,8 +449,8 @@ sealed class ClientRequest {
     object ClearActiveContext : ClientRequest()
 
     @Serializable
-    @SerialName("get_text_blob")
-    data class GetTextBlob(val id: String) : ClientRequest()
+    @SerialName("fetch_text_blob")
+    data class FetchTextBlob(val id: String, val generation: String) : ClientRequest()
 }
 
 data class ClientSession(

@@ -30,8 +30,6 @@ import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 import kotlin.math.max
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
 
 class BinaryFrameAllocator(
     private val directory: File,
@@ -208,7 +206,6 @@ class BinaryDebugSystem(
             val arr = ByteArray(field.maxSize)
             prefix.encodeToByteArray().copyInto(arr)
             encoded.copyInto(arr, prefix.length, endIndex = previewSize)
-
             LargeText(arr)
         } else {
             return LargeText(encoded)
@@ -644,13 +641,17 @@ suspend fun BinaryDebugSystem.log(
     }
 }
 
+fun buildBlobFilePath(generation: Long, fileIdx: Int): String {
+    return "$generation-$fileIdx.blob"
+}
+
 class BlobSystem(
     directory: File,
     generation: Long,
     fileIndex: Int
 ) {
     private val channel = FileChannel.open(
-        File(directory, "$generation-$fileIndex.blob").toPath(),
+        File(directory, buildBlobFilePath(generation, fileIndex)).toPath(),
         StandardOpenOption.READ,
         StandardOpenOption.WRITE,
         StandardOpenOption.CREATE,
@@ -667,22 +668,37 @@ class BlobSystem(
         return pos.toString()
     }
 
-    fun getBlob(pos: String): String {
+    fun getBlob(pos: Int): ByteArray? {
         return try {
-            val id = pos.toInt()
-            val size = buf.getInt(id)
-            ByteArray(size - id + 4) {
-                buf[id + it]
-            }.decodeToString()
+            /**
+             *  Note(Jonas): Currently, I don't think we don't have any way to ensure that we are in the correct file other than the @LargeText.OVERFLOW_PREFIX and even that may be a coincidence.
+             *  We should at least check that the position is preceded by a OVERFLOW_PREFIX sequence.
+             */
+            var overflowPrefixEntry = ByteArray(LargeText.OVERFLOW_PREFIX.length) {
+                buf[pos + it]
+            }
+            val decoded = overflowPrefixEntry.decodeToString()
+            val size = buf.getInt(pos)
+            val sizeSize = size.toString().length
+            // Note(Jonas): Despite the length of the buffer array being correct, the decoded string seems to be shorter sometimes.
+            ByteArray(size) {
+                buf[pos + it + sizeSize + LargeText.OVERFLOW_SEP.length]
+            }
         } catch (e: NumberFormatException) {
             println(e.stackTraceToString())
-            "Failed to parse id. Or size. or content?"
+            null
         }
     }
 
     fun close() {
         channel.truncate(buf.position().toLong())
         channel.close()
+    }
+
+    companion object {
+        fun exists(directory: File, generation: Long, idx: Int): Boolean {
+            return File(directory, buildBlobFilePath(generation, idx)).exists()
+        }
     }
 }
 
