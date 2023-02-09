@@ -42,11 +42,15 @@ node {
         )
     }
 
+
+    //Delete current environment if any
+
+    cleanDocker()
+
+    //Create new environment with providers installed
+
     try {
-        sh script: """
-            cd backend
-            ./gradlew build
-        """    
+        sh script: 'DEBUG_COMMANDS=true ; ./launcher init --all-providers'
     }
     catch(Exception e) {
         def logArray = currentBuild.rawBuild.getLog(50)
@@ -55,53 +59,16 @@ node {
         {
             log += s + " ";
         }
-        def startIndex = log.indexOf("FAILURE: Build failed with an exception")
-        def endIndex = log.indexOf("* Try:")
-        if (startIndex == -1) {
-            startIndex = 0
-        }
-        if (endIndex == -1) {
-            endIndex = log.length()-1
-        }
-
-        if(log.substring(startIndex, endIndex).contains("Compilation error")) {
-            compileFail = true
-        } 
-
-        if (compileFail) {
+        if (log.contains("BUILD FAILED")) {
             sendAlert("""\
-                :warning: Build failed on ${env.BRANCH_NAME} :warning:
-
-                Does not compile
-
-                ${log.substring(startIndex, endIndex)}
-            """.stripIndent()
+                    :warning: Launcher init on ${env.BRANCH_NAME} failed :warning:
+                """.stripIndent()
             )
-
-            throw e
-        }
+            currentBuild.result = "FAILURE"
+            cleanDocker()
+            return
+        } 
     }
-    
-
-    //Delete current environment if any
-
-    sh script: """
-        docker rm -f \$(docker ps -q) || true
-        docker volume rm -f \$(docker volume ls -q) || true
-        docker network rm  \$(docker network ls -q) || true
-        
-        docker rm -f \$(docker ps -q) || true
-        docker volume rm -f \$(docker volume ls -q) || true
-        docker network rm  \$(docker network ls -q) || true
-        
-        docker volume prune || true
-        docker network prune || true
-        docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
-    """
-
-    //Create new environment with providers installed
-
-    sh script: 'DEBUG_COMMANDS=true ; ./launcher init --all-providers'
 
     //Create Snapshot of DB to test purpose. Use "t"+timestamp for UNIQUE ID
 
@@ -116,7 +83,6 @@ node {
             export UCLOUD_LAUNCHER=\$PWD/launcher
             export UCLOUD_TEST_SNAPSHOT=${jobName} 
             cd integration-test 
-            pwd
             ./gradlew integrationtest
         """
     }
@@ -140,10 +106,10 @@ node {
 
 
         sendAlert("""\
-            :warning: Integration Test on ${env.BRANCH_NAME} failed :warning:
+                :warning: Integration Test on ${env.BRANCH_NAME} failed :warning:
 
-            ${log.substring(startIndex, endIndex)}
-        """.stripIndent()
+                ${log.substring(startIndex, endIndex)}
+            """.stripIndent()
         )
 
         if(log.substring(startIndex, endIndex).contains("Compilation error")) {
@@ -168,21 +134,7 @@ node {
         archiveArtifacts artifacts: 'tmp/log/ucloud/*.log', allowEmptyArchive: true
 
 
-        sh script: """
-            docker rm -f \$(docker ps -q) || true
-            docker volume rm -f \$(docker volume ls -q) || true
-            docker network rm  \$(docker network ls -q) || true
-            
-            docker rm -f \$(docker ps -q) || true
-            docker volume rm -f \$(docker volume ls -q) || true
-            docker network rm  \$(docker network ls -q) || true
-            
-            docker volume prune || true
-            docker network prune || true
-            docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
-
-            rm -rf ./tmp
-        """
+        cleanDocker()
 
         if(compileFail) {
             currentBuild.result = "FAILURE"
@@ -191,6 +143,24 @@ node {
             currentBuild.result = "UNSTABLE"
         }
     }
+}
+
+def cleanDocker() {
+    sh script: """
+        docker rm -f \$(docker ps -q) || true
+        docker volume rm -f \$(docker volume ls -q) || true
+        docker network rm  \$(docker network ls -q) || true
+        
+        docker rm -f \$(docker ps -q) || true
+        docker volume rm -f \$(docker volume ls -q) || true
+        docker network rm  \$(docker network ls -q) || true
+        
+        docker volume prune || true
+        docker network prune || true
+        docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
+
+        rm -rf ./tmp
+    """
 }
 
 
