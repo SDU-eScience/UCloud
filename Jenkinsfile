@@ -58,9 +58,7 @@ node {
         {
             log += s + " ";
         }
-        println(log)
         if (log.contains("BUILD FAILED")) {
-            println("THIS IS FAILING")
             sendAlert("""\
                     :warning: Launcher init on ${env.BRANCH_NAME} failed :warning:
                 """.stripIndent()
@@ -71,23 +69,13 @@ node {
         } 
     }
     catch(Exception e) {
-        def logArray = currentBuild.rawBuild.getLog(50)
-        def log = ""
-        for (String s : logArray)
-        {
-            log += s + " ";
-        }
-        println(log)
-        if (log.contains("BUILD FAILED")) {
-            println("THIS IS FAILING")
-            sendAlert("""\
-                    :warning: Launcher init on ${env.BRANCH_NAME} failed :warning:
-                """.stripIndent()
-            )
-            currentBuild.result = "FAILURE"
-            cleanDocker()
-            return
-        } 
+        sendAlert("""\
+                :warning: Unknown exception in launcher init :warning:
+            """.stripIndent()
+        )
+        currentBuild.result = "FAILURE"
+        cleanDocker()
+        throw e
     }
 
     //Create Snapshot of DB to test purpose. Use "t"+timestamp for UNIQUE ID
