@@ -98,6 +98,8 @@ export interface AcceptInviteLinkRequest {
     token: string;
 }
 
+export interface AcceptInviteLinkResponse {}
+
 
 class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpdate,
     ShareFlags, ShareStatus, ShareSupport> {
