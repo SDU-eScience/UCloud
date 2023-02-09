@@ -153,6 +153,8 @@ class AvatarAsyncDao {
         ctx: DBContext,
         user: String
     ): Avatar {
+
+        prinl()
         return ctx.withSession { session ->
             session
                 .sendPreparedStatement(
