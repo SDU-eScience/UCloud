@@ -59,8 +59,9 @@ node {
         {
             log += s + " ";
         }
+        println(log)
         if (log.contains("BUILD FAILED")) {
-            pritnln("THIS IS FAILING")
+            println("THIS IS FAILING")
             sendAlert("""\
                     :warning: Launcher init on ${env.BRANCH_NAME} failed :warning:
                 """.stripIndent()
