@@ -20,6 +20,7 @@ node {
     } else {
         env.BRANCH_NAME
     }
+    echo branchName
     echo (jobName)
     //Make check on PR creator and specific branches. master, staging, PRs
     stage('Checkout') {
