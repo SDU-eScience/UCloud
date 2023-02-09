@@ -52,12 +52,7 @@ node {
 
     try {
         sh script: 'DEBUG_COMMANDS=true ; ./launcher init --all-providers'
-        def logArray = currentBuild.rawBuild.getLog(50)
-        def log = ""
-        for (String s : logArray)
-        {
-            log += s + " ";
-        }
+        def log = getLog()
         if (log.contains("BUILD FAILED")) {
             sendAlert("""\
                     :warning: Launcher init on ${env.BRANCH_NAME} failed :warning:
@@ -92,17 +87,10 @@ node {
             export UCLOUD_TEST_SNAPSHOT=${jobName} 
             cd integration-test 
             ./gradlew integrationtest
-        """
+        """        
     }
     catch(Exception e) {
-        echo 'EX'
-
-        def logArray = currentBuild.rawBuild.getLog(50)
-        def log = ""
-        for (String s : logArray)
-        {
-            log += s + " ";
-        }
+        def log = getLog()
         def startIndex = log.indexOf("FAILURE: Build failed with an exception")
         def endIndex = log.indexOf("* Try:")
         if (startIndex == -1) {
@@ -169,6 +157,16 @@ def cleanDocker() {
 
         rm -rf ./tmp
     """
+}
+
+String getLog() {
+    def logArray = currentBuild.rawBuild.getLog(50)
+    def log = ""
+    for (String s : logArray)
+    {
+        log += s + " ";
+    }
+    return log
 }
 
 
