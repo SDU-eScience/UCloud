@@ -20,6 +20,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import java.io.File
+import java.lang.NumberFormatException
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
@@ -644,9 +645,9 @@ suspend fun BinaryDebugSystem.log(
 }
 
 class BlobSystem(
-    private val directory: File,
-    private val generation: Long,
-    private val fileIndex: Int
+    directory: File,
+    generation: Long,
+    fileIndex: Int
 ) {
     private val channel = FileChannel.open(
         File(directory, "$generation-$fileIndex.blob").toPath(),
@@ -664,6 +665,19 @@ class BlobSystem(
         buf.putInt(blob.size)
         buf.put(blob)
         return pos.toString()
+    }
+
+    fun getBlob(pos: String): String {
+        return try {
+            val id = pos.toInt()
+            val size = buf.getInt(id)
+            ByteArray(size - id + 4) {
+                buf[id + it]
+            }.decodeToString()
+        } catch (e: NumberFormatException) {
+            println(e.stackTraceToString())
+            "Failed to parse id. Or size. or content?"
+        }
     }
 
     fun close() {
@@ -691,12 +705,18 @@ fun exampleProducer(logFolder: File) {
                             debug.log(MessageImportance.THIS_IS_NORMAL, "📜 Log $it")
                             delay(50)
                         }
+                        debug.log(
+                            MessageImportance.THIS_IS_DANGEROUS,
+                            "\uD83D\uDC7E Log with text so long, that is starts to go into the overflow buffer that we sometimes need to be able to access. Let's hope this works."
+                        )
+
+
                         debug.useContext(DebugContextType.DATABASE_TRANSACTION, "💽 Database transaction $ctxId") {
                             debug.log(MessageImportance.THIS_IS_NORMAL, "📤 sending query select * from fie.dog")
                             debug.log(MessageImportance.THIS_IS_NORMAL, "📥 got a response from the database")
                         }
 
-                        debug.useContext(DebugContextType.BACKGROUND_TASK, "🎤 Singing cool stuff") {
+                        /*debug.useContext(DebugContextType.BACKGROUND_TASK, "🎤 Singing cool stuff") {
 
                         }
                         debug.useContext(DebugContextType.BACKGROUND_TASK, "🤐 Zipping files") {
@@ -704,7 +724,7 @@ fun exampleProducer(logFolder: File) {
                             debug.useContext(DebugContextType.SERVER_REQUEST, "😇 OK! I will!") {
                                 debug.log(MessageImportance.THIS_IS_NORMAL, "🎉 Finished!")
                             }
-                        }
+                        }*/
                     }
                 }
             }

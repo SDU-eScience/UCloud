@@ -67,6 +67,7 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
 
         companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
             val responseCode = int1()
+            // Set as Int4, but is a long.
             val responseTime = int4()
             val call = text(64)
             val response = text(64)

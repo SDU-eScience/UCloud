@@ -144,12 +144,12 @@ function RequestDetailsByType({activeContextOrLog}: {activeContextOrLog: LogOrCt
     if (isLog(activeContextOrLog)) {
         return <>
             <div className="card query">
-                <LogText />
+                <LogText log={activeContextOrLog} />
             </div>
             <div className="card query-details">
-                Timestamp: {DATE_FORMAT.format(activeContextOrLog.timestamp)}<br/>
-                Type: {activeContextOrLog.typeString}<br/>
-                Context ID: {activeContextOrLog.ctxId}<br/>
+                Timestamp: {DATE_FORMAT.format(activeContextOrLog.timestamp)}<br />
+                Type: {activeContextOrLog.typeString}<br />
+                Context ID: {activeContextOrLog.ctxId}<br />
                 Importance: {messageImportanceToString(activeContextOrLog.importance)}
             </div>
         </>
@@ -198,12 +198,15 @@ function RequestDetailsByType({activeContextOrLog}: {activeContextOrLog: LogOrCt
         case DebugContextType.BACKGROUND_TASK:
             return <>
                 <div className="card query">
-                    BACKGROUND_TASK
                     <pre>{activeContextOrLog.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
-                        {activeContextOrLog.id}
+                        Timestamp: {DATE_FORMAT.format(activeContextOrLog.timestamp)}<br />
+                        Type: {activeContextOrLog.typeString}<br />
+                        Context ID: {activeContextOrLog.id}<br />
+                        Parent ID: {activeContextOrLog.parent}<br />
+                        Importance: {activeContextOrLog.importanceString}
                     </pre>
                 </div>
             </>;
@@ -222,10 +225,27 @@ function RequestDetailsByType({activeContextOrLog}: {activeContextOrLog: LogOrCt
     }
 }
 
+type MessageAndString = {message?: string; extra?: string;};
+type LogMessageExtraCache = Record<number, MessageAndString | undefined>;
+const LOG_MESSAGE_CACHE: LogMessageExtraCache = {}
 
-
-function LogText(): JSX.Element {
-    return <div />
+function LogText({log}: {log: Log}): JSX.Element {
+    const hasMessageOverflow = log.message.overflowIdentifier;
+    const hasExtraOverflow = log.extra.overflowIdentifier;
+    React.useEffect(() => {
+        if (hasMessageOverflow === undefined) return;
+        if (LOG_MESSAGE_CACHE[log.id]?.message) return;
+        // fetch message!
+        console.log("will fetch message");
+        if (hasExtraOverflow === undefined) return;
+        if (LOG_MESSAGE_CACHE[log.id]?.extra) return;
+        // fetch extra!
+        console.log("will fetch extra");
+    }, [hasMessageOverflow, hasExtraOverflow, log.id]);
+    return <pre>
+        {log.message.previewOrContent}<br />
+        {log.extra.previewOrContent}<br />
+    </pre>
 }
 
 function BreadCrumbs({routeComponents, setRouteComponents, clearContext}: {clearContext(): void; routeComponents: LogOrCtx[]; setRouteComponents: React.Dispatch<React.SetStateAction<LogOrCtx[]>>}): JSX.Element {

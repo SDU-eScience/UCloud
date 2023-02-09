@@ -430,7 +430,7 @@ sealed class ClientRequest {
 
     @Serializable
     @SerialName("get_text_blob")
-    data class GetTextBlob(val blobId: String) : ClientRequest()
+    data class GetTextBlob(val id: String) : ClientRequest()
 }
 
 data class ClientSession(
