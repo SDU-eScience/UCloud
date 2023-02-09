@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.orchestrator.rpc
 
 import dk.sdu.cloud.accounting.util.asController
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.file.orchestrator.api.ShareLinks
 import dk.sdu.cloud.file.orchestrator.api.Shares
 import dk.sdu.cloud.file.orchestrator.service.ShareService
 import dk.sdu.cloud.service.Controller
@@ -29,23 +30,23 @@ class ShareController(
             ok(shares.updatePermissions(actorAndProject, request))
         }
 
-        implement(Shares.createInviteLink) {
+        implement(ShareLinks.create) {
             ok(shares.createInviteLink(actorAndProject, request))
         }
 
-        implement(Shares.browseInviteLinks) {
-            ok(shares.browseInviteLinks(actorAndProject))
+        implement(ShareLinks.browse) {
+            ok(shares.browseInviteLinks(actorAndProject, request))
         }
 
-        implement(Shares.deleteInviteLink) {
+        implement(ShareLinks.delete) {
             ok(shares.deleteInviteLink(actorAndProject, request))
         }
 
-        implement(Shares.updateInvitePermissions) {
+        implement(ShareLinks.updatePermissions) {
             ok(shares.updateInviteLinkPermissions(actorAndProject, request))
         }
 
-        implement(Shares.acceptInviteLink) {
+        implement(ShareLinks.acceptInvite) {
             ok(shares.acceptInviteLink(actorAndProject, request))
         }
 

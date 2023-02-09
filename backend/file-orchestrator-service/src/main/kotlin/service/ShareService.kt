@@ -25,6 +25,8 @@ import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
+import java.time.OffsetDateTime
+import java.util.*
 
 typealias ShareSvc = ResourceService<Share, Share.Spec, Share.Update, ShareFlags, Share.Status, Product.Storage,
         ShareSupport, StorageCommunication>
@@ -666,5 +668,234 @@ class ShareService(
                     )
             """
         )
+    }
+
+    suspend fun createInviteLink(actorAndProject: ActorAndProject, request: SharesCreateInviteLinkRequest, ctx: DBContext = db): ShareInviteLink {
+        val token = UUID.randomUUID().toString()
+
+        if (actorAndProject.project != null) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Shares not possible from projects")
+        }
+
+        return ctx.withSession { session ->
+            val count = session.sendPreparedStatement(
+                {
+                    setParameter("file_path", request.path)
+                },
+                """
+                    select count(*) from file_orchestrator.shares_links where file_path = :file_path and now() < expires
+                """
+            ).rows.first().getLong("count") ?: 0
+
+            if (count >= 2) {
+                throw RPCException(
+                    "Unable to create more invitation links for this folder",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("file_path", request.path)
+                    setParameter("token", token)
+                },
+                """
+                    insert into file_orchestrator.shares_links (file_path, token, expires) values
+                        (:file_path, :token, now() + '10 days')
+                        returning token, expires, permissions
+                """
+            ).rows.firstNotNullOf {
+                val permissions =  it.getString("permissions") ?:
+                    throw RPCException("An error occurred while trying to create link", HttpStatusCode.BadRequest)
+
+                ShareInviteLink(
+                    it.getAs<UUID>("token").toString(),
+                    it.getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
+                    Permission.valueOf(permissions)
+                )
+            }
+        }
+    }
+
+    suspend fun browseInviteLinks(actorAndProject: ActorAndProject, request: SharesBrowseInviteLinksRequest, ctx: DBContext = db): PageV2<ShareInviteLink> {
+        // TODO(Brian): Check permissions
+
+        val result = ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("file_path", request.path)
+                },
+                """
+                    select token, expires, permissions from file_orchestrator.shares_links
+                    where file_path = :file_path and now() < expires
+                    order by expires desc
+                """
+            ).rows.groupBy { it.getAs<UUID>("token") }.map { entry ->
+                ShareInviteLink(
+                    entry.key.toString(),
+                    entry.value.first().getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
+                    Permission.valueOf(entry.value.first().getString("permissions")!!)
+                )
+            }
+        }
+
+        return PageV2(20, result, null)
+    }
+
+    suspend fun deleteInviteLink(
+        actorAndProject: ActorAndProject,
+        request: SharesDeleteInviteLinkRequest,
+        ctx: DBContext = db
+    ) {
+        // TODO(Brian): Check permissions
+
+        ctx.withSession { session ->
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("file_path", request.path)
+                    setParameter("token", request.token)
+                },
+                """
+                    delete from file_orchestrator.shares_links where file_path = :file_path and token = :token
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Unable to delete share link",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+    }
+
+    suspend fun updateInviteLinkPermissions(
+        actorAndProject: ActorAndProject,
+        request: SharesUpdateInviteLinkPermissionsRequest,
+        ctx: DBContext = db
+    ) {
+        // TODO(Brian): Check permissions
+
+        if (!listOf(Permission.EDIT, Permission.READ).contains(request.permissions)) {
+            throw RPCException("Permissions can only be either Read or Edit", HttpStatusCode.BadRequest)
+        }
+
+        ctx.withSession { session ->
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("file_path", request.path)
+                    setParameter("token", request.token)
+                    setParameter("permissions", request.permissions.name)
+                },
+                """
+                    update file_orchestrator.shares_links
+                    set permissions = :permissions
+                    where file_path = :file_path and token = :token
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Link might not be valid anymore or have been deleted",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+    }
+
+    suspend fun acceptInviteLink(
+        actorAndProject: ActorAndProject,
+        request: SharesAcceptInviteLinkRequest,
+        ctx: DBContext = db
+    ) : SharesAcceptInviteLinkResponse {
+        /*
+        data class ProjectInviteLinkAssignment(
+            val piActorAndProject: ActorAndProject,
+            val role: ProjectRole,
+            val groups: List<String>
+        )
+
+        return ctx.withSession { session ->
+            val projectAssignment = session.sendPreparedStatement(
+                {
+                    setParameter("token", request.token)
+                },
+                """
+                    select m.project_id as project, m.username as pi, l.role_assignment as role, a.group_id as group_id
+                    from project.project_members m
+                    inner join project.invite_links l on
+                        now() < expires and
+                        token = cast(:token as uuid) and
+                        l.project_id = m.project_id
+                    left join project.invite_link_group_assignments a on
+                        link_token = cast(:token as uuid)
+                    where
+                        m.role = 'PI';
+                """
+            ).rows.groupBy { it.getString("project") }.map { entry ->
+                val project = entry.key
+                val pi = entry.value.firstOrNull()?.getString("pi")
+                val role = entry.value.firstOrNull()?.getString("role")
+
+                if (project == null || pi == null || role == null) {
+                    throw RPCException("Link expired", HttpStatusCode.BadRequest)
+                }
+
+                ProjectInviteLinkAssignment(
+                    ActorAndProject(
+                        Actor.SystemOnBehalfOfUser(pi),
+                        project
+                    ),
+                    ProjectRole.valueOf(role),
+                    entry.value.mapNotNull { it.getString("group_id") }
+                )
+            }.firstOrNull() ?: throw RPCException("Link expired", HttpStatusCode.BadRequest)
+
+            createInvite(
+                projectAssignment.piActorAndProject,
+                bulkRequestOf(ProjectsCreateInviteRequestItem(actorAndProject.actor.safeUsername())),
+                ctx
+            )
+
+            acceptInvite(
+                actorAndProject,
+                bulkRequestOf(FindByProjectId(projectAssignment.piActorAndProject.requireProject())),
+                ctx
+            )
+
+            if (projectAssignment.groups.isNotEmpty()) {
+                createGroupMember(
+                    projectAssignment.piActorAndProject,
+                    bulkRequestOf(
+                        projectAssignment.groups.map {
+                            GroupMember(actorAndProject.actor.safeUsername(), it)
+                        }
+                    ),
+                    ctx
+                )
+            }
+
+            changeRole(
+                projectAssignment.piActorAndProject,
+                bulkRequestOf(
+                    ProjectsChangeRoleRequestItem(actorAndProject.actor.safeUsername(), projectAssignment.role)
+                ),
+                ctx
+            )
+
+            ProjectsAcceptInviteLinkResponse(projectAssignment.piActorAndProject.requireProject())
+        }
+         */
+        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+    }
+
+    suspend fun cleanUpInviteLinks(ctx: DBContext = db) {
+        /*ctx.withSession { session ->
+            val cleaned = session.sendPreparedStatement("""
+                delete from project.invite_links where expires < now()
+            """).rowsAffected
+
+            log.debug("Cleaned up $cleaned expired project invite links")
+        }*/
     }
 }
