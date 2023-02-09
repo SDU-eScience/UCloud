@@ -69,6 +69,7 @@ fun main(args: Array<String>) {
         commandFactory = LocalExecutableCommandFactory()
         fileFactory = LocalFileFactory()
 
+        println("ATTEMPTING")
         val shouldInitializeTestEnvironment =
             (args.contains("init") && args.contains("--all-providers"))
                 ||
