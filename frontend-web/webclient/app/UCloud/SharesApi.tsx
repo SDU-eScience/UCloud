@@ -17,7 +17,7 @@ import {PrettyFilePath} from "@/Files/FilePath";
 import {Operation} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud";
-import {apiBrowse, apiUpdate} from "@/Authentication/DataHook";
+import {apiBrowse, apiCreate, apiUpdate} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {fileName} from "@/Utilities/FileUtilities";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
@@ -68,6 +68,36 @@ export interface OutgoingShareGroupPreview {
     state: ShareState;
     shareId: string;
 }
+
+export interface ShareInviteLink {
+    token: string;
+    expires: number;
+    permissions: ("READ" | "EDIT");
+}
+
+export interface CreateInviteLinkRequest {
+    path: string;
+}
+
+export interface BrowseInviteLinksRequest {
+    path: string;
+}
+
+export interface DeleteInviteLinkRequest {
+    token: string;
+    path: string;
+}
+
+export interface UpdateInviteLinkPermissionsRequest {
+    token: string;
+    path: string;
+    permissions: string;
+}
+
+export interface AcceptInviteLinkRequest {
+    token: string;
+}
+
 
 class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpdate,
     ShareFlags, ShareStatus, ShareSupport> {
@@ -318,6 +348,53 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
     browseOutgoing(request: PaginationRequestV2): APICallParameters {
         return apiBrowse(request, this.baseContext, "outgoing");
     }
+/*
+    createInviteLink(request: CreateInviteLinkRequest): APICallParameters {
+        return apiCreate(request, this.baseContext, "links");
+    }
+
+    browseInviteLinks(request: PaginationRequestV2 & BrowseInviteLinksRequest): APICallParameters {
+        return apiBrowse(request, this.baseContext, "links");
+    }
+
+    deleteInviteLink(request: DeleteInviteLinkRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "deleteInviteLink");
+    }
+
+    updateInviteLinkPermissions(request: UpdateInviteLinkPermissionsRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "updateInviteLinkPermissions");
+    }
+
+    acceptInviteLink(request: AcceptInviteLinkRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "acceptInviteLink")
+    }
+    */
 }
 
+export class ShareLinksApi {
+    baseContext = "/api/shares/links"
+
+    public create(request: CreateInviteLinkRequest): APICallParameters {
+        return apiCreate(request, this.baseContext);
+    }
+
+    public browse(request: PaginationRequestV2 & BrowseInviteLinksRequest): APICallParameters {
+        return apiBrowse(request, this.baseContext);
+    }
+
+    public delete(request: DeleteInviteLinkRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "delete");
+    }
+
+    public updatePermissions(request: UpdateInviteLinkPermissionsRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "updatePermissions");
+    }
+
+    public acceptInvite(request: AcceptInviteLinkRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "acceptInvite")
+    }
+}
+
+const shareLinksApi = new ShareLinksApi();
+export {shareLinksApi};
 export default new ShareApi();

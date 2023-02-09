@@ -11,7 +11,7 @@ import {FileIconHint, FileType} from "@/Files";
 import {BulkRequest, BulkResponse, compute, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
-import {Box, Button, Flex, FtIcon, Icon, Link, Select, Text, TextArea} from "@/ui-components";
+import {Box, Button, Flex, FtIcon, Icon, Input, Link, Select, Text, TextArea} from "@/ui-components";
 import * as React from "react";
 import {
     fileName,
@@ -62,6 +62,7 @@ import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import { ProviderTitle } from "@/Providers/ProviderTitle";
 import { ProviderLogo } from "@/Providers/ProviderLogo";
+import {ShareModal} from "@/Files/Shares";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -595,7 +596,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Share",
                 enabled: (selected, cb) => {
                     if (Client.hasActiveProject) {return false;}
-                    if (selected.length === 0) return false;
+                    if (selected.length != 1) return false;
 
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
@@ -621,7 +622,12 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return true;
                 },
                 onClick: async (selected, cb) => {
-                    const username = await addStandardInputDialog({
+                    dialogStore.addDialog(<ShareModal
+                        selected={selected[0]}
+                        cb={cb}
+                    />, doNothing, true);
+                    
+                    /*const username = await addStandardInputDialog({
                         title: "Share",
                         help: <>The username of the user you wish to share this file with</>,
                         addToFront: true,
@@ -644,7 +650,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         if (it?.responses) {
                             cb.navigate(`/shares/outgoing`);
                         }
-                    });
+                    });*/
                 }
             },
             {
