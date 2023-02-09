@@ -69,7 +69,11 @@ fun main(args: Array<String>) {
         commandFactory = LocalExecutableCommandFactory()
         fileFactory = LocalFileFactory()
 
-        val shouldInitializeTestEnvironment = args.contains("init") && args.contains("--all-providers")
+        val shouldInitializeTestEnvironment =
+            (args.contains("init") && args.contains("--all-providers"))
+                ||
+            ( args.contains("snapshot") && args.find { it.contains(Regex("^[t][0-9]+\$")) } != null)
+
         isHeadless = shouldInitializeTestEnvironment || (args.contains("env") && args.contains("delete"))
 
         // NOTE(Dan): initCurrentEnvironment() now initializes an environment which is ready. It returns true if the
