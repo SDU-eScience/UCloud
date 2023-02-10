@@ -329,7 +329,7 @@ function AvailableBalance(props: {allocation: WalletAllocation, wallet: Wallet})
     let maxBalance = props.allocation.maxUsableBalance ?? props.allocation.balance
     if ((maxBalance - props.allocation.initialBalance) == (props.allocation.balance - props.allocation.initialBalance)) {
         return <div>
-            {usageExplainer(maxBalance, props.wallet.productType, props.wallet.chargeType, wallet.unit)} available
+            {usageExplainer(maxBalance, props.wallet.productType, props.wallet.chargeType, props.wallet.unit)} available
         </div>
     } else {
         return <Flex>

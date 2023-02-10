@@ -104,27 +104,11 @@ class AccountingService(
     }
 
     suspend fun checkIfSubAllocationIsAllowed(allocs: List<String>, ctx: DBContext = db) {
-        ctx.withSession { session ->
-            val allowedToTransferFromCount = session.sendPreparedStatement(
-                {
-                    setParameter("source_allocs", allocs.mapNotNull { it.toLongOrNull() })
-                },
-                """
-                    select count(*)
-                    from
-                        accounting.wallet_allocations alloc
-                    where
-                        alloc.id = some(:source_allocs::bigint[]) and
-                        alloc.can_allocate
-                """
-            ).rows.firstOrNull()?.getLong(0) ?: 0L
-
-            if (allowedToTransferFromCount.toInt() != allocs.size) {
-                throw RPCException(
-                    "One or more of your allocations do not allow sub-allocations. Try a different source allocation.",
-                    HttpStatusCode.BadRequest
-                )
-            }
+        if (!processor.checkIfSubAllocationIsAllowed(allocs)) {
+            throw RPCException(
+                "One or more of your allocations do not allow sub-allocations. Try a different source allocation.",
+                HttpStatusCode.BadRequest
+            )
         }
     }
 
@@ -374,11 +358,9 @@ class AccountingService(
         request: SubAllocationQuery,
         query: String? = null,
     ): PageV2<SubAllocation> {
-        println("browsing")
         val owner = if (actorAndProject.project == null) actorAndProject.actor.safeUsername() else actorAndProject.project!!
 
         val hits = processor.browseSubAllocations(AccountingRequest.BrowseSubAllocations(actorAndProject.actor, owner, request.filterType, query))
-        println("Hits: ${hits.allocations}")
 
         if (hits.allocations.isEmpty()) { return PageV2(request.itemsPerPage ?: 50, emptyList(), null) }
 

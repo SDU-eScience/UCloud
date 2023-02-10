@@ -19,7 +19,7 @@ const linkInfo: LinkInfo[] = [
 ];
 
 if (DEVELOPMENT_ENV) {
-    linkInfo.push({to: "/admin/devData", text: "Development Test Data", icon: "activity", color: "white", color2: "white"}),
+    linkInfo.push({to: "/admin/devData", text: "Development Test Data", icon: "activity", color: "white", color2: "white"})
 }
 
 interface LinkInfo {
