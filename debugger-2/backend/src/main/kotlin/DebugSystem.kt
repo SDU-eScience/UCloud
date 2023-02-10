@@ -201,7 +201,7 @@ class BinaryDebugSystem(
         val encoded = text.encodeToByteArray()
         return if (encoded.size >= field.maxSize) {
             val id = blobs.storeBlob(encoded)
-            val prefix = LargeText.OVERFLOW_PREFIX + id + LargeText.OVERFLOW_SEP
+            val prefix = LargeText.OVERFLOW_PREFIX + id + LargeText.OVERFLOW_SEP + buffer.fileIndex + LargeText.OVERFLOW_SEP
             val previewSize = field.maxSize - prefix.length
             val arr = ByteArray(field.maxSize)
             prefix.encodeToByteArray().copyInto(arr)
@@ -670,14 +670,6 @@ class BlobSystem(
 
     fun getBlob(pos: Int): ByteArray? {
         return try {
-            /**
-             *  Note(Jonas): Currently, I don't think we don't have any way to ensure that we are in the correct file other than the @LargeText.OVERFLOW_PREFIX and even that may be a coincidence.
-             *  We should at least check that the position is preceded by a OVERFLOW_PREFIX sequence.
-             */
-            var overflowPrefixEntry = ByteArray(LargeText.OVERFLOW_PREFIX.length) {
-                buf[pos + it]
-            }
-            val decoded = overflowPrefixEntry.decodeToString()
             val size = buf.getInt(pos)
             val sizeSize = size.toString().length
             // Note(Jonas): Despite the length of the buffer array being correct, the decoded string seems to be shorter sometimes.

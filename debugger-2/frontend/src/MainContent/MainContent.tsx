@@ -29,7 +29,6 @@ export function MainContent(): JSX.Element {
     const setContext = React.useCallback((d: DebugContext | null) => {
         if (d === null) {
             if (logStore.contextRoot() != null) {
-                console.log("clearActiveContext")
                 logStore.clearActiveContext();
             }
             setRouteComponents([]);
@@ -50,7 +49,6 @@ export function MainContent(): JSX.Element {
                 <RequestDetails key={activeContext?.id} activeContext={activeContext} />
                 <AutoSizer defaultHeight={200}>
                     {({height, width}) => {
-                        console.log(height);
                         const root = logStore.contextRoot();
                         if (root) {
                             return <List itemSize={ITEM_SIZE} height={height - 225} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card">
@@ -230,20 +228,17 @@ type LogMessageExtraCache = Record<number, MessageAndString | undefined>;
 const LOG_MESSAGE_CACHE: LogMessageExtraCache = {}
 
 function LogText({log}: {log: Log}): JSX.Element {
-    const messageOverflow = log.message.overflowIdentifier;
-    const extraOverflow = log.extra.overflowIdentifier;
+
     React.useEffect(() => {
+        const messageOverflow = log.message.overflowIdentifier;
+        const extraOverflow = log.extra.overflowIdentifier;
         if (messageOverflow === undefined) return;
         if (LOG_MESSAGE_CACHE[log.id]?.message) return;
-        // fetch message!
-        fetchTextBlob(activeService.generation, messageOverflow);
-        console.log("will fetch message", messageOverflow);
+        fetchTextBlob(activeService.generation, messageOverflow, log.message.blobFileId!);
         if (extraOverflow === undefined) return;
         if (LOG_MESSAGE_CACHE[log.id]?.extra) return;
-        // fetch extra!
-        fetchTextBlob(activeService.generation, extraOverflow);
-        console.log("will fetch extra", extraOverflow);
-    }, [messageOverflow, extraOverflow, log]);
+        fetchTextBlob(activeService.generation, extraOverflow, log.extra.blobFileId!);
+    }, [log]);
     return <pre>
         {log.message.previewOrContent}<br />
         {log.extra.previewOrContent}<br />

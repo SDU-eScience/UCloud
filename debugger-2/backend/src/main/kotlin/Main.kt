@@ -5,6 +5,7 @@ import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
+import io.ktor.util.*
 import io.ktor.util.date.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.Dispatchers
@@ -299,16 +300,13 @@ fun main(args: Array<String>) {
                             is ClientRequest.FetchTextBlob -> {
                                 val generation = request.generation.toLong()
                                 val id = request.id.toInt()
-                                val result = findBlobEntry(directory, generation, id)
-                                if (result != null) {
-                                    val newBlobWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(result.size + 8)
-                                    newBlobWriteBuffer.putLong(4)
-                                    // Note(Jonas): We should probably put the blob length here as well.
-                                    newBlobWriteBuffer.putInt(result.size)
-                                    newBlobWriteBuffer.put(result)
-                                    session.session.send(Frame.Binary(true, newBlobWriteBuffer))
-                                    // Note(Jonas): Anything else we need to do? E.g. cleaning?
-                                }
+                                val result = findBlobEntry(directory, generation, id, request.fileIndex.toInt()) ?: continue
+                                val newBlobWriteBuffer = ByteBuffer.allocateDirect(result.size + 8 + 4) // Add long (type) and int (blob size).
+                                newBlobWriteBuffer.putLong(4)
+                                newBlobWriteBuffer.putInt(result.size)
+                                newBlobWriteBuffer.put(result)
+                                session.session.send(Frame.Binary(true, newBlobWriteBuffer))
+                                // Note(Jonas): Anything else we need to do? E.g. cleaning the buffer?
                             }
                         }
                     }
@@ -407,6 +405,7 @@ suspend fun ClientSession.findLogs(startTime: Long, endTime: Long, directory: Fi
             }
         }
     }
+    // Hack(Jonas): Always seems to work, but is clear that something is very wrong.
     if (logCount == 0) {
         logFileId; startTime; endTime; directory; this.activeContexts
         println("Doing a recursive run: ${recursionCounts++}, got to file: $logFileId")
@@ -417,14 +416,11 @@ suspend fun ClientSession.findLogs(startTime: Long, endTime: Long, directory: Fi
     flushLogsMessage()
 }
 
-fun findBlobEntry(directory: File, generation: Long, blobId: Int): ByteArray? {
-    var fileId = 0
-    outer@ while (BlobSystem.exists(directory, generation, fileId++)) {
-        val blobSystem = BlobSystem(directory, generation, fileId)
-        return blobSystem.getBlob(blobId) ?: continue
-    }
-    return null
-}
+fun findBlobEntry(directory: File, generation: Long, blobId: Int, fileIndex: Int): ByteArray? =
+    if (BlobSystem.exists(directory, generation, fileIndex)) {
+        val blobSystem = BlobSystem(directory, generation, fileIndex)
+        blobSystem.getBlob(blobId)
+    } else null
 
 @Serializable
 sealed class ClientRequest {
@@ -450,7 +446,7 @@ sealed class ClientRequest {
 
     @Serializable
     @SerialName("fetch_text_blob")
-    data class FetchTextBlob(val id: String, val generation: String) : ClientRequest()
+    data class FetchTextBlob(val id: String, val fileIndex: String, val generation: String) : ClientRequest()
 }
 
 data class ClientSession(

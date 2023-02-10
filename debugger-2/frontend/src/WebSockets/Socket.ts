@@ -303,17 +303,18 @@ export function setSessionStateRequest(query: string | null, filters: string[] |
     });
 }
 
-export function fetchTextBlob(generation: string, blobId: string): void {
+export function fetchTextBlob(generation: string, blobId: string, fileIndex: string): void {
     if (!isSocketReady(socket)) return;
-    const req = fetchTextBlobRequest(generation, blobId);
+    const req = fetchTextBlobRequest(generation, blobId, fileIndex);
     socket.send(req);
 }
 
-function fetchTextBlobRequest(generation: string, blobId: string) {
+function fetchTextBlobRequest(generation: string, blobId: string, fileIndex: string) {
     return JSON.stringify({
         type: "fetch_text_blob",
         generation,
-        id: blobId  
+        id: blobId ,
+        fileIndex, 
     });
 }
 

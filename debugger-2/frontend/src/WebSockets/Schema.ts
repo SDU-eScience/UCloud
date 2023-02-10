@@ -25,6 +25,7 @@ function readBytes(buffer: DataView, offset: number, size: number): Uint8Array {
 export interface LargeText {
     previewOrContent: string;
     overflowIdentifier?: string;
+    blobFileId?: string;
 }
 
 const textDecoder = new TextDecoder();
@@ -39,18 +40,20 @@ function readText(buffer: DataView, offset: number, maxSize: number): LargeText 
     const decodedSlice = textDecoder.decode(slice);
     if (decodedSlice.startsWith(OVERFLOW_PREFIX)) {
         const withoutPrefix = decodedSlice.substring(4);
-        console.log(decodedSlice);
-        //#OF#47125#👾 Log with text so long, that is starts to go into the overflow buffer that we sometimes need to be able to acces
         const posIdx = withoutPrefix.indexOf(OVERFLOW_SEP);
         if (posIdx <= -1) {
             return {previewOrContent: "Invalid blob"};
         }
-
         const overflowIdentifier = withoutPrefix.substring(0, posIdx);
-        console.log("overflowIdentifier", overflowIdentifier);
-        const previewOrContent = withoutPrefix.substring(posIdx + 1);
-        console.log("previewOrContent", previewOrContent)
-        return {previewOrContent, overflowIdentifier};
+        
+        const withFileId = withoutPrefix.substring(posIdx + 1);
+        const sepIdx = withFileId.indexOf(OVERFLOW_SEP);
+        if (sepIdx <= -1) {
+            return {previewOrContent: "Invalid blob"};
+        }
+        const blobFileId = withFileId.substring(0, sepIdx);
+        const previewOrContent = withFileId.substring(sepIdx + 1);
+        return {previewOrContent, overflowIdentifier, blobFileId};
     }
 
     return {previewOrContent: decodedSlice};
