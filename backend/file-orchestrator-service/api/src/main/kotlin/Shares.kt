@@ -191,7 +191,11 @@ data class SharesAcceptInviteLinkRequest(
     val token: String
 )
 
-typealias SharesAcceptInviteLinkResponse = Share
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class SharesAcceptInviteLinkResponse(
+    val id: String
+)
 
 @UCloudApiInternal(InternalLevel.STABLE)
 object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,

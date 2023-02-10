@@ -7,6 +7,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.calls.*
@@ -698,10 +699,11 @@ class ShareService(
                 {
                     setParameter("file_path", request.path)
                     setParameter("token", token)
+                    setParameter("shared_by", actorAndProject.actor.safeUsername())
                 },
                 """
-                    insert into file_orchestrator.shares_links (file_path, token, expires) values
-                        (:file_path, :token, now() + '10 days')
+                    insert into file_orchestrator.shares_links (file_path, shared_by, token, expires) values
+                        (:file_path, :shared_by, :token, now() + '10 days')
                         returning token, expires, permissions
                 """
             ).rows.firstNotNullOf {
@@ -808,94 +810,69 @@ class ShareService(
         request: SharesAcceptInviteLinkRequest,
         ctx: DBContext = db
     ) : SharesAcceptInviteLinkResponse {
-        /*
-        data class ProjectInviteLinkAssignment(
-            val piActorAndProject: ActorAndProject,
-            val role: ProjectRole,
-            val groups: List<String>
+        data class ShareLinkInfo(
+            val sharedBy: String,
+            val permissions: Permission,
+            val path: String
         )
 
+        // TODO(Brian): Check if file still exists
+
         return ctx.withSession { session ->
-            val projectAssignment = session.sendPreparedStatement(
+            val linkInfo = session.sendPreparedStatement(
                 {
                     setParameter("token", request.token)
                 },
                 """
-                    select m.project_id as project, m.username as pi, l.role_assignment as role, a.group_id as group_id
-                    from project.project_members m
-                    inner join project.invite_links l on
-                        now() < expires and
-                        token = cast(:token as uuid) and
-                        l.project_id = m.project_id
-                    left join project.invite_link_group_assignments a on
-                        link_token = cast(:token as uuid)
+                    select file_path, permissions, shared_by
+                    from file_orchestrator.shares_links l
                     where
-                        m.role = 'PI';
+                        now() < expires and
+                        token = cast(:token as uuid)
                 """
-            ).rows.groupBy { it.getString("project") }.map { entry ->
-                val project = entry.key
-                val pi = entry.value.firstOrNull()?.getString("pi")
-                val role = entry.value.firstOrNull()?.getString("role")
+            ).rows.map { entry ->
+                val filePath = entry.getString("file_path")
+                val permissions = entry.getString("permissions")?.let { Permission.valueOf(it) }
+                val sharedBy = entry.getString("shared_by")
 
-                if (project == null || pi == null || role == null) {
+                if (filePath == null || permissions == null || sharedBy == null) {
                     throw RPCException("Link expired", HttpStatusCode.BadRequest)
                 }
 
-                ProjectInviteLinkAssignment(
-                    ActorAndProject(
-                        Actor.SystemOnBehalfOfUser(pi),
-                        project
-                    ),
-                    ProjectRole.valueOf(role),
-                    entry.value.mapNotNull { it.getString("group_id") }
-                )
+                ShareLinkInfo(sharedBy, permissions, filePath)
             }.firstOrNull() ?: throw RPCException("Link expired", HttpStatusCode.BadRequest)
 
-            createInvite(
-                projectAssignment.piActorAndProject,
-                bulkRequestOf(ProjectsCreateInviteRequestItem(actorAndProject.actor.safeUsername())),
-                ctx
-            )
-
-            acceptInvite(
-                actorAndProject,
-                bulkRequestOf(FindByProjectId(projectAssignment.piActorAndProject.requireProject())),
-                ctx
-            )
-
-            if (projectAssignment.groups.isNotEmpty()) {
-                createGroupMember(
-                    projectAssignment.piActorAndProject,
-                    bulkRequestOf(
-                        projectAssignment.groups.map {
-                            GroupMember(actorAndProject.actor.safeUsername(), it)
-                        }
-                    ),
-                    ctx
-                )
-            }
-
-            changeRole(
-                projectAssignment.piActorAndProject,
+            // Create share
+            val share = this.create(
+                ActorAndProject(Actor.SystemOnBehalfOfUser(linkInfo.sharedBy), null),
                 bulkRequestOf(
-                    ProjectsChangeRoleRequestItem(actorAndProject.actor.safeUsername(), projectAssignment.role)
+                    Share.Spec(
+                        actorAndProject.actor.safeUsername(),
+                        linkInfo.path,
+                        listOf(linkInfo.permissions),
+                        ProductReference("test", "test", "test")
+                    )
                 ),
                 ctx
+            ).responses[0] ?: throw RPCException("Failed to accept invitation to share", HttpStatusCode.BadRequest)
+
+            // Accept share
+            this.approve(
+                actorAndProject,
+                bulkRequestOf(FindByStringId(share.id)),
             )
 
-            ProjectsAcceptInviteLinkResponse(projectAssignment.piActorAndProject.requireProject())
+            SharesAcceptInviteLinkResponse(share.id)
         }
-         */
-        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
     }
 
     suspend fun cleanUpInviteLinks(ctx: DBContext = db) {
-        /*ctx.withSession { session ->
+        ctx.withSession { session ->
             val cleaned = session.sendPreparedStatement("""
-                delete from project.invite_links where expires < now()
+                delete from file_orchestrator.shares_links where expires < now()
             """).rowsAffected
 
-            log.debug("Cleaned up $cleaned expired project invite links")
-        }*/
+            log.debug("Cleaned up $cleaned expired shares invite links")
+        }
     }
 }
