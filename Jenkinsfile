@@ -18,7 +18,7 @@ node {
     if (env.BRANCH_NAME.startsWith("PR-")) {
         branchName = env.CHANGE_BRANCH
     } else {
-        env.BRANCH_NAME
+        branchName = env.BRANCH_NAME
     }
     echo branchName
     echo (jobName)
