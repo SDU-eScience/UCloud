@@ -51,6 +51,7 @@ SupportByProvider(
             firewall = NetworkIPSupport.Firewall(
                 enabled = true, 
             ), 
+            maintenance = null, 
             product = ProductReference(
                 category = "example-ip", 
                 id = "example-ip", 
@@ -224,7 +225,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/networkips/retriev
 #                     },
 #                     "firewall": {
 #                         "enabled": true
-#                     }
+#                     },
+#                     "maintenance": null
 #                 }
 #             }
 #         ]

@@ -64,6 +64,7 @@ SupportByProvider(
                 streamingSearchSupported = false, 
                 trashSupported = false, 
             ), 
+            maintenance = null, 
             product = ProductReference(
                 category = "example-ssd", 
                 id = "example-ssd", 
@@ -299,7 +300,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/
 #                         "isReadOnly": false,
 #                         "searchSupported": true,
 #                         "streamingSearchSupported": false
-#                     }
+#                     },
+#                     "maintenance": null
 #                 }
 #             }
 #         ]

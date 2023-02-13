@@ -55,6 +55,7 @@ SupportByProvider(
             id = "example-compute", 
         ), 
         support = ExampleResourceSupport(
+            maintenance = null, 
             product = ProductReference(
                 category = "example-compute", 
                 id = "example-compute", 
@@ -147,7 +148,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrievePr
 #                         "category": "example-compute",
 #                         "provider": "example"
 #                     },
-#                     "supportsBackwardsCounting": "SUPPORTED"
+#                     "supportsBackwardsCounting": "SUPPORTED",
+#                     "maintenance": null
 #                 }
 #             }
 #         ]

@@ -184,6 +184,7 @@ SupportByProvider(
             id = "example-license", 
         ), 
         support = LicenseSupport(
+            maintenance = null, 
             product = ProductReference(
                 category = "example-license", 
                 id = "example-license", 
@@ -310,7 +311,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/licenses/retrieveP
 #                         "id": "example-license",
 #                         "category": "example-license",
 #                         "provider": "example"
-#                     }
+#                     },
+#                     "maintenance": null
 #                 }
 #             }
 #         ]
@@ -1019,6 +1021,7 @@ This attribute is not included by default unless `includeProduct` is specified.
 ```kotlin
 data class LicenseSupport(
     val product: ProductReference,
+    val maintenance: Maintenance?,
 )
 ```
 
@@ -1030,6 +1033,17 @@ data class LicenseSupport(
 <details>
 <summary>
 <code>product</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maintenance</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.Maintenance.md'>Maintenance</a>?</code></code>
 </summary>
 
 

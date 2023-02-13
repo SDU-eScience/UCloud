@@ -50,6 +50,7 @@ SupportByProvider(
         support = IngressSupport(
             domainPrefix = "app-", 
             domainSuffix = ".example.com", 
+            maintenance = null, 
             product = ProductReference(
                 category = "example-ingress", 
                 id = "example-ingress", 
@@ -188,7 +189,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/ingresses/retrieve
 #                         "id": "example-ingress",
 #                         "category": "example-ingress",
 #                         "provider": "example"
-#                     }
+#                     },
+#                     "maintenance": null
 #                 }
 #             }
 #         ]
