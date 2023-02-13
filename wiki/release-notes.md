@@ -7,10 +7,16 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 13-02-23
+
+```
+Type 1/SDU Provider @ 2022.3.22
+```
+
 ## 10-02-23
 
 ```
-Type 1/SDU Provider @ 2022.3.21
+Type 1/SDU Provider @ 2022.3.21 (Rolled back to 2022.3.20)
 ```
 
 ## 09-02-23
