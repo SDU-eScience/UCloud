@@ -1,24 +1,24 @@
-function readInt1(buffer: DataView, offset: number): number {
+export function readInt1(buffer: DataView, offset: number): number {
     return buffer.getInt8(offset);
 }
 
-function readInt2(buffer: DataView, offset: number): number {
+export function readInt2(buffer: DataView, offset: number): number {
     return buffer.getInt16(offset, false);
 }
 
-function readInt4(buffer: DataView, offset: number): number {
+export function readInt4(buffer: DataView, offset: number): number {
     return buffer.getInt32(offset, false);
 }
 
-function readInt8(buffer: DataView, offset: number): bigint {
+export function readInt8(buffer: DataView, offset: number): bigint {
     return buffer.getBigInt64(offset, false);
 }
 
-function readBool(buffer: DataView, offset: number): boolean {
+export function readBool(buffer: DataView, offset: number): boolean {
     return buffer.getInt8(offset) !== 0;
 }
 
-function readBytes(buffer: DataView, offset: number, size: number): Uint8Array {
+export function readBytes(buffer: DataView, offset: number, size: number): Uint8Array {
     return new Uint8Array(buffer.buffer, offset, size);
 }
 

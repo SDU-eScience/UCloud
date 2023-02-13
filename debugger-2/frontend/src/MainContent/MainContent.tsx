@@ -1,6 +1,6 @@
 import * as React from "react";
 import {DBTransactionEvent, DebugContext, DebugContextType, getEvent, Log, MessageImportance, messageImportanceToString} from "../WebSockets/Schema";
-import {activeService, DebugContextAndChildren, fetchTextBlob, isLog, logStore, replayMessages} from "../WebSockets/Socket";
+import {activeService, DebugContextAndChildren, fetchTextBlob, isLog, logMessages, logStore, replayMessages} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -223,25 +223,27 @@ function RequestDetailsByType({activeContextOrLog}: {activeContextOrLog: LogOrCt
     }
 }
 
-type MessageAndString = {message?: string; extra?: string;};
-type LogMessageExtraCache = Record<number, MessageAndString | undefined>;
-const LOG_MESSAGE_CACHE: LogMessageExtraCache = {}
-
 function LogText({log}: {log: Log}): JSX.Element {
-
+    const messages = React.useSyncExternalStore(subscription => logMessages.subscribe(subscription), () => logMessages.getSnapshot());
     React.useEffect(() => {
         const messageOverflow = log.message.overflowIdentifier;
         const extraOverflow = log.extra.overflowIdentifier;
         if (messageOverflow === undefined) return;
-        if (LOG_MESSAGE_CACHE[log.id]?.message) return;
+        if (messages.has(messageOverflow)) return;
         fetchTextBlob(activeService.generation, messageOverflow, log.message.blobFileId!);
         if (extraOverflow === undefined) return;
-        if (LOG_MESSAGE_CACHE[log.id]?.extra) return;
+        if (messages.has(extraOverflow)) return;
         fetchTextBlob(activeService.generation, extraOverflow, log.extra.blobFileId!);
-    }, [log]);
+    }, [log, messages]);
+
+    const message = messages.get(log.message.overflowIdentifier) ?? log.message.previewOrContent
+    const extra = messages.get(log.extra.overflowIdentifier) ?? log.extra.previewOrContent
+    console.log(message);
+    console.log(extra);
+
     return <pre>
-        {log.message.previewOrContent}<br />
-        {log.extra.previewOrContent}<br />
+        <React.Fragment key={message}>{message}</React.Fragment><br />
+        <React.Fragment key={extra}>{extra}</React.Fragment><br />
     </pre>
 }
 

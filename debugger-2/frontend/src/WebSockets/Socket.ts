@@ -1,4 +1,4 @@
-import {Log, DebugContext, getServiceName, DebugContextType, getGenerationName} from "./Schema";
+import {Log, DebugContext, getServiceName, DebugContextType, getGenerationName, readInt4} from "./Schema";
 
 let socket: WebSocket | null = null;
 let options: SocketOptions;
@@ -65,10 +65,19 @@ function initializeSocket() {
                 break;
             }
             case 4: {
-                console.log("hello");
-                // We already have the type here (Blob) - Long
-                // Get length of blob - Int
-                // Get text - Int value length
+                // Starts with Long for type (4)
+                // Followed by size (int)
+                // Followed by text of length size.
+                const ID_SIZE = 4;
+                const TYPE_SIZE = 8;
+                const id = readInt4(view, 8)
+                const textDecoder = new TextDecoder();
+                const u8a = new Uint8Array(view.buffer);
+                let slice = u8a.slice(TYPE_SIZE + ID_SIZE);
+                const text = textDecoder.decode(slice)
+
+                logMessages.addMessage(text, id);
+                console.log(logMessages)
                 break;
             }
             default: {
@@ -78,10 +87,63 @@ function initializeSocket() {
     };
 }
 
+
+type LogMessageExtraCache = Record<string, string>;
+type LogMessageObject = Record<string, LogMessageExtraCache>
+// TODO(Jonas): We probably need this as a service, and emit the change.
+export const logMessages = new class {
+    private messages: LogMessageObject = {};
+    private subscriptions: (() => void)[] = [];
+    private isDirty = false;
+
+    public addMessage(message: string, id: number) {
+        if (!this.messages[activeService.service]) {
+            this.messages[activeService.service] = {};
+        }
+        this.messages[activeService.service][id] = message;
+        this.isDirty = true;
+        this.emitChange();
+    }
+
+    public get(id: string | undefined): string | undefined {
+        if (id === undefined) return undefined;
+        return this.messages[activeService.service]?.[id];
+    }
+
+    public has(id: string): boolean {
+        return this.messages[activeService.service]?.[id] !== undefined;
+    }
+
+    public getSnapshot(): {get: (id: string | undefined) => string | undefined, has: (id: string) => boolean} {
+        if (this.isDirty) {
+            this.isDirty = false;
+            return {
+                has: id => this.has(id),
+                get: id => this.get(id)
+            };
+        }
+        return this;
+    }
+
+    public subscribe(subscription: () => void) {
+        this.subscriptions = [...this.subscriptions, subscription];
+        return () => {
+            this.subscriptions = this.subscriptions.filter(s => s !== subscription);
+        };
+    }
+
+    public emitChange(): void {
+        for (const subscriber of this.subscriptions) {
+            subscriber();
+        }
+    }
+}();
+
 export const activeService = new class {
     private activeService: string = "";
     private activeGeneration: string = "";
     private subscriptions: (() => void)[] = [];
+
 
     public get service() {
         return this.activeService;
@@ -112,7 +174,7 @@ export const activeService = new class {
     }
 
     public emitChange(): void {
-        for (let subscriber of this.subscriptions) {
+        for (const subscriber of this.subscriptions) {
             subscriber();
         }
     }
@@ -313,8 +375,8 @@ function fetchTextBlobRequest(generation: string, blobId: string, fileIndex: str
     return JSON.stringify({
         type: "fetch_text_blob",
         generation,
-        id: blobId ,
-        fileIndex, 
+        id: blobId,
+        fileIndex,
     });
 }
 

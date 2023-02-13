@@ -300,11 +300,13 @@ fun main(args: Array<String>) {
                             is ClientRequest.FetchTextBlob -> {
                                 val generation = request.generation.toLong()
                                 val id = request.id.toInt()
-                                val result = findBlobEntry(directory, generation, id, request.fileIndex.toInt()) ?: continue
-                                val newBlobWriteBuffer = ByteBuffer.allocateDirect(result.size + 8 + 4) // Add long (type) and int (blob size).
+                                val fileIndex = request.fileIndex.toInt()
+                                val result = findBlobEntry(directory, generation, id, fileIndex) ?: continue
+                                val newBlobWriteBuffer = ByteBuffer.allocateDirect(result.size + 8 + 4) // Add long (type), id for overflow identifier.
                                 newBlobWriteBuffer.putLong(4)
-                                newBlobWriteBuffer.putInt(result.size)
+                                newBlobWriteBuffer.putInt(id)
                                 newBlobWriteBuffer.put(result)
+                                newBlobWriteBuffer.flip()
                                 session.session.send(Frame.Binary(true, newBlobWriteBuffer))
                                 // Note(Jonas): Anything else we need to do? E.g. cleaning the buffer?
                             }
