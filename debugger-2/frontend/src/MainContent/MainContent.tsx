@@ -6,11 +6,10 @@ import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 
 // Notes/Issues:
-//  Fetching missing contexts sometimes misses some. Backend solution timing-issue. 
+//  Fetching missing contexts in time-range sometimes misses some. Backend solution timing-issue. 
 //  Handle same service, new generation
 //  Frontend styling is generally not good.
 //  Handle different types of ctx/logs to render.
-//  Blob searching support is missing!
 //  What happens when selecting a different service?
 //     - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected).
 //  Handle long-running situations where memory usage has become high.
@@ -238,8 +237,6 @@ function LogText({log}: {log: Log}): JSX.Element {
 
     const message = messages.get(log.message.overflowIdentifier) ?? log.message.previewOrContent
     const extra = messages.get(log.extra.overflowIdentifier) ?? log.extra.previewOrContent
-    console.log(message);
-    console.log(extra);
 
     return <pre>
         <React.Fragment key={message}>{message}</React.Fragment><br />
