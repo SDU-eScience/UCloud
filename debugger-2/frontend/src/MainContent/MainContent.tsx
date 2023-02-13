@@ -39,13 +39,13 @@ export function MainContent(): JSX.Element {
     }, [setRouteComponents]);
 
     const serviceLogs = logs.content[service] ?? [];
-    const activeContext = routeComponents.at(-1);
+    const activeContextOrLog = routeComponents.at(-1);
 
     return <div className="main-content">
         {!service ? <h3>Select a service to view requests</h3> :
             <>
                 <BreadCrumbs clearContext={() => setContext(null)} routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
-                <RequestDetails key={activeContext?.id} activeContext={activeContext} />
+                <RequestDetails key={activeContextOrLog?.id} activeContextOrLog={activeContextOrLog} />
                 <AutoSizer defaultHeight={200}>
                     {({height, width}) => {
                         const root = logStore.contextRoot();
@@ -54,7 +54,7 @@ export function MainContent(): JSX.Element {
                                 {({data: root, style}) =>
                                     <DebugContextRow
                                         style={style}
-                                        activeLogOrCtx={activeContext}
+                                        activeLogOrCtx={activeContextOrLog}
                                         setRouteComponents={ctx => setRouteComponents(ctx)}
                                         debugContext={root.ctx}
                                         ctxChildren={root.children}
@@ -136,16 +136,20 @@ function isOdd(importance: MessageImportance): boolean {
     return importance === MessageImportance.THIS_IS_ODD;
 }
 
-function RequestDetails({activeContext}: {activeContext: LogOrCtx | undefined}): JSX.Element {
-    if (!activeContext) return <div />;
+function RequestDetails({activeContextOrLog}: Partial<RequestDetailsByTypeProps>): JSX.Element {
+    if (!activeContextOrLog) return <div />;
     return <div className="card details flex">
-        <RequestDetailsByType activeContextOrLog={activeContext} />
+        <RequestDetailsByType activeContextOrLog={activeContextOrLog} />
     </div>;
 }
 
 const DATE_FORMAT = new Intl.DateTimeFormat("en-UK", {dateStyle: "short", timeStyle: "long"});
 
-function RequestDetailsByType({activeContextOrLog}: {activeContextOrLog: LogOrCtx}): JSX.Element {
+interface RequestDetailsByTypeProps {
+    activeContextOrLog: LogOrCtx;
+}
+
+function RequestDetailsByType({activeContextOrLog}: RequestDetailsByTypeProps): JSX.Element {
     if (isLog(activeContextOrLog)) {
         return <>
             <div className="card query">
@@ -175,7 +179,7 @@ function RequestDetailsByType({activeContextOrLog}: {activeContextOrLog: LogOrCt
                         {activeContextOrLog.id}
                     </pre>
                 </div>
-            </>;
+            </>
         case DebugContextType.SERVER_REQUEST:
             return <>
                 <div className="card query">
@@ -187,7 +191,7 @@ function RequestDetailsByType({activeContextOrLog}: {activeContextOrLog: LogOrCt
                         {activeContextOrLog.id}
                     </pre>
                 </div>
-            </>;
+            </>
         case DebugContextType.CLIENT_REQUEST:
             return <>
                 <div className="card query">
@@ -199,7 +203,7 @@ function RequestDetailsByType({activeContextOrLog}: {activeContextOrLog: LogOrCt
                         {activeContextOrLog.id}
                     </pre>
                 </div>
-            </>;
+            </>
         case DebugContextType.BACKGROUND_TASK:
             return <>
                 <div className="card query">
@@ -214,7 +218,7 @@ function RequestDetailsByType({activeContextOrLog}: {activeContextOrLog: LogOrCt
                         Importance: {activeContextOrLog.importanceString}
                     </pre>
                 </div>
-            </>;
+            </>
         case DebugContextType.OTHER:
             return <>
                 <div className="card query">
@@ -226,7 +230,7 @@ function RequestDetailsByType({activeContextOrLog}: {activeContextOrLog: LogOrCt
                         {activeContextOrLog.id}
                     </pre>
                 </div>
-            </>;
+            </>
     }
 }
 
@@ -252,7 +256,13 @@ function LogText({log}: {log: Log}): JSX.Element {
     </pre>
 }
 
-function BreadCrumbs({routeComponents, setRouteComponents, clearContext}: {clearContext(): void; routeComponents: LogOrCtx[]; setRouteComponents: React.Dispatch<React.SetStateAction<LogOrCtx[]>>}): JSX.Element {
+interface BreadcrumbsProps {
+    clearContext(): void;
+    routeComponents: LogOrCtx[];
+    setRouteComponents: React.Dispatch<React.SetStateAction<LogOrCtx[]>>;
+}
+
+function BreadCrumbs({routeComponents, setRouteComponents, clearContext}: BreadcrumbsProps): JSX.Element {
 
     const setToParentComponent = React.useCallback((id: number) => {
         if (id === -1) {
@@ -265,7 +275,15 @@ function BreadCrumbs({routeComponents, setRouteComponents, clearContext}: {clear
     if (routeComponents.length === 0) return <div />
     return <div className="flex full-width">
         <div className="breadcrumb pointer" onClick={() => setToParentComponent(-1)}>Root</div>
-        {routeComponents.map((it, idx) => <div key={it.id} className="breadcrumb pointer" onClick={() => setToParentComponent(idx)}>{prettierString(it.typeString)}</div>)}
+        {routeComponents.map((it, idx) =>
+            <div
+                key={it.id}
+                className="breadcrumb pointer"
+                onClick={() => setToParentComponent(idx)}
+            >
+                {prettierString(it.typeString)}
+            </div>
+        )}
     </div>;
 }
 

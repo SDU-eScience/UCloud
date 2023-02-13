@@ -189,8 +189,12 @@ export function isLog(input: Log | DebugContext | DebugContextAndChildren): inpu
     return "ctxId" in input;
 }
 
+type ContextMap = Record<string, DebugContext[]>;
+interface LogStoreContexts {
+    content: ContextMap;
+}
 export const logStore = new class {
-    private logs: {content: Record<string, DebugContext[]>} = {content: {}};
+    private logs: LogStoreContexts = {content: {}};
     private activeContexts: DebugContextAndChildren | null = null;
     public ctxMap: Record<number, DebugContextAndChildren> = {};
     private subscriptions: (() => void)[] = [];

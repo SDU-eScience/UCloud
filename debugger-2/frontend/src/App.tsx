@@ -80,7 +80,10 @@ function App(): JSX.Element {
     </>;
 }
 
-function ServiceList({services}: {services: ServiceNode[];}): JSX.Element {
+interface ServiceListProps {
+    services: ServiceNode[];
+}
+function ServiceList({services}: ServiceListProps): JSX.Element {
     const service = useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot())
 
     if (services.length === 0) return <div />;
