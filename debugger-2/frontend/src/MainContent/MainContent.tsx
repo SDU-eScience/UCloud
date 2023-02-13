@@ -104,7 +104,15 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren, style, 
         <div className="ml-24px">
             {children.map(it => {
                 if (isLog(it)) {
-                    return <div key={it.id} data-selected={it === activeLogOrCtx} onClick={() => setRouteComponents([debugContext, it])} className="flex request-list-row left-border-black">{it.message.previewOrContent}</div>
+                    return <div key={it.id}
+                        className="flex request-list-row left-border-black"
+                        data-selected={it === activeLogOrCtx}
+                        data-has-error={hasError(it.importance)}
+                        data-is-odd={isOdd(it.importance)}
+                        onClick={() => setRouteComponents([debugContext, it])}
+                    >
+                        {it.message.previewOrContent}
+                    </div>
                 } else {
                     return <DebugContextRow
                         key={it.ctx.id}
