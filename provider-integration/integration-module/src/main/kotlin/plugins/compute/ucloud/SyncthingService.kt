@@ -78,7 +78,7 @@ class SyncthingService(
         val configFile = findConfigFile(request.principal.createdBy)
 
         try {
-            val rawConfig = fs.openForReading(configFile).reader().readText()
+            val rawConfig = fs.openForReading(configFile).use { it.reader().readText() }
             return IAppsProviderRetrieveConfigResponse(
                 "",
                 defaultMapper.decodeFromString(SyncthingConfig.serializer(), rawConfig),
@@ -93,8 +93,8 @@ class SyncthingService(
 
             return IAppsProviderRetrieveConfigResponse("", defaultConfig)
         } catch (ex: Throwable) {
-            // Most likely a corrupt file. Could also be an error of the file system, which is why we only suggest
-            // resetting the config.
+            fs.move(configFile, InternalFile(configFile.path + "_backup"), WriteConflictPolicy.RENAME)
+
             throw RPCException(
                 "It looks like your Syncthing configuration might be corrupt. " + 
                     "If this problem persists try resetting the server. " + 
