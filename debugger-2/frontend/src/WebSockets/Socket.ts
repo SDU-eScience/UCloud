@@ -77,7 +77,6 @@ function initializeSocket() {
                 const text = textDecoder.decode(slice)
 
                 logMessages.addMessage(text, id);
-                console.log(logMessages)
                 break;
             }
             default: {
@@ -348,7 +347,6 @@ export function setSessionState(query: string, filters: Set<DebugContextType>, l
         nullIfEmpty(debugContextFilters),
         nullIfEmpty(level)
     );
-    console.log(req);
     socket.send(req);
 }
 

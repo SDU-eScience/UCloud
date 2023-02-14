@@ -724,7 +724,7 @@ fun exampleProducer(logFolder: File) {
                             debug.log(MessageImportance.THIS_IS_NORMAL, "📥 got a response from the database")
                         }
 
-                        /*debug.useContext(DebugContextType.BACKGROUND_TASK, "🎤 Singing cool stuff") {
+                        debug.useContext(DebugContextType.BACKGROUND_TASK, "🎤 Singing cool stuff") {
 
                         }
                         debug.useContext(DebugContextType.BACKGROUND_TASK, "🤐 Zipping files") {
@@ -732,7 +732,7 @@ fun exampleProducer(logFolder: File) {
                             debug.useContext(DebugContextType.SERVER_REQUEST, "😇 OK! I will!") {
                                 debug.log(MessageImportance.THIS_IS_NORMAL, "🎉 Finished!")
                             }
-                        }*/
+                        }
                     }
                 }
             }

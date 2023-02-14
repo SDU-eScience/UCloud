@@ -26,6 +26,8 @@ class ContextReader(directory: File, val generation: Long, val idx: Int) {
 
     fun retrieve(idx: Int = cursor): DebugContextDescriptor? {
         descriptor.offset = idx * DebugContextDescriptor.size + DESCRIPTOR_OFFSET
+        if (descriptor.offset >= buf.capacity()) return null
+        // NOTE(Jonas): I assume this is because that null = 0, so the descriptor id has been moved into the null section
         if (descriptor.id == 0) return null
         return descriptor
     }

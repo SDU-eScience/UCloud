@@ -132,7 +132,7 @@ fun main(args: Array<String>) {
 //                                println(message.toString())
                                 sessionMutex.withLock {
                                     for (session in sessions) {
-                                        session.acceptLogMessage(message)
+                                        session.acceptLogMessage(message, session.activeContexts)
                                     }
                                 }
                             }
@@ -205,7 +205,7 @@ fun main(args: Array<String>) {
 
                                 sessionMutex.withLock {
                                     for (session in sessions) {
-                                        session.acceptContext(contextFile.generation, message)
+                                        session.acceptContext(contextFile.generation, message, session.activeContexts)
                                     }
                                 }
                             }
@@ -261,14 +261,16 @@ fun main(args: Array<String>) {
                             is ClientRequest.ClearActiveContext -> {
                                 session.clearLogMessages()
                                 session.clearContextMessages()
-                                session.activeContexts = arrayListOf(1L)
                                 val generation =
                                     trackedServices.get().values.find { it.title == session.activeService }?.generation
                                         ?: break
                                 val startTime = session.toReplayFrom ?: break
                                 session.toReplayFrom = null
                                 val endTime = getTimeMillis()
-                                session.findContexts(startTime, endTime, directory, generation, true)
+                                sessionMutex.withLock {
+                                    session.findContexts(startTime, endTime, directory, generation, 1L, true)
+                                }
+                                session.activeContexts = arrayListOf(1L)
                             }
 
                             is ClientRequest.ReplayMessages -> {
@@ -276,15 +278,16 @@ fun main(args: Array<String>) {
                                 session.clearContextMessages()
                                 session.clearLogMessages()
 
-                                session.activeContexts = arrayListOf(request.context)
-
                                 session.toReplayFrom = getTimeMillis()
                                 val generation = request.generation.toLong()
                                 val startTime = request.timestamp
                                 val endTime = startTime + 15.minutes.inWholeMilliseconds
-
-                                session.findContexts(startTime, endTime, directory, generation)
-                                session.findLogs(startTime, endTime, directory, generation)
+                                sessionMutex.withLock {
+                                    val contexts =
+                                        session.findContexts(startTime, endTime, directory, generation, request.context)
+                                    session.findLogs(startTime, endTime, directory, generation, contexts)
+                                    session.activeContexts = contexts
+                                }
                             }
 
                             is ClientRequest.ActivateService -> {
@@ -302,7 +305,8 @@ fun main(args: Array<String>) {
                                 val id = request.id.toInt()
                                 val fileIndex = request.fileIndex.toInt()
                                 val result = findBlobEntry(directory, generation, id, fileIndex) ?: continue
-                                val newBlobWriteBuffer = ByteBuffer.allocateDirect(result.size + 8 + 4) // Add long (type), id for overflow identifier.
+                                val newBlobWriteBuffer =
+                                    ByteBuffer.allocateDirect(result.size + 8 + 4) // Add long (type), id for overflow identifier.
                                 newBlobWriteBuffer.putLong(4)
                                 newBlobWriteBuffer.putInt(id)
                                 newBlobWriteBuffer.put(result)
@@ -332,9 +336,11 @@ suspend fun ClientSession.findContexts(
     endTime: Long,
     directory: File,
     generation: Long,
+    initialContext: Long,
     dontAddToActiveContext: Boolean = false
-) {
+): ArrayList<Long> {
     var ctxFileId = 1 // Note(Jonas): Seems to start at 1?
+    val contextIds = arrayListOf(initialContext)
 
     outer@ while (ContextReader.exists(directory, generation, ctxFileId)) {
         var currentFile = ContextReader(directory, generation, ctxFileId)
@@ -352,15 +358,16 @@ suspend fun ClientSession.findContexts(
             if (currentEntry.timestamp < startTime) continue // keep looking
             if (currentEntry.timestamp > endTime) break@outer // finished
 
-            if (currentEntry.parent.toLong() in activeContexts) {
+            if (currentEntry.parent.toLong() in contextIds) {
                 // NOTE(Jonas): Ignore the ctx and children of ignored ctxes.
                 // TODO(Jonas): the 'skipContext'-call is also made inside `acceptContext`. Once would be fine.
                 if (!dontAddToActiveContext && !skipContext(
                         generation,
-                        currentEntry
+                        currentEntry,
+                        contextIds
                     )
-                ) activeContexts.add(currentEntry.id.toLong())
-                acceptContext(generation, currentEntry)
+                ) contextIds.add(currentEntry.id.toLong())
+                acceptContext(generation, currentEntry, contextIds)
             }
 
             if (!currentFile.isValid(currentFile.cursor + 1)) {
@@ -373,9 +380,16 @@ suspend fun ClientSession.findContexts(
         }
     }
     flushContextMessage()
+    return contextIds
 }
 
-suspend fun ClientSession.findLogs(startTime: Long, endTime: Long, directory: File, generation: Long) {
+suspend fun ClientSession.findLogs(
+    startTime: Long,
+    endTime: Long,
+    directory: File,
+    generation: Long,
+    contextIds: ArrayList<Long>
+) {
     var logFileId = 0
     var logCount = 0
     outer@ while (LogFileReader.exists(directory, generation, logFileId)) {
@@ -393,27 +407,19 @@ suspend fun ClientSession.findLogs(startTime: Long, endTime: Long, directory: Fi
             if (currentEntry.timestamp < startTime) continue // keep looking
             if (currentEntry.timestamp > endTime) break@outer // finished
 
-            if (currentEntry.ctxId.toLong() in activeContexts) {
+            if (currentEntry.ctxId.toLong() in contextIds) {
                 logCount++
-                acceptLogMessage(currentEntry)
+                acceptLogMessage(currentEntry, contextIds)
             }
 
             if (!logFile.isValid(logFile.cursor + 1)) {
                 if (LogFileReader.exists(directory, generation, ++logFileId)) {
-                    logFile = LogFileReader(directory, generation, ++logFileId)
+                    logFile = LogFileReader(directory, generation, logFileId)
                 } else {
                     break@outer
                 }
             }
         }
-    }
-    // Hack(Jonas): Always seems to work, but is clear that something is very wrong.
-    if (logCount == 0) {
-        logFileId; startTime; endTime; directory; this.activeContexts
-        println("Doing a recursive run: ${recursionCounts++}, got to file: $logFileId")
-        findLogs(startTime, endTime, directory, generation)
-        recursionCounts = 0
-        return
     }
     flushLogsMessage()
 }
@@ -537,13 +543,13 @@ data class ClientSession(
         }
     }
 
-    suspend fun acceptLogMessage(message: BinaryDebugMessage<*>) {
+    suspend fun acceptLogMessage(message: BinaryDebugMessage<*>, contextIds: ArrayList<Long>) {
         val service = activeService ?: return
         if (message.importance.ordinal < minimumLevel.ordinal) return
         val services = trackedServices.get()
         val trackedService = services.values.find { it.title == service }
         if (trackedService == null || trackedService.generation != message.ctxGeneration) return
-        if (!activeContexts.contains(message.ctxId.toLong())) return
+        if (!contextIds.contains(message.ctxId.toLong())) return
 
         writeMutex.withLock {
             if (newLogsWriteBuffer.remaining() < FRAME_SIZE) return
@@ -560,20 +566,20 @@ data class ClientSession(
         }
     }
 
-    fun skipContext(generation: Long, context: DebugContextDescriptor): Boolean {
+    fun skipContext(generation: Long, context: DebugContextDescriptor, contexts: ArrayList<Long>): Boolean {
         val service = activeService ?: return true
         val services = trackedServices.get()
         val trackedService = services.values.find { it.title == service }
         if (trackedService == null || trackedService.generation != generation) return true
-        if (!activeContexts.contains(context.parent.toLong())) return true
+        if (!contexts.contains(context.parent.toLong())) return true
         if (context.importance < this.minimumLevel) return true
         val filters = this.filters
         if (filters != null && !filters.contains(context.type)) return true
         return false
     }
 
-    suspend fun acceptContext(generation: Long, context: DebugContextDescriptor) {
-        if (skipContext(generation, context)) return
+    suspend fun acceptContext(generation: Long, context: DebugContextDescriptor, contextIds: ArrayList<Long>) {
+        if (skipContext(generation, context, contextIds)) return
 
         writeMutex.withLock {
             if (newContextWriteBuffer.remaining() < DebugContextDescriptor.size) return

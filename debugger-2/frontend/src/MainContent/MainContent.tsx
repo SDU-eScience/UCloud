@@ -13,9 +13,7 @@ import AutoSizer from "react-virtualized-auto-sizer";
 //  What happens when selecting a different service?
 //     - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected).
 //  Handle long-running situations where memory usage has become high.
-//  seekToEnd (Contexts) sometimes crashes.
-//  Finding logs, even with contexts found, sometimes returns empty result.
-//  Clicking the same ctx several times doesn't always respond with every log. Seems to find ctxes.
+// Double-clicking a context sometimes duplicates the call.
 
 type LogOrCtx = Log | DebugContext;
 const ITEM_SIZE = 22;
