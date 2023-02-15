@@ -67,41 +67,33 @@ object FeatureAccounting : JobFeature, Loggable {
                 max(1, rootJob.vCpuMillis / 1000)
             }
 
-            k8.scope.launch {
-                // NOTE(Dan): Pushing this into a separate coroutine since we have seen quite bad performance from the
-                // accounting system. Doing this, we run the risk of things happening in a surprising order. For
-                // example, we might perform accounting of job completion and then perform accounting of the job. We
-                // choose to accept this risk and not attempt to handle it. Instead, we rely solely on the duplicate
-                // transaction detection to save us from charging too much. We live with the risk of charging too
-                // little.
-                val insufficientFunds = JobsControl.chargeCredits.call(
-                    bulkRequestOf(
-                        ResourceChargeCredits(
-                            rootJob.jobId,
-                            rootJob.jobId + "_" + lastTs.toString(),
-                            replicas * virtualCpus.toLong(),
-                            kotlin.math.ceil(timespent / (1000 * 60.0)).toLong()
-                        )
-                    ),
-                    k8.serviceClient
-                ).orThrow().insufficientFunds.isNotEmpty()
-
-                if (insufficientFunds) {
-                    children.forEach { it.cancel() }
-                }
-
-                try {
-                    rootJob.upsertAnnotation(
-                        LAST_PERFORMED_AT_ANNOTATION,
-                        now.toString()
+            val insufficientFunds = JobsControl.chargeCredits.call(
+                bulkRequestOf(
+                    ResourceChargeCredits(
+                        rootJob.jobId,
+                        rootJob.jobId + "_" + lastTs.toString(),
+                        replicas * virtualCpus.toLong(),
+                        kotlin.math.ceil(timespent / (1000 * 60.0)).toLong()
                     )
-                } catch (ex: KubernetesException) {
-                    if (ex.statusCode == HttpStatusCode.NotFound) {
-                        // Ignored
-                    } else {
-                        throw ex
-                    }
-                }
+                ),
+                k8.serviceClient
+            ).orThrow().insufficientFunds.isNotEmpty()
+
+            if (insufficientFunds) {
+                children.forEach { it.cancel() }
+            }
+        }
+
+        try {
+            rootJob.upsertAnnotation(
+                LAST_PERFORMED_AT_ANNOTATION,
+                now.toString()
+            )
+        } catch (ex: KubernetesException) {
+            if (ex.statusCode == HttpStatusCode.NotFound) {
+                // Ignored
+            } else {
+                throw ex
             }
         }
     }

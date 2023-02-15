@@ -123,7 +123,7 @@ data class VerifiedConfig(
         val temporary: Temporary = Temporary(),
     ) {
         data class Temporary(
-            val onConnectionCompleteHandlers: ArrayList<(ucloudId: String, localId: Int) -> Unit> = ArrayList(),
+            val onConnectionCompleteHandlers: ArrayList<suspend (ucloudId: String, localId: Int) -> Unit> = ArrayList(),
         )
 
         fun resourcePlugins(): Iterator<ResourcePlugin<*, *, *, *>> {

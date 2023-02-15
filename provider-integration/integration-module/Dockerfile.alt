@@ -1,0 +1,16 @@
+FROM eclipse-temurin:17-jdk-jammy
+USER 0
+RUN mkdir /var/run/ucloud
+RUN mkdir /var/run/ucloud/envoy
+RUN mkdir /var/log/ucloud
+RUN apt-get update && apt-get install -y curl
+RUN curl https://func-e.io/install.sh | bash -s -- -b /usr/local/bin
+RUN ln -s /usr/local/bin/func-e /usr/local/bin/getenvoy
+
+RUN curl https://storage.googleapis.com/kubernetes-release/release/v1.25.4/bin/linux/amd64/kubectl -o /tmp/kubectl
+RUN mv /tmp/kubectl /usr/bin/kubectl
+RUN chmod +x /usr/bin/kubectl
+RUN ln -s /opt/service/bin/service /usr/bin/ucloud
+
+COPY build/service /opt/service/
+CMD ["/opt/service/bin/service"]

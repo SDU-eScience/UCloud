@@ -447,40 +447,6 @@ fun generateCode() {
                     )
                 )
             ),
-            Chapter.Node(
-                "built-in-provider",
-                "Built-in Provider",
-                listOf(
-                    Chapter.ExternalMarkdown("storage", "UCloud/Storage", "../file-ucloud-service/README.md"),
-                    Chapter.Node(
-                        "compute",
-                        "UCloud/Compute",
-                        listOf(
-                            Chapter.ExternalMarkdown("intro", "Introduction", "../app-kubernetes-service/README.md"),
-                            Chapter.ExternalMarkdown("compute", "Docker Backend", "../app-kubernetes-service/wiki/docker.md"),
-//                            Chapter.Feature("jobs", "Jobs", KubernetesCompute),
-//                            Chapter.Feature("ingress", "Public Links (Ingress)", KubernetesIngresses),
-//                            Chapter.Node(
-//                                "ips",
-//                                "Public IPs (NetworkIP)",
-//                                listOf(
-//                                    Chapter.Feature("feature", "Feature", KubernetesNetworkIP),
-//                                    Chapter.Feature("maintenance", "Maintenance", KubernetesNetworkIPMaintenance)
-//                                )
-//                            ),
-//                            Chapter.Node(
-//                                "licenses",
-//                                "Software Licenses",
-//                                listOf(
-//                                    Chapter.Feature("feature", "Feature", KubernetesLicenses),
-//                                    Chapter.Feature("maintenance", "Maintenance", KubernetesLicenseMaintenance)
-//                                )
-//                            ),
-//                            Chapter.Feature("maintenance", "Maintenance", Maintenance)
-                        )
-                    )
-                )
-            )
         )
     )
     structure.addPaths()

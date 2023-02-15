@@ -20,6 +20,7 @@ interface ProductSupport {
 
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiOwnedBy(Resources::class)
 data class Maintenance(
     @UCloudApiDoc("""
         A description of the scheduled/ongoing maintenance.
@@ -68,6 +69,7 @@ data class Maintenance(
     }
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    @UCloudApiOwnedBy(Resources::class)
     enum class Availability {
         @UCloudApiDoc("""
             You might encounter some disruption to the service, but the end-user might not notice this disruption.

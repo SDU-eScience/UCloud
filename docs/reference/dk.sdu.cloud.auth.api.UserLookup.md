@@ -10,7 +10,6 @@
 ```kotlin
 data class UserLookup(
     val subject: String,
-    val uid: Long,
     val role: Role,
 )
 ```
@@ -23,17 +22,6 @@ data class UserLookup(
 <details>
 <summary>
 <code>subject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 

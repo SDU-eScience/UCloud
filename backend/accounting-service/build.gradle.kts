@@ -10,7 +10,6 @@ kotlin.sourceSets {
             implementation(project(":auth-service:api"))
             implementation(project(":mail-service:api"))
             implementation(project(":notification-service:api"))
-            implementation(project(":contact-book-service:api"))
         }
     }
 }

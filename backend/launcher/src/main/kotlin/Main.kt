@@ -10,7 +10,6 @@ import dk.sdu.cloud.auth.AuthService
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.avatar.AvatarService
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
 import dk.sdu.cloud.slack.SlackService
@@ -42,7 +41,6 @@ val services = setOf<Service>(
     AuditIngestionService,
     AuthService,
     AvatarService,
-    ContactBookService,
     ElasticManagementService,
     MailService,
     NewsService,
@@ -65,7 +63,6 @@ enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Bool
             AuditIngestionService,
             AuthService,
             AvatarService,
-            ContactBookService,
             ElasticManagementService,
             MailService,
             NewsService,

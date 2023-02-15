@@ -69,8 +69,10 @@ fun main(args: Array<String>) {
         commandFactory = LocalExecutableCommandFactory()
         fileFactory = LocalFileFactory()
 
-        val shouldInitializeTestEnvironment = args.contains("init") && args.contains("--all-providers")
-        isHeadless = shouldInitializeTestEnvironment || (args.contains("env") && args.contains("delete"))
+        val shouldInitializeTestEnvironment = (args.contains("init") && args.contains("--all-providers"))
+
+        isHeadless = shouldInitializeTestEnvironment || (args.contains("env") && args.contains("delete")) ||
+             (args.contains("snapshot") && args.find { it.contains(Regex("^[t][0-9]+\$")) } != null)
 
         // NOTE(Dan): initCurrentEnvironment() now initializes an environment which is ready. It returns true if the
         // environment is new. This method will override several "environment" global variables, such as the

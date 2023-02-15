@@ -211,6 +211,7 @@ SupportByProvider(
             firewall = NetworkIPSupport.Firewall(
                 enabled = true, 
             ), 
+            maintenance = null, 
             product = ProductReference(
                 category = "example-ip", 
                 id = "example-ip", 
@@ -384,7 +385,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/networkips/retriev
 #                     },
 #                     "firewall": {
 #                         "enabled": true
-#                     }
+#                     },
+#                     "maintenance": null
 #                 }
 #             }
 #         ]
@@ -1336,6 +1338,7 @@ This attribute is not included by default unless `includeProduct` is specified.
 data class NetworkIPSupport(
     val product: ProductReference,
     val firewall: NetworkIPSupport.Firewall?,
+    val maintenance: Maintenance?,
 )
 ```
 
@@ -1358,6 +1361,17 @@ data class NetworkIPSupport(
 <details>
 <summary>
 <code>firewall</code>: <code><code><a href='#networkipsupport.firewall'>NetworkIPSupport.Firewall</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maintenance</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.Maintenance.md'>Maintenance</a>?</code></code>
 </summary>
 
 

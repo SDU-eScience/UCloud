@@ -7,10 +7,7 @@ Activities are allocated to a team an activity has one or more repositories on G
 1. [UCloud](https://docs.cloud.sdu.dk)
    - This activity has a development system
 2. Infrastructure (hardware, network, and storage configuration)
-   - [Main repository](https://github.com/SDU-eScience/Infrastructure/blob/master/README.md)
-   - [Overview of Ansible roles](https://github.com/SDU-eScience/Infrastructure/blob/master/sdu-pm-cluster/README.md)
-   - [Operating procedures](https://github.com/SDU-eScience/Infrastructure/blob/master/procedures.md)
-   - [CEPH repository](https://github.com/SDU-eScience/ceph-ansible/blob/master/README.rst)
+   - [Main repository (private repository)](https://github.com/SDU-eScience/Infrastructure)
 
 Each project have its own Project Leader and Team but shares ISMS admin and
 Support Team.
@@ -38,20 +35,33 @@ developers can assign themselves to work on certain issues.
 Large or complex issues, which need to be broken down into smaller tasks, are called epics. Associated with every
 epic is a number of smaller issues. For example, new features in UCloud commonly become an epic.
 
+Epics often have a number of design documents attached to them. During the creation of these design documents we cover 
+many aspects. This includes high-level architecture, use-cases and UI mockups. Security features are always a part of
+this, even when not mentioned explicitly. Some recent examples of epics with design documents include:
+
+- https://github.com/SDU-eScience/UCloud/issues/3873
+- https://github.com/SDU-eScience/UCloud/issues/3647
+- https://github.com/SDU-eScience/UCloud/issues/3872
+
 ### Roadmap
 
-New features described by epics are placed into the project roadmap with a starting date and deadline. The goal of the
-roadmap is to provide an easy way to plan the work needed to complete the project in a timely manner. The roadmap
-provides an overview of the whole project and a detailed always up-to-date view of the scheduled work for the next
-3-6 months.
+New features described by epics are placed into the project roadmap with a starting date and estimated deadline. The 
+goal of the roadmap is to provide an easy way to plan the work needed to complete the project in a timely manner. The 
+roadmap provides an overview of the whole project and a detailed always up-to-date view of the scheduled work for the 
+next 3-6 months.
 
-All tasks/issues go through a fixed set of stages: “backlog”, “in progress”, “testing”, “review” and finally “closed”.
+Most issues go through a fixed set of stages: “backlog”, “in progress”, “testing”, “review” and finally “closed”.
+For large epics, it is not uncommon that several issues skip the "testing" and "review" phases and are bundled together 
+and tested and reviewed as part of the epic itself. This allows the individual developer more flexibility, which can 
+sometimes be helpful due to the occasional non-linear nature of development within an epic. 
+
+Some issues may skip these stages entirely. These exceptions are made typically when responding to urgent production 
+issues. It is up to the responsible project/team lead's judgement that determines when an exception can be made.
 
 ### Backlog
 
-The issue's life begins when it enters the backlog. The backlog is a list of tasks ordered by priority, and it
-describes the next tasks/issues to work on. For example, a critical bug will have a high priority and be put on top of
-the backlog as soon as it is created, even if many other tasks were created before it.
+The issue's life begins when it enters the backlog. The backlog is a list of tasks. It describes the next tasks/issues 
+to work on. The order in which tasks are completed from the backlog is determined by the roadmap.
 
 ### In progress: Design & Development
 
@@ -64,16 +74,20 @@ assigned to individual issues.
 
 Eventually code will reach a functional stage. At this point the issue becomes "ready for initial testing". In this
 stage, the code is tested by the assigned developer.  Code can be tested both manually and automatically. Automatic
-tests are executed by Jenkins and include both unit and integration testing. Manual testing is performed on a 
-development system. The development system contains a software and hardware stack similar to the one used in the 
-production environment. This allows us to more accurately test code.
+tests are executed by Jenkins. Manual testing is performed on a development system. The development system contains a 
+software and hardware stack similar to the one used in the production environment. This allows us to more accurately 
+test code. The development system is commonly used in our system to act as a staging environment. Our experience has 
+shown that with our team size, a separate staging environment did not provide sufficient benefits. 
 
 ### Code review
 
 After the testing stage, the assigned developer will submit a pull request and the issue enters the “code review”
 stage. The code is reviewed by one or more developers in the team knowledgeable of the affected code. This typically
 includes the team leader.  The review causes a feedback loop between reviewers and the developer. Once the reviewers
-accept the proposed change, the code is merged into the master branch and the associated issue is closed.
+accept the proposed change, the code is merged into the `staging` or `master` branch and the associated issue is closed.
+Under normal circumstances, the `staging` branch is used, but in some cases the team leader may choose to pick the
+`master` branch. The `staging` branch is typically skipped if the change affects semi-urgent issues in production.
+This follows the same principals of how an issue may skip phases.
 
 ### Staging and Alpha testing
 
@@ -89,7 +103,7 @@ In-depth deployment procedures: Click [here](./deployment.md).
 
 The UCloud software is deployed using Kubernetes. Kubernetes is a very flexible container orchestrator system which
 is configured using Kubernetes “resources”. These resources define the desired state of the cluster, and it is the job
-of Kubernetes to always match this state on the available hardware. The code of each microservice contains the code
+of Kubernetes to always match this state on the available hardware. The code of each service contains the code
 needed for deploying itself to a Kubernetes. As a result, this code goes through the same development and review
 process as all other code. New big features are introduced in production as “beta” and a testing phase by the users
 starts. Bugs reports are submitted by the users via the integrated bug reporting feature in the web UI. After the beta
@@ -100,6 +114,9 @@ testing is complete, the feature is promoted to _stable_.
 As UCloud, this project will be hosted on GitHub as a public repository under an open-source license. We use the GitHub
 issue system to create and close issues. We use ZenHub as a project management tool, which integrates seamlessly with
 GitHub, to track the various stages of the lifecycle of an issue and to manage both epics and the project roadmap.
+
+__NOTE(Dan, 13/02/23):__ In the cloud team, we have recently been experimenting with doing the roadmap in an external 
+spreadsheet due to unreliable behavior in ZenHub.
 
 ### Documentation
 
@@ -124,8 +141,8 @@ The NPM `update` and `audit` commands are used to fix outdated or broken depende
 
 ### Testing
 
-Creation of automatic unit and integration tests is a part of the development cycle. The project leader is ensures that
-the tests covers relevant scenarios.
+Creation of automatic tests is a part of the development cycle. The project leader is ensures that the tests covers 
+relevant scenarios.
 
 Automatic testing is performed by our Continuous Integration (CI) system, [Jenkins](./jenkins.md).
 The director grants access to the CI system.

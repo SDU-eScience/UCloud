@@ -471,7 +471,6 @@ data class SecurityPrincipal(
     val role: Role,
     val firstName: String,
     val lastName: String,
-    val uid: Long,
     val email: String?,
     val twoFactorAuthentication: Boolean?,
     val principalType: String?,
@@ -523,17 +522,6 @@ This is usually suitable for display in UIs.
 <details>
 <summary>
 <code>lastName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The last name of the security principal. Can be empty.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> A numeric unique identifier for this principal. The username is the preferred unique identifier.
 </summary>
 
 

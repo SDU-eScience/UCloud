@@ -263,6 +263,7 @@ JobsProvider.create.call(
                         vnc = null, 
                         web = null, 
                     ), 
+                    maintenance = null, 
                     native = ComputeSupport.Native(
                         enabled = null, 
                         logs = null, 
@@ -639,7 +640,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                             "timeExtension": null,
                             "utilization": null,
                             "web": null
-                        }
+                        },
+                        "maintenance": null
                     }
                 },
                 "resolvedProduct": {
