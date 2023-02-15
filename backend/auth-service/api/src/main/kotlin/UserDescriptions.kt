@@ -104,7 +104,7 @@ research and education centers on external sites.
 outside WAYF. When a user is a PASSWORD user then there is also a requirement of 2FA. The 2FA is setup after 
 first login.
 
-Each user can have one of seven roles defining their privileges on the UCloud system. See $TYPE_REF dk.sdu.cloud.Role for more details.
+Each user has a role defining their privileges on the UCloud system. See $TYPE_REF dk.sdu.cloud.Role for more details.
 
 ${ApiConventions.nonConformingApiWarning}
             
