@@ -2,7 +2,6 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import {Share, shareLinksApi} from "@/UCloud/SharesApi";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import React, {useEffect} from "react";
-import {useDispatch} from "react-redux";
 import {useNavigate, useParams} from "react-router";
 
 export const SharesAcceptInviteLink: React.FunctionComponent = () => {
