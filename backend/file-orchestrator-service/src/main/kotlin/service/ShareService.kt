@@ -83,6 +83,27 @@ class ShareService(
                         (original_file_path = e.old_path or original_file_path like e.old_path || '/%');
                 """
             )
+
+            // Note(Brian): Move share links
+            session.sendPreparedStatement(
+                {
+                    batch.split {
+                        into("old_paths") { it.oldId.normalize() }
+                        into("new_paths") { it.newId.normalize() }
+                    }
+                },
+                """
+                    with entries as (
+                        select unnest(:old_paths::text[]) old_path, unnest(:new_paths::text[]) new_path
+                    )
+                    update file_orchestrator.shares_links
+                    set
+                        file_path = e.new_path || substring(file_path, length(e.old_path) + 1)
+                    from entries e
+                    where
+                        (file_path = e.old_path or file_path like e.old_path || '/%')
+                """
+            )
         }
     }
 
@@ -130,6 +151,13 @@ class ShareService(
                             where
                             fc.resource::text = affected_shares.available_at
                             returning fc.resource
+                        ),
+                        delete_share_links as (
+                            delete from file_orchestrator.shares_links sl 
+                            using entries e
+                            where
+                                e.path = sl.file_path or 
+                                sl.file_path like e.path || '/%'
                         ),
                         delete_resources_updates as (
                             delete from provider.resource_update ru
@@ -679,7 +707,13 @@ class ShareService(
         }
 
         val collectionId = extractPathMetadata(request.path).collection
-        val provider = collections.retrieve(actorAndProject, collectionId, null, ctx = ctx).specification.product.provider
+        val collection = collections.retrieve(actorAndProject, collectionId, null, ctx = ctx)
+
+        if (collection.owner.createdBy != actorAndProject.actor.safeUsername()) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        val provider = collection.specification.product.provider
         val products = support.retrieveProducts(listOf(provider))[provider]
 
         if (products.isNullOrEmpty()) {
@@ -728,8 +762,6 @@ class ShareService(
     }
 
     suspend fun browseInviteLinks(actorAndProject: ActorAndProject, request: SharesBrowseInviteLinksRequest, ctx: DBContext = db): PageV2<ShareInviteLink> {
-        // TODO(Brian): Check permissions
-
         val result = ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -757,7 +789,12 @@ class ShareService(
         request: SharesDeleteInviteLinkRequest,
         ctx: DBContext = db
     ) {
-        // TODO(Brian): Check permissions
+        val collectionId = extractPathMetadata(request.path).collection
+        val owner = collections.retrieve(actorAndProject, collectionId, null, ctx = ctx).owner.createdBy
+
+        if (actorAndProject.actor.safeUsername() != owner) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
 
         ctx.withSession { session ->
             val success = session.sendPreparedStatement(
@@ -784,7 +821,12 @@ class ShareService(
         request: SharesUpdateInviteLinkPermissionsRequest,
         ctx: DBContext = db
     ) {
-        // TODO(Brian): Check permissions
+        val collectionId = extractPathMetadata(request.path).collection
+        val owner = collections.retrieve(actorAndProject, collectionId, null, ctx = ctx).owner.createdBy
+
+        if (actorAndProject.actor.safeUsername() != owner) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
 
         ctx.withSession { session ->
             val success = session.sendPreparedStatement(
@@ -847,13 +889,9 @@ class ShareService(
 
             val owner = ActorAndProject(Actor.SystemOnBehalfOfUser(linkInfo.sharedBy), null)
 
-            // TODO(Brian): Check if file still exists
-            files.retrieve(owner, linkInfo.path, null, ctx)
-
             val collectionId = extractPathMetadata(linkInfo.path).collection
             val provider = collections.retrieve(owner, collectionId, null, ctx = ctx).specification.product.provider
 
-            log.debug("$provider")
             val product = support.retrieveProducts(listOf(provider))[provider]?.firstOrNull()?.product
                 ?: throw RPCException("Shares not supported by provider", HttpStatusCode.BadRequest)
 
