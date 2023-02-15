@@ -749,8 +749,7 @@ class ShareService(
                         returning token, expires, permissions
                 """
             ).rows.firstNotNullOf { row ->
-                val permissions =  row.getAs<List<String>>("permissions") ?:
-                    throw RPCException("An error occurred while trying to create link", HttpStatusCode.BadRequest)
+                val permissions =  row.getAs<List<String>>("permissions")
 
                 ShareInviteLink(
                     row.getAs<UUID>("token").toString(),
