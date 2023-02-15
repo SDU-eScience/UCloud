@@ -45,12 +45,10 @@ import io.ktor.server.websocket.*
 import io.ktor.util.date.*
 import io.ktor.util.pipeline.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -141,7 +139,7 @@ class ComputeController(
 
                     with(ctx) {
                         with(plugin) {
-                            runBlocking { follow(request.job) }
+                            follow(request.job)
                         }
                     }
 
