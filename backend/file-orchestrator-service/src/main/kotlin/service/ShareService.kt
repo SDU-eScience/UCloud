@@ -10,6 +10,8 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.util.*
+import dk.sdu.cloud.accounting.util.ProviderSupport
+import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -19,9 +21,7 @@ import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.api.NotificationType
-import dk.sdu.cloud.provider.api.Permission
-import dk.sdu.cloud.provider.api.ResourceUpdateAndId
-import dk.sdu.cloud.provider.api.UpdatedAcl
+import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
@@ -678,6 +678,14 @@ class ShareService(
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Shares not possible from projects")
         }
 
+        val collectionId = extractPathMetadata(request.path).collection
+        val provider = collections.retrieve(actorAndProject, collectionId, null, ctx = ctx).specification.product.provider
+        val products = support.retrieveProducts(listOf(provider))[provider]
+
+        if (products.isNullOrEmpty()) {
+            throw RPCException("Shares not supported by provider", HttpStatusCode.BadRequest)
+        }
+
         return ctx.withSession { session ->
             val count = session.sendPreparedStatement(
                 {
@@ -706,14 +714,14 @@ class ShareService(
                         (:file_path, :shared_by, :token, now() + '10 days')
                         returning token, expires, permissions
                 """
-            ).rows.firstNotNullOf {
-                val permissions =  it.getString("permissions") ?:
+            ).rows.firstNotNullOf { row ->
+                val permissions =  row.getAs<List<String>>("permissions") ?:
                     throw RPCException("An error occurred while trying to create link", HttpStatusCode.BadRequest)
 
                 ShareInviteLink(
-                    it.getAs<UUID>("token").toString(),
-                    it.getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
-                    Permission.valueOf(permissions)
+                    row.getAs<UUID>("token").toString(),
+                    row.getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
+                    permissions.map { Permission.valueOf(it) }
                 )
             }
         }
@@ -736,7 +744,7 @@ class ShareService(
                 ShareInviteLink(
                     entry.key.toString(),
                     entry.value.first().getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
-                    Permission.valueOf(entry.value.first().getString("permissions")!!)
+                    entry.value.first().getAs<List<String>>("permissions").map { Permission.valueOf(it) }
                 )
             }
         }
@@ -778,20 +786,17 @@ class ShareService(
     ) {
         // TODO(Brian): Check permissions
 
-        if (!listOf(Permission.EDIT, Permission.READ).contains(request.permissions)) {
-            throw RPCException("Permissions can only be either Read or Edit", HttpStatusCode.BadRequest)
-        }
-
         ctx.withSession { session ->
             val success = session.sendPreparedStatement(
                 {
                     setParameter("file_path", request.path)
                     setParameter("token", request.token)
-                    setParameter("permissions", request.permissions.name)
+                    setParameter("permissions", "{" +
+                        request.permissions.filter { it.canBeGranted }.joinToString(",") { it.name } + "}")
                 },
                 """
                     update file_orchestrator.shares_links
-                    set permissions = :permissions
+                    set permissions = :permissions::text[]
                     where file_path = :file_path and token = :token
                 """
             ).rowsAffected > 0
@@ -812,11 +817,9 @@ class ShareService(
     ) : SharesAcceptInviteLinkResponse {
         data class ShareLinkInfo(
             val sharedBy: String,
-            val permissions: Permission,
+            val permissions: List<Permission>,
             val path: String
         )
-
-        // TODO(Brian): Check if file still exists
 
         return ctx.withSession { session ->
             val linkInfo = session.sendPreparedStatement(
@@ -832,7 +835,7 @@ class ShareService(
                 """
             ).rows.map { entry ->
                 val filePath = entry.getString("file_path")
-                val permissions = entry.getString("permissions")?.let { Permission.valueOf(it) }
+                val permissions = entry.getAs<List<String>>("permissions")?.map { Permission.valueOf(it) }
                 val sharedBy = entry.getString("shared_by")
 
                 if (filePath == null || permissions == null || sharedBy == null) {
@@ -842,15 +845,27 @@ class ShareService(
                 ShareLinkInfo(sharedBy, permissions, filePath)
             }.firstOrNull() ?: throw RPCException("Link expired", HttpStatusCode.BadRequest)
 
+            val owner = ActorAndProject(Actor.SystemOnBehalfOfUser(linkInfo.sharedBy), null)
+
+            // TODO(Brian): Check if file still exists
+            files.retrieve(owner, linkInfo.path, null, ctx)
+
+            val collectionId = extractPathMetadata(linkInfo.path).collection
+            val provider = collections.retrieve(owner, collectionId, null, ctx = ctx).specification.product.provider
+
+            log.debug("$provider")
+            val product = support.retrieveProducts(listOf(provider))[provider]?.firstOrNull()?.product
+                ?: throw RPCException("Shares not supported by provider", HttpStatusCode.BadRequest)
+
             // Create share
             val share = this.create(
-                ActorAndProject(Actor.SystemOnBehalfOfUser(linkInfo.sharedBy), null),
+                owner,
                 bulkRequestOf(
                     Share.Spec(
                         actorAndProject.actor.safeUsername(),
                         linkInfo.path,
-                        listOf(linkInfo.permissions),
-                        ProductReference("test", "test", "test")
+                        linkInfo.permissions,
+                        ProductReference(product.name, product.category.name, provider)
                     )
                 ),
                 ctx
@@ -862,7 +877,7 @@ class ShareService(
                 bulkRequestOf(FindByStringId(share.id)),
             )
 
-            SharesAcceptInviteLinkResponse(share.id)
+            this.retrieve(actorAndProject, share.id, null, ctx)
         }
     }
 

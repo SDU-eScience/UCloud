@@ -151,7 +151,7 @@ data class SharesBrowseOutgoingRequest(
 data class ShareInviteLink(
     val token: String,
     val expires: Long,
-    val permissions: Permission
+    val permissions: List<Permission>
 )
 
 @Serializable
@@ -182,7 +182,7 @@ data class SharesDeleteInviteLinkRequest(
 data class SharesUpdateInviteLinkPermissionsRequest(
     val token: String,
     val path: String,
-    val permissions: Permission
+    val permissions: List<Permission>
 )
 
 @Serializable
@@ -191,11 +191,7 @@ data class SharesAcceptInviteLinkRequest(
     val token: String
 )
 
-@Serializable
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
-data class SharesAcceptInviteLinkResponse(
-    val id: String
-)
+typealias SharesAcceptInviteLinkResponse = Share
 
 @UCloudApiInternal(InternalLevel.STABLE)
 object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
@@ -340,27 +336,7 @@ how to use this feature. We generally recommend that you use a full-blown projec
     val browseOutgoing = call("browseOutgoing", SharesBrowseOutgoingRequest.serializer(), PageV2.serializer(OutgoingShareGroup.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext, "outgoing")
     }
-/*
-    val createInviteLink = call("createInviteLink", SharesCreateInviteLinkRequest.serializer(), ShareInviteLink.serializer(), CommonErrorMessage.serializer()) {
-        httpCreate(baseContext, "links")
-    }
 
-    val browseInviteLinks = call("browseInviteLinks", SharesBrowseInviteLinksRequest.serializer(), PageV2.serializer(ShareInviteLink.serializer()), CommonErrorMessage.serializer()) {
-        httpBrowse(baseContext, "links")
-    }
-
-    val deleteInviteLink = call("deleteInviteLink", SharesDeleteInviteLinkRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "deleteInviteLink")
-    }
-
-    val updateInvitePermissions = call("updateInviteLinkPermissions", SharesUpdateInviteLinkPermissionsRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "updateInviteLinkPermissions")
-    }
-
-    val acceptInviteLink = call("acceptInviteLink", SharesAcceptInviteLinkRequest.serializer(), SharesAcceptInviteLinkResponse.serializer(), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "acceptInviteLink")
-    }
-*/
     override val create get() = super.create!!
     override val delete get() = super.delete!!
     override val search get() = super.search!!
@@ -385,7 +361,7 @@ object ShareLinks: CallDescriptionContainer("share.links") {
         httpUpdate(baseContext, "updatePermissions")
     }
 
-    val acceptInvite = call("acceptInviteLink", SharesAcceptInviteLinkRequest.serializer(), SharesAcceptInviteLinkResponse.serializer(), CommonErrorMessage.serializer()) {
+    val acceptInvite = call("acceptInvite", SharesAcceptInviteLinkRequest.serializer(), SharesAcceptInviteLinkResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "accept")
     }
 }
