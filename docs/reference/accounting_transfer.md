@@ -125,7 +125,7 @@ Accounting.transfer.call(
         target = WalletOwner.Project(
             projectId = "second-root-project", 
         ), 
-        transactionId = "-67470490431019598351676281757022", 
+        transactionId = "42853560984776343381676450983133", 
     )),
     piRoot
 ).orThrow()
@@ -337,7 +337,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "amount": 100,
             "startDate": null,
             "endDate": null,
-            "transactionId": "-67470490431019598351676281757022",
+            "transactionId": "42853560984776343381676450983133",
             "dry": false
         }
     ]
