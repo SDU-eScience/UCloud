@@ -71,8 +71,9 @@ class LogFileReader(directory: File, val generation: Long, val idx: Int) {
 
     fun seekToEnd() {
         var min = 0
-        var max = buf.capacity() / FRAME_SIZE
-        while (min < max) {
+        // Note(Jonas): I'm not sure this size is always the correct one to use.
+        var max = buf.capacity() / BinaryDebugMessage.size
+        while (min <= max) {
             cursor = ((max - min) / 2) + min
             if (isValid()) {
                 min = cursor + 1

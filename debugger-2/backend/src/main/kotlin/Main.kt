@@ -330,7 +330,6 @@ fun main(args: Array<String>) {
     }.start(wait = true)
 }
 
-var recursionCounts = 0
 suspend fun ClientSession.findContexts(
     startTime: Long,
     endTime: Long,

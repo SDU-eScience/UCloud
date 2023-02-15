@@ -14,6 +14,7 @@ import AutoSizer from "react-virtualized-auto-sizer";
 //     - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected).
 //  Handle long-running situations where memory usage has become high.
 // Double-clicking a context sometimes duplicates the call.
+// x-overflow in lists.
 
 type LogOrCtx = Log | DebugContext;
 const ITEM_SIZE = 22;
@@ -78,14 +79,13 @@ export function MainContent(): JSX.Element {
     </div>
 }
 
-function DebugContextRow({debugContext, setRouteComponents, ctxChildren, style, activeLogOrCtx}: {
+function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], style, activeLogOrCtx}: {
     debugContext: DebugContext;
     activeLogOrCtx?: LogOrCtx;
     setRouteComponents(ctx: LogOrCtx[]): void;
     ctxChildren?: (DebugContextAndChildren | Log)[];
     style?: React.CSSProperties | undefined;
 }): JSX.Element {
-    const children = ctxChildren ?? [];
     return <>
         <div
             key={debugContext.id}
@@ -93,14 +93,14 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren, style, 
             onClick={() => setRouteComponents([debugContext])}
             data-selected={activeLogOrCtx === debugContext}
             style={style}
-            data-haschildren={children.length > 0}
+            data-haschildren={ctxChildren.length > 0}
             data-has-error={hasError(debugContext.importance)}
             data-is-odd={isOdd(debugContext.importance)}
         >
             <div>{debugContext.name}</div>
         </div>
         <div className="ml-24px">
-            {children.map(it => {
+            {ctxChildren.map(it => {
                 if (isLog(it)) {
                     return <div key={it.id}
                         className="flex request-list-row left-border-black"

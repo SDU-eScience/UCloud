@@ -4,7 +4,7 @@ import java.io.File
 import java.nio.channels.FileChannel
 import java.nio.file.StandardOpenOption
 
-const val DESCRIPTOR_OFFSET = 4096
+const val DESCRIPTOR_START_OFFSET = 4096
 
 class ContextReader(directory: File, val generation: Long, val idx: Int) {
     private val channel = FileChannel.open(
@@ -15,7 +15,7 @@ class ContextReader(directory: File, val generation: Long, val idx: Int) {
     @PublishedApi
     internal val buf = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size())
 
-    private val descriptor = DebugContextDescriptor(buf, DESCRIPTOR_OFFSET)
+    private val descriptor = DebugContextDescriptor(buf, DESCRIPTOR_START_OFFSET)
 
     var cursor = 0
         private set
@@ -25,9 +25,8 @@ class ContextReader(directory: File, val generation: Long, val idx: Int) {
     }
 
     fun retrieve(idx: Int = cursor): DebugContextDescriptor? {
-        descriptor.offset = idx * DebugContextDescriptor.size + DESCRIPTOR_OFFSET
-        if (descriptor.offset >= buf.capacity()) return null
-        // NOTE(Jonas): I assume this is because that null = 0, so the descriptor id has been moved into the null section
+        descriptor.offset = idx * DebugContextDescriptor.size + DESCRIPTOR_START_OFFSET
+        if (descriptor.offset > buf.capacity()) return null
         if (descriptor.id == 0) return null
         return descriptor
     }
@@ -57,18 +56,18 @@ class ContextReader(directory: File, val generation: Long, val idx: Int) {
         return true
     }
 
-    fun seekToEnd() {
+    private fun seekToEnd() {
         var min = 0
-        var max = buf.capacity() / FRAME_SIZE
-        while (min < max) {
-            cursor = ((max - min) / 2) + min
-            if (isValid()) {
-                min = cursor + 1
+        var max = (buf.capacity() - DESCRIPTOR_START_OFFSET) / (DebugContextDescriptor.size)
+        while (min <= max) {
+            this.cursor = ((max - min) / 2) + min
+            if (isValid(cursor)) {
+                min = this.cursor + 1
             } else {
-                max = cursor - 1
+                max = this.cursor - 1
             }
         }
-        cursor = max
+        this.cursor = max
     }
 
     fun seekLastTimestamp(): Long? {
@@ -79,7 +78,7 @@ class ContextReader(directory: File, val generation: Long, val idx: Int) {
         return ts
     }
 
-    fun resetCursor() {
+    private fun resetCursor() {
         cursor = 0
     }
 
@@ -91,7 +90,7 @@ class ContextReader(directory: File, val generation: Long, val idx: Int) {
         val currentCursor = this.cursor
         this.resetCursor()
         while (this.next()) {
-            val entry = this.retrieve() ?: continue
+            val entry = this.retrieve() ?: break
             println("id: ${entry.id}, name: ${entry.name}, ts: ${entry.timestamp}")
         }
         this.cursor = currentCursor

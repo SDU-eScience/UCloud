@@ -672,7 +672,6 @@ class BlobSystem(
         return try {
             val size = buf.getInt(pos)
             val sizeSize = size.toString().length
-            // Note(Jonas): Despite the length of the buffer array being correct, the decoded string seems to be shorter sometimes.
             ByteArray(size) {
                 buf[pos + it + sizeSize + LargeText.OVERFLOW_SEP.length]
             }
