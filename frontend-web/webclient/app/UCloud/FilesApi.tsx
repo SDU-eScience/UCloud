@@ -600,7 +600,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
-                    if (!(support as FileCollectionSupport).files.sharesSupported) return false;
+                    if ((support as FileCollectionSupport).files.sharesSupported === false) return false;
 
                     const isMissingPermissions = selected.some(it => !it.permissions.myself.some(p => p === "ADMIN"));
                     const hasNonDirectories = selected.some(it => it.status.type != "DIRECTORY");
