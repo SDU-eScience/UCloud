@@ -72,7 +72,7 @@ export interface OutgoingShareGroupPreview {
 export interface ShareInviteLink {
     token: string;
     expires: number;
-    permissions: ("READ" | "EDIT");
+    permissions: ("READ" | "EDIT")[];
 }
 
 export interface CreateInviteLinkRequest {
@@ -91,15 +91,12 @@ export interface DeleteInviteLinkRequest {
 export interface UpdateInviteLinkPermissionsRequest {
     token: string;
     path: string;
-    permissions: string;
+    permissions: string[];
 }
 
 export interface AcceptInviteLinkRequest {
     token: string;
 }
-
-export interface AcceptInviteLinkResponse {}
-
 
 class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpdate,
     ShareFlags, ShareStatus, ShareSupport> {
@@ -350,27 +347,6 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
     browseOutgoing(request: PaginationRequestV2): APICallParameters {
         return apiBrowse(request, this.baseContext, "outgoing");
     }
-/*
-    createInviteLink(request: CreateInviteLinkRequest): APICallParameters {
-        return apiCreate(request, this.baseContext, "links");
-    }
-
-    browseInviteLinks(request: PaginationRequestV2 & BrowseInviteLinksRequest): APICallParameters {
-        return apiBrowse(request, this.baseContext, "links");
-    }
-
-    deleteInviteLink(request: DeleteInviteLinkRequest): APICallParameters {
-        return apiUpdate(request, this.baseContext, "deleteInviteLink");
-    }
-
-    updateInviteLinkPermissions(request: UpdateInviteLinkPermissionsRequest): APICallParameters {
-        return apiUpdate(request, this.baseContext, "updateInviteLinkPermissions");
-    }
-
-    acceptInviteLink(request: AcceptInviteLinkRequest): APICallParameters {
-        return apiUpdate(request, this.baseContext, "acceptInviteLink")
-    }
-    */
 }
 
 export class ShareLinksApi {
@@ -393,7 +369,7 @@ export class ShareLinksApi {
     }
 
     public acceptInvite(request: AcceptInviteLinkRequest): APICallParameters {
-        return apiUpdate(request, this.baseContext, "acceptInvite")
+        return apiUpdate(request, this.baseContext, "accept")
     }
 }
 

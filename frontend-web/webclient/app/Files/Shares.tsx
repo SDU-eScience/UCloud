@@ -49,10 +49,10 @@ export const ShareModal: React.FunctionComponent<{
 
     useEffect(() => {
         if (editingLink) {
-            setSelectedPermission(
-                // TODO(Brian): List or not?
-                inviteLinks.data.items[0].permissions ?? ["READ"]
-            );
+            const link = inviteLinks.data.items.find(it => it.token === editingLink);
+            const permissionSelected = link?.permissions.includes("EDIT") ? "EDIT" : "READ"
+
+            setSelectedPermission(permissionSelected);
         }
     }, [editingLink, inviteLinks]);
 
@@ -202,9 +202,11 @@ export const ShareModal: React.FunctionComponent<{
                         chevron
                         trigger={<>{permissions.find(it => it.value === selectedPermission)?.text}</>} 
                         options={permissions}
-                        onChange={async permission => {
+                        onChange={async chosen => {
+                            const newPermissions = chosen == "EDIT" ? ["EDIT", "READ"] : ["READ"];
+
                             await callAPIWithErrorHandler(
-                                shareLinksApi.updatePermissions({token: editingLink, path: selected.id, permissions: permission})
+                                shareLinksApi.updatePermissions({token: editingLink, path: selected.id, permissions: newPermissions})
                             );
 
                             fetchInviteLinks(

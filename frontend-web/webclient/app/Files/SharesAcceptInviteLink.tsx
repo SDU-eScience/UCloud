@@ -1,5 +1,6 @@
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {AcceptInviteLinkResponse, shareLinksApi} from "@/UCloud/SharesApi";
+import {Share, shareLinksApi} from "@/UCloud/SharesApi";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 import React, {useEffect} from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate, useParams} from "react-router";
@@ -11,7 +12,7 @@ export const SharesAcceptInviteLink: React.FunctionComponent = () => {
     const locationParams = useParams<{id: string;}>();
     let token = locationParams.id ? decodeURIComponent(locationParams.id) : undefined;
 
-    const [acceptedInvite, acceptInvite] = useCloudAPI<AcceptInviteLinkResponse|null>(
+    const [acceptedInvite, acceptInvite] = useCloudAPI<Share|null>(
         {noop: true},
         null
     );
@@ -23,10 +24,17 @@ export const SharesAcceptInviteLink: React.FunctionComponent = () => {
     }, [token]);
 
     useEffect(() => {
-        if (acceptedInvite) {
-            navigate("/shares");
+        if (!acceptedInvite.data) return;
+        if (acceptedInvite.loading) return;
+
+        const sharePath = acceptedInvite.data?.status.shareAvailableAt;
+
+        if (sharePath) {
+            navigate(buildQueryString("/files", {"path": sharePath}));
+        } else {
+            navigate("/drives");
         }
-    }, [acceptedInvite]);
+    }, [acceptedInvite.data]);
 
     return <></>;
 }
