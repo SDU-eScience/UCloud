@@ -3,5 +3,5 @@ create table if not exists file_orchestrator.shares_links(
     file_path text not null,
     shared_by text not null references auth.principals(id),
     expires timestamptz not null,
-    permissions text not null default 'READ'
+    permissions text[] not null default '{READ}'
 );
