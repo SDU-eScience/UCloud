@@ -7,7 +7,6 @@ import {useNavigate, useParams} from "react-router";
 
 export const SharesAcceptInviteLink: React.FunctionComponent = () => {
     const navigate = useNavigate();
-    const dispatch = useDispatch();
 
     const locationParams = useParams<{id: string;}>();
     let token = locationParams.id ? decodeURIComponent(locationParams.id) : undefined;
@@ -24,7 +23,8 @@ export const SharesAcceptInviteLink: React.FunctionComponent = () => {
     }, [token]);
 
     useEffect(() => {
-        if (!acceptedInvite.data) return;
+        console.log(acceptedInvite);
+        if (!acceptedInvite.data && !acceptedInvite.error) return;
         if (acceptedInvite.loading) return;
 
         const sharePath = acceptedInvite.data?.status.shareAvailableAt;
@@ -32,9 +32,9 @@ export const SharesAcceptInviteLink: React.FunctionComponent = () => {
         if (sharePath) {
             navigate(buildQueryString("/files", {"path": sharePath}));
         } else {
-            navigate("/drives");
+            navigate("/shares");
         }
-    }, [acceptedInvite.data]);
+    }, [acceptedInvite]);
 
     return <></>;
 }
