@@ -9,6 +9,7 @@ import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductType
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.ProviderSupport
 import dk.sdu.cloud.accounting.util.Providers
@@ -887,12 +888,27 @@ class ShareService(
             }.firstOrNull() ?: throw RPCException("Link expired", HttpStatusCode.BadRequest)
 
             val owner = ActorAndProject(Actor.SystemOnBehalfOfUser(linkInfo.sharedBy), null)
-
             val collectionId = extractPathMetadata(linkInfo.path).collection
             val provider = collections.retrieve(owner, collectionId, null, ctx = ctx).specification.product.provider
 
             val product = support.retrieveProducts(listOf(provider))[provider]?.firstOrNull()?.product
                 ?: throw RPCException("Shares not supported by provider", HttpStatusCode.BadRequest)
+
+            // Check if share already exists, and delete if so
+            val existingShareId = session.sendPreparedStatement(
+                {
+                    setParameter("user", actorAndProject.actor.safeUsername())
+                    setParameter("original_path", linkInfo.path)
+                },
+                """
+                    select resource from file_orchestrator.shares
+                    where shared_with = :user and original_file_path = :original_path
+                """
+            ).rows.firstOrNull()?.getLong("resource")
+
+            if (existingShareId != null) {
+                this.delete(owner, bulkRequestOf(FindByStringId(existingShareId.toString())))
+            }
 
             // Create share
             val share = this.create(
