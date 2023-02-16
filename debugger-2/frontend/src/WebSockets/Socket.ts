@@ -153,10 +153,11 @@ export const activeService = new class {
     }
 
     public setService(service: string): void {
+        const oldService = this.activeService;
         this.activeService = service;
         this.activeGeneration = serviceStore.getGeneration(service);
-        if (isSocketReady(socket)) {
-            socket.send(activateServiceRequest(service));
+        if (service && oldService !== service && isSocketReady(socket)) {
+            socket.send(activateServiceRequest(service, this.activeGeneration));
             this.emitChange();
         }
     }
@@ -310,10 +311,13 @@ export const serviceStore = new class {
     }
 }();
 
-function activateServiceRequest(service: string | null): string {
+type Nullable<T> = T | null;
+
+function activateServiceRequest(service: Nullable<string>, generation: Nullable<string>): string {
     return JSON.stringify({
         type: "activate_service",
         service,
+        generation
     })
 }
 

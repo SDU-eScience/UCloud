@@ -17,7 +17,7 @@ class LogFileReader(directory: File, val generation: Long, val idx: Int) {
 
     fun retrieve(idx: Int = cursor): BinaryDebugMessage<*>? {
         val offset = idx * FRAME_SIZE
-        if (offset >= buf.capacity()) return null
+        if (offset + /* This may be wrong, but it seems unhandled */ FRAME_SIZE /* This may be wrong, but it seems unhandled */ >= buf.capacity()) return null
         val type = buf.get(offset)
         return when (type.toInt()) {
             1 -> BinaryDebugMessage.ClientRequest(buf, offset)
@@ -34,7 +34,7 @@ class LogFileReader(directory: File, val generation: Long, val idx: Int) {
     }
 
     fun isValid(idx: Int = cursor): Boolean {
-        val offset = idx * FRAME_SIZE
+        val offset = idx * FRAME_SIZE // Frame size is correct for Logs.
         if (offset >= buf.capacity()) return false
         val type = buf.get(offset)
         return type in 1..9

@@ -56,7 +56,7 @@ class ContextReader(directory: File, val generation: Long, val idx: Int) {
         return true
     }
 
-    private fun seekToEnd() {
+    fun seekToEnd() {
         var min = 0
         var max = (buf.capacity() - DESCRIPTOR_START_OFFSET) / (DebugContextDescriptor.size)
         while (min <= max) {

@@ -84,7 +84,16 @@ interface ServiceListProps {
     services: ServiceNode[];
 }
 function ServiceList({services}: ServiceListProps): JSX.Element {
-    const service = useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot())
+    const service = useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot());
+
+    const setService = React.useCallback((
+        e: React.MouseEvent<HTMLSpanElement | HTMLDivElement, MouseEvent>,
+        servicePath: string
+    ) => {
+        e.preventDefault();
+        e.stopPropagation();
+        activeService.setService(servicePath)
+    }, []);
 
     if (services.length === 0) return <div />;
 
@@ -93,14 +102,14 @@ function ServiceList({services}: ServiceListProps): JSX.Element {
             const isActive = it.absolutePath === service || service.startsWith(it.serviceName);
             if (isLeaf(it)) {
                 return <div key={it.absolutePath}>
-                    <span className="leaf" data-active={isActive} onClick={() => activeService.setService(it.absolutePath)}>
+                    <span className="leaf" data-active={isActive} onClick={e => setService(e, it.absolutePath)}>
                         {it.serviceName}
                     </span>
                 </div>
             } else {
                 const oneChild = hasOneChild(it);
                 const singularChildren = onlyHasSingularChildren(it);
-                return <div data-onechild={oneChild} data-singular={singularChildren} onClick={singularChildren ? () => activeService.setService(it.absolutePath) : undefined} key={it.absolutePath}>
+                return <div data-onechild={oneChild} data-singular={singularChildren} onClick={singularChildren ? e => setService(e, it.absolutePath) : undefined} key={it.absolutePath}>
                     <div data-active={isActive}> {it.serviceName}/</div>
                     <div data-omitindent={!oneChild}>
                         <ServiceList services={it.children} />

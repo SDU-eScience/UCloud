@@ -261,9 +261,10 @@ fun main(args: Array<String>) {
                             is ClientRequest.ClearActiveContext -> {
                                 session.clearLogMessages()
                                 session.clearContextMessages()
-                                val generation =
-                                    trackedServices.get().values.find { it.title == session.activeService }?.generation
-                                        ?: break
+                                if (session.generation == null) {
+                                    println("Generation is null. It should not be!")
+                                }
+                                val generation = session.generation ?: break
                                 val startTime = session.toReplayFrom ?: break
                                 session.toReplayFrom = null
                                 val endTime = getTimeMillis()
@@ -291,7 +292,14 @@ fun main(args: Array<String>) {
                             }
 
                             is ClientRequest.ActivateService -> {
-                                session.activeService = request.service
+                                val activeService = request.service
+                                val generation = request.generation?.toLong()
+                                session.activeService = activeService
+                                session.generation = generation
+
+                                sessionMutex.withLock {
+                                    session.findNewestContext(directory, generation, activeService)
+                                }
                             }
 
                             is ClientRequest.SetSessionState -> {
@@ -328,6 +336,36 @@ fun main(args: Array<String>) {
             }
         }
     }.start(wait = true)
+}
+
+suspend fun ClientSession.findNewestContext(
+    directory: File,
+    generation: Long?,
+    service: String?
+) {
+    println("Finding new context.")
+    if (service == null || generation == null) return
+    var highestCtxFile = 1
+    while (ContextReader.exists(directory, generation, highestCtxFile)) {
+        highestCtxFile += 1
+    }
+    highestCtxFile -= 1
+    if (highestCtxFile != 0) {
+        var ctxFile = ContextReader(directory, generation, highestCtxFile)
+        ctxFile.seekToEnd()
+        var last = ctxFile.retrieve() ?: return
+        while (last.parent != 1) {
+            if (!ctxFile.previous()) {
+                highestCtxFile -= 1
+                if (highestCtxFile == 0) return
+                ctxFile = ContextReader(directory, generation, highestCtxFile)
+            }
+            last = ctxFile.retrieve() ?: return
+        }
+        // The 'last' context will only be accepted provided it has parentId == 1
+        this.acceptContext(generation, last, arrayListOf(1L))
+        this.flushContextMessage()
+    }
 }
 
 suspend fun ClientSession.findContexts(
@@ -437,7 +475,7 @@ sealed class ClientRequest {
 
     @Serializable
     @SerialName("activate_service")
-    data class ActivateService(val service: String?) : ClientRequest()
+    data class ActivateService(val service: String?, val generation: String?) : ClientRequest()
 
     @Serializable
     @SerialName("set_session_state")
@@ -465,6 +503,7 @@ data class ClientSession(
     var minimumLevel: MessageImportance = MessageImportance.THIS_IS_NORMAL,
     var filterQuery: String? = null,
     var activeService: String? = null,
+    var generation: Long? = null,
     var filters: List<DebugContextType>? = null,
 
     // To denote when the user requested children of a specific debug context.

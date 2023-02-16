@@ -37,6 +37,12 @@ export function MainContent(): JSX.Element {
         setRouteComponents([d]);
     }, [setRouteComponents]);
 
+    const onWheel = React.useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+        if (e.deltaY < 0) {
+            console.log("scrolling up", e)
+        }
+    }, []);
+
     const serviceLogs = logs.content[service] ?? [];
     const activeContextOrLog = routeComponents.at(-1);
 
@@ -60,18 +66,22 @@ export function MainContent(): JSX.Element {
                                     />
                                 }
                             </List>
+                        } else if (serviceLogs.length === 0) {
+                            return <div>No context found for service</div>
                         }
-                        return <List itemData={serviceLogs} height={height} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
-                            {({index, data, style}) => {
-                                const item = data[index];
-                                return <DebugContextRow
-                                    key={item.id}
-                                    style={style}
-                                    setRouteComponents={() => {setContext(item); setRouteComponents([item]);}}
-                                    debugContext={item}
-                                />
-                            }}
-                        </List>;
+                        return <div onWheel={onWheel}>
+                            <List itemData={serviceLogs} height={height} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
+                                {({index, data, style}) => {
+                                    const item = data[index];
+                                    return <DebugContextRow
+                                        key={item.id}
+                                        style={style}
+                                        setRouteComponents={() => {setContext(item); setRouteComponents([item]);}}
+                                        debugContext={item}
+                                    />
+                                }}
+                            </List>
+                        </div>
                     }}
                 </AutoSizer>
             </>
@@ -102,7 +112,7 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
         <div className="ml-24px">
             {ctxChildren.map(it => {
                 if (isLog(it)) {
-                    return <div key={it.id}
+                    return <div key={"log" + it.id}
                         className="flex request-list-row left-border-black"
                         data-selected={it === activeLogOrCtx}
                         data-has-error={hasError(it.importance)}
