@@ -22,6 +22,7 @@ import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import styled from "styled-components";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 function daysLeftToTimestamp(timestamp: number): number {
     return Math.floor((timestamp - timestampUnixMs())/1000 / 3600 / 24);
@@ -39,7 +40,6 @@ export const ShareModal: React.FunctionComponent<{
     const [inviteLinks, fetchInviteLinks] = useCloudAPI<PageV2<ShareInviteLink>>({noop: true}, emptyPageV2);
     const [editingLink, setEditingLink] = useState<string|undefined>(undefined);
     const [selectedPermission, setSelectedPermission] = useState<string>("READ");
-    const linkToggleSet = useToggleSet([]);
     const usernameRef = useRef<HTMLInputElement>(null);
 
     const permissions = [
@@ -82,6 +82,7 @@ export const ShareModal: React.FunctionComponent<{
                 ).then(it => {
                     if (it?.responses) {
                         cb.navigate(`/shares/outgoing`);
+                        dialogStore.success();
                     }
                 });
             }}>
@@ -93,7 +94,7 @@ export const ShareModal: React.FunctionComponent<{
         </Box>
 
         {inviteLinks.data.items.length < 1 ? <>
-            <Heading.h3>Get link</Heading.h3>
+            <Heading.h3>Share with link</Heading.h3>
             <Box textAlign="center">
                 <Text mb="20px" mt="20px">Share files with other users by sharing a link</Text>
                 <Button
@@ -110,7 +111,7 @@ export const ShareModal: React.FunctionComponent<{
             </Box>
         </> : <>
             <Flex justifyContent="space-between">
-                <Heading.h3>Get link</Heading.h3>
+                <Heading.h3>Share with link</Heading.h3>
                 <Box textAlign="right">
                     <Button
                         onClick={async () => {

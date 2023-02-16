@@ -622,35 +622,13 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return true;
                 },
                 onClick: async (selected, cb) => {
-                    dialogStore.addDialog(<ShareModal
-                        selected={selected[0]}
-                        cb={cb}
-                    />, doNothing, true);
-                    
-                    /*const username = await addStandardInputDialog({
-                        title: "Share",
-                        help: <>The username of the user you wish to share this file with</>,
-                        addToFront: true,
-                        confirmText: "Share",
-                        width: "100%"
-                    });
-
-                    await cb.invokeCommand<BulkResponse<FindById>>(
-                        SharesApi.create(
-                            bulkRequestOf(
-                                ...selected.map(file => ({
-                                    sharedWith: username.result,
-                                    sourceFilePath: file.id,
-                                    permissions: ["READ" as const],
-                                    product: file.specification.product
-                                }))
-                            )
-                        )
-                    ).then(it => {
-                        if (it?.responses) {
-                            cb.navigate(`/shares/outgoing`);
-                        }
-                    });*/
+                    dialogStore.addDialog(
+                        <ShareModal
+                            selected={selected[0]}
+                            cb={cb}
+                        />,
+                        doNothing, true
+                    );
                 }
             },
             {

@@ -22,7 +22,6 @@ export const SharesAcceptInviteLink: React.FunctionComponent = () => {
     }, [token]);
 
     useEffect(() => {
-        console.log(acceptedInvite);
         if (!acceptedInvite.data && !acceptedInvite.error) return;
         if (acceptedInvite.loading) return;
 
