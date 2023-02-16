@@ -14,10 +14,10 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {Operations} from "@/ui-components/Operation";
 import Spinner from "@/LoadingIcon/LoadingIcon";
-import { connectionState } from "./ConnectionState";
-import { useUState } from "@/Utilities/UState";
+import {connectionState} from "./ConnectionState";
+import {useUState} from "@/Utilities/UState";
 
-export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props => {
+export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
     if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
 
     const state = useUState(connectionState);
@@ -35,7 +35,7 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
     const body = <>
         {!shouldConnect ? null :
             <Text color={"gray"} mb={8}>
-                <Icon name={"warning"} color={"orange"} mr={"8px"}/>
+                <Icon name={"warning"} color={"orange"} mr={"8px"} />
                 Connect with the services below to use their resources
             </Text>
         }
@@ -54,11 +54,11 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
                     <ListRow
                         onContextMenu={onContextMenu}
                         key={it.provider}
-                        icon={<ProviderLogo providerId={it.providerTitle} size={32}/>}
-                        left={<ProviderTitle providerId={it.providerTitle}/>}
+                        icon={<ProviderLogo providerId={it.providerTitle} size={32} />}
+                        left={<ProviderTitle providerId={it.providerTitle} />}
                         right={!canConnect ?
                             <>
-                                <Icon name={"check"} color={"green"}/>
+                                <Icon name={"check"} color={"green"} />
                                 <Operations
                                     location={"IN_ROW"}
                                     operations={[
@@ -74,7 +74,7 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
                                             onClick: async () => {
                                                 await invokeCommand(
                                                     apiUpdate(
-                                                        { provider: it.providerTitle },
+                                                        {provider: it.providerTitle},
                                                         "/api/providers/integration",
                                                         "clearConnection"
                                                     )
@@ -116,14 +116,16 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
             color={"darkOrange"}
             icon={"key"}
             title={<Link to={"/providers/connect"}><Heading.h3>Providers</Heading.h3></Link>}
+            subtitle={<Link to="/providers/overview">Show all</Link>}
         >
             {body}
         </HighlightedCard>;
     } else {
         // NOTE(Dan): You are not meant to swap the embedded property on a mounted component. We should be fine even
         // though we are breaking rules of hooks.
+        // NOTE(Jonas): Woohooo, breaking the rules of hooks!
         useTitle("Connect to Providers");
-        return <MainContainer main={body}/>;
+        return <MainContainer main={body} />;
     }
 };
 
