@@ -17,6 +17,7 @@ import bg2 from "@/Assets/Images/bg2.svg";
 import wayfLogo from "@/Assets/Images/WAYFLogo.svg";
 import aarhusu_logo from "@/Assets/Images/aarhusu_logo.png";
 import aalborgu_logo from "@/Assets/Images/aalborgu_logo.png";
+import dtu_logo from "@/Assets/Images/dtu_logo.png";
 import {useLocation, useNavigate} from "react-router";
 
 const BackgroundImage = styled.div<{image: string}>`
@@ -536,7 +537,6 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
         <Absolute top="4vw" left="8vw">
             <LoginBox width={"calc(96px + 10vw)"}>
                 <LoginIcon name={"deiCLogo"} size="100%" />
-                <Text textAlign="center" fontSize={"1.6vw"}>Interactive HPC</Text>
             </LoginBox>
         </Absolute>
 
@@ -556,6 +556,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
                 <Image width="150px" mt="-33px" src={aalborgu_logo} />
                 <Image width="150px" mt="8px" src={aarhusu_logo} />
                 <Icon width="150px" color="#fff" name="logoSdu" />
+                <Image style={{maxHeight: "90px"}} width="150px" mt="-14%" src={dtu_logo} />
                 {/* <div /> */}
             </WidthAwareDiv>
         </Absolute>
@@ -564,13 +565,14 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
 
 const WidthAwareDiv = styled.div`
     display: grid;
-    grid-template-columns: /* auto auto */ auto auto auto;
+    grid-template-columns: /* auto auto */ auto auto auto auto;
     grid-template-rows: auto;
     grid-gap: 55px;
     margin-left: auto;
     margin-right: auto;
     justify-content: center;
     width: 100%;
+    margin-bottom: 8px;
 
     & > div {
         width: 150px;
@@ -579,6 +581,7 @@ const WidthAwareDiv = styled.div`
     & > ${Image}, & > ${Icon} {
         width: 160px;
         vertical-align: baseline;
+        object-fit: contain;
     }
     & > ${Icon} { 
         max-height: 41px;
