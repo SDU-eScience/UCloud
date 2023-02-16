@@ -62,6 +62,7 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link create and browse") {
                 execute {
+                    createSampleProducts()
                     val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
                     val project = initializeNormalProject(root)
 
@@ -124,6 +125,7 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link update role assignment") {
                 execute {
+                    createSampleProducts()
                     val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
                     val project = initializeNormalProject(root)
 
@@ -187,6 +189,7 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link update group assignment") {
                 execute {
+                    createSampleProducts()
                     val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
                     val project = initializeNormalProject(root)
 
@@ -251,6 +254,7 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link accept") {
                 execute {
+                    createSampleProducts()
                     val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
                     val project = initializeNormalProject(root)
 
