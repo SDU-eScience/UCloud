@@ -1,5 +1,7 @@
 package dk.sdu.cloud.accounting.services.projects.v2
 
+import com.github.jasync.sql.db.column.TimestampEncoderDecoder
+import com.github.jasync.sql.db.column.TimestampWithTimezoneEncoderDecoder
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.accounting.api.providers.SortDirection
@@ -30,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import java.time.OffsetDateTime
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -1242,6 +1245,272 @@ class ProjectService(
                     HttpStatusCode.BadRequest
                 )
             }
+        }
+    }
+
+    suspend fun createInviteLink(actorAndProject: ActorAndProject, ctx: DBContext = db): ProjectInviteLink {
+        val project = actorAndProject.requireProject()
+        val token = UUID.randomUUID().toString()
+
+        return ctx.withSession { session ->
+            requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            val count = session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                },
+                """
+                    select count(*) from project.invite_links where project_id = :project and now() < expires
+                """
+            ).rows.first().getLong("count") ?: 0
+
+            if (count >= 10) {
+                throw RPCException(
+                    "Unable to create more invitation links for this project",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("token", token)
+                },
+                """
+                    insert into project.invite_links (project_id, token, expires) values
+                        (:project, :token, now() + '30 days')
+                        returning project_id, token, expires, role_assignment
+                """
+            ).rows.firstNotNullOf {
+                ProjectInviteLink(
+                    it.getAs<UUID>("token").toString(),
+                    it.getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
+                    emptyList(),
+                    ProjectRole.valueOf(it.getString("role_assignment")!!)
+                )
+            }
+        }
+    }
+
+    suspend fun browseInviteLinks(actorAndProject: ActorAndProject, ctx: DBContext = db): PageV2<ProjectInviteLink> {
+        val project = actorAndProject.requireProject()
+
+        val result = ctx.withSession { session ->
+            requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                },
+                """
+                    select token, expires, role_assignment, group_id from project.invite_links
+                    left join project.invite_link_group_assignments a on a.link_token = token
+                    left join project.groups g on g.id = a.group_id
+                    where project_id = :project and now() < expires
+                    order by expires desc
+                """
+            ).rows.groupBy { it.getAs<UUID>("token") }.map { entry ->
+                ProjectInviteLink(
+                    entry.key.toString(),
+                    entry.value.first().getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
+                    entry.value.mapNotNull { it.getString("group_id") },
+                    ProjectRole.valueOf(entry.value.first().getString("role_assignment")!!)
+                )
+            }
+        }
+
+        return PageV2(20, result, null)
+    }
+
+    suspend fun deleteInviteLink(
+        actorAndProject: ActorAndProject,
+        request: ProjectsDeleteInviteLinkRequest,
+        ctx: DBContext = db
+    ) {
+        val project = actorAndProject.requireProject()
+
+        ctx.withSession { session ->
+            requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("token", request.token)
+                },
+                """
+                    delete from project.invite_links where project_id = :project and token = :token
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Unable to delete invitation link",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+    }
+
+    suspend fun updateInviteLinkRoleAssignment(
+        actorAndProject: ActorAndProject,
+        request: ProjectsUpdateInviteLinkRoleAssignmentRequest,
+        ctx: DBContext = db
+    ) {
+        val project = actorAndProject.requireProject()
+
+        if (!listOf(ProjectRole.ADMIN, ProjectRole.USER).contains(request.role)) {
+            throw RPCException("Role assignment can only be either Admin or User", HttpStatusCode.BadRequest)
+        }
+
+        ctx.withSession { session ->
+            requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("token", request.token)
+                    setParameter("role", request.role.name)
+                },
+                """
+                    update project.invite_links
+                    set role_assignment = :role
+                    where project_id = :project and token = :token
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Link might not be valid anymore or have been deleted",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+    }
+
+    suspend fun updateInviteLinkGroupAssignment(
+        actorAndProject: ActorAndProject,
+        request: ProjectsUpdateInviteLinkGroupAssignmentRequest,
+        ctx: DBContext = db
+    ) {
+        val project = actorAndProject.requireProject()
+
+        ctx.withSession { session ->
+            requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("token", request.token)
+                    setParameter("groups", request.groups)
+                },
+                """
+                    with new (group_id, token) as (
+                        select id, cast(:token as uuid)
+                        from project.groups
+                        where project = :project and
+                            id in (select unnest(cast(:groups as text[])))
+                    ), changed as (
+                        insert into project.invite_link_group_assignments (group_id, link_token)
+                        select group_id, token from new
+                        on conflict do nothing
+                    ) delete from project.invite_link_group_assignments
+                    where link_token = cast(:token as uuid) and
+                        (group_id, link_token) not in (select group_id, token from new)
+                """
+            )
+        }
+    }
+
+    suspend fun acceptInviteLink(
+        actorAndProject: ActorAndProject,
+        request: ProjectsAcceptInviteLinkRequest,
+        ctx: DBContext = db
+    ) : ProjectsAcceptInviteLinkResponse {
+        data class ProjectInviteLinkAssignment(
+            val piActorAndProject: ActorAndProject,
+            val role: ProjectRole,
+            val groups: List<String>
+        )
+
+        return ctx.withSession { session ->
+            val projectAssignment = session.sendPreparedStatement(
+                {
+                    setParameter("token", request.token)
+                },
+                """
+                    select m.project_id as project, m.username as pi, l.role_assignment as role, a.group_id as group_id
+                    from project.project_members m
+                    inner join project.invite_links l on
+                        now() < expires and
+                        token = cast(:token as uuid) and
+                        l.project_id = m.project_id
+                    left join project.invite_link_group_assignments a on
+                        link_token = cast(:token as uuid)
+                    where
+                        m.role = 'PI';
+                """
+            ).rows.groupBy { it.getString("project") }.map { entry ->
+                val project = entry.key
+                val pi = entry.value.firstOrNull()?.getString("pi")
+                val role = entry.value.firstOrNull()?.getString("role")
+
+                if (project == null || pi == null || role == null) {
+                    throw RPCException("Link expired", HttpStatusCode.BadRequest)
+                }
+
+                ProjectInviteLinkAssignment(
+                    ActorAndProject(
+                        Actor.SystemOnBehalfOfUser(pi),
+                        project
+                    ),
+                    ProjectRole.valueOf(role),
+                    entry.value.mapNotNull { it.getString("group_id") }
+                )
+            }.firstOrNull() ?: throw RPCException("Link expired", HttpStatusCode.BadRequest)
+
+            createInvite(
+                projectAssignment.piActorAndProject,
+                bulkRequestOf(ProjectsCreateInviteRequestItem(actorAndProject.actor.safeUsername())),
+                ctx
+            )
+
+            acceptInvite(
+                actorAndProject,
+                bulkRequestOf(FindByProjectId(projectAssignment.piActorAndProject.requireProject())),
+                ctx
+            )
+
+            if (projectAssignment.groups.isNotEmpty()) {
+                createGroupMember(
+                    projectAssignment.piActorAndProject,
+                    bulkRequestOf(
+                        projectAssignment.groups.map {
+                            GroupMember(actorAndProject.actor.safeUsername(), it)
+                        }
+                    ),
+                    ctx
+                )
+            }
+
+            changeRole(
+                projectAssignment.piActorAndProject,
+                bulkRequestOf(
+                    ProjectsChangeRoleRequestItem(actorAndProject.actor.safeUsername(), projectAssignment.role)
+                ),
+                ctx
+            )
+
+            ProjectsAcceptInviteLinkResponse(projectAssignment.piActorAndProject.requireProject())
+        }
+    }
+
+    suspend fun cleanUpInviteLinks(ctx: DBContext = db) {
+        ctx.withSession { session ->
+            val cleaned = session.sendPreparedStatement("""
+                delete from project.invite_links where expires < now()
+            """).rowsAffected
+
+            log.debug("Cleaned up $cleaned expired project invite links")
         }
     }
 

@@ -30,6 +30,7 @@ const ProjectAllocations = React.lazy(() => import("@/Project/Allocations"));
 const ProjectList = React.lazy(() => import("@/Project/ProjectList2"));
 const ProjectDashboard = React.lazy(() => import("@/Project/Dashboard2"));
 const ProjectMembers = React.lazy(() => import("@/Project/Members2"));
+const ProjectAcceptInviteLink = React.lazy(() => import("@/Project/AcceptInviteLink"));
 const Search = React.lazy(() => import("@/Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("@/ServiceLicenseAgreement"));
 const Studio = React.lazy(() => import("@/Applications/Studio/Page"));
@@ -178,6 +179,7 @@ const Core = (): JSX.Element => (
                         <Route path="/projects/" element={React.createElement(requireAuth(ProjectList))} />
                         <Route path="/projects/:project" element={React.createElement(requireAuth(ProjectDashboard))} />
                         <Route path={AppRoutes.project.members(":project")} element={React.createElement(requireAuth(ProjectMembers))} />
+                        <Route path={"/projects/invite/:id"} element={React.createElement(requireAuth(ProjectAcceptInviteLink))} />
 
                         <Route path="/subprojects/:project" element={React.createElement(requireAuth(SubprojectList))} />
 

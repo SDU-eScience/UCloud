@@ -89,6 +89,19 @@ class Server(
             )
         )
 
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "project-invite-link-cleanup",
+                    "Projects: Clean-up Invite Links",
+                    WhenToStart.Daily(0, 0)
+                ),
+                script = {
+                    projectsV2.cleanUpInviteLinks()
+                }
+            )
+        )
+
         with(micro.server) {
             configureControllers(
                 AccountingController(accountingService, depositNotifications),

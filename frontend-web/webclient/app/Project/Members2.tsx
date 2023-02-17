@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useRef, useCallback, useEffect, useMemo, useReducer, useState} from "react";
-import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole} from "./Api";
+import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole, ProjectInviteLink, projectRoleToString} from "./Api";
 import styled from "styled-components";
 import {NavigateFunction, useLocation, useNavigate, useParams} from "react-router";
 import MainContainer from "@/MainContainer/MainContainer";
@@ -11,11 +11,13 @@ import {
     Absolute,
     Box,
     Button,
+    Checkbox,
     Flex,
     Icon,
     Input,
     Label,
     Link, List,
+    NoSelect,
     RadioTile,
     RadioTilesContainer,
     Relative,
@@ -25,7 +27,7 @@ import {
 import {shorten} from "@/Utilities/TextUtilities";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {addStandardDialog, addStandardInputDialog, NamingField} from "@/UtilityComponents";
-import {preventDefault} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, preventDefault} from "@/UtilityFunctions";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {IconName} from "@/ui-components/Icon";
@@ -47,12 +49,17 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {DropdownContent} from "@/ui-components/Dropdown";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {ProductSelector} from "@/Products/Selector";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 // UI state management
 // ================================================================================
 type ProjectAction = AddToGroup | RemoveFromGroup | Reload | InspectGroup | InviteMember | ReloadInvites |
     RemoveInvite | FailedInvite | RenameGroup | CreateGroup | UpdateGroupWithId | RemoveGroup | ChangeRole |
-    RemoveMember;
+    RemoveMember | CreateInviteLink;
 
 interface Reload {
     type: "Reload";
@@ -120,6 +127,10 @@ interface RemoveGroup {
 interface InviteMember {
     type: "InviteMember";
     members: string[];
+}
+
+interface CreateInviteLink {
+    type: "CreateInviteLink";
 }
 
 interface RemoveInvite {
@@ -581,55 +592,48 @@ export const ProjectMembers2: React.FunctionComponent = () => {
 
                     <SearchContainer>
                         {!isAdmin ? null : (
-                            <form onSubmit={onAddMember}>
-                                <Input
-                                    id="new-project-member"
-                                    placeholder="Username"
-                                    autoComplete="off"
-                                    ref={newMemberRef}
-                                    rightLabel
-                                />
+                            <>
+                                <form onSubmit={onAddMember}>
+                                    <Input
+                                        id="new-project-member"
+                                        placeholder="Username"
+                                        autoComplete="off"
+                                        ref={newMemberRef}
+                                        rightLabel
+                                    />
+                                    <Button attached type={"submit"}>Add</Button>
+                                    <Relative left="-95px" top="8px">
+                                        <Absolute>
+                                            <Tooltip tooltipContentWidth="160px" trigger={<HelpCircle />}>
+                                                <Text color="black" fontSize={12}>
+                                                    Your username can be found at the bottom of the sidebar next to
+                                                    {" "}<Icon name="id" />.
+                                                </Text>
+                                            </Tooltip>
+                                        </Absolute>
+                                    </Relative>
+                                </form>
                                 <Button
-                                    asSquare
-                                    color="green"
+                                    mb={10}
+                                    mr={10}
+                                    width={110}
                                     type="button"
-                                    title="Bulk invite"
+                                    title="Invite with link"
                                     onClick={async () => {
-                                        try {
-                                            const res = await addStandardInputDialog({
-                                                title: "Bulk invite",
-                                                type: "textarea",
-                                                confirmText: "Invite users",
-                                                rows: 8,
-                                                width: "460px",
-                                                help: (<>Enter usernames in the box below. One username per line.</>),
-                                            });
-
-                                            const usernames = res.result
-                                                .split("\n")
-                                                .map(it => it.trim())
-                                                .filter(it => it.length > 0);
-
-                                            callbacks.dispatch({type: "InviteMember", members: usernames});
-                                        } catch (ignored) {
-                                            // Ignored
-                                        }
+                                        dialogStore.addDialog(
+                                            <InviteLinkEditor
+                                                groups={groups}
+                                                project={project}
+                                            />,
+                                            doNothing,
+                                            true
+                                        );
                                     }}
                                 >
-                                    <Icon name="open" />
+                                    Invite link
                                 </Button>
-                                <Button attached type={"submit"}>Add</Button>
-                                <Relative left="-160px" top="8px">
-                                    <Absolute>
-                                        <Tooltip tooltipContentWidth="160px" trigger={<HelpCircle />}>
-                                            <Text color="black" fontSize={12}>
-                                                Your username can be found at the bottom of the sidebar next to
-                                                {" "}<Icon name="id" />.
-                                            </Text>
-                                        </Tooltip>
-                                    </Absolute>
-                                </Relative>
-                            </form>
+                            </>
+
                         )}
                         <form onSubmit={preventDefault}>
                             <Input
@@ -1040,6 +1044,240 @@ const groupMemberOperations: Operation<string, Callbacks>[] = [
     }
 ];
 
+function daysLeftToTimestamp(timestamp: number): number {
+    return Math.floor((timestamp - timestampUnixMs())/1000 / 3600 / 24);
+}
+
+function inviteLinkFromToken(token: string): string {
+    return window.location.origin + "/app/projects/invite/" + token;
+}
+
+
+const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (ProjectGroup | undefined)[]}> = ({project, groups}) => {
+    const [inviteLinksFromApi, fetchInviteLinks] = useCloudAPI<PageV2<ProjectInviteLink>>({noop: true}, emptyPageV2);
+    const [editingLink, setEditingLink] = useState<string|undefined>(undefined);
+    const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+    const [selectedRole, setSelectedRole] = useState<string>("USER");
+    const linkToggleSet = useToggleSet([]);
+
+    const roles = [
+        {text: "User", value: "USER"},
+        {text: "Admin", value: "ADMIN"}
+    ];
+
+    const groupItems = groups.map(g => 
+        g ? 
+        {text: g.specification.title, value: g.id}
+        : null
+    ).filter(g => g?.text != "All users");
+
+    useEffect(() => {
+        if (editingLink) {
+            setSelectedRole(
+                inviteLinksFromApi.data.items.find(it => it.token === editingLink)?.roleAssignment ?? "USER"
+            );
+
+            setSelectedGroups(
+                inviteLinksFromApi.data.items.find(it => it.token === editingLink)?.groupAssignment.map(it => it) ?? []
+            );
+        }
+    }, [editingLink, inviteLinksFromApi]);
+
+    useEffect(() => {
+        fetchInviteLinks({
+            ...Api.browseInviteLinks({itemsPerPage: 10}),
+            projectOverride: project.id
+
+        });
+    }, []);
+
+    return inviteLinksFromApi.data.items.length < 1 ? <>
+        <Heading.h3>Invite with link</Heading.h3>
+        <Box textAlign="center">
+            <Text mb="20px" mt="20px">Invite collaborators to this project by sharing a link</Text>
+            <Button
+                onClick={async () => {
+                    await callAPIWithErrorHandler({
+                        ...Api.createInviteLink(),
+                        projectOverride: project.id
+                    });
+
+                    fetchInviteLinks({
+                        ...Api.browseInviteLinks({itemsPerPage: 10}),
+                        projectOverride: project.id
+                    });
+                }}
+            >Create link</Button>
+        </Box>
+    </> : <>
+        {editingLink !== undefined ?
+            <Box minHeight="200px">
+                <Flex>
+                    <Button mr={20} onClick={() => setEditingLink(undefined)}>
+                        <Icon name="backward" size={20} />
+                    </Button>
+                    <Heading.h3>Edit link settings</Heading.h3>
+                </Flex>
+
+                <Flex justifyContent="space-between" mt={20} mb={10}>
+                    <Text pt="10px">Assign members to role</Text>
+                    <SelectBox>
+                        <ClickableDropdown
+                            useMousePositioning
+                            width="100px"
+                            chevron
+                            trigger={<>{roles.find(it => it.value === selectedRole)?.text}</>} 
+                            options={roles}
+                            onChange={async role => {
+                                await callAPIWithErrorHandler({
+                                    ...Api.updateInviteLinkRoleAssignment({token: editingLink, role: role}),
+                                    projectOverride: project.id
+                                });
+
+                                fetchInviteLinks({
+                                    ...Api.browseInviteLinks({itemsPerPage: 10}),
+                                    projectOverride: project.id
+                                });
+                            }}
+                        />
+                    </SelectBox> 
+                </Flex>
+                <Flex justifyContent="space-between">
+                    <Text pt="10px">Assign members to groups</Text>
+
+                    <SelectBox>
+                        <ClickableDropdown
+                            useMousePositioning
+                            width="300px"
+                            chevron
+                            trigger={<>{selectedGroups.length} selected groups</>} 
+                            keepOpenOnClick={true}
+                            onChange={() =>
+                                console.log("closed")
+                            }
+                        >
+                            <>
+                                {groupItems.length < 1 ? 
+                                    <>No selectable groups</>
+                                :
+                                    groupItems.map(item =>
+                                        item ?
+                                            <Box
+                                                key={item.value}
+                                                onClick={async _ => {
+                                                    const newSelection = selectedGroups.length < 1 ? [item.value] :
+                                                        selectedGroups.includes(item.value) ?
+                                                        selectedGroups.filter(it => it != item.value) : selectedGroups.concat([item.value]);
+
+                                                    await callAPIWithErrorHandler({
+                                                        ...Api.updateInviteLinkGroupAssignment({token: editingLink, groups: newSelection}),
+                                                        projectOverride: project.id
+                                                    });
+                                                    
+                                                    fetchInviteLinks({
+                                                        ...Api.browseInviteLinks({itemsPerPage: 10}),
+                                                        projectOverride: project.id
+                                                    });
+                                                }}
+                                            >
+                                                <Checkbox checked={selectedGroups.includes(item.value)} readOnly />
+                                                {item.text}
+                                            </Box>
+                                        : <></>
+                                    )
+                                }
+                            </>
+                        </ClickableDropdown>
+                    </SelectBox>
+                </Flex>
+            </Box> : <>
+            <Flex justifyContent="space-between">
+                <Heading.h3>Invite with link</Heading.h3>
+                <Box textAlign="right">
+                    <Button
+                        onClick={async () => {
+                            await callAPIWithErrorHandler({
+                                ...Api.createInviteLink(),
+                                projectOverride: project.id
+                            });
+
+                            fetchInviteLinks({
+                                ...Api.browseInviteLinks({itemsPerPage: 10}),
+                                projectOverride: project.id
+                            });
+                        }}
+                    >Create link</Button>
+                </Box>
+            </Flex>
+            <Box mt={20}>
+                {inviteLinksFromApi.data.items.map(link => (
+                    <Box key={link.token} mb="10px">
+                        <Flex justifyContent="space-between">
+
+                            <Flex flexDirection={"column"}>
+                                <Tooltip
+                                    left="-50%"
+                                    top="1"
+                                    mb="35px"
+                                    trigger={(
+                                            <Input
+                                                readOnly
+                                                style={{"cursor": "pointer"}}
+                                                onClick={() => {
+                                                    copyToClipboard({value: inviteLinkFromToken(link.token), message: "Link copied to clipboard"})
+                                                }}
+                                                mr={10}
+                                                value={inviteLinkFromToken(link.token)}
+                                                width="500px"
+                                            />
+                                    )}
+                                >
+                                    Click to copy link to clipboard
+                                </Tooltip>
+                                <Text fontSize={12}>This link will automatically expire in {daysLeftToTimestamp(link.expires)} days</Text>
+                            </Flex>
+                            <Box>
+                                <Button
+                                    mr="5px"
+                                    height={40}
+                                    onClick={() => 
+                                        setEditingLink(link.token)
+                                    }
+                                >
+                                    <Icon name="edit" size={20} />
+                                </Button>
+
+                                <ConfirmationButton
+                                    color="red"
+                                    height={40}
+                                    onAction={async () => {
+                                        await callAPIWithErrorHandler({
+                                            ...Api.deleteInviteLink({token: link.token}),
+                                            projectOverride: project.id
+                                        });
+
+                                        fetchInviteLinks({
+                                            ...Api.browseInviteLinks({itemsPerPage: 10}),
+                                            projectOverride: project.id
+                                        });
+                                    }}
+                                    icon="trash"
+                                />
+                            </Box>
+                        </Flex>
+                    </Box>
+                ))}
+            </Box>
+        </>}
+    </>
+};
+
+const SelectBox = styled.div`
+    border: 2px solid var(--midGray);
+    border-radius: 5px;
+    padding: 10px;
+`;
+
 // Utilities
 // ================================================================================
 interface Callbacks {
@@ -1152,10 +1390,9 @@ const TwoColumnLayout = styled.div`
 
 const SearchContainer = styled(Flex)`
   flex-wrap: wrap;
+  justify-content: space-between;
 
   form {
-    flex-grow: 1;
-    flex-basis: 350px;
     display: flex;
     margin-right: 10px;
     margin-bottom: 10px;
