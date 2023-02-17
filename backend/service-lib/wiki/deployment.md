@@ -20,12 +20,17 @@ to run any of our micro-services.
 
 See the [Kubernetes documentation](https://kubernetes.io/) for more details.
 
-Access to Kubernetes is done through Rancher.
+Access to Kubernetes is done through Rancher and more recently K3s.
 
 ## Rancher
 
 [Rancher](https://rancher.com) is the software we use to manage our Kubernetes
 cluster. Visit their [webpage](https://rancher.com) for more information.
+
+## K3s
+
+[K3s](https://k3s.io) is the software we use to manage new Kubernetes clusters. We are in the process of migrating all 
+of our Kubernetes clusters away from Rancher onto K3s.
 
 ## Jenkins
 

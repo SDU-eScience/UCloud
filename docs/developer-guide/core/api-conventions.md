@@ -109,7 +109,7 @@ differences later.
 
 ### Authentication
 
-You can read more about authentication using the different network protocols [here](/backend/auth-service/README.md).
+You can read more about authentication using the different network protocols [here](/docs/developer-guide/core/users/authentication/users.md).
 
 ### Data Serialization
 
@@ -124,13 +124,13 @@ there are significant benefits in supporting multiple representation of the same
 
 UCloud will include a valid `Content-Type` header in response payloads. This content-type will only describe the format
 used to serialize the data. It will not describe the contents of the data. That is, UCloud assumes that clients are
-already aware of the data that any specfic RPC produces.
+already aware of the data that any specific RPC produces.
 
 ---
 
 UCloud attempts to follow the principal of relaxed requirements for request payloads while following a more strict and
 consistent approach for response payloads. You can read more about how we implement this in
-practice [here](/backend/service-lib/wiki/micro/serialization.md).
+practice [here](/docs/developer-guide/development/micro/serialization.md).
 
 ## RPC Interfaces
 
@@ -139,7 +139,7 @@ about or interact with. For example, clients of UCloud can ask about the status 
 UCloud to cancel an existing compute job.
 
 All resources in UCloud have a chunk of the URL path carved out for them. This 'namespace' serves as their area and all
-requests are generally routed in the same direction. For example, [avatars](/backend/avatar-service/README.md) uses
+requests are generally routed in the same direction. For example, [avatars](/docs/developer-guide/core/users/avatars.md) uses
 `/api/avatar` for all their requests. This namespace is commonly referred to as the `baseContext` inside of UCloud.
 
 All RPCs aim to either describe the state of resources in UCloud or interact with one or more resources. RPCs of UCloud
@@ -160,7 +160,7 @@ fall into one of the following categories:
 
 __📝 NOTE:__ Resources don't have to implement one of each call category. For example, some resources cannot be created
 explicitly by a client and can only be interacted with. For example, all UCloud users have exactly one
-[avatar](/backend/avatar-service/README.md). Clients can choose to update their avatar, but they cannot create a new
+[avatar](/docs/developer-guide/core/users/avatars.md). Clients can choose to update their avatar, but they cannot create a new
 avatar in the system.
 
 ---
@@ -361,7 +361,7 @@ private fun CallDescriptionContainer.httpSearchExample() {
 <!--<editor-fold desc="Generated documentation">-->
 Used for RPCs which request the creation of one or more resources in UCloud.
 
-RPCs in this category must accept request payloads in the form of a bulk request.
+RPCs in this category should accept request payloads in the form of a bulk request.
 
 Calls in this category should respond back with a list of newly created IDs for every resource that has been
 created. A client can choose to use these to display information about the newly created resources.
@@ -413,7 +413,7 @@ private fun CallDescriptionContainer.httpCreateExample() {
 <!--<editor-fold desc="Generated documentation">-->
 Used for RPCs which request the deletion of one or more resources in UCloud.
 
-RPCs in this category must accept request payloads in the form of a bulk request.
+RPCs in this category should accept request payloads in the form of a bulk request.
 
 Calls in this category should choose to accept as little information about the resources, while still uniquely
 identifying them.
@@ -460,8 +460,7 @@ private fun CallDescriptionContainer.httpDeleteExample() {
 <!--<editor-fold desc="Generated documentation">-->
 _Interacts_ with a UCloud resource, typically causing an update to the resource itself.
 
-RPCs in this category must accept request payloads in the form of a
-[bulk request](/backend/service-lib/wiki/api_conventions.md#bulk-request).
+RPCs in this category should accept request payloads in the form of a bulk request.
 
 This category of calls can be used for any type of interaction with a UCloud resource. Many resources in UCloud
 are represented by some underlying complex logic. As a result, it is typically not meaningful or possible to simple

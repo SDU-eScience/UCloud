@@ -361,10 +361,8 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
     override suspend fun RequestContext.initiateConnection(username: String): ConnectionResponse {
         val token = OidcState(secureToken(32))
-        runBlocking {
-            stateTableMutex.withLock {
-                stateTable[token] = ConnectionState(username, token.state)
-            }
+        stateTableMutex.withLock {
+            stateTable[token] = ConnectionState(username, token.state)
         }
 
         return ConnectionResponse.Redirect(

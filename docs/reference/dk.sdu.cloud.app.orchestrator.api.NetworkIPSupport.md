@@ -11,6 +11,7 @@
 data class NetworkIPSupport(
     val product: ProductReference,
     val firewall: NetworkIPSupport.Firewall?,
+    val maintenance: Maintenance?,
 )
 ```
 
@@ -33,6 +34,17 @@ data class NetworkIPSupport(
 <details>
 <summary>
 <code>firewall</code>: <code><code><a href='#networkipsupport.firewall'>NetworkIPSupport.Firewall</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maintenance</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.Maintenance.md'>Maintenance</a>?</code></code>
 </summary>
 
 

@@ -11,6 +11,7 @@
 data class ExampleResourceSupport(
     val product: ProductReference,
     val supportsBackwardsCounting: ExampleResourceSupport.Supported?,
+    val maintenance: Maintenance?,
 )
 ```
 
@@ -33,6 +34,17 @@ data class ExampleResourceSupport(
 <details>
 <summary>
 <code>supportsBackwardsCounting</code>: <code><code><a href='#exampleresourcesupport.supported'>ExampleResourceSupport.Supported</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maintenance</code>: <code><code><a href='#maintenance'>Maintenance</a>?</code></code>
 </summary>
 
 

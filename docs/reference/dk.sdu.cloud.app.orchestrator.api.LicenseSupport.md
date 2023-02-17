@@ -10,6 +10,7 @@
 ```kotlin
 data class LicenseSupport(
     val product: ProductReference,
+    val maintenance: Maintenance?,
 )
 ```
 
@@ -21,6 +22,17 @@ data class LicenseSupport(
 <details>
 <summary>
 <code>product</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maintenance</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.Maintenance.md'>Maintenance</a>?</code></code>
 </summary>
 
 

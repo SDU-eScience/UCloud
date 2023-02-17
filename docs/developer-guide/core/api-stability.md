@@ -100,9 +100,7 @@ There are several levels of internal APIs:
 
 - __Beta:__
     - Breaking changes can be made quickly (with no real deprecation cycle)
-    - Documentation is optional
 - __Stable:__
-    - Documentation is mandatory
     - Breaking changes should be made with a deprecation cycle lasting two versions
     - Note: The deprecation cycle is only there to allow for rolling upgrades
     - The two versions participating in the deprecation cycle could be rolled out very quickly (less than one day is
@@ -121,13 +119,11 @@ There are several levels of experimental APIs:
     - Feature complete according to initial design
     - Breaking changes are made when needed
     - No migration path or deprecation cycle
-    - Documentation is optional
 - __Beta:__
     - Feature complete
     - User feedback is heavily encouraged during this phase
     - Breaking changes are generally only done if feedback suggests that this is needed
     - Short deprecation period if deemed necessary
-    - Documentation is mandatory
 
 External clients are encouraged to use beta-level APIs and to try out alpha-level APIs.
 

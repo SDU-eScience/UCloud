@@ -45,6 +45,7 @@ BulkResponse(
             vnc = true, 
             web = true, 
         ), 
+        maintenance = null, 
         native = ComputeSupport.Native(
             enabled = null, 
             logs = null, 
@@ -79,6 +80,7 @@ BulkResponse(
             vnc = true, 
             web = true, 
         ), 
+        maintenance = null, 
         native = ComputeSupport.Native(
             enabled = null, 
             logs = null, 
@@ -173,7 +175,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/ucloud/PROVIDERID/jobs
 #                 "timeExtension": null,
 #                 "utilization": null,
 #                 "web": null
-#             }
+#             },
+#             "maintenance": null
 #         },
 #         {
 #             "product": {
@@ -208,7 +211,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/ucloud/PROVIDERID/jobs
 #                 "timeExtension": null,
 #                 "utilization": null,
 #                 "web": null
-#             }
+#             },
+#             "maintenance": null
 #         }
 #     ]
 # }

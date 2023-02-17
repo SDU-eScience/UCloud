@@ -457,7 +457,8 @@ class EventController(
 
                 val list = notificationsByType[productType] ?: ArrayList()
                 val newPair = Pair(idx, prepareAllocationNotificationTotal(providerSummary) ?: continue)
-                val existing = list.find { it.first == newPair.first && it.second.owner == newPair.second.owner && it.second.productCategory == newPair.second.productCategory }
+                val existing =
+                    list.find { it.first == newPair.first && it.second.owner == newPair.second.owner && it.second.productCategory == newPair.second.productCategory }
 
                 if (existing != null) {
                     existing.second.balance += newPair.second.balance
@@ -527,97 +528,96 @@ class EventController(
             }
     }
 
-    private fun onConnectionComplete(ucloudId: String, localId: Int) {
-        runBlocking {
-            val notificationsTotal = HashMap<String, AllocationNotificationTotal>()
-            val notificationsSingle = ArrayList<AllocationNotificationSingle>()
+    private suspend fun onConnectionComplete(ucloudId: String, localId: Int) {
+        val notificationsTotal = HashMap<String, AllocationNotificationTotal>()
+        val notificationsSingle = ArrayList<AllocationNotificationSingle>()
 
-            var next: String? = null
-            while (true) {
-                val providerSummary = Wallets.retrieveProviderSummary.call(
-                    WalletsRetrieveProviderSummaryRequest(
-                        filterOwnerId = ucloudId,
-                        filterOwnerIsProject = false,
-                        itemsPerPage = 250,
-                        next = next,
-                    ),
-                    controllerContext.pluginContext.rpcClient
-                ).orThrow()
+        var next: String? = null
+        while (true) {
+            val providerSummary = Wallets.retrieveProviderSummary.call(
+                WalletsRetrieveProviderSummaryRequest(
+                    filterOwnerId = ucloudId,
+                    filterOwnerIsProject = false,
+                    itemsPerPage = 250,
+                    next = next,
+                ),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow()
 
-                for (summary in providerSummary.items) {
-                    notificationsSingle.add(
-                        AllocationNotificationSingle(
-                            min(summary.maxUsableBalance, summary.maxPromisedBalance),
-                            ResourceOwnerWithId.User(ucloudId, localId),
-                            summary.id,
-                            summary.categoryId.name,
-                            summary.productType,
+            for (summary in providerSummary.items) {
+                notificationsSingle.add(
+                    AllocationNotificationSingle(
+                        min(summary.maxUsableBalance, summary.maxPromisedBalance),
+                        ResourceOwnerWithId.User(ucloudId, localId),
+                        summary.id,
+                        summary.categoryId.name,
+                        summary.productType,
+                    )
+                )
+
+                if (notificationsTotal[summary.id] != null) {
+                    val newBalance = notificationsTotal[summary.id]?.balance?.plus(
+                        min(
+                            summary.maxUsableBalance,
+                            summary.maxPromisedBalance
                         )
                     )
 
-                    if (notificationsTotal[summary.id] != null) {
-                        val newBalance = notificationsTotal[summary.id]?.balance?.plus(
-                            min(
-                                summary.maxUsableBalance,
-                                summary.maxPromisedBalance
-                            )
-                        )
-
-                        notificationsTotal[summary.id]?.balance = (newBalance ?: notificationsTotal[summary.id]?.balance) as Long
-                    } else {
-                        notificationsTotal[summary.id] = AllocationNotificationTotal(
-                            min(summary.maxUsableBalance, summary.maxPromisedBalance),
-                            ResourceOwnerWithId.User(ucloudId, localId),
-                            summary.categoryId.name,
-                            summary.productType,
-                        )
-                    }
-
-
+                    notificationsTotal[summary.id]?.balance =
+                        (newBalance ?: notificationsTotal[summary.id]?.balance) as Long
+                } else {
+                    notificationsTotal[summary.id] = AllocationNotificationTotal(
+                        min(summary.maxUsableBalance, summary.maxPromisedBalance),
+                        ResourceOwnerWithId.User(ucloudId, localId),
+                        summary.categoryId.name,
+                        summary.productType,
+                    )
                 }
 
-                next = providerSummary.next
-                if (next == null) break
+
             }
 
-            val plugins = controllerContext.configuration.plugins
-            for (notification in notificationsTotal.values) {
-                val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == notification.productType }
-                    ?.value
-                if (allocationPlugin != null) {
-                    with(controllerContext.pluginContext) {
-                        with(allocationPlugin) {
-                            onResourceAllocationTotal(listOf(notification))
-                        }
-                    }
-                }
+            next = providerSummary.next
+            if (next == null) break
+        }
 
-                notifyPlugins(notification)
-            }
-
-            for (notification in notificationsSingle) {
-                val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == notification.productType }
-                    ?.value
-
-                if (allocationPlugin != null) {
-                    with(controllerContext.pluginContext) {
-                        with(allocationPlugin) {
-                            onResourceAllocationSingle(listOf(notification))
-                        }
-                    }
-                }
-            }
-
-            val allPlugin = controllerContext.configuration.plugins.allocations.entries.find { (t) ->
-                t == ConfigSchema.Plugins.AllocationsProductType.ALL
-            }?.value
-
-            if (allPlugin != null) {
+        val plugins = controllerContext.configuration.plugins
+        for (notification in notificationsTotal.values) {
+            val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == notification.productType }
+                ?.value
+            if (allocationPlugin != null) {
                 with(controllerContext.pluginContext) {
-                    with(allPlugin) {
-                        onResourceAllocationTotal(notificationsTotal.values.toList())
-                        onResourceAllocationSingle(notificationsSingle)
+                    with(allocationPlugin) {
+                        onResourceAllocationTotal(listOf(notification))
                     }
+                }
+            }
+
+            notifyPlugins(notification)
+        }
+
+        for (notification in notificationsSingle) {
+            val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == notification.productType }
+                ?.value
+
+            if (allocationPlugin != null) {
+                with(controllerContext.pluginContext) {
+                    with(allocationPlugin) {
+                        onResourceAllocationSingle(listOf(notification))
+                    }
+                }
+            }
+        }
+
+        val allPlugin = controllerContext.configuration.plugins.allocations.entries.find { (t) ->
+            t == ConfigSchema.Plugins.AllocationsProductType.ALL
+        }?.value
+
+        if (allPlugin != null) {
+            with(controllerContext.pluginContext) {
+                with(allPlugin) {
+                    onResourceAllocationTotal(notificationsTotal.values.toList())
+                    onResourceAllocationSingle(notificationsSingle)
                 }
             }
         }
@@ -723,7 +723,8 @@ class EventController(
                     prepare = {
                         bindList(
                             "project_ids",
-                            providerSummary.mapNotNull { (it.owner as? WalletOwner.Project)?.projectId }.toSet().toList()
+                            providerSummary.mapNotNull { (it.owner as? WalletOwner.Project)?.projectId }.toSet()
+                                .toList()
                         )
                     },
                     readRow = { row ->

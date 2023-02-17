@@ -27,7 +27,7 @@ NotificationDescriptions.create.call(
                 isString = false, 
             )),)), 
             read = false, 
-            ts = 1673350428793, 
+            ts = 1676450985196, 
             type = "MY_NOTIFICATION_TYPE", 
         ), 
         user = "User#1234", 
@@ -66,7 +66,7 @@ curl -XPUT -H "Authorization: Bearer $accessToken" -H "Content-Type: content-typ
         "meta": {
             "myParameter": 42
         },
-        "ts": 1673350428793,
+        "ts": 1676450985196,
         "read": false
     }
 }'

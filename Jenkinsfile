@@ -35,7 +35,7 @@ node {
                 submoduleCfg                     : [],
                 userRemoteConfigs                : [
                     [
-                        credentialsId: 'github',
+                        credentialsId: 'github bot',
                         url          : 'https://github.com/SDU-eScience/UCloud.git'
                     ]
                 ]

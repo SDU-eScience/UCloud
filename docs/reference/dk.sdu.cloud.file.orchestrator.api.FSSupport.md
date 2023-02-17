@@ -13,6 +13,7 @@ data class FSSupport(
     val stats: FSProductStatsSupport?,
     val collection: FSCollectionSupport?,
     val files: FSFileSupport?,
+    val maintenance: Maintenance?,
 )
 ```
 
@@ -57,6 +58,17 @@ data class FSSupport(
 <details>
 <summary>
 <code>files</code>: <code><code><a href='#fsfilesupport'>FSFileSupport</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maintenance</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.Maintenance.md'>Maintenance</a>?</code></code>
 </summary>
 
 

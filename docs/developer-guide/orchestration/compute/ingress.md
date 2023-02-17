@@ -178,6 +178,7 @@ SupportByProvider(
         support = IngressSupport(
             domainPrefix = "app-", 
             domainSuffix = ".example.com", 
+            maintenance = null, 
             product = ProductReference(
                 category = "example-ingress", 
                 id = "example-ingress", 
@@ -316,7 +317,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/ingresses/retrieve
 #                         "id": "example-ingress",
 #                         "category": "example-ingress",
 #                         "provider": "example"
-#                     }
+#                     },
+#                     "maintenance": null
 #                 }
 #             }
 #         ]
@@ -1060,6 +1062,7 @@ data class IngressSupport(
     val domainPrefix: String,
     val domainSuffix: String,
     val product: ProductReference,
+    val maintenance: Maintenance?,
 )
 ```
 
@@ -1093,6 +1096,17 @@ data class IngressSupport(
 <details>
 <summary>
 <code>product</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maintenance</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.Maintenance.md'>Maintenance</a>?</code></code>
 </summary>
 
 

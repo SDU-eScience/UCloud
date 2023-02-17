@@ -1397,6 +1397,7 @@ _A placeholder document used only to conform with the Resources API_
 ```kotlin
 data class ProviderSupport(
     val product: ProductReference,
+    val maintenance: Maintenance?,
 )
 ```
 
@@ -1408,6 +1409,17 @@ data class ProviderSupport(
 <details>
 <summary>
 <code>product</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maintenance</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.Maintenance.md'>Maintenance</a>?</code></code>
 </summary>
 
 

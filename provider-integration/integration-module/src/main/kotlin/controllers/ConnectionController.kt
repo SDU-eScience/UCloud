@@ -501,7 +501,7 @@ object UserMapping {
             val projectPlugin = config.plugins.projects
             if (projectPlugin != null) {
                 with(projectPlugin) {
-                    runBlocking { onUserMappingInserted(ucloudId, localId) }
+                    onUserMappingInserted(ucloudId, localId)
                 }
             }
         }

@@ -17,7 +17,6 @@ data class ByPassword(
     val phoneNumber: String?,
     val orcId: String?,
     val email: String?,
-    val uid: Long?,
     val twoFactorAuthentication: Boolean,
     val serviceLicenseAgreement: Int,
     val organizationId: String?,
@@ -116,17 +115,6 @@ data class ByPassword(
 </summary>
 
 
-
-
-
-</details>
-
-<details>
-<summary>
-<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
-</summary>
-
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

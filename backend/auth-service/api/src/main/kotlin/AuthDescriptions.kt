@@ -238,7 +238,6 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
               "principalType": "password",
               "firstNames": "User",
               "lastName": "User",
-              "uid": 10,
               "orgId": "sdu.dk",
               "serviceLicenseAgreement": true,
               "twoFactorAuthentication": true
@@ -262,11 +261,6 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             only once and we keep a list of already claimed JWTs to ensure this. A one-time token is created for a specific security
             scope and this scope must be covered by the JWT requesting it. The JWT created will only last for thirty seconds.
 
-            These tokens are useful in situations where we need to pass tokens that otherwise could be dangerous. In UCloud this is,
-            for example, used for handling downloads. Restrictions in how browsers work, mean that we cannot pass the token through
-            the header and we must pass in through either cookies or the URL. In this instance we chose to pass it in the URL but
-            using a one-time token to mitigate the dangers of doing this.
-
             ### Authorization in UCloud
 
             These properties are related to the authorization mechanisms of UCloud.  This is tightly related to how the RPC layer is
@@ -286,11 +280,12 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
 
             The table below shows the global roles in UCloud:
 
-            | **Role**      | **Description**                                                           |
-            | --------- | --------------------------------------------------------------------- |
-            | `USER`    | A 'normal' end-user                                                   |
-            | `ADMIN`   | An administrator of system. Has access to certain privileged actions. |
-            | `SERVICE` | An internal (micro)service. Has access to certain privileged actions. |
+            | **Role**   | **Description**                                                       |
+            | ---------- | --------------------------------------------------------------------- |
+            | `USER`     | A 'normal' end-user                                                   |
+            | `ADMIN`    | An administrator of system. Has access to certain privileged actions. |
+            | `SERVICE`  | An internal (micro)service. Has access to certain privileged actions. |
+            | `PROVIDER` | A UCloud provider used to deliver services.                           |
 
             The deployment script (see `k8-manager`) is responsible for the creation of service accounts. Service accounts can only
             authenticate via their `refreshToken`/`accessToken`. Compromised `refreshToken`s can manually be regenerated. Note that
