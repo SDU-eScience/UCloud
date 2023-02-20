@@ -1351,9 +1351,9 @@ class ProjectService(
         }
     }
 
-    suspend fun updateInviteLinkRoleAssignment(
+    suspend fun updateInviteLink(
         actorAndProject: ActorAndProject,
-        request: ProjectsUpdateInviteLinkRoleAssignmentRequest,
+        request: ProjectsUpdateInviteLinkRequest,
         ctx: DBContext = db
     ) {
         val project = actorAndProject.requireProject()
@@ -1361,38 +1361,6 @@ class ProjectService(
         if (!listOf(ProjectRole.ADMIN, ProjectRole.USER).contains(request.role)) {
             throw RPCException("Role assignment can only be either Admin or User", HttpStatusCode.BadRequest)
         }
-
-        ctx.withSession { session ->
-            requireAdmin(actorAndProject.actor, listOf(project), session)
-
-            val success = session.sendPreparedStatement(
-                {
-                    setParameter("project", project)
-                    setParameter("token", request.token)
-                    setParameter("role", request.role.name)
-                },
-                """
-                    update project.invite_links
-                    set role_assignment = :role
-                    where project_id = :project and token = :token
-                """
-            ).rowsAffected > 0
-
-            if (!success) {
-                throw RPCException(
-                    "Link might not be valid anymore or have been deleted",
-                    HttpStatusCode.BadRequest
-                )
-            }
-        }
-    }
-
-    suspend fun updateInviteLinkGroupAssignment(
-        actorAndProject: ActorAndProject,
-        request: ProjectsUpdateInviteLinkGroupAssignmentRequest,
-        ctx: DBContext = db
-    ) {
-        val project = actorAndProject.requireProject()
 
         ctx.withSession { session ->
             requireAdmin(actorAndProject.actor, listOf(project), session)
@@ -1418,6 +1386,26 @@ class ProjectService(
                         (group_id, link_token) not in (select group_id, token from new)
                 """
             )
+
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("token", request.token)
+                    setParameter("role", request.role.name)
+                },
+                """
+                    update project.invite_links
+                    set role_assignment = :role
+                    where project_id = :project and token = :token
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Link might not be valid anymore or have been deleted",
+                    HttpStatusCode.BadRequest
+                )
+            }
         }
     }
 

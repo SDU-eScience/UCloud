@@ -88,12 +88,8 @@ class ProjectsControllerV2(
             ok(projects.deleteInviteLink(actorAndProject, request))
         }
 
-        implement(Projects.updateInviteLinkRoleAssignment) {
-            ok(projects.updateInviteLinkRoleAssignment(actorAndProject, request))
-        }
-
-        implement(Projects.updateInviteLinkGroupAssignment) {
-            ok(projects.updateInviteLinkGroupAssignment(actorAndProject, request))
+        implement(Projects.updateInviteLink) {
+            ok(projects.updateInviteLink(actorAndProject, request))
         }
 
         implement(Projects.acceptInviteLink) {

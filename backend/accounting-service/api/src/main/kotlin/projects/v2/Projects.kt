@@ -334,12 +334,8 @@ implement(Descriptions.call) {
         httpUpdate(baseContext, "deleteInviteLink")
     }
 
-    val updateInviteLinkRoleAssignment = call("updateInviteLinkRoleAssignment", ProjectsUpdateInviteLinkRoleAssignmentRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "updateInviteLinkRoleAssignment")
-    }
-
-    val updateInviteLinkGroupAssignment = call("updateInviteLinkGroupAssignment", ProjectsUpdateInviteLinkGroupAssignmentRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "updateInviteLinkGroupAssignment")
+    val updateInviteLink = call("updateInviteLink", ProjectsUpdateInviteLinkRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "updateInviteLink")
     }
 
     val acceptInviteLink = call("acceptInviteLink", ProjectsAcceptInviteLinkRequest.serializer(), ProjectsAcceptInviteLinkResponse.serializer(), CommonErrorMessage.serializer()) {
@@ -508,15 +504,9 @@ data class ProjectsDeleteInviteLinkRequest(
 
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-data class ProjectsUpdateInviteLinkRoleAssignmentRequest(
+data class ProjectsUpdateInviteLinkRequest(
     val token: String,
-    val role: ProjectRole
-)
-
-@Serializable
-@UCloudApiExperimental(ExperimentalLevel.ALPHA)
-data class ProjectsUpdateInviteLinkGroupAssignmentRequest(
-    val token: String,
+    val role: ProjectRole,
     val groups: List<String>
 )
 
