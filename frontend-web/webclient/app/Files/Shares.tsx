@@ -165,7 +165,6 @@ export const ShareModal: React.FunctionComponent<{
                                 </Button>
 
                                 <ConfirmationButton
-                                    actionText="" // TODO(Brian): Remove
                                     color="red"
                                     height={40}
                                     onAction={async () => {
