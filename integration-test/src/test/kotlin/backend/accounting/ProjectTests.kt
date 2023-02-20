@@ -136,9 +136,9 @@ class ProjectTests : IntegrationTest() {
                         client.withProject(project.projectId)
                     ).orThrow().token
 
-                    Projects.updateInviteLinkRoleAssignment.call(
-                        ProjectsUpdateInviteLinkRoleAssignmentRequest(token, input.updateAssignmentRole),
-                        client.withProject(project.projectId)
+                    Projects.updateInviteLink.call(
+                        ProjectsUpdateInviteLinkRequest(token, input.updateAssignmentRole, emptyList()),
+                        client.withProject(project.projectId),
                     )
 
                     val browse = Projects.browseInviteLinks.call(
@@ -203,8 +203,8 @@ class ProjectTests : IntegrationTest() {
                         client.withProject(project.projectId)
                     ).orThrow().token
 
-                    Projects.updateInviteLinkGroupAssignment.call(
-                        ProjectsUpdateInviteLinkGroupAssignmentRequest(token, listOf(group1.groupId, group2.groupId)),
+                    Projects.updateInviteLink.call(
+                        ProjectsUpdateInviteLinkRequest(token, ProjectRole.USER, listOf(group1.groupId, group2.groupId)),
                         client.withProject(project.projectId)
                     )
 
@@ -268,8 +268,8 @@ class ProjectTests : IntegrationTest() {
                         project.piClient.withProject(project.projectId)
                     ).orThrow().token
 
-                    Projects.updateInviteLinkGroupAssignment.call(
-                        ProjectsUpdateInviteLinkGroupAssignmentRequest(token, listOf(group1.groupId, group2.groupId)),
+                    Projects.updateInviteLink.call(
+                        ProjectsUpdateInviteLinkRequest(token, ProjectRole.USER, listOf(group1.groupId, group2.groupId)),
                         project.piClient.withProject(project.projectId)
                     )
 
