@@ -201,7 +201,8 @@ class BinaryDebugSystem(
         val encoded = text.encodeToByteArray()
         return if (encoded.size >= field.maxSize) {
             val id = blobs.storeBlob(encoded)
-            val prefix = LargeText.OVERFLOW_PREFIX + id + LargeText.OVERFLOW_SEP + buffer.fileIndex + LargeText.OVERFLOW_SEP
+            val prefix =
+                LargeText.OVERFLOW_PREFIX + id + LargeText.OVERFLOW_SEP + buffer.fileIndex + LargeText.OVERFLOW_SEP
             val previewSize = field.maxSize - prefix.length
             val arr = ByteArray(field.maxSize)
             prefix.encodeToByteArray().copyInto(arr)
@@ -718,18 +719,42 @@ fun exampleProducer(logFolder: File) {
                         )
 
 
-                        debug.useContext(DebugContextType.DATABASE_TRANSACTION, "💽 Database transaction $ctxId") {
+                        debug.useContext(DebugContextType.DATABASE_TRANSACTION, "💽 Database transaction ${ctxId++}") {
                             debug.log(MessageImportance.THIS_IS_NORMAL, "📤 sending query select * from fie.dog")
                             debug.log(MessageImportance.THIS_IS_NORMAL, "📥 got a response from the database")
                         }
 
-                        debug.useContext(DebugContextType.BACKGROUND_TASK, "🎤 Singing cool stuff") {
+                        debug.useContext(DebugContextType.BACKGROUND_TASK, "🎤 Singing cool stuff, ${ctxId++}") {
 
                         }
-                        debug.useContext(DebugContextType.BACKGROUND_TASK, "🤐 Zipping files") {
-                            debug.useContext(DebugContextType.SERVER_REQUEST, "😱 No! I won't zip!") {}
-                            debug.useContext(DebugContextType.SERVER_REQUEST, "😇 OK! I will!") {
+                        debug.useContext(DebugContextType.BACKGROUND_TASK, "🤐 Zipping files, ${ctxId++}") {
+                            debug.useContext(DebugContextType.SERVER_REQUEST, "😱 No! I won't zip! ${ctxId++}") {}
+                            debug.useContext(DebugContextType.SERVER_REQUEST, "😇 OK! I will! ${ctxId++}") {
                                 debug.log(MessageImportance.THIS_IS_NORMAL, "🎉 Finished!")
+                            }
+                        }
+
+                        debug.useContext(DebugContextType.DATABASE_TRANSACTION, "Some more work being done, ${ctxId++}") {
+                            debug.useContext(DebugContextType.DATABASE_TRANSACTION, "Some more work being done, ${ctxId++}") {
+
+                            }
+                        }
+
+                        debug.useContext(DebugContextType.DATABASE_TRANSACTION, "Some more work being done, ${ctxId++}") {
+                            debug.useContext(DebugContextType.DATABASE_TRANSACTION, "Some more work being done, ${ctxId++}") {
+
+                            }
+                        }
+
+                        debug.useContext(DebugContextType.DATABASE_TRANSACTION, "Some more work being done, ${ctxId++}") {
+                            debug.useContext(DebugContextType.DATABASE_TRANSACTION, "Some more work being done, ${ctxId++}") {
+
+                            }
+                        }
+
+                        debug.useContext(DebugContextType.DATABASE_TRANSACTION, "Some more work being done, ${ctxId++}") {
+                            debug.useContext(DebugContextType.DATABASE_TRANSACTION, "Some more work being done, ${ctxId++}") {
+
                             }
                         }
                     }

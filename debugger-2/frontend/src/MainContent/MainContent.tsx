@@ -39,7 +39,7 @@ export function MainContent(): JSX.Element {
 
     const onWheel = React.useCallback((e: React.WheelEvent<HTMLDivElement>) => {
         if (e.deltaY < 0) {
-            console.log("scrolling up", e)
+            //console.log("scrolling up", e)
         }
     }, []);
 
@@ -69,7 +69,7 @@ export function MainContent(): JSX.Element {
                         } else if (serviceLogs.length === 0) {
                             return <div>No context found for service</div>
                         }
-                        return <div onWheel={onWheel}>
+                        return <div onScroll={e => console.log(e)} onWheel={onWheel}>
                             <List itemData={serviceLogs} height={height} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
                                 {({index, data, style}) => {
                                     const item = data[index];

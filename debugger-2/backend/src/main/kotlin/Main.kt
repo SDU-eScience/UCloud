@@ -322,6 +322,11 @@ fun main(args: Array<String>) {
                                 session.session.send(Frame.Binary(true, newBlobWriteBuffer))
                                 // Note(Jonas): Anything else we need to do? E.g. cleaning the buffer?
                             }
+
+                            is ClientRequest.FetchPreviousMessage -> {
+                                val generation = session.generation ?: continue
+                                findStartFile(directory, generation, request.id)
+                            }
                         }
                     }
                 } catch (ex: Throwable) {
@@ -338,6 +343,21 @@ fun main(args: Array<String>) {
     }.start(wait = true)
 }
 
+fun findStartFile(directory: File, generation: Long, startTime: Long): Int? {
+    var ctxFileId = 1
+    var currentFile = ContextReader(directory, generation, ctxFileId)
+    var fileEnd = currentFile.seekLastTimestamp() ?: return null
+
+    // Find the file that contains our first potentially valid context
+    while (startTime > fileEnd) {
+        if (!ContextReader.exists(directory, generation, ++ctxFileId)) return null
+        currentFile = ContextReader(directory, generation, ctxFileId)
+        fileEnd = currentFile.seekLastTimestamp() ?: return null
+    }
+
+    return ctxFileId
+}
+
 suspend fun ClientSession.findNewestContext(
     directory: File,
     generation: Long?,
@@ -345,11 +365,10 @@ suspend fun ClientSession.findNewestContext(
 ) {
     println("Finding new context.")
     if (service == null || generation == null) return
-    var highestCtxFile = 1
-    while (ContextReader.exists(directory, generation, highestCtxFile)) {
+    var highestCtxFile = 0
+    while (ContextReader.exists(directory, generation, highestCtxFile + 1)) {
         highestCtxFile += 1
     }
-    highestCtxFile -= 1
     if (highestCtxFile != 0) {
         var ctxFile = ContextReader(directory, generation, highestCtxFile)
         ctxFile.seekToEnd()
@@ -376,43 +395,33 @@ suspend fun ClientSession.findContexts(
     initialContext: Long,
     dontAddToActiveContext: Boolean = false
 ): ArrayList<Long> {
-    var ctxFileId = 1 // Note(Jonas): Seems to start at 1?
     val contextIds = arrayListOf(initialContext)
 
-    outer@ while (ContextReader.exists(directory, generation, ctxFileId)) {
-        var currentFile = ContextReader(directory, generation, ctxFileId)
-        var fileEnd = currentFile.seekLastTimestamp() ?: break@outer
+    var ctxFileId = findStartFile(directory, generation, startTime) ?: return contextIds
+    var currentFile = ContextReader(directory, generation, ctxFileId)
 
-        // Find the file that contains our first potentially valid context
-        while (startTime > fileEnd) {
-            if (!ContextReader.exists(directory, generation, ++ctxFileId)) break@outer
-            currentFile = ContextReader(directory, generation, ctxFileId)
-            fileEnd = currentFile.seekLastTimestamp() ?: break@outer
+    while (currentFile.next()) {
+        val currentEntry = currentFile.retrieve() ?: break
+        if (currentEntry.timestamp < startTime) continue // keep looking
+        if (currentEntry.timestamp > endTime) break // finished
+
+        if (currentEntry.parent.toLong() in contextIds) {
+            // NOTE(Jonas): Ignore the ctx and children of ignored ctxes.
+            // TODO(Jonas): the 'skipContext'-call is also made inside `acceptContext`. Once would be fine.
+            if (!dontAddToActiveContext && !skipContext(
+                    generation,
+                    currentEntry,
+                    contextIds
+                )
+            ) contextIds.add(currentEntry.id.toLong())
+            acceptContext(generation, currentEntry, contextIds)
         }
 
-        while (currentFile.next()) {
-            val currentEntry = currentFile.retrieve() ?: break@outer
-            if (currentEntry.timestamp < startTime) continue // keep looking
-            if (currentEntry.timestamp > endTime) break@outer // finished
-
-            if (currentEntry.parent.toLong() in contextIds) {
-                // NOTE(Jonas): Ignore the ctx and children of ignored ctxes.
-                // TODO(Jonas): the 'skipContext'-call is also made inside `acceptContext`. Once would be fine.
-                if (!dontAddToActiveContext && !skipContext(
-                        generation,
-                        currentEntry,
-                        contextIds
-                    )
-                ) contextIds.add(currentEntry.id.toLong())
-                acceptContext(generation, currentEntry, contextIds)
-            }
-
-            if (!currentFile.isValid(currentFile.cursor + 1)) {
-                if (ContextReader.exists(directory, generation, ++ctxFileId)) {
-                    currentFile = ContextReader(directory, generation, ctxFileId)
-                } else {
-                    break@outer
-                }
+        if (!currentFile.isValid(currentFile.cursor + 1)) {
+            if (ContextReader.exists(directory, generation, ++ctxFileId)) {
+                currentFile = ContextReader(directory, generation, ctxFileId)
+            } else {
+                break
             }
         }
     }
@@ -492,6 +501,10 @@ sealed class ClientRequest {
     @Serializable
     @SerialName("fetch_text_blob")
     data class FetchTextBlob(val id: String, val fileIndex: String, val generation: String) : ClientRequest()
+
+    @Serializable
+    @SerialName("fetch_previous_message")
+    data class FetchPreviousMessage(val generation: String, val timestamp: Long, val id: Long) : ClientRequest()
 }
 
 data class ClientSession(

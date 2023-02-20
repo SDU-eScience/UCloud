@@ -241,6 +241,10 @@ export const logStore = new class {
         }
     }
 
+    public earliestContext(): DebugContext | undefined {
+        return this.logs.content[activeService.service]?.at(0);
+    }
+
     public addLog(log: Log): void {
         if (this.activeContexts) {
             this.ctxMap[log.ctxId].children.push(log);
@@ -337,6 +341,21 @@ function replayMessagesRequest(generation: string, context: number, timestamp: n
         generation,
         context,
         timestamp,
+    });
+}
+
+export function fetchPreviousMessage(): void {
+    const ctx = logStore.earliestContext();
+    if (ctx == null) return;
+    if (!isSocketReady(socket)) return;
+    socket.send(fetchPreviousMessagesRequest(ctx));
+}
+
+function fetchPreviousMessagesRequest(ctx: DebugContext): string {
+    return JSON.stringify({
+        type: "fetch_previous_messages",
+        timestamp: ctx.timestamp,
+        id: ctx.id,
     });
 }
 
