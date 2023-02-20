@@ -1,6 +1,6 @@
 import * as React from "react";
 import {DBTransactionEvent, DebugContext, DebugContextType, getEvent, Log, MessageImportance, messageImportanceToString} from "../WebSockets/Schema";
-import {activeService, DebugContextAndChildren, fetchTextBlob, isLog, logMessages, logStore, replayMessages} from "../WebSockets/Socket";
+import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, isLog, logMessages, logStore, replayMessages} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -8,13 +8,13 @@ import AutoSizer from "react-virtualized-auto-sizer";
 // Notes/Issues:
 //  Fetching missing contexts in time-range sometimes misses some. Backend solution timing-issue. 
 //  Handle same service, new generation
-//  Frontend styling is generally not good.
+//   Frontend styling is generally not good.
 //  Handle different types of ctx/logs to render.
 //  What happens when selecting a different service?
 //     - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected).
 //  Handle long-running situations where memory usage has become high.
-// Double-clicking a context sometimes duplicates the call.
-// x-overflow in lists.
+//  Double-clicking a context sometimes duplicates the call.
+//  x-overflow in lists.
 
 type LogOrCtx = Log | DebugContext;
 const ITEM_SIZE = 22;
@@ -51,6 +51,9 @@ export function MainContent(): JSX.Element {
             <>
                 <BreadCrumbs clearContext={() => setContext(null)} routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
                 <RequestDetails key={activeContextOrLog?.id} activeContextOrLog={activeContextOrLog} />
+                {activeContextOrLog ? null : (
+                    <button className="pointer button" onClick={fetchPreviousMessage}>Load previous</button>
+                )}
                 <AutoSizer defaultHeight={200}>
                     {({height, width}) => {
                         const root = logStore.contextRoot();
@@ -248,15 +251,15 @@ function LogText({log}: {log: Log}): JSX.Element {
         const messageOverflow = log.message.overflowIdentifier;
         const extraOverflow = log.extra.overflowIdentifier;
         if (messageOverflow === undefined) return;
-        if (messages.has(messageOverflow)) return;
+        if (logMessages.has(messageOverflow)) return;
         fetchTextBlob(activeService.generation, messageOverflow, log.message.blobFileId!);
         if (extraOverflow === undefined) return;
-        if (messages.has(extraOverflow)) return;
+        if (logMessages.has(extraOverflow)) return;
         fetchTextBlob(activeService.generation, extraOverflow, log.extra.blobFileId!);
     }, [log, messages]);
 
-    const message = messages.get(log.message.overflowIdentifier) ?? log.message.previewOrContent
-    const extra = messages.get(log.extra.overflowIdentifier) ?? log.extra.previewOrContent
+    const message = logMessages.get(log.message.overflowIdentifier) ?? log.message.previewOrContent
+    const extra = logMessages.get(log.extra.overflowIdentifier) ?? log.extra.previewOrContent
 
     return <pre>
         <React.Fragment key={message}>{message}</React.Fragment><br />

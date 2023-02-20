@@ -94,6 +94,7 @@ export const logMessages = new class {
     private messages: LogMessageObject = {};
     private subscriptions: (() => void)[] = [];
     private isDirty = false;
+    private generation = 0;
 
     public addMessage(message: string, id: number) {
         if (!this.messages[activeService.service]) {
@@ -101,6 +102,7 @@ export const logMessages = new class {
         }
         this.messages[activeService.service][id] = message;
         this.isDirty = true;
+        this.generation++;
         this.emitChange();
     }
 
@@ -113,15 +115,8 @@ export const logMessages = new class {
         return this.messages[activeService.service]?.[id] !== undefined;
     }
 
-    public getSnapshot(): {get: (id: string | undefined) => string | undefined, has: (id: string) => boolean} {
-        if (this.isDirty) {
-            this.isDirty = false;
-            return {
-                has: id => this.has(id),
-                get: id => this.get(id)
-            };
-        }
-        return this;
+    public getSnapshot(): number {
+        return this.generation;
     }
 
     public subscribe(subscription: () => void) {
@@ -222,6 +217,8 @@ export const logStore = new class {
 
     public addDebugContext(debugContext: DebugContext): void {
         this.isDirty = true;
+
+
         if (this.activeContexts) {
             const newEntry = {ctx: debugContext, children: []};
             this.ctxMap[debugContext.parent].children.push(newEntry);
@@ -237,12 +234,31 @@ export const logStore = new class {
         if (!this.logs.content[activeService.service]) {
             this.logs.content[activeService.service] = [debugContext];
         } else {
-            this.logs.content[activeService.service].push(debugContext)
+            const ctxTimestamp = debugContext.timestamp;
+            const earliestTimestamp = this.earliestTimestamp();
+            const latestTimestamp = this.latestTimestamp();
+
+            if (ctxTimestamp < earliestTimestamp) {
+                this.logs.content[activeService.service].unshift(debugContext);
+            } else if (ctxTimestamp > latestTimestamp) {
+                this.logs.content[activeService.service].push(debugContext);
+            } else {
+                this.logs.content[activeService.service].push(debugContext);
+                this.logs.content[activeService.service].sort(contextSort);
+            }
         }
     }
 
     public earliestContext(): DebugContext | undefined {
         return this.logs.content[activeService.service]?.at(0);
+    }
+
+    public earliestTimestamp(): number {
+        return this.earliestContext()?.timestamp ?? new Date().getTime();
+    }
+
+    public latestTimestamp(): number {
+        return this.logs.content[activeService.service]?.at(-1)?.timestamp ?? new Date().getTime();
     }
 
     public addLog(log: Log): void {
@@ -280,6 +296,10 @@ function logOrCtxSort(a: (Log | DebugContextAndChildren), b: (Log | DebugContext
     const timestampA = isLog(a) ? a.timestamp : a.ctx.timestamp;
     const timestampB = isLog(b) ? b.timestamp : b.ctx.timestamp;
     return timestampA - timestampB;
+}
+
+function contextSort(a: DebugContext, b: DebugContext): number {
+    return a.timestamp - b.timestamp;
 }
 
 export const serviceStore = new class {

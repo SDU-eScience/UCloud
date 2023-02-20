@@ -325,7 +325,8 @@ fun main(args: Array<String>) {
 
                             is ClientRequest.FetchPreviousMessage -> {
                                 val generation = session.generation ?: continue
-                                findStartFile(directory, generation, request.id)
+                                val startFile = findStartFile(directory, generation, request.timestamp) ?: continue
+                                session.findContextsBackwards(directory, generation, startFile, request.id)
                             }
                         }
                     }
@@ -341,6 +342,34 @@ fun main(args: Array<String>) {
             }
         }
     }.start(wait = true)
+}
+
+const val CONTEXT_FIND_COUNT = 20
+suspend fun ClientSession.findContextsBackwards(directory: File, generation: Long, fileIndex: Int, ctxId: Int) {
+    var remainingToFind = CONTEXT_FIND_COUNT
+    var startAdding = false
+    var currentFileIndex = fileIndex
+    outer@ while (ContextReader.exists(directory, generation, currentFileIndex)) {
+        val file = ContextReader(directory, generation, currentFileIndex)
+        file.seekToEnd()
+        if (file.retrieve()?.id == ctxId) startAdding = true
+
+        while (file.previous()) {
+            val ctx = file.retrieve() ?: continue
+            if (ctx.id == ctxId) {
+                startAdding = true
+            } else if (ctx.parent == 1 && startAdding) {
+                this.acceptContext(generation, ctx, arrayListOf(1L))
+                remainingToFind--
+                if (remainingToFind == 0) {
+                    break@outer
+                }
+            }
+        }
+        currentFileIndex -= 1
+    }
+
+    this.flushContextMessage()
 }
 
 fun findStartFile(directory: File, generation: Long, startTime: Long): Int? {
@@ -503,8 +532,8 @@ sealed class ClientRequest {
     data class FetchTextBlob(val id: String, val fileIndex: String, val generation: String) : ClientRequest()
 
     @Serializable
-    @SerialName("fetch_previous_message")
-    data class FetchPreviousMessage(val generation: String, val timestamp: Long, val id: Long) : ClientRequest()
+    @SerialName("fetch_previous_messages")
+    data class FetchPreviousMessage(val timestamp: Long, val id: Int) : ClientRequest()
 }
 
 data class ClientSession(
