@@ -1002,11 +1002,12 @@ class ProjectService(
     suspend fun createInvite(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ProjectsCreateInviteRequestItem>,
+        notifyUsers: Boolean = true,
         ctx: DBContext = db,
     ) {
         // NOTE(Dan): This function will invite users, and notify the users via both email and the internal notification
-        // system. The vast majority of the code in this function is related to error handling and checking that the
-        // input is actually valid.
+        // system (if notifyUsers is true). The vast majority of the code in this function is related to error handling
+        // and checking that the input is actually valid.
 
         // We start by checking that a project was actually supplied
         val (actor) = actorAndProject
@@ -1063,33 +1064,35 @@ class ProjectService(
             // already in the project.
             val success = usersInvited.isNotEmpty()
             if (success) {
-                backgroundScope.launch {
-                    // NOTE(Dan): We succeeded! We notify the users via email and internal notification system. Also
-                    // note that we are not calling `.orThrow()` on the RPCs. This is on purpose, we do not wish to
-                    // cause a failure just because one of the notification systems are down.
-                    val notifications = usersInvited.map { user ->
-                        CreateNotification(
-                            user,
-                            Notification(
-                                NotificationType.PROJECT_INVITE.name,
-                                "${actor.safeUsername()} has invited you to collaborate"
+                if (notifyUsers) {
+                    backgroundScope.launch {
+                        // NOTE(Dan): We succeeded! We notify the users via email and internal notification system. Also
+                        // note that we are not calling `.orThrow()` on the RPCs. This is on purpose, we do not wish to
+                        // cause a failure just because one of the notification systems are down.
+                        val notifications = usersInvited.map { user ->
+                            CreateNotification(
+                                user,
+                                Notification(
+                                    NotificationType.PROJECT_INVITE.name,
+                                    "${actor.safeUsername()} has invited you to collaborate"
+                                )
                             )
+                        }
+
+                        val emails = usersInvited.map { user ->
+                            SendRequestItem(user, Mail.ProjectInviteMail(resolvedProject.specification.title))
+                        }
+
+                        NotificationDescriptions.createBulk.call(
+                            BulkRequest(notifications),
+                            serviceClient
+                        )
+
+                        MailDescriptions.sendToUser.call(
+                            BulkRequest(emails),
+                            serviceClient
                         )
                     }
-
-                    val emails = usersInvited.map { user ->
-                        SendRequestItem(user, Mail.ProjectInviteMail(resolvedProject.specification.title))
-                    }
-
-                    NotificationDescriptions.createBulk.call(
-                        BulkRequest(notifications),
-                        serviceClient
-                    )
-
-                    MailDescriptions.sendToUser.call(
-                        BulkRequest(emails),
-                        serviceClient
-                    )
                 }
             } else {
                 // NOTE(Dan): This entire branch indicates that no new users were invited to the project. The rest
@@ -1459,6 +1462,7 @@ class ProjectService(
             createInvite(
                 projectAssignment.piActorAndProject,
                 bulkRequestOf(ProjectsCreateInviteRequestItem(actorAndProject.actor.safeUsername())),
+                false,
                 ctx
             )
 
@@ -1485,6 +1489,7 @@ class ProjectService(
                 bulkRequestOf(
                     ProjectsChangeRoleRequestItem(actorAndProject.actor.safeUsername(), projectAssignment.role)
                 ),
+                false,
                 ctx
             )
 
@@ -1601,6 +1606,7 @@ class ProjectService(
     suspend fun changeRole(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ProjectsChangeRoleRequestItem>,
+        notifyUsers: Boolean = true,
         ctx: DBContext = db,
     ) {
         val (actor) = actorAndProject
@@ -1709,49 +1715,51 @@ class ProjectService(
                 return@withSession
             }
 
-            val projectTitle = titleAndAdmins.first().first
-            val notifications = ArrayList<CreateNotification>()
-            val emails = ArrayList<SendRequestItem>()
-            for (reqItem in requestItems) {
-                if (reqItem.username !in updatedUsers) continue
+            if (notifyUsers) {
+                val projectTitle = titleAndAdmins.first().first
+                val notifications = ArrayList<CreateNotification>()
+                val emails = ArrayList<SendRequestItem>()
+                for (reqItem in requestItems) {
+                    if (reqItem.username !in updatedUsers) continue
 
-                val notificationMessage =
-                    "${reqItem.username} has changed role to ${reqItem.role} in project: $projectTitle"
-                for ((_, admin) in titleAndAdmins) {
-                    notifications.add(
-                        CreateNotification(
-                            admin,
-                            Notification(
-                                NotificationType.PROJECT_ROLE_CHANGE.name,
-                                notificationMessage,
-                                meta = JsonObject(mapOf("projectId" to JsonPrimitive(project))),
+                    val notificationMessage =
+                        "${reqItem.username} has changed role to ${reqItem.role} in project: $projectTitle"
+                    for ((_, admin) in titleAndAdmins) {
+                        notifications.add(
+                            CreateNotification(
+                                admin,
+                                Notification(
+                                    NotificationType.PROJECT_ROLE_CHANGE.name,
+                                    notificationMessage,
+                                    meta = JsonObject(mapOf("projectId" to JsonPrimitive(project))),
+                                )
                             )
                         )
-                    )
 
-                    emails.add(
-                        SendRequestItem(
-                            admin,
-                            Mail.UserRoleChangeMail(
-                                reqItem.username,
-                                reqItem.role.name,
-                                projectTitle
+                        emails.add(
+                            SendRequestItem(
+                                admin,
+                                Mail.UserRoleChangeMail(
+                                    reqItem.username,
+                                    reqItem.role.name,
+                                    projectTitle
+                                )
                             )
                         )
-                    )
+                    }
                 }
+
+                // NOTE(Dan): As always, we don't fail if one of the notification mechanisms fail.
+                NotificationDescriptions.createBulk.call(
+                    BulkRequest(notifications),
+                    serviceClient
+                )
+
+                MailDescriptions.sendToUser.call(
+                    BulkRequest(emails),
+                    serviceClient
+                )
             }
-
-            // NOTE(Dan): As always, we don't fail if one of the notification mechanisms fail.
-            NotificationDescriptions.createBulk.call(
-                BulkRequest(notifications),
-                serviceClient
-            )
-
-            MailDescriptions.sendToUser.call(
-                BulkRequest(emails),
-                serviceClient
-            )
 
             updateHandlers.forEach { it(listOf(project)) }
             for (reqItem in requestItems) {
