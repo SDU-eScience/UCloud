@@ -1,4 +1,4 @@
-import {Log, DebugContext, getServiceName, DebugContextType, getGenerationName, readInt4} from "./Schema";
+import {Log, DebugContext, getServiceName, DebugContextType, getGenerationName, readInt4, BinaryDebugMessageType, DebugMessage, ClientRequest, ClientResponse, DatabaseConnection, DatabaseQuery, DatabaseResponse, DatabaseTransaction, ServerRequest, ServerResponse} from "./Schema";
 
 let socket: WebSocket | null = null;
 let options: SocketOptions;
@@ -16,6 +16,8 @@ export function initializeConnection(opts: SocketOptions) {
     options = opts;
     initializeSocket();
 }
+
+const FRAME_SIZE = 256;
 
 function initializeSocket() {
     socket = new WebSocket("wss://debugger-api.localhost.direct");
@@ -50,18 +52,19 @@ function initializeSocket() {
                 const numberOfEntries = (message.length - 8) / 388;
                 for (let i = 0; i < numberOfEntries; i++) {
                     const ctx = new DebugContext(view, 8 + i * 388);
-                    logStore.addDebugContext(ctx);
+                    debugMessageStore.addDebugContext(ctx);
                 }
-                logStore.emitChange();
+                debugMessageStore.emitChange();
                 break;
 
             case 3: {
-                const numberOfEntries = (message.length - 8) / 256;
+                const numberOfEntries = (message.length - 8) / FRAME_SIZE;
                 for (let i = 0; i < numberOfEntries; i++) {
-                    const log = new Log(view, 8 + i * 256);
-                    logStore.addLog(log);
+                    const offset = 8 + i * FRAME_SIZE;
+                    const debugMessage = debugMessageFromType(view, offset)
+                    debugMessageStore.addLog(debugMessage);
                 }
-                logStore.emitChange();
+                if (numberOfEntries > 0) {debugMessageStore.emitChange();}
                 break;
             }
             case 4: {
@@ -84,6 +87,30 @@ function initializeSocket() {
             }
         }
     };
+}
+
+function debugMessageFromType(view: DataView, offset: number): DebugMessage {
+    const type: BinaryDebugMessageType = Number(view.getInt8(offset))
+    switch (type) {
+        case BinaryDebugMessageType.CLIENT_REQUEST:
+            return new ClientRequest(view, offset);
+        case BinaryDebugMessageType.CLIENT_RESPONSE:
+            return new ClientResponse(view, offset);
+        case BinaryDebugMessageType.DATABASE_CONNECTION:
+            return new DatabaseConnection(view, offset);
+        case BinaryDebugMessageType.DATABASE_QUERY:
+            return new DatabaseQuery(view, offset);
+        case BinaryDebugMessageType.DATABASE_RESPONSE:
+            return new DatabaseResponse(view, offset);
+        case BinaryDebugMessageType.DATABASE_TRANSACTION:
+            return new DatabaseTransaction(view, offset);
+        case BinaryDebugMessageType.LOG:
+            return new Log(view, offset);
+        case BinaryDebugMessageType.SERVER_REQUEST:
+            return new ServerRequest(view, offset);
+        case BinaryDebugMessageType.SERVER_RESPONSE:
+            return new ServerResponse(view, offset);
+    }
 }
 
 
@@ -136,7 +163,6 @@ export const activeService = new class {
     private activeGeneration: string = "";
     private subscriptions: (() => void)[] = [];
 
-
     public get service() {
         return this.activeService;
     }
@@ -175,10 +201,10 @@ export const activeService = new class {
 
 export interface DebugContextAndChildren {
     ctx: DebugContext;
-    children: (Log | DebugContextAndChildren)[]
+    children: (DebugMessage | DebugContextAndChildren)[]
 }
 
-export function isLog(input: Log | DebugContext | DebugContextAndChildren): input is Log {
+export function isDebugMessage(input: DebugMessage | DebugContext | DebugContextAndChildren): input is DebugMessage {
     return "ctxId" in input;
 }
 
@@ -186,8 +212,8 @@ type ContextMap = Record<string, DebugContext[]>;
 interface LogStoreContexts {
     content: ContextMap;
 }
-export const logStore = new class {
-    private logs: LogStoreContexts = {content: {}};
+export const debugMessageStore = new class {
+    private debugMessages: LogStoreContexts = {content: {}};
     private activeContexts: DebugContextAndChildren | null = null;
     public ctxMap: Record<number, DebugContextAndChildren> = {};
     private subscriptions: (() => void)[] = [];
@@ -220,7 +246,7 @@ export const logStore = new class {
         if (this.activeContexts) {
             const newEntry = {ctx: debugContext, children: []};
             this.ctxMap[debugContext.parent].children.push(newEntry);
-            this.ctxMap[debugContext.parent].children.sort(logOrCtxSort);
+            this.ctxMap[debugContext.parent].children.sort(debugMessageOrCtxSort);
             if (this.ctxMap[debugContext.id]) {
                 console.log("Already filled!", debugContext.id);
             }
@@ -229,26 +255,26 @@ export const logStore = new class {
             return;
         }
 
-        if (!this.logs.content[activeService.service]) {
-            this.logs.content[activeService.service] = [debugContext];
+        if (!this.debugMessages.content[activeService.service]) {
+            this.debugMessages.content[activeService.service] = [debugContext];
         } else {
             const ctxTimestamp = debugContext.timestamp;
             const earliestTimestamp = this.earliestTimestamp();
             const latestTimestamp = this.latestTimestamp();
 
             if (ctxTimestamp < earliestTimestamp) {
-                this.logs.content[activeService.service].unshift(debugContext);
+                this.debugMessages.content[activeService.service].unshift(debugContext);
             } else if (ctxTimestamp > latestTimestamp) {
-                this.logs.content[activeService.service].push(debugContext);
+                this.debugMessages.content[activeService.service].push(debugContext);
             } else {
-                this.logs.content[activeService.service].push(debugContext);
-                this.logs.content[activeService.service].sort(contextSort);
+                this.debugMessages.content[activeService.service].push(debugContext);
+                this.debugMessages.content[activeService.service].sort(contextSort);
             }
         }
     }
 
     public earliestContext(): DebugContext | undefined {
-        return this.logs.content[activeService.service]?.at(0);
+        return this.debugMessages.content[activeService.service]?.at(0);
     }
 
     public earliestTimestamp(): number {
@@ -256,13 +282,13 @@ export const logStore = new class {
     }
 
     public latestTimestamp(): number {
-        return this.logs.content[activeService.service]?.at(-1)?.timestamp ?? new Date().getTime();
+        return this.debugMessages.content[activeService.service]?.at(-1)?.timestamp ?? new Date().getTime();
     }
 
-    public addLog(log: Log): void {
+    public addLog(message: DebugMessage): void {
         if (this.activeContexts) {
-            this.ctxMap[log.ctxId].children.push(log);
-            this.ctxMap[log.ctxId].children.sort(logOrCtxSort);
+            this.ctxMap[message.ctxId].children.push(message);
+            this.ctxMap[message.ctxId].children.sort(debugMessageOrCtxSort);
             this.entryCount++;
         }
         this.isDirty = true;
@@ -278,9 +304,9 @@ export const logStore = new class {
     public getSnapshot(): {content: Record<string, DebugContext[]>} {
         if (this.isDirty) {
             this.isDirty = false;
-            return this.logs = {content: this.logs.content};
+            return this.debugMessages = {content: this.debugMessages.content};
         }
-        return this.logs;
+        return this.debugMessages;
     }
 
     public emitChange(): void {
@@ -290,9 +316,9 @@ export const logStore = new class {
     }
 }();
 
-function logOrCtxSort(a: (Log | DebugContextAndChildren), b: (Log | DebugContextAndChildren)): number {
-    const timestampA = isLog(a) ? a.timestamp : a.ctx.timestamp;
-    const timestampB = isLog(b) ? b.timestamp : b.ctx.timestamp;
+function debugMessageOrCtxSort(a: (DebugMessage | DebugContextAndChildren), b: (DebugMessage | DebugContextAndChildren)): number {
+    const timestampA = isDebugMessage(a) ? a.timestamp : a.ctx.timestamp;
+    const timestampB = isDebugMessage(b) ? b.timestamp : b.ctx.timestamp;
     return timestampA - timestampB;
 }
 
@@ -363,7 +389,7 @@ function replayMessagesRequest(generation: string, context: number, timestamp: n
 }
 
 export function fetchPreviousMessage(): void {
-    const ctx = logStore.earliestContext();
+    const ctx = debugMessageStore.earliestContext();
     if (ctx == null) return;
     if (!isSocketReady(socket)) return;
     socket.send(fetchPreviousMessagesRequest(ctx));

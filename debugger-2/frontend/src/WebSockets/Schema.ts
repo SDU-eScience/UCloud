@@ -45,7 +45,7 @@ function readText(buffer: DataView, offset: number, maxSize: number): LargeText 
             return {previewOrContent: "Invalid blob"};
         }
         const overflowIdentifier = withoutPrefix.substring(0, posIdx);
-        
+
         const withFileId = withoutPrefix.substring(posIdx + 1);
         const sepIdx = withFileId.indexOf(OVERFLOW_SEP);
         if (sepIdx <= -1) {
@@ -109,6 +109,7 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
         this.offset = offset;
     }
 
+    // TODO(Jonas): This should just be a property. That way we should be able to switch on it.
     get type(): BinaryDebugMessageType {
         // Note(Jonas): Is this correct?
         return BinaryDebugMessageType.CLIENT_REQUEST;
@@ -143,13 +144,136 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
     }
 }
 
+// ClientRequest.type === 1
+export class ClientRequest extends BaseBinaryDebugMessage {
+    get type(): BinaryDebugMessageType {
+        return BinaryDebugMessageType.CLIENT_REQUEST;
+    }
+
+    get call(): string {
+        return readNameFromBuffer(this.buffer, this.offset + HDRL, 64);
+    }
+
+    get payload(): string {
+        return readNameFromBuffer(this.buffer, this.offset + HDRL + 64, 64);
+    }
+}
+
+// ClientResponse.type === 2
+export class ClientResponse extends BaseBinaryDebugMessage {
+    get type(): BinaryDebugMessageType {
+        return BinaryDebugMessageType.CLIENT_RESPONSE;
+    }
+
+    // TODO(Jonas): Necessary?
+    get typeString(): string {
+        return BinaryDebugMessageType[this.type];
+    }
+
+    get responseCode(): number {
+        return readInt1(this.buffer, this.offset + HDRL);
+    }
+    // Set as Int4, but is a long.
+    get responseTime(): number {
+        return readInt4(this.buffer, this.offset + HDRL + 1);
+    }
+    get call(): string {
+        return readNameFromBuffer(this.buffer, this.offset + HDRL + 1 + 4, 64);
+    }
+
+    get response(): string {
+        return readNameFromBuffer(this.buffer, this.offset + HDRL + 1 + 4 + 64, 64);
+    }
+}
+
+// ServerRequest.type === 3
+export class ServerRequest extends BaseBinaryDebugMessage {
+    get type(): BinaryDebugMessageType {
+        return BinaryDebugMessageType.SERVER_REQUEST;
+    }
+
+    get call(): string {
+        return readNameFromBuffer(this.buffer, this.offset + HDRL, 64);
+    }
+
+    get payload(): string {
+        return readNameFromBuffer(this.buffer, this.offset + HDRL + 64, 64);
+    }
+}
+
+// ServerResponse.type === 4
+export class ServerResponse extends BaseBinaryDebugMessage {
+    get type(): BinaryDebugMessageType {
+        return BinaryDebugMessageType.SERVER_REQUEST;
+    }
+
+    get responseCode(): number {
+        return readInt1(this.buffer, this.offset + HDRL);
+    }
+
+    get responseTime(): number {
+        return readInt4(this.buffer, this.offset + HDRL + 1);
+    }
+    get call(): string {
+        return readNameFromBuffer(this.buffer, this.offset + HDRL + 1 + 4, 64);
+    }
+
+    get response(): string {
+        return readNameFromBuffer(this.buffer, this.offset + HDRL + 1 + 4 + 64, 64);
+    }
+}
+
+// DatabaseConnection.type === 5
+export class DatabaseConnection extends BaseBinaryDebugMessage {
+    get type(): BinaryDebugMessageType {
+        return BinaryDebugMessageType.DATABASE_CONNECTION
+    }
+
+    get isOpen(): boolean {
+        return readBool(this.buffer, this.offset + HDRL);
+    }
+}
+
+// DatabaseTransaction.type === 6
+
+export class DatabaseTransaction extends BaseBinaryDebugMessage {
+    get type(): BinaryDebugMessageType {
+        return BinaryDebugMessageType.DATABASE_TRANSACTION
+    }
+
+    get event(): DBTransactionEvent {
+        return readInt1(this.buffer, this.offset + HDRL);
+    }
+}
+
+// DatabaseQuery.type === 7
+export class DatabaseQuery extends BaseBinaryDebugMessage {
+    get type(): BinaryDebugMessageType {
+        return BinaryDebugMessageType.DATABASE_QUERY
+    }
+
+    get parameters(): string {
+        return readNameFromBuffer(this.buffer, this.offset + HDRL, 64);
+    }
+
+    get query(): string {
+        return readNameFromBuffer(this.buffer, this.offset + HDRL + 64, 128);
+    }
+}
+// DatabaseResponse.type === 8
+export class DatabaseResponse extends BaseBinaryDebugMessage {
+    get type(): BinaryDebugMessageType {
+        return BinaryDebugMessageType.DATABASE_RESPONSE
+    }
+
+    get responseTime(): number {
+        return readInt4(this.buffer, this.offset + HDRL);
+    }
+}
+// Log.type === 9
 export class Log extends BaseBinaryDebugMessage {
     get type(): BinaryDebugMessageType {
         return BinaryDebugMessageType.LOG;
-    }
-
-    get typeString(): string {
-        return BinaryDebugMessageType[this.type];
     }
 
     get message(): LargeText {
@@ -160,6 +284,10 @@ export class Log extends BaseBinaryDebugMessage {
         return readText(this.buffer, this.offset + HDRL + 128, 32);
     }
 }
+
+export type DebugMessage =
+    ClientRequest | ClientResponse | ServerRequest | ServerResponse | DatabaseConnection |
+    DatabaseTransaction | DatabaseQuery | DatabaseResponse | Log;
 
 // Contexts
 export enum DebugContextType {
@@ -220,11 +348,6 @@ export enum DBTransactionEvent {
     OPEN,
     COMMIT,
     ROLLBACK
-}
-
-export function getEvent(ctx: DebugContext): DBTransactionEvent {
-    // TODO(Jonas): Not ideal.
-    return readInt1((ctx as any).buffer, (ctx as any).offset + 22 + 108);
 }
 
 function readNameFromBuffer(buffer: DataView, offset: number, size: number) {

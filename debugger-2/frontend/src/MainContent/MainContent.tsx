@@ -1,6 +1,6 @@
 import * as React from "react";
-import {DBTransactionEvent, DebugContext, DebugContextType, getEvent, Log, MessageImportance, messageImportanceToString} from "../WebSockets/Schema";
-import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, isLog, logMessages, logStore, replayMessages} from "../WebSockets/Socket";
+import {BinaryDebugMessageType, DBTransactionEvent, DebugContext, DebugContextType, DebugMessage, Log, MessageImportance, messageImportanceToString} from "../WebSockets/Schema";
+import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, isDebugMessage, logMessages, debugMessageStore, replayMessages} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -17,23 +17,23 @@ import AutoSizer from "react-virtualized-auto-sizer";
 //  x-overflow in lists. (Low)
 //  What if selected service has yet to produce a ctx? (High)
 
-type LogOrCtx = Log | DebugContext;
+type DebugMessageOrCtx = DebugMessage | DebugContext;
 const ITEM_SIZE = 22;
 
 export function MainContent(): JSX.Element {
-    const [routeComponents, setRouteComponents] = React.useState<LogOrCtx[]>([]);
+    const [routeComponents, setRouteComponents] = React.useState<DebugMessageOrCtx[]>([]);
     const service = React.useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot());
-    const logs = React.useSyncExternalStore(s => logStore.subscribe(s), () => logStore.getSnapshot())
+    const logs = React.useSyncExternalStore(s => debugMessageStore.subscribe(s), () => debugMessageStore.getSnapshot())
 
     const setContext = React.useCallback((d: DebugContext | null) => {
         if (d === null) {
-            if (logStore.contextRoot() != null) {
-                logStore.clearActiveContext();
+            if (debugMessageStore.contextRoot() != null) {
+                debugMessageStore.clearActiveContext();
             }
             setRouteComponents([]);
             return;
         }
-        logStore.addDebugRoot(d);
+        debugMessageStore.addDebugRoot(d);
         replayMessages(activeService.generation, d.id, d.timestamp);
         setRouteComponents([d]);
     }, [setRouteComponents]);
@@ -51,15 +51,15 @@ export function MainContent(): JSX.Element {
         {!service ? <h3>Select a service to view requests</h3> :
             <>
                 <BreadCrumbs clearContext={() => setContext(null)} routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
-                <RequestDetails key={activeContextOrLog?.id} activeContextOrLog={activeContextOrLog} />
+                <RequestDetails key={activeContextOrLog?.id} activeContextOrMessage={activeContextOrLog} />
                 {activeContextOrLog ? null : (
                     <button className="pointer button" onClick={fetchPreviousMessage}>Load previous</button>
                 )}
                 <AutoSizer defaultHeight={200}>
                     {({height, width}) => {
-                        const root = logStore.contextRoot();
+                        const root = debugMessageStore.contextRoot();
                         if (root) {
-                            return <List itemSize={ITEM_SIZE} height={height - 225} width={width} itemCount={1} itemData={root} key={logStore.entryCount} className="card">
+                            return <List itemSize={ITEM_SIZE} height={height - 225} width={width} itemCount={1} itemData={root} key={debugMessageStore.entryCount} className="card">
                                 {({data: root, style}) =>
                                     <DebugContextRow
                                         style={style}
@@ -95,9 +95,9 @@ export function MainContent(): JSX.Element {
 
 function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], style, activeLogOrCtx}: {
     debugContext: DebugContext;
-    activeLogOrCtx?: LogOrCtx;
-    setRouteComponents(ctx: LogOrCtx[]): void;
-    ctxChildren?: (DebugContextAndChildren | Log)[];
+    activeLogOrCtx?: DebugMessageOrCtx;
+    setRouteComponents(ctx: DebugMessageOrCtx[]): void;
+    ctxChildren?: (DebugContextAndChildren | DebugMessage)[];
     style?: React.CSSProperties | undefined;
 }): JSX.Element {
     return <>
@@ -115,7 +115,7 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
         </div>
         <div className="ml-24px">
             {ctxChildren.map(it => {
-                if (isLog(it)) {
+                if (isDebugMessage(it)) {
                     return <div key={"log" + it.id}
                         className="flex request-list-row left-border-black"
                         data-selected={it === activeLogOrCtx}
@@ -123,7 +123,8 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
                         data-is-odd={isOdd(it.importance)}
                         onClick={() => setRouteComponents([debugContext, it])}
                     >
-                        {handleIfEmpty(it.message.previewOrContent)}
+                        {/* TODO: Like, a lot. */}
+                        {handleIfEmpty("it.message.previewOrContent")}
                     </div>
                 } else {
                     return <DebugContextRow
@@ -148,10 +149,10 @@ function isOdd(importance: MessageImportance): boolean {
     return importance === MessageImportance.THIS_IS_ODD;
 }
 
-function RequestDetails({activeContextOrLog}: Partial<RequestDetailsByTypeProps>): JSX.Element {
-    if (!activeContextOrLog) return <div />;
+function RequestDetails({activeContextOrMessage}: Partial<RequestDetailsByTypeProps>): JSX.Element {
+    if (!activeContextOrMessage) return <div />;
     return <div className="card details flex">
-        <RequestDetailsByType activeContextOrLog={activeContextOrLog} />
+        <RequestDetailsByType activeContextOrMessage={activeContextOrMessage} />
     </div>;
 }
 
@@ -160,37 +161,24 @@ const {locale, timeZone} = Intl.DateTimeFormat().resolvedOptions();
 const DATE_FORMAT = new Intl.DateTimeFormat(locale, {timeZone, dateStyle: "short", timeStyle: "long"});
 
 interface RequestDetailsByTypeProps {
-    activeContextOrLog: LogOrCtx;
+    activeContextOrMessage: DebugMessageOrCtx;
 }
 
-function RequestDetailsByType({activeContextOrLog}: RequestDetailsByTypeProps): JSX.Element {
-    if (isLog(activeContextOrLog)) {
-        return <>
-            <div className="card query">
-                <LogText log={activeContextOrLog} />
-            </div>
-            <div className="card query-details">
-                Timestamp: {DATE_FORMAT.format(activeContextOrLog.timestamp)}<br />
-                Type: {activeContextOrLog.typeString}<br />
-                Context ID: {activeContextOrLog.ctxId}<br />
-                Importance: {messageImportanceToString(activeContextOrLog.importance)}
-            </div>
-        </>
+function RequestDetailsByType({activeContextOrMessage}: RequestDetailsByTypeProps): JSX.Element {
+    if (isDebugMessage(activeContextOrMessage)) {
+        return <Message message={activeContextOrMessage} />
     }
 
-    switch (activeContextOrLog.type) {
+    switch (activeContextOrMessage.type) {
         case DebugContextType.DATABASE_TRANSACTION:
-            const event = getEvent(activeContextOrLog);
-            const asString = DBTransactionEvent[event];
             return <>
                 <div className="card query">
                     DATABASE_TRANSACTION
-                    {event}, {asString}
-                    <pre>{activeContextOrLog.name}</pre>
+                    <pre>{activeContextOrMessage.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
-                        {activeContextOrLog.id}
+                        {activeContextOrMessage.id}
                     </pre>
                 </div>
             </>
@@ -198,11 +186,11 @@ function RequestDetailsByType({activeContextOrLog}: RequestDetailsByTypeProps): 
             return <>
                 <div className="card query">
                     SERVER_REQUEST
-                    <pre>{activeContextOrLog.name}</pre>
+                    <pre>{activeContextOrMessage.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
-                        {activeContextOrLog.id}
+                        {activeContextOrMessage.id}
                     </pre>
                 </div>
             </>
@@ -210,26 +198,26 @@ function RequestDetailsByType({activeContextOrLog}: RequestDetailsByTypeProps): 
             return <>
                 <div className="card query">
                     CLIENT_REQUEST
-                    <pre>{activeContextOrLog.name}</pre>
+                    <pre>{activeContextOrMessage.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
-                        {activeContextOrLog.id}
+                        {activeContextOrMessage.id}
                     </pre>
                 </div>
             </>
         case DebugContextType.BACKGROUND_TASK:
             return <>
                 <div className="card query">
-                    <pre>{activeContextOrLog.name}</pre>
+                    <pre>{activeContextOrMessage.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
-                        Timestamp: {DATE_FORMAT.format(activeContextOrLog.timestamp)}<br />
-                        Type: {activeContextOrLog.typeString}<br />
-                        Context ID: {activeContextOrLog.id}<br />
-                        Parent ID: {activeContextOrLog.parent}<br />
-                        Importance: {activeContextOrLog.importanceString}
+                        Timestamp: {DATE_FORMAT.format(activeContextOrMessage.timestamp)}<br />
+                        Type: {activeContextOrMessage.typeString}<br />
+                        Context ID: {activeContextOrMessage.id}<br />
+                        Parent ID: {activeContextOrMessage.parent}<br />
+                        Importance: {activeContextOrMessage.importanceString}
                     </pre>
                 </div>
             </>
@@ -237,11 +225,11 @@ function RequestDetailsByType({activeContextOrLog}: RequestDetailsByTypeProps): 
             return <>
                 <div className="card query">
                     OTHER TODO
-                    <pre>{activeContextOrLog.name}</pre>
+                    <pre>{activeContextOrMessage.name}</pre>
                 </div>
                 <div className="card query-details">
                     <pre>
-                        {activeContextOrLog.id}
+                        {activeContextOrMessage.id}
                     </pre>
                 </div>
             </>
@@ -270,14 +258,35 @@ function LogText({log}: {log: Log}): JSX.Element {
     </pre>
 }
 
+function Message({message}: {message: DebugMessage}): JSX.Element {
+    switch (message.type) {
+        case BinaryDebugMessageType.LOG:
+            const log = message as Log;
+            return <>
+                <div className="card query">
+                    <LogText log={log} />
+                </div>
+                <div className="card query-details">
+                    Timestamp: {DATE_FORMAT.format(log.timestamp)}<br />
+                    Type: {log.typeString}<br />
+                    Context ID: {log.ctxId}<br />
+                    Importance: {messageImportanceToString(log.importance)}
+                </div>
+            </>
+        default: {
+            return <>UNHANDLED TYPE {message.type}</>
+        }
+    }
+}
+
 function handleIfEmpty(str: string): React.ReactNode | string {
     return str.length === 0 ? <i>&lt;empty string&gt;</i> : str;
 }
 
 interface BreadcrumbsProps {
     clearContext(): void;
-    routeComponents: LogOrCtx[];
-    setRouteComponents: React.Dispatch<React.SetStateAction<LogOrCtx[]>>;
+    routeComponents: DebugMessageOrCtx[];
+    setRouteComponents: React.Dispatch<React.SetStateAction<DebugMessageOrCtx[]>>;
 }
 
 function BreadCrumbs({routeComponents, setRouteComponents, clearContext}: BreadcrumbsProps): JSX.Element {
