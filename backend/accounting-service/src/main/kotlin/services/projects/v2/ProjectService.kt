@@ -1333,7 +1333,7 @@ class ProjectService(
                 {
                     setParameter("token", request.token)
                 },
-                 """
+                """
                     select project_id from project.invite_links where token = :token 
                 """
             ).rows.firstOrNull()?.getString("project_id") ?:
