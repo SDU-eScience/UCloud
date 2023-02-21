@@ -88,6 +88,16 @@ export interface ProjectInviteLink {
     roleAssignment: ProjectRole;
 }
 
+interface RetrieveInviteLinkInfoRequest {
+    token: string;
+}
+
+export interface RetrieveInviteLinkInfoResponse {
+    token: string;
+    project: Project;
+    isMember: boolean;
+}
+
 interface DeleteInviteLinkRequest {
     token: string;
 }
@@ -182,6 +192,10 @@ class ProjectApi {
 
     public browseInviteLinks(request: PaginationRequestV2): APICallParameters {
         return apiBrowse(request, this.baseContext, "link");
+    }
+
+    public retrieveInviteLinkInfo(request: RetrieveInviteLinkInfoRequest): APICallParameters {
+        return apiRetrieve(request, this.baseContext, "link");
     }
 
     public deleteInviteLink(request: DeleteInviteLinkRequest): APICallParameters {

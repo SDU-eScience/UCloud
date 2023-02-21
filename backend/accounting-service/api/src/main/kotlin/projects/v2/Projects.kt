@@ -330,6 +330,10 @@ implement(Descriptions.call) {
         httpBrowse(baseContext, inviteLinkResource)
     }
 
+    val retrieveInviteLinkInfo = call("retrieveInviteLinkProject", ProjectsRetrieveInviteLinkInfoRequest.serializer(), ProjectsRetrieveInviteLinkInfoResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(baseContext, inviteLinkResource)
+    }
+
     val deleteInviteLink = call("deleteInviteLink", ProjectsDeleteInviteLinkRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "deleteInviteLink")
     }
@@ -500,6 +504,19 @@ data class ProjectInviteLink(
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class ProjectsDeleteInviteLinkRequest(
     val token: String
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ProjectsRetrieveInviteLinkInfoRequest(
+    val token: String
+)
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ProjectsRetrieveInviteLinkInfoResponse(
+    val token: String,
+    val project: Project,
+    val isMember: Boolean
 )
 
 @Serializable

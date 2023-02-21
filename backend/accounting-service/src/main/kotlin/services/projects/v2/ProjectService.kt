@@ -1325,6 +1325,36 @@ class ProjectService(
         return PageV2(20, result, null)
     }
 
+    suspend fun retrieveInviteLinkInfo(
+        actorAndProject: ActorAndProject,
+        request: ProjectsRetrieveInviteLinkInfoRequest,
+        ctx: DBContext = db
+    ): ProjectsRetrieveInviteLinkInfoResponse {
+        return ctx.withSession { session ->
+            val projectId = session.sendPreparedStatement(
+                {
+                    setParameter("token", request.token)
+                },
+                """
+                    select project_id from project.invite_links where token = :token
+                """
+            ).rows.first().getString("project_id") ?:
+                throw RPCException("Link expired", HttpStatusCode.NotFound)
+
+            val project = retrieve(
+                ActorAndProject(Actor.System, null),
+                ProjectsRetrieveRequest(projectId, includeMembers = true),
+                ctx
+            )
+
+            ProjectsRetrieveInviteLinkInfoResponse(
+                request.token,
+                project,
+                project.status.members?.map { it.username }?.contains(actorAndProject.actor.safeUsername()) ?: false
+            )
+        }
+    }
+
     suspend fun deleteInviteLink(
         actorAndProject: ActorAndProject,
         request: ProjectsDeleteInviteLinkRequest,
@@ -1446,7 +1476,7 @@ class ProjectService(
                 val role = entry.value.firstOrNull()?.getString("role")
 
                 if (project == null || pi == null || role == null) {
-                    throw RPCException("Link expired", HttpStatusCode.BadRequest)
+                    throw RPCException("Link expired", HttpStatusCode.NotFound)
                 }
 
                 ProjectInviteLinkAssignment(
@@ -1457,7 +1487,7 @@ class ProjectService(
                     ProjectRole.valueOf(role),
                     entry.value.mapNotNull { it.getString("group_id") }
                 )
-            }.firstOrNull() ?: throw RPCException("Link expired", HttpStatusCode.BadRequest)
+            }.firstOrNull() ?: throw RPCException("Link expired", HttpStatusCode.NotFound)
 
             createInvite(
                 projectAssignment.piActorAndProject,
