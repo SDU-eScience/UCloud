@@ -4,11 +4,15 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.dbConnection
@@ -28,6 +32,8 @@ import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.secureToken
 import dk.sdu.cloud.plugins.SyncthingPlugin
+import dk.sdu.cloud.plugins.rpcClient
+import dk.sdu.cloud.toReadableStacktrace
 import dk.sdu.cloud.utils.shellTracer
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -36,13 +42,13 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
-import io.ktor.util.Identity.decode
 import io.ktor.util.date.*
 import io.ktor.util.pipeline.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -62,6 +68,10 @@ class ComputeController(
         val config = controllerContext.configuration
         val providerId = controllerContext.configuration.core.providerId
         val shells = Shells(providerId)
+
+        ProcessingScope.launch(Dispatchers.IO) {
+            reinitializeAllComputeSessions()
+        }
 
         implement(api.extend) {
             if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
@@ -129,7 +139,7 @@ class ComputeController(
 
                     with(ctx) {
                         with(plugin) {
-                            runBlocking { follow(request.job) }
+                            follow(request.job)
                         }
                     }
 
@@ -215,7 +225,12 @@ class ComputeController(
                     }
 
                     InteractiveSessionType.SHELL -> {
-                        OpenSession.Shell(request.job.id, request.rank, sessionId, config.core.hosts.self?.toStringOmitDefaultPort())
+                        OpenSession.Shell(
+                            request.job.id,
+                            request.rank,
+                            sessionId,
+                            config.core.hosts.self?.toStringOmitDefaultPort()
+                        )
                     }
                 }
 
@@ -467,6 +482,7 @@ class ComputeController(
             val requestCookies = HashMap(call.request.cookies.rawCookies)
             val relevantCookie = URLDecoder.decode(requestCookies[cookieName + host], Charsets.UTF_8)
             if (relevantCookie == null) {
+                log.info("No cookie supplied for $host")
                 call.respondText("", status = io.ktor.http.HttpStatusCode.Unauthorized)
                 return@fn
             }
@@ -483,7 +499,7 @@ class ComputeController(
 
                 call.respondText("", status = io.ktor.http.HttpStatusCode.OK)
             } catch (ex: Throwable) {
-                ex.printStackTrace()
+                log.info("Failure while authenticating application '$host':\n${ex.toReadableStacktrace()}")
                 call.respondText("", status = io.ktor.http.HttpStatusCode.Unauthorized)
                 return@fn
             }
@@ -680,6 +696,90 @@ class ComputeController(
 
             response ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         })
+    }
+
+    private suspend fun reinitializeAllComputeSessions() {
+        if (!controllerContext.configuration.shouldRunServerCode()) return
+        val envoy = envoyConfig ?: run {
+            log.info("Did not find envoy while trying to reinitialize compute sessions!")
+            return
+        }
+
+        val items = ArrayList<Job>()
+        var next: String? = null
+        while (true) {
+            val page = JobsControl.browse.call(
+                ResourceBrowseRequest(
+                    JobIncludeFlags(filterState = JobState.RUNNING),
+                    next = next,
+                    itemsPerPage = 250,
+                ),
+                controllerContext.pluginContext.rpcClient
+            ).orNull()
+
+            if (page == null) {
+                log.info("Could not fetch list of running jobs. Retrying...")
+                delay(1000)
+                continue
+            }
+
+            items.addAll(page.items)
+            next = page.next ?: break
+        }
+
+        val jobIds = items.map { it.id }.toSet()
+
+        log.debug("Found the following active jobs: $jobIds")
+        val sessions = ArrayList<ComputeSessionIpc.Session>()
+        dbConnection.withSession { session ->
+            session.prepareStatement(
+                """
+                    select session_type, job_id, job_rank, plugin_name, plugin_data, target, session
+                    from compute_sessions
+                    where
+                        job_id = some(:ids::text[]) and
+                        session_type = 'WEB'
+                """
+            ).useAndInvoke(
+                prepare = { bindList("ids", jobIds.toList()) },
+                readRow = { row ->
+                    sessions.add(
+                        ComputeSessionIpc.Session(
+                            InteractiveSessionType.valueOf(row.getString(0)!!),
+                            row.getString(1)!!,
+                            row.getInt(2)!!,
+                            row.getString(3)!!,
+                            row.getString(4)!!,
+                            row.getString(5)?.let {
+                                defaultMapper.decodeFromString(ComputeSessionIpc.SessionTarget.serializer(), it)
+                            },
+                            row.getString(6)!!,
+                        )
+                    )
+                }
+            )
+        }
+
+        log.debug("We found ${sessions.size} sessions for ${jobIds.size} active jobs")
+
+        for (session in sessions) {
+            val target = session.target ?: continue
+            log.debug("Init route for: ${target.ingress}")
+            envoy.requestConfiguration(
+                EnvoyRoute.WebIngressSession(
+                    session.sessionId,
+                    target.ingress,
+                    isAuthorizationEnabled = !target.webSessionIsPublic,
+                    "_${session.sessionId}"
+                ),
+                EnvoyCluster.create(
+                    "_${session.sessionId}",
+                    target.clusterAddress,
+                    target.clusterPort,
+                    useDns = target.useDnsForAddressLookup
+                )
+            )
+        }
     }
 
     companion object : Loggable {

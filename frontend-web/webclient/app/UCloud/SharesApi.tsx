@@ -111,15 +111,16 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             const [isValid, setIsValid] = useState(true);
 
             const validate = useCallback(async (resource: Share) => {
-                if (!resource || !resource.status.shareAvailableAt) return;
-                try {
-                    const result = await callbacks.invokeCommand(
-                        FilesApi.retrieve({id: resource.status.shareAvailableAt}), {defaultErrorHandler: false}
-                    );
-                    // Do nothing. It's valid.
-                } catch (e) {
-                    setIsValid(false);
-                }
+                // Note(Jonas): Remove for now as it is being triggered way too often.
+                // if (!resource || !resource.status.shareAvailableAt) return;
+                // try {
+                //     const result = await callbacks.invokeCommand(
+                //         FilesApi.retrieve({id: resource.status.shareAvailableAt}), {defaultErrorHandler: false}
+                //     );
+                //     // Do nothing. It's valid.
+                // } catch (e) {
+                //     setIsValid(false);
+                // }
             }, [resource, callbacks]);
 
             React.useEffect(() => {

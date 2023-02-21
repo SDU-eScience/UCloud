@@ -19,6 +19,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import * as UCloud from "@/UCloud";
 import {joinToString} from "@/UtilityFunctions";
 import {findRelevantMachinesForApplication, Machines} from "@/Applications/Jobs/Widgets/Machines";
+import {ResolvedSupport} from "@/UCloud/ResourceApi";
 
 function findApplicationsByExtension(
     request: { files: string[] } & PaginationRequestV2
@@ -100,6 +101,17 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
     const allProducts: ProductCompute[] = !resolvedApplication.data ? [] :
         findRelevantMachinesForApplication(resolvedApplication.data, machineSupport.data, wallets.data);
 
+    const support = useMemo(() => {
+        const items: ResolvedSupport[] = [];
+        let productsByProvider = machineSupport.data.productsByProvider;
+        for (const provider of Object.keys(productsByProvider)) {
+            const providerProducts = productsByProvider[provider];
+            // TODO(Dan): We need to fix some of these types soon. We are still using a lot of the old generated stuff.
+            for (const item of providerProducts) items.push((item as unknown) as ResolvedSupport);
+        }
+        return items;
+    }, [machineSupport.data]);
+
     const generateCall = useCallback(next => {
         const normalizedFileId = file.status.type === "DIRECTORY" ? `${file.id}/` : file.id;
 
@@ -174,7 +186,7 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
         />
 
         {!selectedApplication ? null : <>
-            <Machines machines={allProducts} onMachineChange={onProductSelected} />
+            <Machines machines={allProducts} support={support} onMachineChange={onProductSelected} />
             <Button mt={"8px"} fullWidth onClick={launch} disabled={commandLoading}>Launch</Button>
         </>}
     </>;

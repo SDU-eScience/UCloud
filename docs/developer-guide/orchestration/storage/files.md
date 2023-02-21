@@ -1381,6 +1381,7 @@ SupportByProvider(
                 streamingSearchSupported = false, 
                 trashSupported = true, 
             ), 
+            maintenance = null, 
             product = ProductReference(
                 category = "u1-cephfs", 
                 id = "u1-cephfs", 
@@ -1468,7 +1469,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProd
 #                         "isReadOnly": false,
 #                         "searchSupported": true,
 #                         "streamingSearchSupported": false
-#                     }
+#                     },
+#                     "maintenance": null
 #                 }
 #             }
 #         ]

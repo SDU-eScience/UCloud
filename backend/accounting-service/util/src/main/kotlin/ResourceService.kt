@@ -1099,38 +1099,38 @@ abstract class ResourceService<
                         setParameter("use_project", useProject)
                     },
                     """
-                            select distinct pc.provider
-                            from
-                                accounting.product_categories pc join
-                                accounting.products product on product.category = pc.id left join
-                                accounting.wallets w on pc.id = w.category left join
-                                accounting.wallet_owner wo on wo.id = w.owned_by left join
-                                project.project_members pm on
-                                    pm.username = :username and
-                                    (
-                                        (
-                                            :use_project and
-                                            wo.project_id = pm.project_id and
-                                            pm.project_id = :project::text
-                                        ) or 
-                                        (
-                                            not :use_project
-                                        )
-                                    )
-                            where
-                                pc.product_type = :area::accounting.product_type and
+                        select distinct pc.provider
+                        from
+                            accounting.product_categories pc join
+                            accounting.products product on product.category = pc.id left join
+                            accounting.wallets w on pc.id = w.category left join
+                            accounting.wallet_owner wo on wo.id = w.owned_by left join
+                            project.project_members pm on
+                                pm.username = :username and
                                 (
-                                    product.free_to_use or
                                     (
-                                        wo.username = :username and
-                                        w.id is not null and
-                                        :project::text is null
+                                        :use_project and
+                                        wo.project_id = pm.project_id and
+                                        pm.project_id = :project::text
                                     ) or
                                     (
-                                        wo.project_id = :project::text and
-                                        w.id is not null
+                                        not :use_project
                                     )
                                 )
+                        where
+                            pc.product_type = :area::accounting.product_type and
+                            (
+                                product.free_to_use or
+                                (
+                                    wo.username = :username and
+                                    w.id is not null and
+                                    :project::text is null
+                                ) or
+                                (
+                                    pm.project_id is not null and
+                                    w.id is not null
+                                )
+                            );
                         """
                 )
                 .rows

@@ -80,8 +80,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
     renderer: ItemRenderer<FileCollection> = {
         MainTitle({resource}) {return <>{resource?.specification?.title ?? ""}</>},
         Icon({resource, size}) {
-            if (resource && resource.specification.product.id === "share" &&
-                resource.specification.product.provider === UCLOUD_PROVIDER) {
+            if (resource && resource.specification.product.id === "share") {
                 return <Icon name={"ftSharesFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />
             }
             return <Icon name={"ftFileSystem"} size={size} />

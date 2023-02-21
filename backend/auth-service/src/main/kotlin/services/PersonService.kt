@@ -3,6 +3,8 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 
 class PersonService(
@@ -19,6 +21,9 @@ class PersonService(
         twoFactorAuthentication: Boolean = false,
         organization: String? = null,
     ): Person.ByPassword {
+        if (username.contains(Regex("[\\\\?\\/!@\$%^&*)(\\[\\]}{':;\\r?\\n]+"))) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Username contains illegal chars")
+        }
         val (hashed, salt) = passwordHashingService.hashPassword(password)
         return Person.ByPassword(
             id = username,

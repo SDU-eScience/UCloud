@@ -15,8 +15,10 @@ For easy use pof the following curl commands create the following variables in t
 E.g on MacOS use 'export [variable_name]=[variable_value]'.
 
 - `$DATE` should be replaced with the current date (format YYYY.MM.DD)
-- `$USERNAME` should be replaced with your username. If using the user created for this purpose 
+- `$USERNAME1` should be replaced with your username. If using the user created for this purpose 
 this should be audit1.
+- `$USERNAME2` should be replaced with a second username. If using the user created for this purpose 
+this should be audit2
 - `$ELASTIC_USER` an admin user of the elastic cluster
 - `$ELASTIC_PASSWORD` matching password of the admin user
 
@@ -24,42 +26,18 @@ Steps:
 
 1. Create a directory called `Audit-$DATE`
 2. Upload a file called `file.txt` to the new directory
-3. Copy this file to the same directory using the rename strategy (default)
-4. Move the new copy to the trash
-5. Rename `file` to `renamed`
-6. Mark `renamed` as a favorite file
-7. Unmark `renamed` as a favorite file
+3. Check if other user can see the file (copy URL to of file location to other users browser)
+4. Copy this file to the same directory using the rename strategy (default)
+5. Move the new copy to the trash
+6. Rename `file` to `renamed`
+7. Mark `renamed` as a favorite file
+8. Unmark `renamed` as a favorite file
 
 Verification:
 
 ---
+
 Request #1:
-
-```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.createupload-$DATE/_search?pretty -d "
-{
-  \"query\": {
-    \"query_string\": {
-      \"query\": \"token.principal.username:$USERNAME\"
-    }
-  }
-}"
-```
-
-Should contain:
-
-```
-"requestJson" : {
-    "id" : "/RANDOM_ID/Audit-$DATE/file.txt",
-    "supportedProtocols" : [
-      "CHUNKED"
-    ],
-    "conflictPolicy" : "RENAME"
-}
-```
-
----
-Request #2:
 
 ```
 curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.createfolder-$DATE/_search?pretty -d "
@@ -86,8 +64,93 @@ Should contain:
 ```
 
 ---
+Request #2:
+
+```
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.createupload-$DATE/_search?pretty -d "
+{
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME\"
+    }
+  }
+}"
+```
+
+Should contain:
+
+```
+"requestJson" : {
+    "id" : "/RANDOM_ID/Audit-$DATE/file.txt",
+    "supportedProtocols" : [
+      "CHUNKED"
+    ],
+    "conflictPolicy" : "RENAME"
+}
+```
+
+---
 
 Request #3:
+
+Collection level
+```
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.collections.retrieve-$DATE/_search?pretty -d "
+{
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME2\"
+    }
+  }
+}"
+```
+
+Should contain:
+
+```
+        "requestJson" : {
+            "flags" : {
+              .
+              .
+              .
+            },
+            "id" : "43430"
+          },
+          "responseCode" : 404,
+
+```
+---
+Folder level:
+```
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.retrieve-$DATE/_search?pretty -d "
+{
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME2\"
+    }
+  }
+}"
+```
+
+Should contain:
+
+```
+   "requestJson" : {
+            "flags" : {
+              .
+              .
+              .
+            },
+            "id" : "/43430/Mojn"
+          },
+          "responseCode" : 400,
+
+
+```
+
+---
+
+Request #4:
 
 ```
 curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.copy-$DATE/_search?pretty -d "
@@ -113,6 +176,11 @@ Should contain:
   ]
 }
 ```
+
+Please note that the name is the same. The request we send is old path -> new path. It is 
+only after the backend has received the request that we find out there is a conflict. 
+We then use the conflictPolicy to decide what to do. In this case we rename it automatically
+by providing a (1), (2) etc. to the file name
 
 ---
 
@@ -266,7 +334,11 @@ Steps:
 6. `audit3` accepts the invite
 7. `audit3` uploads a file to his personal workspace called file.txt
 8. `audit3` classifies the file as Sensitive
-9. `audit3` moves the file to the project
+9. `audit2` creates a group with audit3 in it
+10. `audit2` creates a drive in the project with read permissions to the new group
+11. `audit3` attempts to move file to read only folder and fails
+12. `audit2` changes permissions to write
+13. `audit3` moves the file to new drive in the project
 
 Verification:
 
@@ -478,13 +550,64 @@ Should contain:
         "document" : {
           "sensitivity" : "SENSITIVE"
         },
-        "changeLog" : "GDPR"
+        "changeLog" : "WHAT EVER WE WROTE IN COMMENT"
       }
     }
   ]
 }
 ```
 ---
+Request #9:
+
+Group Creation:
+```
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_projects.v2.creategroup-$DATE/_search?pretty -d "
+{
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME2\"
+    }
+  }
+}"
+```
+
+Should contain:
+```
+"requestJson" : {
+    "items" : [
+      {
+        "project" : "PROJECTID",
+        "title" : GROUPNAME"
+      }
+    ]
+  }
+```
+
+Adding Member:
+```
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_projects.v2.creategroupmember-$DATE/_search?pretty -d "
+{
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME2\"
+    }
+  }
+}"
+```
+
+Should contain:
+```
+"requestJson" : {
+    "items" : [
+      {
+        "username" : "audit3",
+        "group" : GROUPID
+      }
+    ]
+  },
+```
+---
+
 Request #9:
 ```
 curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.move-$DATE/_search?pretty -d "
@@ -509,5 +632,182 @@ Should contain:
     }
   ]
 }
+```
+---
+
+Request #10:
+Drive creation:
+```
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.collections.create-$DATE/_search?pretty -d "
+{
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME2\"
+    }
+  }
+}"
+```
+
+Should contain:
+```
+"requestJson" : {
+    "items" : [
+      {
+        "title" : "Newtest",
+        "product" : {
+          "id" : "u1-cephfs",
+          "category" : "u1-cephfs",
+          "provider" : "ucloud"
+        }
+      }
+    ]
+  }
+```
+
+Permission setting: 
+```
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.collections.updateacl-$DATE/_search?pretty -d "
+{
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME2\"
+    }
+  }
+}"
+```
+
+Should contain:
+```
+"requestJson" : {
+    "items" : [
+      {
+        "id" : "RANDOMID",
+        "added" : [
+          {
+            "entity" : {
+              "type" : "project_group",
+              "projectId" : PROJECTID,
+              "group" : GROUPID
+            },
+            "permissions" : [
+              "READ"
+            ]
+          }
+        ],
+        "deleted" : [
+          {
+            "type" : "project_group",
+            "projectId" : PROJECTID",
+            "group" : GROUPID
+          }
+        ]
+      }
+    ]
+  },
+
+```
+---
+
+Request #11:
+```
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.move-$DATE/_search?pretty -d "
+{
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME3\"
+    }
+  }
+}
+"
+```
+
+Should contain:
+```
+"requestJson" : {
+  "items" : [
+    {
+      "oldId" : "/RANDOMID/file.txt",
+      "newId" : "/OTHER_RANDOMID/file.txt",
+      "conflictPolicy" : "RENAME"
+    }
+  ]
+}
+"responseCode" : 400,
+
+```
+---
+
+Request #12:
+Permission setting:
+```
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.collections.updateacl-$DATE/_search?pretty -d "
+{
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME2\"
+    }
+  }
+}"
+```
+
+Should contain:
+```
+"requestJson" : {
+    "items" : [
+      {
+        "id" : "RANDOMID",
+        "added" : [
+          {
+            "entity" : {
+              "type" : "project_group",
+              "projectId" : PROJECTID",
+              "group" : GROUPID
+            },
+            "permissions" : [
+              "READ",
+              "EDIT"
+            ]
+          }
+        ],
+        "deleted" : [
+          {
+            "type" : "project_group",
+            "projectId" : PROJECTID",
+            "group" : GROUPID
+          }
+        ]
+      }
+    ]
+  },
+
+```
+---
+
+Request #13:
+```
+curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.move-$DATE/_search?pretty -d "
+{
+  \"query\": {
+    \"query_string\": {
+      \"query\": \"token.principal.username:$USERNAME3\"
+    }
+  }
+}
+"
+```
+
+Should contain:
+```
+"requestJson" : {
+  "items" : [
+    {
+      "oldId" : "/RANDOMID/file.txt",
+      "newId" : "/OTHER_RANDOMID/file.txt",
+      "conflictPolicy" : "RENAME"
+    }
+  ]
+}
+"responseCode" : 200,
+
 ```
 ---

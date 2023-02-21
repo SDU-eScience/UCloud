@@ -47,7 +47,7 @@ export const FilesBrowse: React.FunctionComponent<{
     forceNavigationToPage?: boolean;
     allowMoveCopyOverride?: boolean;
 }> = props => {
-    const shouldUseStreamingSearch = onDevSite() || inDevEnvironment();
+    const shouldUseStreamingSearch = true;
 
     // Input parameters and configuration
     const lightTheme = isLightThemeStored();
@@ -129,7 +129,7 @@ export const FilesBrowse: React.FunctionComponent<{
         setSyncthingConfig((config) => {
             if (!config) return config;
             const newConfig = deepCopy(config);
-            
+
             const folders = newConfig?.folders ?? []
 
             if (shouldAdd) {
@@ -239,9 +239,9 @@ export const FilesBrowse: React.FunctionComponent<{
 
         if (!syncthingProduct) return;
         if (didUnmount.current) return;
-        Sync.fetchConfig(syncthingProduct.product.category.provider).then(config => {
-            setSyncthingConfig(config);
-        });
+        Sync.fetchConfig(syncthingProduct.product.category.provider)
+            .then(config => setSyncthingConfig(config))
+            .catch(doNothing);
     }, [collection.data, path, localActiveProject, syncthingProduct]);
 
     useEffect(() => {

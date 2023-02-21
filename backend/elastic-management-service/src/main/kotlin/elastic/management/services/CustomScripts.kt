@@ -25,7 +25,7 @@ class CustomScripts(val client: ElasticsearchClient, val lowLevelClient: RestCli
     }
 
     fun locateIndicesAboveXDocs(numberOfDocs: Int): List<String> {
-        val indices = getListOfIndices(client, "*")
+        val indices = getListOfIndices(client, null)
         val highCountList = mutableListOf<String>()
         indices.forEach { index ->
             val docCount = getDocumentCountSum(listOf(index), lowLevelClient)

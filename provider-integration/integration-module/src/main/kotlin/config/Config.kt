@@ -45,6 +45,8 @@ data class ConfigSchema(
         // NOTE(Dan): Some setups with docker compose doesn't correctly handle file permissions. We have this option to
         // just disable the insecure file check. This setting only works in development mode.
         val disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy: Boolean = false,
+
+        val maintenance: Maintenance? = null,
     ) {
         @Serializable
         data class Hosts(
@@ -59,6 +61,7 @@ data class ConfigSchema(
 
         @Serializable
         data class Logs(
+            val preferStdout: Boolean = false,
             val directory: String? = null,
             val trace: List<Tracer>? = emptyList(),
         ) {
@@ -70,6 +73,11 @@ data class ConfigSchema(
         @Serializable
         data class Cors(
             val allowHosts: List<String>? = null
+        )
+
+        @Serializable
+        data class Maintenance(
+            val alwaysAllowAccessFrom: List<String> = emptyList()
         )
     }
 
@@ -417,20 +425,36 @@ data class ConfigSchema(
             @SerialName("UCloud")
             class UCloud(
                 override val matches: String,
-                val kubeConfig: String? = null,
-                val kubeSvcOverride: String? = null,
-                val useMachineSelector: Boolean = false,
-                val systemReservedCpuMillis: Int = 0,
-                val systemReservedMemMegabytes: Int = 0,
-                val forceMinimumReservation: Boolean = false,
-                val nodeToleration: TolerationKeyAndValue? = null,
-                val namespace: String = "app-kubernetes",
+                val kubernetes: Kubernetes = Kubernetes(),
+                val systemReserved: SystemReserved = SystemReserved(),
+                val developmentMode: DevelopmentMode = DevelopmentMode(),
                 val scheduler: Scheduler = Scheduler.Volcano,
-                val categoryToSelector: Map<String, String> = emptyMap(),
-                val fakeIpMount: Boolean = false,
                 val ssh: Ssh? = null,
-                val usePortForwarding: Boolean = false,
             ) : Jobs() {
+                @Serializable
+                data class DevelopmentMode(
+                    val fakeMemoryAllocation: Boolean = false,
+                    val fakeIpMount: Boolean = false,
+                    val usePortForwarding: Boolean = false,
+                )
+
+                @Serializable
+                data class Kubernetes(
+                    val namespace: String = "app-kubernetes",
+                    val configPath: String? = null,
+                    val serviceUrl: String? = null,
+                    val nodeToleration: TolerationKeyAndValue? = null,
+                    val useMachineSelector: Boolean = false,
+                    val categoryToSelector: Map<String, String> = emptyMap(),
+                    val categoryToCustomRuntime: Map<String, String> = emptyMap(),
+                )
+
+                @Serializable
+                data class SystemReserved(
+                    val cpuMillis: Int = 0,
+                    val memGigabytes: Int = 0,
+                )
+
                 @Serializable
                 data class TolerationKeyAndValue(val key: String, val value: String)
 

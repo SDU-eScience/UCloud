@@ -7,6 +7,7 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.Maintenance
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
@@ -190,6 +191,8 @@ data class ComputeSupport(
 
     @UCloudApiDoc("Support for `Tool`s using the `NATIVE` backend")
     val native: Native = Native(),
+
+    override var maintenance: Maintenance? = null,
 ) : ProductSupport {
     interface UniversalBackendSupport {
         var enabled: Boolean?

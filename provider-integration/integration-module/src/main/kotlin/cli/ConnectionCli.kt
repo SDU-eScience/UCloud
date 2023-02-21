@@ -49,7 +49,7 @@ fun ConnectionCli(controllerContext: ControllerContext) {
 
                 }
 
-                "view" -> {
+                "get", "stat", "view" -> {
                     val username = args.getOrNull(1)
                     if (username == null) {
                         sendTerminalMessage {

@@ -295,7 +295,7 @@ static_resources:
                       server_uri:
                         uri: http://0.0.0.0/
                         cluster: ext-authz
-                        timeout: 0.25s
+                        timeout: 5s
                       authorization_request:
                         allowed_headers:
                           patterns:

@@ -14,7 +14,7 @@ import kotlinx.serialization.builtins.serializer
 data class LookupUsersRequest(val users: List<String>)
 
 @Serializable
-data class UserLookup(val subject: String, val uid: Long, val role: Role)
+data class UserLookup(val subject: String, val role: Role)
 
 @Serializable
 data class LookupUsersResponse(val results: Map<String, UserLookup?>)
@@ -86,12 +86,6 @@ data class ChangePasswordRequest(val currentPassword: String, val newPassword: S
 @Serializable
 data class ChangePasswordWithResetRequest(val userId: String, val newPassword: String)
 
-@Serializable
-data class LookupUIDRequest(val uids: List<Long>)
-
-@Serializable
-data class LookupUIDResponse(val users: Map<Long, UserLookup?>)
-
 object UserDescriptions : CallDescriptionContainer("auth.users") {
     const val baseContext = "/auth/users"
 
@@ -110,7 +104,7 @@ research and education centers on external sites.
 outside WAYF. When a user is a PASSWORD user then there is also a requirement of 2FA. The 2FA is setup after 
 first login.
 
-Each user can have one of seven roles defining their privileges on the UCloud system. See $TYPE_REF dk.sdu.cloud.Role for more details.
+Each user has a role defining their privileges on the UCloud system. See $TYPE_REF dk.sdu.cloud.Role for more details.
 
 ${ApiConventions.nonConformingApiWarning}
             
@@ -302,24 +296,6 @@ ${ApiConventions.nonConformingApiWarning}
                 using(baseContext)
                 +"lookup"
                 +"with-email"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val lookupUID = call("lookupUID", LookupUIDRequest.serializer(), LookupUIDResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"lookup-uid"
             }
 
             body { bindEntireRequestFromBody() }

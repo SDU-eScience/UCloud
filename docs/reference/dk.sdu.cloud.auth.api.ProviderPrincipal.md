@@ -11,7 +11,6 @@
 data class ProviderPrincipal(
     val id: String,
     val role: Role,
-    val uid: Long,
     val type: String /* "provider" */,
 )
 ```
@@ -35,17 +34,6 @@ data class ProviderPrincipal(
 <details>
 <summary>
 <code>role</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.Role.md'>Role</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 

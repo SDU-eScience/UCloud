@@ -23,7 +23,7 @@ research and education centers on external sites.
 outside WAYF. When a user is a PASSWORD user then there is also a requirement of 2FA. The 2FA is setup after 
 first login.
 
-Each user can have one of seven roles defining their privileges on the UCloud system. See [`Role`](/docs/reference/dk.sdu.cloud.Role.md)  for more details.
+Each user has a role defining their privileges on the UCloud system. See [`Role`](/docs/reference/dk.sdu.cloud.Role.md)  for more details.
 
 ---
     
@@ -56,10 +56,6 @@ changes are expected:
 <tr>
 <td><a href='#lookupemail'><code>lookupEmail</code></a></td>
 <td>Request the email of a user.</td>
-</tr>
-<tr>
-<td><a href='#lookupuid'><code>lookupUID</code></a></td>
-<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#lookupuserwithemail'><code>lookupUserWithEmail</code></a></td>
@@ -169,10 +165,6 @@ changes are expected:
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#lookupuidrequest'><code>LookupUIDRequest</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
 <td><a href='#lookupuserwithemailrequest'><code>LookupUserWithEmailRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -190,10 +182,6 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#lookupemailresponse'><code>LookupEmailResponse</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#lookupuidresponse'><code>LookupUIDResponse</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -237,19 +225,6 @@ _Request the email of a user._
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#lookupemailrequest'>LookupEmailRequest</a></code>|<code><a href='#lookupemailresponse'>LookupEmailResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `lookupUID`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#lookupuidrequest'>LookupUIDRequest</a></code>|<code><a href='#lookupuidresponse'>LookupUIDResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -471,7 +446,6 @@ sealed class Person {
     abstract val twoFactorAuthentication: Boolean
     abstract val id: String
     abstract val role: Role
-    abstract val uid: Long
 
     class ByPassword : Person()
     class ByWAYF : Person()
@@ -604,17 +578,6 @@ sealed class Person {
 
 </details>
 
-<details>
-<summary>
-<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
-</summary>
-
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
 
 
 </details>
@@ -639,7 +602,6 @@ data class ByPassword(
     val phoneNumber: String?,
     val orcId: String?,
     val email: String?,
-    val uid: Long?,
     val twoFactorAuthentication: Boolean,
     val serviceLicenseAgreement: Int,
     val organizationId: String?,
@@ -738,17 +700,6 @@ data class ByPassword(
 </summary>
 
 
-
-
-
-</details>
-
-<details>
-<summary>
-<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
-</summary>
-
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -856,7 +807,6 @@ data class ByWAYF(
     val phoneNumber: String?,
     val orcId: String?,
     val email: String?,
-    val uid: Long?,
     val serviceLicenseAgreement: Int,
     val organizationId: String,
     val wayfId: String,
@@ -961,17 +911,6 @@ data class ByWAYF(
 
 <details>
 <summary>
-<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
-</summary>
-
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
-<details>
-<summary>
 <code>serviceLicenseAgreement</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
 </summary>
 
@@ -1055,7 +994,6 @@ data class ByWAYF(
 sealed class Principal {
     abstract val id: String
     abstract val role: Role
-    abstract val uid: Long
 
     class Person : Principal()
     class ProviderPrincipal : Principal()
@@ -1090,17 +1028,6 @@ sealed class Principal {
 
 </details>
 
-<details>
-<summary>
-<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
-</summary>
-
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
 
 
 </details>
@@ -1119,7 +1046,6 @@ sealed class Principal {
 data class ProviderPrincipal(
     val id: String,
     val role: Role,
-    val uid: Long,
     val type: String /* "provider" */,
 )
 ```
@@ -1143,17 +1069,6 @@ data class ProviderPrincipal(
 <details>
 <summary>
 <code>role</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.Role.md'>Role</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 
@@ -1192,7 +1107,6 @@ data class ProviderPrincipal(
 data class ServicePrincipal(
     val id: String,
     val role: Role,
-    val uid: Long,
     val type: String /* "service" */,
 )
 ```
@@ -1216,17 +1130,6 @@ data class ServicePrincipal(
 <details>
 <summary>
 <code>role</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.Role.md'>Role</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 
@@ -1264,7 +1167,6 @@ data class ServicePrincipal(
 ```kotlin
 data class UserLookup(
     val subject: String,
-    val uid: Long,
     val role: Role,
 )
 ```
@@ -1277,17 +1179,6 @@ data class UserLookup(
 <details>
 <summary>
 <code>subject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 
@@ -1591,42 +1482,6 @@ data class LookupEmailRequest(
 
 ---
 
-### `LookupUIDRequest`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class LookupUIDRequest(
-    val uids: List<Long>,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>uids</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>&gt;</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
 ### `LookupUserWithEmailRequest`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1839,42 +1694,6 @@ data class LookupEmailResponse(
 <details>
 <summary>
 <code>email</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `LookupUIDResponse`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class LookupUIDResponse(
-    val users: JsonObject,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>users</code>: <code><code><a href='https://kotlin.github.io/kotlinx.serialization/kotlinx-serialization-json/kotlinx-serialization-json/kotlinx.serialization.json/-json-object/index.html'>JsonObject</a></code></code>
 </summary>
 
 

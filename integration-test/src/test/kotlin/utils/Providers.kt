@@ -92,7 +92,9 @@ suspend fun findProviders(): Set<Provider> {
 }
 
 suspend fun findProviderIds(): Set<String> {
-    return findProviders().map { it.specification.id }.toSet()
+    return findProviders().map { it.specification.id }.filter { providerId ->
+        !(providerId == "slurm" && System.getenv("ENABLE_SLURM_TEST") == null)
+    }.toSet()
 }
 
 suspend fun <P : Product, S : ProductSupport> findSupport(

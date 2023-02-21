@@ -1,32 +1,18 @@
-For our CI (Continuous Integration), we are using [Jenkins](https://jenkins.io/).
+We use Jenkins for all of our automatic testing and continuous integration needs.
 
----
+Jenkins automatically triggers a new test run when one of the following things occur:
 
-## Automated Building and Testing
+1. Either the `master` or `staging` branch receives a new commit
+2. A member of the UCloud team creates a pull request on GitHub
 
-Our Jenkins [Pipeline](https://jenkins.io/doc/book/pipeline/) is triggered
-when new code is pushed to the master branch or staging brach of our git 
-repository or a PR from team members is created. Just to
-be certain that we don't miss pushes, we also have Jenkins check each 5 min
-for changes to to the two branches. If there have been pushed new code to the
-repository it triggers our "Build and Test" job. For this job we make use of
-[scripted Jenkinsfiles](https://jenkins.io/doc/book/pipeline/jenkinsfile/).
-In the base folder of the UCloud project you will find a `Jenkinsfile` that
-bootstraps the job. When the bootstrapping `Jenkinsfile` is run, it creates 
-an UCloud environment using the UCloud Launcher and runs the integration tests
-in a connected VM. Once the tests are done the results of the tests are returned
-to Jenkins and in case of errors alerted to the developers.
+We implement this pipeline using a scripted Jenkinsfile. This file exists in the base folder of the UCloud project. This
+pipeline creates a UCloud cluster and runs tests against it. We create the cluster using the `./launcher` script. This
+creates a functional cluster using all the real software. For example, this includes compute orchestrators such as
+Kubernetes and Slurm when relevant. This ensures that the testing environment is as realistic as possible.
 
-If the build stage should fail (during compilation) it returns FAILURE. If the test stage fails,
-it returns UNSTABLE. If everything is fine and the build and test both are
-success it returns SUCCESS. All test results are automatically saved and
-gathered in the Jenkins job. 
+Jenkins run these test on a separate agent. This agent runs in an isolated virtual machine to minimise the risk. This
+agent has severely limited connectivity to other infrastructure.
 
-If 1 or more services has been marked as FAILURE or UNSTABLE, then the job is 
-marked as FAILED and a message is sent to our Slack channel `#devalerts` 
-specifying which tests are to blame.
-
-![Jenkins Flow Chart](/backend/service-lib/wiki/JenkinsNonParallel.png)
-
-
-
+A notification is automatically sent to GitHub about the test. We use the results of these tests to determine if we
+should deploy a specific build. According to our deployment procedures, it is not a requirement that tests pass. In the
+case of a build failure, then the development team is notified via Slack.

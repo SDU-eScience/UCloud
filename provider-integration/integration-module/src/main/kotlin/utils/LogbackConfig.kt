@@ -1,9 +1,9 @@
 package dk.sdu.cloud.utils
 
-fun logbackConfiguration(dir: String, providerId: String, module: String) = """
+fun logbackConfiguration(dir: String, providerId: String, module: String, preferStdout: Boolean) = """
 <configuration>
     <appender name="im-appender" class="ch.qos.logback.core.FileAppender">
-        <file>$dir/$providerId-$module.log</file>
+        ${if (!preferStdout) "<file>$dir/$providerId-$module.log</file>" else "<file>/dev/stdout</file>"}
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{35} - %msg%n</pattern>
         </encoder>

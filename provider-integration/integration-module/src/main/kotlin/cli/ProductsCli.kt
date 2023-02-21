@@ -235,10 +235,25 @@ fun ProductsCli(controllerContext: ControllerContext) {
         pluginContext.ipcServer.addHandler(ProductsIpc.register.handler { user, request ->
             if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
-            Products.create.call(
-                BulkRequest(config.products.productsUnknownToUCloud.toList()),
-                rpcClient
-            ).orThrow()
+            try {
+                Products.create.call(
+                    BulkRequest(config.products.productsUnknownToUCloud.toList()),
+                    rpcClient
+                ).orThrow()
+            } catch (ignored: Throwable) {
+                var failures = ""
+                for (p in config.products.productsUnknownToUCloud) {
+                    try {
+                        Products.create.call(
+                            BulkRequest(listOf(p)),
+                            rpcClient
+                        ).orThrow()
+                    } catch (ex: Throwable) {
+                        failures += "Error while trying to create product: $p\n${ex.stackTraceToString()}\n\n"
+                    }
+                }
+                throw RPCException(failures, HttpStatusCode.BadGateway)
+            }
 
             config.products.productsUnknownToUCloud = emptySet()
         })

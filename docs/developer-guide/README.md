@@ -11,4 +11,3 @@ UCloud Developer Guide
  - [Developing UCloud](/docs/developer-guide/development/README.md)
  - [Core](/docs/developer-guide/core/README.md)
  - [Legacy](/docs/developer-guide/legacy/README.md)
- - [Built-in Provider](/docs/developer-guide/built-in-provider/README.md)

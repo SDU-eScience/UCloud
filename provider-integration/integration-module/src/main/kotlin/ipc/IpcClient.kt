@@ -181,11 +181,11 @@ class RealIpcClient(
                 try {
                     sendRequest(next.payload)
                     val value = parseResponse()
-                    runBlocking { next.callback.send(Result.success(value)) }
+                    next.callback.send(Result.success(value))
                 } catch (ex: Throwable) {
                     log.warn("Caught exception while processing IPC messages (client): ${ex.stackTraceToString()}")
                     channel.close()
-                    runBlocking { next.callback.send(Result.failure(ex)) }
+                    next.callback.send(Result.failure(ex))
                 }
             }
         }

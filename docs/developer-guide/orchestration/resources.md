@@ -176,6 +176,14 @@ this, then UCloud/Core will reject all requests counting backwards.
 </tr></thread>
 <tbody>
 <tr>
+<td><a href='#maintenance'><code>Maintenance</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#maintenance.availability'><code>Maintenance.Availability</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#resolvedsupport'><code>ResolvedSupport</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -1370,6 +1378,7 @@ SupportByProvider(
             id = "example-compute", 
         ), 
         support = ExampleResourceSupport(
+            maintenance = null, 
             product = ProductReference(
                 category = "example-compute", 
                 id = "example-compute", 
@@ -1462,7 +1471,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrievePr
 #                         "category": "example-compute",
 #                         "provider": "example"
 #                     },
-#                     "supportsBackwardsCounting": "SUPPORTED"
+#                     "supportsBackwardsCounting": "SUPPORTED",
+#                     "maintenance": null
 #                 }
 #             }
 #         ]
@@ -1565,6 +1575,7 @@ SupportByProvider(
             id = "example-compute", 
         ), 
         support = ExampleResourceSupport(
+            maintenance = null, 
             product = ProductReference(
                 category = "example-compute", 
                 id = "example-compute", 
@@ -1653,7 +1664,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrievePr
 #                         "category": "example-compute",
 #                         "provider": "example"
 #                     },
-#                     "supportsBackwardsCounting": "NOT_SUPPORTED"
+#                     "supportsBackwardsCounting": "NOT_SUPPORTED",
+#                     "maintenance": null
 #                 }
 #             }
 #         ]
@@ -2142,6 +2154,171 @@ _Updates the ACL attached to a resource_
 
 
 ## Data Models
+
+### `Maintenance`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Maintenance(
+    val description: String,
+    val availability: Maintenance.Availability,
+    val startsAt: Long,
+    val estimatedEndsAt: Long?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A description of the scheduled/ongoing maintenance.
+</summary>
+
+
+
+The text may contain any type of character, but the operator should keep in mind that this will be displayed
+in a web-application. This text should be kept to only a single paragraph, but it may contain line-breaks as
+needed. This text must not be blank. The Core will require that this text contains at most 4000 characters.
+
+
+</details>
+
+<details>
+<summary>
+<code>availability</code>: <code><code><a href='#maintenance.availability'>Maintenance.Availability</a></code></code> Describes the availability of the affected service.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>startsAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Describes when the maintenance is expected to start.
+</summary>
+
+
+
+This is an ordinary UCloud timestamp (millis since unix epoch). The timestamp can be in the future (or past).
+But, the Core will enforce that the maintenance is in the "recent" past to ensure that the timestamp is not
+incorrect.
+
+
+</details>
+
+<details>
+<summary>
+<code>estimatedEndsAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Describes when the maintenance is expected to end.
+</summary>
+
+
+
+This property is optional and can be left blank. In this case, users will not be notified about when the
+maintenance is expected to end. This can be useful if a product is reaching EOL. In either case, the description
+should be used to clarify the meaning of this property.
+
+This is an ordinary UCloud timestamp (millis since unix epoch). The timestamp can be in the future (or past).
+But, the Core will enforce that the maintenance is in the "recent" past to ensure that the timestamp is not
+incorrect.
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `Maintenance.Availability`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+enum class Availability {
+    MINOR_DISRUPTION,
+    MAJOR_DISRUPTION,
+    NO_SERVICE,
+}
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>MINOR_DISRUPTION</code> You might encounter some disruption to the service, but the end-user might not notice this disruption.
+</summary>
+
+
+
+This will display a weak warning on the affected resources and products. Users will still be able to use the
+resources.
+
+
+</details>
+
+<details>
+<summary>
+<code>MAJOR_DISRUPTION</code> You should expect some disruption of the service.
+</summary>
+
+
+
+This will display a prominent warning on the affected resources and products. Users will still be able to
+use the resources.
+
+
+</details>
+
+<details>
+<summary>
+<code>NO_SERVICE</code> The service is unavailable.
+</summary>
+
+
+
+This will display a prominent warning on the affected resources and products. Users will _not_ be able to
+use the resources. This check is only enforced my the frontend, this means that any backend services will
+still have to reject the request. The frontend will allow normal operation if one of the following is true:
+
+- The current user is a UCloud administrator
+- The current user has a `localStorage` property with key `NO_MAINTENANCE_BLOCK`
+
+These users should still receive the normal warning. But, the user-interface will not block the 
+operations. Instead, these users will receive the normal responses. If the service is down, then this 
+will result in an error message.
+
+This is used intend in combination with a feature in the IM. This feature will allow an operator to 
+define an allow list of users who can always access the system. The operator should use this when they 
+wish to test the system following maintenance. During this period, only users on the allow list can use 
+the system. All other users will receive a generic error message indicating that the system is down for 
+maintenance.
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
 
 ### `ResolvedSupport`
 
@@ -3133,6 +3310,7 @@ data class ExampleResourceFlags(
 data class ExampleResourceSupport(
     val product: ProductReference,
     val supportsBackwardsCounting: ExampleResourceSupport.Supported?,
+    val maintenance: Maintenance?,
 )
 ```
 
@@ -3155,6 +3333,17 @@ data class ExampleResourceSupport(
 <details>
 <summary>
 <code>supportsBackwardsCounting</code>: <code><code><a href='#exampleresourcesupport.supported'>ExampleResourceSupport.Supported</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maintenance</code>: <code><code><a href='#maintenance'>Maintenance</a>?</code></code>
 </summary>
 
 
