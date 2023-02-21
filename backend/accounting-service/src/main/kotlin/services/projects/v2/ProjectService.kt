@@ -1,7 +1,5 @@
 package dk.sdu.cloud.accounting.services.projects.v2
 
-import com.github.jasync.sql.db.column.TimestampEncoderDecoder
-import com.github.jasync.sql.db.column.TimestampWithTimezoneEncoderDecoder
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.accounting.api.providers.SortDirection
