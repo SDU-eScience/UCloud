@@ -1,5 +1,5 @@
 import * as React from "react";
-import {BinaryDebugMessageType, DBTransactionEvent, DebugContext, DebugContextType, DebugMessage, Log, MessageImportance, messageImportanceToString} from "../WebSockets/Schema";
+import {BinaryDebugMessageType, ClientRequest, ClientResponse, DatabaseConnection, DatabaseQuery, DatabaseResponse, DatabaseTransaction, DBTransactionEvent, DebugContext, DebugContextType, DebugMessage, Log, MessageImportance, messageImportanceToString, ServerRequest, ServerResponse} from "../WebSockets/Schema";
 import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, isDebugMessage, logMessages, debugMessageStore, replayMessages} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList as List} from "react-window";
@@ -260,6 +260,30 @@ function LogText({log}: {log: Log}): JSX.Element {
 
 function Message({message}: {message: DebugMessage}): JSX.Element {
     switch (message.type) {
+        case BinaryDebugMessageType.CLIENT_REQUEST:
+            const clientRequest = message as ClientRequest;
+            return <div>{clientRequest.call}</div>
+        case BinaryDebugMessageType.CLIENT_RESPONSE:
+            const clientResponse = message as ClientResponse;
+            return <div>{clientResponse.call}</div>
+        case BinaryDebugMessageType.DATABASE_CONNECTION:
+            const databaseConnect = message as DatabaseConnection;
+            return <div>{databaseConnect.isOpen}</div>
+        case BinaryDebugMessageType.DATABASE_QUERY:
+            const databaseQuery = message as DatabaseQuery;
+            return <div>{databaseQuery.query}</div>
+        case BinaryDebugMessageType.DATABASE_RESPONSE:
+            const databaseResposne = message as DatabaseResponse;
+            return <div>{databaseResposne.responseTime}</div>
+        case BinaryDebugMessageType.DATABASE_TRANSACTION:
+            const DatabaseTransaction = message as DatabaseTransaction;
+            return <div>{DatabaseTransaction.event}</div>
+        case BinaryDebugMessageType.SERVER_REQUEST:
+            const serverRequest = message as ServerRequest;
+            return <div>{serverRequest.call}</div>
+        case BinaryDebugMessageType.SERVER_RESPONSE:
+            const serverResponse = message as ServerResponse;
+            return <div>{serverResponse.call}</div>
         case BinaryDebugMessageType.LOG:
             const log = message as Log;
             return <>
