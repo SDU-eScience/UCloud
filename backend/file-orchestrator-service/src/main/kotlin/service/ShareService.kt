@@ -252,8 +252,11 @@ class ShareService(
         actorAndProject: ActorAndProject,
         idWithSpec: List<Pair<Long, Share.Spec>>,
         session: AsyncDBConnection,
-        allowDuplicates: Boolean
+        allowDuplicates: Boolean,
     ) {
+        // HACK(Dan): We should only send notifications if the share is not initiated by the system
+        val shouldSendNotification = actorAndProject.actor !is Actor.SystemOnBehalfOfUser
+
         if (actorAndProject.project != null) {
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Shares not possible from projects")
         }
@@ -327,18 +330,20 @@ class ShareService(
             else throw ex
         }
 
-        idWithSpec.forEach {
-            NotificationDescriptions.create.call(
-                CreateNotification(
-                    it.second.sharedWith,
-                    Notification(
-                        NotificationType.SHARE_REQUEST.name,
-                        "${actorAndProject.actor.safeUsername()} wants to share a folder with you",
-                        meta = JsonObject(emptyMap())
-                    )
-                ),
-                serviceClient
-            )
+        if (shouldSendNotification) {
+            idWithSpec.forEach {
+                NotificationDescriptions.create.call(
+                    CreateNotification(
+                        it.second.sharedWith,
+                        Notification(
+                            NotificationType.SHARE_REQUEST.name,
+                            "${actorAndProject.actor.safeUsername()} wants to share a folder with you",
+                            meta = JsonObject(emptyMap())
+                        )
+                    ),
+                    serviceClient
+                )
+            }
         }
     }
 
