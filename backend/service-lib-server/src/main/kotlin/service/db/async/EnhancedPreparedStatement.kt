@@ -1,9 +1,9 @@
 package dk.sdu.cloud.service.db.async
 
 import com.github.jasync.sql.db.QueryResult
-import dk.sdu.cloud.debug.DebugContext
-import dk.sdu.cloud.debug.DebugMessage
 import dk.sdu.cloud.debug.MessageImportance
+import dk.sdu.cloud.debug.databaseQuery
+import dk.sdu.cloud.debug.databaseResponse
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -154,13 +154,16 @@ class EnhancedPreparedStatement(
         release: Boolean = false,
         tagName: String = "Untitled query"
     ): QueryResult {
-        val context = DebugContext.createWithParent(session.context.id)
         val debugQueryParameters = JsonObject(
             rawParameters.map { (param, value) -> param to JsonPrimitive(value.toString()) }.toMap()
         )
 
         val start = Time.now()
-        session.debug?.sendMessage(DebugMessage.DatabaseQuery(context, rawStatement, debugQueryParameters))
+        session.debug.system.databaseQuery(
+            MessageImportance.IMPLEMENTATION_DETAIL,
+            debugQueryParameters,
+            rawStatement
+        )
 
         check(boundValues.size == parameterNamesToIndex.keys.size) {
             val missingSetParameters = parameterNamesToIndex.keys.filter { it !in boundValues }
@@ -205,23 +208,14 @@ class EnhancedPreparedStatement(
             }
         }
 
-        session.debug?.sendMessage(
-            DebugMessage.DatabaseResponse(
-                DebugContext.createWithParent(context.id),
-                end - start,
-                rawStatement,
-                debugQueryParameters,
-                when {
-                    end - start >= 300 ->
-                        MessageImportance.THIS_IS_WRONG
-
-                    end - start >= 150 ->
-                        MessageImportance.THIS_IS_ODD
-
-                    else ->
-                        MessageImportance.THIS_IS_NORMAL
-                },
-            )
+        val duration = end - start
+        session.debug.system.databaseResponse(
+            importance = when {
+                duration >= 300 -> MessageImportance.THIS_IS_WRONG
+                duration >= 150 -> MessageImportance.THIS_IS_ODD
+                else -> MessageImportance.THIS_IS_NORMAL
+            },
+            responseTime = duration
         )
         return response
     }

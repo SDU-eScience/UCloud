@@ -5,6 +5,7 @@ import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.micro.featureOrNull
 import dk.sdu.cloud.service.Loggable
 import io.ktor.content.*
@@ -31,7 +32,7 @@ class IngoingHttpInterceptor(
     override val companion: HttpCall.Companion = HttpCall
 
     // NOTE(Dan): This needs to be lazy to make sure the debug system has been initialized
-    private val debug by lazy { micro.featureOrNull(DebugSystemFeature) }
+    private val debug by lazy { micro.feature(DebugSystemFeature) }
 
     override fun onStop() {
         engine.stop(gracePeriod = 0L, timeout = 30L, timeUnit = TimeUnit.SECONDS)
@@ -47,23 +48,27 @@ class IngoingHttpInterceptor(
             route(httpDescription.path.toPath(), HttpMethod(httpDescription.method.value)) {
                 handle {
                     val ctx = HttpCall(this as PipelineContext<Any, ApplicationCall>)
-                    val debugCtx = DebugContext.create()
-                    withContext(DebugCoroutineContext(debugCtx)) {
-                        debug.everythingD("Begun parsing of ${call.fullName}", Unit.serializer(), Unit, debugCtx)
-                        try {
-                            // Calls the handler provided by 'implement'
-                            @Suppress("UNCHECKED_CAST")
-                            rpcServer.handleIncomingCall(
-                                this@IngoingHttpInterceptor,
-                                call,
-                                ctx
-                            )
-                        } catch (ex: IOException) {
-                            log.debug("Caught IOException:")
-                            log.debug(ex.stackTraceToString())
-                            throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
+
+                    debug.system.useContext(
+                        type = DebugContextType.SERVER_REQUEST,
+                        initialName = "😎 ${call.fullName}",
+                        initialImportance = MessageImportance.IMPLEMENTATION_DETAIL,
+                        block = {
+                            try {
+                                // Calls the handler provided by 'implement'
+                                @Suppress("UNCHECKED_CAST")
+                                rpcServer.handleIncomingCall(
+                                    this@IngoingHttpInterceptor,
+                                    call,
+                                    ctx
+                                )
+                            } catch (ex: IOException) {
+                                log.debug("Caught IOException:")
+                                log.debug(ex.stackTraceToString())
+                                throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
+                            }
                         }
-                    }
+                    )
                 }
             }
         }
@@ -115,7 +120,7 @@ class IngoingHttpInterceptor(
                 }
                 else -> {
                     log.debug(ex.stackTraceToString())
-                    debug.logThrowable("Failed to parse request", ex, MessageImportance.IMPLEMENTATION_DETAIL)
+                    debug.system.logThrowable("Failed to parse request", ex, MessageImportance.IMPLEMENTATION_DETAIL)
                     throw RPCException("Bad request", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
                 }
             }

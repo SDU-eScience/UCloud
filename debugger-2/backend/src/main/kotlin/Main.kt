@@ -326,7 +326,9 @@ fun main(args: Array<String>) {
                             is ClientRequest.FetchPreviousMessage -> {
                                 val generation = session.generation ?: continue
                                 val startFile = findStartFile(directory, generation, request.timestamp) ?: continue
-                                session.findContextsBackwards(directory, generation, startFile, request.id)
+                                sessionMutex.withLock {
+                                    session.findContextsBackwards(directory, generation, startFile, request.id)
+                                }
                             }
                         }
                     }
@@ -398,22 +400,24 @@ suspend fun ClientSession.findNewestContext(
     while (ContextReader.exists(directory, generation, highestCtxFile + 1)) {
         highestCtxFile += 1
     }
-    if (highestCtxFile != 0) {
-        var ctxFile = ContextReader(directory, generation, highestCtxFile)
-        ctxFile.seekToEnd()
-        var last = ctxFile.retrieve() ?: return
-        while (last.parent != 1) {
-            if (!ctxFile.previous()) {
-                highestCtxFile -= 1
-                if (highestCtxFile == 0) return
-                ctxFile = ContextReader(directory, generation, highestCtxFile)
-            }
-            last = ctxFile.retrieve() ?: return
+    if (highestCtxFile == 0) return
+
+    var ctxFile = ContextReader(directory, generation, highestCtxFile)
+    ctxFile.seekToEnd()
+    var last = ctxFile.retrieve() ?: return
+    while (last.parent != 1) {
+        println("${last.parent}, $highestCtxFile")
+        if (!ctxFile.previous()) {
+            highestCtxFile -= 1
+            if (highestCtxFile == 0) return
+            ctxFile = ContextReader(directory, generation, highestCtxFile)
+            ctxFile.seekToEnd()
         }
-        // The 'last' context will only be accepted provided it has parentId == 1
-        this.acceptContext(generation, last, arrayListOf(1L))
-        this.flushContextMessage()
+        last = ctxFile.retrieve() ?: return
     }
+    // The 'last' context will only be accepted provided it has parentId == 1
+    this.acceptContext(generation, last, arrayListOf(1L))
+    this.flushContextMessage()
 }
 
 suspend fun ClientSession.findContexts(

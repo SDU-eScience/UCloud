@@ -6,9 +6,12 @@ import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.WSMessage
 import dk.sdu.cloud.calls.WSRequest
 import dk.sdu.cloud.calls.websocketOrNull
-import dk.sdu.cloud.debug.DebugContext
-import dk.sdu.cloud.debug.DebugCoroutineContext
+import dk.sdu.cloud.debug.DebugContextType
+import dk.sdu.cloud.debug.DebugSystemFeature
+import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import io.ktor.http.HttpStatusCode
@@ -117,10 +120,12 @@ class WSSession internal constructor(val id: String, val underlyingSession: WebS
 
 class IngoingWebSocketInterceptor(
     private val engine: ApplicationEngine,
-    private val rpcServer: RpcServer
+    private val rpcServer: RpcServer,
+    private val micro: Micro
 ) : IngoingRequestInterceptor<WSCall, WSCall.Companion> {
     override val companion = WSCall
     private val handlers: MutableMap<String, List<CallDescription<*, *, *>>> = HashMap()
+    private val debug by lazy { micro.feature(DebugSystemFeature) }
 
     override fun onStart() {
         if (handlers.isEmpty()) return
@@ -204,14 +209,21 @@ class IngoingWebSocketInterceptor(
                                 }
 
                                 val ctx = WSCall(session, parsedMessage, streamId)
-                                launch(DebugCoroutineContext(DebugContext.create())) {
-                                    log.trace("Handling call...")
-                                    rpcServer.handleIncomingCall(
-                                        this@IngoingWebSocketInterceptor,
-                                        call,
-                                        ctx
+                                launch {
+                                    debug.system.useContext(
+                                        type = DebugContextType.SERVER_REQUEST,
+                                        initialName = "😎 ${call.fullName}",
+                                        initialImportance = MessageImportance.THIS_IS_NORMAL,
+                                        block = {
+                                            log.trace("Handling call...")
+                                            rpcServer.handleIncomingCall(
+                                                this@IngoingWebSocketInterceptor,
+                                                call,
+                                                ctx
+                                            )
+                                            log.trace("Call has been handled")
+                                        }
                                     )
-                                    log.trace("Call has been handled")
                                 }
                             }
                         }

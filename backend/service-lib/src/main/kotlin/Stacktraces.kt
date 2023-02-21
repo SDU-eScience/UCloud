@@ -1,9 +1,6 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.debug.DebugContext
-import dk.sdu.cloud.debug.DebugSystem
-import dk.sdu.cloud.debug.MessageImportance
-import dk.sdu.cloud.debug.logD
+import dk.sdu.cloud.debug.*
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -56,7 +53,7 @@ suspend fun DebugSystem?.logThrowable(
     message: String,
     throwable: Throwable,
     importance: MessageImportance = MessageImportance.THIS_IS_ODD,
-    ctx: DebugContext? = null
 ) {
-    logD(message, ReadableStackTrace.serializer(), throwable.toReadableStacktrace(), importance, ctx)
+    if (this == null) return
+    log(importance, message, defaultMapper.encodeToJsonElement(ReadableStackTrace.serializer(), throwable.toReadableStacktrace()))
 }

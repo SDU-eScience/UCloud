@@ -6,15 +6,16 @@ import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 
 // Notes/Issues:
-//  Fetching missing contexts in time-range sometimes misses some. Backend solution timing-issue. 
-//  Handle same service, new generation
-//   Frontend styling is generally not good.
-//  Handle different types of ctx/logs to render.
+//  Fetching missing contexts in time-range sometimes misses some. Backend solution timing-issue. (Medium)
+//  Handle same service, new generation (Low)
+//   Frontend styling is generally not good. (Medium)
+//  Handle different types of ctx/logs to render. (High)
 //  What happens when selecting a different service?
-//     - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected).
-//  Handle long-running situations where memory usage has become high.
-//  Double-clicking a context sometimes duplicates the call.
-//  x-overflow in lists.
+//     - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected). (High)
+//  Handle long-running situations where memory usage has become high. (High)
+//  Double-clicking a context sometimes duplicates the call. (Low)
+//  x-overflow in lists. (Low)
+//  What if selected service has yet to produce a ctx? (High)
 
 type LogOrCtx = Log | DebugContext;
 const ITEM_SIZE = 22;
@@ -154,7 +155,9 @@ function RequestDetails({activeContextOrLog}: Partial<RequestDetailsByTypeProps>
     </div>;
 }
 
-const DATE_FORMAT = new Intl.DateTimeFormat("en-UK", {dateStyle: "short", timeStyle: "long"});
+const {locale, timeZone} = Intl.DateTimeFormat().resolvedOptions();
+
+const DATE_FORMAT = new Intl.DateTimeFormat(locale, {timeZone, dateStyle: "short", timeStyle: "long"});
 
 interface RequestDetailsByTypeProps {
     activeContextOrLog: LogOrCtx;

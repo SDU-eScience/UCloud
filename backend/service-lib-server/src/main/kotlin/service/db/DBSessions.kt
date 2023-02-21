@@ -1,6 +1,5 @@
 package dk.sdu.cloud.service.db
 
-import dk.sdu.cloud.debug.parentContextId
 import dk.sdu.cloud.service.db.async.TransactionMode
 
 interface DBSessionFactory<Session> {
