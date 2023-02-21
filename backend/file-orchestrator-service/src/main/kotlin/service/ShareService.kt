@@ -784,6 +784,49 @@ class ShareService(
         return PageV2(20, result, null)
     }
 
+    suspend fun retrieveLink(
+        actorAndProject: ActorAndProject,
+        request: ShareLinksRetrieveRequest,
+        ctx: DBContext = db
+    ): ShareLinksRetrieveResponse {
+
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("token", request.token)
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                },
+                """
+                    select file_path, shared_by, available_at from file_orchestrator.shares_links l
+                    left join file_orchestrator.shares s on
+                        file_path = original_file_path and (
+                            shared_with = :username or shared_by = :username
+                        )
+                    where token = :token
+                    group by available_at, shared_by, file_path
+                """
+            ).rows.firstOrNull()?.let {
+                val path = it.getString("file_path")
+                val sharePath = it.getString("available_at")
+                val sharedBy = it.getString("shared_by")
+
+                if (path == null || sharedBy == null) {
+                    throw RPCException("Link expired", HttpStatusCode.NotFound)
+                }
+
+                ShareLinksRetrieveResponse(
+                    request.token,
+                    path,
+                    sharedBy,
+                    sharePath
+                )
+            } ?:
+                throw RPCException("Link expired", HttpStatusCode.NotFound)
+
+
+        }
+    }
+
     suspend fun deleteLink(
         actorAndProject: ActorAndProject,
         request: ShareLinksDeleteRequest,

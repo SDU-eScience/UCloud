@@ -17,7 +17,7 @@ import {PrettyFilePath} from "@/Files/FilePath";
 import {Operation} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud";
-import {apiBrowse, apiCreate, apiUpdate} from "@/Authentication/DataHook";
+import {apiBrowse, apiCreate, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {fileName} from "@/Utilities/FileUtilities";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
@@ -81,6 +81,17 @@ export interface CreateLinkRequest {
 
 export interface BrowseLinksRequest {
     path: string;
+}
+
+export interface RetrieveLinkRequest {
+    token: string;
+}
+
+export interface RetrieveLinkResponse {
+    token: string;
+    path: string;
+    sharedBy: string;
+    sharePath?: string;
 }
 
 export interface DeleteLinkRequest {
@@ -360,6 +371,10 @@ export class ShareLinksApi {
         return apiBrowse(request, this.baseContext);
     }
 
+    public retrieve(request: RetrieveLinkRequest): APICallParameters {
+        return apiRetrieve(request, this.baseContext)
+    }
+
     public delete(request: DeleteLinkRequest): APICallParameters {
         return apiUpdate(request, this.baseContext, "delete");
     }
@@ -368,7 +383,7 @@ export class ShareLinksApi {
         return apiUpdate(request, this.baseContext, "update");
     }
 
-    public acceptInvite(request: AcceptLinkRequest): APICallParameters {
+    public accept(request: AcceptLinkRequest): APICallParameters {
         return apiUpdate(request, this.baseContext, "accept")
     }
 }

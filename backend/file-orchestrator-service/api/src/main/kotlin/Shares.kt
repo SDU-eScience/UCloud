@@ -172,6 +172,21 @@ data class ShareLinksBrowseRequest(
 
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ShareLinksRetrieveRequest(
+    val token: String
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ShareLinksRetrieveResponse(
+    val token: String,
+    val path: String,
+    val sharedBy: String,
+    val sharePath: String?
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class ShareLinksDeleteRequest(
     val token: String,
     val path: String
@@ -351,6 +366,10 @@ object ShareLinks: CallDescriptionContainer("share.links") {
 
     val browse = call("browse", ShareLinksBrowseRequest.serializer(), PageV2.serializer(ShareLink.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext)
+    }
+
+    val retrieve = call("retrieve", ShareLinksRetrieveRequest.serializer(), ShareLinksRetrieveResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(baseContext)
     }
 
     val delete = call("delete", ShareLinksDeleteRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {

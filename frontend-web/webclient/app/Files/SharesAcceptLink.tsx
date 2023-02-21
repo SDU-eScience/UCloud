@@ -1,8 +1,13 @@
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {Share, shareLinksApi} from "@/UCloud/SharesApi";
+import MainContainer from "@/MainContainer/MainContainer";
+import {RetrieveLinkResponse, Share, shareLinksApi} from "@/UCloud/SharesApi";
 import {buildQueryString} from "@/Utilities/URIUtilities";
+import * as Heading from "@/ui-components/Heading";
 import React, {useEffect} from "react";
 import {useNavigate, useParams} from "react-router";
+import styled from "styled-components";
+import Spinner from "@/LoadingIcon/LoadingIcon";
+import {Box, Button} from "@/ui-components";
 
 export const SharesAcceptLink: React.FunctionComponent = () => {
     const navigate = useNavigate();
@@ -10,32 +15,66 @@ export const SharesAcceptLink: React.FunctionComponent = () => {
     const locationParams = useParams<{id: string;}>();
     let token = locationParams.id ? decodeURIComponent(locationParams.id) : undefined;
 
-    const [acceptedInvite, acceptInvite] = useCloudAPI<Share|null>(
-        {noop: true},
-        null
-    );
+    const [acceptedShare, acceptShare] = useCloudAPI<Share|null>({noop: true}, null);
+    const [linkInfo, fetchLinkInfo] = useCloudAPI<RetrieveLinkResponse|null>({noop: true}, null);
 
     useEffect(() => {
         if (token) {
-            acceptInvite(shareLinksApi.acceptInvite({token}));
+            fetchLinkInfo(shareLinksApi.retrieve({token}));
         }
     }, [token]);
 
     useEffect(() => {
-        if (!acceptedInvite.data && !acceptedInvite.error) return;
-        if (acceptedInvite.loading) return;
+        if (linkInfo.data) {
+            if (linkInfo.data.sharePath) {
+                navigate(buildQueryString("/files", {path: linkInfo.data.sharePath}));
+            }
+        }
+    }, [linkInfo]);
+    
+    useEffect(() => {
+        if (!acceptedShare.data && !acceptedShare.error) return;
+        if (acceptedShare.loading) return;
 
-        const sharePath = acceptedInvite.data?.status.shareAvailableAt;
+        const sharePath = acceptedShare.data?.status.shareAvailableAt;
 
         if (sharePath) {
-            navigate(buildQueryString("/files", {"path": sharePath}));
+            navigate(buildQueryString("/files", {path: sharePath}));
         } else {
             navigate("/shares");
         }
-    }, [acceptedInvite]);
+    }, [acceptedShare]);
 
-    return <></>;
+    return <MainContainer
+        main={
+            linkInfo.loading ? <Spinner /> :
+            linkInfo.error ? <AcceptProjectLinkContainer>
+                <Heading.h3>Link has expired</Heading.h3>
+                Contact the owner of the folder to get a new link.
+            </AcceptProjectLinkContainer>
+            :
+            <AcceptProjectLinkContainer>
+                <Heading.h3><strong>{linkInfo.data?.sharedBy}</strong> wants to share folder <strong>{linkInfo.data?.path.split("/").pop()}</strong> with you</Heading.h3>
+                <Box mt="15px">
+                    <Button
+                        color="green"
+                        mr="10px"
+                        onClick={() => {
+                            if (token) {
+                                acceptShare(shareLinksApi.accept({token}))
+                            }
+                        }}
+                    >See files</Button>
+                    <Button color="red" onClick={() => navigate("/")}>Ignore</Button>
+                </Box>
+            </AcceptProjectLinkContainer>
+        }
+    />;
 }
 
+const AcceptProjectLinkContainer = styled.div`
+    text-align: center;
+    margin-top: 50px;
+`;
 
 export default SharesAcceptLink;

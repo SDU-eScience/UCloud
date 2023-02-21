@@ -38,6 +38,10 @@ class ShareController(
             ok(shares.browseLinks(actorAndProject, request))
         }
 
+        implement(ShareLinks.retrieve) {
+            ok(shares.retrieveLink(actorAndProject, request))
+        }
+
         implement(ShareLinks.delete) {
             ok(shares.deleteLink(actorAndProject, request))
         }
