@@ -45,6 +45,11 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
     return <MainContainer
         main={
             linkInfo.loading ? <Spinner /> :
+            linkInfo.error ? <AcceptProjectLinkContainer>
+                <Heading.h3>Invitation link has expired</Heading.h3>
+                Contact the relevant PI or admin of the project to get a new link.
+            </AcceptProjectLinkContainer>
+            :
             <AcceptProjectLinkContainer>
                 <Heading.h3>You have been invited to join {linkInfo.data?.project.specification.title}</Heading.h3>
                 <Box mt="15px">
