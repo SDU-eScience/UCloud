@@ -1,7 +1,7 @@
 import * as React from "react";
 import {ResourceBrowse} from "@/Resource/Browse";
 import {ResourceRouter} from "@/Resource/Router";
-import SharesApi, {Share, ShareInviteLink, shareLinksApi} from "@/UCloud/SharesApi";
+import SharesApi, {Share, ShareLink, shareLinksApi} from "@/UCloud/SharesApi";
 import { NavigateFunction, useLocation} from "react-router";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import {SharedByTabs} from "@/Files/SharesOutgoing";
@@ -14,7 +14,6 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {Box, Button, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
 import {BulkResponse, PageV2} from "@/UCloud";
 import {callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
-import {useToggleSet} from "@/Utilities/ToggleSet";
 import {UFile} from "@/UCloud/FilesApi";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {copyToClipboard, preventDefault, timestampUnixMs} from "@/UtilityFunctions";
@@ -37,7 +36,7 @@ export const ShareModal: React.FunctionComponent<{
     cb: ResourceBrowseCallbacks<UFile>
 }> = ({selected, cb}) => {
 
-    const [inviteLinks, fetchInviteLinks] = useCloudAPI<PageV2<ShareInviteLink>>({noop: true}, emptyPageV2);
+    const [inviteLinks, fetchLinks] = useCloudAPI<PageV2<ShareLink>>({noop: true}, emptyPageV2);
     const [editingLink, setEditingLink] = useState<string|undefined>(undefined);
     const [selectedPermission, setSelectedPermission] = useState<string>("READ");
     const usernameRef = useRef<HTMLInputElement>(null);
@@ -57,7 +56,7 @@ export const ShareModal: React.FunctionComponent<{
     }, [editingLink, inviteLinks]);
 
     useEffect(() => {
-        fetchInviteLinks(
+        fetchLinks(
             shareLinksApi.browse({itemsPerPage: 10, path: selected.id}),
         );
     }, []);
@@ -103,7 +102,7 @@ export const ShareModal: React.FunctionComponent<{
                             shareLinksApi.create({path: selected.id})
                         );
 
-                        fetchInviteLinks(
+                        fetchLinks(
                             shareLinksApi.browse({itemsPerPage: 10, path: selected.id}),
                         );
                     }}
@@ -119,7 +118,7 @@ export const ShareModal: React.FunctionComponent<{
                                 shareLinksApi.create({path: selected.id})
                             );
 
-                            fetchInviteLinks(
+                            fetchLinks(
                                 shareLinksApi.browse({itemsPerPage: 10, path: selected.id})
                             );
                         }}
@@ -172,7 +171,7 @@ export const ShareModal: React.FunctionComponent<{
                                             shareLinksApi.delete({token: link.token, path: selected.id})
                                         );
 
-                                        fetchInviteLinks(
+                                        fetchLinks(
                                             shareLinksApi.browse({itemsPerPage: 10, path: selected.id})
                                         );
                                     }}
@@ -206,10 +205,10 @@ export const ShareModal: React.FunctionComponent<{
                             const newPermissions = chosen == "EDIT" ? ["EDIT", "READ"] : ["READ"];
 
                             await callAPIWithErrorHandler(
-                                shareLinksApi.updatePermissions({token: editingLink, path: selected.id, permissions: newPermissions})
+                                shareLinksApi.update({token: editingLink, path: selected.id, permissions: newPermissions})
                             );
 
-                            fetchInviteLinks(
+                            fetchLinks(
                                 shareLinksApi.browse({itemsPerPage: 10, path: selected.id})
                             );
                         }}

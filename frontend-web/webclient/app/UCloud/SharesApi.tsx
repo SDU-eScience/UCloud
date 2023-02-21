@@ -69,32 +69,32 @@ export interface OutgoingShareGroupPreview {
     shareId: string;
 }
 
-export interface ShareInviteLink {
+export interface ShareLink {
     token: string;
     expires: number;
     permissions: ("READ" | "EDIT")[];
 }
 
-export interface CreateInviteLinkRequest {
+export interface CreateLinkRequest {
     path: string;
 }
 
-export interface BrowseInviteLinksRequest {
+export interface BrowseLinksRequest {
     path: string;
 }
 
-export interface DeleteInviteLinkRequest {
+export interface DeleteLinkRequest {
     token: string;
     path: string;
 }
 
-export interface UpdateInviteLinkPermissionsRequest {
+export interface UpdateLinkRequest {
     token: string;
     path: string;
     permissions: string[];
 }
 
-export interface AcceptInviteLinkRequest {
+export interface AcceptLinkRequest {
     token: string;
 }
 
@@ -352,23 +352,23 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
 export class ShareLinksApi {
     baseContext = "/api/shares/links"
 
-    public create(request: CreateInviteLinkRequest): APICallParameters {
+    public create(request: CreateLinkRequest): APICallParameters {
         return apiCreate(request, this.baseContext);
     }
 
-    public browse(request: PaginationRequestV2 & BrowseInviteLinksRequest): APICallParameters {
+    public browse(request: PaginationRequestV2 & BrowseLinksRequest): APICallParameters {
         return apiBrowse(request, this.baseContext);
     }
 
-    public delete(request: DeleteInviteLinkRequest): APICallParameters {
+    public delete(request: DeleteLinkRequest): APICallParameters {
         return apiUpdate(request, this.baseContext, "delete");
     }
 
-    public updatePermissions(request: UpdateInviteLinkPermissionsRequest): APICallParameters {
-        return apiUpdate(request, this.baseContext, "updatePermissions");
+    public update(request: UpdateLinkRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "update");
     }
 
-    public acceptInvite(request: AcceptInviteLinkRequest): APICallParameters {
+    public acceptInvite(request: AcceptLinkRequest): APICallParameters {
         return apiUpdate(request, this.baseContext, "accept")
     }
 }

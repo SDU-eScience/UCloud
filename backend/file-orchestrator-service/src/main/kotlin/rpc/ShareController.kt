@@ -31,23 +31,23 @@ class ShareController(
         }
 
         implement(ShareLinks.create) {
-            ok(shares.createInviteLink(actorAndProject, request))
+            ok(shares.createLink(actorAndProject, request))
         }
 
         implement(ShareLinks.browse) {
-            ok(shares.browseInviteLinks(actorAndProject, request))
+            ok(shares.browseLinks(actorAndProject, request))
         }
 
         implement(ShareLinks.delete) {
-            ok(shares.deleteInviteLink(actorAndProject, request))
+            ok(shares.deleteLink(actorAndProject, request))
         }
 
-        implement(ShareLinks.updatePermissions) {
-            ok(shares.updateInviteLinkPermissions(actorAndProject, request))
+        implement(ShareLinks.update) {
+            ok(shares.updateLink(actorAndProject, request))
         }
 
-        implement(ShareLinks.acceptInvite) {
-            ok(shares.acceptInviteLink(actorAndProject, request))
+        implement(ShareLinks.accept) {
+            ok(shares.acceptLink(actorAndProject, request))
         }
 
 

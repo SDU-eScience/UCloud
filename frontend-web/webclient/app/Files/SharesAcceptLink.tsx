@@ -4,7 +4,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import React, {useEffect} from "react";
 import {useNavigate, useParams} from "react-router";
 
-export const SharesAcceptInviteLink: React.FunctionComponent = () => {
+export const SharesAcceptLink: React.FunctionComponent = () => {
     const navigate = useNavigate();
 
     const locationParams = useParams<{id: string;}>();
@@ -38,4 +38,4 @@ export const SharesAcceptInviteLink: React.FunctionComponent = () => {
 }
 
 
-export default SharesAcceptInviteLink;
+export default SharesAcceptLink;

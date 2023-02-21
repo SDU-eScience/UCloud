@@ -700,7 +700,7 @@ class ShareService(
         )
     }
 
-    suspend fun createInviteLink(actorAndProject: ActorAndProject, request: SharesCreateInviteLinkRequest, ctx: DBContext = db): ShareInviteLink {
+    suspend fun createLink(actorAndProject: ActorAndProject, request: ShareLinksCreateRequest, ctx: DBContext = db): ShareLink {
         val token = UUID.randomUUID().toString()
 
         if (actorAndProject.project != null) {
@@ -752,7 +752,7 @@ class ShareService(
             ).rows.firstNotNullOf { row ->
                 val permissions =  row.getAs<List<String>>("permissions")
 
-                ShareInviteLink(
+                ShareLink(
                     row.getAs<UUID>("token").toString(),
                     row.getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
                     permissions.map { Permission.valueOf(it) }
@@ -761,7 +761,7 @@ class ShareService(
         }
     }
 
-    suspend fun browseInviteLinks(actorAndProject: ActorAndProject, request: SharesBrowseInviteLinksRequest, ctx: DBContext = db): PageV2<ShareInviteLink> {
+    suspend fun browseLinks(actorAndProject: ActorAndProject, request: ShareLinksBrowseRequest, ctx: DBContext = db): PageV2<ShareLink> {
         val result = ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -773,7 +773,7 @@ class ShareService(
                     order by expires desc
                 """
             ).rows.groupBy { it.getAs<UUID>("token") }.map { entry ->
-                ShareInviteLink(
+                ShareLink(
                     entry.key.toString(),
                     entry.value.first().getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
                     entry.value.first().getAs<List<String>>("permissions").map { Permission.valueOf(it) }
@@ -784,9 +784,9 @@ class ShareService(
         return PageV2(20, result, null)
     }
 
-    suspend fun deleteInviteLink(
+    suspend fun deleteLink(
         actorAndProject: ActorAndProject,
-        request: SharesDeleteInviteLinkRequest,
+        request: ShareLinksDeleteRequest,
         ctx: DBContext = db
     ) {
         val collectionId = extractPathMetadata(request.path).collection
@@ -816,9 +816,9 @@ class ShareService(
         }
     }
 
-    suspend fun updateInviteLinkPermissions(
+    suspend fun updateLink(
         actorAndProject: ActorAndProject,
-        request: SharesUpdateInviteLinkPermissionsRequest,
+        request: ShareLinksUpdateRequest,
         ctx: DBContext = db
     ) {
         val collectionId = extractPathMetadata(request.path).collection
@@ -852,11 +852,11 @@ class ShareService(
         }
     }
 
-    suspend fun acceptInviteLink(
+    suspend fun acceptLink(
         actorAndProject: ActorAndProject,
-        request: SharesAcceptInviteLinkRequest,
+        request: ShareLinksAcceptRequest,
         ctx: DBContext = db
-    ) : SharesAcceptInviteLinkResponse {
+    ) : ShareLinksAcceptResponse {
         data class ShareLinkInfo(
             val sharedBy: String,
             val permissions: List<Permission>,
