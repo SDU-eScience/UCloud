@@ -1335,10 +1335,10 @@ class ProjectService(
                 {
                     setParameter("token", request.token)
                 },
+                 """
+                    select project_id from project.invite_links where token = :token 
                 """
-                    select project_id from project.invite_links where token = :token
-                """
-            ).rows.first().getString("project_id") ?:
+            ).rows.firstOrNull()?.getString("project_id") ?:
                 throw RPCException("Link expired", HttpStatusCode.NotFound)
 
             val project = retrieve(
