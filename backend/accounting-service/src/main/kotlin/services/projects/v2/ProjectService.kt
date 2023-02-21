@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import java.time.OffsetDateTime
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -999,11 +1000,12 @@ class ProjectService(
     suspend fun createInvite(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ProjectsCreateInviteRequestItem>,
+        notifyUsers: Boolean = true,
         ctx: DBContext = db,
     ) {
         // NOTE(Dan): This function will invite users, and notify the users via both email and the internal notification
-        // system. The vast majority of the code in this function is related to error handling and checking that the
-        // input is actually valid.
+        // system (if notifyUsers is true). The vast majority of the code in this function is related to error handling
+        // and checking that the input is actually valid.
 
         // We start by checking that a project was actually supplied
         val (actor) = actorAndProject
@@ -1060,33 +1062,35 @@ class ProjectService(
             // already in the project.
             val success = usersInvited.isNotEmpty()
             if (success) {
-                backgroundScope.launch {
-                    // NOTE(Dan): We succeeded! We notify the users via email and internal notification system. Also
-                    // note that we are not calling `.orThrow()` on the RPCs. This is on purpose, we do not wish to
-                    // cause a failure just because one of the notification systems are down.
-                    val notifications = usersInvited.map { user ->
-                        CreateNotification(
-                            user,
-                            Notification(
-                                NotificationType.PROJECT_INVITE.name,
-                                "${actor.safeUsername()} has invited you to collaborate"
+                if (notifyUsers) {
+                    backgroundScope.launch {
+                        // NOTE(Dan): We succeeded! We notify the users via email and internal notification system. Also
+                        // note that we are not calling `.orThrow()` on the RPCs. This is on purpose, we do not wish to
+                        // cause a failure just because one of the notification systems are down.
+                        val notifications = usersInvited.map { user ->
+                            CreateNotification(
+                                user,
+                                Notification(
+                                    NotificationType.PROJECT_INVITE.name,
+                                    "${actor.safeUsername()} has invited you to collaborate"
+                                )
                             )
+                        }
+
+                        val emails = usersInvited.map { user ->
+                            SendRequestItem(user, Mail.ProjectInviteMail(resolvedProject.specification.title))
+                        }
+
+                        NotificationDescriptions.createBulk.call(
+                            BulkRequest(notifications),
+                            serviceClient
+                        )
+
+                        MailDescriptions.sendToUser.call(
+                            BulkRequest(emails),
+                            serviceClient
                         )
                     }
-
-                    val emails = usersInvited.map { user ->
-                        SendRequestItem(user, Mail.ProjectInviteMail(resolvedProject.specification.title))
-                    }
-
-                    NotificationDescriptions.createBulk.call(
-                        BulkRequest(notifications),
-                        serviceClient
-                    )
-
-                    MailDescriptions.sendToUser.call(
-                        BulkRequest(emails),
-                        serviceClient
-                    )
                 }
             } else {
                 // NOTE(Dan): This entire branch indicates that no new users were invited to the project. The rest
@@ -1245,6 +1249,292 @@ class ProjectService(
         }
     }
 
+    suspend fun createInviteLink(actorAndProject: ActorAndProject, ctx: DBContext = db): ProjectInviteLink {
+        val project = actorAndProject.requireProject()
+        val token = UUID.randomUUID().toString()
+
+        return ctx.withSession { session ->
+            requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            val count = session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                },
+                """
+                    select count(*) from project.invite_links where project_id = :project and now() < expires
+                """
+            ).rows.first().getLong("count") ?: 0
+
+            if (count >= 10) {
+                throw RPCException(
+                    "Unable to create more invitation links for this project",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("token", token)
+                },
+                """
+                    insert into project.invite_links (project_id, token, expires) values
+                        (:project, :token, now() + '30 days')
+                        returning project_id, token, expires, role_assignment
+                """
+            ).rows.firstNotNullOf {
+                ProjectInviteLink(
+                    it.getAs<UUID>("token").toString(),
+                    it.getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
+                    emptyList(),
+                    ProjectRole.valueOf(it.getString("role_assignment")!!)
+                )
+            }
+        }
+    }
+
+    suspend fun browseInviteLinks(actorAndProject: ActorAndProject, ctx: DBContext = db): PageV2<ProjectInviteLink> {
+        val project = actorAndProject.requireProject()
+
+        val result = ctx.withSession { session ->
+            requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                },
+                """
+                    select token, expires, role_assignment, group_id from project.invite_links
+                    left join project.invite_link_group_assignments a on a.link_token = token
+                    left join project.groups g on g.id = a.group_id
+                    where project_id = :project and now() < expires
+                    order by expires desc
+                """
+            ).rows.groupBy { it.getAs<UUID>("token") }.map { entry ->
+                ProjectInviteLink(
+                    entry.key.toString(),
+                    entry.value.first().getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
+                    entry.value.mapNotNull { it.getString("group_id") },
+                    ProjectRole.valueOf(entry.value.first().getString("role_assignment")!!)
+                )
+            }
+        }
+
+        return PageV2(20, result, null)
+    }
+
+    suspend fun retrieveInviteLinkInfo(
+        actorAndProject: ActorAndProject,
+        request: ProjectsRetrieveInviteLinkInfoRequest,
+        ctx: DBContext = db
+    ): ProjectsRetrieveInviteLinkInfoResponse {
+        return ctx.withSession { session ->
+            val projectId = session.sendPreparedStatement(
+                {
+                    setParameter("token", request.token)
+                },
+                """
+                    select project_id from project.invite_links where token = :token 
+                """
+            ).rows.firstOrNull()?.getString("project_id") ?:
+                throw RPCException("Link expired", HttpStatusCode.NotFound)
+
+            val project = retrieve(
+                ActorAndProject(Actor.System, null),
+                ProjectsRetrieveRequest(projectId, includeMembers = true),
+                ctx
+            )
+
+            ProjectsRetrieveInviteLinkInfoResponse(
+                request.token,
+                project,
+                project.status.members?.map { it.username }?.contains(actorAndProject.actor.safeUsername()) ?: false
+            )
+        }
+    }
+
+    suspend fun deleteInviteLink(
+        actorAndProject: ActorAndProject,
+        request: ProjectsDeleteInviteLinkRequest,
+        ctx: DBContext = db
+    ) {
+        val project = actorAndProject.requireProject()
+
+        ctx.withSession { session ->
+            requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("token", request.token)
+                },
+                """
+                    delete from project.invite_links where project_id = :project and token = :token
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Unable to delete invitation link",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+    }
+
+    suspend fun updateInviteLink(
+        actorAndProject: ActorAndProject,
+        request: ProjectsUpdateInviteLinkRequest,
+        ctx: DBContext = db
+    ) {
+        val project = actorAndProject.requireProject()
+
+        if (!listOf(ProjectRole.ADMIN, ProjectRole.USER).contains(request.role)) {
+            throw RPCException("Role assignment can only be either Admin or User", HttpStatusCode.BadRequest)
+        }
+
+        ctx.withSession { session ->
+            requireAdmin(actorAndProject.actor, listOf(project), session)
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("token", request.token)
+                    setParameter("groups", request.groups)
+                },
+                """
+                    with new (group_id, token) as (
+                        select id, cast(:token as uuid)
+                        from project.groups
+                        where project = :project and
+                            id in (select unnest(cast(:groups as text[])))
+                    ), changed as (
+                        insert into project.invite_link_group_assignments (group_id, link_token)
+                        select group_id, token from new
+                        on conflict do nothing
+                    ) delete from project.invite_link_group_assignments
+                    where link_token = cast(:token as uuid) and
+                        (group_id, link_token) not in (select group_id, token from new)
+                """
+            )
+
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("token", request.token)
+                    setParameter("role", request.role.name)
+                },
+                """
+                    update project.invite_links
+                    set role_assignment = :role
+                    where project_id = :project and token = :token
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Link might not be valid anymore or have been deleted",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+    }
+
+    suspend fun acceptInviteLink(
+        actorAndProject: ActorAndProject,
+        request: ProjectsAcceptInviteLinkRequest,
+        ctx: DBContext = db
+    ) : ProjectsAcceptInviteLinkResponse {
+        data class ProjectInviteLinkAssignment(
+            val piActorAndProject: ActorAndProject,
+            val role: ProjectRole,
+            val groups: List<String>
+        )
+
+        return ctx.withSession { session ->
+            val projectAssignment = session.sendPreparedStatement(
+                {
+                    setParameter("token", request.token)
+                },
+                """
+                    select m.project_id as project, m.username as pi, l.role_assignment as role, a.group_id as group_id
+                    from project.project_members m
+                    inner join project.invite_links l on
+                        now() < expires and
+                        token = cast(:token as uuid) and
+                        l.project_id = m.project_id
+                    left join project.invite_link_group_assignments a on
+                        link_token = cast(:token as uuid)
+                    where
+                        m.role = 'PI';
+                """
+            ).rows.groupBy { it.getString("project") }.map { entry ->
+                val project = entry.key
+                val pi = entry.value.firstOrNull()?.getString("pi")
+                val role = entry.value.firstOrNull()?.getString("role")
+
+                if (project == null || pi == null || role == null) {
+                    throw RPCException("Link expired", HttpStatusCode.NotFound)
+                }
+
+                ProjectInviteLinkAssignment(
+                    ActorAndProject(
+                        Actor.SystemOnBehalfOfUser(pi),
+                        project
+                    ),
+                    ProjectRole.valueOf(role),
+                    entry.value.mapNotNull { it.getString("group_id") }
+                )
+            }.firstOrNull() ?: throw RPCException("Link expired", HttpStatusCode.NotFound)
+
+            createInvite(
+                projectAssignment.piActorAndProject,
+                bulkRequestOf(ProjectsCreateInviteRequestItem(actorAndProject.actor.safeUsername())),
+                false,
+                ctx
+            )
+
+            acceptInvite(
+                actorAndProject,
+                bulkRequestOf(FindByProjectId(projectAssignment.piActorAndProject.requireProject())),
+                ctx
+            )
+
+            if (projectAssignment.groups.isNotEmpty()) {
+                createGroupMember(
+                    projectAssignment.piActorAndProject,
+                    bulkRequestOf(
+                        projectAssignment.groups.map {
+                            GroupMember(actorAndProject.actor.safeUsername(), it)
+                        }
+                    ),
+                    ctx
+                )
+            }
+
+            changeRole(
+                projectAssignment.piActorAndProject,
+                bulkRequestOf(
+                    ProjectsChangeRoleRequestItem(actorAndProject.actor.safeUsername(), projectAssignment.role)
+                ),
+                false,
+                ctx
+            )
+
+            ProjectsAcceptInviteLinkResponse(projectAssignment.piActorAndProject.requireProject())
+        }
+    }
+
+    suspend fun cleanUpInviteLinks(ctx: DBContext = db) {
+        ctx.withSession { session ->
+            val cleaned = session.sendPreparedStatement("""
+                delete from project.invite_links where expires < now()
+            """).rowsAffected
+
+            log.debug("Cleaned up $cleaned expired project invite links")
+        }
+    }
+
     suspend fun deleteMember(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ProjectsDeleteMemberRequestItem>,
@@ -1344,6 +1634,7 @@ class ProjectService(
     suspend fun changeRole(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ProjectsChangeRoleRequestItem>,
+        notifyUsers: Boolean = true,
         ctx: DBContext = db,
     ) {
         val (actor) = actorAndProject
@@ -1452,49 +1743,51 @@ class ProjectService(
                 return@withSession
             }
 
-            val projectTitle = titleAndAdmins.first().first
-            val notifications = ArrayList<CreateNotification>()
-            val emails = ArrayList<SendRequestItem>()
-            for (reqItem in requestItems) {
-                if (reqItem.username !in updatedUsers) continue
+            if (notifyUsers) {
+                val projectTitle = titleAndAdmins.first().first
+                val notifications = ArrayList<CreateNotification>()
+                val emails = ArrayList<SendRequestItem>()
+                for (reqItem in requestItems) {
+                    if (reqItem.username !in updatedUsers) continue
 
-                val notificationMessage =
-                    "${reqItem.username} has changed role to ${reqItem.role} in project: $projectTitle"
-                for ((_, admin) in titleAndAdmins) {
-                    notifications.add(
-                        CreateNotification(
-                            admin,
-                            Notification(
-                                NotificationType.PROJECT_ROLE_CHANGE.name,
-                                notificationMessage,
-                                meta = JsonObject(mapOf("projectId" to JsonPrimitive(project))),
+                    val notificationMessage =
+                        "${reqItem.username} has changed role to ${reqItem.role} in project: $projectTitle"
+                    for ((_, admin) in titleAndAdmins) {
+                        notifications.add(
+                            CreateNotification(
+                                admin,
+                                Notification(
+                                    NotificationType.PROJECT_ROLE_CHANGE.name,
+                                    notificationMessage,
+                                    meta = JsonObject(mapOf("projectId" to JsonPrimitive(project))),
+                                )
                             )
                         )
-                    )
 
-                    emails.add(
-                        SendRequestItem(
-                            admin,
-                            Mail.UserRoleChangeMail(
-                                reqItem.username,
-                                reqItem.role.name,
-                                projectTitle
+                        emails.add(
+                            SendRequestItem(
+                                admin,
+                                Mail.UserRoleChangeMail(
+                                    reqItem.username,
+                                    reqItem.role.name,
+                                    projectTitle
+                                )
                             )
                         )
-                    )
+                    }
                 }
+
+                // NOTE(Dan): As always, we don't fail if one of the notification mechanisms fail.
+                NotificationDescriptions.createBulk.call(
+                    BulkRequest(notifications),
+                    serviceClient
+                )
+
+                MailDescriptions.sendToUser.call(
+                    BulkRequest(emails),
+                    serviceClient
+                )
             }
-
-            // NOTE(Dan): As always, we don't fail if one of the notification mechanisms fail.
-            NotificationDescriptions.createBulk.call(
-                BulkRequest(notifications),
-                serviceClient
-            )
-
-            MailDescriptions.sendToUser.call(
-                BulkRequest(emails),
-                serviceClient
-            )
 
             updateHandlers.forEach { it(listOf(project)) }
             for (reqItem in requestItems) {
