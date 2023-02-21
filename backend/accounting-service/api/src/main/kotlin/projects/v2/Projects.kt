@@ -330,16 +330,16 @@ implement(Descriptions.call) {
         httpBrowse(baseContext, inviteLinkResource)
     }
 
+    val retrieveInviteLinkInfo = call("retrieveInviteLinkProject", ProjectsRetrieveInviteLinkInfoRequest.serializer(), ProjectsRetrieveInviteLinkInfoResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(baseContext, inviteLinkResource)
+    }
+
     val deleteInviteLink = call("deleteInviteLink", ProjectsDeleteInviteLinkRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "deleteInviteLink")
     }
 
-    val updateInviteLinkRoleAssignment = call("updateInviteLinkRoleAssignment", ProjectsUpdateInviteLinkRoleAssignmentRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "updateInviteLinkRoleAssignment")
-    }
-
-    val updateInviteLinkGroupAssignment = call("updateInviteLinkGroupAssignment", ProjectsUpdateInviteLinkGroupAssignmentRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "updateInviteLinkGroupAssignment")
+    val updateInviteLink = call("updateInviteLink", ProjectsUpdateInviteLinkRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "updateInviteLink")
     }
 
     val acceptInviteLink = call("acceptInviteLink", ProjectsAcceptInviteLinkRequest.serializer(), ProjectsAcceptInviteLinkResponse.serializer(), CommonErrorMessage.serializer()) {
@@ -508,15 +508,22 @@ data class ProjectsDeleteInviteLinkRequest(
 
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-data class ProjectsUpdateInviteLinkRoleAssignmentRequest(
+data class ProjectsRetrieveInviteLinkInfoRequest(
+    val token: String
+)
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ProjectsRetrieveInviteLinkInfoResponse(
     val token: String,
-    val role: ProjectRole
+    val project: Project,
+    val isMember: Boolean
 )
 
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-data class ProjectsUpdateInviteLinkGroupAssignmentRequest(
+data class ProjectsUpdateInviteLinkRequest(
     val token: String,
+    val role: ProjectRole,
     val groups: List<String>
 )
 

@@ -1130,7 +1130,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                             options={roles}
                             onChange={async role => {
                                 await callAPIWithErrorHandler({
-                                    ...Api.updateInviteLinkRoleAssignment({token: editingLink, role: role}),
+                                    ...Api.updateInviteLink({token: editingLink, role: role, groups: selectedGroups}),
                                     projectOverride: project.id
                                 });
 
@@ -1170,7 +1170,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                                         selectedGroups.filter(it => it != item.value) : selectedGroups.concat([item.value]);
 
                                                     await callAPIWithErrorHandler({
-                                                        ...Api.updateInviteLinkGroupAssignment({token: editingLink, groups: newSelection}),
+                                                        ...Api.updateInviteLink({token: editingLink, role: selectedRole, groups: newSelection}),
                                                         projectOverride: project.id
                                                     });
                                                     
