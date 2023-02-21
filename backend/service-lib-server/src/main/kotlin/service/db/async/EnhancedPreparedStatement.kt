@@ -160,7 +160,7 @@ class EnhancedPreparedStatement(
 
         val start = Time.now()
         session.debug.system.databaseQuery(
-            MessageImportance.IMPLEMENTATION_DETAIL,
+            MessageImportance.THIS_IS_NORMAL,
             debugQueryParameters,
             rawStatement
         )

@@ -26,7 +26,9 @@ import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.StandardOpenOption
+import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.collections.ArrayList
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
@@ -266,8 +268,18 @@ class BinaryDebugSystem(
         block: suspend () -> T
     ) {
         val descriptor = allocateContext()
+
+
         return withContext(BinaryDebugCoroutineContext(descriptor)) {
             try {
+
+                println("-".repeat(10))
+                println("Producing context")
+                println("Type: $type")
+                println("Importance: ${initialImportance.name}")
+                println("Timestamp: ${Date(getTimeMillis())}")
+                println("Name: ${descriptor.name}")
+
                 descriptor.type = type
                 descriptor.importance = initialImportance
                 descriptor.timestamp = getTimeMillis()

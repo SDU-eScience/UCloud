@@ -138,7 +138,7 @@ sealed class ComposeService {
                         "restart": "always",
                         "hostname": "backend",
                         "ports": [
-                          "${portAllocator.allocate(8080)}:8080",
+                          "${portAllocator.allocate(8080)}:8080"
                         ],
                         "volumes": [
                           "${environment.repoRoot}/backend:/opt/ucloud",
@@ -155,32 +155,53 @@ sealed class ComposeService {
                 serviceConvention = true
             )
 
-            /*
             service(
-                "debugger",
-                "UCloud/Core: Debugger",
+                "debugger-fe",
+                "UCloud/Core: Debugger Frontend",
+                Json(
+                    //language=json
+                    //"command": ["sh", "-c", "cd /opt/ucloud/ ; npm install ; npm start"],
+
+                    """
+                      {
+                        "image": "debugger-dev",
+                        "command": ["sleep", "inf"],
+                        "restart": "always",
+                        "hostname": "debugger-fe",
+                        "working_dir": "/opt/ucloud",
+                        "ports": [],
+                        "volumes": [
+                          "${environment.repoRoot}/debugger-2/frontend:/opt/ucloud",
+                          "${logs.absolutePath}:/var/log/ucloud"
+                        ]
+                      }
+                    """.trimIndent(),
+                ),
+                serviceConvention = false
+            )
+
+            service(
+                "debugger-be",
+                "UCloud/Core: Debugger Backend",
                 Json(
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2023.1.0",
+                        "image": "debugger-dev",
                         "command": ["sleep", "inf"],
                         "restart": "always",
-                        "hostname": "debugger",
-                        "ports": [
-                          "${portAllocator.allocate(42999)}:42999"
-                        ],
+                        "hostname": "debugger-be",
+                        "working_dir": "/opt/ucloud",
+                        "ports": [],
                         "volumes": [
-                          "${environment.repoRoot}/debugger:/opt/ucloud",
-                          "${logs.absolutePath}:/var/log/ucloud",
-                          "${debuggerGradle.absolutePath}:/root/.gradle"
+                          "${environment.repoRoot}/debugger-2/backend:/opt/ucloud",
+                          "${logs.absolutePath}:/var/log/ucloud"
                         ]
                       }
                     """.trimIndent(),
                 ),
                 serviceConvention = true
             )
-            */
 
             val postgresDataDir = environment.dataDirectory.child("pg-data").also { it.mkdirs() }
 
@@ -1356,7 +1377,11 @@ sealed class ComposeService {
                     }
                    
                     https://debugger.localhost.direct {
-                        reverse_proxy debugger:42999
+                        reverse_proxy debugger-fe:3000
+                    }
+                    
+                    https://debugger-api.localhost.direct {
+                        reverse_proxy debugger-be:5511
                     }
                     
                     https://k8.localhost.direct {

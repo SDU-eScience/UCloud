@@ -47,5 +47,5 @@ tasks.withType<KotlinCompile> {
 }
 
 application {
-    mainClass.set("MainKt")
+    mainClass.set("dk.sdu.cloud.debugger.MainKt")
 }

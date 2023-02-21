@@ -123,7 +123,7 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
                         data-is-odd={isOdd(it.importance)}
                         onClick={() => setRouteComponents([debugContext, it])}
                     >
-                        {it.message.previewOrContent}
+                        {handleIfEmpty(it.message.previewOrContent)}
                     </div>
                 } else {
                     return <DebugContextRow
@@ -263,11 +263,15 @@ function LogText({log}: {log: Log}): JSX.Element {
 
     const message = logMessages.get(log.message.overflowIdentifier) ?? log.message.previewOrContent
     const extra = logMessages.get(log.extra.overflowIdentifier) ?? log.extra.previewOrContent
-
+    console.log(message, extra);
     return <pre>
-        <React.Fragment key={message}>{message}</React.Fragment><br />
-        <React.Fragment key={extra}>{extra}</React.Fragment><br />
+        {handleIfEmpty(message)}<br />
+        {handleIfEmpty(extra)}<br />
     </pre>
+}
+
+function handleIfEmpty(str: string): React.ReactNode | string {
+    return str.length === 0 ? <i>&lt;empty string&gt;</i> : str;
 }
 
 interface BreadcrumbsProps {

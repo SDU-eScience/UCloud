@@ -52,7 +52,7 @@ class IngoingHttpInterceptor(
                     debug.system.useContext(
                         type = DebugContextType.SERVER_REQUEST,
                         initialName = "😎 ${call.fullName}",
-                        initialImportance = MessageImportance.IMPLEMENTATION_DETAIL,
+                        initialImportance = MessageImportance.THIS_IS_NORMAL,
                         block = {
                             try {
                                 // Calls the handler provided by 'implement'

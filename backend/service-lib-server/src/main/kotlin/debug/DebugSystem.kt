@@ -45,6 +45,8 @@ class DebugSystemFeature : MicroFeature {
             serviceDescription.name
         )
 
+        system.start(ctx.backgroundScope)
+
         // TODO(Jonas): installCommon(ctx.client)
 
         ctx.server.attachFilter(object : IngoingCallFilter.AfterParsing() {
@@ -54,7 +56,7 @@ class DebugSystemFeature : MicroFeature {
                 call as CallDescription<Any, Any, Any>
 
                 system.serverRequest(
-                    MessageImportance.IMPLEMENTATION_DETAIL,
+                    MessageImportance.THIS_IS_NORMAL,
                     call.fullName,
                     defaultMapper.encodeToJsonElement(call.requestType, request)
                 )

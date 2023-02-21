@@ -738,11 +738,13 @@ fun startCluster(compose: DockerCompose, noRecreate: Boolean) {
         startService(serviceByName("backend")).executeToText()
     }
 
-    /*
-    LoadingIndicator("Starting UCloud Debugger...").use {
-        startService(serviceByName("debugger")).executeToText()
+    LoadingIndicator("Starting UCloud Debugger (API)...").use {
+        startService(serviceByName("debugger-be")).executeToText()
     }
-    */
+
+    LoadingIndicator("Starting UCloud Debugger (UI)...").use {
+        startService(serviceByName("debugger-fe")).executeToText()
+    }
 
     LoadingIndicator("Waiting for UCloud to be ready...").use {
         val cmd = compose.exec(currentEnvironment, "backend", listOf("curl", "http://localhost:8080"), tty = false)

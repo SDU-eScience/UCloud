@@ -146,16 +146,20 @@ class AsyncDBSessionFactory(
     override suspend fun closeSession(session: AsyncDBConnection) {
         pool.giveBack((session.conn).connection as PostgreSQLConnection)
 
+        println("-".repeat(10))
+        println("closeSession")
         debug.system.databaseConnection(
-            MessageImportance.IMPLEMENTATION_DETAIL,
+            MessageImportance.THIS_IS_NORMAL,
             isOpen = false,
         )
     }
 
     override suspend fun commit(session: AsyncDBConnection) {
         session.sendQuery("commit")
+        println("-".repeat(10))
+        println("commit")
         debug.system.databaseTransaction(
-            MessageImportance.IMPLEMENTATION_DETAIL,
+            MessageImportance.THIS_IS_NORMAL,
             DBTransactionEvent.COMMIT
         )
     }
@@ -170,8 +174,10 @@ class AsyncDBSessionFactory(
             debug,
         )
 
+        println("-".repeat(10))
+        println("open session")
         debug.system.databaseConnection(
-            MessageImportance.IMPLEMENTATION_DETAIL,
+            MessageImportance.THIS_IS_NORMAL,
             isOpen = true,
         )
 
@@ -180,15 +186,20 @@ class AsyncDBSessionFactory(
 
     override suspend fun rollback(session: AsyncDBConnection) {
         session.sendQuery("rollback")
+
+        println("-".repeat(10))
+        println("rollback")
         debug.system.databaseTransaction(
-            MessageImportance.IMPLEMENTATION_DETAIL,
+            MessageImportance.THIS_IS_NORMAL,
             DBTransactionEvent.ROLLBACK
         )
     }
 
     override suspend fun openTransaction(session: AsyncDBConnection, transactionMode: TransactionMode?) {
+        println("-".repeat(10))
+        println("opentransaction")
         debug.system.databaseTransaction(
-            MessageImportance.IMPLEMENTATION_DETAIL,
+            MessageImportance.THIS_IS_NORMAL,
             DBTransactionEvent.OPEN
         )
 

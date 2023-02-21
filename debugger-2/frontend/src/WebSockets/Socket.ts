@@ -18,7 +18,7 @@ export function initializeConnection(opts: SocketOptions) {
 }
 
 function initializeSocket() {
-    socket = new WebSocket("ws://localhost:5511");
+    socket = new WebSocket("wss://debugger-api.localhost.direct");
     socket.binaryType = "arraybuffer";
 
     socket.onopen = () => {
@@ -93,7 +93,6 @@ type LogMessageObject = Record<string, LogMessageExtraCache>
 export const logMessages = new class {
     private messages: LogMessageObject = {};
     private subscriptions: (() => void)[] = [];
-    private isDirty = false;
     private generation = 0;
 
     public addMessage(message: string, id: number) {
@@ -101,7 +100,6 @@ export const logMessages = new class {
             this.messages[activeService.service] = {};
         }
         this.messages[activeService.service][id] = message;
-        this.isDirty = true;
         this.generation++;
         this.emitChange();
     }
