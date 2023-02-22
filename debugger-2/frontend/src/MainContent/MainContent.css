@@ -24,14 +24,18 @@ div.card.details {
 }
 
 div.card.query {
-    width: 66%;
+    width: 100%;
     margin: 5px 5px 5px 5px;
     overflow-y: auto;
     padding: 5px 5px 5px 5px;
 }
 
+div.card.query:has(~ div.card.query-details) {
+    width: 60%;
+}
+
 div.card.query-details {
-    width: 33%;
+    width: 40%;
     margin: 5px 5px 5px 0;
     overflow-y: auto;
     padding: 5px 5px 5px 5px;

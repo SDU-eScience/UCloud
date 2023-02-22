@@ -1,5 +1,5 @@
 import * as React from "react";
-import {BinaryDebugMessageType, ClientRequest, ClientResponse, DatabaseConnection, DatabaseQuery, DatabaseResponse, DatabaseTransaction, DBTransactionEvent, DebugContext, DebugContextType, DebugMessage, LargeText, Log, MessageImportance, messageImportanceToString, ServerRequest, ServerResponse} from "../WebSockets/Schema";
+import {BinaryDebugMessageType, ClientRequest, ClientResponse, DatabaseConnection, DatabaseQuery, DatabaseResponse, DatabaseTransaction, DebugContext, DebugContextType, DebugMessage, LargeText, Log, MessageImportance, messageImportanceToString, ServerRequest, ServerResponse} from "../WebSockets/Schema";
 import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, isDebugMessage, logMessages, debugMessageStore, replayMessages} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList as List} from "react-window";
@@ -45,14 +45,18 @@ export function MainContent(): JSX.Element {
     }, []);
 
     const serviceLogs = logs.content[service] ?? [];
-    const activeContextOrLog = routeComponents.at(-1);
+    const activeContextOrMessage = routeComponents.at(-1);
 
     return <div className="main-content">
         {!service ? <h3>Select a service to view requests</h3> :
             <>
-                <BreadCrumbs clearContext={() => setContext(null)} routeComponents={routeComponents} setRouteComponents={setRouteComponents} />
-                <RequestDetails key={activeContextOrLog?.id} activeContextOrMessage={activeContextOrLog} />
-                {activeContextOrLog ? null : (
+                <BreadCrumbs
+                    clearContext={() => setContext(null)}
+                    routeComponents={routeComponents}
+                    setRouteComponents={setRouteComponents}
+                />
+                <RequestDetails key={activeContextOrMessage?.id} activeContextOrMessage={activeContextOrMessage} />
+                {activeContextOrMessage ? null : (
                     <button className="pointer button" onClick={fetchPreviousMessage}>Load previous</button>
                 )}
                 <AutoSizer defaultHeight={200}>
@@ -63,7 +67,7 @@ export function MainContent(): JSX.Element {
                                 {({data: root, style}) =>
                                     <DebugContextRow
                                         style={style}
-                                        activeLogOrCtx={activeContextOrLog}
+                                        activeLogOrCtx={activeContextOrMessage}
                                         setRouteComponents={ctx => setRouteComponents(ctx)}
                                         debugContext={root.ctx}
                                         ctxChildren={root.children}
@@ -123,7 +127,7 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
                         data-is-odd={isOdd(it.importance)}
                         onClick={() => setRouteComponents([debugContext, it])}
                     >
-                        {getNameFromMessage(it)}
+                        {getMessageText(it)}
                     </div>
                 } else {
                     return <DebugContextRow
@@ -140,7 +144,7 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
     </>
 }
 
-function getNameFromMessage(message: DebugMessage): string | JSX.Element {
+function getMessageText(message: DebugMessage): string | JSX.Element {
     switch (message.type) {
         case BinaryDebugMessageType.CLIENT_REQUEST:
             return largeTextPreview((message as ClientRequest).payload);
@@ -151,7 +155,7 @@ function getNameFromMessage(message: DebugMessage): string | JSX.Element {
         case BinaryDebugMessageType.SERVER_RESPONSE:
             return largeTextPreview((message as ServerResponse).response);
         case BinaryDebugMessageType.DATABASE_CONNECTION:
-            return <><b>Is open: </b>{`${(message as DatabaseConnection).isOpen}`}</>;
+            return <><b>Is open: </b>{` ${(message as DatabaseConnection).isOpen}`}</>;
         case BinaryDebugMessageType.DATABASE_TRANSACTION:
             return (message as DatabaseTransaction).event;
         case BinaryDebugMessageType.DATABASE_QUERY:
@@ -266,7 +270,7 @@ function RequestDetailsByType({activeContextOrMessage}: RequestDetailsByTypeProp
     }
 }
 
-function ShowLargeText({largeText}: {largeText: LargeText}): JSX.Element {
+function ShowLargeText({largeText, textTransform = handleIfEmpty}: {largeText: LargeText; textTransform?: (str: string) => string}): JSX.Element {
     React.useSyncExternalStore(subscription => logMessages.subscribe(subscription), () => logMessages.getSnapshot());
     React.useEffect(() => {
         const messageOverflow = largeText.overflowIdentifier;
@@ -277,7 +281,8 @@ function ShowLargeText({largeText}: {largeText: LargeText}): JSX.Element {
         fetchTextBlob(activeService.generation, messageOverflow, blobFileId);
     }, [largeText]);
     const message = logMessages.get(largeText.overflowIdentifier) ?? largeText.previewOrContent
-    return <>{handleIfEmpty(message)}</>;
+
+    return <>{textTransform(message)}</>;
 }
 
 function LogText({log}: {log: Log}): JSX.Element {
@@ -287,54 +292,82 @@ function LogText({log}: {log: Log}): JSX.Element {
     </pre>
 }
 
+function trimIndent(input: string): string {
+    // Note(Jonas): This is not very efficient, and I believe rather fragile.
+    const splitByNewline = input.replaceAll("\t", " ").split("\n");
+    if ([0, 1].includes(splitByNewline.length)) return input;
+
+    let whitespaceCount = 0;
+    for (const ch of splitByNewline.at(0) ?? "") {
+        if (ch === " ") whitespaceCount += 1;
+        else break;
+    }
+
+    let result = "";
+    for (const line of splitByNewline) {
+        var cpy = line;
+        for (let i = 0; i < whitespaceCount; i++) {
+            if (![" ", "\t"].includes(cpy[0])) break;
+            cpy = cpy.replace(/ /, "");
+        }
+        result += cpy + "\n";
+    }
+    return result;
+}
+
+function DetailsCard({left, right}: {left: React.ReactNode; right?: React.ReactNode;}): JSX.Element {
+    return <>
+        <div className={"card query " + (right === undefined ? "full-width" : "")} >
+            {left}
+        </div>
+        {!right ? null :
+            <div className="card query-details">
+                {right}
+            </div>
+        }
+    </>;
+}
+
 function Message({message}: {message: DebugMessage}): JSX.Element {
     switch (message.type) {
         case BinaryDebugMessageType.CLIENT_REQUEST:
             const clientRequest = message as ClientRequest;
-            return <div>{clientRequest.call.previewOrContent}</div>
+            return <DetailsCard left={clientRequest.call.previewOrContent} />
         case BinaryDebugMessageType.CLIENT_RESPONSE:
             const clientResponse = message as ClientResponse;
-            return <div>{clientResponse.call.previewOrContent}</div>
+            return <DetailsCard left={clientResponse.call.previewOrContent} />
         case BinaryDebugMessageType.DATABASE_CONNECTION:
             const databaseConnect = message as DatabaseConnection;
-            return <div><b>Is open: </b> {`${databaseConnect.isOpen}` ?? "Not defined!"}</div>
+            return <DetailsCard left={<><b>Is open: </b> {` ${databaseConnect.isOpen}` ?? "Not defined!"}</>} />
         case BinaryDebugMessageType.DATABASE_QUERY:
             const databaseQuery = message as DatabaseQuery;
-            return <>
-                <div className="card query">
-                    <pre><ShowLargeText largeText={databaseQuery.query} /></pre>
-                </div>
-                <div className="card query-details">
-                    <pre>
-                        <ShowLargeText largeText={databaseQuery.parameters} />
-                    </pre>
-                </div>
-            </>;
+            return <DetailsCard
+                left={<pre><ShowLargeText largeText={databaseQuery.query} textTransform={trimIndent} /></pre>}
+                right={<pre><ShowLargeText largeText={databaseQuery.parameters} /></pre>}
+            />;
         case BinaryDebugMessageType.DATABASE_RESPONSE:
-            const databaseResposne = message as DatabaseResponse;
-            return <div>{databaseResposne.responseTime}</div>
+            const databaseResponse = message as DatabaseResponse;
+            return <DetailsCard left={databaseResponse.responseTime} />
         case BinaryDebugMessageType.DATABASE_TRANSACTION:
-            const DatabaseTransaction = message as DatabaseTransaction;
-            return <div>{DatabaseTransaction.event}</div>
+            const databaseTransaction = message as DatabaseTransaction;
+            return <DetailsCard left={databaseTransaction.event} />
         case BinaryDebugMessageType.SERVER_REQUEST:
             const serverRequest = message as ServerRequest;
-            return <div><ShowLargeText largeText={serverRequest.call} /></div>
+            return <DetailsCard left={<ShowLargeText largeText={serverRequest.call} />} />
         case BinaryDebugMessageType.SERVER_RESPONSE:
             const serverResponse = message as ServerResponse;
-            return <div>{serverResponse.call.previewOrContent}</div>
+            return <DetailsCard left={serverResponse.call.previewOrContent} />
         case BinaryDebugMessageType.LOG:
             const log = message as Log;
-            return <>
-                <div className="card query">
-                    <LogText log={log} />
-                </div>
-                <div className="card query-details">
+            return <DetailsCard
+                left={<LogText log={log} />}
+                right={<>
                     Timestamp: {DATE_FORMAT.format(log.timestamp)}<br />
                     Type: {log.typeString}<br />
                     Context ID: {log.ctxId}<br />
                     Importance: {messageImportanceToString(log.importance)}
-                </div>
-            </>
+                </>}
+            />
         default: {
             return <>UNHANDLED TYPE {message.type}</>
         }
