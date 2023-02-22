@@ -248,7 +248,7 @@ export const debugMessageStore = new class {
             this.ctxMap[debugContext.parent].children.push(newEntry);
             this.ctxMap[debugContext.parent].children.sort(debugMessageOrCtxSort);
             if (this.ctxMap[debugContext.id]) {
-                console.log("Already filled!", debugContext.id);
+                console.log("Already filled! This shouldn't happen!", debugContext.id);
             }
             this.ctxMap[debugContext.id] = newEntry;
             this.entryCount++;

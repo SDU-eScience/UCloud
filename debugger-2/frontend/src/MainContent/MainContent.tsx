@@ -1,5 +1,5 @@
 import * as React from "react";
-import {BinaryDebugMessageType, ClientRequest, ClientResponse, DatabaseConnection, DatabaseQuery, DatabaseResponse, DatabaseTransaction, DBTransactionEvent, DebugContext, DebugContextType, DebugMessage, Log, MessageImportance, messageImportanceToString, ServerRequest, ServerResponse} from "../WebSockets/Schema";
+import {BinaryDebugMessageType, ClientRequest, ClientResponse, DatabaseConnection, DatabaseQuery, DatabaseResponse, DatabaseTransaction, DBTransactionEvent, DebugContext, DebugContextType, DebugMessage, LargeText, Log, MessageImportance, messageImportanceToString, ServerRequest, ServerResponse} from "../WebSockets/Schema";
 import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, isDebugMessage, logMessages, debugMessageStore, replayMessages} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList as List} from "react-window";
@@ -123,8 +123,7 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
                         data-is-odd={isOdd(it.importance)}
                         onClick={() => setRouteComponents([debugContext, it])}
                     >
-                        {/* TODO: Like, a lot. */}
-                        {handleIfEmpty("it.message.previewOrContent")}
+                        {getNameFromMessage(it)}
                     </div>
                 } else {
                     return <DebugContextRow
@@ -139,6 +138,37 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
             })}
         </div>
     </>
+}
+
+function getNameFromMessage(message: DebugMessage): string | JSX.Element {
+    switch (message.type) {
+        case BinaryDebugMessageType.CLIENT_REQUEST:
+            return largeTextPreview((message as ClientRequest).payload);
+        case BinaryDebugMessageType.CLIENT_RESPONSE:
+            return largeTextPreview((message as ClientResponse).response);
+        case BinaryDebugMessageType.SERVER_REQUEST:
+            return largeTextPreview((message as ServerRequest).call);
+        case BinaryDebugMessageType.SERVER_RESPONSE:
+            return largeTextPreview((message as ServerResponse).response);
+        case BinaryDebugMessageType.DATABASE_CONNECTION:
+            return <><b>Is open: </b>{`${(message as DatabaseConnection).isOpen}`}</>;
+        case BinaryDebugMessageType.DATABASE_TRANSACTION:
+            return (message as DatabaseTransaction).event;
+        case BinaryDebugMessageType.DATABASE_QUERY:
+            return largeTextPreview((message as DatabaseQuery).query);
+        case BinaryDebugMessageType.DATABASE_RESPONSE:
+            return `Took ${(message as DatabaseResponse).responseTime} ms`;
+        case BinaryDebugMessageType.LOG:
+            return largeTextPreview((message as Log).message);
+        default:
+            return `UNHANDLED CASE `;
+    }
+}
+
+function largeTextPreview(text: LargeText): string {
+    const preview = text.previewOrContent;
+    const dots = text.overflowIdentifier ? "..." : "";
+    return `${preview}${dots}`;
 }
 
 function hasError(importance: MessageImportance): boolean {
@@ -236,25 +266,24 @@ function RequestDetailsByType({activeContextOrMessage}: RequestDetailsByTypeProp
     }
 }
 
-function LogText({log}: {log: Log}): JSX.Element {
-    const messages = React.useSyncExternalStore(subscription => logMessages.subscribe(subscription), () => logMessages.getSnapshot());
+function ShowLargeText({largeText}: {largeText: LargeText}): JSX.Element {
+    React.useSyncExternalStore(subscription => logMessages.subscribe(subscription), () => logMessages.getSnapshot());
     React.useEffect(() => {
-        const messageOverflow = log.message.overflowIdentifier;
-        const extraOverflow = log.extra.overflowIdentifier;
-        if (messageOverflow === undefined) return;
-        if (logMessages.has(messageOverflow)) return;
-        fetchTextBlob(activeService.generation, messageOverflow, log.message.blobFileId!);
-        if (extraOverflow === undefined) return;
-        if (logMessages.has(extraOverflow)) return;
-        fetchTextBlob(activeService.generation, extraOverflow, log.extra.blobFileId!);
-    }, [log, messages]);
+        const messageOverflow = largeText.overflowIdentifier;
+        const blobFileId = largeText.blobFileId;
+        if (messageOverflow === undefined || blobFileId === undefined) return;
 
-    const message = logMessages.get(log.message.overflowIdentifier) ?? log.message.previewOrContent
-    const extra = logMessages.get(log.extra.overflowIdentifier) ?? log.extra.previewOrContent
-    console.log(message, extra);
+        if (logMessages.has(messageOverflow)) return;
+        fetchTextBlob(activeService.generation, messageOverflow, blobFileId);
+    }, [largeText]);
+    const message = logMessages.get(largeText.overflowIdentifier) ?? largeText.previewOrContent
+    return <>{handleIfEmpty(message)}</>;
+}
+
+function LogText({log}: {log: Log}): JSX.Element {
     return <pre>
-        {handleIfEmpty(message)}<br />
-        {handleIfEmpty(extra)}<br />
+        <ShowLargeText largeText={log.message} /><br />
+        <ShowLargeText largeText={log.extra} /><br />
     </pre>
 }
 
@@ -262,16 +291,25 @@ function Message({message}: {message: DebugMessage}): JSX.Element {
     switch (message.type) {
         case BinaryDebugMessageType.CLIENT_REQUEST:
             const clientRequest = message as ClientRequest;
-            return <div>{clientRequest.call}</div>
+            return <div>{clientRequest.call.previewOrContent}</div>
         case BinaryDebugMessageType.CLIENT_RESPONSE:
             const clientResponse = message as ClientResponse;
-            return <div>{clientResponse.call}</div>
+            return <div>{clientResponse.call.previewOrContent}</div>
         case BinaryDebugMessageType.DATABASE_CONNECTION:
             const databaseConnect = message as DatabaseConnection;
-            return <div>{databaseConnect.isOpen}</div>
+            return <div><b>Is open: </b> {`${databaseConnect.isOpen}` ?? "Not defined!"}</div>
         case BinaryDebugMessageType.DATABASE_QUERY:
             const databaseQuery = message as DatabaseQuery;
-            return <div>{databaseQuery.query}</div>
+            return <>
+                <div className="card query">
+                    <pre><ShowLargeText largeText={databaseQuery.query} /></pre>
+                </div>
+                <div className="card query-details">
+                    <pre>
+                        <ShowLargeText largeText={databaseQuery.parameters} />
+                    </pre>
+                </div>
+            </>;
         case BinaryDebugMessageType.DATABASE_RESPONSE:
             const databaseResposne = message as DatabaseResponse;
             return <div>{databaseResposne.responseTime}</div>
@@ -280,10 +318,10 @@ function Message({message}: {message: DebugMessage}): JSX.Element {
             return <div>{DatabaseTransaction.event}</div>
         case BinaryDebugMessageType.SERVER_REQUEST:
             const serverRequest = message as ServerRequest;
-            return <div>{serverRequest.call}</div>
+            return <div><ShowLargeText largeText={serverRequest.call} /></div>
         case BinaryDebugMessageType.SERVER_RESPONSE:
             const serverResponse = message as ServerResponse;
-            return <div>{serverResponse.call}</div>
+            return <div>{serverResponse.call.previewOrContent}</div>
         case BinaryDebugMessageType.LOG:
             const log = message as Log;
             return <>
@@ -303,8 +341,8 @@ function Message({message}: {message: DebugMessage}): JSX.Element {
     }
 }
 
-function handleIfEmpty(str: string): React.ReactNode | string {
-    return str.length === 0 ? <i>&lt;empty string&gt;</i> : str;
+function handleIfEmpty(str: string): string {
+    return str.length === 0 ? "<empty string>" : str;
 }
 
 interface BreadcrumbsProps {

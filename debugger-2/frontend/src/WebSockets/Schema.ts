@@ -28,6 +28,12 @@ export interface LargeText {
     blobFileId?: string;
 }
 
+export enum DBTransactionEvent {
+    OPEN,
+    COMMIT,
+    ROLLBACK
+}
+
 const textDecoder = new TextDecoder();
 
 const OVERFLOW_PREFIX = "#OF#";
@@ -150,12 +156,12 @@ export class ClientRequest extends BaseBinaryDebugMessage {
         return BinaryDebugMessageType.CLIENT_REQUEST;
     }
 
-    get call(): string {
-        return readNameFromBuffer(this.buffer, this.offset + HDRL, 64);
+    get call(): LargeText {
+        return readText(this.buffer, this.offset + HDRL, 64);
     }
 
-    get payload(): string {
-        return readNameFromBuffer(this.buffer, this.offset + HDRL + 64, 64);
+    get payload(): LargeText {
+        return readText(this.buffer, this.offset + HDRL + 64, 64);
     }
 }
 
@@ -177,12 +183,14 @@ export class ClientResponse extends BaseBinaryDebugMessage {
     get responseTime(): number {
         return readInt4(this.buffer, this.offset + HDRL + 1);
     }
-    get call(): string {
-        return readNameFromBuffer(this.buffer, this.offset + HDRL + 1 + 4, 64);
+    // Note(Jonas): This is very likely wrong. LargeText?
+    get call(): LargeText {
+        return readText(this.buffer, this.offset + HDRL + 1 + 4, 64);
     }
 
-    get response(): string {
-        return readNameFromBuffer(this.buffer, this.offset + HDRL + 1 + 4 + 64, 64);
+    // Note(Jonas): This is very likely wrong. LargeText?
+    get response(): LargeText {
+        return readText(this.buffer, this.offset + HDRL + 1 + 4 + 64, 64);
     }
 }
 
@@ -192,12 +200,14 @@ export class ServerRequest extends BaseBinaryDebugMessage {
         return BinaryDebugMessageType.SERVER_REQUEST;
     }
 
-    get call(): string {
-        return readNameFromBuffer(this.buffer, this.offset + HDRL, 64);
+    // Note(Jonas): This is very likely wrong. LargeText?
+    get call(): LargeText {
+        return readText(this.buffer, this.offset + HDRL, 64);
     }
 
-    get payload(): string {
-        return readNameFromBuffer(this.buffer, this.offset + HDRL + 64, 64);
+    // Note(Jonas): This is very likely wrong. LargeText?
+    get payload(): LargeText {
+        return readText(this.buffer, this.offset + HDRL + 64, 64);
     }
 }
 
@@ -214,12 +224,15 @@ export class ServerResponse extends BaseBinaryDebugMessage {
     get responseTime(): number {
         return readInt4(this.buffer, this.offset + HDRL + 1);
     }
-    get call(): string {
-        return readNameFromBuffer(this.buffer, this.offset + HDRL + 1 + 4, 64);
+
+    // Note(Jonas): This is very likely wrong. LargeText?
+    get call(): LargeText {
+        return readText(this.buffer, this.offset + HDRL + 1 + 4, 64);
     }
 
-    get response(): string {
-        return readNameFromBuffer(this.buffer, this.offset + HDRL + 1 + 4 + 64, 64);
+    // Note(Jonas): This is very likely wrong. LargeText?
+    get response(): LargeText {
+        return readText(this.buffer, this.offset + HDRL + 1 + 4 + 64, 64);
     }
 }
 
@@ -241,9 +254,10 @@ export class DatabaseTransaction extends BaseBinaryDebugMessage {
         return BinaryDebugMessageType.DATABASE_TRANSACTION
     }
 
-    get event(): DBTransactionEvent {
-        return readInt1(this.buffer, this.offset + HDRL);
+    get event(): string {
+        return DBTransactionEvent[readInt1(this.buffer, this.offset + HDRL)];
     }
+
 }
 
 // DatabaseQuery.type === 7
@@ -252,12 +266,12 @@ export class DatabaseQuery extends BaseBinaryDebugMessage {
         return BinaryDebugMessageType.DATABASE_QUERY
     }
 
-    get parameters(): string {
-        return readNameFromBuffer(this.buffer, this.offset + HDRL, 64);
+    get parameters(): LargeText {
+        return readText(this.buffer, this.offset + HDRL, 64);
     }
 
-    get query(): string {
-        return readNameFromBuffer(this.buffer, this.offset + HDRL + 64, 128);
+    get query(): LargeText {
+        return readText(this.buffer, this.offset + HDRL + 64, 128);
     }
 }
 // DatabaseResponse.type === 8
@@ -342,12 +356,6 @@ export class DebugContext {
     get name(): string {
         return readNameFromBuffer(this.buffer, this.offset + 22, 108);
     }
-}
-
-export enum DBTransactionEvent {
-    OPEN,
-    COMMIT,
-    ROLLBACK
 }
 
 function readNameFromBuffer(buffer: DataView, offset: number, size: number) {

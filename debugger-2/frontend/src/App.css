@@ -7,9 +7,10 @@ pre {
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    font-family: 'JetBrains Mono', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
         'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
         sans-serif;
+    src: url(/public/JetBrainsMono-VariableFont_wght.ttf) format('ttf');
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
