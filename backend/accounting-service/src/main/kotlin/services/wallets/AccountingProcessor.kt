@@ -680,17 +680,17 @@ class AccountingProcessor(
                                 with created_project as (
                                     insert into project.projects (id, created_at, modified_at, title, archived, parent, dmp, subprojects_renameable)
                                     select uuid_generate_v4()::text, now(), now(), :title, false, :parent_id::text, null, false
-                                    on conflict (title, parent) do nothing
-                                    returning id 
+                                    on conflict (parent, upper(title::text)) do update set title = excluded.title
+                                    returning id
                                 ),
                                 created_user as (
                                     insert into project.project_members (created_at, modified_at, role, username, project_id)
-                                    select now(), now(), 'PI', :pi, id
-                                    from created_project
-                                    on conflict (project_id) do nothing
+                                    select now(), now(), 'PI', :pi, cp.id
+                                    from created_project cp
+                                    on conflict (username, project_id) do nothing
                                 )
                                 select * from created_project
-                            """.trimIndent()
+                            """.trimIndent(), debug = true
                         ).rows
                             .singleOrNull()
                             ?.getString(0)
