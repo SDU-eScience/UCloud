@@ -2,7 +2,7 @@
     padding: 14px 24px 0px 24px;
     width: calc(100% - var(--sidebarWidth));
     margin-top: 36px;
-    margin-left: 190px;
+    margin-left: var(--sidebarWidth);
     height: calc(100vh - 60px);
 }
 
@@ -28,10 +28,6 @@ div.card.query {
     overflow-y: auto;
     overflow-x: scroll;
     padding: 5px 5px 5px 5px;
-}
-
-div.card.query:has(~ div.card.query-details) {
-    width: 60%;
 }
 
 div.card.query-details {

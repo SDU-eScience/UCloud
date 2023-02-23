@@ -249,7 +249,7 @@ export class DatabaseTransaction extends BaseBinaryDebugMessage {
     }
 
     get event(): string {
-        return DBTransactionEvent[readInt1(this.buffer, this.offset + HDRL)];
+        return `${readInt1(this.buffer, this.offset + HDRL)}, ${DBTransactionEvent[readInt1(this.buffer, this.offset + HDRL)]}`;
     }
 
 }

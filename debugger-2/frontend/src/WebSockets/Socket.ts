@@ -390,12 +390,15 @@ function replayMessagesRequest(generation: string, context: number, timestamp: n
 
 export function fetchPreviousMessage(): void {
     const ctx = debugMessageStore.earliestContext();
-    if (ctx == null) return;
     if (!isSocketReady(socket)) return;
-    socket.send(fetchPreviousMessagesRequest(ctx));
+    socket.send(fetchPreviousMessagesRequest(ctx != null ?
+        ctx :
+        // Handle the case that the service hasn't yet produced any contexts before the button is clicked.
+        {timestamp: new Date().getTime(), id: 2})
+    );
 }
 
-function fetchPreviousMessagesRequest(ctx: DebugContext): string {
+function fetchPreviousMessagesRequest(ctx: Pick<DebugContext, "timestamp" | "id">): string {
     return JSON.stringify({
         type: "fetch_previous_messages",
         timestamp: ctx.timestamp,

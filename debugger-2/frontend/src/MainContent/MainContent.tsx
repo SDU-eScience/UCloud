@@ -317,7 +317,7 @@ function trimIndent(input: string): string {
 
 function DetailsCard({left, right}: {left: React.ReactNode; right?: React.ReactNode;}): JSX.Element {
     return <>
-        <div className={"card query " + (right === undefined ? "full-width" : "")} >
+        <div className="card query">
             {left}
         </div>
         {!right ? null :
@@ -362,7 +362,7 @@ function Message({message}: {message: DebugMessage}): JSX.Element {
         }
         case BinaryDebugMessageType.DATABASE_TRANSACTION: {
             const databaseTransaction = message as DatabaseTransaction;
-            return <DetailsCard left={databaseTransaction.event} />
+            return <DetailsCard left={`${databaseTransaction.event}, ${databaseTransaction.id}`} />
         }
         case BinaryDebugMessageType.SERVER_REQUEST: {
             const serverRequest = message as ServerRequest;
