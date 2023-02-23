@@ -115,9 +115,7 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
         this.offset = offset;
     }
 
-    // TODO(Jonas): This should just be a property. That way we should be able to switch on it.
     get type(): BinaryDebugMessageType {
-        // Note(Jonas): Is this correct?
         return BinaryDebugMessageType.CLIENT_REQUEST;
     }
 
@@ -200,12 +198,10 @@ export class ServerRequest extends BaseBinaryDebugMessage {
         return BinaryDebugMessageType.SERVER_REQUEST;
     }
 
-    // Note(Jonas): This is very likely wrong. LargeText?
     get call(): LargeText {
         return readText(this.buffer, this.offset + HDRL, 64);
     }
 
-    // Note(Jonas): This is very likely wrong. LargeText?
     get payload(): LargeText {
         return readText(this.buffer, this.offset + HDRL + 64, 64);
     }
@@ -214,7 +210,7 @@ export class ServerRequest extends BaseBinaryDebugMessage {
 // ServerResponse.type === 4
 export class ServerResponse extends BaseBinaryDebugMessage {
     get type(): BinaryDebugMessageType {
-        return BinaryDebugMessageType.SERVER_REQUEST;
+        return BinaryDebugMessageType.SERVER_RESPONSE;
     }
 
     get responseCode(): number {
@@ -225,12 +221,10 @@ export class ServerResponse extends BaseBinaryDebugMessage {
         return readInt4(this.buffer, this.offset + HDRL + 1);
     }
 
-    // Note(Jonas): This is very likely wrong. LargeText?
     get call(): LargeText {
         return readText(this.buffer, this.offset + HDRL + 1 + 4, 64);
     }
 
-    // Note(Jonas): This is very likely wrong. LargeText?
     get response(): LargeText {
         return readText(this.buffer, this.offset + HDRL + 1 + 4 + 64, 64);
     }

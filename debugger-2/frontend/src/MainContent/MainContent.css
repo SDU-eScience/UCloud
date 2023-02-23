@@ -1,7 +1,6 @@
 .main-content {
-    position: unset;
     padding: 14px 24px 0px 24px;
-    width: 100%;
+    width: calc(100% - var(--sidebarWidth));
     margin-top: 36px;
     margin-left: 190px;
     height: calc(100vh - 60px);
@@ -27,6 +26,7 @@ div.card.query {
     width: 100%;
     margin: 5px 5px 5px 5px;
     overflow-y: auto;
+    overflow-x: scroll;
     padding: 5px 5px 5px 5px;
 }
 

@@ -165,7 +165,7 @@ sealed class ComposeService {
                     """
                       {
                         "image": "debugger-dev",
-                        "command": ["sleep", "inf"],
+                        "command": ["sh", "-c", "npm install ; npm start"],
                         "restart": "always",
                         "hostname": "debugger-fe",
                         "working_dir": "/opt/ucloud",

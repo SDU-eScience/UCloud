@@ -59,6 +59,7 @@ export function MainContent(): JSX.Element {
                 {activeContextOrMessage ? null : (
                     <button className="pointer button" onClick={fetchPreviousMessage}>Load previous</button>
                 )}
+                {serviceLogs.length === 0 ? <div>No context found for service</div> : null}
                 <AutoSizer defaultHeight={200}>
                     {({height, width}) => {
                         const root = debugMessageStore.contextRoot();
@@ -74,9 +75,8 @@ export function MainContent(): JSX.Element {
                                     />
                                 }
                             </List>
-                        } else if (serviceLogs.length === 0) {
-                            return <div>No context found for service</div>
                         }
+                        if (serviceLogs.length === 0) return <div />;
                         return <div onScroll={e => console.log(e)} onWheel={onWheel}>
                             <List itemData={serviceLogs} height={height} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
                                 {({index, data, style}) => {
@@ -121,7 +121,7 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
             {ctxChildren.map(it => {
                 if (isDebugMessage(it)) {
                     return <div key={"log" + it.id}
-                        className="flex request-list-row left-border-black"
+                        className="request-list-row left-border-black"
                         data-selected={it === activeLogOrCtx}
                         data-has-error={hasError(it.importance)}
                         data-is-odd={isOdd(it.importance)}
@@ -149,11 +149,11 @@ function getMessageText(message: DebugMessage): string | JSX.Element {
         case BinaryDebugMessageType.CLIENT_REQUEST:
             return largeTextPreview((message as ClientRequest).payload);
         case BinaryDebugMessageType.CLIENT_RESPONSE:
-            return largeTextPreview((message as ClientResponse).response);
+            return largeTextPreview((message as ClientResponse).call);
         case BinaryDebugMessageType.SERVER_REQUEST:
             return largeTextPreview((message as ServerRequest).call);
         case BinaryDebugMessageType.SERVER_RESPONSE:
-            return largeTextPreview((message as ServerResponse).response);
+            return largeTextPreview((message as ServerResponse).call);
         case BinaryDebugMessageType.DATABASE_CONNECTION:
             return <><b>Is open: </b>{` ${(message as DatabaseConnection).isOpen}`}</>;
         case BinaryDebugMessageType.DATABASE_TRANSACTION:
@@ -294,7 +294,7 @@ function LogText({log}: {log: Log}): JSX.Element {
 
 function trimIndent(input: string): string {
     // Note(Jonas): This is not very efficient, and I believe rather fragile.
-    const splitByNewline = input.replaceAll("\t", " ").split("\n");
+    const splitByNewline = input.replaceAll("\t", "    ").split("\n").filter(it => it.trim().length > 1);
     if ([0, 1].includes(splitByNewline.length)) return input;
 
     let whitespaceCount = 0;
@@ -307,7 +307,7 @@ function trimIndent(input: string): string {
     for (const line of splitByNewline) {
         var cpy = line;
         for (let i = 0; i < whitespaceCount; i++) {
-            if (![" ", "\t"].includes(cpy[0])) break;
+            if (cpy[0] !== " ") break;
             cpy = cpy.replace(/ /, "");
         }
         result += cpy + "\n";
@@ -330,34 +330,63 @@ function DetailsCard({left, right}: {left: React.ReactNode; right?: React.ReactN
 
 function Message({message}: {message: DebugMessage}): JSX.Element {
     switch (message.type) {
-        case BinaryDebugMessageType.CLIENT_REQUEST:
+        case BinaryDebugMessageType.CLIENT_REQUEST: {
             const clientRequest = message as ClientRequest;
-            return <DetailsCard left={clientRequest.call.previewOrContent} />
-        case BinaryDebugMessageType.CLIENT_RESPONSE:
+            return <DetailsCard
+                left={<ShowLargeText largeText={clientRequest.payload} />}
+                right={<ShowLargeText largeText={clientRequest.call} />}
+            />;
+        }
+        case BinaryDebugMessageType.CLIENT_RESPONSE: {
             const clientResponse = message as ClientResponse;
-            return <DetailsCard left={clientResponse.call.previewOrContent} />
-        case BinaryDebugMessageType.DATABASE_CONNECTION:
+            return <DetailsCard
+                left={<ShowLargeText largeText={clientResponse.response} />}
+                /* TODO(Jonas): Add more info */
+                right={<ShowLargeText largeText={clientResponse.call} />}
+            />
+        }
+        case BinaryDebugMessageType.DATABASE_CONNECTION: {
             const databaseConnect = message as DatabaseConnection;
             return <DetailsCard left={<><b>Is open: </b> {` ${databaseConnect.isOpen}` ?? "Not defined!"}</>} />
-        case BinaryDebugMessageType.DATABASE_QUERY:
+        }
+        case BinaryDebugMessageType.DATABASE_QUERY: {
             const databaseQuery = message as DatabaseQuery;
             return <DetailsCard
                 left={<pre><ShowLargeText largeText={databaseQuery.query} textTransform={trimIndent} /></pre>}
                 right={<pre><ShowLargeText largeText={databaseQuery.parameters} /></pre>}
             />;
-        case BinaryDebugMessageType.DATABASE_RESPONSE:
+        }
+        case BinaryDebugMessageType.DATABASE_RESPONSE: {
             const databaseResponse = message as DatabaseResponse;
             return <DetailsCard left={databaseResponse.responseTime} />
-        case BinaryDebugMessageType.DATABASE_TRANSACTION:
+        }
+        case BinaryDebugMessageType.DATABASE_TRANSACTION: {
             const databaseTransaction = message as DatabaseTransaction;
             return <DetailsCard left={databaseTransaction.event} />
-        case BinaryDebugMessageType.SERVER_REQUEST:
+        }
+        case BinaryDebugMessageType.SERVER_REQUEST: {
             const serverRequest = message as ServerRequest;
-            return <DetailsCard left={<ShowLargeText largeText={serverRequest.call} />} />
-        case BinaryDebugMessageType.SERVER_RESPONSE:
+            return <DetailsCard
+                left={<ShowLargeText largeText={serverRequest.payload} />}
+                right={<pre>
+                    Call: <ShowLargeText largeText={serverRequest.call} /><br />
+                    Timestamp: {serverRequest.timestamp}ms<br />
+                </pre>}
+            />
+        }
+        case BinaryDebugMessageType.SERVER_RESPONSE: {
             const serverResponse = message as ServerResponse;
-            return <DetailsCard left={serverResponse.call.previewOrContent} />
-        case BinaryDebugMessageType.LOG:
+            return <DetailsCard
+                left={<pre><ShowLargeText largeText={serverResponse.response} /></pre>}
+                right={<pre>
+                    Call: <ShowLargeText largeText={serverResponse.call} /><br />
+                    Timestamp: {serverResponse.timestamp}ms<br />
+                    Response code: {serverResponse.responseCode}<br />
+                    Response time: {serverResponse.responseTime}ms<br />
+                </pre>}
+            />
+        }
+        case BinaryDebugMessageType.LOG: {
             const log = message as Log;
             return <DetailsCard
                 left={<LogText log={log} />}
@@ -368,6 +397,7 @@ function Message({message}: {message: DebugMessage}): JSX.Element {
                     Importance: {messageImportanceToString(log.importance)}
                 </>}
             />
+        }
         default: {
             return <>UNHANDLED TYPE {message.type}</>
         }

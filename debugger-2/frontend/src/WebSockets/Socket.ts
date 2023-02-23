@@ -96,20 +96,20 @@ function debugMessageFromType(view: DataView, offset: number): DebugMessage {
             return new ClientRequest(view, offset);
         case BinaryDebugMessageType.CLIENT_RESPONSE:
             return new ClientResponse(view, offset);
-        case BinaryDebugMessageType.DATABASE_CONNECTION:
-            return new DatabaseConnection(view, offset);
-        case BinaryDebugMessageType.DATABASE_QUERY:
-            return new DatabaseQuery(view, offset);
-        case BinaryDebugMessageType.DATABASE_RESPONSE:
-            return new DatabaseResponse(view, offset);
-        case BinaryDebugMessageType.DATABASE_TRANSACTION:
-            return new DatabaseTransaction(view, offset);
-        case BinaryDebugMessageType.LOG:
-            return new Log(view, offset);
         case BinaryDebugMessageType.SERVER_REQUEST:
             return new ServerRequest(view, offset);
         case BinaryDebugMessageType.SERVER_RESPONSE:
             return new ServerResponse(view, offset);
+        case BinaryDebugMessageType.DATABASE_CONNECTION:
+            return new DatabaseConnection(view, offset);
+        case BinaryDebugMessageType.DATABASE_TRANSACTION:
+            return new DatabaseTransaction(view, offset);
+        case BinaryDebugMessageType.DATABASE_QUERY:
+            return new DatabaseQuery(view, offset);
+        case BinaryDebugMessageType.DATABASE_RESPONSE:
+            return new DatabaseResponse(view, offset);
+        case BinaryDebugMessageType.LOG:
+            return new Log(view, offset);
     }
 }
 
