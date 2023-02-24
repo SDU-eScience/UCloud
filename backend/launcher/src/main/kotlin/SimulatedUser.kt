@@ -2,8 +2,6 @@ package dk.sdu.cloud
 
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.projects.*
-import dk.sdu.cloud.app.kubernetes.api.KubernetesLicense
-import dk.sdu.cloud.app.kubernetes.api.KubernetesLicenseMaintenance
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.NameAndVersion
@@ -116,18 +114,6 @@ class Simulator(
                     "Public link product",
                     freeToUse = true,
                 )
-            )
-
-            KubernetesLicenseMaintenance("ucloud").create.call(
-                bulkRequestOf(
-                    KubernetesLicense(
-                        licenseByQuota.name,
-                        "address",
-                        42341,
-                        category = licenseByQuota
-                    )
-                ),
-                serviceClient
             )
 
             ToolStore.create.call(
