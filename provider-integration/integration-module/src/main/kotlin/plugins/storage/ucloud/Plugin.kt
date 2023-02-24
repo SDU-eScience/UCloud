@@ -1,7 +1,6 @@
 package dk.sdu.cloud.plugins.storage.ucloud
 
-import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.BulkRequest
@@ -12,8 +11,6 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
-import dk.sdu.cloud.dbConnection
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.FileDownloadSession
 import dk.sdu.cloud.plugins.FilePlugin
@@ -21,7 +18,6 @@ import dk.sdu.cloud.plugins.FileUploadSession
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.controllers.RequestContext
-import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.ConfiguredShare
 import dk.sdu.cloud.plugins.FileCollectionPlugin
 import dk.sdu.cloud.plugins.SharePlugin
@@ -37,13 +33,10 @@ import dk.sdu.cloud.plugins.storage.ucloud.tasks.MoveTask
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashRequestItem
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashTask
 import dk.sdu.cloud.provider.api.ResourceOwner
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.secureToken
 import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.JsonObject
@@ -106,6 +99,8 @@ class UCloudFilePlugin : FilePlugin {
             install(EmptyTrashTask())
             install(MoveTask())
             install(TrashTask(memberFiles, trash))
+
+            launchScheduler(ProcessingScope)
         }
     }
 
