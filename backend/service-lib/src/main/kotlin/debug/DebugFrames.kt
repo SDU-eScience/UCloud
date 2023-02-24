@@ -28,15 +28,15 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
     }
 
     companion object Schema : BinaryFrameSchema() {
-        val type = int1()
-        val ctxGeneration = int8()
-        val ctxParent = int4()
-        val ctxId = int4()
-        val timestamp = int8()
-        val importance = enum<MessageImportance>()
-        val id = int4()
+        val type = int1() // 1
+        val ctxGeneration = int8() // 9
+        val ctxParent = int4() // 13
+        val ctxId = int4() // 17
+        val timestamp = int8() // 25
+        val importance = enum<MessageImportance>() // 26
+        val id = int4() // 30
 
-        val rsv1 = int2()
+        val rsv1 = int2() // 32
     }
 
     abstract fun create(buf: ByteBuffer, offset: Int): Self

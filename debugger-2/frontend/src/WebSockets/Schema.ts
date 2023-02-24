@@ -105,7 +105,7 @@ export interface BinaryDebugMessage {
 }
 
 // Header length
-const HDRL = 34;
+const HDRL = 32;
 abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
     protected buffer: DataView;
     protected offset: number;
@@ -128,23 +128,23 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
     }
 
     get ctxParent(): number {
-        return readInt4(this.buffer, this.offset + 9); // 1 + 8
+        return readInt4(this.buffer, this.offset + 9); // 1 + 8 = 9 
     }
 
     get ctxId(): number {
-        return readInt4(this.buffer, this.offset + 13); // 1 + 8 + 4
+        return readInt4(this.buffer, this.offset + 13); // 1 + 8 + 4 = 13
     }
 
     get timestamp(): number {
-        return Number(readInt8(this.buffer, this.offset + 17)); // 1 + 8 + 4 + 4
+        return Number(readInt8(this.buffer, this.offset + 17)); // 1 + 8 + 4 + 4 = 17
     }
 
     get importance(): MessageImportance {
-        return readInt1(this.buffer, this.offset + 25) as MessageImportance; // 1 + 8 + 4 + 4 + 8
+        return readInt1(this.buffer, this.offset + 25) as MessageImportance; // 1 + 8 + 4 + 4 + 8 = 25
     }
 
     get id(): number {
-        return readInt4(this.buffer, this.offset + 26); // 1 + 8 + 4 + 4 + 8 + 4
+        return readInt4(this.buffer, this.offset + 26); // 1 + 8 + 4 + 4 + 8 + 4 = 29
     }
 }
 
@@ -249,7 +249,7 @@ export class DatabaseTransaction extends BaseBinaryDebugMessage {
     }
 
     get event(): string {
-        return `${readInt1(this.buffer, this.offset + HDRL)}, ${DBTransactionEvent[readInt1(this.buffer, this.offset + HDRL)]}`;
+        return DBTransactionEvent[readInt1(this.buffer, this.offset + HDRL)];
     }
 
 }
@@ -268,6 +268,7 @@ export class DatabaseQuery extends BaseBinaryDebugMessage {
         return readText(this.buffer, this.offset + HDRL + 64, 128);
     }
 }
+
 // DatabaseResponse.type === 8
 export class DatabaseResponse extends BaseBinaryDebugMessage {
     get type(): BinaryDebugMessageType {
