@@ -160,6 +160,7 @@ typealias SetProjectVerificationStatusResponse = Unit
 object Projects : CallDescriptionContainer("projects.v2") {
     const val baseContext = "/api/projects/v2"
     const val inviteResource = "invites"
+    const val inviteLinkResource = "link"
     const val groupResource = "groups"
     const val groupMemberResource = "groupMembers"
 
@@ -321,6 +322,31 @@ implement(Descriptions.call) {
         httpUpdate(baseContext, "deleteInvite")
     }
 
+    // Invitation links
+    val createInviteLink = call("createInviteLink", Unit.serializer(), ProjectInviteLink.serializer(), CommonErrorMessage.serializer()) {
+        httpCreate(baseContext, inviteLinkResource)
+    }
+
+    val browseInviteLinks = call("browseInviteLinks", ProjectsBrowseInviteLinksRequest.serializer(), PageV2.serializer(ProjectInviteLink.serializer()), CommonErrorMessage.serializer()) {
+        httpBrowse(baseContext, inviteLinkResource)
+    }
+
+    val retrieveInviteLinkInfo = call("retrieveInviteLinkProject", ProjectsRetrieveInviteLinkInfoRequest.serializer(), ProjectsRetrieveInviteLinkInfoResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(baseContext, inviteLinkResource)
+    }
+
+    val deleteInviteLink = call("deleteInviteLink", ProjectsDeleteInviteLinkRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "deleteInviteLink")
+    }
+
+    val updateInviteLink = call("updateInviteLink", ProjectsUpdateInviteLinkRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "updateInviteLink")
+    }
+
+    val acceptInviteLink = call("acceptInviteLink", ProjectsAcceptInviteLinkRequest.serializer(), ProjectsAcceptInviteLinkResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "acceptInviteLink")
+    }
+
     // Member management
     val deleteMember = call("deleteMember", BulkRequest.serializer(ProjectsDeleteMemberRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "deleteMember")
@@ -456,6 +482,64 @@ data class ProjectsDeleteInviteRequestItem(
     val username: String,
 )
 typealias ProjectsDeleteInviteRequest = BulkRequest<ProjectsDeleteInviteRequestItem>
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ProjectsBrowseInviteLinksRequest(
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null
+
+) : WithPaginationRequestV2
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ProjectInviteLink(
+    val token: String,
+    val expires: Long,
+    val groupAssignment: List<String> = emptyList(),
+    val roleAssignment: ProjectRole = ProjectRole.USER
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ProjectsDeleteInviteLinkRequest(
+    val token: String
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ProjectsRetrieveInviteLinkInfoRequest(
+    val token: String
+)
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ProjectsRetrieveInviteLinkInfoResponse(
+    val token: String,
+    val project: Project,
+    val isMember: Boolean
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ProjectsUpdateInviteLinkRequest(
+    val token: String,
+    val role: ProjectRole,
+    val groups: List<String>
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ProjectsAcceptInviteLinkRequest(
+    val token: String
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ProjectsAcceptInviteLinkResponse(
+    val project: String
+)
+
 
 @Serializable
 @UCloudApiStable

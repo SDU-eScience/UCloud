@@ -69,7 +69,7 @@ class FeatureTask(
         if (useSmallReservation) {
             builder.memoryMegabytes = 128
         } else {
-            val requestedMem = reservation.memoryInGigs!! * 1024
+            val requestedMem = reservation.memoryInGigs!! * 1000
             builder.memoryMegabytes = if (totalMem != null) {
                 (requestedMem - (reservedMem * (requestedMem / totalMem.toDouble()))).toInt()
             } else {

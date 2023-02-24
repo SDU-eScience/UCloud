@@ -18,7 +18,7 @@ repositories {
 
 dependencies {
     run {
-        val version = "2022.3.9-accountingInMem11"
+        val version = "2022.3.24-Accounting"
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 
         ucloud("file-orchestrator-service-api")
@@ -33,7 +33,7 @@ dependencies {
     }
 
     run {
-        val ktorVersion = "2.0.2"
+        val ktorVersion = "2.2.3"
         fun ktor(module: String) = implementation("io.ktor:ktor-$module:$ktorVersion")
 
         ktor("client-websockets")
@@ -49,12 +49,12 @@ dependencies {
         ktor("websockets")
     }
 
-    implementation("ch.qos.logback:logback-classic:1.4.1")
-    implementation("com.auth0:java-jwt:4.0.0")
+    implementation("ch.qos.logback:logback-classic:1.4.5")
+    implementation("com.auth0:java-jwt:4.3.0")
     implementation("com.charleskorn.kaml:kaml:0.47.0")
 
     implementation(project(":embedded-postgres"))
-    implementation("org.postgresql:postgresql:42.5.0")
+    implementation("org.postgresql:postgresql:42.5.1")
 
     testImplementation(kotlin("test"))
 }
@@ -81,7 +81,7 @@ graalvmNative {
             fallback.set(false)
             verbose.set(true)
 
-            buildArgs.add("--initialize-at-build-time=io.ktor,kotlin,kotlinx.coroutines")
+            buildArgs.add("--initialize-at-build-time=io.ktor,kotlin,kotlinx.coroutines,ch.qos.logback,org.slf4j")
 
             buildArgs.add("-H:+InstallExitHandlers")
             buildArgs.add("-H:+ReportUnsupportedElementsAtRuntime")
@@ -91,6 +91,7 @@ graalvmNative {
             buildArgs.add("-R:MaxHeapSize=1g")
             buildArgs.add("-R:MinHeapSize=128m")
             buildArgs.add("-R:MaxNewSize=64m")
+            buildArgs.add("--trace-class-initialization=org.slf4j.LoggerFactory")
         }
     }
 }

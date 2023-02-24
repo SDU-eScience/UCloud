@@ -19,5 +19,8 @@ object FeatureMiscellaneous : JobFeature {
 
         if (containerConfig.changeWorkingDirectory) builder.workingDirectory = "/work"
         builder.shouldAllowRoot = containerConfig.runAsRoot
+
+        val customRuntime = pluginConfig.kubernetes.categoryToCustomRuntime[job.specification.product.category]
+        if (customRuntime != null) builder.runtime = customRuntime
     }
 }

@@ -54,7 +54,8 @@ data class VerifiedConfig(
 
         data class Logs(
             val directory: String,
-            val trace: List<ConfigSchema.Core.Logs.Tracer>
+            val trace: List<ConfigSchema.Core.Logs.Tracer>,
+            val preferStdout: Boolean,
         )
 
         data class Cors(
@@ -122,7 +123,7 @@ data class VerifiedConfig(
         val temporary: Temporary = Temporary(),
     ) {
         data class Temporary(
-            val onConnectionCompleteHandlers: ArrayList<(ucloudId: String, localId: Int) -> Unit> = ArrayList(),
+            val onConnectionCompleteHandlers: ArrayList<suspend (ucloudId: String, localId: Int) -> Unit> = ArrayList(),
         )
 
         fun resourcePlugins(): Iterator<ResourcePlugin<*, *, *, *>> {
@@ -393,7 +394,13 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
             val trace = config.core.logs?.trace ?: emptyList()
 
-            VerifiedConfig.Core.Logs(directory, trace)
+            val preferStdout = core.logs?.preferStdout ?: false
+            if (preferStdout && core.launchRealUserInstances) {
+                emitError("core.logs.preferStdout cannot be true when core.launchRealUserInstances is also true " +
+                        "(logs would be discarded)")
+            }
+
+            VerifiedConfig.Core.Logs(directory, trace, core.logs?.preferStdout ?: false)
         }
 
         val cors = run {

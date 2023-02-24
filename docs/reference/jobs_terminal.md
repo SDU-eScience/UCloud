@@ -66,6 +66,7 @@ SupportByProvider(
                 vnc = null, 
                 web = null, 
             ), 
+            maintenance = null, 
             native = ComputeSupport.Native(
                 enabled = null, 
                 logs = null, 
@@ -245,7 +246,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProdu
 #                         "timeExtension": null,
 #                         "utilization": null,
 #                         "web": null
-#                     }
+#                     },
+#                     "maintenance": null
 #                 }
 #             }
 #         ]

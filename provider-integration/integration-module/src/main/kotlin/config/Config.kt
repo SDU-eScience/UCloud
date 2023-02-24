@@ -61,6 +61,7 @@ data class ConfigSchema(
 
         @Serializable
         data class Logs(
+            val preferStdout: Boolean = false,
             val directory: String? = null,
             val trace: List<Tracer>? = emptyList(),
         ) {
@@ -445,6 +446,7 @@ data class ConfigSchema(
                     val nodeToleration: TolerationKeyAndValue? = null,
                     val useMachineSelector: Boolean = false,
                     val categoryToSelector: Map<String, String> = emptyMap(),
+                    val categoryToCustomRuntime: Map<String, String> = emptyMap(),
                 )
 
                 @Serializable

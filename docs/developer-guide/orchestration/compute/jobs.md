@@ -987,6 +987,7 @@ SupportByProvider(
                 vnc = null, 
                 web = null, 
             ), 
+            maintenance = null, 
             native = ComputeSupport.Native(
                 enabled = null, 
                 logs = null, 
@@ -1166,7 +1167,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProdu
 #                         "timeExtension": null,
 #                         "utilization": null,
 #                         "web": null
-#                     }
+#                     },
+#                     "maintenance": null
 #                 }
 #             }
 #         ]
@@ -4817,6 +4819,7 @@ data class ComputeSupport(
     val docker: ComputeSupport.Docker?,
     val virtualMachine: ComputeSupport.VirtualMachine?,
     val native: ComputeSupport.Native?,
+    val maintenance: Maintenance?,
 )
 ```
 
@@ -4861,6 +4864,17 @@ data class ComputeSupport(
 <details>
 <summary>
 <code>native</code>: <code><code><a href='#computesupport.native'>ComputeSupport.Native</a>?</code></code> Support for `Tool`s using the `NATIVE` backend
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maintenance</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.Maintenance.md'>Maintenance</a>?</code></code>
 </summary>
 
 

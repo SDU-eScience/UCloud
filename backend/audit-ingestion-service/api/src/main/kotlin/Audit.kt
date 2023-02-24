@@ -26,7 +26,7 @@ The resulting audit log is dispatched to the event stream in two different topic
 The topic `http.logs` contains the audit log of all services. These audit logs are consumed and pushed into
 Elasticsearch for storage. If breaking changes are made to the underlying audit messages then the Elasticsearch indexes
 may break. This can potentially cause messages to no longer reach Elasticsearch (and get stuck at the Logstash step).
-Because of this, it is important that breaking changes are not made without manual migration. This is also mention in
+Because of this, it is important that breaking changes are not made without manual migration. This is also mentioned in
 the [deployment checklist](./deployment.md).
 
 Additionally, there is an audit topic for each namespace. Services may consume

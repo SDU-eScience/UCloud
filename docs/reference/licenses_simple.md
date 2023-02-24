@@ -49,6 +49,7 @@ SupportByProvider(
             id = "example-license", 
         ), 
         support = LicenseSupport(
+            maintenance = null, 
             product = ProductReference(
                 category = "example-license", 
                 id = "example-license", 
@@ -175,7 +176,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/licenses/retrieveP
 #                         "id": "example-license",
 #                         "category": "example-license",
 #                         "provider": "example"
-#                     }
+#                     },
+#                     "maintenance": null
 #                 }
 #             }
 #         ]

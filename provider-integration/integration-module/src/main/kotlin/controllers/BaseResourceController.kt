@@ -17,7 +17,6 @@ import dk.sdu.cloud.ipc.IpcServer
 import dk.sdu.cloud.plugins.ResourcePlugin
 import dk.sdu.cloud.provider.api.Resource
 import dk.sdu.cloud.service.Controller
-import kotlinx.coroutines.runBlocking
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.utils.MaintenanceSystem
 
@@ -91,7 +90,7 @@ abstract class BaseResourceController<
 
         groupResources(plugins, items, selector).forEach { (plugin, group) ->
             with(requestContext(controllerContext)) {
-                val pluginResponse = runBlocking { dispatcher(plugin, BulkRequest(group.map { it.item })) }
+                val pluginResponse = dispatcher(plugin, BulkRequest(group.map { it.item }))
                 pluginResponse.responses.forEachIndexed { index, resp ->
                     response[group[index].originalIndex] = resp
                 }
