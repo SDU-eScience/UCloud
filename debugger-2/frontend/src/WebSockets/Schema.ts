@@ -38,11 +38,13 @@ const textDecoder = new TextDecoder();
 
 const OVERFLOW_PREFIX = "#OF#";
 const OVERFLOW_SEP = "#";
+const TEXT_OFFSET_DUE_TO_BUG = 2;
+
 function readText(buffer: DataView, offset: number, maxSize: number): LargeText {
     const u8a = new Uint8Array(buffer.buffer);
-    let slice = u8a.slice(offset, offset + maxSize);
+    let slice = u8a.slice(offset + TEXT_OFFSET_DUE_TO_BUG, offset + maxSize + TEXT_OFFSET_DUE_TO_BUG);
     const endIndex = slice.indexOf(0);
-    slice = u8a.slice(offset, offset + endIndex);
+    slice = u8a.slice(offset + TEXT_OFFSET_DUE_TO_BUG, offset + endIndex + TEXT_OFFSET_DUE_TO_BUG);
     const decodedSlice = textDecoder.decode(slice);
     if (decodedSlice.startsWith(OVERFLOW_PREFIX)) {
         const withoutPrefix = decodedSlice.substring(4);
@@ -116,7 +118,7 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
     }
 
     get type(): BinaryDebugMessageType {
-        return BinaryDebugMessageType.CLIENT_REQUEST;
+        return -1 as BinaryDebugMessageType;
     }
 
     get typeString(): string {
@@ -167,11 +169,6 @@ export class ClientRequest extends BaseBinaryDebugMessage {
 export class ClientResponse extends BaseBinaryDebugMessage {
     get type(): BinaryDebugMessageType {
         return BinaryDebugMessageType.CLIENT_RESPONSE;
-    }
-
-    // TODO(Jonas): Necessary?
-    get typeString(): string {
-        return BinaryDebugMessageType[this.type];
     }
 
     get responseCode(): number {
