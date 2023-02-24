@@ -734,7 +734,7 @@ class ShareService(
                 """
                     select count(*) from file_orchestrator.shares_links where file_path = :file_path and now() < expires
                 """
-            ).rows.first().getLong("count") ?: 0
+            ).rows.first().getLong(0) ?: 0
 
             if (count >= 2) {
                 throw RPCException(
