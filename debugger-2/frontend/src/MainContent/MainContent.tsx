@@ -13,9 +13,7 @@ import AutoSizer from "react-virtualized-auto-sizer";
 //  What happens when selecting a different service?
 //     - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected). (High)
 //  Handle long-running situations where memory usage has become high. (High)
-//  Double-clicking a context sometimes duplicates the call. (Low)
 //  x-overflow in lists. (Low)
-//  What if selected service has yet to produce a ctx? (High)
 
 type DebugMessageOrCtx = DebugMessage | DebugContext;
 const ITEM_SIZE = 22;
