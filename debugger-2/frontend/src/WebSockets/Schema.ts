@@ -174,16 +174,15 @@ export class ClientResponse extends BaseBinaryDebugMessage {
     get responseCode(): number {
         return readInt1(this.buffer, this.offset + HDRL);
     }
-    // Set as Int4, but is a long.
+    
     get responseTime(): number {
         return readInt4(this.buffer, this.offset + HDRL + 1);
     }
-    // Note(Jonas): This is very likely wrong. LargeText?
+    
     get call(): LargeText {
         return readText(this.buffer, this.offset + HDRL + 1 + 4, 64);
     }
 
-    // Note(Jonas): This is very likely wrong. LargeText?
     get response(): LargeText {
         return readText(this.buffer, this.offset + HDRL + 1 + 4 + 64, 64);
     }
@@ -304,10 +303,6 @@ export enum DebugContextType {
     OTHER = 4,
 }
 
-export function debugContextToString(ctx: DebugContextType): string {
-    return DebugContextType[ctx];
-}
-
 export class DebugContext {
     protected buffer: DataView;
     protected offset: number;
@@ -338,7 +333,7 @@ export class DebugContext {
     }
 
     get typeString(): string {
-        return debugContextToString(this.type);
+        return DebugContextType[this.type];
     }
 
     get timestamp(): number {

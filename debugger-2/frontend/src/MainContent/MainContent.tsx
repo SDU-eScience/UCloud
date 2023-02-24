@@ -146,24 +146,33 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
 
 function getMessageText(message: DebugMessage): string | JSX.Element {
     switch (message.type) {
-        case BinaryDebugMessageType.CLIENT_REQUEST:
+        case BinaryDebugMessageType.CLIENT_REQUEST: {
             return largeTextPreview((message as ClientRequest).payload);
-        case BinaryDebugMessageType.CLIENT_RESPONSE:
+        }
+        case BinaryDebugMessageType.CLIENT_RESPONSE: {
             return largeTextPreview((message as ClientResponse).call);
-        case BinaryDebugMessageType.SERVER_REQUEST:
+        }
+        case BinaryDebugMessageType.SERVER_REQUEST: {
             return largeTextPreview((message as ServerRequest).call);
-        case BinaryDebugMessageType.SERVER_RESPONSE:
+        }
+        case BinaryDebugMessageType.SERVER_RESPONSE: {
             return largeTextPreview((message as ServerResponse).call);
-        case BinaryDebugMessageType.DATABASE_CONNECTION:
+        }
+        case BinaryDebugMessageType.DATABASE_CONNECTION: {
             return <><b>Is open: </b>{` ${(message as DatabaseConnection).isOpen}`}</>;
-        case BinaryDebugMessageType.DATABASE_TRANSACTION:
+        }
+        case BinaryDebugMessageType.DATABASE_TRANSACTION: {
             return (message as DatabaseTransaction).event;
-        case BinaryDebugMessageType.DATABASE_QUERY:
+        }
+        case BinaryDebugMessageType.DATABASE_QUERY: {
             return largeTextPreview((message as DatabaseQuery).query);
-        case BinaryDebugMessageType.DATABASE_RESPONSE:
+        }
+        case BinaryDebugMessageType.DATABASE_RESPONSE: {
             return `Took ${(message as DatabaseResponse).responseTime} ms`;
-        case BinaryDebugMessageType.LOG:
+        }
+        case BinaryDebugMessageType.LOG: {
             return largeTextPreview((message as Log).message);
+        }
         default:
             return `UNHANDLED CASE `;
     }
@@ -205,69 +214,29 @@ function RequestDetailsByType({activeContextOrMessage}: RequestDetailsByTypeProp
 
     switch (activeContextOrMessage.type) {
         case DebugContextType.DATABASE_TRANSACTION:
-            return <>
-                <div className="card query">
-                    DATABASE_TRANSACTION
-                    <pre>{activeContextOrMessage.name}</pre>
-                </div>
-                <div className="card query-details">
-                    <pre>
-                        {activeContextOrMessage.id}
-                    </pre>
-                </div>
-            </>
         case DebugContextType.SERVER_REQUEST:
-            return <>
-                <div className="card query">
-                    SERVER_REQUEST
-                    <pre>{activeContextOrMessage.name}</pre>
-                </div>
-                <div className="card query-details">
-                    <pre>
-                        {activeContextOrMessage.id}
-                    </pre>
-                </div>
-            </>
         case DebugContextType.CLIENT_REQUEST:
-            return <>
-                <div className="card query">
-                    CLIENT_REQUEST
-                    <pre>{activeContextOrMessage.name}</pre>
-                </div>
-                <div className="card query-details">
-                    <pre>
-                        {activeContextOrMessage.id}
-                    </pre>
-                </div>
-            </>
         case DebugContextType.BACKGROUND_TASK:
-            return <>
-                <div className="card query">
-                    <pre>{activeContextOrMessage.name}</pre>
-                </div>
-                <div className="card query-details">
-                    <pre>
-                        Timestamp: {DATE_FORMAT.format(activeContextOrMessage.timestamp)}<br />
-                        Type: {activeContextOrMessage.typeString}<br />
-                        Context ID: {activeContextOrMessage.id}<br />
-                        Parent ID: {activeContextOrMessage.parent}<br />
-                        Importance: {activeContextOrMessage.importanceString}
-                    </pre>
-                </div>
-            </>
         case DebugContextType.OTHER:
-            return <>
-                <div className="card query">
-                    OTHER TODO
-                    <pre>{activeContextOrMessage.name}</pre>
-                </div>
-                <div className="card query-details">
-                    <pre>
-                        {activeContextOrMessage.id}
-                    </pre>
-                </div>
-            </>
+            return <DebugContextDetails ctx={activeContextOrMessage} />
     }
+}
+
+function DebugContextDetails({ctx}: {ctx: DebugContext}): JSX.Element {
+    return <>
+        <div className="card query">
+            <pre>{ctx.name}</pre>
+        </div>
+        <div className="card query-details">
+            <pre>
+                Timestamp: {DATE_FORMAT.format(ctx.timestamp)}<br />
+                Type: {ctx.typeString}<br />
+                Context ID: {ctx.id}<br />
+                Parent ID: {ctx.parent}<br />
+                Importance: {ctx.importanceString}
+            </pre>
+        </div>
+    </>
 }
 
 function ShowLargeText({largeText, textTransform = handleIfEmpty}: {largeText: LargeText; textTransform?: (str: string) => string}): JSX.Element {
@@ -370,7 +339,7 @@ function Message({message}: {message: DebugMessage}): JSX.Element {
                 left={<ShowLargeText largeText={serverRequest.payload} />}
                 right={<pre>
                     Call: <ShowLargeText largeText={serverRequest.call} /><br />
-                    Timestamp: {serverRequest.timestamp}ms<br />
+                    Timestamp: {DATE_FORMAT.format(serverRequest.timestamp)}<br />
                 </pre>}
             />
         }
@@ -380,7 +349,7 @@ function Message({message}: {message: DebugMessage}): JSX.Element {
                 left={<pre><ShowLargeText largeText={serverResponse.response} /></pre>}
                 right={<pre>
                     Call: <ShowLargeText largeText={serverResponse.call} /><br />
-                    Timestamp: {serverResponse.timestamp}ms<br />
+                    Timestamp: {DATE_FORMAT.format(serverResponse.timestamp)}<br />
                     Response code: {serverResponse.responseCode}<br />
                     Response time: {serverResponse.responseTime}ms<br />
                 </pre>}
