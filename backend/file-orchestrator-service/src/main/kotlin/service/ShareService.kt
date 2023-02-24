@@ -768,6 +768,13 @@ class ShareService(
 
     suspend fun browseLinks(actorAndProject: ActorAndProject, request: ShareLinksBrowseRequest, ctx: DBContext = db): PageV2<ShareLink> {
         val result = ctx.withSession { session ->
+            val collectionId = extractPathMetadata(request.path).collection
+            val collection = collections.retrieve(actorAndProject, collectionId, null, ctx = ctx)
+
+            if (collection.owner.createdBy != actorAndProject.actor.safeUsername()) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            }
+
             session.sendPreparedStatement(
                 {
                     setParameter("file_path", request.path)
