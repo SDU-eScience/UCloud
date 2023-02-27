@@ -113,7 +113,7 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
             data-has-error={hasError(debugContext.importance)}
             data-is-odd={isOdd(debugContext.importance)}
         >
-            <div>{debugContext.name}</div>
+            <div>&nbsp;{debugContext.name}</div>
         </div>
         <div className="ml-24px">
             {ctxChildren.map(it => {
@@ -125,7 +125,7 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
                         data-is-odd={isOdd(it.importance)}
                         onClick={() => setRouteComponents([debugContext, it])}
                     >
-                        {getMessageText(it)}
+                        &nbsp;{getMessageText(it)}
                     </div>
                 } else {
                     return <DebugContextRow
@@ -145,7 +145,7 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
 function getMessageText(message: DebugMessage): string | JSX.Element {
     switch (message.type) {
         case BinaryDebugMessageType.CLIENT_REQUEST: {
-            return largeTextPreview((message as ClientRequest).payload);
+            return largeTextPreview((message as ClientRequest).call);
         }
         case BinaryDebugMessageType.CLIENT_RESPONSE: {
             return largeTextPreview((message as ClientResponse).call);
@@ -163,7 +163,7 @@ function getMessageText(message: DebugMessage): string | JSX.Element {
             return (message as DatabaseTransaction).event;
         }
         case BinaryDebugMessageType.DATABASE_QUERY: {
-            return largeTextPreview((message as DatabaseQuery).query);
+            return largeTextPreview((message as DatabaseQuery).query).trim();
         }
         case BinaryDebugMessageType.DATABASE_RESPONSE: {
             return `Took ${(message as DatabaseResponse).responseTime} ms`;
@@ -172,7 +172,7 @@ function getMessageText(message: DebugMessage): string | JSX.Element {
             return largeTextPreview((message as Log).message);
         }
         default:
-            return `UNHANDLED CASE `;
+            return `UNHANDLED CASE ${message.typeString}`;
     }
 }
 

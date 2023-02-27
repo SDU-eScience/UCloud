@@ -53,12 +53,12 @@ div.request-list-row[data-selected="true"] {
 }
 
 div.request-list-row[data-has-error="true"] {
-    color: white;
+    color: var(--white);
     background-color: var(--red);
 }
 
 div.request-list-row[data-is-odd="true"] {
-    color: white;
+    color: var(--white);
     background-color: var(--yellow, pink);
 }
 
