@@ -76,7 +76,7 @@ export function MainContent(): JSX.Element {
                         }
                         if (serviceLogs.length === 0) return <div />;
                         return <div onScroll={e => console.log(e)} onWheel={onWheel}>
-                            <List itemData={serviceLogs} height={height} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
+                            <List itemData={serviceLogs} height={height - 25} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
                                 {({index, data, style}) => {
                                     const item = data[index];
                                     return <DebugContextRow

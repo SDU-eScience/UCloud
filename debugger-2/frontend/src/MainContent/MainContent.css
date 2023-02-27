@@ -4,7 +4,7 @@
     max-width: calc(100% - var(--sidebarWidth) - 24px - 24px);
     margin-top: 36px;
     margin-left: var(--sidebarWidth);
-    height: calc(100vh - 60px);
+    height: calc(100vh - 62px);
 }
 
 div.card {
