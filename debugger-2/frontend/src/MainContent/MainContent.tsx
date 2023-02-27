@@ -259,6 +259,14 @@ function LogText({log}: {log: Log}): JSX.Element {
     </pre>
 }
 
+function prettyJSON(json: string): string {
+    try {
+        return JSON.stringify(JSON.parse(json), null, 2);
+    } catch (e) {
+        return json;
+    }
+}
+
 function trimIndent(input: string): string {
     // Note(Jonas): This is not very efficient, and I believe rather fragile.
     const splitByNewline = input.replaceAll("\t", "    ").split("\n").filter(it => it.trim().length > 1);
@@ -320,7 +328,7 @@ function Message({message}: {message: DebugMessage}): JSX.Element {
             const databaseQuery = message as DatabaseQuery;
             return <DetailsCard
                 left={<pre><ShowLargeText largeText={databaseQuery.query} textTransform={trimIndent} /></pre>}
-                right={<pre><ShowLargeText largeText={databaseQuery.parameters} /></pre>}
+                right={<pre><ShowLargeText largeText={databaseQuery.parameters} textTransform={prettyJSON} /></pre>}
             />;
         }
         case BinaryDebugMessageType.DATABASE_RESPONSE: {
@@ -344,7 +352,7 @@ function Message({message}: {message: DebugMessage}): JSX.Element {
         case BinaryDebugMessageType.SERVER_RESPONSE: {
             const serverResponse = message as ServerResponse;
             return <DetailsCard
-                left={<pre><ShowLargeText largeText={serverResponse.response} /></pre>}
+                left={<pre><ShowLargeText largeText={serverResponse.response} textTransform={prettyJSON} /></pre>}
                 right={<pre>
                     Call: <ShowLargeText largeText={serverResponse.call} /><br />
                     Timestamp: {DATE_FORMAT.format(serverResponse.timestamp)}<br />
