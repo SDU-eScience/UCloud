@@ -672,9 +672,9 @@ class BlobSystem(
     fun getBlob(pos: Int): ByteArray? {
         return try {
             val size = buf.getInt(pos)
-            val INT_WIDTH = 4 * 8
+            val INT_WIDTH_IN_BYTES = 4
             ByteArray(size) {
-                buf[pos + it + INT_WIDTH]
+                buf[pos + it + INT_WIDTH_IN_BYTES]
             }
         } catch (e: NumberFormatException) {
             println(e.stackTraceToString())

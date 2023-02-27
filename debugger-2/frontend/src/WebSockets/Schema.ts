@@ -174,11 +174,11 @@ export class ClientResponse extends BaseBinaryDebugMessage {
     get responseCode(): number {
         return readInt1(this.buffer, this.offset + HDRL);
     }
-    
+
     get responseTime(): number {
         return readInt4(this.buffer, this.offset + HDRL + 1);
     }
-    
+
     get call(): LargeText {
         return readText(this.buffer, this.offset + HDRL + 1 + 4, 64);
     }
