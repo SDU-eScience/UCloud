@@ -42,7 +42,6 @@ div.request-list-row {
     color: black;
     background-color: var(--white);
     cursor: pointer;
-    padding-left: 8px;
 }
 
 div.request-list-row:not(:first-child) {
