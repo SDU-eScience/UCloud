@@ -2,7 +2,7 @@ import * as React from "react";
 import {BinaryDebugMessageType, ClientRequest, ClientResponse, DatabaseConnection, DatabaseQuery, DatabaseResponse, DatabaseTransaction, DebugContext, DebugContextType, DebugMessage, LargeText, Log, MessageImportance, messageImportanceToString, ServerRequest, ServerResponse} from "../WebSockets/Schema";
 import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, isDebugMessage, logMessages, debugMessageStore, replayMessages} from "../WebSockets/Socket";
 import "./MainContent.css";
-import {FixedSizeList as List} from "react-window";
+import {FixedSizeList, FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 
 // Notes/Issues:
@@ -21,7 +21,10 @@ const ITEM_SIZE = 22;
 export function MainContent(): JSX.Element {
     const [routeComponents, setRouteComponents] = React.useState<DebugMessageOrCtx[]>([]);
     const service = React.useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot());
-    const logs = React.useSyncExternalStore(s => debugMessageStore.subscribe(s), () => debugMessageStore.getSnapshot())
+    const logs = React.useSyncExternalStore(s => debugMessageStore.subscribe(s), () => debugMessageStore.getSnapshot());
+
+    const scrollRef = React.useRef<FixedSizeList<DebugContext[]> | null>(null);
+    const lastInViewRef = React.useRef(0);
 
     const setContext = React.useCallback((d: DebugContext | null) => {
         if (d === null) {
@@ -44,6 +47,14 @@ export function MainContent(): JSX.Element {
 
     const serviceLogs = logs.content[service] ?? [];
     const activeContextOrMessage = routeComponents.at(-1);
+
+    React.useEffect(() => {
+        if (scrollRef.current) {
+            if (lastInViewRef.current === serviceLogs.length - 1) {
+                scrollRef.current.scrollToItem(serviceLogs.length - 1, "smart");
+            }
+        }
+    }, [serviceLogs.length, scrollRef]);
 
     return <div className="main-content">
         {!service ? <h3>Select a service to view requests</h3> :
@@ -76,9 +87,10 @@ export function MainContent(): JSX.Element {
                         }
                         if (serviceLogs.length === 0) return <div />;
                         return <div onScroll={e => console.log(e)} onWheel={onWheel}>
-                            <List itemData={serviceLogs} height={height - 25} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
+                            <List ref={scrollRef} itemData={serviceLogs} height={height - 25} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
                                 {({index, data, style}) => {
                                     const item = data[index];
+                                    lastInViewRef.current = index;
                                     return <DebugContextRow
                                         key={item.id}
                                         style={style}
@@ -230,11 +242,15 @@ function DebugContextDetails({ctx}: {ctx: DebugContext}): JSX.Element {
                 Timestamp: {DATE_FORMAT.format(ctx.timestamp)}<br />
                 Type: {ctx.typeString}<br />
                 Context ID: {ctx.id}<br />
-                Parent ID: {ctx.parent}<br />
+                Parent ID: {ctx.parent} {isRootContext(ctx.parent)}<br />
                 Importance: {ctx.importanceString}
             </pre>
         </div>
     </>
+}
+
+function isRootContext(parentId: number): string {
+    return parentId === 1 ? "(Root)" : "";
 }
 
 function ShowLargeText({largeText, textTransform = handleIfEmpty}: {largeText: LargeText; textTransform?: (str: string) => string}): JSX.Element {
