@@ -9,6 +9,7 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.accounting.services.projects.v2.*
 import dk.sdu.cloud.calls.BulkResponse
 import io.ktor.server.request.*
+import kotlinx.coroutines.delay
 
 class ProjectsControllerV2(
     private val projects: ProjectService,
@@ -74,6 +75,30 @@ class ProjectsControllerV2(
 
         implement(Projects.deleteInvite) {
             ok(projects.deleteInvite(actorAndProject, request))
+        }
+
+        implement(Projects.createInviteLink) {
+            ok(projects.createInviteLink(actorAndProject))
+        }
+
+        implement(Projects.browseInviteLinks) {
+            ok(projects.browseInviteLinks(actorAndProject))
+        }
+
+        implement(Projects.retrieveInviteLinkInfo) {
+            ok(projects.retrieveInviteLinkInfo(actorAndProject, request))
+        }
+
+        implement(Projects.deleteInviteLink) {
+            ok(projects.deleteInviteLink(actorAndProject, request))
+        }
+
+        implement(Projects.updateInviteLink) {
+            ok(projects.updateInviteLink(actorAndProject, request))
+        }
+
+        implement(Projects.acceptInviteLink) {
+            ok(projects.acceptInviteLink(actorAndProject, request))
         }
 
         implement(Projects.deleteMember) {
