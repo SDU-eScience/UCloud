@@ -201,6 +201,7 @@ class BinaryDebugSystem(
         val encoded = text.encodeToByteArray()
         return if (encoded.size >= field.maxSize) {
             val id = blobs.storeBlob(encoded)
+            // Note(Jonas): Should `id` maybe be added as an int here?
             val prefix =
                 LargeText.OVERFLOW_PREFIX + id + LargeText.OVERFLOW_SEP + buffer.fileIndex + LargeText.OVERFLOW_SEP
             val previewSize = field.maxSize - prefix.length

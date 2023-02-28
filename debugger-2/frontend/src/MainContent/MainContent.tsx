@@ -252,13 +252,6 @@ function ShowLargeText({largeText, textTransform = handleIfEmpty}: {largeText: L
     return <>{textTransform(message)}</>;
 }
 
-function LogText({log}: {log: Log}): JSX.Element {
-    return <pre>
-        <ShowLargeText largeText={log.message} /><br />
-        <ShowLargeText largeText={log.extra} /><br />
-    </pre>
-}
-
 function prettyJSON(json: string): string {
     try {
         return JSON.stringify(JSON.parse(json), null, 2);
@@ -269,7 +262,7 @@ function prettyJSON(json: string): string {
 
 function trimIndent(input: string): string {
     // Note(Jonas): This is not very efficient, and I believe rather fragile.
-    const splitByNewline = input.replaceAll("\t", "    ").split("\n").filter(it => it.trim().length > 1);
+    const splitByNewline = input.replaceAll("\t", "    ").split("\n").filter(it => it.trim().length > 0);
     if ([0, 1].includes(splitByNewline.length)) return input;
 
     let whitespaceCount = 0;
@@ -309,74 +302,97 @@ function Message({message}: {message: DebugMessage}): JSX.Element {
             const clientRequest = message as ClientRequest;
             return <DetailsCard
                 left={<ShowLargeText largeText={clientRequest.payload} />}
-                right={<ShowLargeText largeText={clientRequest.call} />}
+                right={<DebugMessageDetails dm={clientRequest} />}
             />;
         }
         case BinaryDebugMessageType.CLIENT_RESPONSE: {
             const clientResponse = message as ClientResponse;
             return <DetailsCard
                 left={<ShowLargeText largeText={clientResponse.response} />}
-                /* TODO(Jonas): Add more info */
-                right={<ShowLargeText largeText={clientResponse.call} />}
+                right={<DebugMessageDetails dm={clientResponse} />}
             />
         }
         case BinaryDebugMessageType.DATABASE_CONNECTION: {
             const databaseConnect = message as DatabaseConnection;
-            return <DetailsCard left={<><b>Is open: </b> {` ${databaseConnect.isOpen}` ?? "Not defined!"}</>} />
+            return <DetailsCard left={<><b>Is open: </b> {` ${databaseConnect.isOpen}` ?? "Not defined!"}</>} right={<DebugMessageDetails dm={databaseConnect} />} />
         }
         case BinaryDebugMessageType.DATABASE_QUERY: {
             const databaseQuery = message as DatabaseQuery;
             return <DetailsCard
                 left={<pre><ShowLargeText largeText={databaseQuery.query} textTransform={trimIndent} /></pre>}
-                right={<pre><ShowLargeText largeText={databaseQuery.parameters} textTransform={prettyJSON} /></pre>}
+                right={<DebugMessageDetails dm={databaseQuery} />}
             />;
         }
         case BinaryDebugMessageType.DATABASE_RESPONSE: {
             const databaseResponse = message as DatabaseResponse;
-            return <DetailsCard left={databaseResponse.responseTime} />
+            return <DetailsCard left={`Took ${databaseResponse.responseTime}ms`} right={<DebugMessageDetails dm={databaseResponse} />} />
         }
         case BinaryDebugMessageType.DATABASE_TRANSACTION: {
             const databaseTransaction = message as DatabaseTransaction;
-            return <DetailsCard left={`${databaseTransaction.event}, ${databaseTransaction.id}`} />
+            return <DetailsCard
+                left={`Event ${databaseTransaction.event}`}
+                right={<DebugMessageDetails dm={databaseTransaction} />} />
         }
         case BinaryDebugMessageType.SERVER_REQUEST: {
             const serverRequest = message as ServerRequest;
             return <DetailsCard
                 left={<ShowLargeText largeText={serverRequest.payload} />}
-                right={<pre>
-                    Call: <ShowLargeText largeText={serverRequest.call} /><br />
-                    Timestamp: {DATE_FORMAT.format(serverRequest.timestamp)}<br />
-                </pre>}
+                right={<DebugMessageDetails dm={serverRequest} />}
             />
         }
         case BinaryDebugMessageType.SERVER_RESPONSE: {
             const serverResponse = message as ServerResponse;
             return <DetailsCard
                 left={<pre><ShowLargeText largeText={serverResponse.response} textTransform={prettyJSON} /></pre>}
-                right={<pre>
-                    Call: <ShowLargeText largeText={serverResponse.call} /><br />
-                    Timestamp: {DATE_FORMAT.format(serverResponse.timestamp)}<br />
-                    Response code: {serverResponse.responseCode}<br />
-                    Response time: {serverResponse.responseTime}ms<br />
-                </pre>}
+                right={<DebugMessageDetails dm={serverResponse} />}
             />
         }
         case BinaryDebugMessageType.LOG: {
             const log = message as Log;
             return <DetailsCard
-                left={<LogText log={log} />}
-                right={<>
-                    Timestamp: {DATE_FORMAT.format(log.timestamp)}<br />
-                    Type: {log.typeString}<br />
-                    Context ID: {log.ctxId}<br />
-                    Importance: {messageImportanceToString(log.importance)}
-                </>}
+                left={<ShowLargeText largeText={log.message} />}
+                right={<DebugMessageDetails dm={log} />}
             />
         }
         default: {
             return <>UNHANDLED TYPE {message.type}</>
         }
     }
+}
+
+function DebugMessageDetails({dm}: {dm: DebugMessage}): JSX.Element {
+    return <pre>
+        <Timestamp ts={dm.timestamp} />
+        Type: {dm.typeString}<br />
+        Context ID: {dm.ctxId}<br />
+        Importance: {messageImportanceToString(dm.importance)}<br />
+        {"call" in dm ? <Call call={dm.call} /> : null}
+        {"responseCode" in dm ? <>
+            Response code: {dm.responseCode} <br /></> : null
+        }
+        {"responseTime" in dm ?
+            <>Response time: {dm.responseTime} ms <br /></> : null
+        }
+        {"extra" in dm ?
+            <>
+                <ShowLargeText largeText={dm.extra} /><br />
+            </> : null}
+        {"parameters" in dm ? <>
+            Parameters: <br />
+            <pre>
+                <ShowLargeText largeText={dm.parameters} textTransform={prettyJSON} />
+            </pre>
+        </> : null}
+        {/* TODO: Probably more here */}
+    </pre>
+}
+
+function Call({call}: {call: LargeText}): JSX.Element {
+    return <>Call: <ShowLargeText largeText={call} /><br /></>
+}
+
+function Timestamp({ts}: {ts: number}): JSX.Element {
+    return <>Timestamp: {DATE_FORMAT.format(ts)}<br /></>
 }
 
 function handleIfEmpty(str: string): string {
