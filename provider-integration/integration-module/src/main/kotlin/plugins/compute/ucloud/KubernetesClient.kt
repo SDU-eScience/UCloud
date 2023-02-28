@@ -29,10 +29,10 @@ import java.io.*
 import java.net.ConnectException
 import java.net.URLEncoder
 import java.security.KeyStore
-import java.util.*
-import java.util.concurrent.TimeUnit
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
+import java.util.*
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.*
 
 sealed class KubernetesConfigurationSource {
@@ -84,7 +84,7 @@ sealed class KubernetesConfigurationSource {
             try {
                 val tree = yamlMapper.decodeFromStream(KubeConfig.serializer(), kubeConfigFile.inputStream())
                 val actualContextId = context ?: tree.currentContext ?: tree.contexts.singleOrNull()
-                    ?: error("Unknown context, kube config contains: $tree")
+                ?: error("Unknown context, kube config contains: $tree")
 
                 val actualContext = tree.contexts.find { it.name == actualContextId }
                     ?: error("Unknown context, kube config contains: $tree")
@@ -384,9 +384,11 @@ data class KubernetesResourceLocator(
                 name == null && namespace == null -> {
                     append("Any resource ")
                 }
+
                 name == null && namespace != null -> {
                     append("Any resource in $namespace ")
                 }
+
                 name != null && namespace == null -> {
                     append("$name in any namespace ")
                 }
@@ -422,27 +424,27 @@ class KubernetesClient(
         }
     }
 
-    @PublishedApi
-    internal val httpClient by lazy {
-        HttpClient(CIO) {
-            // NOTE(Dan): Not using OkHttp here because of a input buffering issue causing watched resources to not
-            // always flush. It is not clear to me how to make OkHttp/Ktor/??? not do this input buffering. Using the CIO
-            // engine seemingly resolves the issue.
-            conn.authenticationMethod.configureClient(this)
-            install(HttpTimeout) {
-                this.socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
-                this.connectTimeoutMillis = 1000 * 10
-                this.requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
-            }
+    private val httpClient by lazy { ___createClient(longRunning = false) }
+    private val backgroundClient by lazy { ___createClient(longRunning = true) }
 
-            engine {
-                https {
-                    trustManager = configurationSource.retrieveConnection()?.trustManager
-                }
-            }
+    private fun selectClient(longRunning: Boolean): HttpClient = if (longRunning) backgroundClient else httpClient
 
-            expectSuccess = false
+    @Suppress("FunctionName")
+    private fun ___createClient(longRunning: Boolean): HttpClient = HttpClient(CIO) {
+        conn.authenticationMethod.configureClient(this)
+        install(HttpTimeout) {
+            this.socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+            this.connectTimeoutMillis = if (longRunning) 1000 * 120 else 1000 * 10
+            this.requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
         }
+
+        engine {
+            https {
+                trustManager = configurationSource.retrieveConnection()?.trustManager
+            }
+        }
+
+        expectSuccess = false
     }
 
     fun buildUrl(
@@ -504,7 +506,7 @@ class KubernetesClient(
             throw KubernetesException(
                 resp.status,
                 "Kubernetes request has failed. Context is: ${errorContext()}\n" +
-                        resp.bodyAsChannel().toByteArray(1024 * 4096).decodeToString().prependIndent("    ")
+                    resp.bodyAsChannel().toByteArray(1024 * 4096).decodeToString().prependIndent("    ")
             )
         }
 
@@ -526,11 +528,12 @@ class KubernetesClient(
         queryParameters: Map<String, String> = emptyMap(),
         operation: String? = null,
         content: OutgoingContent? = null,
+        longRunning: Boolean = false,
     ): HttpStatement {
         var retries = 0
         while (retries < 5) {
             try {
-                return httpClient.prepareRequest {
+                return selectClient(longRunning).prepareRequest {
                     this.method = method
                     url(buildUrl(locator, queryParameters, operation).also { log.trace("${method.value} $it") })
                     header(HttpHeaders.Accept, ContentType.Application.Json)
