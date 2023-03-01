@@ -29,7 +29,6 @@ export interface LargeText {
 }
 
 export enum DBTransactionEvent {
-    OPEN,
     COMMIT,
     ROLLBACK
 }
@@ -72,7 +71,6 @@ export enum BinaryDebugMessageType {
     CLIENT_RESPONSE = 2,
     SERVER_REQUEST = 3,
     SERVER_RESPONSE = 4,
-    DATABASE_CONNECTION = 5,
     DATABASE_TRANSACTION = 6,
     DATABASE_QUERY = 7,
     DATABASE_RESPONSE = 8,
@@ -230,19 +228,7 @@ export class ServerResponse extends BaseBinaryDebugMessage {
     }
 }
 
-// DatabaseConnection.type === 5
-export class DatabaseConnection extends BaseBinaryDebugMessage {
-    get type(): BinaryDebugMessageType {
-        return BinaryDebugMessageType.DATABASE_CONNECTION
-    }
-
-    get isOpen(): boolean {
-        return readBool(this.buffer, this.offset + HDRL);
-    }
-}
-
 // DatabaseTransaction.type === 6
-
 export class DatabaseTransaction extends BaseBinaryDebugMessage {
     get type(): BinaryDebugMessageType {
         return BinaryDebugMessageType.DATABASE_TRANSACTION
@@ -299,8 +285,7 @@ export class Log extends BaseBinaryDebugMessage {
 }
 
 export type DebugMessage =
-    ClientRequest | ClientResponse | ServerRequest | ServerResponse | DatabaseConnection |
-    DatabaseTransaction | DatabaseQuery | DatabaseResponse | Log;
+    ClientRequest | ClientResponse | ServerRequest | ServerResponse | DatabaseTransaction | DatabaseQuery | DatabaseResponse | Log;
 
 // Contexts
 export enum DebugContextType {

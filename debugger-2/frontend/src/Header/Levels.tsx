@@ -1,7 +1,8 @@
 import * as React from "react";
+import {prettierString} from "../MainContent/MainContent";
 import {MessageImportance} from "../WebSockets/Schema";
 
-const Importances = Object.values(MessageImportance).filter(it => typeof it !== "number");
+const Importances = Object.values(MessageImportance).filter(it => typeof it !== "number") as string[];
 
 export function Levels({level, setLevel}: {level: string; setLevel(level: string): void;}): JSX.Element {
     return <Dropdown trigger={
@@ -12,8 +13,8 @@ export function Levels({level, setLevel}: {level: string; setLevel(level: string
         </div>
     }>
         {Importances.map(it =>
-            <div key={it} onClick={() => setLevel((it === level ? "" : it as string))} data-row-active={it === level} className="dropdown-row">
-                {it}
+            <div key={it} onClick={() => setLevel((it === level ? "" : it))} data-row-active={it === level} className="dropdown-row">
+                {prettierString(it)}
             </div>
         )}
     </Dropdown>

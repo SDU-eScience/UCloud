@@ -1,5 +1,5 @@
 import * as React from "react";
-import {BinaryDebugMessageType, ClientRequest, ClientResponse, DatabaseConnection, DatabaseQuery, DatabaseResponse, DatabaseTransaction, DBTransactionEvent, DebugContext, DebugContextType, DebugMessage, LargeText, Log, MessageImportance, ServerRequest, ServerResponse} from "../WebSockets/Schema";
+import {BinaryDebugMessageType, ClientRequest, ClientResponse, DatabaseQuery, DatabaseResponse, DatabaseTransaction, DBTransactionEvent, DebugContext, DebugContextType, DebugMessage, LargeText, Log, MessageImportance, ServerRequest, ServerResponse} from "../WebSockets/Schema";
 import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, isDebugMessage, logMessages, debugMessageStore, replayMessages} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList, FixedSizeList as List} from "react-window";
@@ -186,9 +186,6 @@ function getMessageText(message: DebugMessage): string | JSX.Element {
         case BinaryDebugMessageType.SERVER_RESPONSE: {
             return "🗣️ " + largeTextPreview((message as ServerResponse).call);
         }
-        case BinaryDebugMessageType.DATABASE_CONNECTION: {
-            return <>🔗 <b>Is open: </b>{` ${(message as DatabaseConnection).isOpen}`}</>;
-        }
         case BinaryDebugMessageType.DATABASE_TRANSACTION: {
             const dt = message as DatabaseTransaction;
             return eventToEmoji(dt) + " Event: " + dt.eventString;
@@ -202,7 +199,7 @@ function getMessageText(message: DebugMessage): string | JSX.Element {
         case BinaryDebugMessageType.LOG: {
             return "📜 " + largeTextPreview((message as Log).message);
         }
-        
+
         default:
             return `‼️ UNHANDLED CASE ${message.typeString}`;
     }
@@ -212,8 +209,6 @@ function eventToEmoji(message: DatabaseTransaction): string {
     switch (message.event) {
         case DBTransactionEvent.COMMIT:
             return "✅";
-        case DBTransactionEvent.OPEN:
-            return "📖";
         case DBTransactionEvent.ROLLBACK:
             return "🔙";
         default:
@@ -272,8 +267,8 @@ function DebugContextDetails({ctx}: {ctx: DebugContext}): JSX.Element {
             <pre>
                 Name: {contextTypeToEmoji(ctx.type)} {ctx.name}<br />
                 Timestamp: {DATE_FORMAT.format(ctx.timestamp)}<br />
-                Type: {ctx.typeString}<br />
                 {USE_DEBUGGER_DEBUG_INFO ? <>
+                    Type: {prettierString(ctx.typeString)}<br />
                     Context ID: {ctx.id}<br />
                     Parent ID: {ctx.parent} {isRootContext(ctx.parent)}<br />
                 </> : null}
@@ -362,10 +357,6 @@ function Message({message}: {message: DebugMessage}): JSX.Element {
                 right={<DebugMessageDetails dm={clientResponse} />}
             />
         }
-        case BinaryDebugMessageType.DATABASE_CONNECTION: {
-            const databaseConnect = message as DatabaseConnection;
-            return <DetailsCard left={<><b>Is open: </b> {` ${databaseConnect.isOpen}` ?? "Not defined!"}</>} right={<DebugMessageDetails dm={databaseConnect} />} />
-        }
         case BinaryDebugMessageType.DATABASE_QUERY: {
             const databaseQuery = message as DatabaseQuery;
             return <DetailsCard
@@ -413,7 +404,7 @@ function Message({message}: {message: DebugMessage}): JSX.Element {
 function DebugMessageDetails({dm}: {dm: DebugMessage}): JSX.Element {
     return <pre>
         <Timestamp ts={dm.timestamp} />
-        Type: {dm.typeString}<br />
+        Type: {prettierString(dm.typeString)}<br />
         Context ID: {dm.ctxId}<br />
         Importance: {prettierString(dm.importanceString)}<br />
         {"call" in dm ? <Call call={dm.call} /> : null}
