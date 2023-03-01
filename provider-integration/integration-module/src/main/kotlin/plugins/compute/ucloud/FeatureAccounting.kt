@@ -54,6 +54,7 @@ object FeatureAccounting : JobFeature, Loggable {
     }
 
     private suspend fun JobManagement.account(rootJob: Container, children: Collection<Container>, lastTs: Long, now: Long) {
+        log.warn("JOBMAN: account")
         val timespent = now - lastTs
         if (timespent < 0L) {
             log.info("No time spent on ${rootJob.jobId} ($timespent)")
@@ -66,6 +67,11 @@ object FeatureAccounting : JobFeature, Loggable {
             val virtualCpus = run {
                 max(1, rootJob.vCpuMillis / 1000)
             }
+
+            log.warn("REPLICAS: $replicas")
+            log.warn("Virtual: $virtualCpus")
+            log.warn("timespent: $timespent")
+            log.warn("job: ${rootJob.jobId}")
 
             val insufficientFunds = JobsControl.chargeCredits.call(
                 bulkRequestOf(
@@ -100,10 +106,12 @@ object FeatureAccounting : JobFeature, Loggable {
 
     private val Container.lastAccountingTs: Long?
         get() {
-            return annotations[LAST_PERFORMED_AT_ANNOTATION]?.toLongOrNull()
+            log.info("GETTING LASTACCOUNT: ${annotations[LAST_PERFORMED_AT_ANNOTATION]}")
+            return annotations[LAST_PERFORMED_AT_ANNOTATION]?.replace("\"", "")?.trim()?.toLongOrNull()
         }
     private val Container.jobStartedAt: Long?
         get() {
-            return annotations[FeatureExpiry.JOB_START]?.toLongOrNull()
+            log.info("GETTING Job start: ${annotations[FeatureExpiry.JOB_START]}")
+            return annotations[FeatureExpiry.JOB_START]?.replace("\"", "")?.trim()?.toLongOrNull()
         }
 }

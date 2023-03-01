@@ -43,6 +43,7 @@ class AccountingController(
     }
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implementOrDispatch(Accounting.charge) {
+            println(request)
             ok(accounting.charge(actorAndProject, request))
         }
 

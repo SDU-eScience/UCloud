@@ -1229,8 +1229,10 @@ class AccountingProcessor(
     // Charge
     // =================================================================================================================
     private suspend fun charge(request: AccountingRequest.Charge): AccountingResponse {
+        println("CHAREGIN")
         val charge = describeCharge(request.actor, request)
             ?: return AccountingResponse.Error("Could not find product information in charge request.")
+        println(charge)
         if (charge.amount < 0) return AccountingResponse.Error("Cannot charge a negative amount")
         if (charge.isFree) return AccountingResponse.Charge(true)
 
