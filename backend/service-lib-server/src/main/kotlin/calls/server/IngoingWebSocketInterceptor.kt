@@ -212,7 +212,7 @@ class IngoingWebSocketInterceptor(
                                 launch {
                                     debug.system.useContext(
                                         type = DebugContextType.SERVER_REQUEST,
-                                        initialName = "😎 ${call.fullName}",
+                                        initialName = call.fullName,
                                         initialImportance = MessageImportance.THIS_IS_NORMAL,
                                         block = {
                                             log.trace("Handling call...")

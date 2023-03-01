@@ -115,7 +115,7 @@ data class AsyncDBConnection(
  */
 class AsyncDBSessionFactory(
     config: DatabaseConfig,
-    private val debug: DebugSystemFeature
+    internal val debug: DebugSystemFeature
 ) : DBSessionFactory<AsyncDBConnection>, DBContext() {
     constructor(micro: Micro) : this(micro.databaseConfig, micro.feature(DebugSystemFeature))
 

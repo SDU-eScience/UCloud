@@ -1,5 +1,5 @@
 import * as React from "react";
-import {BinaryDebugMessageType, ClientRequest, ClientResponse, DatabaseConnection, DatabaseQuery, DatabaseResponse, DatabaseTransaction, DebugContext, DebugContextType, DebugMessage, LargeText, Log, MessageImportance, messageImportanceToString, ServerRequest, ServerResponse} from "../WebSockets/Schema";
+import {BinaryDebugMessageType, ClientRequest, ClientResponse, DatabaseConnection, DatabaseQuery, DatabaseResponse, DatabaseTransaction, DBTransactionEvent, DebugContext, DebugContextType, DebugMessage, LargeText, Log, MessageImportance, ServerRequest, ServerResponse} from "../WebSockets/Schema";
 import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, isDebugMessage, logMessages, debugMessageStore, replayMessages} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList, FixedSizeList as List} from "react-window";
@@ -8,12 +8,10 @@ import AutoSizer from "react-virtualized-auto-sizer";
 // Notes/Issues:
 //  Fetching missing contexts in time-range sometimes misses some. Backend solution timing-issue. (Medium)
 //  Handle same service, new generation (Low)
-//   Frontend styling is generally not good. (Medium)
-//  Handle different types of ctx/logs to render. (High)
+//  Frontend styling is generally not good. (Medium)
 //  What happens when selecting a different service?
 //     - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected). (High)
 //  Handle long-running situations where memory usage has become high. (High)
-//  x-overflow in lists. (Low)
 
 type DebugMessageOrCtx = DebugMessage | DebugContext;
 const ITEM_SIZE = 22;
@@ -107,6 +105,26 @@ export function MainContent(): JSX.Element {
     </div>
 }
 
+function contextTypeToEmoji(ctxType: DebugContextType): string {
+    switch (ctxType) {
+        case DebugContextType.CLIENT_REQUEST: {
+            return "📯";
+        }
+        case DebugContextType.SERVER_REQUEST: {
+            return "💻";
+        }
+        case DebugContextType.DATABASE_TRANSACTION: {
+            return "🗃️";
+        }
+        case DebugContextType.BACKGROUND_TASK: {
+            return "🫥";
+        }
+        case DebugContextType.OTHER: {
+            return "👾"
+        }
+    }
+}
+
 function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], style, activeLogOrCtx}: {
     debugContext: DebugContext;
     activeLogOrCtx?: DebugMessageOrCtx;
@@ -125,7 +143,7 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
             data-has-error={hasError(debugContext.importance)}
             data-is-odd={isOdd(debugContext.importance)}
         >
-            <div>&nbsp;{debugContext.name}</div>
+            <div>&nbsp;{contextTypeToEmoji(debugContext.type)}&nbsp;{debugContext.name}</div>
         </div>
         <div className="ml-24px">
             {ctxChildren.map(it => {
@@ -157,34 +175,49 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
 function getMessageText(message: DebugMessage): string | JSX.Element {
     switch (message.type) {
         case BinaryDebugMessageType.CLIENT_REQUEST: {
-            return largeTextPreview((message as ClientRequest).call);
+            return "🫴 " + largeTextPreview((message as ClientRequest).call);
         }
         case BinaryDebugMessageType.CLIENT_RESPONSE: {
-            return largeTextPreview((message as ClientResponse).call);
+            return "🫳 " + largeTextPreview((message as ClientResponse).call);
         }
         case BinaryDebugMessageType.SERVER_REQUEST: {
-            return largeTextPreview((message as ServerRequest).call);
+            return "🤖 " + largeTextPreview((message as ServerRequest).call);
         }
         case BinaryDebugMessageType.SERVER_RESPONSE: {
-            return largeTextPreview((message as ServerResponse).call);
+            return "🗣️ " + largeTextPreview((message as ServerResponse).call);
         }
         case BinaryDebugMessageType.DATABASE_CONNECTION: {
-            return <><b>Is open: </b>{` ${(message as DatabaseConnection).isOpen}`}</>;
+            return <>🔗 <b>Is open: </b>{` ${(message as DatabaseConnection).isOpen}`}</>;
         }
         case BinaryDebugMessageType.DATABASE_TRANSACTION: {
-            return (message as DatabaseTransaction).event;
+            const dt = message as DatabaseTransaction;
+            return eventToEmoji(dt) + " Event: " + dt.eventString;
         }
         case BinaryDebugMessageType.DATABASE_QUERY: {
-            return largeTextPreview((message as DatabaseQuery).query).trim();
+            return "🔦 Query: " + largeTextPreview((message as DatabaseQuery).query).trim();
         }
         case BinaryDebugMessageType.DATABASE_RESPONSE: {
-            return `Took ${(message as DatabaseResponse).responseTime} ms`;
+            return <b>🔦 Query response in {(message as DatabaseResponse).responseTime}ms</b>
         }
         case BinaryDebugMessageType.LOG: {
-            return largeTextPreview((message as Log).message);
+            return "📜 " + largeTextPreview((message as Log).message);
         }
+        
         default:
-            return `UNHANDLED CASE ${message.typeString}`;
+            return `‼️ UNHANDLED CASE ${message.typeString}`;
+    }
+}
+
+function eventToEmoji(message: DatabaseTransaction): string {
+    switch (message.event) {
+        case DBTransactionEvent.COMMIT:
+            return "✅";
+        case DBTransactionEvent.OPEN:
+            return "📖";
+        case DBTransactionEvent.ROLLBACK:
+            return "🔙";
+        default:
+            return "❓";
     }
 }
 
@@ -232,18 +265,19 @@ function RequestDetailsByType({activeContextOrMessage}: RequestDetailsByTypeProp
     }
 }
 
+const USE_DEBUGGER_DEBUG_INFO = false;
 function DebugContextDetails({ctx}: {ctx: DebugContext}): JSX.Element {
     return <>
         <div className="card query">
-            <pre>{ctx.name}</pre>
-        </div>
-        <div className="card query-details">
             <pre>
+                Name: {contextTypeToEmoji(ctx.type)} {ctx.name}<br />
                 Timestamp: {DATE_FORMAT.format(ctx.timestamp)}<br />
                 Type: {ctx.typeString}<br />
-                Context ID: {ctx.id}<br />
-                Parent ID: {ctx.parent} {isRootContext(ctx.parent)}<br />
-                Importance: {ctx.importanceString}
+                {USE_DEBUGGER_DEBUG_INFO ? <>
+                    Context ID: {ctx.id}<br />
+                    Parent ID: {ctx.parent} {isRootContext(ctx.parent)}<br />
+                </> : null}
+                Importance: {prettierString(ctx.importanceString)}
             </pre>
         </div>
     </>
@@ -346,7 +380,7 @@ function Message({message}: {message: DebugMessage}): JSX.Element {
         case BinaryDebugMessageType.DATABASE_TRANSACTION: {
             const databaseTransaction = message as DatabaseTransaction;
             return <DetailsCard
-                left={`Event ${databaseTransaction.event}`}
+                left={`Event: ${databaseTransaction.eventString}`}
                 right={<DebugMessageDetails dm={databaseTransaction} />} />
         }
         case BinaryDebugMessageType.SERVER_REQUEST: {
@@ -381,7 +415,7 @@ function DebugMessageDetails({dm}: {dm: DebugMessage}): JSX.Element {
         <Timestamp ts={dm.timestamp} />
         Type: {dm.typeString}<br />
         Context ID: {dm.ctxId}<br />
-        Importance: {messageImportanceToString(dm.importance)}<br />
+        Importance: {prettierString(dm.importanceString)}<br />
         {"call" in dm ? <Call call={dm.call} /> : null}
         {"responseCode" in dm ? <>
             Response code: {dm.responseCode} <br /></> : null
@@ -394,10 +428,7 @@ function DebugMessageDetails({dm}: {dm: DebugMessage}): JSX.Element {
                 <ShowLargeText largeText={dm.extra} /><br />
             </> : null}
         {"parameters" in dm ? <>
-            Parameters: <br />
-            <pre>
-                <ShowLargeText largeText={dm.parameters} textTransform={prettyJSON} />
-            </pre>
+            Parameters: <ShowLargeText largeText={dm.parameters} textTransform={prettyJSON} />
         </> : null}
         {/* TODO: Probably more here */}
     </pre>
