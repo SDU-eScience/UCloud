@@ -406,6 +406,7 @@ class AccountingProcessor(
                 runBlocking {
                     processorLock.lock()
                     attemptSynchronize(true)
+                    lock.release()
                     processorLock.unlock()
                 }
             }
