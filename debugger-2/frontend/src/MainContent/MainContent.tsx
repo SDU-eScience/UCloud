@@ -30,12 +30,13 @@ export function MainContent(): JSX.Element {
                 debugMessageStore.clearActiveContext();
             }
             setRouteComponents([]);
+            scrollRef.current?.scrollToItem(logs.content[service].length - 1);
             return;
         }
         debugMessageStore.addDebugRoot(d);
         replayMessages(activeService.generation, d.id, d.timestamp);
         setRouteComponents([d]);
-    }, [setRouteComponents]);
+    }, [setRouteComponents, logs, service]);
 
     const onWheel = React.useCallback((e: React.WheelEvent<HTMLDivElement>) => {
         if (e.deltaY < 0) {
@@ -54,6 +55,8 @@ export function MainContent(): JSX.Element {
         }
     }, [serviceLogs.length, scrollRef]);
 
+    const root = debugMessageStore.contextRoot();
+
     return <div className="main-content">
         {!service ? <h3>Select a service to view requests</h3> :
             <>
@@ -67,22 +70,15 @@ export function MainContent(): JSX.Element {
                     <button className="pointer button" onClick={fetchPreviousMessage}>Load previous</button>
                 )}
                 {serviceLogs.length === 0 ? <div>No context found for service</div> : null}
-                <AutoSizer defaultHeight={200}>
+                {root ? (<div key={debugMessageStore.entryCount} className="card managed-list">
+                    <DebugContextRow
+                        activeLogOrCtx={activeContextOrMessage}
+                        setRouteComponents={ctx => setRouteComponents(ctx)}
+                        debugContext={root.ctx}
+                        ctxChildren={root.children}
+                    />
+                </div>) : (<AutoSizer defaultHeight={200}>
                     {({height, width}) => {
-                        const root = debugMessageStore.contextRoot();
-                        if (root) {
-                            return <List itemSize={ITEM_SIZE} height={height - 225} width={width} itemCount={1} itemData={root} key={debugMessageStore.entryCount} className="card">
-                                {({data: root, style}) =>
-                                    <DebugContextRow
-                                        style={style}
-                                        activeLogOrCtx={activeContextOrMessage}
-                                        setRouteComponents={ctx => setRouteComponents(ctx)}
-                                        debugContext={root.ctx}
-                                        ctxChildren={root.children}
-                                    />
-                                }
-                            </List>
-                        }
                         if (serviceLogs.length === 0) return <div />;
                         return <div onScroll={e => console.log(e)} onWheel={onWheel}>
                             <List ref={scrollRef} itemData={serviceLogs} height={height - 25} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
@@ -99,7 +95,7 @@ export function MainContent(): JSX.Element {
                             </List>
                         </div>
                     }}
-                </AutoSizer>
+                </AutoSizer>)}
             </>
         }
     </div>
@@ -135,7 +131,7 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
     return <>
         <div
             key={debugContext.id}
-            className="request-list-row flex"
+            className="request-list-row"
             onClick={() => setRouteComponents([debugContext])}
             data-selected={activeLogOrCtx === debugContext}
             style={style}
@@ -181,7 +177,7 @@ function getMessageText(message: DebugMessage): string | JSX.Element {
             return "🫳 " + largeTextPreview((message as ClientResponse).call);
         }
         case BinaryDebugMessageType.SERVER_REQUEST: {
-            return "🤖 " + largeTextPreview((message as ServerRequest).call);
+            return "🤖 Request: " + largeTextPreview((message as ServerRequest).payload);
         }
         case BinaryDebugMessageType.SERVER_RESPONSE: {
             return "🗣️ " + largeTextPreview((message as ServerResponse).call);
@@ -191,7 +187,7 @@ function getMessageText(message: DebugMessage): string | JSX.Element {
             return eventToEmoji(dt) + " Event: " + dt.eventString;
         }
         case BinaryDebugMessageType.DATABASE_QUERY: {
-            return "🔦 Query: " + largeTextPreview((message as DatabaseQuery).query).trim();
+            return "🔦 Query: " + largeTextPreview((message as DatabaseQuery).query).trim();;
         }
         case BinaryDebugMessageType.DATABASE_RESPONSE: {
             return <b>🔦 Query response in {(message as DatabaseResponse).responseTime}ms</b>

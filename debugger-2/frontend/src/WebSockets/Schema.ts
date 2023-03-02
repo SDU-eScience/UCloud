@@ -142,7 +142,7 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
     get importance(): MessageImportance {
         return readInt1(this.buffer, this.offset + 25) as MessageImportance; // 1 + 8 + 4 + 4 + 8 = 25
     }
-    
+
     get importanceString(): string {
         return MessageImportance[this.importance];
     }

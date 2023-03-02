@@ -81,3 +81,13 @@ div[data-haschildren="true"] {
 .left-border-black {
     border-left: solid 1px var(--black);
 }
+
+div.managed-list {
+    height: calc(100vh - var(--headerHeight) - 10px - 10px - 200px - 20px);
+    overflow-y: scroll;
+}
+
+div.managed-list > div:first-child {
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+}
