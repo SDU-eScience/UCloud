@@ -1,4 +1,4 @@
-import {Log, DebugContext, getServiceName, DebugContextType, getGenerationName, readInt4, BinaryDebugMessageType, DebugMessage, ClientRequest, ClientResponse, DatabaseConnection, DatabaseQuery, DatabaseResponse, DatabaseTransaction, ServerRequest, ServerResponse} from "./Schema";
+import {Log, DebugContext, getServiceName, DebugContextType, getGenerationName, readInt4, BinaryDebugMessageType, DebugMessage, ClientRequest, ClientResponse, DatabaseQuery, DatabaseResponse, DatabaseTransaction, ServerRequest, ServerResponse} from "./Schema";
 
 let socket: WebSocket | null = null;
 let options: SocketOptions;
@@ -100,8 +100,6 @@ function debugMessageFromType(view: DataView, offset: number): DebugMessage {
             return new ServerRequest(view, offset);
         case BinaryDebugMessageType.SERVER_RESPONSE:
             return new ServerResponse(view, offset);
-        case BinaryDebugMessageType.DATABASE_CONNECTION:
-            return new DatabaseConnection(view, offset);
         case BinaryDebugMessageType.DATABASE_TRANSACTION:
             return new DatabaseTransaction(view, offset);
         case BinaryDebugMessageType.DATABASE_QUERY:

@@ -47,7 +47,8 @@ class DebugSystemFeature : MicroFeature {
 
         system.start(ctx.backgroundScope)
 
-        // TODO(Jonas): installCommon(ctx.client)
+        ctx.client.debugSystem = system
+        system.installCommon(ctx.client)
 
         ctx.server.attachFilter(object : IngoingCallFilter.AfterParsing() {
             override fun canUseContext(ctx: IngoingCall): Boolean = true
@@ -119,3 +120,4 @@ class DebugSystemFeature : MicroFeature {
         override val key = MicroAttributeKey<DebugSystemFeature>("debug-system")
     }
 }
+

@@ -656,9 +656,17 @@ data class ClientSession(
         if (trackedService == null || trackedService.generation != generation) return true
         if (!contexts.contains(context.parent.toLong())) return true
         if (context.importance < this.minimumLevel) return true
+        val queryFilter = this.filterQuery
+        if (
+            queryFilter != null && // Note(Jonas): If null, nothing to match. This will not block it.
+            context.parent == 1 && // Context is root, which is needed to filter
+            !context.name.contains(
+                queryFilter,
+                ignoreCase = true
+            )
+        ) return true
         val filters = this.filters
-        if (filters != null && !filters.contains(context.type)) return true
-        return false
+        return filters != null && !filters.contains(context.type)
     }
 
     suspend fun acceptContext(generation: Long, context: DebugContextDescriptor, contextIds: ArrayList<Long>) {

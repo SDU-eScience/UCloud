@@ -1,7 +1,13 @@
 package dk.sdu.cloud.debug
 
+import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.client.IngoingCallResponse
+import dk.sdu.cloud.calls.client.OutgoingCall
+import dk.sdu.cloud.calls.client.OutgoingCallFilter
+import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.defaultMapper
 import io.ktor.http.*
+import io.ktor.util.*
 import io.ktor.util.date.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +20,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import java.io.File
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
@@ -654,4 +661,65 @@ class BlobSystem(
             return File(directory, buildBlobFilePath(generation, idx)).exists()
         }
     }
+}
+
+fun DebugSystem.installCommon(client: RpcClient) {
+    val debugSystem = this
+
+    client.attachFilter(object : OutgoingCallFilter.BeforeCall() {
+        override fun canUseContext(ctx: OutgoingCall): Boolean = true
+
+        override suspend fun run(context: OutgoingCall, callDescription: CallDescription<*, *, *>, request: Any?) {
+            @Suppress("UNCHECKED_CAST") val call = callDescription as CallDescription<Any, Any, Any>
+            val debugPayload = if (request == null) JsonNull else defaultMapper.encodeToJsonElement(call.requestType, request)
+
+            /*
+            context.attributes[key] = id
+            context.attributes[payloadKey] = debugPayload
+            */
+
+            debugSystem.clientRequest(
+                MessageImportance.IMPLEMENTATION_DETAIL,
+                callDescription.fullName,
+                debugPayload
+            )
+        }
+    })
+
+    client.attachFilter(object : OutgoingCallFilter.AfterCall() {
+        override fun canUseContext(ctx: OutgoingCall): Boolean = true
+
+        override suspend fun run(
+            context: OutgoingCall,
+            callDescription: CallDescription<*, *, *>,
+            response: IngoingCallResponse<*, *>,
+            responseTimeMs: Long
+        ) {
+            // val id = context.attributes[key]
+            @Suppress("UNCHECKED_CAST") val call = callDescription as CallDescription<Any, Any, Any>
+
+            debugSystem.clientResponse(
+                when {
+                    responseTimeMs >= 300 || response.statusCode.value in 500..599 -> MessageImportance.THIS_IS_WRONG
+                    responseTimeMs >= 150 || response.statusCode.value in 400..499 -> MessageImportance.THIS_IS_ODD
+                    else -> MessageImportance.THIS_IS_NORMAL
+                },
+                call.fullName,
+                when (response) {
+                    is IngoingCallResponse.Error -> {
+                        if (response.error == null) {
+                            JsonNull
+                        } else {
+                            defaultMapper.encodeToJsonElement(call.errorType, response.error)
+                        }
+                    }
+                    is IngoingCallResponse.Ok -> {
+                        defaultMapper.encodeToJsonElement(call.successType, response.result)
+                    }
+                },
+                io.ktor.http.HttpStatusCode.fromValue(response.statusCode.value),
+                responseTimeMs,
+            )
+        }
+    })
 }
