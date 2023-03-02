@@ -68,7 +68,6 @@ class AccountingService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ChargeWalletRequestItem>,
     ): BulkResponse<Boolean> {
-        println("SERVICE CHAERGE")
         val result = request.items.map { charge ->
             processor.charge(
                 AccountingRequest.Charge.ProductUse(
