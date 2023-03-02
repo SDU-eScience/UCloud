@@ -1652,7 +1652,7 @@ class AccountingProcessor(
         val list = subAllocations.mapNotNull { allocation ->
             val wall = wallets[allocation.associatedWallet]
             if (wall != null) {
-                val projectInfo = projects.retrieveProjectInfoFromTitle(wall.owner)
+                val projectInfo = projects.retrieveProjectInfoFromId(wall.owner)
                 SubAllocation(
                     id = allocation.id.toString(),
                     path = allocation.toApiAllocation().allocationPath.joinToString(separator = "."),
@@ -2140,13 +2140,13 @@ private class ProjectCache(private val db: DBContext) {
         }
     }
 
-    suspend fun retrieveProjectInfoFromTitle(title: String, allowCacheRefill: Boolean = true): Pair<ProjectWithTitle, String> {
-        val project = projects.get().find { it.first.title == title }
+    suspend fun retrieveProjectInfoFromId(id: String, allowCacheRefill: Boolean = true): Pair<ProjectWithTitle, String> {
+        val project = projects.get().find { it.first.projectId == id }
         if (project == null && allowCacheRefill) {
             fillCache()
-            return retrieveProjectInfoFromTitle(title, false)
+            return retrieveProjectInfoFromId(id, false)
         }
-        return project ?: Pair(ProjectWithTitle(title, title), title)
+        return project ?: Pair(ProjectWithTitle(id, id), id)
     }
 
     suspend fun retrieveProjectRole(username: String, project: String, allowCacheRefill: Boolean = true): ProjectRole? {
