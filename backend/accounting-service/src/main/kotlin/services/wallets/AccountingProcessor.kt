@@ -374,6 +374,24 @@ class AccountingProcessor(
     fun start(): Job {
         return GlobalScope.launch {
             val lock = distributedLocks.create("accounting_processor", duration = 60_000)
+
+            Runtime.getRuntime().addShutdownHook(
+                Thread {
+                    runBlocking {
+                        if (!isActiveProcessor) {
+                            return@runBlocking
+                        }
+                        processorLock.withLock {
+                            if (!lock.renew(60_000)){
+                                return@runBlocking
+                            }
+                            attemptSynchronize(true)
+                            lock.release()
+                        }
+                    }
+                }
+            )
+
             while (isActive) {
                 try {
                     becomeMasterAndListen(lock)
@@ -400,17 +418,6 @@ class AccountingProcessor(
             loadDatabase()
             logExit("Success")
         }
-
-        Runtime.getRuntime().addShutdownHook(
-            Thread {
-                runBlocking {
-                    processorLock.lock()
-                    attemptSynchronize(true)
-                    lock.release()
-                    processorLock.unlock()
-                }
-            }
-        )
 
         nextSynchronization = System.currentTimeMillis() + 0
         var isAlive = true
