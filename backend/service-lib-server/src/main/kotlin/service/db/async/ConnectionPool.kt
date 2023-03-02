@@ -145,13 +145,6 @@ class AsyncDBSessionFactory(
 
     override suspend fun closeSession(session: AsyncDBConnection) {
         pool.giveBack((session.conn).connection as PostgreSQLConnection)
-
-        println("-".repeat(10))
-        println("closeSession")
-        debug.system.databaseConnection(
-            MessageImportance.THIS_IS_NORMAL,
-            isOpen = false,
-        )
     }
 
     override suspend fun commit(session: AsyncDBConnection) {
@@ -173,14 +166,6 @@ class AsyncDBSessionFactory(
             pool.take().await().asSuspending as SuspendingConnectionImpl,
             debug,
         )
-
-        println("-".repeat(10))
-        println("open session")
-        debug.system.databaseConnection(
-            MessageImportance.THIS_IS_NORMAL,
-            isOpen = true,
-        )
-
         return result
     }
 
@@ -196,13 +181,6 @@ class AsyncDBSessionFactory(
     }
 
     override suspend fun openTransaction(session: AsyncDBConnection, transactionMode: TransactionMode?) {
-        println("-".repeat(10))
-        println("opentransaction")
-        debug.system.databaseTransaction(
-            MessageImportance.THIS_IS_NORMAL,
-            DBTransactionEvent.OPEN
-        )
-
         // We always begin by setting the search_path to our schema. The schema is checked in the init block to make
         // this safe.
         if (setJitOff.get()) {

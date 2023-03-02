@@ -82,7 +82,6 @@ class BinaryFrameAllocator(
     val clientResponse = BinaryDebugMessage.ClientResponse(ByteBuffer.allocate(0))
     val serverRequest = BinaryDebugMessage.ServerRequest(ByteBuffer.allocate(0))
     val serverResponse = BinaryDebugMessage.ServerResponse(ByteBuffer.allocate(0))
-    val databaseConnection = BinaryDebugMessage.DatabaseConnection(ByteBuffer.allocate(0))
     val databaseTransaction = BinaryDebugMessage.DatabaseTransaction(ByteBuffer.allocate(0))
     val databaseQuery = BinaryDebugMessage.DatabaseQuery(ByteBuffer.allocate(0))
     val databaseResponse = BinaryDebugMessage.DatabaseResponse(ByteBuffer.allocate(0))
@@ -94,7 +93,6 @@ class BinaryFrameAllocator(
             clientResponse,
             serverRequest,
             serverResponse,
-            databaseConnection,
             databaseTransaction,
             databaseQuery,
             databaseResponse,
@@ -527,27 +525,6 @@ suspend fun BinaryDebugSystem.serverResponse(
         message.response = text(responseEncoded, BinaryDebugMessage.ServerResponse.response)
         message.responseCode = responseCode.value.toByte()
         message.responseTime = responseTime.toInt()
-        message
-    }
-}
-
-suspend fun BinaryDebugSystem.databaseConnection(
-    importance: MessageImportance,
-
-    isOpen: Boolean
-) {
-    val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
-
-    emit {
-        val message = allocateOrNull(databaseConnection) ?: return@emit null
-        message.ctxGeneration = BinaryDebugSystem.generation
-        message.ctxParent = ctx.parent
-        message.ctxId = ctx.id
-        message.timestamp = System.currentTimeMillis()
-        message.importance = importance
-        message.id = BinaryDebugSystem.id()
-
-        message.isOpen = isOpen
         message
     }
 }

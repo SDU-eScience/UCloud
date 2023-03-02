@@ -24,11 +24,10 @@ class LogFileReader(directory: File, val generation: Long, val idx: Int) {
             2 -> BinaryDebugMessage.ClientResponse(buf, offset)
             3 -> BinaryDebugMessage.ServerRequest(buf, offset)
             4 -> BinaryDebugMessage.ServerResponse(buf, offset)
-            5 -> BinaryDebugMessage.DatabaseConnection(buf, offset)
-            6 -> BinaryDebugMessage.DatabaseTransaction(buf, offset)
-            7 -> BinaryDebugMessage.DatabaseQuery(buf, offset)
-            8 -> BinaryDebugMessage.DatabaseResponse(buf, offset)
-            9 -> BinaryDebugMessage.Log(buf, offset)
+            5 -> BinaryDebugMessage.DatabaseTransaction(buf, offset)
+            6 -> BinaryDebugMessage.DatabaseQuery(buf, offset)
+            7 -> BinaryDebugMessage.DatabaseResponse(buf, offset)
+            8 -> BinaryDebugMessage.Log(buf, offset)
             else -> null
         }
     }

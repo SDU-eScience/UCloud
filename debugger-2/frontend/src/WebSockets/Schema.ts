@@ -71,10 +71,10 @@ export enum BinaryDebugMessageType {
     CLIENT_RESPONSE = 2,
     SERVER_REQUEST = 3,
     SERVER_RESPONSE = 4,
-    DATABASE_TRANSACTION = 6,
-    DATABASE_QUERY = 7,
-    DATABASE_RESPONSE = 8,
-    LOG = 9,
+    DATABASE_TRANSACTION = 5,
+    DATABASE_QUERY = 6,
+    DATABASE_RESPONSE = 7,
+    LOG = 8,
 }
 
 export function binaryDebugMessageTypeToString(type: BinaryDebugMessageType): string {
@@ -228,7 +228,7 @@ export class ServerResponse extends BaseBinaryDebugMessage {
     }
 }
 
-// DatabaseTransaction.type === 6
+// DatabaseTransaction.type === 5
 export class DatabaseTransaction extends BaseBinaryDebugMessage {
     get type(): BinaryDebugMessageType {
         return BinaryDebugMessageType.DATABASE_TRANSACTION
@@ -244,7 +244,7 @@ export class DatabaseTransaction extends BaseBinaryDebugMessage {
 
 }
 
-// DatabaseQuery.type === 7
+// DatabaseQuery.type === 6
 export class DatabaseQuery extends BaseBinaryDebugMessage {
     get type(): BinaryDebugMessageType {
         return BinaryDebugMessageType.DATABASE_QUERY
@@ -259,7 +259,7 @@ export class DatabaseQuery extends BaseBinaryDebugMessage {
     }
 }
 
-// DatabaseResponse.type === 8
+// DatabaseResponse.type === 7
 export class DatabaseResponse extends BaseBinaryDebugMessage {
     get type(): BinaryDebugMessageType {
         return BinaryDebugMessageType.DATABASE_RESPONSE
@@ -269,7 +269,7 @@ export class DatabaseResponse extends BaseBinaryDebugMessage {
         return readInt4(this.buffer, this.offset + HDRL);
     }
 }
-// Log.type === 9
+// Log.type === 8
 export class Log extends BaseBinaryDebugMessage {
     get type(): BinaryDebugMessageType {
         return BinaryDebugMessageType.LOG;

@@ -5,23 +5,16 @@ import io.ktor.http.*
 import io.ktor.util.date.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import java.io.File
-import java.lang.NumberFormatException
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
@@ -35,8 +28,8 @@ import kotlin.coroutines.coroutineContext
 import kotlin.math.max
 
 class BinaryFrameAllocator(
-    private val directory: File,
-    private val generation: Long,
+    directory: File,
+    generation: Long,
     val fileIndex: Int
 ) {
     private val channel = FileChannel.open(
@@ -85,7 +78,6 @@ class BinaryFrameAllocator(
     val clientResponse = BinaryDebugMessage.ClientResponse(ByteBuffer.allocate(0))
     val serverRequest = BinaryDebugMessage.ServerRequest(ByteBuffer.allocate(0))
     val serverResponse = BinaryDebugMessage.ServerResponse(ByteBuffer.allocate(0))
-    val databaseConnection = BinaryDebugMessage.DatabaseConnection(ByteBuffer.allocate(0))
     val databaseTransaction = BinaryDebugMessage.DatabaseTransaction(ByteBuffer.allocate(0))
     val databaseQuery = BinaryDebugMessage.DatabaseQuery(ByteBuffer.allocate(0))
     val databaseResponse = BinaryDebugMessage.DatabaseResponse(ByteBuffer.allocate(0))
@@ -97,7 +89,6 @@ class BinaryFrameAllocator(
             clientResponse,
             serverRequest,
             serverResponse,
-            databaseConnection,
             databaseTransaction,
             databaseQuery,
             databaseResponse,
@@ -266,20 +257,12 @@ class BinaryDebugSystem(
         initialName: String? = null,
         initialImportance: MessageImportance = MessageImportance.THIS_IS_NORMAL,
         block: suspend () -> T
-    ) {
+    ): T {
         val descriptor = allocateContext()
 
 
         return withContext(BinaryDebugCoroutineContext(descriptor)) {
             try {
-
-                println("-".repeat(10))
-                println("Producing context")
-                println("Type: $type")
-                println("Importance: ${initialImportance.name}")
-                println("Timestamp: ${Date(getTimeMillis())}")
-                println("Name: ${descriptor.name}")
-
                 descriptor.type = type
                 descriptor.importance = initialImportance
                 descriptor.timestamp = getTimeMillis()
@@ -545,27 +528,6 @@ suspend fun BinaryDebugSystem.serverResponse(
     }
 }
 
-suspend fun BinaryDebugSystem.databaseConnection(
-    importance: MessageImportance,
-
-    isOpen: Boolean
-) {
-    val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
-
-    emit {
-        val message = allocateOrNull(databaseConnection) ?: return@emit null
-        message.ctxGeneration = BinaryDebugSystem.generation
-        message.ctxParent = ctx.parent
-        message.ctxId = ctx.id
-        message.timestamp = System.currentTimeMillis()
-        message.importance = importance
-        message.id = BinaryDebugSystem.id()
-
-        message.isOpen = isOpen
-        message
-    }
-}
-
 suspend fun BinaryDebugSystem.databaseTransaction(
     importance: MessageImportance,
 
@@ -581,7 +543,6 @@ suspend fun BinaryDebugSystem.databaseTransaction(
         message.timestamp = System.currentTimeMillis()
         message.importance = importance
         message.id = BinaryDebugSystem.id()
-
         message.event = event
         message
     }
@@ -605,7 +566,6 @@ suspend fun BinaryDebugSystem.databaseQuery(
         message.timestamp = System.currentTimeMillis()
         message.importance = importance
         message.id = BinaryDebugSystem.id()
-
         message.parameters = text(parametersEncoded, BinaryDebugMessage.DatabaseQuery.parameters)
         message.query = text(query, BinaryDebugMessage.DatabaseQuery.query)
         message
@@ -682,19 +642,6 @@ class BlobSystem(
         buf.putInt(blob.size)
         buf.put(blob)
         return pos.toString()
-    }
-
-    fun getBlob(pos: Int): ByteArray? {
-        return try {
-            val size = buf.getInt(pos)
-            val sizeSize = size.toString().length
-            ByteArray(size) {
-                buf[pos + it + sizeSize + LargeText.OVERFLOW_SEP.length]
-            }
-        } catch (e: NumberFormatException) {
-            println(e.stackTraceToString())
-            null
-        }
     }
 
     fun close() {

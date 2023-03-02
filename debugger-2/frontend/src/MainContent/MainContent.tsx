@@ -395,9 +395,8 @@ function Message({message}: {message: DebugMessage}): JSX.Element {
                 right={<DebugMessageDetails dm={log} />}
             />
         }
-        default: {
+        default:
             return <>UNHANDLED TYPE {message.type}</>
-        }
     }
 }
 

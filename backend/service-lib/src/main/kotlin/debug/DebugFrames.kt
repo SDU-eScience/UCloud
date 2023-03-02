@@ -104,20 +104,8 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
         }
     }
 
-    class DatabaseConnection(buf: ByteBuffer, offset: Int = 0) :
-        BinaryDebugMessage<DatabaseConnection>(5.toByte(), buf, offset) {
-        var isOpen by Schema.isOpen
-
-        override val schema = Schema
-        override fun create(buf: ByteBuffer, offset: Int): DatabaseConnection = DatabaseConnection(buf, offset)
-
-        companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
-            val isOpen = bool()
-        }
-    }
-
     class DatabaseTransaction(buf: ByteBuffer, offset: Int = 0) :
-        BinaryDebugMessage<DatabaseTransaction>(6.toByte(), buf, offset) {
+        BinaryDebugMessage<DatabaseTransaction>(5.toByte(), buf, offset) {
         var event by Schema.event
 
         override val schema = Schema
@@ -128,7 +116,7 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
         }
     }
 
-    class DatabaseQuery(buf: ByteBuffer, offset: Int = 0) : BinaryDebugMessage<DatabaseQuery>(7.toByte(), buf, offset) {
+    class DatabaseQuery(buf: ByteBuffer, offset: Int = 0) : BinaryDebugMessage<DatabaseQuery>(6.toByte(), buf, offset) {
         var parameters by Schema.parameters
         var query by Schema.query
 
@@ -142,7 +130,7 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
     }
 
     class DatabaseResponse(buf: ByteBuffer, offset: Int = 0) :
-        BinaryDebugMessage<DatabaseResponse>(8.toByte(), buf, offset) {
+        BinaryDebugMessage<DatabaseResponse>(7.toByte(), buf, offset) {
         var responseTime by Schema.responseTime
 
         override val schema = Schema
@@ -153,7 +141,7 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
         }
     }
 
-    class Log(buf: ByteBuffer, offset: Int = 0) : BinaryDebugMessage<Log>(9.toByte(), buf, offset) {
+    class Log(buf: ByteBuffer, offset: Int = 0) : BinaryDebugMessage<Log>(8.toByte(), buf, offset) {
         var message by Schema.message
         var extra by Schema.extra
 
@@ -170,7 +158,6 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
 }
 
 enum class DBTransactionEvent {
-    OPEN,
     COMMIT,
     ROLLBACK
 }
