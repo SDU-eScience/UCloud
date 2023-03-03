@@ -24,19 +24,19 @@ export function MainContent(): JSX.Element {
     const scrollRef = React.useRef<FixedSizeList<DebugContext[]> | null>(null);
     const lastInViewRef = React.useRef(0);
 
+    const serviceLogs = logs.content[service] ?? [];
     const setContext = React.useCallback((d: DebugContext | null) => {
         if (d === null) {
             if (debugMessageStore.contextRoot() != null) {
                 debugMessageStore.clearActiveContext();
             }
             setRouteComponents([]);
-            scrollRef.current?.scrollToItem(logs.content[service].length - 1);
             return;
         }
         debugMessageStore.addDebugRoot(d);
         replayMessages(activeService.generation, d.id, d.timestamp);
         setRouteComponents([d]);
-    }, [setRouteComponents, logs, service]);
+    }, [setRouteComponents]);
 
     const onWheel = React.useCallback((e: React.WheelEvent<HTMLDivElement>) => {
         if (e.deltaY < 0) {
@@ -44,7 +44,6 @@ export function MainContent(): JSX.Element {
         }
     }, []);
 
-    const serviceLogs = logs.content[service] ?? [];
     const activeContextOrMessage = routeComponents.at(-1);
 
     React.useEffect(() => {
@@ -81,7 +80,7 @@ export function MainContent(): JSX.Element {
                     {({height, width}) => {
                         if (serviceLogs.length === 0) return <div />;
                         return <div onScroll={e => console.log(e)} onWheel={onWheel}>
-                            <List ref={scrollRef} itemData={serviceLogs} height={height - 25} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
+                            <List initialScrollOffset={Number.MAX_VALUE} ref={scrollRef} itemData={serviceLogs} height={height - 25} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
                                 {({index, data, style}) => {
                                     const item = data[index];
                                     lastInViewRef.current = index;
