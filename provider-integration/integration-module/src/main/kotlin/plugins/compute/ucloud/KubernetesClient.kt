@@ -439,6 +439,11 @@ class KubernetesClient(
         }
 
         engine {
+            // NOTE(Dan): All the traffic is going to the same endpoint, so we definitely just want to keep the same
+            // limit.
+            maxConnectionsCount = 100_000
+            endpoint { maxConnectionsPerRoute = 100_000 }
+
             https {
                 trustManager = configurationSource.retrieveConnection()?.trustManager
             }
