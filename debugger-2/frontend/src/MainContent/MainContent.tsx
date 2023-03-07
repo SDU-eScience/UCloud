@@ -23,8 +23,7 @@ export function MainContent(): JSX.Element {
 
     const logRef = logs.content[service];
 
-    React.useEffect(() => {
-        if (logRef == null) return;
+    if (logRef != null) {
         if (activeService.stupidActiveContext) {
             const entry = logRef.find(it => it.id === activeService.stupidActiveContext?.id);
             if (entry) {
@@ -34,7 +33,8 @@ export function MainContent(): JSX.Element {
                 replayMessages(activeService.generation, entry.id, entry.timestamp)
             }
         }
-    }, [logRef, logRef?.length]);
+    }
+
 
     const scrollRef = React.useRef<FixedSizeList<DebugContext[]> | null>(null);
     const lastInViewRef = React.useRef(0);
@@ -53,6 +53,11 @@ export function MainContent(): JSX.Element {
         pushStateToHistory(activeService.service, activeService.generation, {id: d.id, timestamp: d.timestamp});
         setRouteComponents([d]);
     }, [setRouteComponents]);
+
+    if (activeService.stupidClearRoot) {
+        activeService.stupidClearRoot = false;
+        setContext(null);
+    }
 
     const activeContextOrMessage = routeComponents.at(-1);
     const serviceLogs = logRef ?? [];

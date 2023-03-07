@@ -162,6 +162,7 @@ export const activeService = new class {
     private subscriptions: (() => void)[] = [];
 
     public stupidActiveContext?: Pick<DebugContext, "id" | "timestamp">;
+    public stupidClearRoot: boolean = false;
 
     public get service() {
         return this.activeService;
@@ -472,10 +473,10 @@ window.onpopstate = e => {
     activeService.setService(service ?? "", generation ?? "");
     activeService.stupidActiveContext = context;
     if (context == null) {
+        activeService.stupidClearRoot = true;
         debugMessageStore.clearActiveContext();
-        debugMessageStore.emitChange();
+        activeService.emitChange();
     }
-    console.log("popstate", service, generation, context)
 }
 
 window.onpageshow = e => {
@@ -486,17 +487,13 @@ window.onpageshow = e => {
     const parsedCtxId = toNumberOrUndefined(contextId);
     const parsedCtxTs = toNumberOrUndefined(contextTimestamp);
 
-    window.history.replaceState({
-        service,
-        generation,
-        context: contextId && contextTimestamp ? {id: parsedCtxId, timestamp: parsedCtxTs} : undefined
-    }, "");
-
-    activeService.stupidActiveContext = parsedCtxId && parsedCtxTs ? {
+    const ctxInfo = parsedCtxId && parsedCtxTs ? {
         id: parsedCtxId,
-        timestamp: parsedCtxTs
+        timestamp: parsedCtxTs,
     } : undefined;
 
+    pushStateToHistory(service, generation, ctxInfo);
+    activeService.stupidActiveContext = ctxInfo;
     updateWhenReady(() => {
         activeService.setService(service ?? "", generation);
         if (service && generation) {
