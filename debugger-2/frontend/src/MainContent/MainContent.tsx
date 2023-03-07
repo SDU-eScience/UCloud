@@ -1,9 +1,10 @@
 import * as React from "react";
 import {BinaryDebugMessageType, ClientRequest, ClientResponse, DatabaseQuery, DatabaseResponse, DatabaseTransaction, DBTransactionEvent, DebugContext, DebugContextType, DebugMessage, LargeText, Log, MessageImportance, ServerRequest, ServerResponse} from "../WebSockets/Schema";
-import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, isDebugMessage, logMessages, debugMessageStore, replayMessages, pushStateToHistory} from "../WebSockets/Socket";
+import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, logMessages, debugMessageStore, replayMessages} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList, FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
+import {isDebugMessage, pushStateToHistory} from "../Utilities/Utilities";
 
 // Notes/Issues:
 //  Fetching missing contexts in time-range sometimes misses some. Backend solution timing-issue. (Medium)
@@ -23,6 +24,7 @@ export function MainContent(): JSX.Element {
 
     const logRef = logs.content[service];
 
+    // Note(Jonas): We'd rather that this check happens more rarely, but current, this is the easiest approach.
     if (logRef != null) {
         if (activeService.stupidActiveContext) {
             const entry = logRef.find(it => it.id === activeService.stupidActiveContext?.id);
@@ -34,7 +36,6 @@ export function MainContent(): JSX.Element {
             }
         }
     }
-
 
     const scrollRef = React.useRef<FixedSizeList<DebugContext[]> | null>(null);
     const lastInViewRef = React.useRef(0);
@@ -54,6 +55,8 @@ export function MainContent(): JSX.Element {
         setRouteComponents([d]);
     }, [setRouteComponents]);
 
+    // Note(Jonas): Would also be better if it happened more rarely,
+    // but this is the simplest way with the current implementation.
     if (activeService.stupidClearRoot) {
         activeService.stupidClearRoot = false;
         setContext(null);

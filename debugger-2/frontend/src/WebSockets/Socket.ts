@@ -1,4 +1,15 @@
-import {Log, DebugContext, getServiceName, DebugContextType, getGenerationName, readInt4, BinaryDebugMessageType, DebugMessage, ClientRequest, ClientResponse, DatabaseQuery, DatabaseResponse, DatabaseTransaction, ServerRequest, ServerResponse} from "./Schema";
+import {
+    contextSort, debugMessageOrCtxSort, nullIfEmpty, pushStateToHistory, toNumberOrUndefined
+} from "../Utilities/Utilities";
+import {
+    activateServiceRequest, fetchPreviousMessagesRequest, fetchTextBlobRequest,
+    replayMessagesRequest, resetMessagesRequest, setSessionStateRequest
+} from "./Requests";
+import {
+    Log, DebugContext, getServiceName, DebugContextType, getGenerationName, readInt4,
+    BinaryDebugMessageType, DebugMessage, ClientRequest, ClientResponse, DatabaseQuery,
+    DatabaseResponse, DatabaseTransaction, ServerRequest, ServerResponse
+} from "./Schema";
 
 let socket: WebSocket | null = null;
 let options: SocketOptions;
@@ -20,7 +31,7 @@ export function initializeConnection(opts: SocketOptions) {
 const FRAME_SIZE = 256;
 
 function initializeSocket() {
-    socket = new WebSocket("wss://debugger-api.localhost.direct");
+    socket = new WebSocket("ws://localhost:5511");
     socket.binaryType = "arraybuffer";
 
     socket.onopen = () => {
@@ -114,7 +125,7 @@ function debugMessageFromType(view: DataView, offset: number): DebugMessage {
 
 type LogMessageExtraCache = Record<string, string>;
 type LogMessageObject = Record<string, LogMessageExtraCache>
-// TODO(Jonas): We probably need this as a service, and emit the change.
+
 export const logMessages = new class {
     private messages: LogMessageObject = {};
     private subscriptions: (() => void)[] = [];
@@ -161,6 +172,8 @@ export const activeService = new class {
     private activeGeneration: string = "";
     private subscriptions: (() => void)[] = [];
 
+    // Note(Jonas): As the name suggests, this is not a great solution.
+    // Another way, maybe a specific service or other could be used focusing on this alone, that emits those conditions.
     public stupidActiveContext?: Pick<DebugContext, "id" | "timestamp">;
     public stupidClearRoot: boolean = false;
 
@@ -204,10 +217,6 @@ export const activeService = new class {
 export interface DebugContextAndChildren {
     ctx: DebugContext;
     children: (DebugMessage | DebugContextAndChildren)[]
-}
-
-export function isDebugMessage(input: DebugMessage | DebugContext | DebugContextAndChildren): input is DebugMessage {
-    return "ctxId" in input;
 }
 
 type ContextMap = Record<string, DebugContext[]>;
@@ -318,16 +327,6 @@ export const debugMessageStore = new class {
     }
 }();
 
-function debugMessageOrCtxSort(a: (DebugMessage | DebugContextAndChildren), b: (DebugMessage | DebugContextAndChildren)): number {
-    const timestampA = isDebugMessage(a) ? a.timestamp : a.ctx.timestamp;
-    const timestampB = isDebugMessage(b) ? b.timestamp : b.ctx.timestamp;
-    return timestampA - timestampB;
-}
-
-function contextSort(a: DebugContext, b: DebugContext): number {
-    return a.timestamp - b.timestamp;
-}
-
 export const serviceStore = new class {
     private services: string[] = [];
     private generations: Record<string, string> = {};
@@ -363,22 +362,18 @@ export const serviceStore = new class {
 
 type Nullable<T> = T | null;
 
+/* 
+ * CALLS
+ **/
+
 function activateService(service: Nullable<string>, generation: Nullable<string>) {
     if (!isSocketReady(socket)) return;
     socket.send(activateServiceRequest(service, generation));
 }
 
-function activateServiceRequest(service: Nullable<string>, generation: Nullable<string>): string {
-    return JSON.stringify({
-        type: "activate_service",
-        service,
-        generation
-    })
-}
-
 function resetMessages(): void {
     if (!isSocketReady(socket)) return;
-    socket.send(JSON.stringify({type: "clear_active_context"}));
+    socket.send(resetMessagesRequest());
 }
 
 export function replayMessages(generation: string, context: number, timestamp: number): void {
@@ -386,28 +381,10 @@ export function replayMessages(generation: string, context: number, timestamp: n
     socket.send(replayMessagesRequest(generation, context, timestamp));
 }
 
-function replayMessagesRequest(generation: string, context: number, timestamp: number): string {
-    return JSON.stringify({
-        type: "replay_messages",
-        generation,
-        context,
-        timestamp,
-    });
-}
-
 export function fetchPreviousMessage(): void {
     const ctx = debugMessageStore.earliestContext();
     if (!isSocketReady(socket)) return;
     socket.send(fetchPreviousMessagesRequest(ctx != null ? ctx : {timestamp: new Date().getTime(), id: 2}, false));
-}
-
-function fetchPreviousMessagesRequest(ctx: Pick<DebugContext, "timestamp" | "id">, onlyFindSelf?: boolean): string {
-    return JSON.stringify({
-        type: "fetch_previous_messages",
-        timestamp: ctx.timestamp,
-        id: ctx.id,
-        onlyFindSelf
-    });
 }
 
 export function setSessionState(query: string, filters: Set<DebugContextType>, level: string): void {
@@ -424,37 +401,15 @@ export function setSessionState(query: string, filters: Set<DebugContextType>, l
     socket.send(req);
 }
 
-interface WithLength {
-    length: number;
-}
-
-function nullIfEmpty<T extends WithLength>(f: T): T | null {
-    return f.length === 0 ? null : f;
-}
-
-export function setSessionStateRequest(query: string | null, filters: string[] | null, level: string | null): string {
-    return JSON.stringify({
-        type: "set_session_state",
-        query: query,
-        filters: filters,
-        level: level,
-    });
-}
-
 export function fetchTextBlob(generation: string, blobId: string, fileIndex: string): void {
     if (!isSocketReady(socket)) return;
     const req = fetchTextBlobRequest(generation, blobId, fileIndex);
     socket.send(req);
 }
 
-function fetchTextBlobRequest(generation: string, blobId: string, fileIndex: string) {
-    return JSON.stringify({
-        type: "fetch_text_blob",
-        generation,
-        id: blobId,
-        fileIndex,
-    });
-}
+/* 
+ * CALLS
+ **/
 
 function isSocketReady(socket: WebSocket | null): socket is WebSocket {
     return !!(socket && socket.readyState === socket.OPEN);
@@ -479,7 +434,11 @@ window.onpopstate = e => {
     }
 }
 
-window.onpageshow = e => {
+/**
+ * WINDOW-EVENTS
+ **/
+
+window.onpageshow = () => {
     const {pathname} = window.location;
     const [generation, contextId, contextTimestamp] = pathname.split("/").filter(it => it);
     const service = window.location.hash.length > 0 ? window.location.hash.slice(1) : "";
@@ -505,36 +464,14 @@ window.onpageshow = e => {
     });
 }
 
+/**
+ * WINDOW-EVENTS
+ **/
+
 function updateWhenReady(func: () => void): void {
     if (isSocketReady(socket)) {
         func();
     } else {
         window.setTimeout(() => updateWhenReady(func), 400);
     }
-}
-
-export function newURL(service?: string, generation?: string, ctx?: Pick<DebugContext, "id" | "timestamp">): string {
-    if (!service || !generation) return "";
-    let url = `/${generation}`;
-    if (ctx) url += `/${ctx.id}/${ctx.timestamp}`;
-    url += `#${service}`;
-    return url;
-}
-
-function toNumberOrUndefined(str?: string): number | undefined {
-    if (!str) return undefined;
-    try {
-        return parseInt(str, 10);
-    } catch {
-        return undefined;
-    }
-}
-
-export function pushStateToHistory(service?: string, generation?: string, ctx?: Pick<DebugContext, "id" | "timestamp">) {
-    console.log("Pushing state to history:", service, generation, ctx);
-    window.history.pushState({
-        service,
-        generation,
-        context: ctx
-    }, "", newURL(service, generation, ctx));
 }
