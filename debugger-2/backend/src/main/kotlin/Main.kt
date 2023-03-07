@@ -260,9 +260,6 @@ fun main(args: Array<String>) {
                             is ClientRequest.ClearActiveContext -> {
                                 session.clearLogMessages()
                                 session.clearContextMessages()
-                                if (session.generation == null) {
-                                    println("Generation is null. It should not be!")
-                                }
                                 val generation = session.generation ?: break
                                 val startTime = session.toReplayFrom ?: break
                                 session.toReplayFrom = null
@@ -326,7 +323,7 @@ fun main(args: Array<String>) {
                                 val generation = session.generation ?: continue
                                 val startFile = findStartFile(directory, generation, request.timestamp) ?: continue
                                 sessionMutex.withLock {
-                                    session.findContextsBackwards(directory, generation, startFile, request.id)
+                                    session.findContextsBackwards(directory, generation, startFile, request.id, request.onlyFindSelf ?: false)
                                 }
                             }
                         }
@@ -346,7 +343,7 @@ fun main(args: Array<String>) {
 }
 
 const val CONTEXT_FIND_COUNT = 20
-suspend fun ClientSession.findContextsBackwards(directory: File, generation: Long, fileIndex: Int, ctxId: Int) {
+suspend fun ClientSession.findContextsBackwards(directory: File, generation: Long, fileIndex: Int, ctxId: Int, onlyFindSelf: Boolean = false) {
     var remainingToFind = CONTEXT_FIND_COUNT
     var startAdding = false
     var currentFileIndex = fileIndex
@@ -359,6 +356,10 @@ suspend fun ClientSession.findContextsBackwards(directory: File, generation: Lon
             val ctx = file.retrieve() ?: continue
             if (ctx.id == ctxId) {
                 startAdding = true
+                if (onlyFindSelf) {
+                    this.acceptContext(generation, ctx, arrayListOf(1L))
+                    break@outer
+                }
             } else if (ctx.parent == 1 && startAdding) {
                 this.acceptContext(generation, ctx, arrayListOf(1L))
                 remainingToFind--
@@ -393,7 +394,6 @@ suspend fun ClientSession.findNewestContext(
     generation: Long?,
     service: String?
 ) {
-    println("Finding new context.")
     if (service == null || generation == null) return
     var highestCtxFile = 0
     while (ContextReader.exists(directory, generation, highestCtxFile + 1)) {
@@ -536,7 +536,7 @@ sealed class ClientRequest {
 
     @Serializable
     @SerialName("fetch_previous_messages")
-    data class FetchPreviousMessage(val timestamp: Long, val id: Int) : ClientRequest()
+    data class FetchPreviousMessage(val timestamp: Long, val id: Int, val onlyFindSelf: Boolean?) : ClientRequest()
 }
 
 data class ClientSession(

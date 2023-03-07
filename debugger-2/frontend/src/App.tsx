@@ -117,7 +117,7 @@ function ServiceList({services}: ServiceListProps): JSX.Element {
                 </div>
             }
         })}
-    </div >
+    </div>
 }
 
 export default App;

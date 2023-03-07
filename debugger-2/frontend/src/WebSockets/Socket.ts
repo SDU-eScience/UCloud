@@ -68,12 +68,12 @@ function initializeSocket() {
                 break;
             }
             case 4: {
-                // Starts with Long for type (4)
-                // Followed by size (int)
+                // Starts with Long for type (8)
+                // Followed by size in int (4)
                 // Followed by text of length size.
                 const ID_SIZE = 4;
                 const TYPE_SIZE = 8;
-                const id = readInt4(view, 8)
+                const id = readInt4(view, TYPE_SIZE);
                 const textDecoder = new TextDecoder();
                 const u8a = new Uint8Array(view.buffer);
                 let slice = u8a.slice(TYPE_SIZE + ID_SIZE);
@@ -161,6 +161,8 @@ export const activeService = new class {
     private activeGeneration: string = "";
     private subscriptions: (() => void)[] = [];
 
+    public stupidActiveContext?: Pick<DebugContext, "id" | "timestamp">;
+
     public get service() {
         return this.activeService;
     }
@@ -169,14 +171,15 @@ export const activeService = new class {
         return this.activeGeneration;
     }
 
-    public setService(service: string): void {
+    public setService(service: string, generation?: string): void {
         const oldService = this.activeService;
         this.activeService = service;
-        this.activeGeneration = serviceStore.getGeneration(service);
+        this.activeGeneration = generation ?? serviceStore.getGeneration(service);
         if (service && oldService !== service && isSocketReady(socket)) {
-            socket.send(activateServiceRequest(service, this.activeGeneration));
-            this.emitChange();
+            activateService(service, this.activeGeneration);
+            pushStateToHistory(service, this.activeGeneration, this.stupidActiveContext);
         }
+        this.emitChange();
     }
 
     public subscribe(subscription: () => void) {
@@ -226,6 +229,7 @@ export const debugMessageStore = new class {
         this.ctxMap = {};
         this.activeContexts = null;
         this.entryCount = 0;
+        this.emitChange();
         resetMessages();
     }
 
@@ -234,7 +238,6 @@ export const debugMessageStore = new class {
         this.activeContexts = newRoot;
         this.ctxMap[debugContext.id] = newRoot;
         this.entryCount++;
-        this.emitChange();
     }
 
     public addDebugContext(debugContext: DebugContext): void {
@@ -359,6 +362,11 @@ export const serviceStore = new class {
 
 type Nullable<T> = T | null;
 
+function activateService(service: Nullable<string>, generation: Nullable<string>) {
+    if (!isSocketReady(socket)) return;
+    socket.send(activateServiceRequest(service, generation));
+}
+
 function activateServiceRequest(service: Nullable<string>, generation: Nullable<string>): string {
     return JSON.stringify({
         type: "activate_service",
@@ -389,18 +397,15 @@ function replayMessagesRequest(generation: string, context: number, timestamp: n
 export function fetchPreviousMessage(): void {
     const ctx = debugMessageStore.earliestContext();
     if (!isSocketReady(socket)) return;
-    socket.send(fetchPreviousMessagesRequest(ctx != null ?
-        ctx :
-        // Handle the case that the service hasn't yet produced any contexts before the button is clicked.
-        {timestamp: new Date().getTime(), id: 2})
-    );
+    socket.send(fetchPreviousMessagesRequest(ctx != null ? ctx : {timestamp: new Date().getTime(), id: 2}, false));
 }
 
-function fetchPreviousMessagesRequest(ctx: Pick<DebugContext, "timestamp" | "id">): string {
+function fetchPreviousMessagesRequest(ctx: Pick<DebugContext, "timestamp" | "id">, onlyFindSelf?: boolean): string {
     return JSON.stringify({
         type: "fetch_previous_messages",
         timestamp: ctx.timestamp,
         id: ctx.id,
+        onlyFindSelf
     });
 }
 
@@ -456,4 +461,83 @@ function isSocketReady(socket: WebSocket | null): socket is WebSocket {
 
 export function isSocketOpen(): boolean {
     return isSocketReady(socket);
+}
+
+window.onpopstate = e => {
+    const {service, generation, context} = e.state as {
+        service?: string;
+        generation?: string;
+        context?: Pick<DebugContext, "id" | "timestamp">
+    };
+    activeService.setService(service ?? "", generation ?? "");
+    activeService.stupidActiveContext = context;
+    if (context == null) {
+        debugMessageStore.clearActiveContext();
+        debugMessageStore.emitChange();
+    }
+    console.log("popstate", service, generation, context)
+}
+
+window.onpageshow = e => {
+    const {pathname} = window.location;
+    const [generation, contextId, contextTimestamp] = pathname.split("/").filter(it => it);
+    const service = window.location.hash.length > 0 ? window.location.hash.slice(1) : "";
+
+    const parsedCtxId = toNumberOrUndefined(contextId);
+    const parsedCtxTs = toNumberOrUndefined(contextTimestamp);
+
+    window.history.replaceState({
+        service,
+        generation,
+        context: contextId && contextTimestamp ? {id: parsedCtxId, timestamp: parsedCtxTs} : undefined
+    }, "");
+
+    activeService.stupidActiveContext = parsedCtxId && parsedCtxTs ? {
+        id: parsedCtxId,
+        timestamp: parsedCtxTs
+    } : undefined;
+
+    updateWhenReady(() => {
+        activeService.setService(service ?? "", generation);
+        if (service && generation) {
+            if (parsedCtxId && parsedCtxTs) {
+                if (!isSocketReady(socket)) return;
+                socket.send(fetchPreviousMessagesRequest({timestamp: parsedCtxTs, id: parsedCtxId}, true));
+            }
+        }
+    });
+}
+
+function updateWhenReady(func: () => void): void {
+    if (isSocketReady(socket)) {
+        func();
+    } else {
+        window.setTimeout(() => updateWhenReady(func), 400);
+    }
+}
+
+export function newURL(service?: string, generation?: string, ctx?: Pick<DebugContext, "id" | "timestamp">): string {
+    if (!service || !generation) return "";
+    let url = `/${generation}`;
+    if (ctx) url += `/${ctx.id}/${ctx.timestamp}`;
+    url += `#${service}`;
+    return url;
+}
+
+function toNumberOrUndefined(str?: string): number | undefined {
+    if (!str) return undefined;
+    try {
+        return parseInt(str, 10);
+    } catch {
+        return undefined;
+    }
+}
+
+export function pushStateToHistory(service?: string, generation?: string, ctx?: Pick<DebugContext, "id" | "timestamp">) {
+    console.log("Pushing state to history:", service, generation, ctx);
+    window.history.pushState({
+        service,
+        generation,
+        context: ctx
+    }, "", newURL(service, generation, ctx));
 }

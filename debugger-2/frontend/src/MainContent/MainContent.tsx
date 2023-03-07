@@ -1,6 +1,6 @@
 import * as React from "react";
 import {BinaryDebugMessageType, ClientRequest, ClientResponse, DatabaseQuery, DatabaseResponse, DatabaseTransaction, DBTransactionEvent, DebugContext, DebugContextType, DebugMessage, LargeText, Log, MessageImportance, ServerRequest, ServerResponse} from "../WebSockets/Schema";
-import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, isDebugMessage, logMessages, debugMessageStore, replayMessages} from "../WebSockets/Socket";
+import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, isDebugMessage, logMessages, debugMessageStore, replayMessages, pushStateToHistory} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList, FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -21,30 +21,41 @@ export function MainContent(): JSX.Element {
     const service = React.useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot());
     const logs = React.useSyncExternalStore(s => debugMessageStore.subscribe(s), () => debugMessageStore.getSnapshot());
 
+    const logRef = logs.content[service];
+
+    React.useEffect(() => {
+        if (logRef == null) return;
+        if (activeService.stupidActiveContext) {
+            const entry = logRef.find(it => it.id === activeService.stupidActiveContext?.id);
+            if (entry) {
+                setRouteComponents([entry]);
+                debugMessageStore.addDebugRoot(entry);
+                activeService.stupidActiveContext = undefined;
+                replayMessages(activeService.generation, entry.id, entry.timestamp)
+            }
+        }
+    }, [logRef, logRef?.length]);
+
     const scrollRef = React.useRef<FixedSizeList<DebugContext[]> | null>(null);
     const lastInViewRef = React.useRef(0);
 
-    const serviceLogs = logs.content[service] ?? [];
     const setContext = React.useCallback((d: DebugContext | null) => {
         if (d === null) {
             if (debugMessageStore.contextRoot() != null) {
                 debugMessageStore.clearActiveContext();
             }
             setRouteComponents([]);
+            pushStateToHistory(activeService.service, activeService.generation, activeService.stupidActiveContext);
             return;
         }
         debugMessageStore.addDebugRoot(d);
         replayMessages(activeService.generation, d.id, d.timestamp);
+        pushStateToHistory(activeService.service, activeService.generation, {id: d.id, timestamp: d.timestamp});
         setRouteComponents([d]);
     }, [setRouteComponents]);
 
-    const onWheel = React.useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-        if (e.deltaY < 0) {
-            //console.log("scrolling up", e)
-        }
-    }, []);
-
     const activeContextOrMessage = routeComponents.at(-1);
+    const serviceLogs = logRef ?? [];
 
     React.useEffect(() => {
         if (scrollRef.current) {
@@ -79,7 +90,7 @@ export function MainContent(): JSX.Element {
                 </div>) : (<AutoSizer defaultHeight={200}>
                     {({height, width}) => {
                         if (serviceLogs.length === 0) return <div />;
-                        return <div onScroll={e => console.log(e)} onWheel={onWheel}>
+                        return <div onScroll={e => console.log(e)}>
                             <List initialScrollOffset={Number.MAX_VALUE} ref={scrollRef} itemData={serviceLogs} height={height - 25} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
                                 {({index, data, style}) => {
                                     const item = data[index];
@@ -438,7 +449,6 @@ interface BreadcrumbsProps {
 }
 
 function BreadCrumbs({routeComponents, setRouteComponents, clearContext}: BreadcrumbsProps): JSX.Element {
-
     const setToParentComponent = React.useCallback((id: number) => {
         if (id === -1) {
             setRouteComponents([]);

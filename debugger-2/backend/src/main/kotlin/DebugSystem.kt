@@ -686,15 +686,15 @@ fun exampleProducer(logFolder: File) {
         (0 until 1).map {
             GlobalScope.launch {
                 while (isActive) {
-                    debug.useContext(DebugContextType.BACKGROUND_TASK, "📯 Context $it, ${ctxId++}") {
+                    debug.useContext(DebugContextType.BACKGROUND_TASK, "Context $it, ${ctxId++}") {
                         repeat(10) {
-                            debug.log(MessageImportance.THIS_IS_NORMAL, "📜 Log $it")
+                            debug.log(MessageImportance.THIS_IS_NORMAL, "Log $it")
                             delay(50)
                         }
                         debug.log(
                             MessageImportance.THIS_IS_DANGEROUS,
                             "\uD83D\uDC7E Log with text so long, that is starts to go into the overflow buffer that we sometimes need to be able to access. Let's hope this works."
-                        )
+                          )
 
 
                         debug.useContext(DebugContextType.DATABASE_TRANSACTION, "💽 Database transaction ${ctxId++}") {
