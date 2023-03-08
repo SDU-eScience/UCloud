@@ -1,6 +1,6 @@
 import * as React from "react";
 import {BinaryDebugMessageType, ClientRequest, ClientResponse, DatabaseQuery, DatabaseResponse, DatabaseTransaction, DBTransactionEvent, DebugContext, DebugContextType, DebugMessage, LargeText, Log, MessageImportance, ServerRequest, ServerResponse} from "../WebSockets/Schema";
-import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, logMessages, debugMessageStore, replayMessages} from "../WebSockets/Socket";
+import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, logMessages, debugMessageStore, replayMessages, historyWatcherService} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList, FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -21,21 +21,22 @@ export function MainContent(): JSX.Element {
     const [routeComponents, setRouteComponents] = React.useState<DebugMessageOrCtx[]>([]);
     const service = React.useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot());
     const logs = React.useSyncExternalStore(s => debugMessageStore.subscribe(s), () => debugMessageStore.getSnapshot());
+    const historyInfo = React.useSyncExternalStore(s => historyWatcherService.subscribe(s), () => historyWatcherService.getSnapshot());
 
     const logRef = logs.content[service];
 
-    // Note(Jonas): We'd rather that this check happens more rarely, but current, this is the easiest approach.
-    if (logRef != null) {
-        if (activeService.stupidActiveContext) {
-            const entry = logRef.find(it => it.id === activeService.stupidActiveContext?.id);
-            if (entry) {
-                setRouteComponents([entry]);
-                debugMessageStore.addDebugRoot(entry);
-                activeService.stupidActiveContext = undefined;
-                replayMessages(activeService.generation, entry.id, entry.timestamp)
-            }
+    React.useEffect(() => {
+        if (logRef == null) return;
+        const ctx = historyInfo.activeContext;
+        if (ctx == null) return;
+        const entry = logRef.find(it => it.id === ctx.id);
+        if (entry) {
+            setRouteComponents([entry]);
+            debugMessageStore.addDebugRoot(entry);
+            historyWatcherService.info.activeContext = undefined;
+            replayMessages(activeService.generation, entry.id, entry.timestamp)
         }
-    }
+    }, [historyInfo.activeContext, logRef]);
 
     const scrollRef = React.useRef<FixedSizeList<DebugContext[]> | null>(null);
     const lastInViewRef = React.useRef(0);
@@ -46,7 +47,7 @@ export function MainContent(): JSX.Element {
                 debugMessageStore.clearActiveContext();
             }
             setRouteComponents([]);
-            pushStateToHistory(activeService.service, activeService.generation, activeService.stupidActiveContext);
+            pushStateToHistory(activeService.service, activeService.generation, historyWatcherService.info.activeContext);
             return;
         }
         debugMessageStore.addDebugRoot(d);
@@ -55,12 +56,10 @@ export function MainContent(): JSX.Element {
         setRouteComponents([d]);
     }, [setRouteComponents]);
 
-    // Note(Jonas): Would also be better if it happened more rarely,
-    // but this is the simplest way with the current implementation.
-    if (activeService.stupidClearRoot) {
-        activeService.stupidClearRoot = false;
+    React.useEffect(() => {
+        historyWatcherService.info.shouldClearRoot = false;
         setContext(null);
-    }
+    }, [historyInfo.shouldClearRoot, setContext]);
 
     const activeContextOrMessage = routeComponents.at(-1);
     const serviceLogs = logRef ?? [];

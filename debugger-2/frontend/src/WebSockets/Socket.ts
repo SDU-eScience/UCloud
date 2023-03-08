@@ -167,15 +167,39 @@ export const logMessages = new class {
     }
 }();
 
+interface HistoryWatcherService {
+    activeContext?: Pick<DebugContext, "id" | "timestamp">;
+    shouldClearRoot: boolean;
+}
+export const historyWatcherService = new class {
+    public info: HistoryWatcherService = {
+        activeContext: undefined,
+        shouldClearRoot: false
+    }
+    private subscriptions: (() => void)[] = [];
+
+    public subscribe(subscription: () => void) {
+        this.subscriptions = [...this.subscriptions, subscription];
+        return () => {
+            this.subscriptions = this.subscriptions.filter(s => s !== subscription);
+        };
+    }
+
+    public getSnapshot(): HistoryWatcherService {
+        return this.info;
+    }
+
+    public emitChange(): void {
+        for (const subscriber of this.subscriptions) {
+            subscriber();
+        }
+    }
+}();
+
 export const activeService = new class {
     private activeService: string = "";
     private activeGeneration: string = "";
     private subscriptions: (() => void)[] = [];
-
-    // Note(Jonas): As the name suggests, this is not a great solution.
-    // Another way, maybe a specific service or other could be used focusing on this alone, that emits those conditions.
-    public stupidActiveContext?: Pick<DebugContext, "id" | "timestamp">;
-    public stupidClearRoot: boolean = false;
 
     public get service() {
         return this.activeService;
@@ -191,7 +215,7 @@ export const activeService = new class {
         this.activeGeneration = generation ?? serviceStore.getGeneration(service);
         if (service && oldService !== service && isSocketReady(socket)) {
             activateService(service, this.activeGeneration);
-            pushStateToHistory(service, this.activeGeneration, this.stupidActiveContext);
+            pushStateToHistory(service, this.activeGeneration, historyWatcherService.info.activeContext);
         }
         this.emitChange();
     }
@@ -426,9 +450,9 @@ window.onpopstate = e => {
         context?: Pick<DebugContext, "id" | "timestamp">
     };
     activeService.setService(service ?? "", generation ?? "");
-    activeService.stupidActiveContext = context;
+    historyWatcherService.info.activeContext = context;
     if (context == null) {
-        activeService.stupidClearRoot = true;
+        historyWatcherService.info.shouldClearRoot = true;
         debugMessageStore.clearActiveContext();
         activeService.emitChange();
     }
@@ -452,7 +476,7 @@ window.onpageshow = () => {
     } : undefined;
 
     pushStateToHistory(service, generation, ctxInfo);
-    activeService.stupidActiveContext = ctxInfo;
+    historyWatcherService.info.activeContext = ctxInfo;
     updateWhenReady(() => {
         activeService.setService(service ?? "", generation);
         if (service && generation) {
