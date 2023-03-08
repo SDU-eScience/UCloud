@@ -258,8 +258,11 @@ class ProductService(
 
             val result = rows.map { defaultMapper.decodeFromString(Product.serializer(), it.getString(0)!!) }
 
-            result.forEach { product ->
-                product.balance = processor.retrieveBalanceFromProduct(actorAndProject.actor.safeUsername(), product.category)
+            if (request.includeBalance == true) {
+                result.forEach { product ->
+                    product.balance =
+                        processor.retrieveBalanceFromProduct(actorAndProject.actor.safeUsername(), product.category)
+                }
             }
 
             val next = if (result.size < itemsPerPage) {
