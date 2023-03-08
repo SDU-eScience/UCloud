@@ -72,7 +72,7 @@ export default function ProviderOverview() {
 const ProviderCard = styled.div`
   padding: 10px 10px 10px 10px;
   width: 250px;
-  height: 400px;
+  height: 412px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;

@@ -54,8 +54,8 @@ import {NotificationDashboardCard} from "@/Notifications";
 import {grantsLink} from "@/UtilityFunctions";
 import {isAdminOrPI, useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
-import { ProviderTitle } from "@/Providers/ProviderTitle";
-import { ProviderLogo } from "@/Providers/ProviderLogo";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
 
 const MY_WORKSPACE = "My Workspace";
