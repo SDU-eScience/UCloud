@@ -185,7 +185,6 @@ class ProductService(
                     setParameter("product_filter", request.filterArea?.name)
                     setParameter("category_filter", request.filterCategory)
                     setParameter("version_filter", request.filterVersion)
-                    setParameter("include_balance", request.includeBalance == true)
                     setParameter("accountId", actorAndProject.project ?: actorAndProject.actor.safeUsername())
                     setParameter("account_is_project", actorAndProject.project != null)
 
@@ -196,18 +195,11 @@ class ProductService(
                 },
                 """
                     with my_wallets as (
-                        select wa.category as wallet_category, wa.id as wallet_id, username, project_id, provider, balance
+                        select wa.category as wallet_category, wa.id as wallet_id, username, project_id, provider
                         from
                             accounting.wallets wa join
                             accounting.wallet_owner wo on wo.id = wa.owned_by join
-                            accounting.product_categories pc on pc.id = wa.category left join
-                            (
-                                select sum(walloc.balance) balance, wa.id
-                                from
-                                    accounting.wallets wa join
-                                    accounting.wallet_allocations walloc on wa.id = walloc.associated_wallet
-                                group by wa.id
-                            ) as balances on (:include_balance and balances.id = wa.id)
+                            accounting.product_categories pc on pc.id = wa.category
                         where
                             (
                                 (not :account_is_project and wo.username = :accountId) or
@@ -229,7 +221,7 @@ class ProductService(
                     select accounting.product_to_json(
                         p,
                         pc,
-                        (CASE WHEN :include_balance = true THEN (coalesce(balance::bigint, 0)) END)
+                        0
                     )
                     from
                         accounting.products p join
@@ -258,13 +250,6 @@ class ProductService(
                         (
                             :name_filter::text is null or
                             p.name = :name_filter
-                        ) and
-                        (
-                            not :include_balance or
-                            (
-                                (mw.balance is not null and mw.balance > 0) or
-                                (p.free_to_use)
-                            )
                         )
                     order by pc.provider, pc.category, p.name
                     limit $itemsPerPage;
@@ -272,6 +257,11 @@ class ProductService(
             ).rows
 
             val result = rows.map { defaultMapper.decodeFromString(Product.serializer(), it.getString(0)!!) }
+
+            result.forEach { product ->
+                product.balance = processor.retrieveBalanceFromProduct(actorAndProject.actor.safeUsername(), product.category)
+            }
+
             val next = if (result.size < itemsPerPage) {
                 null
             } else buildString {
