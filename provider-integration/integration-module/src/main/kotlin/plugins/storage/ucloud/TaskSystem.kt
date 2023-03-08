@@ -107,7 +107,7 @@ class TaskSystem(
                     try {
                         val task = db.withSession { session ->
                             val processorAndTask = run {
-                                val rows = ArrayList<Pair<String, StorageTask>>()
+                                val rows = ArrayList<Pair<String?, StorageTask>>()
                                 session
                                     .prepareStatement(
                                         """
@@ -131,14 +131,14 @@ class TaskSystem(
                                         readRow = { row ->
                                             rows.add(
                                                 Pair(
-                                                    row.getString(0)!!,
+                                                    row.getString(0),
                                                     StorageTask(
                                                         row.getString(1)!!,
                                                         row.getString(2)!!,
                                                         row.getString(3)?.let { defaultMapper.decodeFromString(TaskRequirements.serializer(), it) },
                                                         row.getString(4)!!.let { defaultMapper.decodeFromString(JsonObject.serializer(), it) },
                                                         row.getString(5)?.let { defaultMapper.decodeFromString(JsonObject.serializer(), it) },
-                                                        row.getLong(6)!!
+                                                        row.getLong(6) ?: 0L
                                                     )
                                                 )
                                             )
@@ -169,7 +169,7 @@ class TaskSystem(
                                 ).useAndInvoke(
                                     prepare = {
                                         bindString("processor_id", processorId)
-                                        bindString("last_processor", oldProcessor)
+                                        bindStringNullable("last_processor", oldProcessor)
                                         bindString("id", task.taskId)
                                     },
                                     readRow = { success = true}
