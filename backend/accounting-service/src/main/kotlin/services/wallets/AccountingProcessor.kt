@@ -129,7 +129,11 @@ private data class WalletAllocation(
         require(currentBalance <= initialBalance) { "currentBalance <= initialBalance ($currentBalance <= $initialBalance) $this" }
         require(localBalance <= initialBalance) { "localBalance <= initialBalance ($localBalance <= $initialBalance) $this" }
         require(currentBalance <= localBalance) { "currentBalance <= localBalance ($currentBalance <= $localBalance) $this" }
-        require(parentAllocation == null || id > parentAllocation) { "id > parentAllocation ($id <= $parentAllocation) $this" }
+        //legacy allocations does not live up to this requirement. Previous checks noted that this was only a problem
+        //for allocations with id below 5900
+        if(id > 5900) {
+            require(parentAllocation == null || id > parentAllocation) { "id > parentAllocation ($id <= $parentAllocation) $this" }
+        }
     }
 
     fun rollback() {
@@ -365,6 +369,8 @@ class AccountingProcessor(
     private var isActiveProcessor = false
 
     private var isSyncing = false
+    private var isLoading = false
+
     // Primary interface
     // =================================================================================================================
     // The accounting processors is fairly simple to use. It must first be started by call start(). After this you can
@@ -397,6 +403,7 @@ class AccountingProcessor(
                     becomeMasterAndListen(lock)
                 } catch (ex: Throwable) {
                     debug.logThrowable("Error happened when attempting to lock service", ex)
+                    log.info("Error happened when attempting to lock service: $ex")
                 }
 
                 delay(15000 + Random.nextLong(5000))
@@ -410,9 +417,6 @@ class AccountingProcessor(
         log.info("This service has become the master responsible for handling Accounting proccessor events!")
         activeProcessor.set(ActiveProcessor(addressToSelf))
         isActiveProcessor = true
-
-        // NOTE(Dan): Delay the initial scan to wait for server to be ready (needed for local dev)
-        delay(15_000)
 
         debug.enterContext("Loading accounting database") {
             loadDatabase()
@@ -535,7 +539,17 @@ class AccountingProcessor(
     // The accounting processor loads the data at start-up and only then. All wallet and allocation data is then used
     // only from the in-memory version which is periodically synchronized using attemptSynchronize().
     private suspend fun loadDatabase() {
+        log.info("Attempting to load postgres data.")
+
+        if (isLoading) {
+            log.info("Loading already in progress.")
+            return
+        }
+        isLoading = true
+
         db.withSession { session ->
+
+            log.info("Loading wallets")
             session.sendPreparedStatement(
                 {},
                 """
@@ -586,6 +600,7 @@ class AccountingProcessor(
             session.sendPreparedStatement({}, "close wallet_load")
             walletsIdGenerator = wallets.size
 
+            log.info("Loading allocations")
             session.sendPreparedStatement(
                 {},
                 """
@@ -616,19 +631,50 @@ class AccountingProcessor(
                     val id = row.getLong(0)!!.toInt()
                     val allocationPath = row.getString(1)!!
                     val walletOwner = row.getLong(2)!!.toInt()
-                    val startDate = row.getDouble(3)!!.toLong()
-                    val endDate = row.getDouble(4)?.toLong()
-                    val initialBalance = row.getLong(5)!!
-                    val currentBalance = row.getLong(6)!!
-                    val localBalance = row.getLong(7)!!
+                    var startDate = row.getDouble(3)!!.toLong()
+                    var endDate = row.getDouble(4)?.toLong()
+                    var initialBalance = row.getLong(5)!!
+                    var currentBalance = row.getLong(6)!!
+                    var localBalance = row.getLong(7)!!
                     val grantedIn = row.getLong(8)
                     val canAllocate = row.getBoolean(9)!!
                     val allowSubAllocationsToAllocate = row.getBoolean(10)!!
+
+                    var isDirty = false
 
                     val emptySlots = id - allocations.size
                     require(emptySlots >= 0) { "Duplicate allocations detected (or bad logic): $id" }
                     repeat(emptySlots) { allocations.add(null) }
                     require(allocations.size == id) { "Bad logic detected wallets[id] != id" }
+
+                    if ((endDate ?: Long.MAX_VALUE) < startDate) {
+                        log.info("Changing endDate of allocation $id.")
+                        endDate=startDate
+                        isDirty = true
+                    }
+                    if (initialBalance < 0) {
+                        log.info("Changing initialBalance of allocation $id from $initialBalance to 0")
+                        initialBalance = 0
+                        isDirty = true
+                    }
+
+                    if (currentBalance > initialBalance) {
+                        log.info("Changing currentBalance of allocation $id from $currentBalance to $initialBalance")
+                        currentBalance = initialBalance
+                        isDirty = true
+                    }
+
+                    if (localBalance > initialBalance) {
+                        log.info("Changing localBalance of allocation $id from $localBalance to $initialBalance")
+                        localBalance = initialBalance
+                        isDirty = true
+                    }
+
+                    if (currentBalance > localBalance) {
+                        log.info("Levels CurrentBalance with localbalance of allocation $id from $currentBalance to $localBalance")
+                        currentBalance = localBalance
+                        isDirty = true
+                    }
 
                     allocations.add(
                         WalletAllocation(
@@ -646,8 +692,11 @@ class AccountingProcessor(
                             grantedIn = grantedIn,
                             maxUsableBalance = null,
                             canAllocate = canAllocate,
-                            allowSubAllocationsToAllocate = allowSubAllocationsToAllocate
-                        ).also { it.verifyIntegrity() }
+                            allowSubAllocationsToAllocate = allowSubAllocationsToAllocate,
+                            isDirty = isDirty
+                        ).also {
+                            it.verifyIntegrity()
+                        }
                     )
                 }
             }
@@ -657,6 +706,7 @@ class AccountingProcessor(
 
             if (doDebug) printState(printWallets = true)
 
+            log.info("Loading applications that has not been synced")
             val unresolvedApplications = session.sendPreparedStatement(
                 //language=postgresql
                 """
@@ -673,7 +723,7 @@ class AccountingProcessor(
                     val application = defaultMapper.decodeFromString<GrantApplication>(it.getString(0)!!)
                     application
                 }
-
+            log.info("Deposits granted un-synchronized applications")
             unresolvedApplications.forEach { application ->
                 val (owner,type) = when (val recipient = application.currentRevision.document.recipient) {
                     is GrantApplication.Recipient.NewProject -> {
@@ -746,6 +796,7 @@ class AccountingProcessor(
                 }
             }
 
+            log.info("Loading Gifts and deposits un-synchronized claims")
             val giftIdsAndClaimer = session.sendPreparedStatement(
                 //language=postgresql
                 """
@@ -804,7 +855,6 @@ class AccountingProcessor(
                     val sourceAllocation = allocations.find { it.balance >= balance } ?: allocations.firstOrNull() ?:
                         throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
 
-
                     deposit(
                         AccountingRequest.Deposit(
                             ActorAndProject(Actor.System, null).actor,
@@ -821,8 +871,10 @@ class AccountingProcessor(
 
         }
 
+        //This check only runs with debug=true
         verifyFromTransactions()
         log.info("Load of DB done.")
+        isLoading = false
     }
 
     private suspend fun verifyFromTransactions() {
@@ -860,7 +912,6 @@ class AccountingProcessor(
 
             session.sendPreparedStatement({}, "close transaction_load")
         }
-
         for (i in allocations.indices) {
             // We only inspect allocations which are currently known by the database
             val allocation = allocations[i] ?: continue
@@ -1700,9 +1751,9 @@ class AccountingProcessor(
     private suspend fun attemptSynchronize(forced: Boolean = false) {
         val now = System.currentTimeMillis()
         if (now < nextSynchronization && !forced) return
-        if (isSyncing) {return}
+        if (isSyncing || isLoading) {return}
         isSyncing = true
-        log.info("synching")
+        log.info("Synching")
         debug.enterContext("Synchronizing accounting data") {
             debug.detailD("Filling products", Unit.serializer(), Unit)
             products.fillCache()
