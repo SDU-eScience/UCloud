@@ -11,6 +11,7 @@ const FilesRouter = React.lazy(() => import("@/Files/Files"));
 const ProviderRouter = React.lazy(() => import("@/Admin/Providers/Router"));
 const FileCollectionsRouter = React.lazy(() => import("@/Files/FileCollections"));
 const MetadataNamespacesRouter = React.lazy(() => import("@/Files/Metadata/Templates/Namespaces"));
+const SharesAcceptLink = React.lazy(() => import("@/Files/SharesAcceptLink"));
 const ShareRouter = React.lazy(() => import("@/Files/Shares"));
 const IngoingApplications = React.lazy(() => import("@/Project/Grant/IngoingApplications"));
 const OutgoingApplications = React.lazy(() => import("@/Project/Grant/OutgoingApplications"));
@@ -109,6 +110,7 @@ const Core = (): JSX.Element => (
                         <Route path={"/files/*"} element={React.createElement(requireAuth(FilesRouter))} />
                         <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
                         <Route path={"/shares/outgoing"} element={React.createElement(requireAuth(SharesOutgoing))} />
+                        <Route path={"/shares/invite/:id"} element={React.createElement(requireAuth(SharesAcceptLink))} />
                         <Route path={"/shares/*"} element={React.createElement(requireAuth(ShareRouter))} />
 
                         <Route path={"/syncthing"} element={React.createElement(requireAuth(SyncthingOverview))} />
