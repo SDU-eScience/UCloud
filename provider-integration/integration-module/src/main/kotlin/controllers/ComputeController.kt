@@ -5,6 +5,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
@@ -33,6 +34,7 @@ import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.secureToken
 import dk.sdu.cloud.plugins.SyncthingPlugin
 import dk.sdu.cloud.plugins.rpcClient
+import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.toReadableStacktrace
 import dk.sdu.cloud.utils.shellTracer
 import io.ktor.http.*
@@ -473,6 +475,13 @@ class ComputeController(
         }
     }
 
+    private val jobIsRunningCache = SimpleCache<String, Boolean>(maxAge = 10_000) { id ->
+        JobsControl.retrieve.call(
+            ResourceRetrieveRequest(JobIncludeFlags(), id),
+            controllerContext.pluginContext.rpcClient,
+        ).orNull()?.status?.state == JobState.RUNNING
+    }
+
     override fun onServerReady(rpcServer: RpcServer) {
         val providerId = controllerContext.configuration.core.providerId
         val ipcClient = controllerContext.pluginContext.ipcClient
@@ -496,6 +505,8 @@ class ComputeController(
                 if (session.sessionType != InteractiveSessionType.WEB) error("Unauthorized")
                 val target = session.target ?: error("Unauthorized")
                 if (host != target.ingress) error("Unauthorized")
+
+                if (jobIsRunningCache.get(session.jobId) != true) error("Unauthorized")
 
                 call.respondText("", status = io.ktor.http.HttpStatusCode.OK)
             } catch (ex: Throwable) {
