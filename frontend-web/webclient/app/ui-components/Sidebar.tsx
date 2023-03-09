@@ -191,7 +191,7 @@ interface SidebarStateProps {
     activeProject?: string;
 }
 
-export const Sidebar = (): JSX.Element | null => {
+export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | null => {
     const sidebarEntries = sideBarMenuElements;
     const {activeProject, loggedIn, page, avatar} = useSidebarReduxProps();
     const dispatch = useDispatch();
@@ -323,7 +323,7 @@ export const Sidebar = (): JSX.Element | null => {
 
     function onToggleTheme(e: React.SyntheticEvent<HTMLDivElement, Event>): void {
         stopPropagationAndPreventDefault(e);
-        console.log("toggleTheme(); // TODO")
+        toggleTheme();
     }
 };
 

@@ -2,7 +2,7 @@ import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
 import Icon, {EveryIcon} from "@/ui-components/Icon";
-import {Grid, Box, Button, Flex, Truncate} from "@/ui-components";
+import {Grid, Box, Button, Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
@@ -12,8 +12,6 @@ import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {ProductSelectorPlayground} from "@/Products/Selector";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {useProject} from "@/Project/cache";
 import {useSelector} from "react-redux";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
@@ -142,7 +140,7 @@ const colors: ThemeColor[] = [
     "wayfGreen",
 ];
 
-function UtilityBar(props): JSX.Element {
+export function UtilityBar(props: {searchEnabled: boolean}): JSX.Element {
     return (<Flex width="180px">
         <Box width="32px"><SearchThing enabled={props.searchEnabled} /></Box>
         <Box width="32px"><RefreshThing /></Box>

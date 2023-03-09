@@ -1,6 +1,4 @@
 import theme from "./theme";
-import {device} from "@/ui-components/Hide";
-
 import monoFont from "@/Assets/JetBrainsMono-Regular.woff2";
 import inter from "@/Assets/Inter.woff";
 
@@ -110,7 +108,20 @@ div.action-buttons > button.btn, button.btn.btn-primary, button.btn.btn-secondar
 
 /* Colors */
 html {
+
+    /* REWRITE-VARS */
     --sidebar: #2C68F6;
+    --sidebarWidth: 85px;
+
+    /* FONT-SIZES */
+    --secondaryText: 12px;
+    --buttonText: 14px;
+    --secondaryText: 16px;
+    --interactiveElementsSize: 20px;
+    /* FONT-SIZES end */
+    
+
+    /* REWRITE-VARS end */
 
 
 
@@ -159,10 +170,7 @@ html {
     --invertedThemeColor: #fff;
     --fixedBlack: #000;
     --activeSpreadsheet: #dcebf6;
-    --lightOrange: #ffc107;
-
-    --sidebarWidth: 85px;
-    
+    --lightOrange: #ffc107;    
     font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;
 }
 

@@ -10,18 +10,16 @@ import {useGlobal} from "@/Utilities/ReduxHooks";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
 import {
-    defaultErrorHandler, doNothing, inDevEnvironment,
-    isLightThemeStored,
-    joinToString, onDevSite,
-    randomUUID,
-    removeTrailingSlash,
+    defaultErrorHandler, doNothing,
+    isLightThemeStored, joinToString,
+    randomUUID, removeTrailingSlash,
 } from "@/UtilityFunctions";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {Box, Button, Flex, Icon, Link, List, Text} from "@/ui-components";
-import {PageV2, compute } from "@/UCloud";
+import {PageV2, compute} from "@/UCloud";
 import {ListV2} from "@/Pagination";
 import styled from "styled-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";

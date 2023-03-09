@@ -70,7 +70,6 @@ import {MainContainer} from "@/MainContainer/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
 import JobRouter from "@/Applications/Jobs/Browse";
 import {Debugger} from "@/Debug/Debugger";
-import Header from "@/Navigation/Header";
 import {CONTEXT_SWITCH, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
 import {Provider} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
@@ -94,7 +93,6 @@ const Core = (): JSX.Element => (
         <Dialog />
         <Snackbars />
         <Uploader />
-        <Sidebar />
         <div data-component="router-wrapper" style={{height: "calc(100vh - var(--termsize, 0px))", overflowX: "auto", overflowY: "auto"}}>
             <ErrorBoundary>
                 <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>
@@ -298,7 +296,7 @@ function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
         <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
             <GlobalStyle />
             <BrowserRouter basename="app">
-                <Header />
+                <Sidebar toggleTheme={toggle} />
                 {children}
             </BrowserRouter>
         </ThemeProvider>
