@@ -164,14 +164,14 @@ sealed class ComposeService {
 
                     """
                       {
-                        "image": "debugger-dev",
+                        "image": "dreg.cloud.sdu.dk/ucloud/debugger:2023.1.0",
                         "command": ["sh", "-c", "npm install ; npm start"],
                         "restart": "always",
                         "hostname": "debugger-fe",
                         "working_dir": "/opt/ucloud",
                         "ports": [],
                         "volumes": [
-                          "${environment.repoRoot}/debugger-2/frontend:/opt/ucloud",
+                          "${environment.repoRoot}/debugger/frontend:/opt/ucloud",
                           "${logs.absolutePath}:/var/log/ucloud"
                         ]
                       }
@@ -187,14 +187,14 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "debugger-dev",
+                        "image": "dreg.cloud.sdu.dk/ucloud/debugger:2023.1.0",
                         "command": ["sleep", "inf"],
                         "restart": "always",
                         "hostname": "debugger-be",
                         "working_dir": "/opt/ucloud",
                         "ports": [],
                         "volumes": [
-                          "${environment.repoRoot}/debugger-2/backend:/opt/ucloud",
+                          "${environment.repoRoot}/debugger/backend:/opt/ucloud",
                           "${logs.absolutePath}:/var/log/ucloud"
                         ]
                       }
