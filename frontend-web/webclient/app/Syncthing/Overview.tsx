@@ -8,7 +8,7 @@ import {default as ReactModal} from "react-modal";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {Label, Input, Image, Box, Flex, Tooltip, NoSelect, Icon, Text, Button, ExternalLink, FtIcon, List} from "@/ui-components";
 import MainContainer from "@/MainContainer/MainContainer";
 import HighlightedCard from "@/ui-components/HighlightedCard";

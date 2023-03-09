@@ -7,7 +7,7 @@ import {
     ResourceStatus,
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
-import {SidebarPages} from "@/ui-components/Sidebar";
+import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {Icon} from "@/ui-components";
 import {EnumFilter} from "@/Resource/Filter";
 import {ItemRenderer} from "@/ui-components/Browse";

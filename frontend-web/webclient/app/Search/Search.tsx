@@ -6,7 +6,7 @@ import * as React from "react";
 import {connect} from "react-redux";
 import {useLocation, useMatch, useNavigate} from "react-router";
 import {Dispatch} from "redux";
-import {SidebarPages} from "@/ui-components/Sidebar";
+import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {searchPage} from "@/Utilities/SearchUtilities";
 import {getQueryParamOrElse, RouterLocationProps} from "@/Utilities/URIUtilities";
 import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";

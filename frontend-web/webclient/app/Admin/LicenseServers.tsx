@@ -7,7 +7,6 @@ import {Box, Button, Flex, Icon, Input, Text, Card, Grid} from "@/ui-components"
 import * as Heading from "@/ui-components/Heading";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {useSidebarPage, SidebarPages} from "@/ui-components/Sidebar";
 import {MutableRefObject, useCallback, useEffect, useRef, useState} from "react";
 import {accounting, compute, PageV2} from "@/UCloud";
 import KubernetesLicense = compute.ucloud.KubernetesLicense;
@@ -19,6 +18,7 @@ import Wallet = accounting.Wallet;
 import {TextSpan} from "@/ui-components/Text";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useProjectId} from "@/Project/Api";
+import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 
 const LeftAlignedTableHeader = styled(TableHeader)`
   text-align: left;

@@ -12,7 +12,7 @@ import {BulkRequest, BulkResponse, compute, FindByStringId} from "@/UCloud/index
 import NameAndVersion = compute.NameAndVersion;
 import AppParameterValue = compute.AppParameterValue;
 import SimpleDuration = compute.SimpleDuration;
-import {SidebarPages} from "@/ui-components/Sidebar";
+import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {EnumFilter} from "@/Resource/Filter";
 import Application = compute.Application;

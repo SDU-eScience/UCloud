@@ -1,48 +1,26 @@
-import {Client} from "@/Authentication/HttpClientInstance";
-import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {defaultSearch, defaultSearchPlaceholder, HeaderSearchType, KeyCode} from "@/DefaultObjects";
 import {HeaderStateToProps} from "@/Navigation";
 import {setPrioritizedSearch} from "@/Navigation/Redux/HeaderActions";
-import Notification from "@/Notifications";
-import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
 import {useLocation, useNavigate} from "react-router";
 import {Dispatch} from "redux";
 import styled from "styled-components";
 import * as ui from "@/ui-components";
-import {DevelopmentBadgeBase} from "@/ui-components/Badge";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {Dropdown} from "@/ui-components/Dropdown";
 import Link from "@/ui-components/Link";
-import {TextSpan} from "@/ui-components/Text";
-import {ThemeToggler} from "@/ui-components/ThemeToggle";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {
-    inDevEnvironment,
-    isLightThemeStored,
-    useFrameHidden,
-    stopPropagationAndPreventDefault, doNothing
-} from "@/UtilityFunctions";
+import {doNothing} from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
-import {NewsPost} from "@/Dashboard/Dashboard";
-import {AutomaticGiftClaim} from "@/Services/Gifts/AutomaticGiftClaim";
-import {VersionManager} from "@/VersionManager/VersionManager";
 import {useGlobal} from "@/Utilities/ReduxHooks";
-import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
 import {useEffect, useRef} from "react";
-import {ResourceInit} from "@/Services/ResourceInit";
-import AppRoutes from "@/Routes";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
 }
 
-const DevelopmentBadge = (): JSX.Element | null => [CONF.DEV_SITE, CONF.STAGING_SITE].includes(window.location.host) ||
-    inDevEnvironment() ? <DevelopmentBadgeBase>{window.location.host}</DevelopmentBadgeBase> : null;
-
+// Note(Jonas): We need something similar NOT in the header. Or maybe keep this? Nah.
 export function NonAuthenticatedHeader(): JSX.Element {
     return (
         <HeaderContainer color="headerText" bg="headerBg">
@@ -55,131 +33,14 @@ export function NonAuthenticatedHeader(): JSX.Element {
     );
 }
 
-function Header(props: HeaderProps): JSX.Element | null {
-    const [upcomingDowntime, setUpcomingDowntime] = React.useState(-1);
-    const [intervalId, setIntervalId] = React.useState(-1);
-    const promises = usePromiseKeeper();
-
-    React.useEffect(() => {
-        if (Client.isLoggedIn) {
-            props.fetchAvatar();
-            fetchDowntimes();
-        }
-        setIntervalId(window.setInterval(fetchDowntimes, 600_000));
-        return () => {
-            if (intervalId !== -1) clearInterval(intervalId);
-        };
-    }, [Client.isLoggedIn]);
-
-    if (useFrameHidden()) return null;
-    if (!Client.isLoggedIn) return null;
-
-    const {refresh, spin} = props;
+function Header(): JSX.Element | null {
+    if (Math.random()) return null;
 
     return (
         <HeaderContainer color="headerText" bg="headerBg">
-            <Logo />
-            <ContextSwitcher />
-            <ui.Box ml="auto" />
             <Search />
-            <ui.Box mr="auto" />
-            {upcomingDowntime !== -1 ? (
-                <Link to={AppRoutes.news.detailed(upcomingDowntime)}>
-                    <ui.Tooltip
-                        right="0"
-                        bottom="1"
-                        tooltipContentWidth="115px"
-                        wrapperOffsetLeft="10px"
-                        trigger={<ui.Icon color="yellow" name="warning" />}
-                    >
-                        Upcoming downtime.<br />
-                        Click to view
-                    </ui.Tooltip>
-                </Link>
-            ) : null}
-            <ui.Hide xs sm md lg>
-                <DevelopmentBadge />
-            </ui.Hide>
-            <VersionManager />
-            <ui.Flex width="48px" justifyContent="center">
-                <BackgroundTasks />
-            </ui.Flex>
-            <ui.Flex width="48px" justifyContent="center">
-                <Refresh spin={spin} onClick={refresh} headerLoading={props.statusLoading} />
-            </ui.Flex>
-            <ui.Support />
-            <Notification />
-            <AutomaticGiftClaim />
-            <ResourceInit/>
-            <ClickableDropdown
-                width="200px"
-                left="-180%"
-                trigger={
-                    <ui.Flex data-component={"avatar"}>
-                        {Client.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}
-                    </ui.Flex>
-                }
-            >
-                {!CONF.STATUS_PAGE ? null : (
-                    <>
-                        <ui.Box>
-                            <ui.ExternalLink color="black" href={CONF.STATUS_PAGE}>
-                                <ui.Flex color="black">
-                                    <ui.Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" />
-                                    <TextSpan>Site status</TextSpan>
-                                </ui.Flex>
-                            </ui.ExternalLink>
-                        </ui.Box>
-                        <ui.Divider />
-                    </>
-                )}
-                <ui.Box>
-                    <Link color="black" to={AppRoutes.users.settings()}>
-                        <ui.Flex color="black">
-                            <ui.Icon name="properties" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                            <TextSpan>Settings</TextSpan>
-                        </ui.Flex>
-                    </Link>
-                </ui.Box>
-                <ui.Flex>
-                    <Link to={"/users/avatar"}>
-                        <ui.Flex color="black">
-                            <ui.Icon name="user" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                            <TextSpan>Edit Avatar</TextSpan>
-                        </ui.Flex>
-                    </Link>
-                </ui.Flex>
-                <ui.Flex onClick={() => Client.logout()} data-component={"logout-button"}>
-                    <ui.Icon name="logout" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                    Logout
-                </ui.Flex>
-                <ui.Divider />
-                <span>
-                    <ui.Flex cursor="auto">
-                        <ThemeToggler
-                            isLightTheme={isLightThemeStored()}
-                            onClick={onToggleTheme}
-                        />
-                    </ui.Flex>
-                </span>
-            </ClickableDropdown>
         </HeaderContainer>
     );
-
-    function onToggleTheme(e: React.SyntheticEvent<HTMLDivElement, Event>): void {
-        stopPropagationAndPreventDefault(e);
-        props.toggleTheme();
-    }
-
-    async function fetchDowntimes(): Promise<void> {
-        try {
-            if (!Client.isLoggedIn) return;
-            const result = await promises.makeCancelable(Client.get<Page<NewsPost>>("/news/listDowntimes")).promise;
-            if (result.response.items.length > 0) setUpcomingDowntime(result.response.items[0].id);
-        } catch (err) {
-            // Ignored
-        }
-    }
 }
 
 export const Refresh = ({
@@ -294,7 +155,7 @@ type SearchProps = SearchOperations & SearchStateProps;
 
 
 // eslint-disable-next-line no-underscore-dangle
-const _Search = (props: SearchProps): JSX.Element => {
+const _Search = (): JSX.Element => {
     const searchRef = useRef<HTMLInputElement>(null);
     const [searchPlaceholder] = useGlobal("searchPlaceholder", defaultSearchPlaceholder);
     const [onSearch] = useGlobal("onSearch", defaultSearch);

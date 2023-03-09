@@ -1,9 +1,8 @@
 import {emptyPage} from "@/DefaultObjects";
 import * as React from "react";
-import {connect} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 import {shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
-import {Dispatch} from "redux";
 import {dispatchSetProjectAction, getStoredProject} from "@/Project/Redux";
 import {Flex, Truncate, Text, Icon, Divider} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
@@ -14,8 +13,8 @@ import {initializeResources} from "@/Services/ResourceInit";
 import {useProject} from "./cache";
 import ProjectAPI, {Project, useProjectId} from "@/Project/Api";
 
-// eslint-disable-next-line no-underscore-dangle
-function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX.Element | null {
+export function ContextSwitcher(): JSX.Element | null {
+    const {activeProject, refresh} = useSelector((it: ReduxObject) => ({activeProject: it.project.project, refresh: it.header.refresh}));
     const project = useProject();
     const projectId = useProjectId();
     const [response, setFetchParams, params] = useCloudAPI<Page<Project>>(
@@ -26,17 +25,24 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
         emptyPage
     );
 
+    const dispatch = useDispatch();
+
+    const setProject = React.useCallback((id?: string) => {
+        dispatchSetProjectAction(dispatch, id);
+    }, [dispatch]);
+
     let activeContext = "My Workspace";
-    if (props.activeProject) {
+    if (activeProject) {
         const title = projectId === project.fetch().id ? project.fetch().specification.title : response.data.items.find(it => it.id === projectId)?.specification.title ?? "";
         if (title) {
             activeContext = title;
         } else {
-            activeContext = shortUUID(props.activeProject);
+            activeContext = shortUUID(activeProject);
         }
     }
 
     const sortedProjects = React.useMemo(() => {
+        // Note(Jonas): Is this still relevant? Is this not done by the backend?
         return response.data.items.sort((a, b) => {
             if (a.status.isFavorite === true && b.status.isFavorite !== true) {
                 return -1;
@@ -50,52 +56,47 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
 
     useEffect(() => {
         const storedProject = getStoredProject();
-        props.setProject(storedProject ?? undefined);
+        setProject(storedProject ?? undefined);
     }, []);
 
     const navigate = useNavigate();
 
     return (
-        <Flex pr="12px" alignItems={"center"} data-component={"project-switcher"}>
+        <Flex key={activeContext} pr="12px" alignItems={"center"} data-component={"project-switcher"}>
             <ClickableDropdown
                 trigger={
-                    <HoverBox>
-                        <HoverIcon
-                            onClick={e => {
-                                stopPropagationAndPreventDefault(e);
-                                navigate(`/projects/${projectId ?? "My Workspace"}`);
-                            }}
-                            name="projects"
-                            color2="midGray"
-                            mr=".5em"
-                        />
-                        <Truncate width={"150px"}>{activeContext}</Truncate>
-                        <Icon name={"chevronDown"} size={"12px"} ml={"4px"} />
-                    </HoverBox>
+                    <Flex>
+                        <Truncate fontSize={16} width="100px"><b>{activeContext}</b></Truncate>
+                        <Icon name="chevronDown" size="12px" ml="4px" mt="6px" />
+                    </Flex>
                 }
                 colorOnHover={false}
                 paddingControlledByContent
-                onTriggerClick={() => (setFetchParams({...params}), project.reload())}
+                onTriggerClick={() => {
+                    setFetchParams({...params});
+                    // Note(Jonas): Should this always happen?
+                    project.reload()
+                }}
                 left="0px"
                 width="250px"
             >
                 <BoxForPadding>
-                    {props.activeProject ?
+                    {activeProject ?
                         (
-                            <Text onClick={() => onProjectUpdated(navigate, () => props.setProject(), props.refresh, "My Workspace")}>
+                            <Text onClick={() => onProjectUpdated(navigate, () => setProject(), refresh, "My Workspace")}>
                                 My Workspace
                             </Text>
                         ) : null
                     }
-                    {sortedProjects.filter(it => !(it.id === props.activeProject)).map(project =>
+                    {sortedProjects.filter(it => !(it.id === activeProject)).map(project =>
                         <Text
                             key={project.id}
-                            onClick={() => onProjectUpdated(navigate, () => props.setProject(project.id), props.refresh, project.id)}
+                            onClick={() => onProjectUpdated(navigate, () => setProject(project.id), refresh, project.id)}
                         >
                             <Truncate width="215px">{project.specification.title}</Truncate>
                         </Text>
                     )}
-                    {props.activeProject || response.data.items.length > 0 ? <Divider /> : null}
+                    {activeProject || response.data.items.length > 0 ? <Divider /> : null}
                     <Text onClick={() => navigate("/projects")}>Manage projects</Text>
                     <Text onClick={() => navigate("/projects")}>
                         {projectId ? "Manage active project" : "Manage my workspace"}
@@ -144,37 +145,3 @@ function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => voi
     initializeResources();
     refresh?.();
 }
-
-const HoverBox = styled.div`
-    display: inline-flex;
-    flex-wrap: nowrap;
-    color: white;
-    padding: 6px 8px;
-    cursor: pointer;
-    user-select: none;
-    align-items: center;
-    border-radius: 5px;
-    &:hover {
-        background-color: rgba(236, 239, 244, 0.25);
-        color: white;
-        transition: background-color 0.2s;
-    }
-`;
-
-interface ContextSwitcherReduxProps {
-    activeProject?: string;
-    refresh?: () => void;
-}
-
-interface DispatchProps {
-    setProject: (id?: string) => void;
-}
-
-const mapStateToProps = (state: ReduxObject): ContextSwitcherReduxProps =>
-    ({activeProject: state.project.project, refresh: state.header.refresh});
-
-const mapDispatchToProps = (dispatch: Dispatch): DispatchProps => ({
-    setProject: id => dispatchSetProjectAction(dispatch, id)
-});
-
-export const ContextSwitcher = connect(mapStateToProps, mapDispatchToProps)(_ContextSwitcher);

@@ -1,23 +1,46 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
-import {connect, useDispatch} from "react-redux";
-import styled, {css} from "styled-components";
-import {copyToClipboard, inDevEnvironment, joinToString, onDevSite, useFrameHidden} from "@/UtilityFunctions";
+import {useDispatch, useSelector} from "react-redux";
+import styled from "styled-components";
+import {
+    copyToClipboard,
+    inDevEnvironment,
+    isLightThemeStored,
+    joinToString,
+    stopPropagationAndPreventDefault,
+    useFrameHidden
+} from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
 import Flex, {FlexCProps} from "./Flex";
 import Icon, {IconName} from "./Icon";
 import Link from "./Link";
-import RatingBadge from "./RatingBadge";
 import RBox from "./RBox";
-import Text, {EllipsedText} from "./Text";
+import Text, {EllipsedText, TextSpan} from "./Text";
 import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
-import {useCallback, useEffect} from "react";
-import {setActivePage} from "@/Navigation/Redux/StatusActions";
+import {useCallback} from "react";
 import {useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
+import {AutomaticGiftClaim} from "@/Services/Gifts/AutomaticGiftClaim";
+import {ResourceInit} from "@/Services/ResourceInit";
+import Support from "./SupportBox";
+import {VersionManager} from "@/VersionManager/VersionManager";
+import Notification from "@/Notifications";
+import AppRoutes from "@/Routes";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {emptyPage} from "@/DefaultObjects";
+import {NewsPost} from "@/Dashboard/Dashboard";
+import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
+import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
+import {SidebarPages} from "./SidebarPagesEnum";
+import ClickableDropdown from "./ClickableDropdown";
+import Divider from "./Divider";
+import {ThemeToggler} from "./ThemeToggle";
+import {AvatarType} from "@/UserSettings/Avataaar";
+import {Avatar} from "@/AvataaarLib";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;
@@ -29,62 +52,16 @@ const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean
     }
 `;
 
-// This is applied to SidebarContainer on small screens
-const HideText = css`
-${({theme}) => theme.mediaQueryLT.xl} {
-
-    will-change: transform;
-    transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
-    transform: translate(-122px,0); //122 = 190-68 (original - final width)
-
-    & ${Icon},${RatingBadge} {
-        will-change: transform;
-        transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
-        transform: translate(122px,0); //inverse transformation; same transition function!
-    }
-
-    & ${SidebarElementContainer} > ${Text} {
-        // transition: opacity ${({theme}) => theme.timingFunctions.easeOutQuit} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
-        transition: opacity ${({theme}) => theme.timingFunctions.stepStart} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
-        opacity: 0;
-        will-change: opacity;
-    }
-
-
-    &:hover {
-            transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
-            transform: translate(0,0);
-
-            & ${Icon},${RatingBadge} {
-                transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
-                transform: translate(0,0); //inverter transformation
-            }
-
-            ${SidebarElementContainer} > ${Text} {
-                // transition: opacity ${({theme}) => theme.timingFunctions.easeInQuint} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
-                transition: opacity ${({theme}) => theme.timingFunctions.stepEnd} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
-                opacity: 1;
-        }
-    }
-}
-`;
-
 const SidebarContainer = styled(Flex) <FlexCProps>`
     position: fixed;
     z-index: 80;
-    top: 0;
-    left: 0;
-    padding-top: 48px;
     height: 100%;
-    background-color: ${props => props.theme.colors.lightGray};
-    // border-right: 1px solid ${props => props.theme.colors.borderGray};
-    //background: linear-gradient(135deg, rgba(246,248,249,1) 0%,rgba(229,235,238,1) 69%,rgba(215,222,227,1) 71%,rgba(245,247,249,1) 100%);
-    ${HideText}
+    background-color: var(--sidebar);
 `;
 
 interface TextLabelProps {
     icon: IconName;
-    children: React.ReactText | JSX.Element;
+    children: | string | number | JSX.Element;
     ml?: string;
     height?: string;
     color?: ThemeColor;
@@ -168,7 +145,13 @@ const SidebarPushToBottom = styled.div`
     flex-grow: 1;
 `;
 
-interface MenuElement {icon: IconName; label: string; to: string | (() => string); show?: () => boolean}
+interface MenuElement {
+    icon: IconName;
+    label: string;
+    to: string | (() => string);
+    show?: () => boolean;
+}
+
 interface SidebarMenuElements {
     items: MenuElement[];
     predicate: () => boolean;
@@ -204,16 +187,181 @@ export const sideBarMenuElements: {
 interface SidebarStateProps {
     page: SidebarPages;
     loggedIn: boolean;
+    avatar: AvatarType;
     activeProject?: string;
 }
 
-interface SidebarProps extends SidebarStateProps {
-    sideBarEntries?: typeof sideBarMenuElements;
+export const Sidebar = (): JSX.Element | null => {
+    const sidebarEntries = sideBarMenuElements;
+    const {activeProject, loggedIn, page, avatar} = useSidebarReduxProps();
+    const dispatch = useDispatch();
+    React.useEffect(() => {
+        if (Client.isLoggedIn) {
+            findAvatar().then(action => {
+                if (action !== null) dispatch(action);
+            });
+        }
+    }, []);
+
+    if (useFrameHidden()) return null;
+    if (!loggedIn) return null;
+
+    const sidebar = Object.keys(sidebarEntries)
+        .map(key => sidebarEntries[key])
+        .filter(it => it.predicate());
+    return (
+        <SidebarContainer color="var(--sidebar)" flexDirection="column" alignItems="center"
+            width={"var(--sidebarWidth)"}>
+            <Link data-component={"logo"} to="/">
+                <Icon name="logoEsc" mt="10px" size="43px" />
+            </Link>
+            {sidebar.map((category, categoryIdx) => (
+                <React.Fragment key={categoryIdx}>
+                    {category.items.filter((it: MenuElement) => it?.show?.() ?? true).map(({
+                        icon,
+                        label,
+                        to
+                    }: MenuElement) => (
+                        <React.Fragment key={label}>
+                            <SidebarSpacer />
+                            <SidebarElement
+                                icon={icon}
+                                activePage={page}
+                                label=""
+                                to={typeof to === "function" ? to() : to}
+                            />
+                        </React.Fragment>
+                    ))}
+                </React.Fragment>
+            ))}
+            <SidebarPushToBottom />
+            <AutomaticGiftClaim />
+            <ResourceInit />
+            {/* Screen size indicator */}
+            {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
+            <Debugger />
+            <Box height="28px" />
+            <Support />
+            <Box height="28px" />
+            <Notification />
+            <Box height="28px" />
+            <VersionManager />
+            <BackgroundTasks />
+            <Downtimes />
+            <ClickableDropdown
+                width="230px"
+                left="var(--sidebarWidth)"
+                top="-223px"
+                colorOnHover={false}
+                trigger={Client.isLoggedIn ? <UserAvatar height="59px" width="53px" avatar={avatar} /> : null}
+            >
+                {!CONF.STATUS_PAGE ? null : (
+                    <>
+                        <Box>
+                            <ExternalLink color="black" href={CONF.STATUS_PAGE}>
+                                <Flex color="black">
+                                    <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" />
+                                    <TextSpan>Site status</TextSpan>
+                                </Flex>
+                            </ExternalLink>
+                        </Box>
+                        <Divider />
+                    </>
+                )}
+                <Box>
+                    <Link color="black" to={AppRoutes.users.settings()}>
+                        <Flex color="black">
+                            <Icon name="properties" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
+                            <TextSpan>Settings</TextSpan>
+                        </Flex>
+                    </Link>
+                </Box>
+                <Flex>
+                    <Link to={"/users/avatar"}>
+                        <Flex color="black">
+                            <Icon name="user" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
+                            <TextSpan>Edit Avatar</TextSpan>
+                        </Flex>
+                    </Link>
+                </Flex>
+                <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
+                    <Icon name="logout" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
+                    Logout
+                </Flex>
+                {!CONF.SITE_DOCUMENTATION_URL ? null : (
+                    <div>
+                        <ExternalLink hoverColor="text" href={CONF.SITE_DOCUMENTATION_URL}>
+                            <Icon name="docs" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
+                            <TextSpan>{CONF.PRODUCT_NAME} Docs</TextSpan>
+                        </ExternalLink>
+                    </div>
+                )}
+                {!CONF.DATA_PROTECTION_LINK ? null : (
+                    <div>
+                        <ExternalLink hoverColor="text" href={CONF.DATA_PROTECTION_LINK}>
+                            <Icon name="verified" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
+                            <TextSpan>{CONF.DATA_PROTECTION_TEXT}</TextSpan>
+                        </ExternalLink>
+                    </div>
+                )}
+                <Divider />
+                <Username />
+                <ProjectID />
+                <Divider />
+                <span>
+                    <Flex cursor="auto">
+                        <ThemeToggler
+                            isLightTheme={isLightThemeStored()}
+                            onClick={onToggleTheme}
+                        />
+                    </Flex>
+                </span>
+            </ClickableDropdown>
+            <Box mb="10px" />
+        </SidebarContainer>
+    );
+
+    function onToggleTheme(e: React.SyntheticEvent<HTMLDivElement, Event>): void {
+        stopPropagationAndPreventDefault(e);
+        console.log("toggleTheme(); // TODO")
+    }
+};
+
+function Username(): JSX.Element | null {
+    if (!Client.isLoggedIn) return null;
+    return <Box style={{zIndex: -1}}>
+        <SidebarTextLabel
+            height="25px"
+            hover={false}
+            icon="id"
+            iconSize="1em"
+            textSize={1}
+            space=".5em"
+        >
+            <Tooltip
+                left="-50%"
+                top="1"
+                mb="35px"
+                trigger={(
+                    <EllipsedText
+                        cursor="pointer"
+                        onClick={copyUserName}
+                        width="140px"
+                    >
+                        {Client.username}
+                    </EllipsedText>
+                )}
+            >
+                Click to copy {Client.username} to clipboard
+            </Tooltip>
+        </SidebarTextLabel>
+    </Box>
 }
 
-const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: SidebarProps): JSX.Element | null => {
-    const project = useProject();
+function ProjectID(): JSX.Element | null {
     const projectId = useProjectId();
+
+    const project = useProject();
 
     const projectPath = joinToString(
         [...(project.fetch().status.path?.split("/")?.filter(it => it.length > 0) ?? []), project.fetch().specification.title],
@@ -222,106 +370,72 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
     const copyProjectPath = useCallback(() => {
         copyToClipboard({value: projectPath, message: "Project copied to clipboard!"});
     }, [projectPath]);
-    
-    if (useFrameHidden()) return null;
-    if (!loggedIn) return null;
 
-
-    const sidebar = Object.keys(sideBarEntries)
-        .map(key => sideBarEntries[key])
-        .filter(it => it.predicate());
-    return (
-        <SidebarContainer color="sidebar" flexDirection="column" width={190}>
-            {sidebar.map((category, categoryIdx) => (
-                <React.Fragment key={categoryIdx}>
-                    {category.items.filter((it: MenuElement) => it?.show?.() ?? true).map(({icon, label, to}: MenuElement) => (
-                        <React.Fragment key={label}>
-                            <SidebarSpacer />
-                            <SidebarElement
-                                icon={icon}
-                                activePage={page}
-                                label={label}
-                                to={typeof to === "function" ? to() : to}
-                            />
-                        </React.Fragment>
-                    ))}
-                </React.Fragment>
-            ))}
-            <SidebarPushToBottom />
-            {/* Screen size indicator */}
-            {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
-            {window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? <>
-                <SidebarTextLabel icon={"bug"} iconSize="1em" textSize={1} height={"25px"} hover={false} space={".5em"}>
-                    <ExternalLink href="/debugger?hide-frame">
-                        Open debugger
-                    </ExternalLink>
-                </SidebarTextLabel>
-            </> : null}
-            {!projectId ? null : <>
-                <SidebarTextLabel key={projectId} icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1} space={".5em"}>
-                    <Tooltip
-                        left="-50%"
-                        top="1"
-                        mb="35px"
-                        trigger={(
-                            <EllipsedText
-                                cursor="pointer"
-                                onClick={copyProjectPath}
-                                width="140px"
-                            >
-                                {projectPath}
-                            </EllipsedText>
-                        )}
-                    >
-                        Click to copy to clipboard
-                    </Tooltip>
-                </SidebarTextLabel>
-            </>}
-            {!Client.isLoggedIn ? null : (<Box style={{zIndex: -1}}>
-                <SidebarTextLabel
-                    height="25px"
-                    hover={false}
-                    icon="id"
-                    iconSize="1em"
-                    textSize={1}
-                    space=".5em"
+    if (!projectId) return null;
+    return <SidebarTextLabel key={projectId} icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1}
+        space={".5em"}>
+        <Tooltip
+            left="-50%"
+            top="1"
+            mb="35px"
+            trigger={(
+                <EllipsedText
+                    cursor="pointer"
+                    onClick={copyProjectPath}
+                    width="140px"
                 >
-                    <Tooltip
-                        left="-50%"
-                        top="1"
-                        mb="35px"
-                        trigger={(
-                            <EllipsedText
-                                cursor="pointer"
-                                onClick={copyUserName}
-                                width="140px"
-                            >
-                                {Client.username}
-                            </EllipsedText>
-                        )}
-                    >
-                        Click to copy {Client.username} to clipboard
-                    </Tooltip>
-                </SidebarTextLabel>
-            </Box>)}
-            {!CONF.SITE_DOCUMENTATION_URL ? null : (
-                <ExternalLink style={{zIndex: -2}} href={CONF.SITE_DOCUMENTATION_URL}>
-                    <SidebarTextLabel height="25px" icon="docs" iconSize="1em" textSize={1} space=".5em">
-                        {`${CONF.PRODUCT_NAME} Docs`}
-                    </SidebarTextLabel>
-                </ExternalLink>
+                    {projectPath}
+                </EllipsedText>
             )}
-            {!CONF.DATA_PROTECTION_LINK ? null : (
-                <ExternalLink style={{zIndex: -2}} href={CONF.DATA_PROTECTION_LINK}>
-                    <SidebarTextLabel height="25px" icon="verified" iconSize="1em" textSize={1} space=".5em">
-                        {CONF.DATA_PROTECTION_TEXT}
-                    </SidebarTextLabel>
-                </ExternalLink>
-            )}
-            <Box mb="10px" />
-        </SidebarContainer>
-    );
-};
+        >
+            Click to copy to clipboard
+        </Tooltip>
+    </SidebarTextLabel>
+}
+
+function Downtimes(): JSX.Element | null {
+    const [downtimes, fetchDowntimes] = useCloudAPI<Page<NewsPost>>({noop: true}, emptyPage);
+    const [intervalId, setIntervalId] = React.useState(-1);
+
+    React.useEffect(() => {
+        setIntervalId(window.setInterval(() => fetchDowntimes({
+            method: "GET", path: "/news/listDowntimes"
+        }), 600_000));
+        return () => {
+            if (intervalId !== -1) clearInterval(intervalId);
+        };
+    }, []);
+
+    const upcomingDowntime = downtimes.data.items.at(0)?.id ?? -1;
+
+    if (upcomingDowntime === -1) return null;
+    return <Link to={AppRoutes.news.detailed(upcomingDowntime)}>
+        <Tooltip
+            right="0"
+            bottom="1"
+            tooltipContentWidth="115px"
+            wrapperOffsetLeft="10px"
+            trigger={<Icon color="yellow" name="warning" />}
+        >
+            Upcoming downtime.<br />
+            Click to view
+        </Tooltip>
+    </Link>
+}
+
+function isLocalHost(): boolean {
+    return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+}
+
+function Debugger(): JSX.Element | null {
+    return isLocalHost() ? <>
+        <ExternalLink href="/debugger?hide-frame">
+            <SidebarTextLabel icon={"bug"} iconSize="1.5em" textSize={1} height={"25px"} hover={false}>
+                <div />
+            </SidebarTextLabel>
+        </ExternalLink>
+    </> : null
+}
 
 function copyUserName(): void {
     copyToClipboard({
@@ -330,37 +444,16 @@ function copyUserName(): void {
     });
 }
 
-const mapStateToProps = ({status, project}: ReduxObject): SidebarStateProps => ({
-    page: status.page,
+function useSidebarReduxProps(): SidebarStateProps {
+    return useSelector((it: ReduxObject) => ({
+        page: it.status.page,
 
-    /* Used to ensure re-rendering of Sidebar after user logs in. */
-    loggedIn: Client.isLoggedIn,
+        /* Used to ensure re-rendering of Sidebar after user logs in. */
+        loggedIn: Client.isLoggedIn,
 
-    /* Used to ensure re-rendering of Sidebar after project change. */
-    activeProject: project.project
-});
+        /* Used to ensure re-rendering of Sidebar after project change. */
+        activeProject: it.project.project,
 
-export const enum SidebarPages {
-    Files,
-    Shares,
-    Projects,
-    AppStore,
-    Resources,
-    Runs,
-    Publish,
-    Activity,
-    Admin,
-    None
+        avatar: it.avatar
+    }))
 }
-
-export function useSidebarPage(page: SidebarPages): void {
-    const dispatch = useDispatch();
-    useEffect(() => {
-        dispatch(setActivePage(page));
-        return () => {
-            dispatch(setActivePage(SidebarPages.None));
-        };
-    }, [page]);
-}
-
-export default connect(mapStateToProps)(Sidebar);

@@ -385,8 +385,8 @@ export const Notifications: React.FunctionComponent = () => {
 
 const ContentWrapper = styled.div`
     position: fixed;
-    top: 60px;
-    right: 16px;
+    bottom: 8px;
+    left: calc(8px + var(--sidebarWidth));
     width: 450px;
     height: 600px;
     z-index: 10000;

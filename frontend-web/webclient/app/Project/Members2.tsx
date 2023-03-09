@@ -42,7 +42,7 @@ import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {Operation} from "@/ui-components/Operation";
 import {useTitle, useLoading} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {PageV2, BulkResponse, FindByStringId} from "@/UCloud";
 import {emptyPageV2} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";

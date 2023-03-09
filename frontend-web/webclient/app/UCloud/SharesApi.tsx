@@ -9,7 +9,7 @@ import {
     ResourceStatus,
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
-import {SidebarPages} from "@/ui-components/Sidebar";
+import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {Flex, Icon, RadioTile, RadioTilesContainer, Tooltip} from "@/ui-components";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {Product} from "@/Accounting";

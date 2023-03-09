@@ -8,7 +8,7 @@ import {Dispatch} from "redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Input, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {defaultErrorHandler} from "@/UtilityFunctions";
 import {UserCreationState} from ".";
 

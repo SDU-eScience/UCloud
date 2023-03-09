@@ -10,7 +10,7 @@ import {
 import {FileIconHint, FileType} from "@/Files";
 import {BulkRequest, BulkResponse, compute, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {SidebarPages} from "@/ui-components/Sidebar";
+import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {Box, Button, Flex, FtIcon, Icon, Link, Select, Text, TextArea} from "@/ui-components";
 import * as React from "react";
 import {

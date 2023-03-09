@@ -1,8 +1,8 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import {EveryIcon} from "@/ui-components/Icon";
-import {Grid, Box, Button} from "@/ui-components";
+import Icon, {EveryIcon} from "@/ui-components/Icon";
+import {Grid, Box, Button, Flex, Truncate} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
@@ -11,11 +11,17 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import { ProductSelectorPlayground } from "@/Products/Selector";
+import {ProductSelectorPlayground} from "@/Products/Selector";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {useProject} from "@/Project/cache";
+import {useSelector} from "react-redux";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
         <>
+            <UtilityBar searchEnabled workspaceSwitcherEnabled />
+
             <ProductSelectorPlayground />
             <Button onClick={() => {
                 const now = timestampUnixMs();
@@ -135,5 +141,27 @@ const colors: ThemeColor[] = [
     "appCard",
     "wayfGreen",
 ];
+
+function UtilityBar(props): JSX.Element {
+    return (<Flex width="180px">
+        <Box width="32px"><SearchThing enabled={props.searchEnabled} /></Box>
+        <Box width="32px"><RefreshThing /></Box>
+        <ContextSwitcher />
+    </Flex>)
+}
+
+function SearchThing({enabled}): JSX.Element | null {
+    if (!enabled) return null;
+    return <Icon size={20} color="var(--blue)" name="search" />
+}
+
+function RefreshThing(): JSX.Element | null {
+    const reduxProps = useSelector((it: ReduxObject) => ({
+        refresh: it.header.refresh,
+        spin: true,
+        statusLoading: it.status.loading,
+    }))
+    return <Icon cursor="pointer" size={20} onClick={reduxProps.refresh} spin={reduxProps.spin || reduxProps.statusLoading} color="var(--blue)" name="refresh" />
+}
 
 export default Playground;

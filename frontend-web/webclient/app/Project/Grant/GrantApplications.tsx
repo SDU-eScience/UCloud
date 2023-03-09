@@ -15,7 +15,7 @@ import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {useNavigate} from "react-router";
 import {dateToString} from "@/Utilities/DateUtilities";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";

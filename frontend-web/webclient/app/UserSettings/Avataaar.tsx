@@ -9,7 +9,7 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Box, Flex, Label, OutlineButton, Select} from "@/ui-components";
-import {SidebarPages} from "@/ui-components/Sidebar";
+import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {findAvatarQuery} from "@/Utilities/AvatarUtilities";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import * as Options from "./AvatarOptions";

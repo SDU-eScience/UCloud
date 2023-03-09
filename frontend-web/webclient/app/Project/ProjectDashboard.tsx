@@ -11,7 +11,7 @@ import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import styled from "styled-components";
 import {useNavigate} from "react-router";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {useSidebarPage, SidebarPages} from "@/ui-components/Sidebar";
+import {useSidebarPage, SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {useProject} from "./cache";
 import {isAdminOrPI} from "./Api";

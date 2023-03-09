@@ -8,7 +8,7 @@ import {
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud/index";
-import {SidebarPages} from "@/ui-components/Sidebar";
+import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {Grid, Icon} from "@/ui-components";
 import * as React from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";

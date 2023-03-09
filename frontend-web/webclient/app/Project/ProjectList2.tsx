@@ -20,7 +20,7 @@ import {dispatchSetProjectAction} from "@/Project/Redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import * as Heading from "@/ui-components/Heading";
 import {PageV2} from "@/UCloud";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import styled from "styled-components";

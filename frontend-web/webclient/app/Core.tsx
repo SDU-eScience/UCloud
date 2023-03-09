@@ -58,7 +58,7 @@ const SshKeyBrowse = React.lazy(() => import("@/Applications/SshKeys/Browse"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Create"));
 
 import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplicationEditor";
-import Sidebar from "@/ui-components/Sidebar";
+import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
 import Snackbars from "@/Snackbar/Snackbars";
 import {Dialog} from "@/Dialog/Dialog";
@@ -298,7 +298,7 @@ function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
         <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
             <GlobalStyle />
             <BrowserRouter basename="app">
-                <Header toggleTheme={toggle} />
+                <Header />
                 {children}
             </BrowserRouter>
         </ThemeProvider>

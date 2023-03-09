@@ -110,6 +110,10 @@ div.action-buttons > button.btn, button.btn.btn-primary, button.btn.btn-secondar
 
 /* Colors */
 html {
+    --sidebar: #2C68F6;
+
+
+
     --black: #000;
     --white: #fff;
     --textBlack: #1e252e;
@@ -156,12 +160,9 @@ html {
     --fixedBlack: #000;
     --activeSpreadsheet: #dcebf6;
     --lightOrange: #ffc107;
-    
-    /* TODO This is not currently enforced in the header */
-    --headerHeight: 48px;
-    /* TODO This is not currently enforced in the sidebar */
-    --sidebarWidth: 68px;
 
+    --sidebarWidth: 85px;
+    
     font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;
 }
 
@@ -202,14 +203,6 @@ html.dark {
     --activeSpreadsheet: #000;
     --modalShadow: rgba(0, 0, 0, 0.75);
 }
-
-${device("xxl")} {
-    html {
-        /* TODO This is not currently enforced in the sidebar */
-        --sidebarWidth: 190px;
-    }
-}
-
 
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */
 

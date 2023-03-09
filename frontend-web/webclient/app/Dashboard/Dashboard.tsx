@@ -9,7 +9,7 @@ import {Box, Button, Flex, Icon, Link, Markdown, Text} from "@/ui-components";
 import Error from "@/ui-components/Error";
 import * as Heading from "@/ui-components/Heading";
 import List from "@/ui-components/List";
-import {SidebarPages} from "@/ui-components/Sidebar";
+import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {DashboardOperations, DashboardProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";

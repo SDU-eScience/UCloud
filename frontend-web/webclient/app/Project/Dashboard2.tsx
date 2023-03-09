@@ -1,14 +1,14 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import {Text, Flex, Card, Icon, Link} from "@/ui-components";
-import {default as Api, isAdminOrPI, Project, useProjectFromParams} from "./Api";
+import {Flex, Card, Icon, Link} from "@/ui-components";
+import {isAdminOrPI, useProjectFromParams} from "./Api";
 import {GridCardGroup} from "@/ui-components/Grid";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import styled from "styled-components";
 import {useNavigate} from "react-router";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {useSidebarPage, SidebarPages} from "@/ui-components/Sidebar";
+import {useSidebarPage, SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {shorten} from "@/Utilities/TextUtilities";

@@ -15,7 +15,7 @@ import Button from "@/ui-components/Button";
 import Flex from "@/ui-components/Flex";
 import * as Heading from "@/ui-components/Heading";
 import {HiddenInputField} from "@/ui-components/Input";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import Truncate from "@/ui-components/Truncate";
 import VerticalButtonGroup from "@/ui-components/VerticalButtonGroup";
 import {AppToolLogo} from "../AppToolLogo";

@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share} from "@/UCloud/SharesApi";
 import {useCallback, useMemo, useRef, useState} from "react";
 import {ItemRow, StandardBrowse} from "@/ui-components/Browse";

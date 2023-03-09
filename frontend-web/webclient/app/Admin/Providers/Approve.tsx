@@ -8,7 +8,7 @@ import * as UCloud from "@/UCloud";
 import {Box, Button, Input, Label} from "@/ui-components";
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 import {useLayoutEffect, useRef, useState} from "react";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {Toggle} from "@/ui-components/Toggle";
 import {useLocation, useNavigate} from "react-router";
 import {FindByStringId} from "@/UCloud";

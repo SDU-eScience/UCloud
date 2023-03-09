@@ -83,8 +83,8 @@ export default function Support(): JSX.Element {
                 </Flex>
             )}
             width="650px"
-            right="10px"
-            top="37px"
+            left="calc(var(--sidebarWidth) - 6px)"
+            bottom="-135px"
         >
             <div>
                 <Box width="100%" pr={"16px"} color="text">

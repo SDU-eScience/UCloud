@@ -11,7 +11,7 @@ import {EllipsedText} from "@/ui-components/Text";
 import theme from "@/ui-components/theme";
 import {ApplicationCard, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
 import * as Pages from "./Pages";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";

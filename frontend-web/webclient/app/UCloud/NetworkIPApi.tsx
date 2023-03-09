@@ -8,7 +8,7 @@ import {
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, compute} from "@/UCloud/index";
-import {SidebarPages} from "@/ui-components/Sidebar";
+import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {Icon} from "@/ui-components";
 import {EnumFilter} from "@/Resource/Filter";
 import PortRangeAndProto = compute.PortRangeAndProto;

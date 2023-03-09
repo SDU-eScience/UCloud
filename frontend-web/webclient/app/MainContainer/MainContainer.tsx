@@ -27,8 +27,7 @@ export const MainContainer = ({
 }: MainContainerProps): JSX.Element => {
     const [, setHeaderSize] = useGlobal("mainContainerHeaderSize", headerSize);
     const responsiveState = useSelector<ReduxObject, ResponsiveReduxObject>(it => it.responsive!);
-    const leftSidebarSize = responsiveState!.greaterThan.xl ? 190 : 68; // main website sidebar H size
-    const topMenuSize = 48; // main website top menu V size
+    const leftSidebarSize = getComputedStyle(document.documentElement).getPropertyValue("--sidebarWidth");
     const pad = 16; // padding unit
 
     const mainYpad = header ? headerSize : pad;
@@ -39,13 +38,12 @@ export const MainContainer = ({
     }, [mainYpad]);
 
     return (
-        <Box data-component={"main"} backgroundColor="white" ml={leftSidebarSize} pt={topMenuSize} pb={pad} pl={pad} pr="0">
+        <Box data-component={"main"} backgroundColor="white" ml={leftSidebarSize} pb={pad} pl={pad} pr="0">
             {header && (
                 <HeaderContainer
-                    top={topMenuSize}
                     left="0"
                     py={pad}
-                    pl={leftSidebarSize + pad}
+                    pl={`calc(${leftSidebarSize} + ${pad}px`}
                     pr={pad}
                     width={1}
                     height={headerSize}
@@ -61,11 +59,11 @@ export const MainContainer = ({
                             data-component={"sidebar"}
                             height="calc(100% - var(--termsize, 0px))"
                             data-tag="sidebar"
-                            pt={topMenuSize + mainYpad}
+                            pt={mainYpad}
                             top="0"
                             right="0"
                             px={pad}
-                            width={sidebarSize}
+                            width={"240px"}
                         >
                             {sidebar}
                         </SidebarContainer>

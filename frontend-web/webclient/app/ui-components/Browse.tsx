@@ -17,7 +17,7 @@ import {useDispatch} from "react-redux";
 import {NavigateFunction, useNavigate} from "react-router";
 import {Box, List} from "@/ui-components/index";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {StickyBox} from "@/ui-components/StickyBox";
 import MainContainer from "@/MainContainer/MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";

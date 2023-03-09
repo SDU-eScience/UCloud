@@ -3,7 +3,7 @@ import {useCallback, useMemo} from "react";
 import {ResourceTab, ResourceTabOptions} from "@/Resource/ResourceTabs";
 import {StandardList} from "@/ui-components/Browse";
 import SshKeyApi from "@/UCloud/SshKeyApi";
-import {SidebarPages} from "@/ui-components/Sidebar";
+import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {Box} from "@/ui-components";
 
 export const SshKeyBrowse: React.FunctionComponent = () => {

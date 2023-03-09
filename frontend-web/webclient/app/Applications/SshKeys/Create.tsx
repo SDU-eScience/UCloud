@@ -1,7 +1,7 @@
 import * as React from "react";
 import MainContainer from "@/MainContainer/MainContainer";
 import {ResourceTab, ResourceTabOptions} from "@/Resource/ResourceTabs";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import SshKeyApi from "@/UCloud/SshKeyApi";
 import {Box, Button, Divider, Flex, Icon, Input, Label, Markdown, Text, TextArea} from "@/ui-components";

@@ -13,7 +13,7 @@ import {
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useLayoutEffect, useMemo} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import {useSidebarPage} from "@/ui-components/Sidebar";
+import {useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
@@ -25,7 +25,7 @@ import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/MainContainer/MainContainer";
 import {Operations} from "@/ui-components/Operation";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
-import { useNavigate, useParams} from "react-router";
+import {useNavigate, useParams} from "react-router";
 import {useResourceSearch} from "@/Resource/Search";
 import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";

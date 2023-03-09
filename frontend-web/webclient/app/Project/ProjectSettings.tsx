@@ -22,7 +22,7 @@ import {MainContainer} from "@/MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {GrantProjectSettings, LogoAndDescriptionSettings} from "@/Project/Grant/Settings";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useEffect} from "react";
 import {

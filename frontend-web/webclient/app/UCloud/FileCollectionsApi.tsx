@@ -8,7 +8,7 @@ import {
     ResourceStatus,
     ResourceUpdate, SortFlags
 } from "./ResourceApi";
-import {SidebarPages} from "@/ui-components/Sidebar";
+import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {Box, Button, Divider, Flex, Icon, Input} from "@/ui-components";
 import * as React from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
