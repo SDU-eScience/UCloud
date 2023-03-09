@@ -74,7 +74,7 @@ import {CONTEXT_SWITCH, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
 import {Provider} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
 import {createGlobalStyle, ThemeProvider} from "styled-components";
-import {theme, UIGlobalStyle} from "@/ui-components";
+import {Flex, theme, UIGlobalStyle} from "@/ui-components";
 import {invertedColors} from "@/ui-components/theme";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
 import {store} from "@/Utilities/ReduxUtilities";
@@ -296,8 +296,10 @@ function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
         <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
             <GlobalStyle />
             <BrowserRouter basename="app">
-                <Sidebar toggleTheme={toggle} />
-                {children}
+                <Flex>
+                    <Sidebar toggleTheme={toggle} />
+                    {children}
+                </Flex>
             </BrowserRouter>
         </ThemeProvider>
     );

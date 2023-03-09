@@ -52,12 +52,24 @@ const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean
     }
 `;
 
-const SidebarContainer = styled(Flex) <FlexCProps>`
-    position: fixed;
-    z-index: 80;
-    height: 100%;
-    background-color: var(--sidebar);
+const SidebarAdditionalStyle = styled(Flex)`
+    background-color: #5C89F4;
+    transition: width 0.2s;
+    width: 0px;
+    &:hover {
+        width: var(--sidebarAdditionalWidth);
+    }
 `;
+
+const SidebarContainer = styled(Flex) <FlexCProps>`
+    height: 100vh;
+    background-color: var(--sidebar);
+
+    &:hover + ${SidebarAdditionalStyle} {
+        width: var(--sidebarAdditionalWidth);
+    }
+`;
+
 
 interface TextLabelProps {
     icon: IconName;
@@ -210,115 +222,119 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
         .map(key => sidebarEntries[key])
         .filter(it => it.predicate());
     return (
-        <SidebarContainer color="var(--sidebar)" flexDirection="column" alignItems="center"
-            width={"var(--sidebarWidth)"}>
-            <Link data-component={"logo"} to="/">
-                <Icon name="logoEsc" mt="10px" size="43px" />
-            </Link>
-            {sidebar.map((category, categoryIdx) => (
-                <React.Fragment key={categoryIdx}>
-                    {category.items.filter((it: MenuElement) => it?.show?.() ?? true).map(({
-                        icon,
-                        label,
-                        to
-                    }: MenuElement) => (
-                        <React.Fragment key={label}>
-                            <SidebarSpacer />
-                            <SidebarElement
-                                icon={icon}
-                                activePage={page}
-                                label=""
-                                to={typeof to === "function" ? to() : to}
-                            />
-                        </React.Fragment>
-                    ))}
-                </React.Fragment>
-            ))}
-            <SidebarPushToBottom />
-            <AutomaticGiftClaim />
-            <ResourceInit />
-            {/* Screen size indicator */}
-            {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
-            <Debugger />
-            <Box height="28px" />
-            <Support />
-            <Box height="28px" />
-            <Notification />
-            <Box height="28px" />
-            <VersionManager />
-            <BackgroundTasks />
-            <Downtimes />
-            <ClickableDropdown
-                width="230px"
-                left="var(--sidebarWidth)"
-                top="-223px"
-                colorOnHover={false}
-                trigger={Client.isLoggedIn ? <UserAvatar height="59px" width="53px" avatar={avatar} /> : null}
-            >
-                {!CONF.STATUS_PAGE ? null : (
-                    <>
-                        <Box>
-                            <ExternalLink color="black" href={CONF.STATUS_PAGE}>
-                                <Flex color="black">
-                                    <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" />
-                                    <TextSpan>Site status</TextSpan>
-                                </Flex>
-                            </ExternalLink>
-                        </Box>
-                        <Divider />
-                    </>
-                )}
-                <Box>
-                    <Link color="black" to={AppRoutes.users.settings()}>
-                        <Flex color="black">
-                            <Icon name="properties" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                            <TextSpan>Settings</TextSpan>
-                        </Flex>
-                    </Link>
-                </Box>
-                <Flex>
-                    <Link to={"/users/avatar"}>
-                        <Flex color="black">
-                            <Icon name="user" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                            <TextSpan>Edit Avatar</TextSpan>
-                        </Flex>
-                    </Link>
-                </Flex>
-                <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
-                    <Icon name="logout" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                    Logout
-                </Flex>
-                {!CONF.SITE_DOCUMENTATION_URL ? null : (
-                    <div>
-                        <ExternalLink hoverColor="text" href={CONF.SITE_DOCUMENTATION_URL}>
-                            <Icon name="docs" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                            <TextSpan>{CONF.PRODUCT_NAME} Docs</TextSpan>
-                        </ExternalLink>
-                    </div>
-                )}
-                {!CONF.DATA_PROTECTION_LINK ? null : (
-                    <div>
-                        <ExternalLink hoverColor="text" href={CONF.DATA_PROTECTION_LINK}>
-                            <Icon name="verified" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                            <TextSpan>{CONF.DATA_PROTECTION_TEXT}</TextSpan>
-                        </ExternalLink>
-                    </div>
-                )}
-                <Divider />
-                <Username />
-                <ProjectID />
-                <Divider />
-                <span>
-                    <Flex cursor="auto">
-                        <ThemeToggler
-                            isLightTheme={isLightThemeStored()}
-                            onClick={onToggleTheme}
-                        />
+        <Flex>
+            <SidebarContainer color="var(--sidebar)" flexDirection="column" alignItems="center"
+                width={"var(--sidebarWidth)"}>
+                <Link data-component={"logo"} to="/">
+                    <Icon name="logoEsc" mt="10px" size="43px" />
+                </Link>
+                {sidebar.map((category, categoryIdx) => (
+                    <React.Fragment key={categoryIdx}>
+                        {category.items.filter((it: MenuElement) => it?.show?.() ?? true).map(({
+                            icon,
+                            label,
+                            to
+                        }: MenuElement) => (
+                            <React.Fragment key={label}>
+                                <SidebarSpacer />
+                                <SidebarElement
+                                    icon={icon}
+                                    activePage={page}
+                                    label=""
+                                    to={typeof to === "function" ? to() : to}
+                                />
+                            </React.Fragment>
+                        ))}
+                    </React.Fragment>
+                ))}
+                <SidebarPushToBottom />
+                <AutomaticGiftClaim />
+                <ResourceInit />
+                {/* Screen size indicator */}
+                {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
+                <Debugger />
+                <Box height="28px" />
+                <Support />
+                <Box height="28px" />
+                <Notification />
+                <Box height="28px" />
+                <VersionManager />
+                <BackgroundTasks />
+                <Downtimes />
+                <ClickableDropdown
+                    width="230px"
+                    left="var(--sidebarWidth)"
+                    top="-223px"
+                    colorOnHover={false}
+                    trigger={Client.isLoggedIn ? <UserAvatar height="59px" width="53px" avatar={avatar} /> : null}
+                >
+                    {!CONF.STATUS_PAGE ? null : (
+                        <>
+                            <Box>
+                                <ExternalLink color="black" href={CONF.STATUS_PAGE}>
+                                    <Flex color="black">
+                                        <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" />
+                                        <TextSpan>Site status</TextSpan>
+                                    </Flex>
+                                </ExternalLink>
+                            </Box>
+                            <Divider />
+                        </>
+                    )}
+                    <Box>
+                        <Link color="black" to={AppRoutes.users.settings()}>
+                            <Flex color="black">
+                                <Icon name="properties" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
+                                <TextSpan>Settings</TextSpan>
+                            </Flex>
+                        </Link>
+                    </Box>
+                    <Flex>
+                        <Link to={"/users/avatar"}>
+                            <Flex color="black">
+                                <Icon name="user" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
+                                <TextSpan>Edit Avatar</TextSpan>
+                            </Flex>
+                        </Link>
                     </Flex>
-                </span>
-            </ClickableDropdown>
-            <Box mb="10px" />
-        </SidebarContainer>
+                    <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
+                        <Icon name="logout" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
+                        Logout
+                    </Flex>
+                    {!CONF.SITE_DOCUMENTATION_URL ? null : (
+                        <div>
+                            <ExternalLink hoverColor="text" href={CONF.SITE_DOCUMENTATION_URL}>
+                                <Icon name="docs" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
+                                <TextSpan>{CONF.PRODUCT_NAME} Docs</TextSpan>
+                            </ExternalLink>
+                        </div>
+                    )}
+                    {!CONF.DATA_PROTECTION_LINK ? null : (
+                        <div>
+                            <ExternalLink hoverColor="text" href={CONF.DATA_PROTECTION_LINK}>
+                                <Icon name="verified" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
+                                <TextSpan>{CONF.DATA_PROTECTION_TEXT}</TextSpan>
+                            </ExternalLink>
+                        </div>
+                    )}
+                    <Divider />
+                    <Username />
+                    <ProjectID />
+                    <Divider />
+                    <span>
+                        <Flex cursor="auto">
+                            <ThemeToggler
+                                isLightTheme={isLightThemeStored()}
+                                onClick={onToggleTheme}
+                            />
+                        </Flex>
+                    </span>
+                </ClickableDropdown>
+                <Box mb="10px" />
+            </SidebarContainer>
+
+            <SidebarAdditional />
+        </Flex>
     );
 
     function onToggleTheme(e: React.SyntheticEvent<HTMLDivElement, Event>): void {
@@ -326,6 +342,12 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
         toggleTheme();
     }
 };
+
+function SidebarAdditional(): JSX.Element {
+    return (<SidebarAdditionalStyle>
+
+    </SidebarAdditionalStyle>)
+}
 
 function Username(): JSX.Element | null {
     if (!Client.isLoggedIn) return null;
