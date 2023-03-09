@@ -828,183 +828,63 @@ class AccountingService(
         val providerId = actorAndProject.actor.safeUsername().removePrefix(AuthProviders.PROVIDER_PREFIX)
         val itemsPerPage = request.normalize().itemsPerPage
 
-        data class WalletSummary(
-            val walletId: Long,
-            val ownerUsername: String?,
-            val ownerProject: String?,
-            val category: String,
-            val productType: ProductType,
-            val chargeType: ChargeType,
-            val unitOfPrice: ProductPriceUnit,
+        val summaries = processor.retrieveRelevantWalletsNotifications(
+            AccountingRequest.RetrieveRelevantWalletsProviderNotifications(
+                actorAndProject.actor,
+                providerId,
+                request.filterOwnerId,
+                request.filterOwnerIsProject,
+                request.filterCategory,
+                itemsPerPage = request.itemsPerPage,
+                next = request.next
+            )
+        ).wallets
 
-            val allocId: Long,
-            val allocBalance: Long,
-            val allocInitialBalance: Long,
-            val allocPath: List<Long>,
-
-            val ancestorId: Long?,
-            val ancestorBalance: Long?,
-            val ancestorInitialBalance: Long?,
-
-            val notBefore: Long,
-            val notAfter: Long?,
-        )
-
-        return ctx.withSession { session ->
-            // NOTE(Dan): We start out by fetching all the relevant data. The query is structured in two parts.
-            //
-            // The first part retrieves the relevant wallets, this performs pagination as early as possible and also
-            // filters the query such that we only retrieve the relevant wallets. The second part retrieves all
-            // relevant allocations along with their ancestors.
-            //
-            // This summary is then used to build the summary required by the provider.
-            val rowSummary: List<WalletSummary> = session.sendPreparedStatement(
-                {
-                    setParameter("provider_id", providerId)
-                    setParameter("next", request.next?.toLongOrNull())
-                    setParameter("owner_id", request.filterOwnerId)
-                    setParameter("owner_is_project", request.filterOwnerIsProject ?: false)
-                    setParameter("filter_category", request.filterCategory)
-                },
-                """
-                    with
-                        relevant_wallets as (
-                            select
-                                w.id as wallet_id,
-                                wo.username as wo_username,
-                                wo.project_id as wo_project,
-                                pc.category as product_category,
-                                pc.product_type as product_type,
-                                pc.charge_type as charge_type,
-                                pc.unit_of_price as unit_of_price
-                                
-                            from
-                                accounting.wallets w join
-                                accounting.wallet_owner wo on
-                                    w.owned_by = wo.id join
-                                accounting.product_categories pc on
-                                    w.category = pc.id
-                            where 
-                                pc.provider = :provider_id and
-                                (
-                                    :next::bigint is null or
-                                    w.id > :next::bigint
-                                ) and
-                                (
-                                    :owner_id::text is null or
-                                    wo.project_id = :owner_id::text or
-                                    wo.username = :owner_id::text
-                                ) and
-                                (
-                                    :owner_id::text is null or
-                                    (:owner_is_project and wo.project_id is not null) or
-                                    (not :owner_is_project and wo.username is not null)
-                                ) and
-                                (
-                                    :filter_category::text is null or
-                                    pc.category = :filter_category::text
-                                )
-                            
-                            order by w.id
-                            limit $itemsPerPage
-                        )
-                        
-                    select 
-                        w.*,
-                        alloc.id as alloc_id,
-                        alloc.balance as alloc_balance,
-                        alloc.initial_balance as alloc_initial_balance,
-                        alloc.allocation_path::text as alloc_path,
-                        provider.timestamp_to_unix(alloc.start_date)::bigint as not_before,
-                        provider.timestamp_to_unix(alloc.end_date)::bigint as not_after,
-                        ancestor_alloc.id as ancestor_id,
-                        ancestor_alloc.balance as ancestor_balance,
-                        ancestor_alloc.initial_balance as ancestor_initial_balance
-                    
-                    from
-                        relevant_wallets w join
-                        accounting.wallet_allocations alloc on
-                            alloc.associated_wallet = w.wallet_id left join
-                        accounting.wallet_allocations ancestor_alloc on
-                            ancestor_alloc.allocation_path @> alloc.allocation_path and
-                            ancestor_alloc.allocation_path != alloc.allocation_path
-                            
-                    where
-                        now() >= alloc.start_date and
-                        (alloc.end_date is null or now() <= alloc.end_date) and
-                        
-                        (ancestor_alloc.start_date is null or now() >= ancestor_alloc.start_date) and
-                        (ancestor_alloc.end_date is null or now() <= ancestor_alloc.end_date)
-                """
-            ).rows.map { row ->
-                WalletSummary(
-                    row.getLong("wallet_id")!!,
-                    row.getString("wo_username"),
-                    row.getString("wo_project"),
-                    row.getString("product_category")!!,
-                    ProductType.valueOf(row.getString("product_type")!!),
-                    ChargeType.valueOf(row.getString("charge_type")!!),
-                    ProductPriceUnit.valueOf(row.getString("unit_of_price")!!),
-
-                    row.getLong("alloc_id")!!,
-                    row.getLong("alloc_balance")!!,
-                    row.getLong("alloc_initial_balance")!!,
-                    row.getString("alloc_path")!!.split(".").map { it.toLong() },
-
-                    row.getLong("ancestor_id"),
-                    row.getLong("ancestor_balance"),
-                    row.getLong("ancestor_initial_balance"),
-
-                    row.getLong("not_before") ?: 0L,
-                    row.getLong("not_after"),
-                )
+        // NOTE(Dan): Next, we build a quick map to map an allocation ID to its current balance. This is used in
+        // the next step to determine max usable balance by allocation.
+        val balanceByAllocation = HashMap<Long, Long>()
+        val initialBalanceByAllocation = HashMap<Long, Long>()
+        for (summary in summaries) {
+            balanceByAllocation[summary.allocId] = summary.allocBalance
+            initialBalanceByAllocation[summary.allocId] = summary.allocInitialBalance
+            if (summary.ancestorId != null && summary.ancestorBalance != null && summary.ancestorInitialBalance != null) {
+                balanceByAllocation[summary.ancestorId] = summary.ancestorBalance
+                initialBalanceByAllocation[summary.ancestorId] = summary.ancestorInitialBalance
             }
-
-            // NOTE(Dan): Next, we build a quick map to map an allocation ID to its current balance. This is used in
-            // the next step to determine max usable balance by allocation.
-            val balanceByAllocation = HashMap<Long, Long>()
-            val initialBalanceByAllocation = HashMap<Long, Long>()
-            for (row in rowSummary) {
-                balanceByAllocation[row.allocId] = row.allocBalance
-                initialBalanceByAllocation[row.allocId] = row.allocInitialBalance
-                if (row.ancestorId != null && row.ancestorBalance != null && row.ancestorInitialBalance != null) {
-                    balanceByAllocation[row.ancestorId] = row.ancestorBalance
-                    initialBalanceByAllocation[row.ancestorId] = row.ancestorInitialBalance
-                }
-            }
-
-            // NOTE(Dan): To build a max usable by allocation, we start by filtering rows, such that we only have one
-            // per allocation. Recall that the query selected multiple of these per allocation to fetch all ancestors.
-            val summaryPerAllocation = rowSummary.asSequence().distinctBy { it.allocId }
-
-            // NOTE(Dan): Obtaining the maximum usable by allocation is as simple as finding the smallest balance in an
-            // allocation path. It doesn't matter which element it is, we can never use more than the smallest number.
-            val unorderedSummary = summaryPerAllocation.map { alloc ->
-                val maxUsable = alloc.allocPath.minOf { balanceByAllocation.getValue(it) }
-                val maxPromised = alloc.allocPath.minOf { initialBalanceByAllocation.getValue(it) }
-                ProviderWalletSummary(
-                    alloc.walletId.toString(),
-                    when {
-                        alloc.ownerProject != null -> WalletOwner.Project(alloc.ownerProject)
-                        alloc.ownerUsername != null -> WalletOwner.User(alloc.ownerUsername)
-                        else -> error("Corrupt database data for wallet: ${alloc.walletId}")
-                    },
-                    ProductCategoryId(alloc.category, providerId),
-                    alloc.productType,
-                    alloc.chargeType,
-                    alloc.unitOfPrice,
-                    maxUsable,
-                    maxPromised,
-                    alloc.notBefore,
-                    alloc.notAfter
-                )
-            }
-
-            val summaryItems = unorderedSummary.sortedBy { it.id.toLongOrNull() }.toList()
-            val next = summaryItems.lastOrNull()?.id
-
-            PageV2(itemsPerPage, summaryItems, next)
         }
+
+        // NOTE(Dan): To build a max usable by allocation, we start by filtering rows, such that we only have one
+        // per allocation. Recall that the query selected multiple of these per allocation to fetch all ancestors.
+        val summaryPerAllocation = summaries.asSequence().distinctBy { it.allocId }
+
+        // NOTE(Dan): Obtaining the maximum usable by allocation is as simple as finding the smallest balance in an
+        // allocation path. It doesn't matter which element it is, we can never use more than the smallest number.
+        val unorderedSummary = summaryPerAllocation.map { alloc ->
+            val maxUsable = alloc.allocPath.minOf { balanceByAllocation.getValue(it) }
+            val maxPromised = alloc.allocPath.minOf { initialBalanceByAllocation.getValue(it) }
+            ProviderWalletSummary(
+                alloc.walletId.toString(),
+                when {
+                    alloc.ownerProject != null -> WalletOwner.Project(alloc.ownerProject)
+                    alloc.ownerUsername != null -> WalletOwner.User(alloc.ownerUsername)
+                    else -> error("Corrupt database data for wallet: ${alloc.walletId}")
+                },
+                ProductCategoryId(alloc.category, providerId),
+                alloc.productType,
+                alloc.chargeType,
+                alloc.unitOfPrice,
+                maxUsable,
+                maxPromised,
+                alloc.notBefore,
+                alloc.notAfter
+            )
+        }
+
+        val summaryItems = unorderedSummary.sortedBy { it.id.toLongOrNull() }.toList()
+        val next = summaryItems.lastOrNull()?.id
+
+        // NOTE(Henrik) Returns more than itemPerPage items, but is limited to itemPerPage Wallets
+        return PageV2(itemsPerPage, summaryItems, next)
     }
 
     companion object : Loggable {
