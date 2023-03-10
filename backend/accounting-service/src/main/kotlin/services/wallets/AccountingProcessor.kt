@@ -1242,8 +1242,10 @@ class AccountingProcessor(
             }
         }
 
+        val notBefore = max(parent.notBefore, request.notBefore)
+
         run {
-            val error = checkOverlapAncestors(parent, request.notBefore, request.notAfter)
+            val error = checkOverlapAncestors(parent, notBefore, request.notAfter)
             if (error != null) return error
         }
 
@@ -1257,7 +1259,7 @@ class AccountingProcessor(
             existingWallet.id,
             request.amount,
             request.parentAllocation,
-            request.notBefore,
+            notBefore,
             request.notAfter,
             request.grantedIn,
             canAllocate = if(request.isProject) parent.allowSubAllocationsToAllocate else false,
@@ -1269,7 +1271,7 @@ class AccountingProcessor(
         dirtyTransactions.add(
             Transaction.Deposit(
                 null,
-                request.notBefore,
+                notBefore,
                 request.notAfter,
                 request.amount,
                 request.actor.safeUsername(),
@@ -1614,7 +1616,15 @@ class AccountingProcessor(
             }
         }
 
+
         val parent = if (allocation.parentAllocation == null) null else allocations[allocation.parentAllocation]
+
+        val notBefore = if (parent != null) {
+            max(parent.notBefore, request.notBefore)
+        } else {
+            request.notBefore
+        }
+
         if (parent != null) {
             val error = checkOverlapAncestors(parent, request.notBefore, request.notAfter)
             if (error != null) return error
@@ -1626,7 +1636,7 @@ class AccountingProcessor(
         allocation.initialBalance = request.amount
         allocation.currentBalance = request.amount
         allocation.localBalance = request.amount
-        allocation.notBefore = request.notBefore
+        allocation.notBefore = notBefore
         allocation.notAfter = request.notAfter
 
         if (wallet.chargeType == ChargeType.DIFFERENTIAL_QUOTA) {
