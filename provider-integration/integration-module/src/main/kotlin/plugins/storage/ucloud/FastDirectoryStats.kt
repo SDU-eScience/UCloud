@@ -5,12 +5,31 @@ import dk.sdu.cloud.service.Loggable
 import kotlin.math.absoluteValue
 import kotlin.random.Random
 
-internal var useTestingSizes = false
+private const val useTestingSizes = false
 
-class CephFsFastDirectoryStats(private val nativeFs: NativeFS) : Loggable {
+interface FastDirectoryStatsInterface {
+    suspend fun getRecursiveSize(file: InternalFile): Long?
+}
+
+class FastDirectoryStats(
+    private val locator: DriveLocator,
+    private val fs: NativeFS
+) : FastDirectoryStatsInterface {
+    private val ceph = CephFsFastDirectoryStats(fs)
+    private val fallback = DefaultDirectoryStats()
+
+    override suspend fun getRecursiveSize(file: InternalFile): Long? {
+        return when (locator.resolveDriveByInternalFile(file).system.type) {
+            FsType.CephFS -> ceph.getRecursiveSize(file)
+            else -> fallback.getRecursiveSize(file)
+        }
+    }
+}
+
+class CephFsFastDirectoryStats(private val nativeFs: NativeFS) : Loggable, FastDirectoryStatsInterface {
     override val log = logger()
 
-    fun getRecursiveSize(file: InternalFile): Long? {
+    override suspend fun getRecursiveSize(file: InternalFile): Long? {
         return try {
             nativeFs.getExtendedAttribute(file, "ceph.dir.rbytes").toLong()
         } catch (ex: Throwable) {
@@ -49,4 +68,8 @@ class CephFsFastDirectoryStats(private val nativeFs: NativeFS) : Loggable {
     fun getRecursiveTime(file: InternalFile): String {
         return nativeFs.getExtendedAttribute(file, "ceph.dir.rctime")
     }
+}
+
+class DefaultDirectoryStats : FastDirectoryStatsInterface {
+    override suspend fun getRecursiveSize(file: InternalFile): Long? = null
 }

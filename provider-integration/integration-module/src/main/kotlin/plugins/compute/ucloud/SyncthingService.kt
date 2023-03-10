@@ -128,7 +128,7 @@ class SyncthingService(
         return IAppsProviderRestartResponse<SyncthingConfig>()
     }
 
-    private fun doRestart(configFolder: InternalFile) {
+    private suspend fun doRestart(configFolder: InternalFile) {
         // NOTE(Dan): Restarting works in collaboration with the application. The container will await a `restart.txt`
         // file and restart if it exists. This file is deleted at start-up, so we don't have to worry about the job
         // running when we create it.
@@ -318,17 +318,15 @@ class SyncthingService(
     }
 
     // Config normalization
-    private fun SyncthingConfig.normalize(): SyncthingConfig {
+    private suspend fun SyncthingConfig.normalize(): SyncthingConfig {
         return copy(
             folders = folders.map { it.normalize() },
             orchestratorInfo = null,
         )
     }
 
-    private fun SyncthingConfig.Folder.normalize(): SyncthingConfig.Folder {
-        val path = runBlocking {
-            pathConverter.ucloudToRelative(UCloudFile.create(ucloudPath)).path
-        }
+    private suspend fun SyncthingConfig.Folder.normalize(): SyncthingConfig.Folder {
+        val path = pathConverter.ucloudToInternal(UCloudFile.create(ucloudPath)).path
 
         return copy(
             path = "/work/${path.normalize().fileName()}",

@@ -221,7 +221,7 @@ class JdbcPreparedStatement(
         }
     }
 
-    override suspend fun bindList(param: String, value: List<Any?>) {
+    override suspend fun bindList(param: String, value: List<Any?>, typeHint: Any?) {
         debugParameters[param] = JsonArray(
             value.map {
                 when (it) {
@@ -236,13 +236,13 @@ class JdbcPreparedStatement(
                     is Float -> JsonPrimitive(it)
                     is Double -> JsonPrimitive(it)
 
-                    else -> throw IllegalArgumentException("$it has an unsupported type")
+                    else -> JsonNull
                 }
             }
         )
 
         val sqlArray = statement.connection.createArrayOf(
-            when (value.find { it != null }) {
+            when (typeHint ?: value.find { it != null }) {
                 is Boolean -> "boolean"
                 is String -> "text"
 

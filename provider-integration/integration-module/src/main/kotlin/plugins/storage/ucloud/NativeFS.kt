@@ -2,8 +2,6 @@ package dk.sdu.cloud.plugins.storage.ucloud
 
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.debug.DebugSystem
-import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.file.orchestrator.api.joinPath
@@ -47,10 +45,7 @@ class NativeFS(
             val fileDescriptors = Array<LinuxFileHandle?>(components.size) { null }
             try {
                 fileDescriptors[0] = LinuxFileHandle.createOrThrow(open("/${components[0]}", O_NOFOLLOW, 0)) {
-                    throw FSException.NotFound(
-                        // NOTE(Dan): This might crash if the internal collection doesn't exist (yet)
-                        runCatching { pathConverter.internalToUCloud(file).path }.getOrNull()
-                    )
+                    throw FSException.NotFound(file.fileName())
                 }
 
                 for (i in 1 until fileDescriptors.size) {
@@ -61,10 +56,7 @@ class NativeFS(
                         else O_NOFOLLOW
                     fileDescriptors[i] =
                         LinuxFileHandle.createOrThrow(openat(previousFd.fd, components[i], opts, DEFAULT_FILE_MODE)) {
-                            throw FSException.NotFound(
-                                // NOTE(Dan): This might crash if the internal collection doesn't exist (yet)
-                                runCatching { pathConverter.internalToUCloud(file).path }.getOrNull()
-                            )
+                            throw FSException.NotFound(file.fileName())
                         }
                     previousFd.close()
                     fileDescriptors[i - 1] = null
@@ -84,7 +76,7 @@ class NativeFS(
         }
     }
 
-    fun copy(
+    suspend fun copy(
         source: InternalFile,
         destination: InternalFile,
         conflictPolicy: WriteConflictPolicy,
@@ -171,7 +163,7 @@ class NativeFS(
         return result
     }
 
-    private fun createAccordingToPolicy(
+    private suspend fun createAccordingToPolicy(
         parentFd: LinuxFileHandle,
         desiredFileName: String,
         conflictPolicy: WriteConflictPolicy,
@@ -184,31 +176,10 @@ class NativeFS(
             if (conflictPolicy != WriteConflictPolicy.RENAME) {
                 conflictPolicy
             } else {
-                val relativeFile = pathConverter.internalToRelative(internalDestination)
-                val components = relativeFile.components()
-                if (isPersonalWorkspace(relativeFile)) {
-                    // /home/$USERNAME should never be renamed
-                    if (relativeFile.components().size == 2) {
-                        WriteConflictPolicy.REJECT
-                    } else {
-                        conflictPolicy
-                    }
-                } else if (isProjectWorkspace(relativeFile)) {
-                    // /projects/$PROJECT/$REPO
-                    // /projects/$PROJECT
-                    // Neither should be renamed
-
-                    val components = relativeFile.components()
-                    if (components.size == 2 || components.size == 3) {
-                        WriteConflictPolicy.REJECT
-                    } else {
-                        conflictPolicy
-                    }
-                } else if (components[0] == PathConverter.COLLECTION_DIRECTORY) {
-                    if (components.size == 1) WriteConflictPolicy.REJECT
-                    else conflictPolicy
+                if (pathConverter.internalToUCloud(internalDestination).components().size == 1) {
+                    WriteConflictPolicy.REJECT
                 } else {
-                    throw RPCException("Unexpected file", HttpStatusCode.InternalServerError)
+                    conflictPolicy
                 }
             }
         }
@@ -306,7 +277,7 @@ class NativeFS(
         if (permissions != null) clib.fchmod(handle.fd, permissions)
     }
 
-    fun openForWriting(
+    suspend fun openForWriting(
         file: InternalFile,
         conflictPolicy: WriteConflictPolicy,
         owner: Int? = LINUX_FS_USER_UID,
@@ -488,7 +459,7 @@ class NativeFS(
 
     data class MoveShouldContinue(val needsToRecurse: Boolean)
 
-    fun move(source: InternalFile, destination: InternalFile, conflictPolicy: WriteConflictPolicy): MoveShouldContinue {
+    suspend fun move(source: InternalFile, destination: InternalFile, conflictPolicy: WriteConflictPolicy): MoveShouldContinue {
         val sourceParent = openFile(source.parent())
         val destinationParent = openFile(destination.parent())
 
@@ -570,20 +541,3 @@ class NativeFS(
 }
 
 class NativeException(val statusCode: Int) : RuntimeException("Native exception, code: $statusCode")
-
-val DEFAULT_POSIX_FILE_MODE = setOf(
-    PosixFilePermission.OWNER_READ,
-    PosixFilePermission.OWNER_WRITE,
-    PosixFilePermission.GROUP_READ,
-    PosixFilePermission.GROUP_WRITE
-)
-
-val DEFAULT_POSIX_DIRECTORY_MODE = setOf(
-    PosixFilePermission.OWNER_READ,
-    PosixFilePermission.OWNER_WRITE,
-    PosixFilePermission.OWNER_EXECUTE,
-    PosixFilePermission.GROUP_READ,
-    PosixFilePermission.GROUP_WRITE,
-    PosixFilePermission.GROUP_EXECUTE,
-    PosixFilePermission.OTHERS_EXECUTE
-)

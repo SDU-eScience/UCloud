@@ -172,7 +172,7 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             register(FeatureNetworkLimit)
             register(FeatureFairShare)
             register(FeatureFirewall)
-            register(FeatureFileOutput(files.pathConverter, files.fs))
+            register(FeatureFileOutput(files.fs))
             register(FeatureSshKeys(pluginConfig.ssh?.subnets ?: emptyList()))
             syncthingService?.also { register(it) }
         }

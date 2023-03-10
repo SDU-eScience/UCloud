@@ -11,11 +11,11 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
+import dk.sdu.cloud.config.removeProvider
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.FileDownloadSession
 import dk.sdu.cloud.plugins.FilePlugin
 import dk.sdu.cloud.plugins.FileUploadSession
-import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.plugins.ConfiguredShare
@@ -52,7 +52,7 @@ class UCloudFilePlugin : FilePlugin {
 
     lateinit var fs: NativeFS
     lateinit var trash: TrashService
-    lateinit var cephStats: CephFsFastDirectoryStats
+    lateinit var directoryStats: FastDirectoryStats
     lateinit var queries: FileQueries
     lateinit var limitChecker: LimitChecker
     lateinit var memberFiles: MemberFiles
@@ -61,36 +61,34 @@ class UCloudFilePlugin : FilePlugin {
     lateinit var downloads: DownloadService
     lateinit var pathConverter: PathConverter
     lateinit var usageScan: UsageScan
+    lateinit var driveLocator: DriveLocator
 
     override fun supportsRealUserMode(): Boolean = false
     override fun supportsServiceUserMode(): Boolean = true
 
     override fun configure(config: ConfigSchema.Plugins.Files) {
-        this.pluginConfig = config as ConfigSchema.Plugins.Files.UCloud
+        this.pluginConfig = (config as ConfigSchema.Plugins.Files.UCloud).normalize()
     }
 
     override suspend fun PluginContext.initialize() {
         if (!config.shouldRunServerCode()) return
 
-        // NOTE(Dan): This is working around an initialization issue when the product hasn't been registered yet
-        val storageProductCategory = productAllocationResolved.getOrNull(0)?.category?.name ?: "UNRESOLVED"
-
-        pathConverter = PathConverter(
-            config.core.providerId,
-            storageProductCategory,
-            InternalFile(pluginConfig.mountLocation),
+        driveLocator = DriveLocator(
+            productAllocationResolved.filterIsInstance<Product.Storage>(),
+            pluginConfig,
             rpcClient
         )
+        pathConverter = PathConverter(rpcClient, driveLocator)
         fs = NativeFS(pathConverter)
         trash = TrashService(pathConverter)
-        cephStats = CephFsFastDirectoryStats(fs)
-        queries = FileQueries(pathConverter, NonDistributedStateFactory(), fs, trash, cephStats)
+        directoryStats = FastDirectoryStats(driveLocator, fs)
+        queries = FileQueries(pathConverter, NonDistributedStateFactory(), fs, trash, directoryStats)
         downloads = DownloadService(pathConverter, fs)
-        limitChecker = LimitChecker(dbConnection, pathConverter)
-        memberFiles = MemberFiles(fs, pathConverter, rpcClient)
+        limitChecker = LimitChecker(dbConnection, rpcClient)
+        memberFiles = MemberFiles(fs, pathConverter)
         tasks = TaskSystem(dbConnection, pathConverter, fs, Dispatchers.IO, rpcClient, debugSystem)
         uploads = ChunkedUploadService(pathConverter, fs)
-        usageScan = UsageScan(pluginName, pathConverter, fs, cephStats, rpcClient, dbConnection)
+        usageScan = UsageScan(pluginName, pathConverter, directoryStats, rpcClient, dbConnection)
 
         with (tasks) {
             install(CopyTask())
@@ -102,6 +100,8 @@ class UCloudFilePlugin : FilePlugin {
 
             launchScheduler(ProcessingScope)
         }
+
+        driveLocator.fillDriveDatabase()
     }
 
     override suspend fun RequestContext.browse(
@@ -304,9 +304,7 @@ class UCloudFilePlugin : FilePlugin {
     override suspend fun PluginContext.runMonitoringLoopInServerMode() {
         while (coroutineContext.isActive) {
             try {
-                if (pluginConfig.accountingEnabled) {
-                    usageScan.startScanIfNeeded()
-                }
+                usageScan.startScanIfNeeded()
             } catch (ex: Throwable) {
                 debugSystem.logThrowable("Caught exception during monitoring loop", ex)
             }
@@ -347,7 +345,17 @@ class UCloudFileCollectionPlugin : FileCollectionPlugin {
     }
 
     override suspend fun RequestContext.create(resource: FileCollection): FindByStringId? {
-        filePlugin.fs.createDirectories(filePlugin.pathConverter.collectionLocation(resource.id))
+        val drive = filePlugin.driveLocator.register(
+            "",
+            UCloudDrive.Collection(resource.id.toLong()),
+            initiatedByEndUser = true,
+        ).drive
+
+        filePlugin.fs.createDirectories(
+            filePlugin.pathConverter.ucloudToInternal(
+                UCloudFile.createFromPreNormalizedString("/${drive.ucloudId}")
+            )
+        )
         return null
     }
 
@@ -388,10 +396,19 @@ class UCloudSharePlugin : SharePlugin() {
             throw RPCException("'${file.fileName()}' no longer exists", HttpStatusCode.BadRequest)
         }
 
+        val title = sourcePath.fileName()
+        val drive = filePlugin.driveLocator.register(
+            title,
+            UCloudDrive.Share(UCloudDrive.PLACEHOLDER_ID, resource.id),
+            createdByUser = "_ucloud",
+            ownedByProject = null
+        ).drive
+
         return ConfiguredShare(
-            sourcePath.fileName(),
-            productAllocation.find { it.id == "share" }!!,
-            PathConverter.COLLECTION_SHARE_PREFIX + resource.id
+            title,
+            filePlugin.driveLocator.driveToProduct(drive).removeProvider(),
+            (drive as UCloudDrive.Share).toProviderId(),
+            drive.ucloudId.toString()
         )
     }
 }

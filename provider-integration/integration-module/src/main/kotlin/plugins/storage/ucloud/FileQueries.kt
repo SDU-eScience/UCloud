@@ -11,14 +11,12 @@ import dk.sdu.cloud.file.orchestrator.api.FilesProviderStreamingSearchRequest
 import dk.sdu.cloud.file.orchestrator.api.FilesProviderStreamingSearchResult
 import dk.sdu.cloud.file.orchestrator.api.FilesSortBy
 import dk.sdu.cloud.file.orchestrator.api.PartialUFile
-import dk.sdu.cloud.file.orchestrator.api.UFile
 import dk.sdu.cloud.file.orchestrator.api.UFileIncludeFlags
 import dk.sdu.cloud.file.orchestrator.api.UFileStatus
 import dk.sdu.cloud.file.orchestrator.api.fileName
 import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.UCloudFile
-import dk.sdu.cloud.plugins.components
 import dk.sdu.cloud.plugins.fileName
 import dk.sdu.cloud.plugins.parent
 import dk.sdu.cloud.plugins.parents
@@ -89,11 +87,13 @@ class FileQueries(
     private val distributedStateFactory: DistributedStateFactory,
     private val nativeFs: NativeFS,
     private val fileTrashService: TrashService,
-    private val cephStats: CephFsFastDirectoryStats,
+    private val directoryStats: FastDirectoryStats,
 ) {
     suspend fun retrieve(file: UCloudFile, flags: UFileIncludeFlags): PartialUFile {
+        println("retrieve($file)")
         try {
             val internalFile = pathConverter.ucloudToInternal(file)
+            println("retrieveInternal($internalFile)")
             val nativeStat = nativeFs.stat(internalFile)
             val inheritedSensitivity: String? = inheritedSensitivity(internalFile)
             val sensitivity = runCatching { nativeFs.getExtendedAttribute(internalFile, SENSITIVITY_XATTR) }
@@ -109,14 +109,9 @@ class FileQueries(
     }
 
     private fun findIcon(file: InternalFile): FileIconHint? {
-        val components = pathConverter.internalToRelative(file).components()
         return if (fileTrashService.isTrashFolder(file)) {
             FileIconHint.DIRECTORY_TRASH
-        } else if (
-            (components.size == 3 && components[0] == PathConverter.HOME_DIRECTORY && components[2] == "Jobs") ||
-            (components.size == 5 && components[0] == PathConverter.PROJECT_DIRECTORY &&
-                    components[2] == PERSONAL_REPOSITORY && components[4] == "Jobs")
-        ) {
+        } else if (file.fileName() == "Jobs") {
             FileIconHint.DIRECTORY_JOBS
         } else {
             null
@@ -152,7 +147,7 @@ class FileQueries(
                 nativeStat.fileType,
                 findIcon(file),
                 sizeInBytes = nativeStat.size,
-                sizeIncludingChildrenInBytes = runCatching { cephStats.getRecursiveSize(file) }.getOrNull(),
+                sizeIncludingChildrenInBytes = runCatching { directoryStats.getRecursiveSize(file) }.getOrNull(),
                 modifiedAt = nativeStat.modifiedAt,
                 unixMode = nativeStat.mode,
                 unixOwner = nativeStat.ownerUid,
@@ -288,9 +283,11 @@ class FileQueries(
         return PageV2(pagination.itemsPerPage, items, newNext)
     }
 
-    private fun inheritedSensitivity(internalFile: InternalFile): String? {
-        val ancestors = (pathConverter.internalToRelative(internalFile).parents().drop(1)
-            .map { pathConverter.relativeToInternal(it) }) + internalFile
+    private suspend fun inheritedSensitivity(internalFile: InternalFile): String? {
+        println("inheritedSensitivity($internalFile)")
+        val ancestors = pathConverter.internalToUCloud(internalFile).parents()
+            .filter { f -> f.path.removeSuffix("/").count { it == '/' } > 1 }
+            .map { println(it) ; pathConverter.ucloudToInternal(it) } + internalFile
         var inheritedSensitivity: String? = null
         for (ancestor in ancestors) {
             val value = runCatching { nativeFs.getExtendedAttribute(ancestor, SENSITIVITY_XATTR) }.getOrNull()

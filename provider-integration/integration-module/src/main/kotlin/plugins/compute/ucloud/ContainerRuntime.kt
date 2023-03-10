@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins.compute.ucloud
 import dk.sdu.cloud.app.orchestrator.api.CpuAndMemory
 import dk.sdu.cloud.app.orchestrator.api.IPProtocol
 import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.plugins.storage.ucloud.FsSystem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import java.io.OutputStream
@@ -79,7 +80,7 @@ interface ContainerBuilder {
     fun environment(name: String, value: String)
     fun command(command: List<String>)
 
-    fun mountUCloudFileSystem(subPath: String, containerPath: String, readOnly: Boolean)
+    fun mountUCloudFileSystem(system: FsSystem, subPath: String, containerPath: String, readOnly: Boolean)
     fun mountSharedMemory(sharedMemorySizeMegabytes: Long)
     fun mountSharedVolume(volumeName: String, containerPath: String)
 

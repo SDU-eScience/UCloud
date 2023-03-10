@@ -2,11 +2,9 @@ package dk.sdu.cloud.plugins.storage.ucloud
 
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.plugins.InternalFile
-import dk.sdu.cloud.plugins.RelativeInternalFile
-import dk.sdu.cloud.plugins.components
-import dk.sdu.cloud.plugins.storage.ucloud.PathConverter.Companion.PERSONAL_REPOSITORY
+import dk.sdu.cloud.plugins.UCloudFile
+import dk.sdu.cloud.plugins.fileName
 
 class TrashService(
     private val pathConverter: PathConverter,
@@ -16,53 +14,24 @@ class TrashService(
             throw RPCException("Bad username", HttpStatusCode.BadRequest)
         }
 
-        val project = pathConverter.fetchProject(pathConverter.internalToUCloud(targetPath))
-        val relativeFile = pathConverter.internalToRelative(targetPath)
-        val components = relativeFile.components()
-        return when {
-            project != null -> {
-                pathConverter.relativeToInternal(
-                    RelativeInternalFile(
-                        joinPath(
-                            PathConverter.PROJECT_DIRECTORY,
-                            project,
-                            PERSONAL_REPOSITORY,
-                            username,
-                            TRASH_FOLDER
-                        ).removeSuffix("/")
-                    )
-                )
-            }
+        val (targetDrive) = pathConverter.locator.resolveDriveByInternalFile(targetPath)
+        val project = targetDrive.project
 
-            components[0] == PathConverter.HOME_DIRECTORY -> {
-                pathConverter.relativeToInternal(
-                    RelativeInternalFile("/${PathConverter.HOME_DIRECTORY}/$username/$TRASH_FOLDER")
-                )
+        val (homeDrive) = pathConverter.locator.resolveDrive(
+            if (project == null) {
+                UCloudDrive.PersonalWorkspace(UCloudDrive.PLACEHOLDER_ID, username)
+            } else {
+                UCloudDrive.ProjectMemberFiles(UCloudDrive.PLACEHOLDER_ID, project, username)
             }
+        )
 
-            components[0] == PathConverter.COLLECTION_DIRECTORY -> {
-                if (components.size < 2) throw FSException.CriticalException("Unable to delete this file: $targetPath")
-
-                pathConverter.relativeToInternal(
-                    RelativeInternalFile("/${PathConverter.COLLECTION_DIRECTORY}/${components[1]}/${TRASH_FOLDER}")
-                )
-            }
-
-            else -> {
-                throw FSException.CriticalException("Unable to delete this file: $targetPath")
-            }
-        }
+        return pathConverter.ucloudToInternal(
+            UCloudFile.createFromPreNormalizedString("/${homeDrive.ucloudId}/$TRASH_FOLDER")
+        )
     }
 
     fun isTrashFolder(file: InternalFile): Boolean {
-        val components = pathConverter.internalToRelative(file).components()
-        if (components.size < 2) return false
-        return when {
-            components[0] == PathConverter.HOME_DIRECTORY -> components.size == 3 && components[2] == TRASH_FOLDER
-            components[0] == PathConverter.PROJECT_DIRECTORY -> components.size == 5 && components[4] == TRASH_FOLDER
-            components[0] == PathConverter.COLLECTION_DIRECTORY -> components.size == 3 && components[2] == TRASH_FOLDER
-            else -> false
-        }
+        return file.fileName() == TRASH_FOLDER
     }
 
     companion object {
