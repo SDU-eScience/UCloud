@@ -527,7 +527,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: (selected, cb) => {
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
-                        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async res => {
+                        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelectRestriction={f => f.status.type === "DIRECTORY"
+                        } onSelect={async res => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
                             await cb.invokeCommand(
@@ -636,7 +637,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "sensitivity",
                 enabled(selected, cb) {
                     const support = cb.collection?.status.resolvedSupport?.support;
-                    if ((support as FileCollectionSupport)) {}
+                    if ((support as FileCollectionSupport)) { }
 
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;
