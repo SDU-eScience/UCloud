@@ -106,7 +106,8 @@ abstract class PodBasedContainer : Container {
                 HttpMethod.Get,
                 KubernetesResources.pod.withNameAndNamespace(podName, namespace),
                 mapOf("container" to USER_JOB_CONTAINER),
-                "log"
+                "log",
+                longRunning = true,
             ).execute { resp ->
                 val channel = resp.bodyAsChannel()
                 channel.copyTo(out)
@@ -131,7 +132,8 @@ abstract class PodBasedContainer : Container {
                         HttpMethod.Get,
                         KubernetesResources.pod.withNameAndNamespace(podName, namespace),
                         mapOf("follow" to "true", "container" to USER_JOB_CONTAINER),
-                        "log"
+                        "log",
+                        longRunning = true,
                     ).execute { resp ->
                         val podChannel = resp.bodyAsChannel()
 
