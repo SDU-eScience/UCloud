@@ -119,7 +119,7 @@ class Server(
         with(micro.server) {
             configureControllers(
                 AccountingController(accountingService, depositNotifications, client),
-                ProductController(productService),
+                ProductController(productService, accountingService, client),
                 FavoritesController(db, favoriteProjects),
                 GiftController(giftService),
                 GrantController(grantApplicationService, comments, settings, templates),

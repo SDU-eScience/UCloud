@@ -119,7 +119,7 @@ class AccountingController(
             ok(accounting.register(actorAndProject, request))
         }
 
-        implement(Wallets.retrieveProviderSummary) {
+        implementOrDispatch(Wallets.retrieveProviderSummary) {
             ok(accounting.retrieveProviderSummary(actorAndProject, request))
         }
 
