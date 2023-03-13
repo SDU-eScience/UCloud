@@ -139,23 +139,6 @@ class ProductService(
         }
     }
 
-    private suspend fun decodeProduct(actorAndProject: ActorAndProject, json: String, flags: ProductFlags): Product {
-        val product = defaultMapper.decodeFromString<Product>(json)
-        if (flags.includeBalance == true) {
-            product.balance = processor.retrieveBalanceFromProduct(
-                actorAndProject.project ?: actorAndProject.actor.safeUsername(),
-                product.category
-            )
-        }
-        if (flags.includeMaxBalance == true) {
-            product.maxUsableBalance = processor.maxUsableBalanceForProduct(
-                actorAndProject.project ?: actorAndProject.actor.safeUsername(),
-                product.category
-            )
-        }
-        return product
-    }
-
     suspend fun retrieve(
         actorAndProject: ActorAndProject,
         request: ProductsRetrieveRequest
@@ -194,30 +177,6 @@ class ProductService(
                     setParameter("next_name", nextParts?.get(2))
                 },
                 """
-                    with my_wallets as (
-                        select wa.category as wallet_category, wa.id as wallet_id, username, project_id, provider
-                        from
-                            accounting.wallets wa join
-                            accounting.wallet_owner wo on wo.id = wa.owned_by join
-                            accounting.product_categories pc on pc.id = wa.category
-                        where
-                            (
-                                (not :account_is_project and wo.username = :accountId) or
-                                (:account_is_project and wo.project_id = :accountId)
-                            ) and
-                            (
-                                :category_filter::text is null or
-                                pc.category = :category_filter
-                            ) and
-                            (
-                                :provider_filter::text is null or
-                                pc.provider = :provider_filter
-                            ) and
-                            (
-                                :product_filter::accounting.product_type is null or
-                                pc.product_type = :product_filter
-                            )
-                    )
                     select accounting.product_to_json(
                         p,
                         pc,
@@ -225,8 +184,7 @@ class ProductService(
                     )
                     from
                         accounting.products p join
-                        accounting.product_categories pc on pc.id = p.category left outer join
-                        my_wallets mw on (pc.id = mw.wallet_category and pc.provider = mw.provider)
+                        accounting.product_categories pc on pc.id = p.category 
                     where
                         (
                             (:next_provider::text is null or :next_category::text is null or :next_name::text is null) or
@@ -256,13 +214,14 @@ class ProductService(
                 """
             ).rows
 
-            val result = rows.map { defaultMapper.decodeFromString(Product.serializer(), it.getString(0)!!) }
-
-            if (request.includeBalance == true) {
-                result.forEach { product ->
-                    product.balance =
-                        processor.retrieveBalanceFromProduct(actorAndProject.actor.safeUsername(), product.category)
+            val result = rows.mapNotNull {
+                val product = defaultMapper.decodeFromString(Product.serializer(), it.getString(0)!!)
+                if (request.includeBalance == true) {
+                    val balance = processor.retrieveBalanceFromProduct(actorAndProject.actor.safeUsername(), product.category)
+                        ?: return@mapNotNull null
+                    product.balance = balance
                 }
+                return@mapNotNull product
             }
 
             val next = if (result.size < itemsPerPage) {

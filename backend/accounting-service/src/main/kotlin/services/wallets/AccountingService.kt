@@ -1,12 +1,9 @@
 package dk.sdu.cloud.accounting.services.wallets
 
 import dk.sdu.cloud.*
-import com.github.jasync.sql.db.RowData
-import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
@@ -23,7 +20,6 @@ import dk.sdu.cloud.service.db.async.paginateV2
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.serialization.decodeFromString
-import java.util.Comparator
 
 class AccountingService(
     val db: DBContext,
@@ -37,7 +33,7 @@ class AccountingService(
         }
     }
 
-    suspend fun retriveActiveProcessorAddress(): String? {
+    suspend fun retrieveActiveProcessorAddress(): String? {
         return processor.retrieveActiveProcessor()
     }
 
@@ -112,8 +108,6 @@ class AccountingService(
         }
     }
 
-    class DryRunException : RuntimeException("Dry run - Aborting")
-
     suspend fun deposit(
         actorAndProject: ActorAndProject,
         request: BulkRequest<DepositToWalletRequestItem>,
@@ -143,30 +137,6 @@ class AccountingService(
                 )
             )
         }
-            val providerIds = db.withSession { session ->
-
-            session.sendPreparedStatement(
-                {
-                    request.items.split {
-                        into("source_allocation") { it.sourceAllocation.toLongOrNull() ?: -1 }
-                    }
-                },
-                """
-                    select distinct pc.provider
-                    from
-                        accounting.wallet_allocations alloc join
-                        accounting.wallets w on alloc.associated_wallet = w.id join
-                        accounting.product_categories pc on w.category = pc.id
-                    where
-                        alloc.id = some(:source_allocation::bigint[])
-                """
-                ).rows.map { it.getString(0)!! }
-            }
-
-            providerIds.forEach { provider ->
-                val comms = providers.prepareCommunication(provider)
-                DepositNotificationsProvider(provider).pullRequest.call(Unit, comms.client)
-            }
     }
 
     suspend fun rootDeposit(

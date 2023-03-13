@@ -1,15 +1,13 @@
 package dk.sdu.cloud.accounting.rpc
 
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.CallHandler
-import dk.sdu.cloud.accounting.util.accountingPerformanceMitigations
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
@@ -28,7 +26,7 @@ class AccountingController(
         handler: suspend CallHandler<R, S, E>.() -> Unit,
     ) {
         implement(call) {
-            val activeProcessor = accounting.retriveActiveProcessorAddress()
+            val activeProcessor = accounting.retrieveActiveProcessorAddress()
             if (activeProcessor == null) {
                 handler()
             } else {
@@ -83,7 +81,7 @@ class AccountingController(
         implementOrDispatch(Wallets.retrieveWalletsInternal) {
             val walletOwner = request.owner
 
-            ok(WalletsInternalRetrieveResponse(accounting.retrieveWalletsInternal(actorAndProject, walletOwner)))
+            ok(WalletsInternalRetrieveResponse(accounting.retrieveWalletsInternal(ActorAndProject(Actor.System, null), walletOwner)))
         }
 
         implementOrDispatch(Wallets.retrieveAllocationsInternal) {
@@ -91,7 +89,7 @@ class AccountingController(
             ok(
                 WalletAllocationsInternalRetrieveResponse(
                     accounting.retrieveAllocationsInternal(
-                        actorAndProject,
+                        ActorAndProject(Actor.System, null),
                         walletOwner,
                         request.categoryId
                     )

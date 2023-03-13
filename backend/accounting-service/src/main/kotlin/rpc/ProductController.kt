@@ -20,7 +20,7 @@ class ProductController(
         handler: suspend CallHandler<R, S, E>.() -> Unit,
     ) {
         implement(call) {
-            val activeProcessor = accounting.retriveActiveProcessorAddress()
+            val activeProcessor = accounting.retrieveActiveProcessorAddress()
             if (activeProcessor == null) {
                 handler()
             } else {

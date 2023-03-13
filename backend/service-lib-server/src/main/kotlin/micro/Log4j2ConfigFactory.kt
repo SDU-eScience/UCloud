@@ -1,12 +1,10 @@
 package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
-import dk.sdu.cloud.service.Time
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.core.LoggerContext
 import org.apache.logging.log4j.core.appender.ConsoleAppender
-import org.apache.logging.log4j.core.appender.MemoryMappedFileAppender
 import org.apache.logging.log4j.core.config.AppenderRef
 import org.apache.logging.log4j.core.config.Configuration
 import org.apache.logging.log4j.core.config.ConfigurationFactory
@@ -15,16 +13,12 @@ import org.apache.logging.log4j.core.config.LoggerConfig
 import org.apache.logging.log4j.core.config.Order
 import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilder
 import org.apache.logging.log4j.core.config.plugins.Plugin
-import org.apache.logging.log4j.core.filter.ThresholdFilter
-import org.apache.logging.log4j.core.layout.PatternLayout
-import java.io.File
 import java.net.URI
 
 @Order(Int.MAX_VALUE)
 @Plugin(name = "Log4j2ConfigFactory", category = ConfigurationFactory.CATEGORY)
 object Log4j2ConfigFactory : ConfigurationFactory() {
-    private const val fileLog = "file"
-    private const val stdoutLog = "stdout"
+    private const val appenderRef = "stdout"
     private lateinit var loggerContext: LoggerContext
 
     override fun getConfiguration(loggerContext: LoggerContext, name: String, configLocation: URI?): Configuration {
@@ -44,10 +38,6 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
         return buildConfiguration(loggerContext, source.toString())
     }
 
-    // Kotlin is not wild about this recursive generic pattern that Log4j is using. As a result, we need to create a
-    // more concrete type to make the type-system happy.
-    private class MemoryMappedFileAppenderBuilderKtFix : MemoryMappedFileAppender.Builder<MemoryMappedFileAppenderBuilderKtFix>()
-
     private fun buildConfiguration(loggerContext: LoggerContext, name: String): Configuration {
         this.loggerContext = loggerContext
 
@@ -56,51 +46,30 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
 
             setConfigurationName(name)
 
-            val pattern = "%highlight{" +
-                "%d{HH:mm:ss.SSS} " +
-                //"[%t] " +
-                "(%X{request-id}) " +
-                "%level{TRACE=T, DEBUG=D, INFO=I, WARN=WARNING, ERROR=ERROR, FATAL=FATAL} " +
-                "%c{-2} - " +
-                "%msg%n" +
-                "}"
-
             add(
-                newAppender(stdoutLog, "CONSOLE")
+                newAppender(appenderRef, "CONSOLE")
                     .addAttribute("target", ConsoleAppender.Target.SYSTEM_OUT)
-                 //   .add(newFilter("ThresholdFilter", "ACCEPT", "DENY").addAttribute("level", "WARN"))
-                    .add(newLayout("PatternLayout").addAttribute("pattern", pattern))
+                    .add(
+                        newLayout("PatternLayout")
+                            .addAttribute(
+                                "pattern",
+                                "%highlight{" +
+                                        "%d{HH:mm:ss.SSS} " +
+                                        //"[%t] " +
+                                        "(%X{request-id}) " +
+                                        "%level{TRACE=T, DEBUG=D, INFO=I, WARN=WARNING, ERROR=ERROR, FATAL=FATAL} " +
+                                        "%c{-2} - " +
+                                        "%msg%n" +
+                                        "}"
+                            )
+                    )
             )
 
-            var logLocation: String? = null
-            val potentialLogFileLocations = listOf("./logs", "/var/log/ucloud", "/tmp/")
-            for (loc in potentialLogFileLocations) {
-                val dir = File(loc)
-                if (!dir.exists()) {
-                    if (!dir.mkdirs()) continue
-                }
-
-                try {
-                    val testFile = File(dir, "log_test_${Time.now()}.txt").also { it.writeText("Test") }
-                    testFile.delete()
-
-                    logLocation = loc
-                } catch (ex: Throwable) {
-                    continue
-                }
-            }
-
-            var rootLogger = newRootLogger(defaultLevel)
-            if (logLocation != null) {
-                add(
-                    newAppender(fileLog, "MemoryMappedFile")
-                        .addAttribute("fileName", File(logLocation, "debug.log").absolutePath)
-                        .add(newLayout("PatternLayout").addAttribute("pattern", pattern))
+            add(
+                newRootLogger(defaultLevel).add(
+                    newAppenderRef(appenderRef)
                 )
-                rootLogger = rootLogger.add(newAppenderRef(fileLog))
-            }
-            rootLogger = rootLogger.add(newAppenderRef(stdoutLog))
-            add(rootLogger)
+            )
 
             configureLogLevelForPackage("io.lettuce", Level.INFO)
             configureLogLevelForPackage("io.netty", Level.INFO)
@@ -137,9 +106,8 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
     private fun ConfigurationBuilder<*>.configureLogLevelForPackage(packageName: String, level: Level) {
         add(
             newLogger(packageName, level)
-                .add(newAppenderRef(stdoutLog))
-                .add(newAppenderRef(fileLog))
-                .addAttribute("additivity", true)
+                .add(newAppenderRef(appenderRef))
+                .addAttribute("additivity", false)
         )
     }
 
@@ -152,10 +120,7 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
                 level,
                 packageName,
                 null,
-                arrayOf(
-                    AppenderRef.createAppenderRef(stdoutLog, null, null),
-                    AppenderRef.createAppenderRef(fileLog, null, null),
-                ),
+                arrayOf(AppenderRef.createAppenderRef(appenderRef, null, null)),
                 null,
                 loggerContext.configuration,
                 null
