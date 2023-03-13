@@ -30,7 +30,7 @@ import {VersionManager} from "@/VersionManager/VersionManager";
 import Notification from "@/Notifications";
 import AppRoutes from "@/Routes";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {emptyPage} from "@/DefaultObjects";
+import {emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {NewsPost} from "@/Dashboard/Dashboard";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
 import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
@@ -39,8 +39,9 @@ import ClickableDropdown from "./ClickableDropdown";
 import Divider from "./Divider";
 import {ThemeToggler} from "./ThemeToggle";
 import {AvatarType} from "@/UserSettings/Avataaar";
-import {Avatar} from "@/AvataaarLib";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
+import {PageV2} from "@/UCloud";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;
@@ -52,10 +53,10 @@ const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean
     }
 `;
 
-const SidebarAdditionalStyle = styled(Flex)`
+const SidebarAdditionalStyle = styled(Flex) <{forceOpen: boolean}>`
     background-color: #5C89F4;
     transition: width 0.2s;
-    width: 0px;
+    width: ${p => p.forceOpen ? "var(--sidebarAdditionalWidth)" : "0px"};
     &:hover {
         width: var(--sidebarAdditionalWidth);
     }
@@ -87,7 +88,7 @@ interface TextLabelProps {
 
 export const SidebarTextLabel = ({
     icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
-    iconSize = "24", space = "22px", textSize = 3, hover = true
+    iconSize = "18", space = "22px", textSize = 3, hover = true
 }: TextLabelProps): JSX.Element => (
     <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
         <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
@@ -122,7 +123,7 @@ interface SidebarElement {
 
 const SidebarElement = ({icon, label, to, activePage}: SidebarElement): JSX.Element => (
     <SidebarLink to={to} active={enumToLabel(activePage) === label}>
-        <SidebarTextLabel icon={icon}>{label}</SidebarTextLabel>
+        <Icon name={icon} color={"white"} color2={"white"} size={"20"} />
     </SidebarLink>
 );
 
@@ -206,6 +207,10 @@ interface SidebarStateProps {
 export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | null => {
     const sidebarEntries = sideBarMenuElements;
     const {activeProject, loggedIn, page, avatar} = useSidebarReduxProps();
+
+    const [selectedPage, setSelectedPage] = React.useState("");
+    const [hoveredPage, setHoveredPage] = React.useState("");
+
     const dispatch = useDispatch();
     React.useEffect(() => {
         if (Client.isLoggedIn) {
@@ -226,38 +231,41 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
             <SidebarContainer color="var(--sidebar)" flexDirection="column" alignItems="center"
                 width={"var(--sidebarWidth)"}>
                 <Link data-component={"logo"} to="/">
-                    <Icon name="logoEsc" mt="10px" size="43px" />
+                    <Icon name="logoEsc" mt="10px" size="34px" />
                 </Link>
-                {sidebar.map((category, categoryIdx) => (
-                    <React.Fragment key={categoryIdx}>
-                        {category.items.filter((it: MenuElement) => it?.show?.() ?? true).map(({
-                            icon,
-                            label,
-                            to
-                        }: MenuElement) => (
-                            <React.Fragment key={label}>
-                                <SidebarSpacer />
-                                <SidebarElement
-                                    icon={icon}
-                                    activePage={page}
-                                    label=""
-                                    to={typeof to === "function" ? to() : to}
-                                />
-                            </React.Fragment>
-                        ))}
-                    </React.Fragment>
-                ))}
+                <div onMouseLeave={e => {
+                    console.log(e.target)
+                    setHoveredPage("")
+                }}>
+                    {sidebar.map((category, categoryIdx) => (
+                        <React.Fragment key={categoryIdx}>
+                            {category.items.filter((it: MenuElement) => it?.show?.() ?? true).map(({
+                                icon,
+                                label,
+                                to
+                            }: MenuElement) => (
+                                <div key={label} onClick={() => setSelectedPage(label)} onMouseEnter={() => setHoveredPage(label)}>
+                                    <SidebarSpacer />
+                                    <SidebarElement
+                                        icon={icon}
+                                        activePage={page}
+                                        label=""
+                                        to={typeof to === "function" ? to() : to}
+                                    />
+                                </div>
+                            ))}
+                        </React.Fragment>
+                    ))}
+                </div>
                 <SidebarPushToBottom />
                 <AutomaticGiftClaim />
                 <ResourceInit />
-                {/* Screen size indicator */}
-                {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
                 <Debugger />
-                <Box height="28px" />
+                <Box height="18px" />
                 <Support />
-                <Box height="28px" />
+                <Box height="18px" />
                 <Notification />
-                <Box height="28px" />
+                <Box height="18px" />
                 <VersionManager />
                 <BackgroundTasks />
                 <Downtimes />
@@ -266,7 +274,7 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                     left="var(--sidebarWidth)"
                     top="-223px"
                     colorOnHover={false}
-                    trigger={Client.isLoggedIn ? <UserAvatar height="59px" width="53px" avatar={avatar} /> : null}
+                    trigger={Client.isLoggedIn ? <UserAvatar avatarStyle={""} height="42px" width="42px" avatar={avatar} /> : null}
                 >
                     {!CONF.STATUS_PAGE ? null : (
                         <>
@@ -333,7 +341,7 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                 <Box mb="10px" />
             </SidebarContainer>
 
-            <SidebarAdditional />
+            <SidebarAdditional data-tag="additional" hovered={hoveredPage} clicked={selectedPage} />
         </Flex>
     );
 
@@ -343,41 +351,53 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
     }
 };
 
-function SidebarAdditional(): JSX.Element {
-    return (<SidebarAdditionalStyle>
+function SidebarAdditional({hovered, clicked}: {hovered: string; clicked: string;}): JSX.Element {
+    const [forceOpen, setForceOpen] = React.useState(false);
+    React.useEffect(() => {
+        if (clicked) setForceOpen(true);
+    }, [clicked]);
 
+    const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>(FileCollectionsApi.browse({itemsPerPage: 10/* , filterMemberFiles: "all" */}), emptyPageV2);
+
+    const active = hovered ? hovered : clicked;
+    return (<SidebarAdditionalStyle flexDirection={"column"} forceOpen={forceOpen}>
+        <TextSpan bold color="var(--white)" ml="5px">{active}</TextSpan>
+        <Flex ml="auto" mr="5px" mt="5px" height="24px">{forceOpen ? <TextSpan onClick={() => setForceOpen(false)}>Unlock</TextSpan> : null}</Flex>
+        {active !== "Files" ? null : (
+            drives.data.items.map(it =>
+                <TextSpan color="var(--white)">{it.specification.title}</TextSpan>
+            )
+        )}
     </SidebarAdditionalStyle>)
 }
 
 function Username(): JSX.Element | null {
     if (!Client.isLoggedIn) return null;
-    return <Box style={{zIndex: -1}}>
-        <SidebarTextLabel
-            height="25px"
-            hover={false}
-            icon="id"
-            iconSize="1em"
-            textSize={1}
-            space=".5em"
-        >
-            <Tooltip
-                left="-50%"
-                top="1"
-                mb="35px"
-                trigger={(
-                    <EllipsedText
-                        cursor="pointer"
-                        onClick={copyUserName}
-                        width="140px"
-                    >
-                        {Client.username}
-                    </EllipsedText>
-                )}
+    return <Tooltip
+        left="-50%"
+        top="1"
+        mb="35px"
+        trigger={(
+            <SidebarTextLabel
+                height="25px"
+                hover={false}
+                icon="id"
+                iconSize="1em"
+                textSize={1}
+                space=".5em"
             >
-                Click to copy {Client.username} to clipboard
-            </Tooltip>
-        </SidebarTextLabel>
-    </Box>
+                <EllipsedText
+                    cursor="pointer"
+                    onClick={copyUserName}
+                    width="140px"
+                >
+                    {Client.username}
+                </EllipsedText>
+            </SidebarTextLabel>
+        )}
+    >
+        Click to copy {Client.username} to clipboard
+    </Tooltip>
 }
 
 function ProjectID(): JSX.Element | null {
@@ -389,30 +409,31 @@ function ProjectID(): JSX.Element | null {
         [...(project.fetch().status.path?.split("/")?.filter(it => it.length > 0) ?? []), project.fetch().specification.title],
         "/"
     );
+
     const copyProjectPath = useCallback(() => {
         copyToClipboard({value: projectPath, message: "Project copied to clipboard!"});
     }, [projectPath]);
 
     if (!projectId) return null;
-    return <SidebarTextLabel key={projectId} icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1}
-        space={".5em"}>
-        <Tooltip
-            left="-50%"
-            top="1"
-            mb="35px"
-            trigger={(
-                <EllipsedText
-                    cursor="pointer"
-                    onClick={copyProjectPath}
-                    width="140px"
-                >
-                    {projectPath}
-                </EllipsedText>
-            )}
-        >
-            Click to copy to clipboard
-        </Tooltip>
-    </SidebarTextLabel>
+    return <Tooltip
+        left="-50%"
+        top="1"
+        mb="35px"
+        trigger={<SidebarTextLabel key={projectId} icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1}
+            space={".5em"}>
+
+            <EllipsedText
+                cursor="pointer"
+                onClick={copyProjectPath}
+                width="140px"
+            >
+                {projectPath}
+            </EllipsedText>
+        </SidebarTextLabel>
+        }
+    >
+        Click to copy to clipboard
+    </Tooltip>
 }
 
 function Downtimes(): JSX.Element | null {
@@ -452,7 +473,7 @@ function isLocalHost(): boolean {
 function Debugger(): JSX.Element | null {
     return isLocalHost() ? <>
         <ExternalLink href="/debugger?hide-frame">
-            <SidebarTextLabel icon={"bug"} iconSize="1.5em" textSize={1} height={"25px"} hover={false}>
+            <SidebarTextLabel icon={"bug"} iconSize="18px" textSize={1} height={"25px"} hover={false}>
                 <div />
             </SidebarTextLabel>
         </ExternalLink>

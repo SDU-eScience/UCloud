@@ -79,7 +79,7 @@ export default function Support(): JSX.Element {
             onTriggerClick={fetchStatus}
             trigger={(
                 <Flex width="48px" justifyContent="center">
-                    <Icon name={"chat"} size="24px" color="headerIconColor" color2="headerBg" />
+                    <Icon name={"chat"} size="18px" color="headerIconColor" color2="headerBg" />
                 </Flex>
             )}
             width="650px"

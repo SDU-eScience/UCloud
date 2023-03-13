@@ -111,7 +111,8 @@ html {
 
     /* REWRITE-VARS */
     --sidebar: #2C68F6;
-    --sidebarWidth: 85px;
+    --sidebarWidth: 64px;
+    --sidebarAdditionalWidth: 220px;
 
     /* FONT-SIZES */
     --secondaryText: 12px;

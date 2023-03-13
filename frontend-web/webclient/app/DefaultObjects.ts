@@ -68,14 +68,6 @@ export interface ComponentWithPage<T> extends ComponentWithLoadingState {
     page: Page<T>;
 }
 
-export interface ResponsiveReduxObject {
-    mediaType: string;
-    orientation: string;
-    lessThan: Record<string, boolean>;
-    greaterThan: Record<string, boolean>;
-    is: Record<string, boolean>;
-}
-
 export interface StatusReduxObject {
     title: string;
     page: SidebarPages;
@@ -130,7 +122,6 @@ interface LegacyReduxObject {
     status: StatusReduxObject;
     header: HeaderSearchReduxObject;
     avatar: AvatarReduxObject;
-    responsive?: ResponsiveReduxObject;
     project: ProjectRedux.State;
     terminal: TerminalState;
     loading?: boolean;
@@ -163,7 +154,6 @@ export function initObject(): ReduxObject {
         header: initHeader(),
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
-        responsive: undefined,
         terminal: initTerminalState(),
     };
 }

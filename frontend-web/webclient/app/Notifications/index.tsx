@@ -350,6 +350,7 @@ export const Notifications: React.FunctionComponent = () => {
                 <Flex justifyContent="center" width="48px">
                     <Icon
                         cursor="pointer"
+                        size={"18px"}
                         name="notification"
                         color="headerIconColor"
                         color2="headerIconColor2"

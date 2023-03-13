@@ -14,10 +14,11 @@ interface UserAvatar extends SpaceProps {
     width?: string;
     height?: string;
     mx?: string;
+    avatarStyle?: string;
 }
 
-export const UserAvatar = ({avatar, width = "60px", height = "48px", mx = "8px"}: UserAvatar): JSX.Element => (
+export const UserAvatar = ({avatar, avatarStyle = "Circle", width = "60px", height = "48px", mx = "8px"}: UserAvatar): JSX.Element => (
     <ClippedBox mx={mx} width={width} alignItems="center" height={height}>
-        <Avatar avatarStyle="Circle" {...avatar} />
+        <Avatar avatarStyle={avatarStyle} {...avatar} />
     </ClippedBox>
 );

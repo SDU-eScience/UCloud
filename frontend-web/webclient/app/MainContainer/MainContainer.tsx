@@ -4,13 +4,12 @@ import {useSelector} from "react-redux";
 import styled from "styled-components";
 import {Absolute, Box, Hide} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {ResponsiveReduxObject} from "@/DefaultObjects";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useEffect} from "react";
+import {UtilityBar} from "@/Playground/Playground";
 
 export interface MainContainerProps {
     sidebar?: React.ReactNode;
-    sidebarSize?: number;
     main: React.ReactNode;
     additional?: React.ReactNode;
     header?: React.ReactNode;
@@ -22,33 +21,32 @@ export const MainContainer = ({
     main,
     additional,
     header,
-    sidebarSize = 240,
     headerSize = 96
 }: MainContainerProps): JSX.Element => {
     const [, setHeaderSize] = useGlobal("mainContainerHeaderSize", headerSize);
-    const responsiveState = useSelector<ReduxObject, ResponsiveReduxObject>(it => it.responsive!);
     const leftSidebarSize = getComputedStyle(document.documentElement).getPropertyValue("--sidebarWidth");
     const pad = 16; // padding unit
 
     const mainYpad = header ? headerSize : pad;
-    const mainXpad = sidebar && responsiveState!.greaterThan.md ? sidebarSize : pad;
+    const mainXpad = pad;
 
     useEffect(() => {
         setHeaderSize(mainYpad);
     }, [mainYpad]);
 
     return (
-        <Box data-component={"main"} backgroundColor="white" ml={leftSidebarSize} pb={pad} pl={pad} pr="0">
+        <Box data-component={"main"} backgroundColor="white" pb={pad} pl={pad} pr="0">
             {header && (
                 <HeaderContainer
                     left="0"
                     py={pad}
-                    pl={`calc(${leftSidebarSize} + ${pad}px`}
+                    pl={`calc(${leftSidebarSize} + ${pad}px)`}
                     pr={pad}
                     width={1}
                     height={headerSize}
                     bg="white"
                 >
+                    <UtilityBar searchEnabled />
                     {header}
                 </HeaderContainer>
             )}
@@ -70,7 +68,7 @@ export const MainContainer = ({
                     </SidebarScroll>
                 </Hide>
             )}
-            <Box pt={mainYpad} pr={mainXpad}>
+            <Box width="100%" pt={mainYpad} pr={mainXpad}>
                 <Hide lg xl xxl>
                     {sidebar}
                 </Hide>
