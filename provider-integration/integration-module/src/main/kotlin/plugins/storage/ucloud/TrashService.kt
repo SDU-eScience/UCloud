@@ -17,7 +17,7 @@ class TrashService(
         val (targetDrive) = pathConverter.locator.resolveDriveByInternalFile(targetPath)
         val project = targetDrive.project
 
-        val (homeDrive) = pathConverter.locator.resolveDrive(
+        val (homeDrive) = pathConverter.locator.resolveDriveByProviderId(
             if (project == null) {
                 UCloudDrive.PersonalWorkspace(UCloudDrive.PLACEHOLDER_ID, username)
             } else {

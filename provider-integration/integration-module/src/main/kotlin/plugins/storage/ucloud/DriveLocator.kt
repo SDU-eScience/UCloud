@@ -21,14 +21,14 @@ import dk.sdu.cloud.file.orchestrator.api.MemberFilesFilter
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.normalize
 import dk.sdu.cloud.sql.DBContext
-import dk.sdu.cloud.sql.ResultCursor
+import dk.sdu.cloud.sql.SQL_TYPE_HINT_BOOL
 import dk.sdu.cloud.sql.SQL_TYPE_HINT_INT8
 import dk.sdu.cloud.sql.SQL_TYPE_HINT_TEXT
-import dk.sdu.cloud.sql.bindLongNullable
-import dk.sdu.cloud.sql.bindStringNullable
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 sealed class UCloudDrive {
     abstract val ucloudId: Long
@@ -136,6 +136,184 @@ data class DriveAndSystem(
     val driveRoot: InternalFile?,
 )
 
+private object DriveAndSystemStore {
+    private val entries = ArrayList<DriveAndSystem>()
+    private val mutex = Mutex()
+
+    suspend fun fill(
+        serviceClient: AuthenticatedClient,
+        legacySystem: FsSystem,
+        allSystems: List<FsSystem>,
+    ) {
+        mutex.withLock {
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
+                        select collection_id, local_reference, project, type, system, in_maintenance_mode
+                        from ucloud_storage_drives
+                    """
+                ).useAndInvoke(
+                    readRow = { row ->
+                        val driveId = row.getLong(0)!!
+                        val localReference = row.getString(1)
+                        val project = row.getString(2)
+                        val type = UCloudDrive.Type.valueOf(row.getString(3)!!)
+                        val system = row.getString(4)!!
+                        val maintenanceMode = row.getBoolean(5)!!
+                        val resolvedSystem = allSystems.find { it.name == system }
+                            ?: error("Unknown system: $system")
+
+                        val drive = when (type) {
+                            UCloudDrive.Type.PERSONAL_WORKSPACE -> {
+                                UCloudDrive.PersonalWorkspace(driveId, localReference!!)
+                            }
+
+                            UCloudDrive.Type.PROJECT_REPOSITORY -> {
+                                UCloudDrive.ProjectRepository(driveId, project!!, localReference!!)
+                            }
+
+                            UCloudDrive.Type.PROJECT_MEMBER_FILES -> {
+                                UCloudDrive.ProjectMemberFiles(driveId, project!!, localReference!!)
+                            }
+
+                            UCloudDrive.Type.COLLECTION -> {
+                                UCloudDrive.Collection(driveId)
+                            }
+
+                            UCloudDrive.Type.SHARE -> {
+                                UCloudDrive.Share(driveId, localReference!!)
+                            }
+                        }
+
+                        entries.add(DriveAndSystem(drive, resolvedSystem, maintenanceMode, null))
+                    }
+                )
+            }
+        }
+
+        val drives = ArrayList<FileCollection>()
+
+        var next: String? = null
+        while (true) {
+            val page = FileCollectionsControl.browse.call(
+                ResourceBrowseRequest(
+                    FileCollectionIncludeFlags(MemberFilesFilter.DONT_FILTER_COLLECTIONS),
+                    itemsPerPage = 250,
+                    next = next
+                ),
+                serviceClient
+            ).orThrow()
+            drives.addAll(page.items)
+            next = page.next ?: break
+        }
+
+        drives
+            .mapNotNull { drive ->
+                runCatching {
+                    UCloudDrive.parse(drive.id.toLong(), drive.providerGeneratedId).also {
+                        it.project = drive.owner.project
+                    }
+                }.getOrNull()
+            }
+            .chunked(100)
+            .forEach { chunk ->
+                insert(chunk.map { DriveAndSystem(it, legacySystem, false, null) }, allowUpsert = false)
+            }
+    }
+
+    suspend fun insert(items: List<DriveAndSystem>, allowUpsert: Boolean, ctx: DBContext = dbConnection) {
+        if (items.isEmpty()) return
+
+        mutex.withLock {
+            ctx.withSession { session ->
+                session.prepareStatement(
+                    buildString {
+                        append(
+                            """
+                                insert into ucloud_storage_drives (collection_id, local_reference, project, type, 
+                                    system, in_maintenance_mode)
+                                select 
+                                    unnest(:collection_ids::bigint[]), 
+                                    unnest(:references::text[]), 
+                                    unnest(:projects::text[]), 
+                                    unnest(:types::text[]),
+                                    unnest(:systems::text[]),
+                                    unnest(:maintenance_mode::bool[])
+                            """
+                        )
+
+                        if (allowUpsert) {
+                            appendLine("on conflict (collection_id) do update set system = excluded.system")
+                        } else {
+                            appendLine("on conflict do nothing")
+                        }
+                    }
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindList("collection_ids", items.map { it.drive.ucloudId }, SQL_TYPE_HINT_INT8)
+                        bindList("references", items.map { it.drive.localReference }, SQL_TYPE_HINT_TEXT)
+                        bindList("projects", items.map { it.drive.project }, SQL_TYPE_HINT_TEXT)
+                        bindList("types", items.map { it.drive.type.name }, SQL_TYPE_HINT_TEXT)
+                        bindList("systems", items.map { it.system.name }, SQL_TYPE_HINT_TEXT)
+                        bindList("maintenance_mode", items.map { it.inMaintenanceMode }, SQL_TYPE_HINT_BOOL)
+                    }
+                )
+            }
+
+            val itemsToSkip = ArrayList<Int>(items.size)
+            for (idx in entries.indices) {
+                val entry = entries[idx]
+                val entryToUpdateIdx = items.indexOfFirst { it.drive.ucloudId == entry.drive.ucloudId }
+                if (entryToUpdateIdx != -1) {
+                    itemsToSkip.add(entryToUpdateIdx)
+
+                    if (allowUpsert) {
+                        entries[idx] = entry.copy(system = items[entryToUpdateIdx].system)
+                    }
+                }
+            }
+
+            for ((index, item) in items.withIndex()) {
+                if (index in itemsToSkip) continue
+                entries.add(item)
+            }
+        }
+    }
+
+    suspend fun retrieve(id: Long): DriveAndSystem? {
+        return mutex.withLock {
+            entries.find { it.drive.ucloudId == id }
+        }
+    }
+
+    suspend fun findByProperties(type: UCloudDrive.Type, localReference: String?, project: String?): DriveAndSystem? {
+        return mutex.withLock {
+            entries.find {
+                it.drive.type == type &&
+                        it.drive.localReference == localReference &&
+                        it.drive.project == project
+            }
+        }
+    }
+
+    suspend fun findSystemByProject(project: String): Pair<FsSystem, Boolean>? {
+        mutex.withLock {
+            val entry = entries.find { it.drive.project == project }
+            if (entry != null) {
+                return Pair(entry.system, entry.inMaintenanceMode)
+            } else {
+                return null
+            }
+        }
+    }
+
+    suspend fun enumerate(): List<DriveAndSystem> {
+        return mutex.withLock {
+            buildList { addAll(entries) }
+        }
+    }
+}
+
 class DriveLocator(
     private val products: List<Product.Storage>,
     private val config: ConfigSchema.Plugins.Files.UCloud,
@@ -147,6 +325,10 @@ class DriveLocator(
         else defaultSystem
     private val allSystems = config.systems.values.toList()
     private val systemsSortedByMountPrefix = allSystems.sortedBy { it.mountPath }.reversed()
+
+    // Maps providerId to ucloudId
+    private val registeredDrives = HashMap<String, Long>()
+    private val registeredDrivesMutex = Mutex()
 
     private val defaultProduct by lazy {
         products.find { it.name != driveProjectHomeName && it.name != driveShareName }
@@ -164,50 +346,7 @@ class DriveLocator(
     }
 
     suspend fun fillDriveDatabase() {
-        val drives = ArrayList<FileCollection>()
-
-        var next: String? = null
-        while (true) {
-            val page = FileCollectionsControl.browse.call(
-                ResourceBrowseRequest(
-                    FileCollectionIncludeFlags(MemberFilesFilter.DONT_FILTER_COLLECTIONS),
-                    itemsPerPage = 250,
-                    next = next
-                ),
-                serviceClient
-            ).orThrow()
-            drives.addAll(page.items)
-            next = page.next ?: break
-        }
-
-        dbConnection.withSession { session ->
-            drives.mapNotNull { drive ->
-                runCatching {
-                    UCloudDrive.parse(drive.id.toLong(), drive.providerGeneratedId).also {
-                        it.project = drive.owner.project
-                    }
-                }.getOrNull()
-            }.chunked(100).forEach { chunk ->
-                session.prepareStatement(
-                    """
-                        insert into ucloud_storage_drives (collection_id, local_reference, project, type, system)
-                        select 
-                            unnest(:collection_ids::bigint[]), 
-                            unnest(:references::text[]), 
-                            unnest(:projects::text[]), 
-                            unnest(:types::text[]),
-                            :default_system
-                        on conflict do nothing
-                    """
-                ).useAndInvokeAndDiscard {
-                    bindList("collection_ids", chunk.map { it.ucloudId }, SQL_TYPE_HINT_INT8)
-                    bindList("references", chunk.map { it.localReference }, SQL_TYPE_HINT_TEXT)
-                    bindList("projects", chunk.map { it.project }, SQL_TYPE_HINT_TEXT)
-                    bindList("types", chunk.map { it.type.name }, SQL_TYPE_HINT_TEXT)
-                    bindString("default_system", legacySystem.name)
-                }
-            }
-        }
+        DriveAndSystemStore.fill(serviceClient, legacySystem, allSystems)
     }
 
     /**
@@ -232,24 +371,12 @@ class DriveLocator(
             val (system, isAllowed) = when (drive) {
                 is UCloudDrive.ProjectMemberFiles,
                 is UCloudDrive.ProjectRepository -> {
-                    var systemName: String? = null
-                    var maintenanceMode = false
+                    val systemName: String?
+                    var maintenanceMode: Boolean
 
-                    session.prepareStatement(
-                        """
-                            select system, in_maintenance_mode
-                            from ucloud_storage_drives
-                            where project = :project
-                        """
-                    ).useAndInvoke(
-                        prepare = {
-                            bindStringNullable("project", drive.project)
-                        },
-                        readRow = { row ->
-                            systemName = row.getString(0)!!
-                            maintenanceMode = row.getBoolean(1)!!
-                        }
-                    )
+                    val systemAndMaintenance = DriveAndSystemStore.findSystemByProject(drive.project!!)
+                    systemName = systemAndMaintenance?.first?.name
+                    maintenanceMode = systemAndMaintenance?.second ?: false
 
                     val system = if (systemName == null) {
                         maintenanceMode = false
@@ -273,70 +400,62 @@ class DriveLocator(
                 )
             }
 
-            var responseCode = HttpStatusCode.OK
             val id = if (initiatedByEndUser) {
                 drive.ucloudId
             } else {
-                val response = FileCollectionsControl.register.call(
-                    bulkRequestOf(
-                        ProviderRegisteredResource(
-                            FileCollection.Spec(title, driveToProduct(drive)),
-                            providerGeneratedId = drive.toProviderId(),
-                            createdBy = createdByUser,
-                            project = ownedByProject
-                        )
-                    ),
-                    serviceClient
-                )
+                registeredDrivesMutex.withLock {
+                    val cachedDriveId = registeredDrives[drive.toProviderId()]
+                    if (cachedDriveId == null) {
+                        val providerId = drive.toProviderId()
+                            ?: error("$drive was expected to have a provider ID but didn't")
 
-                responseCode = response.statusCode
-                response.orNull()?.responses?.single()?.id?.toLong()
-            }
-
-            if (id != null) {
-                session.prepareStatement(
-                    """
-                        insert into ucloud_storage_drives(collection_id, local_reference, project, type, system)
-                        values (:collection_id::bigint, :local_reference::text, :project::text, :type::text, :system::text)
-                        on conflict (collection_id) do update set system = excluded.system
-                    """
-                ).useAndInvokeAndDiscard {
-                    bindLong("collection_id", id)
-                    bindStringNullable("local_reference", drive.localReference)
-                    bindStringNullable("project", drive.project)
-                    bindString("type", drive.type.name)
-                    bindString("system", system.name)
-                }
-
-                DriveAndSystem(
-                    drive.withUCloudId(id),
-                    system,
-                    false,
-                    driveToInternalFile(system, drive)
-                )
-            } else {
-                if (responseCode == HttpStatusCode.Conflict) {
-                    val resolvedId = FileCollectionsControl.browse.call(
-                        ResourceBrowseRequest(
-                            FileCollectionIncludeFlags(
-                                MemberFilesFilter.DONT_FILTER_COLLECTIONS,
-                                filterProviderIds = drive.toProviderId()
+                        val response = FileCollectionsControl.register.call(
+                            bulkRequestOf(
+                                ProviderRegisteredResource(
+                                    FileCollection.Spec(title, driveToProduct(drive)),
+                                    providerGeneratedId = providerId,
+                                    createdBy = createdByUser,
+                                    project = ownedByProject
+                                )
                             ),
-                        ),
-                        serviceClient
-                    ).orThrow().items.firstOrNull()?.id?.toLongOrNull() ?: throw RPCException.fromStatusCode(
-                        HttpStatusCode.InternalServerError
-                    )
+                            serviceClient
+                        )
 
-                    resolveDrive(resolvedId, ctx = session)
-                } else {
-                    throw RPCException.fromStatusCode(responseCode)
+                        val freshId = if (response.statusCode == HttpStatusCode.Conflict) {
+                            FileCollectionsControl.browse
+                                .call(
+                                    ResourceBrowseRequest(
+                                        FileCollectionIncludeFlags(
+                                            MemberFilesFilter.DONT_FILTER_COLLECTIONS,
+                                            filterProviderIds = providerId
+                                        ),
+                                    ),
+                                    serviceClient
+                                )
+                                .orThrow()
+                                .items
+                                .firstOrNull()
+                                ?.id
+                                ?.toLongOrNull()
+                                ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                        } else {
+                            response.orThrow().responses.first().id.toLong()
+                        }
+
+                        registeredDrives[providerId] = freshId
+                        freshId
+                    } else {
+                        cachedDriveId
+                    }
                 }
             }
+
+            DriveAndSystem(drive.withUCloudId(id), system, false, driveToInternalFile(system, drive))
+                .also { result -> DriveAndSystemStore.insert(listOf(result), allowUpsert = true) }
         }
     }
 
-    suspend fun resolveDrive(drive: UCloudDrive): DriveAndSystem {
+    suspend fun resolveDriveByProviderId(drive: UCloudDrive): DriveAndSystem {
         val resolvedId = FileCollectionsControl.browse.call(
             ResourceBrowseRequest(
                 FileCollectionIncludeFlags(
@@ -354,28 +473,19 @@ class DriveLocator(
     suspend fun resolveDrive(
         driveId: Long,
         allowMaintenanceMode: Boolean = false,
-        ctx: DBContext = dbConnection,
     ): DriveAndSystem {
-        return ctx.withSession { session ->
-            var driveAndSystem: DriveAndSystem? = null
-            session.prepareStatement(
-                """
-                    select collection_id, local_reference, project, type, system, in_maintenance_mode
-                    from ucloud_storage_drives
-                    where collection_id = :collection_id
-                """
-            ).useAndInvoke(
-                prepare = {
-                    bindLong("collection_id", driveId)
-                },
+        val drive = DriveAndSystemStore.retrieve(driveId)
+            ?: throw RPCException("Unknown drive: $driveId", HttpStatusCode.NotFound)
 
-                readRow = { row ->
-                    driveAndSystem = mapDriveRow(row, allowMaintenanceMode)
-                }
+        if (!allowMaintenanceMode && drive.inMaintenanceMode) {
+            throw RPCException(
+                "This drive is currently in maintenance mode. Try again later.",
+                HttpStatusCode.BadGateway,
+                "MAINTENANCE"
             )
-
-            driveAndSystem ?: throw RPCException("Unknown drive: $driveId", HttpStatusCode.NotFound)
         }
+
+        return drive.normalize()
     }
 
     suspend fun resolveDriveByInternalFile(path: InternalFile): DriveAndSystem {
@@ -419,132 +529,23 @@ class DriveLocator(
             else -> unknownFile()
         }
 
-        var driveAndSystem: DriveAndSystem? = null
-
-        dbConnection.withSession { session ->
-            session.prepareStatement(
-                """
-                    select collection_id, local_reference, project, type, system, in_maintenance_mode
-                    from ucloud_storage_drives
-                    where
-                        type = :type and
-                        local_reference = :local_reference and
-                        (:project::text is null or project = :project::text)
-                """
-            ).useAndInvoke(
-                prepare = {
-                    bindString("type", type.name)
-                    bindString("local_reference", localReference)
-                    bindStringNullable("project", project)
-                },
-
-                readRow = { row ->
-                    if (driveAndSystem != null) {
-                        error("Found more than one drive matching: ${path.path}")
-                    }
-
-                    driveAndSystem = mapDriveRow(row, true)
-                }
-            )
-        }
-
-        return driveAndSystem ?: unknownFile()
+        return DriveAndSystemStore
+            .findByProperties(type, localReference, project)
+            ?.normalize()
+            ?: unknownFile()
     }
 
     suspend fun enumerateDrives(
         filterType: UCloudDrive.Type? = null,
         next: String? = null
     ): PageV2<DriveAndSystem> {
-        val items = ArrayList<DriveAndSystem>()
-        dbConnection.withSession { session ->
-            session.prepareStatement(
-                """
-                    select collection_id, local_reference, project, type, system, in_maintenance_mode
-                    from ucloud_storage_drives drive
-                    where
-                        (
-                            :type::text is null or
-                            :type::text = drive.type
-                        ) and
-                        (
-                            :next::bigint is null or
-                            drive.collection_id > :next::bigint
-                        )
-                    order by collection_id asc
-                    limit 1000
-                """
-            ).useAndInvoke(
-                prepare = {
-                    bindLongNullable("next", next?.toLongOrNull())
-                    bindStringNullable("type", filterType?.name)
-                },
+        if (next != null) return PageV2(itemsPerPage = 0, items = emptyList(), next = null)
 
-                readRow = { row ->
-                    items.add(mapDriveRow(row, true))
-                }
-            )
+        val items = DriveAndSystemStore.enumerate().mapNotNull {
+            if (filterType != null && it.drive.type != filterType) return@mapNotNull null
+            it.normalize()
         }
-
-        return PageV2(
-            itemsPerPage = 1000,
-            items = items,
-            next = if (items.size < 1000) {
-                items.lastOrNull()?.drive?.ucloudId?.toString()
-            } else {
-                null
-            }
-        )
-    }
-
-    private suspend fun mapDriveRow(
-        row: ResultCursor,
-        allowMaintenanceMode: Boolean,
-    ): DriveAndSystem {
-        val driveId = row.getLong(0)!!
-        val localReference = row.getString(1)
-        val project = row.getString(2)
-        val type = UCloudDrive.Type.valueOf(row.getString(3)!!)
-        val system = row.getString(4)!!
-        val maintenanceMode = row.getBoolean(5)!!
-        val resolvedSystem = allSystems.find { it.name == system }
-            ?: error("Unknown system: $system")
-
-        if (!allowMaintenanceMode && maintenanceMode) {
-            throw RPCException(
-                "This drive is currently in maintenance mode. Try again later.",
-                HttpStatusCode.BadGateway,
-                "MAINTENANCE"
-            )
-        }
-
-        val drive = when (type) {
-            UCloudDrive.Type.PERSONAL_WORKSPACE -> {
-                UCloudDrive.PersonalWorkspace(driveId, localReference!!)
-            }
-
-            UCloudDrive.Type.PROJECT_REPOSITORY -> {
-                UCloudDrive.ProjectRepository(driveId, project!!, localReference!!)
-            }
-
-            UCloudDrive.Type.PROJECT_MEMBER_FILES -> {
-                UCloudDrive.ProjectMemberFiles(driveId, project!!, localReference!!)
-            }
-
-            UCloudDrive.Type.COLLECTION -> {
-                UCloudDrive.Collection(driveId)
-            }
-
-            UCloudDrive.Type.SHARE -> {
-                UCloudDrive.Share(driveId, localReference!!)
-            }
-        }
-
-        return DriveAndSystem(
-            drive,
-            resolvedSystem,
-            maintenanceMode,
-            driveToInternalFile(resolvedSystem, drive),
-        )
+        return PageV2(itemsPerPage = items.size, items = items, next = null)
     }
 
     fun driveToProduct(drive: UCloudDrive): ProductReference {
@@ -555,6 +556,10 @@ class DriveLocator(
             is UCloudDrive.ProjectRepository -> defaultProduct.toReference()
             is UCloudDrive.Share -> shareProduct.toReference()
         }
+    }
+
+    private fun DriveAndSystem.normalize(): DriveAndSystem {
+        return copy(driveRoot = driveToInternalFile(system, drive))
     }
 
     private fun driveToInternalFile(system: FsSystem, drive: UCloudDrive): InternalFile? {
