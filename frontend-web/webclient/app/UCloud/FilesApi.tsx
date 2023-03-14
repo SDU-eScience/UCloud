@@ -11,7 +11,7 @@ import {FileIconHint, FileType} from "@/Files";
 import {BulkRequest, BulkResponse, compute, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
-import {Box, Button, Flex, FtIcon, Icon, Link, Select, Text, TextArea} from "@/ui-components";
+import {Box, Button, Flex, FtIcon, Icon, Input, Link, Select, Text, TextArea} from "@/ui-components";
 import * as React from "react";
 import {
     fileName,
@@ -62,6 +62,7 @@ import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import { ProviderTitle } from "@/Providers/ProviderTitle";
 import { ProviderLogo } from "@/Providers/ProviderLogo";
+import {ShareModal} from "@/Files/Shares";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -526,7 +527,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: (selected, cb) => {
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
-                        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async res => {
+                        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelectRestriction={f => f.status.type === "DIRECTORY"
+                        } onSelect={async res => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
                             await cb.invokeCommand(
@@ -595,11 +597,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Share",
                 enabled: (selected, cb) => {
                     if (Client.hasActiveProject) {return false;}
-                    if (selected.length === 0) return false;
+                    if (selected.length != 1) return false;
 
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
-                    if ((support as FileCollectionSupport).files.shareSupport === false) return false;
+                    if ((support as FileCollectionSupport).files.sharesSupported === false) return false;
 
                     const isMissingPermissions = selected.some(it => !it.permissions.myself.some(p => p === "ADMIN"));
                     const hasNonDirectories = selected.some(it => it.status.type != "DIRECTORY");
@@ -621,30 +623,13 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return true;
                 },
                 onClick: async (selected, cb) => {
-                    const username = await addStandardInputDialog({
-                        title: "Share",
-                        help: <>The username of the user you wish to share this file with</>,
-                        addToFront: true,
-                        confirmText: "Share",
-                        width: "100%"
-                    });
-
-                    await cb.invokeCommand<BulkResponse<FindById>>(
-                        SharesApi.create(
-                            bulkRequestOf(
-                                ...selected.map(file => ({
-                                    sharedWith: username.result,
-                                    sourceFilePath: file.id,
-                                    permissions: ["READ" as const],
-                                    product: file.specification.product
-                                }))
-                            )
-                        )
-                    ).then(it => {
-                        if (it?.responses) {
-                            cb.navigate(`/shares/outgoing`);
-                        }
-                    });
+                    dialogStore.addDialog(
+                        <ShareModal
+                            selected={selected[0]}
+                            cb={cb}
+                        />,
+                        doNothing, true
+                    );
                 }
             },
             {
@@ -652,7 +637,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "sensitivity",
                 enabled(selected, cb) {
                     const support = cb.collection?.status.resolvedSupport?.support;
-                    if ((support as FileCollectionSupport)) {}
+                    if ((support as FileCollectionSupport)) { }
 
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;

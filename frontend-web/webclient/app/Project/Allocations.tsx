@@ -299,6 +299,12 @@ interface UsageFromWallet {
     initialBalance: number;
 }
 
+export function percentageString(usage: UsageFromWallet): string {
+    const result = resultAsPercent(usage);
+    if (!Number.isFinite(result)) return "";
+    return " (" + Math.round(result) + "%)";
+}
+
 function totalUsageFromMultipleWallets(wallets: Wallet[]): UsageFromWallet {
     return wallets.reduce((acc, wallet) => {
         const usage = totalUsageFromWallet(wallet);

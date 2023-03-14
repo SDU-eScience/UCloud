@@ -701,7 +701,8 @@ class PosixFilesPlugin : FilePlugin {
                     aclModifiable = false,
                     trashSupported = true,
                     isReadOnly = false,
-                    streamingSearchSupported = true
+                    streamingSearchSupported = true,
+                    sharesSupported = false
                 )
             )
         })
