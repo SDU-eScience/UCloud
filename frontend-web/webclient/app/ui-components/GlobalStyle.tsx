@@ -117,7 +117,7 @@ html {
     /* FONT-SIZES */
     --secondaryText: 12px;
     --buttonText: 14px;
-    --secondaryText: 16px;
+    --breadText: 16px;
     --interactiveElementsSize: 20px;
     /* FONT-SIZES end */
     

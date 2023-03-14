@@ -16,7 +16,6 @@ import ExternalLink from "./ExternalLink";
 import Flex, {FlexCProps} from "./Flex";
 import Icon, {IconName} from "./Icon";
 import Link from "./Link";
-import RBox from "./RBox";
 import Text, {EllipsedText, TextSpan} from "./Text";
 import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
@@ -42,6 +41,7 @@ import {AvatarType} from "@/UserSettings/Avataaar";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {PageV2} from "@/UCloud";
+import AdminLinks from "@/Admin/Links";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;
@@ -57,17 +57,25 @@ const SidebarAdditionalStyle = styled(Flex) <{forceOpen: boolean}>`
     background-color: #5C89F4;
     transition: width 0.2s;
     width: ${p => p.forceOpen ? "var(--sidebarAdditionalWidth)" : "0px"};
-    &:hover {
-        width: var(--sidebarAdditionalWidth);
-    }
 `;
 
 const SidebarContainer = styled(Flex) <FlexCProps>`
     height: 100vh;
     background-color: var(--sidebar);
+`;
 
-    &:hover + ${SidebarAdditionalStyle} {
-        width: var(--sidebarAdditionalWidth);
+const SidebarItemWrapper = styled.div<{active: boolean}>`
+    display: flex;
+    border-radius: 5px;
+    ${p => p.active ? "background-color: rgba(255, 255, 255, 0.35);" : null}
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.35);
+    }
+    width: 32px;
+    height: 32px;
+    margin-top: 8px;
+    & > a, & > ${Icon} {
+        margin: auto auto auto auto;
     }
 `;
 
@@ -116,16 +124,20 @@ const SidebarLink = styled(Link) <{active?: boolean}>`
 interface SidebarElement {
     icon: IconName;
     label: string;
-    to: string;
+    to?: string;
     external?: boolean;
     activePage: SidebarPages;
 }
 
-const SidebarElement = ({icon, label, to, activePage}: SidebarElement): JSX.Element => (
-    <SidebarLink to={to} active={enumToLabel(activePage) === label}>
-        <Icon name={icon} color={"white"} color2={"white"} size={"20"} />
-    </SidebarLink>
-);
+function SidebarElement({icon, label, to, activePage}: SidebarElement): JSX.Element {
+    if (to) {
+        return (
+            <SidebarLink to={to} active={enumToLabel(activePage) === label}>
+                <Icon name={icon} color={"white"} color2={"white"} size={"20"} />
+            </SidebarLink>
+        );
+    } else return <Icon name={icon} color={"white"} color2={"white"} size={"20"} />;
+}
 
 function enumToLabel(value: SidebarPages): string {
     switch (value) {
@@ -152,8 +164,6 @@ function enumToLabel(value: SidebarPages): string {
     }
 }
 
-const SidebarSpacer = (): JSX.Element => (<Box mt="12px" />);
-
 const SidebarPushToBottom = styled.div`
     flex-grow: 1;
 `;
@@ -161,7 +171,7 @@ const SidebarPushToBottom = styled.div`
 interface MenuElement {
     icon: IconName;
     label: string;
-    to: string | (() => string);
+    to?: string | (() => string);
     show?: () => boolean;
 }
 
@@ -194,7 +204,7 @@ export const sideBarMenuElements: {
         ], predicate: () => Client.isLoggedIn
     },
     auditing: {items: [], predicate: () => Client.isLoggedIn},
-    admin: {items: [{icon: "admin", label: "Admin", to: "/admin"}], predicate: () => Client.userIsAdmin}
+    admin: {items: [{icon: "admin", label: "Admin"}], predicate: () => Client.userIsAdmin}
 };
 
 interface SidebarStateProps {
@@ -203,6 +213,23 @@ interface SidebarStateProps {
     avatar: AvatarType;
     activeProject?: string;
 }
+
+function hasOrParentHasClass(t: EventTarget | null, classname: string): boolean {
+    var target = t;
+    while (target && "classList" in target) {
+        var classList = target.classList as DOMTokenList;
+        if (classList.contains(classname)) return true;
+        if ("parentNode" in target) {
+            target = target.parentNode as EventTarget | null;
+        } else {
+            return false;
+        }
+        if (!target) return false;
+    }
+    return false;
+}
+
+const SIDEBAR_IDENTIFIER = "SIDEBAR_IDENTIFIER";
 
 export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | null => {
     const sidebarEntries = sideBarMenuElements;
@@ -233,9 +260,8 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                 <Link data-component={"logo"} to="/">
                     <Icon name="logoEsc" mt="10px" size="34px" />
                 </Link>
-                <div onMouseLeave={e => {
-                    console.log(e.target)
-                    setHoveredPage("")
+                <div className={SIDEBAR_IDENTIFIER} style={{marginLeft: "auto", width: "calc(var(--sidebarWidth) - 32px / 2)", paddingTop: "6px", paddingBottom: "8px"}} onMouseLeave={e => {
+                    if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) setHoveredPage("")
                 }}>
                     {sidebar.map((category, categoryIdx) => (
                         <React.Fragment key={categoryIdx}>
@@ -244,15 +270,19 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                                 label,
                                 to
                             }: MenuElement) => (
-                                <div key={label} onClick={() => setSelectedPage(label)} onMouseEnter={() => setHoveredPage(label)}>
-                                    <SidebarSpacer />
+                                <SidebarItemWrapper
+                                    key={label}
+                                    active={label === selectedPage}
+                                    onClick={() => setSelectedPage(label)}
+                                    onMouseEnter={() => setHoveredPage(label)}
+                                >
                                     <SidebarElement
                                         icon={icon}
                                         activePage={page}
                                         label=""
                                         to={typeof to === "function" ? to() : to}
                                     />
-                                </div>
+                                </SidebarItemWrapper>
                             ))}
                         </React.Fragment>
                     ))}
@@ -341,7 +371,7 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                 <Box mb="10px" />
             </SidebarContainer>
 
-            <SidebarAdditional data-tag="additional" hovered={hoveredPage} clicked={selectedPage} />
+            <SidebarAdditional data-tag="additional" hovered={hoveredPage} clicked={selectedPage} clearHover={() => setHoveredPage("")} />
         </Flex>
     );
 
@@ -351,16 +381,21 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
     }
 };
 
-function SidebarAdditional({hovered, clicked}: {hovered: string; clicked: string;}): JSX.Element {
+function SidebarAdditional({hovered, clicked, clearHover}: {hovered: string; clicked: string; clearHover(): void}): JSX.Element {
     const [forceOpen, setForceOpen] = React.useState(false);
     React.useEffect(() => {
-        if (clicked) setForceOpen(true);
+        if (clicked) {
+            setForceOpen(true);
+        }
     }, [clicked]);
 
     const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>(FileCollectionsApi.browse({itemsPerPage: 10/* , filterMemberFiles: "all" */}), emptyPageV2);
 
     const active = hovered ? hovered : clicked;
-    return (<SidebarAdditionalStyle flexDirection={"column"} forceOpen={forceOpen}>
+    /* TODO(Jonas): hovering should slide over, while clicking should push */
+    return (<SidebarAdditionalStyle onMouseLeave={e => {
+        if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover()
+    }} className={SIDEBAR_IDENTIFIER} flexDirection="column" forceOpen={forceOpen || hovered !== ""}>
         <TextSpan bold color="var(--white)" ml="5px">{active}</TextSpan>
         <Flex ml="auto" mr="5px" mt="5px" height="24px">{forceOpen ? <TextSpan onClick={() => setForceOpen(false)}>Unlock</TextSpan> : null}</Flex>
         {active !== "Files" ? null : (
@@ -368,6 +403,13 @@ function SidebarAdditional({hovered, clicked}: {hovered: string; clicked: string
                 <TextSpan color="var(--white)">{it.specification.title}</TextSpan>
             )
         )}
+        {active !== "Shares" ? null : (
+            "TODO"
+        )}
+        {active !== "Resources" ? null : (
+            "TODO"
+        )}
+        {active !== "Admin" ? null : (<AdminLinks />)}
     </SidebarAdditionalStyle>)
 }
 

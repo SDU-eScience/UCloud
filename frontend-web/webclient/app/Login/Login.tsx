@@ -243,8 +243,8 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
 
     return (
         <LoginWrapper>
-            <Flex>
-                <LoginBox width="315px">
+            <Flex width="100vw">
+                <LoginBox alignItems="center" mx="auto" justifyContent="center" width="315px">
                     {enabledWayf && !challengeId && !isPasswordReset ? (
                         <a href={`/auth/saml/login?service=${service}`}>
                             <Button mb="8px" disabled={loading} fullWidth color="wayfGreen">
@@ -565,7 +565,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
 
 const WidthAwareDiv = styled.div`
     display: grid;
-    grid-template-columns: /* auto auto */ auto auto auto auto;
+    grid-template-columns: auto auto auto auto;
     grid-template-rows: auto;
     grid-gap: 55px;
     margin-left: auto;

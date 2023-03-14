@@ -2,7 +2,6 @@ import * as React from "react";
 
 const Applications = React.lazy(() => import("@/Applications/Browse"));
 const ApplicationsOverview = React.lazy(() => import("@/Applications/Overview"));
-const AdminOverview = React.lazy(() => import("@/Admin/Overview"));
 const App = React.lazy(() => import("@/Applications/Studio/Applications"));
 const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("@/Dashboard/Dashboard"));
@@ -17,7 +16,6 @@ const OutgoingApplications = React.lazy(() => import("@/Project/Grant/OutgoingAp
 const JobShell = React.lazy(() => import("@/Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("@/Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("@/Applications/Jobs/Vnc"));
-const LicenseServers = React.lazy(() => import("@/Admin/LicenseServers"));
 const LoginPage = React.lazy(() => import("@/Login/Login"));
 const NewsList = React.lazy(() => import("@/NewsPost/NewsList"));
 const NewsManagement = React.lazy(() => import("@/Admin/NewsManagement"));
@@ -38,7 +36,6 @@ const Scripts = React.lazy(() => import("@/Admin/Scripts"));
 const UserCreation = React.lazy(() => import("@/Admin/UserCreation"));
 const UserSettings = React.lazy(() => import("@/UserSettings/UserSettings"));
 const Wayf = React.lazy(() => import("@/Login/Wayf"));
-const AppK8Admin = React.lazy(() => import("@/Admin/AppK8Admin"));
 const Demo = React.lazy(() => import("@/Playground/Demo"));
 const LagTest = React.lazy(() => import("@/Playground/LagTest"));
 const Providers = React.lazy(() => import("@/Admin/Providers/Browse"));
@@ -93,7 +90,7 @@ const Core = (): JSX.Element => (
         <Dialog />
         <Snackbars />
         <Uploader />
-        <div data-component="router-wrapper" style={{height: "calc(100vh - var(--termsize, 0px))", overflowX: "auto", overflowY: "auto"}}>
+        <div data-component="router-wrapper" style={{width: "100%", height: "calc(100vh - var(--termsize, 0px))", overflowX: "auto", overflowY: "auto"}}>
             <ErrorBoundary>
                 <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>
                     <Routes>
@@ -138,11 +135,8 @@ const Core = (): JSX.Element => (
                         {!inDevEnvironment() ? null : <Route path={"/playground/demo"} element={<Demo />} />}
                         {!inDevEnvironment() ? null : <Route path={"/playground/lag"} element={<LagTest />} />}
 
-                        <Route path="/admin" element={React.createElement(requireAuth(AdminOverview))} />
                         <Route path="/admin/userCreation" element={React.createElement(requireAuth(UserCreation))} />
-                        <Route path="/admin/licenseServers" element={React.createElement(requireAuth(LicenseServers))} />
                         <Route path="/admin/news" element={React.createElement(requireAuth(NewsManagement))} />
-                        <Route path="/admin/appk8" element={React.createElement(requireAuth(AppK8Admin))} />
                         <Route path="/admin/scripts" element={React.createElement(requireAuth(Scripts))} />
 
                         <Route path="/admin/providers" element={React.createElement(requireAuth(Providers))} />

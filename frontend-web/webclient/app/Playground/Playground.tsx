@@ -18,7 +18,7 @@ import {ContextSwitcher} from "@/Project/ContextSwitcher";
 export const Playground: React.FunctionComponent = () => {
     const main = (
         <>
-            <UtilityBar searchEnabled workspaceSwitcherEnabled />
+            <UtilityBar searchEnabled />
 
             <ProductSelectorPlayground />
             <Button onClick={() => {
@@ -156,7 +156,7 @@ function SearchThing({enabled}): JSX.Element | null {
 function RefreshThing(): JSX.Element | null {
     const reduxProps = useSelector((it: ReduxObject) => ({
         refresh: it.header.refresh,
-        spin: true,
+        spin: it.loading,
         statusLoading: it.status.loading,
     }))
     return <Icon cursor="pointer" size={20} onClick={reduxProps.refresh} spin={reduxProps.spin || reduxProps.statusLoading} color="var(--blue)" name="refresh" />
