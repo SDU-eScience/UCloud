@@ -9,6 +9,9 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.cli.CliHandler
+import dk.sdu.cloud.cli.genericCommandLineHandler
+import dk.sdu.cloud.cli.sendCommandLineUsage
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.config.removeProvider
@@ -18,11 +21,18 @@ import dk.sdu.cloud.plugins.FilePlugin
 import dk.sdu.cloud.plugins.FileUploadSession
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.controllers.RequestContext
+import dk.sdu.cloud.ipc.IpcContainer
+import dk.sdu.cloud.ipc.IpcHandler
+import dk.sdu.cloud.ipc.handler
+import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.ConfiguredShare
 import dk.sdu.cloud.plugins.FileCollectionPlugin
+import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.SharePlugin
 import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.fileName
+import dk.sdu.cloud.plugins.ipcClient
+import dk.sdu.cloud.plugins.ipcServer
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.CopyTask
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.CreateFolderTask
@@ -39,6 +49,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
 import kotlin.coroutines.coroutineContext
 
@@ -71,6 +83,8 @@ class UCloudFilePlugin : FilePlugin {
     }
 
     override suspend fun PluginContext.initialize() {
+        registerCli()
+
         if (!config.shouldRunServerCode()) return
 
         driveLocator = DriveLocator(
@@ -102,6 +116,7 @@ class UCloudFilePlugin : FilePlugin {
         }
 
         driveLocator.fillDriveDatabase()
+        registerIpcServer()
     }
 
     override suspend fun RequestContext.browse(
@@ -311,6 +326,115 @@ class UCloudFilePlugin : FilePlugin {
 
             delay(60_000)
         }
+    }
+
+    private fun PluginContext.registerCli() {
+        commandLineInterface?.addHandler(CliHandler("drives") { args ->
+            fun sendHelp(): Nothing = sendCommandLineUsage("drives", "Manage drives") {
+                subcommand("maintenance", "Manage maintenance of drives")
+
+                subcommand(
+                    "maintenance on",
+                    "Turns maintenance on for a specific drive",
+                    builder = {
+                        arg("path", description = "The local path to a collection")
+                        arg("description", description = "Description to display to end-users")
+                    }
+                )
+
+                subcommand(
+                    "maintenance off",
+                    "Turns maintenance off for a specific drive",
+                    builder = {
+                        arg("path", description = "The local path to a collection")
+                    }
+                )
+
+                subcommand(
+                    "maintenance status",
+                    "Checks the maintenance status of a drive",
+                    builder = {
+                        arg("id", description = "The local path to a collection")
+                    }
+                )
+
+                subcommand(
+                    "maintenance ls",
+                    "Checks the list of drives which are in maintenance mode",
+                )
+            }
+
+            val ipcClient = ipcClient
+
+            genericCommandLineHandler {
+                when (args.getOrNull(0)) {
+                    "maintenance" -> {
+                        when (args.getOrNull(1)) {
+                            "on" -> {
+                                val path = args.getOrNull(2) ?: sendHelp()
+                                val description = args.getOrNull(3) ?: sendHelp()
+
+                                ipcClient.sendRequest(
+                                    CliIpc.enableMaintenanceMode,
+                                    EnableMaintenanceMode(path, description)
+                                )
+                            }
+
+                            "off" -> {
+                                val path = args.getOrNull(2) ?: sendHelp()
+
+                                ipcClient.sendRequest(
+                                    CliIpc.disableMaintenanceMode,
+                                    DisableMaintenanceMode(path)
+                                )
+                            }
+
+                            "status" -> {
+                                val path = args.getOrNull(2) ?: sendHelp()
+
+                                TODO()
+                            }
+
+                            "ls" -> {
+
+                            }
+
+                            else -> sendHelp()
+                        }
+                    }
+
+                    else -> sendHelp()
+                }
+            }
+        })
+    }
+
+    private fun PluginContext.registerIpcServer() {
+        ipcServer.addHandler(CliIpc.enableMaintenanceMode.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            driveLocator.enableMaintenanceModeByInternalPath(InternalFile(request.path), request.description)
+        })
+
+        ipcServer.addHandler(CliIpc.disableMaintenanceMode.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            driveLocator.disableMaintenanceModeByInternalPath(InternalFile(request.path))
+        })
+    }
+
+    @Serializable
+    private data class EnableMaintenanceMode(
+        val path: String,
+        val description: String
+    )
+
+    @Serializable
+    private data class DisableMaintenanceMode(
+        val path: String
+    )
+
+    private object CliIpc : IpcContainer("ucloud_storage_drives") {
+        val enableMaintenanceMode = updateHandler("enableMaintenanceMode", EnableMaintenanceMode.serializer(), Unit.serializer())
+        val disableMaintenanceMode = updateHandler("disableMaintenanceMode", DisableMaintenanceMode.serializer(), Unit.serializer())
     }
 }
 

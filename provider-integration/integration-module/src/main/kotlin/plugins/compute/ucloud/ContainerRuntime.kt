@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins.compute.ucloud
 import dk.sdu.cloud.app.orchestrator.api.CpuAndMemory
 import dk.sdu.cloud.app.orchestrator.api.IPProtocol
 import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.storage.ucloud.FsSystem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -35,11 +36,17 @@ interface Container {
 
     fun stateAndMessage(): Pair<JobState, String>
     suspend fun productCategory(): String?
+    suspend fun mountedDirectories(): List<UCloudMount>
 
     val vCpuMillis: Int
     val memoryMegabytes: Int
     val gpus: Int
 }
+
+data class UCloudMount(
+    val systemName: String,
+    val subpath: String,
+)
 
 interface ComputeNode {
     suspend fun productCategory(): String?

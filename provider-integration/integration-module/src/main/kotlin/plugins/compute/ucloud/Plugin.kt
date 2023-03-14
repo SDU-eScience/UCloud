@@ -22,6 +22,7 @@ import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.ComputePlugin
 import dk.sdu.cloud.plugins.ComputeSession
 import dk.sdu.cloud.plugins.IngressPlugin
+import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.PublicIPPlugin
 import dk.sdu.cloud.plugins.SyncthingPlugin
@@ -176,6 +177,10 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             register(FeatureSshKeys(pluginConfig.ssh?.subnets ?: emptyList()))
             syncthingService?.also { register(it) }
         }
+
+        files.driveLocator.onEnteringMaintenanceMode {
+            killJobsEnteringMaintenanceMode()
+        }
     }
 
     override suspend fun PluginContext.runMonitoringLoopInServerMode() {
@@ -266,19 +271,6 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
                     job.job.status.resolvedApplication?.invocation?.web?.port ?: 80
                 )
 
-                /*
-                val pod = k8.client.getResource(
-                    Pod.serializer(),
-                    KubernetesResourceLocator.common.pod.withNameAndNamespace(
-                        k8.nameAllocator.jobIdAndRankToPodName(job.job.id, job.rank),
-                        k8.nameAllocator.namespace()
-                    )
-                )
-
-                val ipAddress = pod.status?.podIP ?: throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
-
-                 */
-
                 ComputeSession(
                     target = ComputeSessionIpc.SessionTarget(
                         domain,
@@ -291,18 +283,6 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             }
 
             InteractiveSessionType.VNC -> {
-                /*
-                val pod = k8.client.getResource(
-                    Pod.serializer(),
-                    KubernetesResourceLocator.common.pod.withNameAndNamespace(
-                        k8.nameAllocator.jobIdAndRankToPodName(job.job.id, job.rank),
-                        k8.nameAllocator.namespace()
-                    )
-                )
-
-                val ipAddress = pod.status?.podIP ?: throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
-                 */
-
                 val tunnel = runtime.openTunnel(
                     job.job.id,
                     job.rank,
@@ -399,6 +379,24 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
 
         return syncthingService?.restart(request)
             ?: throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
+    }
+
+    private suspend fun killJobsEnteringMaintenanceMode() {
+        for (job in runtime.list()) {
+            val internalMounts = job.mountedDirectories().mapNotNull { dir ->
+                val system = files.driveLocator.systemByName(dir.systemName) ?: return@mapNotNull null
+                InternalFile(system.mountPath.removeSuffix("/") + "/" + dir.subpath)
+            }
+
+            for (mount in internalMounts) {
+                val resolvedDrive = files.driveLocator.resolveDriveByInternalFile(mount)
+                if (resolvedDrive.inMaintenanceMode) {
+                    k8.addStatus(job.jobId, "Job is going down for maintenance")
+                    job.cancel()
+                    break
+                }
+            }
+        }
     }
 }
 

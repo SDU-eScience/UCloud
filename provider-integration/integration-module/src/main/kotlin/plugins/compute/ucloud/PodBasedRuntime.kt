@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins.compute.ucloud
 import dk.sdu.cloud.app.orchestrator.api.IPProtocol
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.storage.ucloud.FsSystem
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -201,6 +202,17 @@ abstract class PodBasedContainer : Container {
             ),
             ContentType("application", "json-patch+json")
         )
+    }
+
+    override suspend fun mountedDirectories(): List<UCloudMount> {
+        val container = pod.spec?.containers?.first() ?: return emptyList()
+        val volumeMounts = container.volumeMounts ?: emptyList()
+        return volumeMounts.mapNotNull { mount ->
+            val systemName = mount.name ?: return@mapNotNull null
+            val pathName = mount.subPath ?: return@mapNotNull null
+            if (systemName == "shm") return@mapNotNull null
+            UCloudMount(systemName, pathName)
+        }
     }
 }
 

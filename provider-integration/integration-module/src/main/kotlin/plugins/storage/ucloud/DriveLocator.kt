@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -20,6 +21,9 @@ import dk.sdu.cloud.file.orchestrator.api.FileCollectionsControl
 import dk.sdu.cloud.file.orchestrator.api.MemberFilesFilter
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.normalize
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.SQL_TYPE_HINT_BOOL
 import dk.sdu.cloud.sql.SQL_TYPE_HINT_INT8
@@ -27,6 +31,7 @@ import dk.sdu.cloud.sql.SQL_TYPE_HINT_TEXT
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.toReadableStacktrace
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -307,9 +312,43 @@ private object DriveAndSystemStore {
         }
     }
 
+    suspend fun retrieveSystemsByProject(project: String): List<DriveAndSystem> {
+        return mutex.withLock {
+            entries.filter { it.drive.project == project }
+        }
+    }
+
     suspend fun enumerate(): List<DriveAndSystem> {
         return mutex.withLock {
             buildList { addAll(entries) }
+        }
+    }
+
+    suspend fun updateMaintenanceStatus(systemIds: List<Long>, maintenanceMode: Boolean) {
+        if (systemIds.isEmpty()) return
+
+        dbConnection.withSession { session ->
+            mutex.withLock {
+                for (idx in entries.indices) {
+                    val entry = entries[idx]
+                    if (entry.drive.ucloudId in systemIds) {
+                        entries[idx] = entry.copy(inMaintenanceMode = maintenanceMode)
+                    }
+                }
+
+                session.prepareStatement(
+                    """
+                        update ucloud_storage_drives
+                        set in_maintenance_mode = true
+                        where
+                            collection_id = some(:system_ids::bigint[])
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindList("system_ids", systemIds, SQL_TYPE_HINT_INT8)
+                    }
+                )
+            }
         }
     }
 }
@@ -325,6 +364,9 @@ class DriveLocator(
         else defaultSystem
     private val allSystems = config.systems.values.toList()
     private val systemsSortedByMountPrefix = allSystems.sortedBy { it.mountPath }.reversed()
+
+    private val enteringMaintenanceModeListeners = ArrayList<suspend () -> Unit>()
+    private val enteringMaintenanceModeListenersMutex = Mutex()
 
     // Maps providerId to ucloudId
     private val registeredDrives = HashMap<String, Long>()
@@ -345,6 +387,12 @@ class DriveLocator(
             ?: error("Could not find product by name $driveProjectHomeName")
     }
 
+    suspend fun onEnteringMaintenanceMode(listener: suspend () -> Unit) {
+        enteringMaintenanceModeListenersMutex.withLock {
+            enteringMaintenanceModeListeners.add(listener)
+        }
+    }
+
     suspend fun fillDriveDatabase() {
         DriveAndSystemStore.fill(serviceClient, legacySystem, allSystems)
     }
@@ -359,6 +407,7 @@ class DriveLocator(
         createdByUser: String? = null,
         initiatedByEndUser: Boolean = false,
     ): DriveAndSystem {
+        // TODO Need mutex against putting stuff into maintenance mode.
         require(ownedByProject != null || createdByUser != null || initiatedByEndUser)
         require(!initiatedByEndUser || title.isEmpty())
         require(initiatedByEndUser || title.isNotEmpty())
@@ -465,9 +514,9 @@ class DriveLocator(
             ),
             serviceClient
         ).orThrow().items.firstOrNull()?.id?.toLongOrNull()
-            ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-        return resolveDrive(resolvedId)
+        return resolveDrive(resolvedId, allowMaintenanceMode = true)
     }
 
     suspend fun resolveDrive(
@@ -548,6 +597,88 @@ class DriveLocator(
         return PageV2(itemsPerPage = items.size, items = items, next = null)
     }
 
+    suspend fun enableMaintenanceModeByInternalPath(path: InternalFile, description: String) {
+        enableMaintenanceMode(resolveDriveByInternalFile(path).drive.ucloudId, description)
+    }
+
+    suspend fun disableMaintenanceModeByInternalPath(path: InternalFile) {
+        disableMaintenanceMode(resolveDriveByInternalFile(path).drive.ucloudId)
+    }
+
+    suspend fun enableMaintenanceMode(driveId: Long, description: String) {
+        setMaintenanceMode(driveId, description, true)
+    }
+
+    suspend fun disableMaintenanceMode(driveId: Long) {
+        setMaintenanceMode(driveId, null, false)
+    }
+
+    fun systemByName(name: String): FsSystem? {
+        return allSystems.find { it.name.equals(name, ignoreCase = true) }
+    }
+
+    private suspend fun setMaintenanceMode(driveId: Long, description: String?, maintenanceMode: Boolean) {
+        require(!maintenanceMode || description != null)
+
+        val driveAndSystem = resolveDrive(driveId, allowMaintenanceMode = true)
+        if (driveAndSystem.inMaintenanceMode && maintenanceMode) {
+            throw RPCException("This drive is already in maintenance mode!", HttpStatusCode.BadRequest)
+        }
+
+        val drive = driveAndSystem.drive
+
+        val affectedDrives = when (drive) {
+            is UCloudDrive.ProjectMemberFiles,
+            is UCloudDrive.ProjectRepository -> {
+                DriveAndSystemStore.retrieveSystemsByProject(drive.project!!)
+            }
+
+            else -> {
+                listOf(driveAndSystem)
+            }
+        }
+
+        DriveAndSystemStore.updateMaintenanceStatus(
+            affectedDrives.map { it.drive.ucloudId },
+            maintenanceMode
+        )
+
+        val timestamp = Time.now()
+        FileCollectionsControl.update.call(
+            BulkRequest(
+                affectedDrives.map { (d) ->
+                    ResourceUpdateAndId(
+                        d.ucloudId.toString(),
+                        FileCollection.Update(
+                            timestamp,
+                            if (maintenanceMode) {
+                                "Maintenance is starting. $description"
+                            } else {
+                                "Maintenance has ended."
+                            }
+                        )
+                    )
+                }
+            ),
+            serviceClient
+        ).orThrow()
+
+        if (maintenanceMode) {
+            enteringMaintenanceModeListenersMutex.withLock {
+                for (listener in enteringMaintenanceModeListeners) {
+                    try {
+                        listener()
+                    } catch (ex: Throwable) {
+                        log.warn(
+                            "Caught exception while notifying listeners about maintenance of $driveId:\n" +
+                                    "${ex.toReadableStacktrace()}"
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     fun driveToProduct(drive: UCloudDrive): ProductReference {
         return when (drive) {
             is UCloudDrive.Collection -> defaultProduct.toReference()
@@ -597,4 +728,8 @@ class DriveLocator(
     }
 
     private fun Product.toReference() = ProductReference(name, category.name, category.provider)
+
+    companion object : Loggable {
+        override val log = logger()
+    }
 }

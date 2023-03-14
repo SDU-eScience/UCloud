@@ -64,6 +64,17 @@ class PathConverter(
         return UCloudFile.createFromPreNormalizedString("/${drive.drive.ucloudId}/$internalPath")
     }
 
+    private val collectionCache = SimpleCache<String, FileCollection> { collId ->
+        FileCollectionsControl.retrieve.call(
+            ResourceRetrieveRequest(FileCollectionIncludeFlags(), collId),
+            serviceClient
+        ).orThrow()
+    }
+    suspend fun findProjectOwner(driveId: String): String? {
+        return (collectionCache.get(driveId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound))
+            .owner.project
+    }
+
     companion object {
         const val HOME_DIRECTORY = "home"
         const val PROJECT_DIRECTORY = "projects"
