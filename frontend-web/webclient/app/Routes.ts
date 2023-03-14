@@ -19,11 +19,17 @@ const admin = {
     scripts: () => "/admin/scripts"
 };
 
+const shares = {
+    sharedByMe: () => "/shares/outgoing",
+    sharedWithMe: () => "/shares"
+}
+
 const AppRoutes = {
     news,
     users,
     project,
     admin,
+    shares,
 };
 
 export default AppRoutes;

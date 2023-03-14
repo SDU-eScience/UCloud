@@ -1,9 +1,7 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
-import { Flex, Icon, Link} from "@/ui-components";
-import {IconName} from "@/ui-components/Icon";
-import {TextSpan} from "@/ui-components/Text";
 import AppRoutes from "@/Routes";
+import {LinkInfo, SidebarLinkColumn} from "@/ui-components/SidebarLink";
 
 const linkInfo: LinkInfo[] = [
     {to: AppRoutes.admin.userCreation(), text: "User creation", icon: "user"},
@@ -13,22 +11,10 @@ const linkInfo: LinkInfo[] = [
     {to: AppRoutes.admin.scripts(), text: "Scripts", icon: "play"},
 ];
 
-interface LinkInfo {
-    to: string;
-    text: string;
-    icon: IconName;
-}
 
 function AdminLinks(): JSX.Element | null {
     if (!Client.userIsAdmin) return null;
-    return <Flex flexDirection="column">
-        {linkInfo.map(it =>
-            <Link ml="8px" mb="8px" to={it.to}>
-                <Icon size="18px" name={it.icon} color="white" color2="white" />
-                <TextSpan fontSize="var(--breadText)" ml="8px" color="white">{it.text}</TextSpan>
-            </Link>
-        )}
-    </Flex>;
+    return <SidebarLinkColumn links={linkInfo} />;
 }
 
 export default AdminLinks;

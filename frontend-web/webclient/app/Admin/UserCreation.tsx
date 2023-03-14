@@ -82,7 +82,7 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
     return (
         <MainContainer
             header={<Heading.h1>User Creation</Heading.h1>}
-            headerSize={64}
+            headerSize={72}
             main={(
                 <>
                     <p>Admins can create new users on this page.</p>

@@ -197,7 +197,7 @@ export const NotificationPopups: React.FunctionComponent = () => {
 
     const elems: JSX.Element[] = [];
 
-    const baseOffset = 48 + CARD_GAP;
+    const baseOffset = 12;
 
     for (let i = 0; i < pinnedSlots.length; i++) {
         const slot = pinnedSlots[i];

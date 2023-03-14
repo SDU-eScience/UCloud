@@ -143,7 +143,7 @@ const ListStyle = styled.div<{fontSize?: string;}>`
     .row-left {
         flex-grow: 1;
         overflow: hidden;
-        max-width: calc(100vw - 555px);
+        max-width: calc(100vw - var(--sidebarWidth));
     }
 
     &[data-navigate="true"] .row-left-content {

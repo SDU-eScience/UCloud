@@ -1,6 +1,5 @@
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
-import {useSelector} from "react-redux";
 import styled from "styled-components";
 import {Absolute, Box, Hide} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
@@ -17,7 +16,6 @@ export interface MainContainerProps {
 }
 
 export const MainContainer = ({
-    sidebar,
     main,
     additional,
     header,
@@ -50,28 +48,7 @@ export const MainContainer = ({
                     {header}
                 </HeaderContainer>
             )}
-            {sidebar && (
-                <Hide sm xs md>
-                    <SidebarScroll>
-                        <SidebarContainer
-                            data-component={"sidebar"}
-                            height="calc(100% - var(--termsize, 0px))"
-                            data-tag="sidebar"
-                            pt={mainYpad}
-                            top="0"
-                            right="0"
-                            px={pad}
-                            width={"240px"}
-                        >
-                            {sidebar}
-                        </SidebarContainer>
-                    </SidebarScroll>
-                </Hide>
-            )}
-            <Box width="100%" pt={mainYpad} pr={mainXpad}>
-                <Hide lg xl xxl>
-                    {sidebar}
-                </Hide>
+            <Box pt={mainYpad} pr={mainXpad}>
                 {main}
             </Box>
             {additional}
@@ -108,30 +85,6 @@ export const LoadingMainContainer: React.FunctionComponent<LoadingMainContainerP
         />
     );
 };
-
-/* abandon hope all ye who enter here */
-function SidebarScroll(props: {children: React.ReactNode}): JSX.Element {
-    React.useEffect(() => {
-        const element = document.querySelector<HTMLInputElement>(
-            `div[data-component="sidebar"]`
-        );
-        if (!element) return;
-        const old = element.onwheel;
-        element.onwheel = scrollMainContainer;
-        return () => {
-            element.onwheel = old;
-        }
-    }, []);
-
-    function scrollMainContainer(this: GlobalEventHandlers, e: WheelEvent) {
-        var elmnt = document.querySelector<HTMLInputElement>(
-            `div[data-component="router-wrapper"]`
-        );
-        if (!elmnt) return;
-        elmnt.scrollBy(0, e.deltaY);
-    }
-    return <Box>{props.children}</Box>;
-}
 
 const HeaderContainer = styled(Absolute)`
     position: fixed;

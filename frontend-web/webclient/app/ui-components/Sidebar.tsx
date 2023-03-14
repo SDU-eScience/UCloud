@@ -42,6 +42,7 @@ import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {PageV2} from "@/UCloud";
 import AdminLinks from "@/Admin/Links";
+import {SharesLinks} from "@/Files/Shares";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;
@@ -231,6 +232,13 @@ function hasOrParentHasClass(t: EventTarget | null, classname: string): boolean 
 
 const SIDEBAR_IDENTIFIER = "SIDEBAR_IDENTIFIER";
 
+const SidebarItemsColumn = styled.div`
+    margin-left: auto;
+    width: calc(var(--sidebarWidth) - 32px / 2);
+    padding-top: 6px;
+    padding-bottom: 8px;
+`
+
 export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | null => {
     const sidebarEntries = sideBarMenuElements;
     const {activeProject, loggedIn, page, avatar} = useSidebarReduxProps();
@@ -253,6 +261,7 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
     const sidebar = Object.keys(sidebarEntries)
         .map(key => sidebarEntries[key])
         .filter(it => it.predicate());
+
     return (
         <Flex>
             <SidebarContainer color="var(--sidebar)" flexDirection="column" alignItems="center"
@@ -260,7 +269,7 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                 <Link data-component={"logo"} to="/">
                     <Icon name="logoEsc" mt="10px" size="34px" />
                 </Link>
-                <div className={SIDEBAR_IDENTIFIER} style={{marginLeft: "auto", width: "calc(var(--sidebarWidth) - 32px / 2)", paddingTop: "6px", paddingBottom: "8px"}} onMouseLeave={e => {
+                <SidebarItemsColumn className={SIDEBAR_IDENTIFIER} onMouseLeave={e => {
                     if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) setHoveredPage("")
                 }}>
                     {sidebar.map((category, categoryIdx) => (
@@ -286,15 +295,18 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                             ))}
                         </React.Fragment>
                     ))}
-                </div>
+                </SidebarItemsColumn>
                 <SidebarPushToBottom />
                 <AutomaticGiftClaim />
                 <ResourceInit />
                 <Debugger />
+                {/* TODO(Jonas): These should be inside the above node. Only render if above node is rendered. */}
                 <Box height="18px" />
                 <Support />
+                {/* TODO(Jonas): These should be inside the above node. Only render if above node is rendered. */}
                 <Box height="18px" />
                 <Notification />
+                {/* TODO(Jonas): These should be inside the above node. Only render if above node is rendered. */}
                 <Box height="18px" />
                 <VersionManager />
                 <BackgroundTasks />
@@ -302,7 +314,7 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                 <ClickableDropdown
                     width="230px"
                     left="var(--sidebarWidth)"
-                    top="-223px"
+                    bottom="0"
                     colorOnHover={false}
                     trigger={Client.isLoggedIn ? <UserAvatar avatarStyle={""} height="42px" width="42px" avatar={avatar} /> : null}
                 >
@@ -403,12 +415,8 @@ function SidebarAdditional({hovered, clicked, clearHover}: {hovered: string; cli
                 <TextSpan color="var(--white)">{it.specification.title}</TextSpan>
             )
         )}
-        {active !== "Shares" ? null : (
-            "TODO"
-        )}
-        {active !== "Resources" ? null : (
-            "TODO"
-        )}
+        {active !== "Shares" ? null : (<SharesLinks />)}
+        {active !== "Resources" ? null : ("TODO")}
         {active !== "Admin" ? null : (<AdminLinks />)}
     </SidebarAdditionalStyle>)
 }

@@ -114,8 +114,6 @@ export const SharesOutgoing: React.FunctionComponent = () => {
     }, []);
 
     return <MainContainer
-        header={<SharedByTabs sharedByMe />}
-        headerSize={55}
         main={
             <StandardBrowse
                 generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
@@ -288,18 +286,3 @@ const Tab: React.FunctionComponent<{selected: boolean, onClick: () => void; chil
         {props.children}
     </SelectableText>
 };
-export const SharedByTabs: React.FunctionComponent<{sharedByMe: boolean}> = ({sharedByMe}) => {
-    const navigate = useNavigate();
-    const goToSharedByMe = useCallback(() => {
-        navigate("/shares/outgoing");
-    }, [history]);
-    const goToSharedWithMe = useCallback(() => {
-        navigate("/shares");
-    }, [history]);
-
-    return <SelectableTextWrapper mb={"16px"}>
-        <Tab selected={!sharedByMe} onClick={goToSharedWithMe}>Shared with me</Tab>
-        <Tab selected={sharedByMe} onClick={goToSharedByMe}>Shared by me</Tab>
-    </SelectableTextWrapper>;
-
-}
