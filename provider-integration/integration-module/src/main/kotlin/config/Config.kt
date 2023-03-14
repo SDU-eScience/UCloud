@@ -507,7 +507,7 @@ data class ConfigSchema(
                 @Serializable
                 data class System(
                     var mountPath: String,
-                    val claim: String,
+                    val volumeClaim: String,
                     val type: FsType? = null,
 
                     // NOTE(Dan): This is always changed to match the location in the `systems` dict, do not set in
@@ -531,7 +531,7 @@ data class ConfigSchema(
                             systems = systems +
                                     ("CephFS" to System(
                                         mountPath = File(mountLocation).normalize().path.removeSuffix("/") + "/",
-                                        claim = "cephfs",
+                                        volumeClaim = "cephfs",
                                         type = if (useCephStats) FsType.CephFS else null,
                                         name = "CephFS"
                                     )),

@@ -1,9 +1,7 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.app.orchestrator.api.IPProtocol
-import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.storage.ucloud.FsSystem
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -276,7 +274,7 @@ abstract class PodBasedBuilder : ContainerBuilder {
         volumes.add(
             Volume(
                 normalizedName,
-                persistentVolumeClaim = Volume.PersistentVolumeClaimSource(system.claim, false)
+                persistentVolumeClaim = Volume.PersistentVolumeClaimSource(system.volumeClaim, false)
             )
         )
 

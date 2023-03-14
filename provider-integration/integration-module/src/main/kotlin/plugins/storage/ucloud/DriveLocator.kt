@@ -339,13 +339,47 @@ private object DriveAndSystemStore {
                 session.prepareStatement(
                     """
                         update ucloud_storage_drives
-                        set in_maintenance_mode = true
+                        set in_maintenance_mode = :maintenance_mode
                         where
                             collection_id = some(:system_ids::bigint[])
                     """
                 ).useAndInvokeAndDiscard(
                     prepare = {
                         bindList("system_ids", systemIds, SQL_TYPE_HINT_INT8)
+                        bindBoolean("maintenance_mode", maintenanceMode)
+                    }
+                )
+            }
+        }
+    }
+
+    suspend fun updateSystem(systemIds: List<Long>, newSystem: FsSystem) {
+        if (systemIds.isEmpty()) return
+        dbConnection.withSession { session ->
+            mutex.withLock {
+                for (idx in entries.indices) {
+                    val entry = entries[idx]
+                    if (entry.drive.ucloudId in systemIds) {
+                        entries[idx] = entry.copy(
+                            inMaintenanceMode = false,
+                            system = newSystem
+                        )
+                    }
+                }
+
+                session.prepareStatement(
+                    """
+                        update ucloud_storage_drives
+                        set
+                            system = :new_system,
+                            in_maintenance_mode = false
+                        where
+                            collection_id = some(:system_ids::bigint[])
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindList("system_ids", systemIds, SQL_TYPE_HINT_INT8)
+                        bindString("new_system", newSystem.name)
                     }
                 )
             }
@@ -678,6 +712,32 @@ class DriveLocator(
             }
         }
     }
+
+    suspend fun updateSystem(driveId: Long, newSystem: FsSystem) {
+        val driveAndSystem = resolveDrive(driveId, allowMaintenanceMode = true)
+        if (!driveAndSystem.inMaintenanceMode) {
+            throw RPCException("This drive is not in maintenance mode!", HttpStatusCode.BadRequest)
+        }
+
+        val drive = driveAndSystem.drive
+
+        val affectedDrives = when (drive) {
+            is UCloudDrive.ProjectMemberFiles,
+            is UCloudDrive.ProjectRepository -> {
+                DriveAndSystemStore.retrieveSystemsByProject(drive.project!!)
+            }
+
+            else -> {
+                listOf(driveAndSystem)
+            }
+        }
+
+        DriveAndSystemStore.updateSystem(
+            affectedDrives.map { it.drive.ucloudId },
+            newSystem
+        )
+    }
+
 
     fun driveToProduct(drive: UCloudDrive): ProductReference {
         return when (drive) {
