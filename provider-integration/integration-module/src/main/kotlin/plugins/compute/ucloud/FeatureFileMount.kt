@@ -184,7 +184,7 @@ class FeatureFileMount(
             )
         }
 
-        val relativePath = file.path.removeSuffix(system.mountPath.removeSuffix("/") + "/")
+        val relativePath = file.path.removePrefix(system.mountPath.removeSuffix("/") + "/")
         return SystemRelativeFile(
             system,
             relativePath

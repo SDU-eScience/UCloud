@@ -41,7 +41,7 @@ fun <T : PathLike<T>> T.parents(): List<T> = path.parents().map { withNewPath(it
 fun <T : PathLike<T>> T.normalize(): T = withNewPath(path.normalize())
 fun <T : PathLike<T>> T.components(): List<String> = path.components()
 fun <T : PathLike<T>> T.fileName(): String = path.fileName()
-fun <T : PathLike<T>> T.child(fileName: String): T = withNewPath("$path/$fileName")
+fun <T : PathLike<T>> T.child(fileName: String): T = withNewPath("${path.removeSuffix("/")}/$fileName".removeSuffix("/"))
 
 data class FileDownloadSession(val session: String, val pluginData: String)
 data class FileUploadSession(val session: String, val pluginData: String)

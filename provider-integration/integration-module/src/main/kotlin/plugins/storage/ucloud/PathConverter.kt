@@ -41,20 +41,26 @@ class PathConverter(
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             val internalShare = ucloudToInternal(resolvedShare)
-            return InternalFile(internalShare.path.removeSuffix("/") + "/" + components.drop(1).joinToString("/"))
+            return internalShare.child(components.drop(1).joinToString("/"))
         }
 
         val driveRoot =
             driveAndSystem.driveRoot ?: throw RPCException("No drive root? $file", HttpStatusCode.InternalServerError)
 
-        return driveRoot.child(components.drop(1).joinToString("/"))
+        return if (components.size == 1) {
+            InternalFile(driveRoot.path.removeSuffix("/"))
+        } else {
+            driveRoot.child(components.drop(1).joinToString("/").removeSuffix("/"))
+        }
     }
 
     suspend fun internalToUCloud(file: InternalFile): UCloudFile {
-        println("internalToUCloud($file)")
         val drive = locator.resolveDriveByInternalFile(file)
         val driveRoot = drive.driveRoot ?: throw RPCException("No drive root? $file", HttpStatusCode.InternalServerError)
-        val internalPath = file.path.removePrefix(driveRoot.path.removeSuffix("/") + "/")
+        val internalPath = file.path.removePrefix(driveRoot.path.removeSuffix("/") + "/").removeSuffix("/")
+        if (file.path.removeSuffix("/") == driveRoot.path.removeSuffix("/")) {
+            return UCloudFile.createFromPreNormalizedString("/${drive.drive.ucloudId}")
+        }
         return UCloudFile.createFromPreNormalizedString("/${drive.drive.ucloudId}/$internalPath")
     }
 

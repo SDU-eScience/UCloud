@@ -257,17 +257,18 @@ abstract class PodBasedBuilder : ContainerBuilder {
 
     private val mountedSystems = HashSet<String>()
     private fun mountFsSystemIfNeeded(system: FsSystem): String {
-        if (system.name in mountedSystems) return system.name
-        mountedSystems.add(system.name)
+        val normalizedName = system.name.lowercase()
+        if (normalizedName in mountedSystems) return normalizedName
+        mountedSystems.add(normalizedName)
 
         volumes.add(
             Volume(
-                system.name,
+                normalizedName,
                 persistentVolumeClaim = Volume.PersistentVolumeClaimSource(system.claim, false)
             )
         )
 
-        return system.name
+        return normalizedName
     }
 
     override fun mountSharedMemory(sharedMemorySizeMegabytes: Long) {

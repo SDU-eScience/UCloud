@@ -90,10 +90,8 @@ class FileQueries(
     private val directoryStats: FastDirectoryStats,
 ) {
     suspend fun retrieve(file: UCloudFile, flags: UFileIncludeFlags): PartialUFile {
-        println("retrieve($file)")
         try {
             val internalFile = pathConverter.ucloudToInternal(file)
-            println("retrieveInternal($internalFile)")
             val nativeStat = nativeFs.stat(internalFile)
             val inheritedSensitivity: String? = inheritedSensitivity(internalFile)
             val sensitivity = runCatching { nativeFs.getExtendedAttribute(internalFile, SENSITIVITY_XATTR) }
@@ -284,10 +282,9 @@ class FileQueries(
     }
 
     private suspend fun inheritedSensitivity(internalFile: InternalFile): String? {
-        println("inheritedSensitivity($internalFile)")
         val ancestors = pathConverter.internalToUCloud(internalFile).parents()
             .filter { f -> f.path.removeSuffix("/").count { it == '/' } > 1 }
-            .map { println(it) ; pathConverter.ucloudToInternal(it) } + internalFile
+            .map { pathConverter.ucloudToInternal(it) } + internalFile
         var inheritedSensitivity: String? = null
         for (ancestor in ancestors) {
             val value = runCatching { nativeFs.getExtendedAttribute(ancestor, SENSITIVITY_XATTR) }.getOrNull()

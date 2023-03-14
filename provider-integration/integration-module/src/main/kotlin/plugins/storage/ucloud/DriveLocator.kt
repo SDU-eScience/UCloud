@@ -251,8 +251,13 @@ class DriveLocator(
                         }
                     )
 
-                    val system = allSystems.find { it.name == systemName }
-                        ?: throw RPCException("Unknown system", HttpStatusCode.InternalServerError)
+                    val system = if (systemName == null) {
+                        maintenanceMode = false
+                        defaultSystem
+                    } else {
+                        allSystems.find { it.name == systemName }
+                            ?: throw RPCException("Unknown system", HttpStatusCode.InternalServerError)
+                    }
 
                     Pair(system, !maintenanceMode)
                 }
@@ -319,7 +324,9 @@ class DriveLocator(
                             ),
                         ),
                         serviceClient
-                    ).orThrow().items.firstOrNull()?.id?.toLongOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                    ).orThrow().items.firstOrNull()?.id?.toLongOrNull() ?: throw RPCException.fromStatusCode(
+                        HttpStatusCode.InternalServerError
+                    )
 
                     resolveDrive(resolvedId, ctx = session)
                 } else {
@@ -338,7 +345,8 @@ class DriveLocator(
                 ),
             ),
             serviceClient
-        ).orThrow().items.firstOrNull()?.id?.toLongOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+        ).orThrow().items.firstOrNull()?.id?.toLongOrNull()
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
 
         return resolveDrive(resolvedId)
     }
