@@ -2,15 +2,25 @@ import * as React from "react";
 import {ResourceBrowse} from "@/Resource/Browse";
 import {ResourceRouter} from "@/Resource/Router";
 import SharesApi, {Share} from "@/UCloud/SharesApi";
-import { NavigateFunction, useLocation} from "react-router";
+import {NavigateFunction, useLocation} from "react-router";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
-import {SharedByTabs} from "@/Files/SharesOutgoing";
 import {useCallback, useMemo} from "react";
 import * as Heading from "@/ui-components/Heading";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {BrowseType} from "@/Resource/BrowseType";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {LinkInfo, SidebarLinkColumn} from "@/ui-components/SidebarLink";
+import AppRoutes from "@/Routes";
+
+export const sharesLinksInfo: LinkInfo[] = [
+    {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},
+    {text: "Shared by me", to: AppRoutes.shares.sharedByMe(), icon: "shareMenu"},
+]
+
+export function SharesLinks(): JSX.Element {
+    return <SidebarLinkColumn links={sharesLinksInfo} />
+}
 
 export const ShareBrowse: React.FunctionComponent<{
     onSelect?: (selection: Share) => void;
@@ -63,7 +73,6 @@ export const ShareBrowse: React.FunctionComponent<{
         onResourcesLoaded={onSharesLoaded}
         additionalFilters={additionalFilters}
         navigateToChildren={navigateToEntry}
-        header={<SharedByTabs sharedByMe={!filterIngoing} />}
         headerSize={55}
         emptyPage={
             <Heading.h3 textAlign={"center"}>
