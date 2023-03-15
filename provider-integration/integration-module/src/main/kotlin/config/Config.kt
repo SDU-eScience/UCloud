@@ -507,7 +507,8 @@ data class ConfigSchema(
                 @Serializable
                 data class System(
                     var mountPath: String,
-                    val volumeClaim: String,
+                    val volumeClaim: String? = null,
+                    val hostPath: String? = null,
                     val type: FsType? = null,
 
                     // NOTE(Dan): This is always changed to match the location in the `systems` dict, do not set in
@@ -524,6 +525,9 @@ data class ConfigSchema(
                     for ((name, system) in systems) {
                         system.name = name
                         system.mountPath = File(system.mountPath).normalize().path.removeSuffix("/") + "/"
+                        require(system.volumeClaim != null || system.hostPath != null) {
+                            "System '$name' must have either volumeClaim or hostPath set"
+                        }
                     }
 
                     if (mountLocation != null) {

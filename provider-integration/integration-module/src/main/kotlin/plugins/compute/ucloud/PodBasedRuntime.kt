@@ -271,13 +271,25 @@ abstract class PodBasedBuilder : ContainerBuilder {
         if (normalizedName in mountedSystems) return normalizedName
         mountedSystems.add(normalizedName)
 
-        volumes.add(
-            Volume(
-                normalizedName,
-                persistentVolumeClaim = Volume.PersistentVolumeClaimSource(system.volumeClaim, false)
-            )
-        )
+        val volume = when {
+            system.volumeClaim != null -> {
+                Volume(
+                    normalizedName,
+                    persistentVolumeClaim = Volume.PersistentVolumeClaimSource(system.volumeClaim, false)
+                )
+            }
 
+            system.hostPath != null -> {
+                Volume(
+                    normalizedName,
+                    hostPath = Volume.HostPathSource(system.hostPath, "Directory")
+                )
+            }
+
+            else -> error("Bad configuration supplied. Unable to mount system: $system")
+        }
+
+        volumes.add(volume)
         return normalizedName
     }
 
