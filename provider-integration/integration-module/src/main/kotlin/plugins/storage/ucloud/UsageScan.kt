@@ -95,7 +95,7 @@ class UsageScan(
                     // NOTE(Dan): We assume that if the recursive size comes back as null then this means that the
                     // collection has been deleted and thus shouldn't count.
                     val sizes = paths.map { thisCollection ->
-                        fastDirectoryStats.getRecursiveSize(thisCollection) ?: 0L
+                        fastDirectoryStats.getRecursiveSize(thisCollection, allowSlowPath = true) ?: 0L
                     }
 
                     processChunk(chunk.map { it.drive.ucloudId }, sizes, resolvedCollections, chunk.map { it.toString() })
