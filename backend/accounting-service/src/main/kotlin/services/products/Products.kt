@@ -213,7 +213,8 @@ class ProductService(
                     limit $itemsPerPage;
                 """
             ).rows
-
+            println("ProductsFound")
+println(rows.size)
             val result = rows.mapNotNull {
                 val product = defaultMapper.decodeFromString(Product.serializer(), it.getString(0)!!)
                 if (request.includeBalance == true) {
