@@ -60,8 +60,7 @@ import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api
 import {useNavigate} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
-import { ProviderTitle } from "@/Providers/ProviderTitle";
-import { ProviderLogo } from "@/Providers/ProviderLogo";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ShareModal} from "@/Files/Shares";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
@@ -500,9 +499,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 text: "Download",
                 icon: "download",
-                enabled: selected =>
-                    ((isLikelySafari && selected.length === 1) || (!isLikelySafari && selected.length >= 1)) &&
-                    selected.every(it => it.status.type === "FILE"),
+                enabled: selected => selected.length === 1 && selected.every(it => it.status.type === "FILE"),
                 onClick: async (selected, cb) => {
                     // TODO(Dan): We should probably add a feature flag for file types
                     const result = await cb.invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
