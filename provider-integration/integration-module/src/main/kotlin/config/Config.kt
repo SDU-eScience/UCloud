@@ -525,8 +525,13 @@ data class ConfigSchema(
                     for ((name, system) in systems) {
                         system.name = name
                         system.mountPath = File(system.mountPath).normalize().path.removeSuffix("/") + "/"
+
                         require(system.volumeClaim != null || system.hostPath != null) {
                             "System '$name' must have either volumeClaim or hostPath set"
+                        }
+
+                        require(!system.name.equals("shm", ignoreCase = true)) {
+                            "System name cannot be shm (case insensitive)"
                         }
                     }
 
