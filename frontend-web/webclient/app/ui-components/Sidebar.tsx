@@ -4,7 +4,6 @@ import {useDispatch, useSelector} from "react-redux";
 import styled from "styled-components";
 import {
     copyToClipboard,
-    inDevEnvironment,
     isLightThemeStored,
     joinToString,
     stopPropagationAndPreventDefault,
@@ -28,9 +27,9 @@ import Support from "./SupportBox";
 import {VersionManager} from "@/VersionManager/VersionManager";
 import Notification from "@/Notifications";
 import AppRoutes from "@/Routes";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {emptyPage, emptyPageV2} from "@/DefaultObjects";
-import {NewsPost} from "@/Dashboard/Dashboard";
+import {navigateByFileType, NewsPost} from "@/Dashboard/Dashboard";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
 import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
 import {SidebarPages} from "./SidebarPagesEnum";
@@ -43,6 +42,14 @@ import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollection
 import {PageV2} from "@/UCloud";
 import AdminLinks from "@/Admin/Links";
 import {SharesLinks} from "@/Files/Shares";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
+import Truncate from "./Truncate";
+import metadataApi from "@/UCloud/MetadataDocumentApi";
+import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
+import {fileName} from "@/Utilities/FileUtilities";
+import {useNavigate} from "react-router";
+import JobsApi, {Job} from "@/UCloud/JobsApi";
+import {ProjectLinks} from "@/Project/ProjectLinks";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;
@@ -66,6 +73,7 @@ const SidebarContainer = styled(Flex) <FlexCProps>`
 `;
 
 const SidebarItemWrapper = styled.div<{active: boolean}>`
+    cursor: pointer;
     display: flex;
     border-radius: 5px;
     ${p => p.active ? "background-color: rgba(255, 255, 255, 0.35);" : null}
@@ -393,6 +401,35 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
     }
 };
 
+function useSidebarFilesPage(): {
+    drives: APICallState<PageV2<FileCollection>>,
+    favorites: APICallState<PageV2<FileMetadataAttached>>,
+} {
+    const [drives] = useCloudAPI<PageV2<FileCollection>>(FileCollectionsApi.browse({itemsPerPage: 10/* , filterMemberFiles: "all" */}), emptyPageV2);
+
+    const [favorites] = useCloudAPI<PageV2<FileMetadataAttached>>(
+        metadataApi.browse({
+            filterActive: true,
+            filterTemplate: "Favorite",
+            itemsPerPage: 10
+        }),
+        emptyPageV2
+    );
+
+    return {
+        drives,
+        favorites
+    }
+}
+
+function useSidebarRunsPage(): APICallState<PageV2<Job>> {
+    /* TODO(Jonas): This should be fetched from the same source as the runs page. */
+    const [runs] = useCloudAPI<PageV2<Job>>(JobsApi.browse({itemsPerPage: 10}), emptyPageV2);
+
+    return runs;
+}
+
+
 function SidebarAdditional({hovered, clicked, clearHover}: {hovered: string; clicked: string; clearHover(): void}): JSX.Element {
     const [forceOpen, setForceOpen] = React.useState(false);
     React.useEffect(() => {
@@ -401,24 +438,59 @@ function SidebarAdditional({hovered, clicked, clearHover}: {hovered: string; cli
         }
     }, [clicked]);
 
-    const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>(FileCollectionsApi.browse({itemsPerPage: 10/* , filterMemberFiles: "all" */}), emptyPageV2);
+    const {drives, favorites} = useSidebarFilesPage();
+    const recentRuns = useSidebarRunsPage();
+
+    const navigate = useNavigate();
+    const [, invokeCommand] = useCloudCommand();
 
     const active = hovered ? hovered : clicked;
     /* TODO(Jonas): hovering should slide over, while clicking should push */
     return (<SidebarAdditionalStyle onMouseLeave={e => {
         if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover()
     }} className={SIDEBAR_IDENTIFIER} flexDirection="column" forceOpen={forceOpen || hovered !== ""}>
-        <TextSpan bold color="var(--white)" ml="5px">{active}</TextSpan>
-        <Flex ml="auto" mr="5px" mt="5px" height="24px">{forceOpen ? <TextSpan onClick={() => setForceOpen(false)}>Unlock</TextSpan> : null}</Flex>
-        {active !== "Files" ? null : (
-            drives.data.items.map(it =>
-                <TextSpan color="var(--white)">{it.specification.title}</TextSpan>
-            )
-        )}
-        {active !== "Shares" ? null : (<SharesLinks />)}
-        {active !== "Resources" ? null : ("TODO")}
-        {active !== "Admin" ? null : (<AdminLinks />)}
-    </SidebarAdditionalStyle>)
+        <Box ml="6px">
+            <Flex>
+                <TextSpan bold color="var(--white)">{active}</TextSpan>
+                {forceOpen ? <TextSpan ml="auto" mr="4px" onClick={() => setForceOpen(false)}>Unlock</TextSpan> : null}
+            </Flex>
+            {active !== "Files" ? null : (
+                <Flex flexDirection="column">
+                    <Flex ml="auto" mr="4px" mb="4px">
+                        <Link hoverColor="white" style={{fontWeight: "bold", cursor: "pointer"}} color="white" to="/drives/">Manage drives</Link>
+                    </Flex>
+                    <TextSpan color="white" bold>Drives</TextSpan>
+                    {drives.data.items.map(it =>
+                        <Flex key={it.id} ml="4px">
+                            <Link hoverColor="white" to={`/files?path=${it.id}`}>
+                                <Truncate color="var(--white)">
+                                    <Icon size={12} mr="4px" name="hdd" color="white" color2="white" />
+                                    {it.specification.title}
+                                </Truncate>
+                            </Link>
+                            <Flex ml="auto" mr="5px" my="auto"><ProviderLogo providerId={it.specification.product.provider} size={20} /></Flex>
+                        </Flex>
+                    )}
+                    <TextSpan bold color="white">Favorite Files</TextSpan>
+                    {favorites.data.items.map(it => <Flex key={it.path} ml="4px" cursor="pointer" onClick={() => navigateByFileType(it, invokeCommand, navigate)}>
+                        <Flex mx="auto" my="auto"><Icon name="starFilled" size={12} mr="4px" color="white" color2="white" /></Flex><Truncate color="white">{fileName(it.path)}</Truncate>
+                    </Flex>)}
+                </Flex>
+            )}
+            {active !== "Projects" ? null : (<ProjectLinks />)}
+            {active !== "Shares" ? null : (<SharesLinks />)}
+            {active !== "Runs" ? null : (
+                <Flex flexDirection="column">
+                    <TextSpan bold color="white">Most recent</TextSpan>
+                    {recentRuns.data.items.map(it =>
+                        <Truncate key={it.id} color="white">{it.specification.name ?? it.id} ({it.specification.application.name})</Truncate>
+                    )}
+                </Flex>
+            )}
+            {active !== "Resources" ? null : ("TODO")}
+            {active !== "Admin" ? null : (<AdminLinks />)}
+        </Box>
+    </SidebarAdditionalStyle >)
 }
 
 function Username(): JSX.Element | null {
@@ -469,9 +541,7 @@ function ProjectID(): JSX.Element | null {
         left="-50%"
         top="1"
         mb="35px"
-        trigger={<SidebarTextLabel key={projectId} icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1}
-            space={".5em"}>
-
+        trigger={<SidebarTextLabel key={projectId} icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1} space={".5em"}>
             <EllipsedText
                 cursor="pointer"
                 onClick={copyProjectPath}

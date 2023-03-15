@@ -7,10 +7,6 @@ const news = {
     list: (filter: string) => `/news/list/${filter}`,
 };
 
-const project = {
-    members: (projectId: string) => `/projects/${projectId}/members`
-}
-
 const admin = {
     userCreation: () => "/admin/userCreation",
     applicationStudio: () => "/applications/studio",
@@ -24,12 +20,21 @@ const shares = {
     sharedWithMe: () => "/shares"
 }
 
+const project = {
+    members: (projectId: string) => `/projects/${projectId}/members`,
+    usage: (projectId: string) => `/project/resources/${projectId}`,
+    allocations: (projectId: string) => `/project/allocations/${projectId}`,
+    grants: (projectId: string) => `/project/grants/ingoing/${projectId}`,
+    settings: (projectId: string) => `/project/settings/${projectId}`,
+    subprojects: (projectId: string) => `/subprojects/${projectId}`
+}
+
 const AppRoutes = {
     news,
     users,
-    project,
     admin,
     shares,
+    project
 };
 
 export default AppRoutes;

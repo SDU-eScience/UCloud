@@ -13,7 +13,7 @@ import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {DashboardOperations, DashboardProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
-import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {APICallState, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {Spacer} from "@/ui-components/Spacer";
@@ -204,14 +204,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                             snackbarStore.addFailure("Failed to unfavorite", false);
                         }
                     }} />
-                    <Text cursor="pointer" fontSize="20px" mb="6px" mt="-3px" onClick={async () => {
-                        const result = await invokeCommand<UFile>(FilesApi.retrieve({id: it.path}))
-                        if (result?.status.type === "FILE") {
-                            navigate(buildQueryString("/files", {path: getParentPath(it.path)}));
-                        } else {
-                            navigate(buildQueryString("/files", {path: it.path}))
-                        }
-                    }}>{fileName(it.path)}</Text>
+                    <Text cursor="pointer" fontSize="20px" mb="6px" mt="-3px" onClick={() => navigateByFileType(it, invokeCommand, navigate)}>{fileName(it.path)}</Text>
                 </Flex>))}
             </List>
         </HighlightedCard>
@@ -225,6 +218,15 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
         if (ns) {
             setId(ns.id);
         }
+    }
+}
+
+export async function navigateByFileType(file: FileMetadataAttached, invokeCommand: InvokeCommand, navigate: ReturnType<typeof useNavigate>): Promise<void> {
+    const result = await invokeCommand<UFile>(FilesApi.retrieve({id: file.path}))
+    if (result?.status.type === "FILE") {
+        navigate(buildQueryString("/files", {path: getParentPath(file.path)}));
+    } else {
+        navigate(buildQueryString("/files", {path: file.path}))
     }
 }
 

@@ -158,7 +158,7 @@ function RefreshThing(): JSX.Element | null {
         refresh: it.header.refresh,
         spin: it.loading,
         statusLoading: it.status.loading,
-    }))
+    }));
     return <Icon cursor="pointer" size={20} onClick={reduxProps.refresh} spin={reduxProps.spin || reduxProps.statusLoading} color="var(--blue)" name="refresh" />
 }
 
