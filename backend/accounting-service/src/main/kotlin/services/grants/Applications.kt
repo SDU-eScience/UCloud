@@ -465,19 +465,40 @@ class GrantApplicationService(
             } else {
                 val newRequests = document.allocationRequests
                 val oldRequests = application.currentRevision.document.allocationRequests
-                oldRequests.mapNotNull { oldReq ->
+                val newRequestsAccountedFor = mutableListOf<GrantApplication.AllocationRequest>()
+                //If you, as the grant giver, attempt to update one of your allocations requests, we leave those
+                //requests that are not associated with your project and updates the values of those that were in
+                // the old grant application.
+                val updatedRequests = oldRequests.mapNotNull { oldReq ->
                     if (oldReq.grantGiver != actorAndProject.project) {
                         oldReq
                     } else {
-                        newRequests.find { newReq ->
+                        val updatedRequest = newRequests.find { newReq ->
                             newReq.category == oldReq.category && newReq.provider == oldReq.provider
                         }
+                        if (updatedRequest != null) {
+                            newRequestsAccountedFor.add(updatedRequest)
+                        }
+                        updatedRequest
                     }
                 }
+
+                val remainingNewRequests = newRequests.mapNotNull { newReq ->
+                    if (!newRequestsAccountedFor.contains(newReq)) {
+                        newReq
+                    } else null
+                }.toMutableList()
+
+                remainingNewRequests.addAll(updatedRequests)
+                remainingNewRequests
             }
         } else {
             // No additional checks needed on initial submission
             document.allocationRequests
+        }
+
+        if (allocationRequests.isEmpty()) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Applications without resource requests not allowed")
         }
 
         val requestIsValid = session.sendPreparedStatement(
