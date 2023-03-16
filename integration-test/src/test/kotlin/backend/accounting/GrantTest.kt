@@ -219,7 +219,6 @@ class GrantTest : IntegrationTest() {
                         createUser("admin-${UUID.randomUUID()}")
                     }
                     val evilUser = createUser("evil-${UUID.randomUUID()}")
-                    println(input.grantRecipient)
                     val normalUser = createUser(
                             username = input.username ?: "user-${testId}",
                             email = input.userEmail,
@@ -264,7 +263,6 @@ class GrantTest : IntegrationTest() {
                     }
 
                     var actualRecipient = input.grantRecipient
-                    println(actualRecipient)
                     if (input.grantRecipient is GrantApplication.Recipient.ExistingProject && input.ifExistingDoCreate) {
                         val created = Projects.create.call(
                             CreateProjectRequest(
@@ -622,12 +620,7 @@ class GrantTest : IntegrationTest() {
                 fun UCloudTestCaseBuilder<In, Out>.checkSuccess() {
                     check {
                         val outputComments = output.grantApplication.status.comments
-                        println(outputComments)
                         val inputComments = input.comments
-                        inputComments.forEach {
-                            println(it.poster)
-                            println(it.commentToPost)
-                        }
                         assertThatInstance(outputComments, "has the correct size") { it.size == inputComments.size }
                         for ((inputComment, outputComment) in inputComments.zip(outputComments)) {
                             assertThatPropertyEquals(outputComment, { it.comment }, inputComment.commentToPost)

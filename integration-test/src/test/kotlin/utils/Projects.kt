@@ -127,9 +127,6 @@ suspend fun initializeNormalProject(
     ).orThrow()
 
     if (initializeWallet) {
-        findAllocationsInternal(WalletOwner.Project(rootProject)).forEach {
-            println("HELLO: ${it.canAllocate}, ${it.allowSubAllocationsToAllocate}, ${it.id}")
-        }
         Accounting.deposit.call(
             BulkRequest(
                 findAllocationsInternal(WalletOwner.Project(rootProject)).map { alloc ->

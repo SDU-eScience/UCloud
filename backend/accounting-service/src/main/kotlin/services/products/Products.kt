@@ -213,12 +213,12 @@ class ProductService(
                     limit $itemsPerPage;
                 """
             ).rows
-            println("ProductsFound")
-println(rows.size)
+
             val result = rows.mapNotNull {
                 val product = defaultMapper.decodeFromString(Product.serializer(), it.getString(0)!!)
                 if (request.includeBalance == true) {
-                    val balance = processor.retrieveBalanceFromProduct(actorAndProject.actor.safeUsername(), product.category)
+                    val owner = actorAndProject.project ?: actorAndProject.actor.safeUsername()
+                    val balance = processor.retrieveBalanceFromProduct(owner, product.category)
                         ?: return@mapNotNull null
                     product.balance = balance
                 }

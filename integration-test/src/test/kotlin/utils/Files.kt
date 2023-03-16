@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.integration.backend.compute.toReference
+import kotlinx.coroutines.delay
 
 data class InitializedCollection(
     val collection: FileCollection,
@@ -21,14 +22,12 @@ suspend fun initializeCollection(
     provider: String,
     productFilter: Product? = null,
 ): InitializedCollection? {
-    println("initialize")
     val allSupport = FileCollections.retrieveProducts
         .call(Unit, rpcClient)
         .orThrow()
         .productsByProvider.values
         .flatten()
         .filter { it.product.category.provider == provider}
-    println("allSupport: $allSupport")
 
     val chosenProductWithSupport = allSupport
         .find {
@@ -40,7 +39,6 @@ suspend fun initializeCollection(
                 it.product.name != "share" &&
                 it.product.name != "project-home"
         } ?: return null
-    println("chosen: $chosenProductWithSupport")
 
     val product = chosenProductWithSupport.product
     val support = chosenProductWithSupport.support
@@ -49,20 +47,17 @@ suspend fun initializeCollection(
         error("Could not select product: $product could not find support info")
     }
 
-    println("After filter")
     // NOTE(Dan): Don't throw since we didn't even check if we should do this.
     // At least one of these should initialize the system for us. If we still end up with no
     // collection, then something is wrong in the system.
     FileCollections.init.call(Unit, rpcClient)
     Files.init.call(Unit, rpcClient)
-    println("OKAY")
     if (support.collection.usersCanCreate == true) {
         FileCollections.create.call(
             bulkRequestOf(FileCollection.Spec(generateId("Drive"), product.toReference())),
             rpcClient
         )
     }
-    println("Afterinits")
     val collection = retrySection(attempts = 30, delay = 1000) {
         FileCollections.browse
             .call(
@@ -73,12 +68,10 @@ suspend fun initializeCollection(
             .items
             .firstOrNull() ?: throw IllegalStateException("No collection found for: $project of $product")
     }
-    println("COLLECTION: $collection")
 
     val createdCollectionWithSupport = allSupport.find { it.product.toReference() == collection.specification.product }
         ?: error("Unknown product")
 
-    println("Created: $createdCollectionWithSupport")
     retrySection(attempts = 30, delay = 1000) {
         Files.browse.call(
             ResourceBrowseRequest(
@@ -88,7 +81,6 @@ suspend fun initializeCollection(
             rpcClient
         ).orThrow()
     }
-    println("COULD BRTOSE")
     return InitializedCollection(
         collection,
         createdCollectionWithSupport.product,
