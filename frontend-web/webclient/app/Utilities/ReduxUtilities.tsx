@@ -5,13 +5,12 @@ import status from "@/Navigation/Redux/StatusReducer";
 import * as ProjectRedux from "@/Project/Redux";
 import {Action, AnyAction, combineReducers, createStore, Store} from "redux";
 import {composeWithDevTools} from "redux-devtools-extension";
-import {createResponsiveStateReducer, responsiveStoreEnhancer} from "redux-responsive";
-import {responsiveBP} from "@/ui-components/theme";
 import avatar from "@/UserSettings/Redux/AvataaarReducer";
 import {terminalReducer} from "@/Terminal/State";
 import hookStore from "@/Utilities/ReduxHooks";
+import {popInReducer} from "@/ui-components/PopIn";
 
-export function configureStore(
+export function confStore(
     initialObject: ReduxObject,
     reducers,
     enhancers?
@@ -26,12 +25,7 @@ export function configureStore(
     return createStore<ReduxObject, AnyAction, {}, {}>(rootReducer, initialObject, composeWithDevTools(enhancers));
 }
 
-export const responsive = createResponsiveStateReducer(
-    responsiveBP,
-    {infinity: "xxl"}
-);
-
-export const store = configureStore(initObject(), {
+export const store = confStore(initObject(), {
     dashboard,
     header,
     status,
@@ -40,10 +34,8 @@ export const store = configureStore(initObject(), {
     terminal: terminalReducer,
     loading,
     project: ProjectRedux.reducer,
-    responsive: createResponsiveStateReducer(
-        responsiveBP,
-        {infinity: "xxl"}),
-}, responsiveStoreEnhancer);
+    popinChild: popInReducer,
+});
 
 function loading(state = false, action: {type: string}): boolean {
     switch (action.type) {

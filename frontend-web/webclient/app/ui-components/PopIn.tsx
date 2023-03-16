@@ -1,26 +1,50 @@
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
-import styled from "styled-components";
+import Flex from "./Flex";
+import Icon from "./Icon";
+import theme from "./theme";
 
-const PopIn = styled.div<{right: string;}>`
-    transition: right 0.4s;
-    height: 100vh;
-    position: absolute;
-    width: var(--popInWidth);
-    top: 0;
-    z-index: 120;
-    right: ${p => p.right};
-    background-color: var(--red);
-`;
+function PopIn({hasContent, children}: React.PropsWithChildren<{hasContent: boolean}>): JSX.Element {
+    return <div style={{
+        transition: "right 0.4s",
+        height: "100vh",
+        position: "absolute",
+        padding: "4px 4px 4px p4x",
+        width: hasContent ? "0" : "calc(0px - var(--popInWidth))",
+        top: 0,
+        zIndex: 120,
+        boxShadow: theme.shadows.sm,
+        right: 0,
+        backgroundColor: "var(--white)",
+    }}>
+        {hasContent ? children : null}
+    </div >
+}
 
 export function RightPopIn(): JSX.Element {
     const dispatch = useDispatch();
 
-    const content = useSelector<ReduxObject, JSX.Element | null>(it => null);
-
-    return <PopIn
-        right={content != null ? "0" : "calc(0px - var(--popInWidth))"}
-    >
-        {content}
+    const content = useSelector<ReduxObject, JSX.Element | null>(it => it.popinChild);
+    /* Alternatively, use React.portal */
+    return <PopIn hasContent={content != null} >
+        <Icon name="close" onClick={() => dispatch(setPopInChild(null))} color="var(--white)" />
+        <Flex flexDirection="column" mx="4px" my="4px">{content}</Flex>
     </PopIn>
 }
+
+type SetPopInChildAction = PayloadAction<"SET_POP_IN_CHILD", JSX.Element | null>;
+export function setPopInChild(el: JSX.Element | null): SetPopInChildAction {
+    return {
+        type: "SET_POP_IN_CHILD",
+        payload: el
+    };
+}
+
+export const popInReducer = (state: JSX.Element | null = null, action: SetPopInChildAction): JSX.Element | null => {
+    switch (action.type) {
+        case "SET_POP_IN_CHILD":
+            return action.payload;
+        default:
+            return state;
+    }
+};
