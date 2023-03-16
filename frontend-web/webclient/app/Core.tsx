@@ -71,7 +71,7 @@ import {CONTEXT_SWITCH, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
 import {Provider} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
 import {createGlobalStyle, ThemeProvider} from "styled-components";
-import {Flex, theme, UIGlobalStyle} from "@/ui-components";
+import {Absolute, Flex, theme, UIGlobalStyle} from "@/ui-components";
 import {invertedColors} from "@/ui-components/theme";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
 import {store} from "@/Utilities/ReduxUtilities";
@@ -82,6 +82,7 @@ import {ApplicationsOverview2} from "./Applications/Overview2";
 import {TerminalContainer} from "@/Terminal/Container";
 import {LOGIN_REDIRECT_KEY} from "@/Login/Login";
 import AppRoutes from "./Routes";
+import {RightPopIn} from "./ui-components/PopIn";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -90,6 +91,7 @@ const Core = (): JSX.Element => (
         <Dialog />
         <Snackbars />
         <Uploader />
+        <RightPopIn />
         <div data-component="router-wrapper" style={{width: "100%", height: "calc(100vh - var(--termsize, 0px))", overflowX: "auto", overflowY: "auto"}}>
             <ErrorBoundary>
                 <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>

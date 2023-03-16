@@ -48,7 +48,7 @@ import metadataApi from "@/UCloud/MetadataDocumentApi";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import {fileName} from "@/Utilities/FileUtilities";
 import {useNavigate} from "react-router";
-import JobsApi, {Job} from "@/UCloud/JobsApi";
+import JobsApi, {Job, jobStateToIconAndColor} from "@/UCloud/JobsApi";
 import {ProjectLinks} from "@/Project/ProjectLinks";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
@@ -480,11 +480,15 @@ function SidebarAdditional({hovered, clicked, clearHover}: {hovered: string; cli
             {active !== "Projects" ? null : (<ProjectLinks />)}
             {active !== "Shares" ? null : (<SharesLinks />)}
             {active !== "Runs" ? null : (
-                <Flex flexDirection="column">
+                <Flex flexDirection="column" mr="4px">
                     <TextSpan bold color="white">Most recent</TextSpan>
-                    {recentRuns.data.items.map(it =>
-                        <Truncate key={it.id} color="white">{it.specification.name ?? it.id} ({it.specification.application.name})</Truncate>
-                    )}
+                    {recentRuns.data.items.map(it => {
+                        const [icon, color] = jobStateToIconAndColor(it.status.state);
+                        return <Flex>
+                            <Icon name={icon} color={color} mr={"6px"} size={16} my="auto" />
+                            <Truncate key={it.id} color="white">{it.specification.name ?? it.id} ({it.specification.application.name})</Truncate>
+                        </Flex>
+                    })}
                 </Flex>
             )}
             {active !== "Resources" ? null : ("TODO")}

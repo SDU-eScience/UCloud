@@ -113,6 +113,7 @@ html {
     --sidebar: #2C68F6;
     --sidebarWidth: 64px;
     --sidebarAdditionalWidth: 220px;
+    --popInWidth: 368px;
 
     /* FONT-SIZES */
     --secondaryText: 12px;

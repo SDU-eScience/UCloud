@@ -182,7 +182,7 @@ export interface SessionDataVnc {
     password?: string;
 }
 
-function jobStateToIconAndColor(state: JobState): [IconName, string] {
+export function jobStateToIconAndColor(state: JobState): [IconName, string] {
     let color = "iconColor";
     let icon: IconName;
     switch (state) {
