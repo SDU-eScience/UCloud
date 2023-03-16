@@ -149,6 +149,7 @@ private object DriveAndSystemStore {
         serviceClient: AuthenticatedClient,
         legacySystem: FsSystem,
         allSystems: List<FsSystem>,
+        skipUCloudSynchronization: Boolean,
     ) {
         mutex.withLock {
             dbConnection.withSession { session ->
@@ -196,34 +197,36 @@ private object DriveAndSystemStore {
             }
         }
 
-        val drives = ArrayList<FileCollection>()
+        if (!skipUCloudSynchronization) {
+            val drives = ArrayList<FileCollection>()
 
-        var next: String? = null
-        while (true) {
-            val page = FileCollectionsControl.browse.call(
-                ResourceBrowseRequest(
-                    FileCollectionIncludeFlags(MemberFilesFilter.DONT_FILTER_COLLECTIONS),
-                    itemsPerPage = 250,
-                    next = next
-                ),
-                serviceClient
-            ).orThrow()
-            drives.addAll(page.items)
-            next = page.next ?: break
+            var next: String? = null
+            while (true) {
+                val page = FileCollectionsControl.browse.call(
+                    ResourceBrowseRequest(
+                        FileCollectionIncludeFlags(MemberFilesFilter.DONT_FILTER_COLLECTIONS),
+                        itemsPerPage = 250,
+                        next = next
+                    ),
+                    serviceClient
+                ).orThrow()
+                drives.addAll(page.items)
+                next = page.next ?: break
+            }
+
+            drives
+                .mapNotNull { drive ->
+                    runCatching {
+                        UCloudDrive.parse(drive.id.toLong(), drive.providerGeneratedId).also {
+                            it.project = drive.owner.project
+                        }
+                    }.getOrNull()
+                }
+                .chunked(100)
+                .forEach { chunk ->
+                    insert(chunk.map { DriveAndSystem(it, legacySystem, false, null) }, allowUpsert = false)
+                }
         }
-
-        drives
-            .mapNotNull { drive ->
-                runCatching {
-                    UCloudDrive.parse(drive.id.toLong(), drive.providerGeneratedId).also {
-                        it.project = drive.owner.project
-                    }
-                }.getOrNull()
-            }
-            .chunked(100)
-            .forEach { chunk ->
-                insert(chunk.map { DriveAndSystem(it, legacySystem, false, null) }, allowUpsert = false)
-            }
     }
 
     suspend fun insert(items: List<DriveAndSystem>, allowUpsert: Boolean, ctx: DBContext = dbConnection) {
@@ -428,7 +431,7 @@ class DriveLocator(
     }
 
     suspend fun fillDriveDatabase() {
-        DriveAndSystemStore.fill(serviceClient, legacySystem, allSystems)
+        DriveAndSystemStore.fill(serviceClient, legacySystem, allSystems, config.skipUCloudSynchronization)
     }
 
     /**
@@ -441,7 +444,6 @@ class DriveLocator(
         createdByUser: String? = null,
         initiatedByEndUser: Boolean = false,
     ): DriveAndSystem {
-        // TODO Need mutex against putting stuff into maintenance mode.
         require(ownedByProject != null || createdByUser != null || initiatedByEndUser)
         require(!initiatedByEndUser || title.isEmpty())
         require(initiatedByEndUser || title.isNotEmpty())
@@ -450,92 +452,90 @@ class DriveLocator(
             drive.project = ownedByProject
         }
 
-        return dbConnection.withSession { session ->
-            val (system, isAllowed) = when (drive) {
-                is UCloudDrive.ProjectMemberFiles,
-                is UCloudDrive.ProjectRepository -> {
-                    val systemName: String?
-                    var maintenanceMode: Boolean
+        val (system, isAllowed) = when (drive) {
+            is UCloudDrive.ProjectMemberFiles,
+            is UCloudDrive.ProjectRepository -> {
+                val systemName: String?
+                var maintenanceMode: Boolean
 
-                    val systemAndMaintenance = DriveAndSystemStore.findSystemByProject(drive.project!!)
-                    systemName = systemAndMaintenance?.first?.name
-                    maintenanceMode = systemAndMaintenance?.second ?: false
+                val systemAndMaintenance = DriveAndSystemStore.findSystemByProject(drive.project!!)
+                systemName = systemAndMaintenance?.first?.name
+                maintenanceMode = systemAndMaintenance?.second ?: false
 
-                    val system = if (systemName == null) {
-                        maintenanceMode = false
-                        defaultSystem
-                    } else {
-                        allSystems.find { it.name == systemName }
-                            ?: throw RPCException("Unknown system", HttpStatusCode.InternalServerError)
-                    }
-
-                    Pair(system, !maintenanceMode)
+                val system = if (systemName == null) {
+                    maintenanceMode = false
+                    defaultSystem
+                } else {
+                    allSystems.find { it.name == systemName }
+                        ?: throw RPCException("Unknown system", HttpStatusCode.InternalServerError)
                 }
 
-                else -> Pair(defaultSystem, true)
+                Pair(system, !maintenanceMode)
             }
 
-            if (!isAllowed) {
-                throw RPCException(
-                    "This drive is currently in maintenance mode. Try again later.",
-                    HttpStatusCode.BadGateway,
-                    "MAINTENANCE"
-                )
-            }
-
-            val id = if (initiatedByEndUser) {
-                drive.ucloudId
-            } else {
-                registeredDrivesMutex.withLock {
-                    val cachedDriveId = registeredDrives[drive.toProviderId()]
-                    if (cachedDriveId == null) {
-                        val providerId = drive.toProviderId()
-                            ?: error("$drive was expected to have a provider ID but didn't")
-
-                        val response = FileCollectionsControl.register.call(
-                            bulkRequestOf(
-                                ProviderRegisteredResource(
-                                    FileCollection.Spec(title, driveToProduct(drive)),
-                                    providerGeneratedId = providerId,
-                                    createdBy = createdByUser,
-                                    project = ownedByProject
-                                )
-                            ),
-                            serviceClient
-                        )
-
-                        val freshId = if (response.statusCode == HttpStatusCode.Conflict) {
-                            FileCollectionsControl.browse
-                                .call(
-                                    ResourceBrowseRequest(
-                                        FileCollectionIncludeFlags(
-                                            MemberFilesFilter.DONT_FILTER_COLLECTIONS,
-                                            filterProviderIds = providerId
-                                        ),
-                                    ),
-                                    serviceClient
-                                )
-                                .orThrow()
-                                .items
-                                .firstOrNull()
-                                ?.id
-                                ?.toLongOrNull()
-                                ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-                        } else {
-                            response.orThrow().responses.first().id.toLong()
-                        }
-
-                        registeredDrives[providerId] = freshId
-                        freshId
-                    } else {
-                        cachedDriveId
-                    }
-                }
-            }
-
-            DriveAndSystem(drive.withUCloudId(id), system, false, driveToInternalFile(system, drive))
-                .also { result -> DriveAndSystemStore.insert(listOf(result), allowUpsert = true) }
+            else -> Pair(defaultSystem, true)
         }
+
+        if (!isAllowed) {
+            throw RPCException(
+                "This drive is currently in maintenance mode. Try again later.",
+                HttpStatusCode.BadGateway,
+                "MAINTENANCE"
+            )
+        }
+
+        val id = if (initiatedByEndUser) {
+            drive.ucloudId
+        } else {
+            registeredDrivesMutex.withLock {
+                val cachedDriveId = registeredDrives[drive.toProviderId()]
+                if (cachedDriveId == null) {
+                    val providerId = drive.toProviderId()
+                        ?: error("$drive was expected to have a provider ID but didn't")
+
+                    val response = FileCollectionsControl.register.call(
+                        bulkRequestOf(
+                            ProviderRegisteredResource(
+                                FileCollection.Spec(title, driveToProduct(drive)),
+                                providerGeneratedId = providerId,
+                                createdBy = createdByUser,
+                                project = ownedByProject
+                            )
+                        ),
+                        serviceClient
+                    )
+
+                    val freshId = if (response.statusCode == HttpStatusCode.Conflict) {
+                        FileCollectionsControl.browse
+                            .call(
+                                ResourceBrowseRequest(
+                                    FileCollectionIncludeFlags(
+                                        MemberFilesFilter.DONT_FILTER_COLLECTIONS,
+                                        filterProviderIds = providerId
+                                    ),
+                                ),
+                                serviceClient
+                            )
+                            .orThrow()
+                            .items
+                            .firstOrNull()
+                            ?.id
+                            ?.toLongOrNull()
+                            ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                    } else {
+                        response.orThrow().responses.first().id.toLong()
+                    }
+
+                    registeredDrives[providerId] = freshId
+                    freshId
+                } else {
+                    cachedDriveId
+                }
+            }
+        }
+
+        return DriveAndSystem(drive.withUCloudId(id), system, false, driveToInternalFile(system, drive))
+            .also { result -> DriveAndSystemStore.insert(listOf(result), allowUpsert = true) }
     }
 
     suspend fun resolveDriveByProviderId(drive: UCloudDrive): DriveAndSystem {
@@ -577,7 +577,7 @@ class DriveLocator(
 
         val system = systemsSortedByMountPrefix.find { path.normalize().path.startsWith(it.mountPath) } ?: unknownFile()
 
-        val components = path.path.removePrefix(system.mountPath).split("/")
+        val components = path.normalize().path.removePrefix(system.mountPath).split("/")
         if (components.isEmpty()) unknownFile()
 
         val type: UCloudDrive.Type

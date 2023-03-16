@@ -498,6 +498,7 @@ data class ConfigSchema(
                 val systemUsedForLegacyDrives: String? = null,
                 val defaultSystem: String? = null,
                 val systems: Map<String, System> = emptyMap(),
+                val skipUCloudSynchronization: Boolean = false,
 
                 @Deprecated("Use systems instead")
                 val mountLocation: String? = null,
