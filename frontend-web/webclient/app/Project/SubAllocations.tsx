@@ -34,7 +34,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListV2} from "@/Pagination";
-import {AllocationViewer, resultAsPercent, SubAllocation, allocationText} from "./Allocations";
+import {AllocationViewer, resultAsPercent, SubAllocation, allocationText, percentageString} from "./Allocations";
 import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
@@ -609,10 +609,10 @@ export function mapToBalancesWithExplanation(
             productType,
             unit,
             2
-        ) + " " + allocationText(unit, productType, doTruncate) + " (" + Math.round(resultAsPercent({
+        ) + " " + allocationText(unit, productType, doTruncate) + percentageString({
             balance: remaining,
             initialBalance
-        })) + "%)"
+        })
     };
 }
 

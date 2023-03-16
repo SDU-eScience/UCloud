@@ -98,7 +98,7 @@ export function ContextSwitcher(): JSX.Element | null {
                     )}
                     {activeProject || response.data.items.length > 0 ? <Divider /> : null}
                     <Text onClick={() => navigate("/projects")}>Manage projects</Text>
-                    <Text onClick={() => navigate("/projects")}>
+                    <Text onClick={() => navigate(`/projects/${projectId ?? "My Workspace"}`)}>
                         {projectId ? "Manage active project" : "Manage my workspace"}
                     </Text>
                 </BoxForPadding>

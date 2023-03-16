@@ -484,8 +484,9 @@ function IngressEntry({id}: {id: string}): JSX.Element {
     if (ingress.data == null) return <div />
     const {domain} = ingress.data.specification;
 
+    const httpDomain = domain.startsWith("https://") ? domain : "https://" + domain;
     return <Truncate width={1}>
-        <Link to={`/applications/web/${id}/${0}?hide-frame`} target={"_blank"}>{domain}</Link>
+        <ExternalLink title={domain} href={httpDomain}>{domain}</ExternalLink>
     </Truncate>
 }
 

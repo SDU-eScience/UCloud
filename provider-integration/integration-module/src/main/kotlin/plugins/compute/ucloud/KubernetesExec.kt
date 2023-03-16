@@ -38,88 +38,90 @@ suspend fun KubernetesClient.exec(
         }
     }
 
-    webSocketClient.webSocket(
-        request = {
-            this.method = HttpMethod.Get
-            val builtUrl = buildUrl(
-                resource,
-                mapOf(
-                    "stdin" to stdin.toString(),
-                    "tty" to tty.toString(),
-                    "stdout" to stdout.toString(),
-                    "stderr" to stderr.toString(),
-                ),
-                "exec"
-            )
+    webSocketClient.use { _ ->
+        webSocketClient.webSocket(
+            request = {
+                this.method = HttpMethod.Get
+                val builtUrl = buildUrl(
+                    resource,
+                    mapOf(
+                        "stdin" to stdin.toString(),
+                        "tty" to tty.toString(),
+                        "stdout" to stdout.toString(),
+                        "stderr" to stderr.toString(),
+                    ),
+                    "exec"
+                )
 
-            url(
-                URLBuilder(builtUrl).apply {
-                    this.protocol = when {
-                        builtUrl.startsWith("http://") -> URLProtocol.WS
-                        builtUrl.startsWith("https://") -> URLProtocol.WSS
-                        else -> URLProtocol.WS
-                    }
+                url(
+                    URLBuilder(builtUrl).apply {
+                        this.protocol = when {
+                            builtUrl.startsWith("http://") -> URLProtocol.WS
+                            builtUrl.startsWith("https://") -> URLProtocol.WSS
+                            else -> URLProtocol.WS
+                        }
 
-                    command.forEach { parameters.append("command", it) }
-                }.build()
-            )
-            configureRequest(this)
-        },
+                        command.forEach { parameters.append("command", it) }
+                    }.build()
+                )
+                configureRequest(this)
+            },
 
-        block = {
-            coroutineScope {
-                val resizeChannel = Channel<ExecResizeMessage>()
-                val ingoingChannel = Channel<ExecMessage>()
-                val outgoingChannel = Channel<ByteArray>()
+            block = {
+                coroutineScope {
+                    val resizeChannel = Channel<ExecResizeMessage>()
+                    val ingoingChannel = Channel<ExecMessage>()
+                    val outgoingChannel = Channel<ByteArray>()
 
-                val resizeJob = launch {
-                    while (isActive) {
-                        // NOTE(Dan): I have no clue where this is documented.
-                        // I found this through a combination of Wireshark and this comment:
-                        // https://github.com/fabric8io/kubernetes-client/issues/1374#issuecomment-492884783
-                        val nextMessage = resizeChannel.receiveCatching().getOrNull() ?: break
-                        outgoing.send(
-                            Frame.Binary(
-                                true,
-                                byteArrayOf(4) +
-                                        """{"Width": ${nextMessage.cols}, "Height": ${nextMessage.rows}}"""
-                                            .toByteArray(Charsets.UTF_8)
+                    val resizeJob = launch {
+                        while (isActive) {
+                            // NOTE(Dan): I have no clue where this is documented.
+                            // I found this through a combination of Wireshark and this comment:
+                            // https://github.com/fabric8io/kubernetes-client/issues/1374#issuecomment-492884783
+                            val nextMessage = resizeChannel.receiveCatching().getOrNull() ?: break
+                            outgoing.send(
+                                Frame.Binary(
+                                    true,
+                                    byteArrayOf(4) +
+                                            """{"Width": ${nextMessage.cols}, "Height": ${nextMessage.rows}}"""
+                                                .toByteArray(Charsets.UTF_8)
+                                )
                             )
-                        )
+                        }
                     }
-                }
 
-                val outgoingJob = launch {
-                    while (isActive) {
-                        val nextMessage = outgoingChannel.receiveCatching().getOrNull() ?: break
-                        outgoing.send(Frame.Binary(true, byteArrayOf(0) + nextMessage))
+                    val outgoingJob = launch {
+                        while (isActive) {
+                            val nextMessage = outgoingChannel.receiveCatching().getOrNull() ?: break
+                            outgoing.send(Frame.Binary(true, byteArrayOf(0) + nextMessage))
+                        }
                     }
-                }
 
-                val ingoingJob = launch {
-                    while (isActive) {
-                        val f = incoming.receiveCatching().getOrNull() ?: break
-                        if (f !is Frame.Binary) continue
-                        val stream = ExecStream.allValues.getOrNull(f.buffer.get().toInt()) ?: continue
-                        val array = ByteArray(f.buffer.remaining())
-                        f.buffer.get(array)
-                        ingoingChannel.send(ExecMessage(stream, array))
+                    val ingoingJob = launch {
+                        while (isActive) {
+                            val f = incoming.receiveCatching().getOrNull() ?: break
+                            if (f !is Frame.Binary) continue
+                            val stream = ExecStream.allValues.getOrNull(f.buffer.get().toInt()) ?: continue
+                            val array = ByteArray(f.buffer.remaining())
+                            f.buffer.get(array)
+                            ingoingChannel.send(ExecMessage(stream, array))
+                        }
                     }
-                }
 
-                val userJob = launch {
-                    ExecContext(ingoingChannel, outgoingChannel, resizeChannel).block()
-                }
+                    val userJob = launch {
+                        ExecContext(ingoingChannel, outgoingChannel, resizeChannel).block()
+                    }
 
-                select<Unit> {
-                    resizeJob.onJoin { runCatching { cancel() } }
-                    userJob.onJoin { runCatching { cancel() } }
-                    outgoingJob.onJoin { runCatching { cancel() } }
-                    ingoingJob.onJoin { runCatching { cancel() } }
+                    select<Unit> {
+                        resizeJob.onJoin { runCatching { cancel() } }
+                        userJob.onJoin { runCatching { cancel() } }
+                        outgoingJob.onJoin { runCatching { cancel() } }
+                        ingoingJob.onJoin { runCatching { cancel() } }
+                    }
                 }
             }
-        }
-    )
+        )
+    }
 }
 
 enum class ExecStream(val id: Int) {

@@ -415,8 +415,6 @@ object MaintenanceSystem {
             })
 
             ipcServer.addHandler(Ipc.browse.handler { user, request ->
-                if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-
                 val items = ArrayList<MaintenancePeriod>()
                 dbConnection.withSession { session ->
                     session.prepareStatement(

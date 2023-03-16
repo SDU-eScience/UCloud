@@ -63,7 +63,7 @@ export interface FileCollectionSupport extends ProductSupport {
         aclSupported?: boolean;
         aclModifiable?: boolean;
 
-        shareSupport?: boolean;
+        sharesSupported?: boolean;
 
         trashSupported?: boolean;
         isReadOnly?: boolean;

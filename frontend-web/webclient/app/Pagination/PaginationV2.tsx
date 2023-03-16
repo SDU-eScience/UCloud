@@ -4,9 +4,9 @@ import {PropsWithChildren, useState} from "react";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import * as Heading from "@/ui-components/Heading";
 import {Box, Button, Error} from "@/ui-components";
-import {useEffectSkipMount} from "@/UtilityFunctions";
+import {stopPropagationAndPreventDefault, useEffectSkipMount} from "@/UtilityFunctions";
 
-export type PageRenderer<T> = (page: T[], opts: { hasNext: boolean }) => React.ReactNode;
+export type PageRenderer<T> = (page: T[], opts: {hasNext: boolean}) => React.ReactNode;
 
 interface ListV2Props<T> {
     page: UCloud.PageV2<T>;
@@ -41,6 +41,11 @@ export function ListV2<T>(props: PropsWithChildren<ListV2Props<T>>): JSX.Element
         }
     }, [props.page, props.dataIsStatic]);
 
+    const onLoadMore = React.useCallback((e: React.SyntheticEvent) => {
+        stopPropagationAndPreventDefault(e);
+        props.onLoadMore();
+    }, [props.onLoadMore])
+
     if (props.loading && props.page.items.length === 0) {
         return <HexSpin />;
     }
@@ -58,11 +63,11 @@ export function ListV2<T>(props: PropsWithChildren<ListV2Props<T>>): JSX.Element
     }
 
     return <Box>
-        {props.pageRenderer(allItems, { hasNext: props.page.next !== null })}
+        {props.pageRenderer(allItems, {hasNext: props.page.next !== null})}
         {props.page.next || allItems.length > 1 ?
             <Box margin={"0 auto"} maxWidth={"500px"}>
                 {!props.page.next ? null :
-                    <Button fullWidth type={"button"} onClick={props.onLoadMore}>
+                    <Button fullWidth type={"button"} onClick={onLoadMore}>
                         Load more
                     </Button>
                 }

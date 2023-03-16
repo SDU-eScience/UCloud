@@ -146,6 +146,68 @@ data class SharesBrowseOutgoingRequest(
     override val itemsToSkip: Long? = null
 ) : WithPaginationRequestV2
 
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ShareLink(
+    val token: String,
+    val expires: Long,
+    val permissions: List<Permission>
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ShareLinksCreateRequest(
+    val path: String
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ShareLinksBrowseRequest(
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+    val path: String
+) : WithPaginationRequestV2
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ShareLinksRetrieveRequest(
+    val token: String
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ShareLinksRetrieveResponse(
+    val token: String,
+    val path: String,
+    val sharedBy: String,
+    val sharePath: String?
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ShareLinksDeleteRequest(
+    val token: String,
+    val path: String
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ShareLinksUpdateRequest(
+    val token: String,
+    val path: String,
+    val permissions: List<Permission>
+)
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class ShareLinksAcceptRequest(
+    val token: String
+)
+
+typealias ShareLinksAcceptResponse = Share
+
 @UCloudApiInternal(InternalLevel.STABLE)
 object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.Status,
         Product.Storage, ShareSupport>("shares") {
@@ -293,6 +355,34 @@ how to use this feature. We generally recommend that you use a full-blown projec
     override val create get() = super.create!!
     override val delete get() = super.delete!!
     override val search get() = super.search!!
+}
+
+object ShareLinks: CallDescriptionContainer("share.links") {
+    const val baseContext = "/api/shares/links"
+
+    val create = call("create", ShareLinksCreateRequest.serializer(), ShareLink.serializer(), CommonErrorMessage.serializer()) {
+        httpCreate(baseContext)
+    }
+
+    val browse = call("browse", ShareLinksBrowseRequest.serializer(), PageV2.serializer(ShareLink.serializer()), CommonErrorMessage.serializer()) {
+        httpBrowse(baseContext)
+    }
+
+    val retrieve = call("retrieve", ShareLinksRetrieveRequest.serializer(), ShareLinksRetrieveResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(baseContext)
+    }
+
+    val delete = call("delete", ShareLinksDeleteRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "delete")
+    }
+
+    val update = call("update", ShareLinksUpdateRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "update")
+    }
+
+    val accept = call("accept", ShareLinksAcceptRequest.serializer(), ShareLinksAcceptResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "accept")
+    }
 }
 
 @UCloudApiInternal(InternalLevel.STABLE)
