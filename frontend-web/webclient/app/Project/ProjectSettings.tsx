@@ -37,6 +37,9 @@ import ProjectAPI, {OldProjectRole, Project, ProjectSpecification, useProjectFro
 import {bulkRequestOf} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProject} from "./cache";
+import {ButtonClass} from "@/ui-components/Button";
+import {BoxClass} from "@/ui-components/Box";
+import {FlexClass} from "@/ui-components/Flex";
 
 const ActionContainer = styled.div`
     & > * {
@@ -48,17 +51,17 @@ const ActionBox = styled.div`
     display: flex;
     margin-bottom: 16px;
     
-    & > ${Box} {
+    & > .${BoxClass} {
         flex-grow: 1;
     }
     
-    & > ${Flex} {
+    & > .${FlexClass} {
         margin-left: 8px;
         flex-direction: column;
         justify-content: center;
     }
     
-    & > ${Flex} > ${Button} {
+    & > .${FlexClass} > .${ButtonClass} {
         min-width: 100px;
     }
 `;
@@ -321,10 +324,7 @@ const SubprojectSettings: React.FC<AllowRenamingProps> = props => {
         {props.projectRole === OldProjectRole.USER ? null : (
             <ActionBox>
                 <Box flexGrow={1}>
-                    <Label
-                        fontWeight={"normal"}
-                        fontSize={"2"}
-                    >
+                    <Label>
                         <Checkbox
                             size={24}
                             checked={allowRenaming.data.allowed}

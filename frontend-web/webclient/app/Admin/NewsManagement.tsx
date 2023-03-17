@@ -86,7 +86,6 @@ function NewsManagement(): JSX.Element | null {
                                 <InputGroup>
                                     <DatePicker
                                         placeholderText="Show from"
-                                        fontSize="18px"
                                         selected={start}
                                         onChange={d => setStart(d as Date)}
                                         dateFormat={DATE_FORMAT}
@@ -98,7 +97,6 @@ function NewsManagement(): JSX.Element | null {
                                     />
                                     <DatePicker
                                         placeholderText="Show until (Optional)"
-                                        fontSize="18px"
                                         selected={end}
                                         onChange={d => setEnd(d as Date)}
                                         dateFormat={DATE_FORMAT}

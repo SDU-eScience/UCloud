@@ -67,7 +67,6 @@ import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
 import JobRouter from "@/Applications/Jobs/Browse";
-import {Debugger} from "@/Debug/Debugger";
 import {CONTEXT_SWITCH, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
 import {Provider} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
@@ -102,7 +101,6 @@ const Core = (): JSX.Element => (
                         <Route path="/login/wayf" element={<Wayf />} />
                         <Route path="/" element={React.createElement(requireAuth(Dashboard))} />
                         <Route path="/dashboard" element={React.createElement(requireAuth(Dashboard))} />
-                        <Route path={"/debugger"} element={<Debugger />} />
                         <Route path={"/drives/*"} element={React.createElement(requireAuth(FileCollectionsRouter))} />
                         <Route path={"/files/*"} element={React.createElement(requireAuth(FilesRouter))} />
                         <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />

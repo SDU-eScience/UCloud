@@ -152,10 +152,9 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
                             <Flex>
                                 <Text fontSize="18px">Visible from </Text><DatePicker
                                     placeholderText="Show from"
-                                    fontSize="18px"
                                     selected={showFrom}
                                     dateFormat={DATE_FORMAT}
-                                    onChange={(d: Date) => setShowFrom(d)}
+                                    onChange={d => setShowFrom(d as Date)}
                                     minDate={new Date()}
                                     py={0}
                                     selectsStart
@@ -169,12 +168,11 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
                             <Flex>
                                 <Text fontSize="18px">Hidden from </Text><DatePicker
                                     placeholderText="Hide from"
-                                    fontSize="18px"
                                     selected={hideFrom}
                                     py={0}
                                     isClearable
                                     dateFormat={DATE_FORMAT}
-                                    onChange={(d: Date | null) => setHideFrom(d)}
+                                    onChange={d => setHideFrom(d as (Date | null))}
                                     minDate={showFrom}
                                     selectsEnd
                                     showTimeSelect

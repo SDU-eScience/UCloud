@@ -178,10 +178,10 @@ const Resources: React.FunctionComponent = () => {
                                     color="blue"
                                     width="400px"
                                 >
-                                    <Flex style={{flexDirection: "column", height: "calc(100% - 36px)"}}>
+                                    <Flex flexDirection={"column"} height={"calc(100% - 36px)"}>
                                         <Box color={"var(--gray)"} height="20px">{count > 1 ? prettierString(it.unit) : null}</Box>
                                         {donuts}
-                                        <Flex style={{flexGrow: 1}} />
+                                        <Flex flexGrow={1} />
                                         <UsageChartViewer key={idx} c={it} dateRange={dateRange} onMaximizeToggle={() => onUsageMaximize(idx)} />
                                     </Flex>
                                 </HighlightedCard>

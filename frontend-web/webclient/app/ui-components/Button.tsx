@@ -1,49 +1,11 @@
-import styled from "styled-components";
-import {ButtonStyleProps, height, HeightProps, SizeProps, space, SpaceProps, width, WidthProps} from "styled-system";
-import theme, {Theme, ThemeColor} from "./theme";
+import * as React from "react";
+import {ButtonStyleProps, HeightProps, SizeProps, SpaceProps, WidthProps} from "styled-system";
+import {ThemeColor} from "./theme";
+import {extractEventHandlers, extractSize, injectStyle, unbox, WithEventHandlers} from "@/Unstyled";
 
-const size = (p: {size: string; theme: Theme}) => {
-    switch (p.size) {
-        case "tiny":
-            return {
-                fontSize: `${theme.fontSizes[0]}px`,
-                padding: "5px 10px"
-            };
-        case "small":
-            return {
-                fontSize: `${theme.fontSizes[0]}px`,
-                padding: "7px 12px"
-            };
-        case "medium":
-            return {
-                fontSize: `${theme.fontSizes[1]}px`,
-                padding: "9.5px 18px"
-            };
-        case "large":
-            return {
-                fontSize: `${theme.fontSizes[2]}px`,
-                padding: "12px 22px"
-            };
-        default:
-            return {
-                fontSize: `${theme.fontSizes[1]}px`,
-                padding: "9.5px 18px"
-            };
-    }
-};
-
-export const fullWidth = (props: {fullWidth?: boolean}) => props.fullWidth ? {width: "100%"} : null;
-
-export const attached = (props: {attached?: boolean}): string | null => props.attached ?
-    `border-top-left-radius: 0;
-    border-bottom-left-radius: 0;`
-    : null;
-
-export const asSquare = (props: {asSquare?: boolean}): {borderRadius: 0} | null => props.asSquare ? {
-    borderRadius: 0
-} : null;
-
-export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, SizeProps, WidthProps {
+// TODO(Dan): A lot of these are left in to not break existing code, many of them are not actually supposed
+//  to do anything anymore.
+export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, SizeProps, WidthProps, WithEventHandlers {
     fullWidth?: boolean;
     textColor?: ThemeColor;
     color?: string | ThemeColor;
@@ -51,48 +13,154 @@ export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, 
     title?: string;
     attached?: boolean;
     asSquare?: boolean;
+    children?: React.ReactNode;
+    disabled?: boolean;
+    type?: string;
+    disableStandardSizes?: boolean;
+    standardSize?: StandardButtonSize;
+    btnRef?: React.RefObject<HTMLButtonElement>;
+    className?: string;
 }
 
-const Button = styled.button<ButtonProps>`
-  font-smoothing: antialiased;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  text-decoration: none;
-  font-family: inherit;
-  font-weight: ${theme.bold};
-  line-height: ${props => props.lineHeight};
-  cursor: pointer;
-  border-radius: ${theme.radius};
-  background-color: var(--${p => p.color}, #f00);
-  color: var(--${p => p.textColor}, #f00);
-  border-width: 0;
-  border-style: solid;
+export enum StandardButtonSize {
+    LARGE = 0,
+    STANDARD = 1,
+    SMALL = 2,
+    EXTRA_SMALL = 3,
+}
 
-  transition: ${theme.timingFunctions.easeInOut} ${theme.transitionDelays.small};
+export const ButtonClass = injectStyle("button", k => `
+    ${k} {
+        display: inline-flex;
+        justify-content: center;
+        text-align: center;
+        text-decoration: none;
+        font-family: inherit;
+        font-weight: normal;
+        cursor: pointer;
+        background-color: var(--blue, #f00);
+        color: var(--white, #f00);
+        border-width: 0;
+        border-style: solid;
+        display: flex;
+        align-items: center;
+    }
+    
+    ${k}:disabled {
+        opacity: 0.25;
+    }
 
-  &:disabled {
-    opacity: 0.25;
-  }
+    ${k}:focus {
+        outline: none;
+    }
 
-  &:focus {
-    outline: none;
-  }
+    ${k}:hover {
+        transform: translateY(-2px);
+    }
+    
+    ${k}[data-attached=true] {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;   
+    }
+    
+    ${k}[data-square=true] {
+        border-radius: 0;
+    }
+    
+    ${k}[data-fullwidth=true] {
+        width: 100%;
+    }
+    
+    ${k}[data-size=large] {
+        height: 55px;
+        padding: 15px 45px;
+        border-radius: 15px;
+        font-size: 19px;
+    }
+    
+    ${k}, ${k}[data-size=standard] {
+        height: 45px;
+        padding: 12px 36px;
+        border-radius: 8px;
+        font-size: 15px;
+    }
+    
+    ${k}[data-size=small] {
+        height: 35px;
+        padding: 8px 24px;
+        border-radius: 8px;
+        font-size: 15px;
+    }
+    
+    ${k}[data-size=extra-small] {
+        height: 25px;
+        padding: 6px 18px;
+        border-radius: 14px;
+        font-size: 14px;
+    }
+`);
 
-  &:hover {
-    transform: translateY(-2px);
-  }
+const standardButtonSizes: { height: number; name: string; }[] = [
+    { height: 55, name: "large" },
+    { height: 45, name: "standard" },
+    { height: 35, name: "small" },
+    { height: 25, name: "extra-small" },
+];
 
-  ${attached} ${asSquare} ${fullWidth} ${size} ${space} ${height} ${width};
-`;
+export const Button: React.FunctionComponent<ButtonProps> = props => {
+    const inlineStyles = unbox(props);
+    let sizeName: string | undefined = undefined;
+    inlineStyles.backgroundColor = `var(--${props.color})`;
+    inlineStyles.color = `var(--${props.textColor})`;
+    if (props.disableStandardSizes !== true) {
+        let bestMatch = 1;
+        if (props.standardSize !== undefined || props.height === undefined) {
+            bestMatch = props.standardSize ?? StandardButtonSize.STANDARD;
+        } else {
+            let height = parseInt(extractSize(props.height));
+            if (isNaN(height)) height = 45;
 
+            let diff = 1000000000000000000;
+            for (let i = 0; i < standardButtonSizes.length; i++) {
+                const newDiff = Math.abs(height - standardButtonSizes[i].height);
+                if (newDiff < diff) {
+                    bestMatch = i;
+                    diff = newDiff;
+                }
+            }
+        }
+
+        const match = standardButtonSizes[bestMatch];
+        sizeName = match.name;
+        delete inlineStyles["padding"];
+        delete inlineStyles["paddingLeft"];
+        delete inlineStyles["paddingTop"];
+        delete inlineStyles["paddingRight"];
+        delete inlineStyles["paddingLeft"];
+        delete inlineStyles["paddingHeight"];
+        delete inlineStyles["fontSize"];
+    }
+
+    return <button
+        className={ButtonClass + " " + (props.className ?? "")}
+        data-attached={props.attached === true}
+        data-square={props.asSquare === true}
+        data-fullwidth={props.fullWidth === true}
+        data-size={sizeName}
+        style={inlineStyles}
+        disabled={props.disabled}
+        type={props.type as any}
+        {...extractEventHandlers(props)}
+        ref={props.btnRef}
+    >
+        {props.children}
+    </button>
+}
+
+Button.displayName = "Button";
 Button.defaultProps = {
     textColor: "white",
     color: "blue",
-    lineHeight: 1.5
 };
-
-Button.displayName = "Button";
 
 export default Button;

@@ -51,7 +51,9 @@ import {useNavigate} from "react-router";
 import JobsApi, {Job, jobStateToIconAndColor} from "@/UCloud/JobsApi";
 import {ProjectLinks} from "@/Project/ProjectLinks";
 
-const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
+const SidebarElementContainer = styled.div`
+    display: flex;
+    margin-left: 22px;
     justify-content: left;
     flex-flow: row;
     align-items: center;
@@ -107,7 +109,7 @@ export const SidebarTextLabel = ({
     icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
     iconSize = "18", space = "22px", textSize = 3, hover = true
 }: TextLabelProps): JSX.Element => (
-    <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
+    <SidebarElementContainer title={title} style={{height}}>
         <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
         <Text fontSize={textSize}> {children} </Text>
     </SidebarElementContainer>

@@ -46,6 +46,7 @@ import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import { ProviderTitle } from "@/Providers/ProviderTitle";
+import {ButtonClass} from "@/ui-components/Button";
 
 const enterAnimation = keyframes`
     from {
@@ -551,7 +552,7 @@ const Busy: React.FunctionComponent<{
         };
     }, []);
 
-    return <BusyWrapper ref={ref}>
+    return <BusyWrapper divRef={ref}>
         <Box mt={"16px"}>
             <Box mb={"16px"}>
                 {clusterUtilization > 80 ? (
@@ -1148,7 +1149,7 @@ const RunningJobRankWrapper = styled.div`
     flex-direction: column;
   }
 
-  .buttons ${Button} {
+  .buttons .${ButtonClass} {
     margin-top: 8px;
     width: 100%;
   }
@@ -1458,7 +1459,7 @@ const ProviderUpdates: React.FunctionComponent<{
             mounted = false;
         };
     }, [updateListeners]);
-    return <Box height={"200px"} ref={termRef} />
+    return <Box height={"200px"} divRef={termRef} />
 };
 
 export default View;

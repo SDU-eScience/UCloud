@@ -41,6 +41,7 @@ import startOfDay from "date-fns/esm/startOfDay";
 import ProjectAPI, {useProjectIdFromParams} from "@/Project/Api";
 import {isAllocationSuitableForSubAllocation} from "@/Project/Grant";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
+import {FlexClass} from "@/ui-components/Flex";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider) + ` [${getParentAllocationFromSuballocation(alloc)}]`;
@@ -451,14 +452,13 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                                     <Flex color="var(--gray)" ml="12px">
                                         <DatePicker
                                             selectsRange
-                                            fontSize="18px"
-                                            py="0"
                                             dateFormat="dd/MM/yy"
                                             width="215px"
                                             startDate={new Date(row.startDate)}
                                             isClearable={row.endDate != null}
                                             endDate={row.endDate != null ? new Date(row.endDate) : undefined}
-                                            onChange={(dates: [Date | null, Date | null]) => {
+                                            onChange={dates => {
+                                                dates as [Date | null, Date | null];
                                                 setRecipients(recipients => {
                                                     if (dates[0]) recipients[recipientId].suballocations[suballocationId].startDate = dates[0].getTime();
                                                     recipients[recipientId].suballocations[suballocationId].endDate = dates[1]?.getTime();
@@ -907,14 +907,14 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                 <Flex color="var(--gray)" ml="12px">
                                     <DatePicker
                                         selectsRange
-                                        fontSize="18px"
                                         py="0"
                                         dateFormat="dd/MM/yy"
                                         width="215px"
                                         startDate={new Date(row.startDate)}
                                         isClearable={creationRows[index].endDate != null}
                                         endDate={row.endDate != null ? new Date(row.endDate) : undefined}
-                                        onChange={(dates: [Date | null, Date | null]) => {
+                                        onChange={dates => {
+                                            dates as [Date | null, Date | null];
                                             setCreationRows(rows => {
                                                 if (dates[0]) rows[index].startDate = dates[0].getTime();
                                                 rows[index].endDate = dates[1]?.getTime();
@@ -944,7 +944,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
 }
 
 const UsageRowsWithMargin = styled(Flex)`
-    & > ${Flex}:not(:last-child) {
+    & > .${FlexClass}:not(:last-child) {
         margin-right: 12px;
     }
 `;
@@ -981,7 +981,6 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
                         <Text color="var(--gray)" mt="3px" fontSize="18px">
                             <DatePicker
                                 selectsRange
-                                fontSize="18px"
                                 py="0"
                                 width="215px"
                                 pl={0}
@@ -989,15 +988,16 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
                                 isClearable={dates[1] != null}
                                 startDate={new Date(dates[0])}
                                 endDate={dates[1] != null ? new Date(dates[1]) : undefined}
-                                onChange={(dates: [Date, Date | null]) =>
+                                onChange={dates => {
+                                    dates as [Date, Date | null];
                                     setDates(oldDates => {
                                         const firstDate = dates[0] ? dates[0].getTime() : oldDates[0];
                                         const secondDate = dates[1]?.getTime();
                                         props.editEntries.current[entry.id].startDate = firstDate;
                                         props.editEntries.current[entry.id].endDate = secondDate;
                                         return [firstDate, secondDate];
-                                    })
-                                }
+                                    });
+                                }}
                             />
                         </Text>
                     </Flex>

@@ -1,21 +1,20 @@
-import styled from "styled-components";
-import {borderColor, BorderColorProps, space, SpaceProps, width, WidthProps} from "styled-system";
+import {injectStyleSimple, unbox} from "@/Unstyled";
+import {BoxProps} from "@/ui-components/Box";
+import * as React from "react";
 
-export type DividerProps = SpaceProps & WidthProps & BorderColorProps;
+export const DividerClass = injectStyleSimple("divider", () => `
+    border: 0;
+    border-bottom-style: solid;
+    border-bottom-width: 1px;
+    border-color: var(--borderGray);
+    margin-left: 0;
+    margin-right: 0;
+`);
 
-const Divider = styled.hr <DividerProps>`
-  border: 0;
-  border-bottom-style: solid;
-  border-bottom-width: 1px;
-  ${space} ${width} ${borderColor};
-`;
+const Divider: React.FunctionComponent<BoxProps & { borderColor?: string }> = props => {
+    return <hr className={DividerClass} style={{borderColor: props.borderColor, ...unbox(props)}}/>
+};
 
 Divider.displayName = "Divider";
-
-Divider.defaultProps = {
-    borderColor: "borderGray",
-    ml: 0,
-    mr: 0
-};
 
 export default Divider;

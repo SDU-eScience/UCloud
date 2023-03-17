@@ -1,47 +1,35 @@
-import styled from "styled-components";
-import {
-    alignItems, AlignItemsProps, color, ColorProps,
-    flex, flexDirection, FlexDirectionProps, flexGrow, FlexGrowProps, FlexProps, flexShrink, FlexShrinkProps,
-    flexWrap, FlexWrapProps, height, HeightProps,
-    justifyContent, JustifyContentProps, maxHeight, MaxHeightProps, maxWidth,
-    MaxWidthProps, minHeight, MinHeightProps, minWidth, MinWidthProps, space,
-    SpaceProps, width, WidthProps, zIndex, ZIndexProps
-} from "styled-system";
-import {cursor} from "@/Utilities/StyledComponentsUtilities";
-import {Cursor} from "./Types";
-
+import {BoxProps} from "@/ui-components/Box";
+import * as React from "react";
+import {extractEventHandlers, injectStyleSimple, unbox} from "@/Unstyled";
+import {CSSProperties} from "react";
 
 export type FlexCProps =
-    SpaceProps &
-    WidthProps &
-    MinWidthProps &
-    MaxWidthProps &
-    HeightProps &
-    ColorProps &
-    AlignItemsProps &
-    JustifyContentProps &
-    FlexWrapProps &
-    FlexGrowProps &
-    FlexShrinkProps &
-    FlexDirectionProps &
-    FlexProps &
-    ZIndexProps &
-    MinHeightProps &
-    MaxHeightProps &
-    {gap?: string} &
-    {cursor?: Cursor};
+    BoxProps &
+    {
+        gap?: string;
+        flexDirection?: CSSProperties["flexDirection"];
+        flexWrap?: CSSProperties["flexWrap"];
+        className?: string;
+        style?: CSSProperties;
+    };
 
+export const FlexClass = injectStyleSimple("flex", () => ``);
 
-const Flex = styled.div<FlexCProps>`
-  ${cursor}
-  display: flex;
-  ${space} ${width} ${minWidth} ${maxWidth} ${height} ${zIndex}
-  ${color} ${alignItems} ${justifyContent}
-  ${flexDirection} ${flexWrap} ${flex} ${flexGrow} ${flexShrink}
-  ${minHeight} ${maxHeight}
-  ${p => p.gap ? `gap: ${p.gap};` : ""}
-`;
-
+const Flex: React.FunctionComponent<FlexCProps & { children?: React.ReactNode }> = props => {
+    return <div
+        className={FlexClass + " " + (props.className ?? "")}
+        style={{
+            display: "flex",
+            flexDirection: props.flexDirection,
+            flexWrap: props.flexWrap,
+            gap: props.gap,
+            ...unbox(props),
+            ...(props.style ?? {})
+        }}
+        {...extractEventHandlers(props)}
+        children={props.children}
+    />
+};
 
 Flex.displayName = "Flex";
 

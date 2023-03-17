@@ -17,6 +17,7 @@ import {PageV2} from "@/UCloud";
 import {browseGrantApplications} from "./Grant/GrantApplicationTypes";
 import {emptyPageV2} from "@/DefaultObjects";
 import {GrantApplicationFilter} from "./Grant";
+import {CardClass} from "@/ui-components/Card";
 
 // Primary user interface
 // ================================================================================
@@ -57,7 +58,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
     return (
         <MainContainer
             header={<Flex>
-                <ProjectBreadcrumbsWrapper mb="12px" embedded={false}>
+                <ProjectBreadcrumbsWrapper embedded={false}>
                     <span><Link to="/projects">My projects</Link></span>
                     <span>
                         {isPersonalWorkspace ? "My Workspace" :
@@ -185,7 +186,7 @@ export function RightArrow(): JSX.Element {
 // Styling
 // ================================================================================
 const ProjectDashboardGrid = styled(GridCardGroup)`
-    & > ${Card} {
+    & > .${CardClass} {
         position: relative;
         min-height: 200px;
         cursor: pointer;

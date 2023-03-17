@@ -466,7 +466,7 @@ const HardwareModel: React.FunctionComponent<{ model?: string | null }> = props 
     return <span style={{ color: "#a9b0b9" }}>{" "}({props.model})</span>
 }
 
-const SelectorBox = styled(Box)`
+const SelectorBox = styled.div`
     position: relative;
     cursor: pointer;
     border-radius: 5px;

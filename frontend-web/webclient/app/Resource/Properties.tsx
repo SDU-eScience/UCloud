@@ -380,7 +380,7 @@ const Messages: React.FunctionComponent<{resource: Resource}> = ({resource}) => 
         }
     }, [resource]);
 
-    return <Box height={"200px"} ref={termRef} />
+    return <Box height={"200px"} divRef={termRef} />
 };
 
 function canEditPermission(support: ProductSupport | undefined, namespace: string): boolean {

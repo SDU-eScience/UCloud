@@ -614,7 +614,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
         return <>
             {pageSize.current > 0 ? (
                 <Spacer mr="8px" left={
-                    <Label style={{cursor: "pointer"}} width={"102px"}>
+                    <Label cursor={"pointer"} width={"102px"}>
                         <Checkbox
                             style={{marginTop: "-2px"}}
                             onChange={() => allChecked ? toggleSet.uncheckAll() : toggleSet.checkAll()}
@@ -757,7 +757,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
     }
 
     if (isEmbedded) {
-        return <Box minWidth="700px" ref={scrollingContainerRef}>
+        return <Box minWidth="700px" divRef={scrollingContainerRef}>
             {/* Sticky box causes rerender. See "Bug"-tag above. */}
             {/* <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}> */}
             {inlineInspecting ?

@@ -5,14 +5,13 @@ import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
 import Button from "@/ui-components/Button";
-import Card from "@/ui-components/Card";
+import {CardClass} from "@/ui-components/Card";
 import ExternalLink from "@/ui-components/ExternalLink";
 import Flex from "@/ui-components/Flex";
 import Icon, {IconName} from "@/ui-components/Icon";
 import Input, {HiddenInputField} from "@/ui-components/Input";
 import Label from "@/ui-components/Label";
 import List from "@/ui-components/List";
-import Checkbox from "@/ui-components/Checkbox";
 import Text from "@/ui-components/Text";
 import TextArea from "@/ui-components/TextArea";
 import {ThemeColor} from "@/ui-components/theme";
@@ -46,7 +45,7 @@ import {
 import {useNavigate, useParams} from "react-router";
 import {dateToString, getStartOfDay} from "@/Utilities/DateUtilities";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {AvatarType, defaultAvatar} from "@/UserSettings/Avataaar";
+import {AvatarType} from "@/UserSettings/Avataaar";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
@@ -57,7 +56,7 @@ import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {Spacer} from "@/ui-components/Spacer";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {ButtonGroup, Divider, Link, Truncate} from "@/ui-components";
+import {ButtonGroup, Divider, Truncate} from "@/ui-components";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Logo} from "./ProjectBrowser";
 import {format} from "date-fns";
@@ -103,7 +102,7 @@ export enum RequestTarget {
     VIEW_APPLICATION = "view"
 }
 
-/* 
+/*
         - Find new In Progress Icon (General)
         - Remember to update documentation
             - New features:
@@ -128,7 +127,7 @@ export const RequestForSingleResourceWrapper = styled.div`
         margin-left: 10px;
     }
 
-    ${Card} {
+    .${CardClass} {
         height: 100%;
 
         .dashboard-card-inner {
@@ -345,15 +344,12 @@ const GenericRequestCard: React.FunctionComponent<{
                                         selectsStart
                                         startDate={startDate}
                                         endDate={endDate}
-                                        borderWidth="2px"
-                                        py="8px"
-                                        mr="3px"
                                         backgroundColor={isLocked ? "var(--lightGray)" : undefined}
                                         placeholderText="Start date..."
                                         required={isApprover}
                                         value={format(startDate, "dd/MM/yy")}
                                         disabled={grantFinalized || isLocked || !canEdit}
-                                        onChange={(date: Date) => setStartDate(date)}
+                                        onChange={date => setStartDate(date as Date)}
                                         className={productCategoryStartDate(wb.metadata.category, projectId)}
                                     />
                                     <DatePicker
@@ -361,14 +357,11 @@ const GenericRequestCard: React.FunctionComponent<{
                                         startDate={startDate}
                                         endDate={endDate}
                                         isClearable={endDate != null}
-                                        borderWidth="2px"
-                                        py="8px"
-                                        ml="3px"
                                         backgroundColor={isLocked ? "var(--lightGray)" : undefined}
                                         placeholderText={isLocked ? undefined : "End date..."}
                                         value={endDate ? format(endDate, "dd/MM/yy") : undefined}
                                         disabled={grantFinalized || isLocked || !canEdit}
-                                        onChange={(date: Date | null) => setEndDate(date)}
+                                        onChange={date => setEndDate(date as (Date | null))}
                                         className={productCategoryEndDate(wb.metadata.category, projectId)}
                                     />
                                 </Flex>
@@ -717,7 +710,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
 
         const requestedResourcesByAffiliate = findRequestedResources(grantProductCategories);
 
-        // Note(Jonas): Remove source allocations from modified requestedResources, 
+        // Note(Jonas): Remove source allocations from modified requestedResources,
         // as long as user is not also approver for said resource.
         if (isRecipient) {
             const approverFor = Client.projectId;

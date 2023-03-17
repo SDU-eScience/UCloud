@@ -190,8 +190,8 @@ const Create: React.FunctionComponent = () => {
         }
         headerSize={45}
         main={
-            <Box minHeight={"calc(100vh - 76px - 47px)"} mt={"16px"}>
-                <Box style={{display: stage !== Stage.INFO ? "none" : "block"}}>
+            <div style={{minHeight: "calc(100vh - 76px - 47px)", marginTop: "16px"}}>
+                <div style={{display: stage !== Stage.INFO ? "none" : "block"}}>
                     <Grid maxWidth={"800px"} margin={"0 auto"} gridGap={"32px"}>
                         <Section gap={"16px"}>
                             <Heading.h3>Information</Heading.h3>
@@ -296,7 +296,7 @@ const Create: React.FunctionComponent = () => {
                             </Label>
                         </Section>
                     </Grid>
-                </Box>
+                </div>
                 {stage !== Stage.SCHEMA ? null :
                     <BootstrapReplacement>
                         <FormBuilder
@@ -349,7 +349,7 @@ const Create: React.FunctionComponent = () => {
                         </Section>
                     </Grid>
                 }
-            </Box>
+            </div>
         }
         sidebar={
             <Operations location={"SIDEBAR"} operations={operations} selected={[]} extra={callbacks}

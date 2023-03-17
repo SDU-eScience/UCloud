@@ -1,24 +1,17 @@
-import styled from "styled-components";
+import * as React from "react";
 import {
     BorderColorProps,
     BorderProps,
-    borderRadius,
     BorderRadiusProps,
-    boxShadow,
     BoxShadowProps,
-    height,
-    HeightProps, minHeight, MinHeightProps, padding, PaddingProps
-} from "styled-system";
-import Box, {BoxProps} from "./Box";
-import Icon from "./Icon";
-import {Theme} from "./theme";
-
-const boxBorder = (props: {theme: Theme; borderWidth: number | string; borderColor: string}): {border: string} => ({
-    border: `${props.borderWidth}px solid ${props.theme.colors[props.borderColor]}`
-});
-
-export interface CardProps extends
     HeightProps,
+    MinHeightProps,
+    PaddingProps
+} from "styled-system";
+import {BoxProps} from "./Box";
+import {injectStyleSimple, unbox} from "@/Unstyled";
+
+export interface CardProps extends HeightProps,
     BoxProps,
     BorderColorProps,
     BoxShadowProps,
@@ -27,27 +20,29 @@ export interface CardProps extends
     PaddingProps,
     MinHeightProps {
     borderWidth?: number | string;
+    children?: React.ReactNode;
+    onClick?: (e: React.SyntheticEvent) => void;
+    onContextMenu?: (e: React.SyntheticEvent) => void;
+    className?: string;
 }
 
-export const Card = styled(Box) <CardProps>`
-  ${padding} ${minHeight} ${height} ${boxShadow} ${boxBorder} ${borderRadius};
-`;
+export const CardClass = injectStyleSimple("card", () => `
+    border-radius: 25px;
+    background: #FAFBFC;
+    border: 1px solid #E2DDDD;
+    padding: 30px;
+    box-shadow: 0px 3px 6px rgba(0, 0, 0, 16%);
+`);
 
-Card.defaultProps = {
-    borderColor: "borderGray",
-    borderRadius: 1,
-    borderWidth: 1
+export const Card: React.FunctionComponent<CardProps> = props => {
+    return <div
+        style={unbox(props)}
+        className={CardClass + " " + (props.className ?? "")}
+        onClick={props.onClick}
+        onContextMenu={props.onContextMenu}
+        children={props.children}
+    />;
 };
 
-export const PlayIconBase = styled(Icon)`
-  transition: ease 0.3s;
-
-  &:hover {
-    filter: saturate(5);
-    transition: ease 0.3s;
-  }
-`;
-
 Card.displayName = "Card";
-
 export default Card;

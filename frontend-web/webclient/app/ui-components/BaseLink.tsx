@@ -1,24 +1,43 @@
-import styled from "styled-components";
-import {color, ColorProps, space, SpaceProps, width, WidthProps} from "styled-system";
+import {BoxProps} from "@/ui-components/Box";
+import * as React from "react";
+import {extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
+import {CSSProperties} from "react";
 
-export interface BaseLinkProps extends SpaceProps, ColorProps, WidthProps {
+export interface BaseLinkProps extends BoxProps {
     hoverColor?: string;
+    href?: string;
+    target?: string;
+    children?: React.ReactNode;
+    rel?: string;
 }
 
-const BaseLink = styled.a<BaseLinkProps>`
-  cursor: pointer;
-  text-decoration: none;
-  ${space};
-  ${color};
-  ${width};
+export const BaseLinkClass = injectStyle("base-link", k => `
+    ${k} {
+        cursor: pointer;
+        text-decoration: none;
+        color: var(--text);
+        
+        --hoverColor: var(--textHighlight);
+    }
+    
+    ${k}:hover {
+        color: var(--hoverColor);
+    }
+`);
 
-  &:hover {
-    color: var(--${props => props.hoverColor ?? "textHighlight"});
-  }
-`;
+const BaseLink: React.FunctionComponent<BaseLinkProps> = props => {
+    const style: CSSProperties = unbox(props);
+    if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;
 
-BaseLink.defaultProps = {
-    color: "text"
+    return <a
+        className={BaseLinkClass}
+        style={style}
+        children={props.children}
+        href={props.href}
+        target={props.target}
+        rel={props.rel}
+        {...extractEventHandlers(props)}
+    />
 };
 
 BaseLink.displayName = "BaseLink";

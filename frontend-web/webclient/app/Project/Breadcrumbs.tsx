@@ -16,6 +16,7 @@ const ProjectBreadcrumbsWrapper = styled(BreadCrumbsBase)`
     width: 100%;
     max-width: unset;
     flex-grow: 1;
+    margin-bottom: 12px;
     
     ${HexSpinWrapper} {
         margin: 0;
@@ -32,7 +33,7 @@ export const ProjectBreadcrumbs: React.FunctionComponent<ProjectBreadcrumbsProps
         projectNameComponent = <>{title.slice(0, 20).trim()}{title.length > 20 ? "..." : ""}</>;
     }
 
-    return <ProjectBreadcrumbsWrapper mb="12px" embedded={false}>
+    return <ProjectBreadcrumbsWrapper embedded={false}>
         <span><Link to="/projects">My Projects</Link></span>
         {projectId && !props.omitActiveProject ? (
             <span><Link to={`/projects/${projectId}`}>{projectNameComponent}</Link></span>

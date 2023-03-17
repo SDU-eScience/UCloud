@@ -173,7 +173,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.grantApplicationApproved}
                     />
-                    <Box as="span">Application Approved</Box>
+                    <span>Application approved</span>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -182,7 +182,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.grantApplicationRejected}
                     />
-                    <Box as="span">Application Rejected</Box>
+                    <span>Application rejected</span>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -191,7 +191,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.grantApplicationWithdrawn}
                     />
-                    <Box as="span">Application Withdrawn</Box>
+                    <span>Application withdrawn</span>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -200,7 +200,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.newGrantApplication}
                     />
-                    <Box as="span">New Application Received</Box>
+                    <span>New application received</span>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -209,7 +209,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.applicationStatusChange}
                     />
-                    <Box as="span">Status Change By Others Admins</Box>
+                    <span>Status change by other admins</span>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -218,7 +218,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.applicationTransfer}
                     />
-                    <Box as="span">Transfers From Other Projects</Box>
+                    <span>Transfers from other projects</span>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -227,7 +227,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.grantAutoApprove}
                     />
-                    <Box as="span">On Auto Approval</Box>
+                    <span>On auto approval</span>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -236,7 +236,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.newCommentOnApplication}
                     />
-                    <Box as="span">New Comment In Application</Box>
+                    <span>New comment in application</span>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -245,7 +245,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.grantApplicationUpdated}
                     />
-                    <Box as="span">Application Has Been Edited</Box>
+                    <span>Application has been edited</span>
                 </Label>
 
                 <Heading.h5>Projects</Heading.h5>
@@ -256,7 +256,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.lowFunds}
                     />
-                    <Box as="span">Low On Funds</Box>
+                    <span>Low on funds</span>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -265,7 +265,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.projectUserInvite}
                     />
-                    <Box as="span">User Invited To Project</Box>
+                    <span>User invited to project</span>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -274,7 +274,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.userLeft}
                     />
-                    <Box as="span">User Left Project</Box>
+                    <span>User left project</span>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -283,7 +283,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.userRoleChange}
                     />
-                    <Box as="span">User Role Changed</Box>
+                    <span>User role changed</span>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -292,7 +292,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.projectUserRemoved}
                     />
-                    <Box as="span">User Removed From Project</Box>
+                    <span>User removed from project</span>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -301,7 +301,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={() => undefined}
                         checked={state.settings.verificationReminder}
                     />
-                    <Box as="span">Verification Reminders</Box>
+                    <span>Verification reminders</span>
                 </Label>
 
                 <Heading.h5> </Heading.h5>

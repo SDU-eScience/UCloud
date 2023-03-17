@@ -17,6 +17,7 @@ import {PeerParameter, PeerSetter, PeerValidator} from "@/Applications/Jobs/Widg
 import {LicenseParameter, LicenseSetter, LicenseValidator} from "@/Applications/Jobs/Widgets/License";
 import {IngressParameter, IngressSetter, IngressValidator} from "@/Applications/Jobs/Widgets/Ingress";
 import {NetworkIPParameter, NetworkIPSetter, NetworkIPValidator} from "@/Applications/Jobs/Widgets/NetworkIP";
+import {ButtonClass} from "@/ui-components/Button";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
@@ -110,7 +111,7 @@ const InactiveWidget = styled(Flex)`
         text-overflow: ellipsis;
     }
 
-    & > ${Button} {
+    & > .${ButtonClass} {
         margin-left: 16px;
         flex-shrink: 0;
     }
@@ -126,7 +127,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
 
     if (props.active !== false) {
         return <Box mt={"1em"} data-param-type={props.parameter.type} data-component={`app-parameter`}>
-            <Label fontSize={1} htmlFor={parameter.name}>
+            <Label htmlFor={parameter.name}>
                 <Flex>
                     <Flex data-component={"param-title"}>
                         {parameter.title}

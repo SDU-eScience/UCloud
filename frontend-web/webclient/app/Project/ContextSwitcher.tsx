@@ -112,7 +112,7 @@ const BoxForPadding = styled.div`
         background-color: var(--lightBlue);
     }
 
-    & > ${Divider} {
+    & > hr {
         width: 80%;
         margin-left: 26px;
     }

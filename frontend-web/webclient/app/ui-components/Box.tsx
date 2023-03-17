@@ -1,12 +1,12 @@
-import styled from "styled-components";
 import {
-    AlignItemsProps, color, ColorProps, height, HeightProps, maxHeight, MaxHeightProps, maxWidth, MaxWidthProps,
-    minHeight, MinHeightProps, minWidth, MinWidthProps, overflow, OverflowProps, space, SpaceProps, textAlign,
-    TextAlignProps, width, WidthProps, zIndex, ZIndexProps, background, BackgroundProps, flexGrow, flexShrink,
-    JustifyContentProps, justifyContent, borderRadius, BorderRadiusProps, overflowY, overflowX
+    AlignItemsProps, ColorProps, HeightProps, MaxHeightProps, MaxWidthProps, MinHeightProps, MinWidthProps,
+    OverflowProps, SpaceProps, TextAlignProps, WidthProps, ZIndexProps, BackgroundProps, JustifyContentProps,
+    BorderRadiusProps
 } from "styled-system";
-import {cursor} from "@/Utilities/StyledComponentsUtilities";
 import {Cursor} from "./Types";
+import {extractEventHandlers, injectStyleSimple, unbox, WithEventHandlers} from "@/Unstyled";
+import * as React from "react";
+import {CSSProperties} from "react";
 
 export type BoxProps =
     SpaceProps &
@@ -26,7 +26,8 @@ export type BoxProps =
     TextAlignProps &
     OverflowProps &
     BorderRadiusProps &
-    {cursor?: Cursor};
+    { cursor?: Cursor } &
+    WithEventHandlers;
 
 interface FlexGrowProps {
     flexGrow?: number;
@@ -36,27 +37,23 @@ interface FlexShrinkProps {
     flexShrink?: number;
 }
 
-const Box = styled.div<BoxProps>`
-  ${borderRadius}
-  ${justifyContent}
-  ${cursor}
-  ${zIndex}
-  ${flexGrow}
-  ${flexShrink}
-  ${space}
-  ${width}
-  ${minWidth}
-  ${maxWidth}
-  ${height}
-  ${minHeight}
-  ${maxHeight}
-  ${color}
-  ${textAlign}
-  ${overflow}
-  ${overflowY}
-  ${overflowX}
-  ${background}
-`;
+export const BoxClass = injectStyleSimple("box", () => ``);
+const Box: React.FunctionComponent<BoxProps & {
+    children?: React.ReactNode;
+    divRef?: React.RefObject<HTMLDivElement>;
+    title?: string;
+    style?: CSSProperties;
+    className?: string;
+}> = props => {
+    return <div
+        className={BoxClass + " " + (props.className ?? "")}
+        style={{...unbox(props), ...(props.style ?? {})}}
+        title={props.title}
+        ref={props.divRef}
+        children={props.children}
+        {...extractEventHandlers(props)}
+    />;
+}
 
 Box.displayName = "Box";
 

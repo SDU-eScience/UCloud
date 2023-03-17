@@ -11,7 +11,7 @@ import * as React from "react";
 import {useCallback} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import Box from "@/ui-components/Box";
-import Button from "@/ui-components/Button";
+import Button, {ButtonClass} from "@/ui-components/Button";
 import Flex from "@/ui-components/Flex";
 import * as Heading from "@/ui-components/Heading";
 import {HiddenInputField} from "@/ui-components/Input";
@@ -49,7 +49,7 @@ export const Studio: React.FunctionComponent = () => {
 
             sidebar={(
                 <VerticalButtonGroup>
-                    <Button fullWidth as="label">
+                    <label className={ButtonClass}>
                         Upload Application
                         <HiddenInputField
                             type="file"
@@ -67,9 +67,9 @@ export const Studio: React.FunctionComponent = () => {
                                     dialogStore.success();
                                 }
                             }}/>
-                    </Button>
+                    </label>
 
-                    <Button fullWidth as="label">
+                    <label className={ButtonClass}>
                         Upload Tool
                         <HiddenInputField
                             type="file"
@@ -88,7 +88,7 @@ export const Studio: React.FunctionComponent = () => {
                                 }
                             }}
                         />
-                    </Button>
+                    </label>
                 </VerticalButtonGroup>
             )}
 

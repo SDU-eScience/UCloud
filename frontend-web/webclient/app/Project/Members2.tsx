@@ -580,7 +580,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         main={
             <TwoColumnLayout>
                 <div className="members">
-                    <ProjectBreadcrumbsWrapper mb="12px" embedded={false}>
+                    <ProjectBreadcrumbsWrapper embedded={false}>
                         <span><Link to="/projects">My Projects</Link></span>
                         <span>
                             <Link to={`/projects/${projectId}`}>
@@ -1065,8 +1065,8 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
         {text: "Admin", value: "ADMIN"}
     ];
 
-    const groupItems = groups.map(g => 
-        g ? 
+    const groupItems = groups.map(g =>
+        g ?
         {text: g.specification.title, value: g.id}
         : null
     ).filter(g => g?.text != "All users");
@@ -1126,7 +1126,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                             useMousePositioning
                             width="100px"
                             chevron
-                            trigger={<>{roles.find(it => it.value === selectedRole)?.text}</>} 
+                            trigger={<>{roles.find(it => it.value === selectedRole)?.text}</>}
                             options={roles}
                             onChange={async role => {
                                 await callAPIWithErrorHandler({
@@ -1140,7 +1140,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                 });
                             }}
                         />
-                    </SelectBox> 
+                    </SelectBox>
                 </Flex>
                 <Flex justifyContent="space-between">
                     <Text pt="10px">Assign members to groups</Text>
@@ -1150,14 +1150,14 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                             useMousePositioning
                             width="300px"
                             chevron
-                            trigger={<>{selectedGroups.length} selected groups</>} 
+                            trigger={<>{selectedGroups.length} selected groups</>}
                             keepOpenOnClick={true}
                             onChange={() =>
                                 console.log("closed")
                             }
                         >
                             <>
-                                {groupItems.length < 1 ? 
+                                {groupItems.length < 1 ?
                                     <>No selectable groups</>
                                 :
                                     groupItems.map(item =>
@@ -1173,7 +1173,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                                         ...Api.updateInviteLink({token: editingLink, role: selectedRole, groups: newSelection}),
                                                         projectOverride: project.id
                                                     });
-                                                    
+
                                                     fetchInviteLinks({
                                                         ...Api.browseInviteLinks({itemsPerPage: 10}),
                                                         projectOverride: project.id
@@ -1240,7 +1240,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                 <Button
                                     mr="5px"
                                     height={40}
-                                    onClick={() => 
+                                    onClick={() =>
                                         setEditingLink(link.token)
                                     }
                                 >

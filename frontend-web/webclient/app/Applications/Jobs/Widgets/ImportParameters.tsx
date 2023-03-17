@@ -23,6 +23,7 @@ import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
 import {JobBrowse} from "../Browse";
 import {format, isToday} from "date-fns/esm";
+import {ButtonClass} from "@/ui-components/Button";
 
 export const ImportParameters: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -169,7 +170,7 @@ export const ImportParameters: React.FunctionComponent<{
         >
             <div>
                 <div>
-                    <Button fullWidth as="label">
+                    <label className={ButtonClass}>
                         Upload file
                         <HiddenInputField
                             type="file"
@@ -186,7 +187,7 @@ export const ImportParameters: React.FunctionComponent<{
                                 }
                             }}
                         />
-                    </Button>
+                    </label>
                     <Button mt="6px" fullWidth onClick={() => {
                         onImportDialogClose();
                         dialogStore.addDialog(

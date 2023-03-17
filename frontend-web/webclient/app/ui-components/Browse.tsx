@@ -359,7 +359,7 @@ export function StandardList<T, CB = EmptyObject>(
 
 
     if (isInDialog) {
-        return <Box ref={scrollingContainerRef}>
+        return <Box divRef={scrollingContainerRef}>
             <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX="20px">
                 <Operations selected={toggleSet.checked.items} location="TOPBAR"
                     entityNameSingular={props.title} entityNamePlural={titlePlural}

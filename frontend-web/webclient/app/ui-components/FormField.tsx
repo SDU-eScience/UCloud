@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled, {css, keyframes} from "styled-components";
-import Box from "./Box";
+import Box, {BoxClass} from "./Box";
 import Flex from "./Flex";
 import Icon, {IconName} from "./Icon";
 import Input from "./Input";
@@ -8,8 +8,8 @@ import Label from "./Label";
 import Select from "./Select";
 import theme from "./theme";
 
-const Root = styled(Box)`
-  & ${Box} {
+const Root = styled.div`
+  & .${BoxClass} {
     pointer-events: none;
   }
 `;

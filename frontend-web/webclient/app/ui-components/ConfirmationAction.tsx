@@ -205,10 +205,10 @@ const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string,
     }
 `;
 
-/* 
-  HACK(Jonas): 
+/*
+  HACK(Jonas):
     This is not an ideal approach, but using a ref or variable through useState doesn't seem to work.
-    Likely due to the callbacks wrapping the ref/variable in a stale manner. 
+    Likely due to the callbacks wrapping the ref/variable in a stale manner.
     Adding them to the Dependency List doesn't work.
 */
 const startedMap = {};
@@ -299,14 +299,14 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
             // button.classList.add("shaking");
             for (let i = 0; i < button.children.length; i++) {
                 button.children.item(i)?.classList.add("shaking");
-            } 
+            }
             setShowHelp(true);
             setTimeout(() => {
                 setShowHelp(false);
                 // buttonRef.current?.classList?.remove("shaking");
                 for (let i = 0; i < button.children.length; i++) {
                     button.children.item(i)?.classList.remove("shaking");
-                } 
+                }
             }, holdToConfirmTime - shakeDelta);
         }
         startedMap[tempStartedKey] = false;
@@ -324,7 +324,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     delete passedProps.onAction;
 
     return <Wrapper {...passedProps} onMouseDown={start} onTouchStart={start} onMouseLeave={() => {if (startedMap[tempStartedKey]) end();}} onMouseUp={end} onTouchEnd={end}
-        onClick={doNothing} ref={buttonRef}>
+        onClick={doNothing} btnRef={buttonRef}>
         {!props.icon ? null : <div className={"ucloud-native-icons"}>
             <Icon name={props.icon} size={"20"} mb="3px" />
         </div>}

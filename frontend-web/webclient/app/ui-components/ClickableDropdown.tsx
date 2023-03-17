@@ -1,4 +1,3 @@
-import {KeyCode} from "@/DefaultObjects";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import {Icon} from "@/ui-components";
@@ -189,7 +188,7 @@ const ClickableDropdown: ClickableDropdownType =
             {children}
         </DropdownContent>;
         return (
-            <Dropdown data-tag="dropdown" ref={dropdownRef} fullWidth={props.fullWidth}>
+            <Dropdown data-tag="dropdown" divRef={dropdownRef} fullWidth={props.fullWidth}>
                 <Text.TextSpan
                     cursor="pointer"
                     onClick={e => {

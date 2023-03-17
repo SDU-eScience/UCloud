@@ -84,10 +84,10 @@ export const Vnc: React.FunctionComponent = () => {
 
     return <TermAndShellWrapper addPadding={false}>
         {isConnected || sessionResp.data == null ? null : (
-            <Box className={`warn`}>
+            <div className={`warn`}>
                 <Box flexGrow={1}>Your connection has been closed!</Box>
                 <Button ml={"16px"} onClick={connect}>Reconnect</Button>
-            </Box>
+            </div>
         )}
 
         <div className={"contents"} />

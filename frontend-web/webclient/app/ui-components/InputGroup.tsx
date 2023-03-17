@@ -1,6 +1,6 @@
 import styled from "styled-components";
 import {borderColor, space} from "styled-system";
-import Box from "./Box";
+import Box, {BoxClass} from "./Box";
 import Input from "./Input";
 import theme from "./theme";
 
@@ -15,7 +15,7 @@ const InputGroup = styled.div<InputGroupProps>`
   ${borderColor}
   ${space}
 
-  & > ${Box} {
+  & > .${BoxClass} {
     width: 100%;
     flex: 1 1 auto;
   }

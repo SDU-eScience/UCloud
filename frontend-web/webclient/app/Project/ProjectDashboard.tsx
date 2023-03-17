@@ -15,6 +15,7 @@ import {useSidebarPage, SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {useProject} from "./cache";
 import {isAdminOrPI} from "./Api";
+import {CardClass} from "@/ui-components/Card";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
     const project = useProject();
@@ -22,7 +23,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     const projectId = fetchedProject.id;
     const projectRole = fetchedProject.status.myRole;
     const needsVerification = fetchedProject.status.needsVerification;
-        
+
     function isPersonalProjectActive(id: string): boolean {
         return id === undefined || id === "";
     }
@@ -128,7 +129,7 @@ export function RightArrow(): JSX.Element {
 }
 
 const ProjectDashboardGrid = styled(GridCardGroup)`
-    & > ${Card} {
+    & > .${CardClass} {
         position: relative;
         min-height: 200px;
         cursor: pointer;

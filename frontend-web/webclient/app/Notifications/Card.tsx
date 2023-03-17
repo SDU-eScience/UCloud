@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useCallback} from "react";
 import Icon, {IconName} from "@/ui-components/Icon";
-import {Flex, Card} from "@/ui-components";
+import {Flex} from "@/ui-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import styled from "styled-components";
 
@@ -80,10 +80,6 @@ const Style = styled.div`
 
     &.exit {
         animation: 0.5s ease-in notification-exit;
-    }
-
-    ${Card} {
-        background: var(--white);
     }
 
     .notification-inner {

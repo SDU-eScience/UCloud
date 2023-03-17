@@ -111,12 +111,12 @@ export const Shell: React.FunctionComponent = () => {
     return <TermAndShellWrapper className={isLightThemeStored() ? "light" : "dark"} addPadding={true}>
         {!closed ? null : (
             // NOTE(Dan): Theme cannot change in practice, as a result we can safely use the stored value
-            <Box className={`warn`}>
+            <div className={`warn`}>
                 <Box flexGrow={1}>Your connection has been closed!</Box>
                 <Button ml={"16px"} onClick={() => {
                     setReconnect(reconnect + 1);
                 }}>Reconnect</Button>
-            </Box>
+            </div>
         )}
 
         <div className={"contents"} ref={termRef} />

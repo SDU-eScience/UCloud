@@ -27,6 +27,7 @@ import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useParams} from "react-router";
+import {ButtonClass} from "@/ui-components/Button";
 
 interface AppVersion {
     version: string;
@@ -144,7 +145,7 @@ export const App: React.FunctionComponent = () => {
 
             sidebar={(
                 <VerticalButtonGroup>
-                    <Button fullWidth as="label">
+                    <label className={ButtonClass}>
                         Upload Logo
                         <HiddenInputField
                             type="file"
@@ -164,7 +165,7 @@ export const App: React.FunctionComponent = () => {
                                 }
                             }}
                         />
-                    </Button>
+                    </label>
 
                     <Button
                         type="button"
@@ -306,9 +307,9 @@ export const App: React.FunctionComponent = () => {
                                             width="180px"
                                             onChange={(val: AccessEntityType) => setSelectedEntityType(val)}
                                             trigger={
-                                                <Box as="span" minWidth="220px">
+                                                <span style={{minWidth: "200px"}}>
                                                     {prettifyEntityType(selectedEntityType)}
-                                                </Box>
+                                                </span>
                                             }
                                             options={entityTypes}
                                         />
@@ -349,8 +350,7 @@ export const App: React.FunctionComponent = () => {
                                             chevron
                                             width="180px"
                                             onChange={(val: ApplicationAccessRight) => setAccess(val)}
-                                            trigger={<Box as="span"
-                                                minWidth="250px">{prettifyAccessRight(access)}</Box>}
+                                            trigger={<span style={{minWidth: "250px"}}>{prettifyAccessRight(access)}</span>}
                                             options={permissionLevels}
                                         />
                                     </InputLabel>
@@ -450,7 +450,7 @@ export const App: React.FunctionComponent = () => {
                                             </TableCell>
                                             <TableCell>
                                                 <Box mb={26} mt={16}>
-                                                    <Label fontSize={2}>
+                                                    <Label>
                                                         <Flex>
                                                             <Checkbox
                                                                 checked={version.isPublic}

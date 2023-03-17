@@ -3,9 +3,9 @@ import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Checkbox, Input, Label, Select, TextArea} from "@/ui-components";
 import {InputLabel} from "@/ui-components/Input";
-import {LabelProps} from "@/ui-components/Label";
 import {errorMessageOrDefault, stopPropagation, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useLayoutEffect, useState} from "react";
+import {BoxProps} from "@/ui-components/Box";
 
 export interface DataType {
     required: string[];
@@ -73,7 +73,7 @@ interface ResourceField {
     required?: boolean;
     disabled?: boolean;
     placeholder?: DynamicProp<string>;
-    styling: LabelProps;
+    styling: BoxProps;
     leftLabel?: DynamicProp<string>;
     rightLabel?: DynamicProp<string>;
     defaultValue?: DynamicProp<string | number>;

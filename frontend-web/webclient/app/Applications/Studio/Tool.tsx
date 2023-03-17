@@ -21,6 +21,7 @@ import Truncate from "@/ui-components/Truncate";
 import {AppToolLogo} from "../AppToolLogo";
 import * as UCloud from "@/UCloud";
 import {useParams} from "react-router";
+import {ButtonClass} from "@/ui-components/Button";
 
 export const Tool: React.FunctionComponent = () => {
     const name = useParams<{name: string}>().name!;
@@ -59,9 +60,9 @@ export const Tool: React.FunctionComponent = () => {
 
             sidebar={(
                 <VerticalButtonGroup>
-                    <Button fullWidth as="label">
+                    <label className={ButtonClass}>
                         Upload Logo
-                    <HiddenInputField
+                        <HiddenInputField
                             type="file"
                             onChange={async e => {
                                 const target = e.target;
@@ -77,8 +78,9 @@ export const Tool: React.FunctionComponent = () => {
                                     }
                                     dialogStore.success();
                                 }
-                            }} />
-                    </Button>
+                            }}
+                        />
+                    </label>
 
                     <Button
                         type="button"

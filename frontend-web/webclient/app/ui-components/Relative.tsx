@@ -1,19 +1,27 @@
-import styled from "styled-components";
-import {bottom, left, right, top, TopProps, zIndex} from "styled-system";
 import Box, {BoxProps} from "./Box";
-import {NumberOrStringOrArray} from "./Types";
+import * as React from "react";
+import {CSSProperties} from "react";
+import {extractSize} from "@/Unstyled";
 
-interface RelativeProps extends BoxProps, TopProps {
-  bottom?: NumberOrStringOrArray;
-  left?: NumberOrStringOrArray;
-  right?: NumberOrStringOrArray;
-}
+const Relative: React.FunctionComponent<BoxProps & {
+  top?: number | string;
+  left?: number | string;
+  bottom?: number | string;
+  right?: number | string;
+  children?: React.ReactNode;
+}> = props => {
+  const style: CSSProperties = {position: "relative"};
+  if (props.top !== undefined) style.top = extractSize(props.top);
+  if (props.left !== undefined) style.left = extractSize(props.left);
+  if (props.right !== undefined) style.right = extractSize(props.right);
+  if (props.bottom !== undefined) style.bottom = extractSize(props.bottom);
 
-const Relative = styled(Box) <RelativeProps>`
-  position: relative;
-  ${top} ${bottom} ${left} ${right}
-  ${zIndex}
-`;
+  return <Box
+      style={style}
+      children={props.children}
+      {...props}
+  />;
+};
 
 Relative.displayName = "Relative";
 

@@ -28,6 +28,7 @@ import {Logo} from "@/Project/Grant/ProjectBrowser";
 import Divider from "@/ui-components/Divider";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {useProjectIdFromParams} from "../Api";
+import {ButtonClass} from "@/ui-components/Button";
 
 export interface UploadLogoProps {
     file: File;
@@ -111,7 +112,7 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
     return <Box>
         <Heading.h4>Logo for Project</Heading.h4>
         Current Logo: <Logo projectId={projectId} size={"40px"}/> <br/>
-        <Button width={"350px"} as="label">
+        <label className={ButtonClass}>
             Upload Logo
             <HiddenInputField
                 type="file"
@@ -132,7 +133,7 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
                     }
                 }}
             />
-        </Button>
+        </label>
         <Divider/>
         <Heading.h4>Description for Project</Heading.h4>
         <DescriptionEditor templateDescription={descriptionField} onUploadDescription={onUploadDescription}/>

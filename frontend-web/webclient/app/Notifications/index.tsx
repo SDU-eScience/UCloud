@@ -4,7 +4,7 @@ import * as React from "react";
 import {Snack} from "@/Snackbar/Snackbars";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled, {ThemeProvider} from "styled-components";
-import {Link, Button, Absolute, Badge, Flex, Icon, Relative} from "@/ui-components";
+import {Link, Button, Absolute, Flex, Icon, Relative} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {TextSpan} from "@/ui-components/Text";
 import theme, {ThemeColor} from "@/ui-components/theme";
@@ -346,7 +346,7 @@ export const Notifications: React.FunctionComponent = () => {
     return <>
         <NotificationPopups />
         <Flex onClick={toggleNotifications} data-component="notifications" cursor="pointer">
-            <Relative top="0" left="0">
+            <Relative top={0} left={0}>
                 <Flex justifyContent="center" width="48px">
                     <Icon
                         cursor="pointer"
@@ -358,8 +358,20 @@ export const Notifications: React.FunctionComponent = () => {
                 </Flex>
                 {unreadLength > 0 ? (
                     <ThemeProvider theme={theme}>
-                        <Absolute top="-12px" left="28px">
-                            <Badge bg="red" data-component={"notifications-unread"}>{unreadLength}</Badge>
+                        <Absolute top={-12} left={28}>
+                            <div
+                                style={{
+                                    borderRadius: "999999px",
+                                    background: "var(--red)",
+                                    color: "white",
+                                    letterSpacing: "0.025em",
+                                    fontSize: "10pt",
+                                    padding: "1px 5px"
+                                }}
+                                data-component={"notifications-unread"}
+                            >
+                                {unreadLength}
+                            </div>
                         </Absolute>
                     </ThemeProvider>
                 ) : null}

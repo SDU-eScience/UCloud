@@ -1,6 +1,5 @@
 import * as React from "react";
 import styled from "styled-components";
-import Box from "./Box";
 import Flex from "./Flex";
 import Text from "./Text";
 import {ThemeColor} from "./theme";
@@ -11,10 +10,11 @@ interface ProgressBaseProps {
     label?: string;
 }
 
-const ProgressBase = styled(Box) <ProgressBaseProps>`
+const ProgressBase = styled.div<ProgressBaseProps>`
     border-radius: 5px;
     background-color: var(--${p => p.color}, #f00);
     height: ${props => props.height};
+    width: 100%;
 `;
 
 const ProgressPulse = styled(ProgressBase) <{active: boolean}>`
@@ -23,6 +23,7 @@ const ProgressPulse = styled(ProgressBase) <{active: boolean}>`
     /* From semantic-ui-css */
     animation: progress-active 2s ease infinite;
     color: black;
+    width: 100%;
 
     @keyframes progress-active {
         0% {
@@ -50,9 +51,9 @@ interface Progress {
 
 const Progress = ({color, percent, active, label}: Progress): JSX.Element => (
     <>
-        <ProgressBase height="30px" width="100%" color="lightGray">
-            <ProgressBase height="30px" color={color} width={`${percent}%`}>
-                <ProgressPulse active={active} width="100%" />
+        <ProgressBase height="30px" color="lightGray">
+            <ProgressBase height="30px" color={color} style={{width: `${percent}%`}}>
+                <ProgressPulse active={active} />
             </ProgressBase>
         </ProgressBase>
         {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}

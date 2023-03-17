@@ -1,7 +1,6 @@
 import * as React from "react";
-import styled from "styled-components";
-import {Box, Icon} from ".";
-import {BoxProps} from "./Box";
+import {Icon} from ".";
+import {injectStyle} from "@/Unstyled";
 
 interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
     disabled?: boolean;
@@ -10,56 +9,53 @@ interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
 function Checkbox(props: CheckboxProps): JSX.Element {
     const {disabled, size} = props;
     return (
-        <CheckBoxWrapper disabled={!!disabled}>
-            <StyledInput type="checkbox" {...props} />
+        <div className={CheckboxClass} data-disabled={!!disabled}>
+            <input type="checkbox" {...props} />
             <Icon name="boxChecked" size={size} data-name="checked" />
             <Icon name="boxEmpty" size={size} data-name="empty" />
-        </CheckBoxWrapper>
+        </div>
     );
 }
 
-interface CheckBoxWrapper extends BoxProps {
-    disabled: boolean;
-}
-
-const CheckBoxWrapper = styled(Box) <CheckBoxWrapper>`
-  display: inline-block;
-  position: relative;
-  vertical-align: middle;
-  cursor: pointer;
-  color: var(--${props => props.disabled ? "borderGray" : "gray"}, #f00);
-  margin-right: .5em;
-  svg[data-name="checked"] {
-    display: none;
-  }
-  > input:checked {
-    & ~ svg[data-name="checked"] {
-      display: inline-block;
-      color: var(--${props => props.disabled
-        ? "borderGray"
-        : "blue"}, #f00);
+const CheckboxClass = injectStyle("checkbox", k => `
+    ${k} {
+        display: inline-block;
+        position: relative;
+        vertical-align: middle;
+        cursor: pointer;
+        color: var(--gray);
+        margin-right: .5em;
     }
-    & ~ svg[data-name="empty"] {
-      display: none;
+    
+    ${k}[data-disabled="true"], ${k}[data-disabled="true"] > input:checked ~ svg[data-name="checked"] {
+        color: var(--borderGray);
     }
-  }
-`;
-
-const StyledInput = styled.input`
-  appearance: none;
-  opacity: 0;
-  position: absolute;
-`;
+    
+    ${k} svg[data-name="checked"] {
+        display: none;
+    }
+    
+    ${k} > input:checked ~ svg[data-name="checked"] {
+        display: inline-block;
+        color: var(--blue);
+    }
+    
+    ${k} > input:checked ~ svg[data-name="empty"] {
+        display: none;
+    }
+    
+    ${k} > input {
+        appearance: none;
+        opacity: 0;
+        position: absolute;
+    }
+`);
 
 Checkbox.displayName = "Checkbox";
 
 Checkbox.defaultProps = {
     size: 20,
     disabled: false
-
-    // NOTE(Dan): The line below has been removed since it forced all checkboxes to be controlled even when this
-    // wasn't the intended behavior.
-    // checked: false,
 };
 
 export default Checkbox;

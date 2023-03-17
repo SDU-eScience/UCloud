@@ -67,7 +67,7 @@ export const SshWidget: React.FunctionComponent<{
             </p>
 
             {hasAnyKeys ? <>
-                <Label mt={16} fontSize={16}>
+                <Label mt={16}>
                     <Checkbox checked={sshEnabled} onChange={toggleSshEnabled} size={28}/>
                     Enable SSH server
                 </Label>

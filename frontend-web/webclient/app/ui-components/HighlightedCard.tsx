@@ -1,12 +1,26 @@
 import * as React from "react";
-import Box from "./Box";
-import Flex from "./Flex";
 import Card from "./Card";
 import * as Heading from "./Heading";
 import Error from "./Error";
 import Icon, {IconName} from "./Icon";
 import theme, {ThemeColor} from "./theme";
 import Spinner from "@/LoadingIcon/LoadingIcon";
+import {injectStyle} from "@/Unstyled";
+
+const style = injectStyle("highlightedCard", k => `
+    ${k} .title-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    ${k} .subtitle {
+        color: var(--gray);
+        flex-grow: 1;
+        display: flex;
+        justify-content: end;
+    }
+`);
 
 export const HighlightedCard: React.FunctionComponent<{
     title?: React.ReactNode;
@@ -51,32 +65,20 @@ export const HighlightedCard: React.FunctionComponent<{
             height={height}
             width={width}
             minWidth={minWidth}
-            boxShadow="sm"
-            borderWidth={0}
-            borderRadius={6}
             minHeight={minHeight}
             onContextMenu={onContextMenu}
-            className={className}
+            className={`${className ?? ""} ${style}`}
         >
-            <Box style={{borderTop: `${highlightSize} solid var(--${color}, #f00)`}} />
-            <Box px={innerPaddingX} py={innerPaddingY} height={"calc(100% - 5px)"}>
-                <Flex alignItems="center">
-                    {icon !== undefined ? (
-                        <Icon
-                            name={icon}
-                            m={8}
-                            ml={0}
-                            size="20"
-                            color={theme.colors.darkGray}
-                        />
-                    ) : null}
-                    {typeof title === "string" ? <Heading.h3>{title}</Heading.h3> : title ? title : null}
-                    <Box flexGrow={1} />
-                    {subtitle ? <Box color={theme.colors.gray}>{subtitle}</Box> : null}
-                </Flex>
-                <Error error={error} />
-                {!isLoading ? children : <Spinner />}
-            </Box>
+            <div className="title-row">
+                {typeof title === "string" ? <Heading.h3>{title}</Heading.h3> : title ? title : null}
+                {icon !== undefined ? (
+                    <Icon name={icon} size="20" color={theme.colors.darkGray}/>
+                ) : null}
+                {subtitle ? <div className={"subtitle"}>{subtitle}</div> : null}
+            </div>
+
+            <Error error={error} />
+            {!isLoading ? children : <Spinner />}
         </Card>
     );
 

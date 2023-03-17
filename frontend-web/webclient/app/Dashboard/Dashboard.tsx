@@ -1,4 +1,4 @@
-import {bulkRequestOf, emptyPage, emptyPageV2, defaultSearch, useSearch} from "@/DefaultObjects";
+import {bulkRequestOf, defaultSearch, emptyPage, emptyPageV2, useSearch} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {setActivePage, updatePageTitle} from "@/Navigation/Redux/StatusActions";
@@ -20,10 +20,7 @@ import {Spacer} from "@/ui-components/Spacer";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {dispatchSetProjectAction} from "@/Project/Redux";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
-import {
-    GrantApplicationFilter,
-    IngoingGrantApplicationsResponse,
-} from "@/Project/Grant";
+import {GrantApplicationFilter, IngoingGrantApplicationsResponse,} from "@/Project/Grant";
 import {GrantApplicationList} from "@/Project/Grant/GrantApplications";
 import * as UCloud from "@/UCloud";
 import {PageV2} from "@/UCloud";
@@ -43,7 +40,7 @@ import {
     UsageChart,
     usageExplainer
 } from "@/Accounting";
-import {Job, api as JobsApi} from "@/UCloud/JobsApi";
+import {api as JobsApi, Job} from "@/UCloud/JobsApi";
 import {ItemRow} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
@@ -57,6 +54,7 @@ import {useProject} from "@/Project/cache";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
+import {StandardButtonSize} from "@/ui-components/Button";
 
 const MY_WORKSPACE = "My Workspace";
 
@@ -180,10 +178,10 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
             {favorites.length !== 0 ? null : (
                 <NoResultsCardBody title={"No favorites"}>
                     <Text textAlign="center" width="100%">
-                        As you as add favorites, they will appear here.
+                        As you add favorites, they will appear here.
                     </Text>
-                    <Link to={"/drives"} mt={8}>
-                        <Button mt={8}>Explore files</Button>
+                    <Link to={"/drives"} mt={8} width={"100%"}>
+                        <Button standardSize={StandardButtonSize.LARGE} fullWidth mt={8}>Explore files</Button>
                     </Link>
                 </NoResultsCardBody>
             )}

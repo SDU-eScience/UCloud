@@ -6,7 +6,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {DropdownContent, Dropdown} from "@/ui-components/Dropdown";
+import {DropdownContent, Dropdown, DropdownClass, DropdownContentClass} from "@/ui-components/Dropdown";
 import {TextSpan} from "@/ui-components/Text";
 import {getQueryParamOrElse, getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
@@ -49,7 +49,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
             handleAuthState(props.initialState);
         }
     }, []);
-    
+
 
     const location = useLocation();
     const navigate = useNavigate();
@@ -477,7 +477,7 @@ const LoginTextSpan = styled(TextSpan)`
 `;
 
 const DropdownContentWrapper = styled.div`
-    & > ${Dropdown} > ${DropdownContent} {
+    & > .${DropdownClass} > .${DropdownContentClass} {
         color: black;
         background-color: white;
     }

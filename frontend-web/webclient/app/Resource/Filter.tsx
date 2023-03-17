@@ -7,7 +7,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {Cursor} from "@/ui-components/Types";
 import styled from "styled-components";
 import {ListRow, ListRowStat} from "@/ui-components/List";
-import {SlimDatePickerWrapper} from "@/ui-components/DatePicker";
+import {SlimDatePickerClass} from "@/ui-components/DatePicker";
 import {enGB} from "date-fns/locale";
 import ReactDatePicker from "react-datepicker";
 import {Toggle} from "@/ui-components/Toggle";
@@ -424,7 +424,7 @@ export const DateRangeFilterWidget: React.FunctionComponent<{
         </Flex>
 
         {isSelectingRange ? "Created between:" : "Created after:"}
-        <SlimDatePickerWrapper>
+        <div className={SlimDatePickerClass}>
             <ReactDatePicker
                 locale={enGB}
                 startDate={new Date(parseInt(createdAfter))}
@@ -434,7 +434,7 @@ export const DateRangeFilterWidget: React.FunctionComponent<{
                 inline
                 dateFormat="dd/MM/yy HH:mm"
             />
-        </SlimDatePickerWrapper>
+        </div>
     </ExpandableDropdownFilterWidget>
 }
 

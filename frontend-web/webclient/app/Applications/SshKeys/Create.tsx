@@ -29,7 +29,7 @@ interface GenericInputFieldProps {
 
 const GenericInputField: React.FunctionComponent<GenericInputFieldProps> = props => {
     return <Box mt={"1em"}>
-        <Label fontSize={1} htmlFor={props.name}>
+        <Label htmlFor={props.name}>
             <Flex>
                 <Flex data-component={"param-title"}>
                     {props.title}
@@ -180,7 +180,7 @@ You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/in
                     </p>
 
                     <p>
-                        Not all providers support SSH through this method. The following table summarizes which 
+                        Not all providers support SSH through this method. The following table summarizes which
                         providers support SSH services:
                     </p>
 

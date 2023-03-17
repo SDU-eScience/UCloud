@@ -11,12 +11,13 @@ interface ProgressBaseProps {
     active?: boolean;
 }
 
-const ProgressBase = styled(Box) <ProgressBaseProps>`
+const ProgressBase = styled.div<ProgressBaseProps>`
     border-radius: 5px;
     background-color: var(--lightGray, #foo);
     height: ${props => props.height};
     position: relative;
     overflow: hidden;
+    width: 100%;
 
     @keyframes movingbox {
         from {
@@ -47,7 +48,7 @@ const ProgressBase = styled(Box) <ProgressBaseProps>`
 ProgressBase.defaultProps = {
     color: "green",
     height: "30px",
-    active: false
+    active: false,
 };
 
 interface Progress {
@@ -57,7 +58,7 @@ interface Progress {
 
 const Progress = ({color, label}: Progress): JSX.Element => (
     <>
-        <ProgressBase height="30px" width="100%" color={color} />
+        <ProgressBase height="30px" color={color} />
         {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}
     </>
 );

@@ -1,145 +1,55 @@
 import * as React from "react";
-import styled from "styled-components";
-import {Box, Icon, Text, Flex} from "@/ui-components";
-import {addTrailingSlash, removeTrailingSlash} from "@/UtilityFunctions";
-import {HttpClient} from "../Authentication/lib";
-import {pathComponents} from "@/Utilities/FileUtilities";
-import {Center} from "@/UtilityComponents";
-import {useProject} from "@/Project/cache";
+import {injectStyle} from "@/Unstyled";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
-export const BreadCrumbsBase = styled(Flex) <{embedded: boolean}>`
-    width: calc(100% - ${(props): string => props.embedded ? "50px" : "180px"});
-    & > span {
-        width: 1;
+
+export const BreadCrumbsClass = injectStyle("breadcrumbs", k => `
+    ${k} {
+        display: flex;
+        width: calc(100% - 180px);
+    }
+    
+    ${k}[data-embedded="true"] {
+        width: calc(100% - 50px);
+    }
+    
+    ${k} > span {
         font-size: 25px;
         display: inline-block;
         text-overflow: ellipsis;
         white-space: nowrap;
         overflow: hidden;
+        
+        color: var(--text, #f00);
+        text-decoration: none;
     }
-
-    & > span + span:before {
+    
+    ${k} > span:hover {
+        cursor: pointer;
+        color: var(--blue);
+    }
+    
+    ${k} > span + span:before {
         padding: 0 8px;
         vertical-align: top;
         color: var(--text, #f00);
         content: "/";
     }
-
-    & > span {
-        color: var(--text, #f00);
-        text-decoration: none;
-    }
-
-    & > span:hover {
-        cursor: pointer;
-        color: var(--blue, #f00);
-        text-decoration: none;
-    }
-
-    &.isMain > span:last-child:hover {
+    
+    ${k}.isMain > span:last-child:hover {
         color: var(--text, #f00);
         cursor: default;
     }
-`;
+`);
 
-export interface BreadcrumbsList {
-    currentPath: string;
-    navigate: (path: string) => void;
-    client: HttpClient;
-    embedded: boolean;
-}
-
-export interface BreadCrumbMapping {
-    actualPath: string;
-    local: string;
-}
-
-// Unused
-const BreadCrumbs = ({
-    currentPath,
-    navigate,
-    client,
-    embedded
-}: BreadcrumbsList): JSX.Element | null => {
-    const project = useProject().fetch();
-    if (!currentPath) return null;
-
-    const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, project.specification.title);
-    const activePathsMapping = pathsMapping[pathsMapping.length - 1];
-    // NOTE(Jonas): Can't we just say `const activePathsMapping = pathsMapping.pop()`?
-    pathsMapping.pop();
-    const breadcrumbs = pathsMapping.map(p => (
-        <span key={p.local} data-component={"crumb"} test-tag={p.local} title={p.local} onClick={() => navigate(p.actualPath)}>
-            {p.local}
-        </span>
-    ));
-
-    const addHomeFolderLink = !(
-        currentPath.startsWith(removeTrailingSlash(client.homeFolder)) || currentPath.startsWith("/projects/")
-    );
-
-    return (
-        <>
-            {addHomeFolderLink ? (
-                <>
-                    <Box>
-                        <Icon test-tag="to_home" size="30px" cursor="pointer" name="home" onClick={toHome} />
-                        <Center>
-                            <Text cursor="pointer" fontSize="11px" onClick={toHome}>Home</Text>
-                        </Center>
-                    </Box>
-                    <Text ml="6px" mr="6px" fontSize="24px">|</Text>
-                </>
-            ) : null}
-            <BreadCrumbsBase embedded={embedded}>
-                {breadcrumbs}
-                <span title={activePathsMapping.local}>
-                    {activePathsMapping.local}
-                </span>
-            </BreadCrumbsBase>
-        </>
-    );
-
-    function toHome(): void {
-        navigate(client.homeFolder);
-    }
-};
-
-function buildBreadCrumbs(
-    path: string,
-    homeFolder: string,
-    projectTitle: string,
-): BreadCrumbMapping[] {
-    const paths = pathComponents(path);
-    if (paths.length === 0) return [{actualPath: "/", local: "/"}];
-
-    const pathsMapping: BreadCrumbMapping[] = [];
-    for (let i = 0; i < paths.length; i++) {
-        let actualPath = "/";
-        for (let j = 0; j <= i; j++) actualPath += paths[j] + "/";
-        pathsMapping.push({actualPath, local: paths[i]});
-    }
-
-    // Handle starts with home
-    if (addTrailingSlash(path).startsWith(homeFolder)) { // remove first two indices
-        return [{actualPath: homeFolder, local: "Home"}].concat(pathsMapping.slice(2));
-    } else if (path.startsWith("/home") && pathsMapping.length >= 2) {
-        return [{
-            actualPath: pathsMapping[1].actualPath,
-            local: `Home of ${pathsMapping[1].local}`
-        }].concat(pathsMapping.slice(2));
-    }
-
-    // Handle starts with project
-    if (addTrailingSlash(path).startsWith("/projects/")) {
-        const [, project] = pathComponents(path);
-
-        const localName = projectTitle;
-
-        return [
-            {actualPath: `/projects/${project}/`, local: localName}
-        ].concat(pathsMapping.slice(2));
-    }
-    return pathsMapping;
+export const BreadCrumbsBase: React.FunctionComponent<{
+    embedded?: boolean;
+    children?: React.ReactNode;
+    className?: string;
+}> = props => {
+    return <div
+        className={BreadCrumbsClass + " " + (props.className ?? "")}
+        data-embedded={props.embedded === true}
+        children={props.children}
+    />;
 }
