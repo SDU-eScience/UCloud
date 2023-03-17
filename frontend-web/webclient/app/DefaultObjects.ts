@@ -124,6 +124,7 @@ interface LegacyReduxObject {
     avatar: AvatarReduxObject;
     project: ProjectRedux.State;
     terminal: TerminalState;
+    popinChild: JSX.Element | null;
     loading?: boolean;
 }
 
@@ -155,6 +156,7 @@ export function initObject(): ReduxObject {
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         terminal: initTerminalState(),
+        popinChild: null,
     };
 }
 
