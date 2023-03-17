@@ -17,7 +17,10 @@ import {Button} from "@/ui-components";
 import {CSSVarThemeColor} from "./theme";
 import {Cursor} from "./Types";
 
-interface FullWidthProps {fullWidth?: boolean}
+interface FullWidthProps {
+    fullWidth?: boolean;
+}
+
 const useFullWidth = ({fullWidth}: FullWidthProps) => fullWidth ? {width: "100%"} : null;
 
 export const Dropdown = styled.div<DropdownProps>`

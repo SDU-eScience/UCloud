@@ -20,7 +20,7 @@ export interface ClickableDropdownProps<T> {
     open?: boolean;
 
     fullWidth?: boolean;
-    height?: string | number;
+    height?: number;
     width?: string | number;
     minWidth?: string;
     left?: string | number;
@@ -164,20 +164,25 @@ const ClickableDropdown: ClickableDropdownType =
             if (left < 0) left = leftAsNumber;
 
             const topAsNumber = parseInt((top ?? 0).toString().replace("px", ""));
-            const estimatedHeight = 38 * children.length;
+            let estimatedHeight = 38 * children.length;
+            if (props.height) {
+                estimatedHeight = Math.min(props.height, estimatedHeight);
+            }
+
             if (window.innerHeight - (topAsNumber + estimatedHeight) < 50) {
                 top = topAsNumber - estimatedHeight;
             }
         }
 
         const dropdownContent = <DropdownContent
-            overflow={"visible"}
+            overflow={props.height ? "auto" : "visible"}
             squareTop={props.squareTop}
             cursor="pointer"
             {...(props as any)}
             top={top}
             left={left}
             fixed={props.useMousePositioning}
+            maxHeight={`${props.height}px`}
             width={width}
             hover={false}
             visible={open}
