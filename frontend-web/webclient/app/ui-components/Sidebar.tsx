@@ -101,78 +101,32 @@ interface TextLabelProps {
     iconSize?: string;
     textSize?: number;
     space?: string;
-    hover?: boolean;
     title?: string;
 }
 
 export const SidebarTextLabel = ({
     icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
-    iconSize = "18", space = "22px", textSize = 3, hover = true
+    iconSize = "18", space = "22px", textSize = 3
 }: TextLabelProps): JSX.Element => (
     <SidebarElementContainer title={title} style={{height}}>
         <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
-        <Text fontSize={textSize}> {children} </Text>
+        <Text fontSize={textSize}>{children}</Text>
     </SidebarElementContainer>
 );
 
-const SidebarLink = styled(Link) <{active?: boolean}>`
-    ${props => props.active ?
-        `&:not(:hover) > * > ${Text} {
-            color: ${props.theme.colors.blue};
-        }
-        &:not(:hover) > * > ${Icon} {
-            filter: saturate(500%);
-        }
-    ` : null}
-
-    text-decoration: none;
-
-    &:hover > ${Text}, &:hover > * > ${Icon} {
-        filter: saturate(500%);
-    }
-`;
-
 interface SidebarElement {
     icon: IconName;
-    label: string;
     to?: string;
-    external?: boolean;
-    activePage: SidebarPages;
 }
 
-function SidebarElement({icon, label, to, activePage}: SidebarElement): JSX.Element {
+function SidebarElement({icon, to}: SidebarElement): JSX.Element {
     if (to) {
         return (
-            <SidebarLink to={to} active={enumToLabel(activePage) === label}>
-                <Icon name={icon} color={"white"} color2={"white"} size={"20"} />
-            </SidebarLink>
+            <Link to={to}>
+                <Icon name={icon} color="white" color2="white" size={"20"} />
+            </Link>
         );
-    } else return <Icon name={icon} color={"white"} color2={"white"} size={"20"} />;
-}
-
-function enumToLabel(value: SidebarPages): string {
-    switch (value) {
-        case SidebarPages.Files:
-            return "Files";
-        case SidebarPages.Shares:
-            return "Shares";
-        case SidebarPages.Projects:
-            return "Projects";
-        case SidebarPages.AppStore:
-            return "Apps";
-        case SidebarPages.Runs:
-            return "Runs";
-        case SidebarPages.Publish:
-            return "Publish";
-        case SidebarPages.Activity:
-            return "Activity";
-        case SidebarPages.Admin:
-            return "Admin";
-        case SidebarPages.Resources:
-            return "Resources";
-        default:
-            return "";
-    }
+    } else return <Icon name={icon} color="white" color2="white" size={"20"} />;
 }
 
 const SidebarPushToBottom = styled.div`
@@ -297,8 +251,6 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                                 >
                                     <SidebarElement
                                         icon={icon}
-                                        activePage={page}
-                                        label=""
                                         to={typeof to === "function" ? to() : to}
                                     />
                                 </SidebarItemWrapper>
@@ -331,10 +283,10 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                     {!CONF.STATUS_PAGE ? null : (
                         <>
                             <Box>
-                                <ExternalLink color="black" href={CONF.STATUS_PAGE}>
+                                <ExternalLink href={CONF.STATUS_PAGE}>
                                     <Flex color="black">
-                                        <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" />
-                                        <TextSpan>Site status</TextSpan>
+                                        <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="var(--black)" />
+                                        <TextSpan color="var(--black)">Site status</TextSpan>
                                     </Flex>
                                 </ExternalLink>
                             </Box>
@@ -344,8 +296,8 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                     <Box>
                         <Link color="black" to={AppRoutes.users.settings()}>
                             <Flex color="black">
-                                <Icon name="properties" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                                <TextSpan>Settings</TextSpan>
+                                <Icon name="properties" color="var(--black)" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
+                                <TextSpan color="var(--black)">Settings</TextSpan>
                             </Flex>
                         </Link>
                     </Box>
@@ -353,19 +305,19 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                         <Link to={"/users/avatar"}>
                             <Flex color="black">
                                 <Icon name="user" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                                <TextSpan>Edit Avatar</TextSpan>
+                                <TextSpan color="var(--black)">Edit Avatar</TextSpan>
                             </Flex>
                         </Link>
                     </Flex>
                     <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
-                        <Icon name="logout" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
+                        <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
                         Logout
                     </Flex>
                     {!CONF.SITE_DOCUMENTATION_URL ? null : (
                         <div>
                             <ExternalLink hoverColor="text" href={CONF.SITE_DOCUMENTATION_URL}>
                                 <Icon name="docs" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                                <TextSpan>{CONF.PRODUCT_NAME} Docs</TextSpan>
+                                <TextSpan color="var(--black)">{CONF.PRODUCT_NAME} Docs</TextSpan>
                             </ExternalLink>
                         </div>
                     )}
@@ -373,7 +325,7 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                         <div>
                             <ExternalLink hoverColor="text" href={CONF.DATA_PROTECTION_LINK}>
                                 <Icon name="verified" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                                <TextSpan>{CONF.DATA_PROTECTION_TEXT}</TextSpan>
+                                <TextSpan color="var(--black)">{CONF.DATA_PROTECTION_TEXT}</TextSpan>
                             </ExternalLink>
                         </div>
                     )}
@@ -508,7 +460,6 @@ function Username(): JSX.Element | null {
         trigger={(
             <SidebarTextLabel
                 height="25px"
-                hover={false}
                 icon="id"
                 iconSize="1em"
                 textSize={1}
@@ -599,7 +550,7 @@ function isLocalHost(): boolean {
 function Debugger(): JSX.Element | null {
     return isLocalHost() ? <>
         <ExternalLink href="/debugger?hide-frame">
-            <SidebarTextLabel icon={"bug"} iconSize="18px" textSize={1} height={"25px"} hover={false}>
+            <SidebarTextLabel icon={"bug"} iconSize="18px" textSize={1} height={"25px"}>
                 <div />
             </SidebarTextLabel>
         </ExternalLink>
