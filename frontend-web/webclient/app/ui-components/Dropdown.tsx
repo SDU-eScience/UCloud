@@ -48,15 +48,14 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
         border-radius: 5px;
         box-shadow: 0px 3px 6px rgba(0, 0, 0, 16%);
         position: absolute;
-        background: var(--black);
-        color: var(--white);
+        background: var(--white);
+        color: var(--black);
         min-width: 138px;
         z-index: 1000;
         text-align: left;
         visibility: visible;
-        opacity: 0;
         pointer-events: auto;
-        border 1px solid var(--borderGray);
+        border: 1px solid var(--borderGray);
     }
     
     ${k}[data-padding-controlled="false"] {
@@ -110,8 +109,9 @@ export const DropdownContent: React.FunctionComponent<DropdownContentProps & {
         data-square={props.squareTop === true}
         data-fixed={props.fixed === true}
         data-hover-color={props.colorOnHover === true}
-        data-padding-controlled={props.paddingControlledByContent !== false}
+        data-padding-controlled={props.paddingControlledByContent === true}
         data-visible={props.visible === true}
+        style={style}
         children={props.children}
     />;
 };
