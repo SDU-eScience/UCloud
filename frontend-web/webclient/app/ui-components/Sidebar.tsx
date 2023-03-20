@@ -51,8 +51,9 @@ import {useNavigate} from "react-router";
 import JobsApi, {Job, jobStateToIconAndColor} from "@/UCloud/JobsApi";
 import {ProjectLinks} from "@/Project/ProjectLinks";
 import {ResourceLinks} from "@/Resource/ResourceOptions";
+import {injectStyleSimple} from "@/Unstyled";
 
-const SidebarElementContainer = styled.div`
+const SidebarElementContainerClass = injectStyleSimple("div", () => `
     display: flex;
     margin-left: 22px;
     justify-content: left;
@@ -62,7 +63,7 @@ const SidebarElementContainer = styled.div`
     & > ${Text} {
         white-space: nowrap;
     }
-`;
+`);
 
 const SidebarAdditionalStyle = styled(Flex) <{forceOpen: boolean}>`
     background-color: #5C89F4;
@@ -70,10 +71,15 @@ const SidebarAdditionalStyle = styled(Flex) <{forceOpen: boolean}>`
     width: ${p => p.forceOpen ? "var(--sidebarAdditionalWidth)" : "0px"};
 `;
 
-const SidebarContainer = styled(Flex) <FlexCProps>`
+const SidebarContainerClass = injectStyleSimple("div", () => `
+    color: var(--sidebar);
+    align-items: center;
+    display: flex;
+    flex-direction: column;
     height: 100vh;
+    width: var(--sidebarWidth);
     background-color: var(--sidebar);
-`;
+`);
 
 const SidebarItemWrapper = styled.div<{active: boolean}>`
     cursor: pointer;
@@ -109,10 +115,10 @@ export const SidebarTextLabel = ({
     icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
     iconSize = "18", space = "22px", textSize = 3
 }: TextLabelProps): JSX.Element => (
-    <SidebarElementContainer title={title} style={{height}}>
+    <div className={SidebarElementContainerClass} title={title} style={{height}}>
         <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
         <Text fontSize={textSize}>{children}</Text>
-    </SidebarElementContainer>
+    </div>
 );
 
 interface SidebarElement {
@@ -229,8 +235,7 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
 
     return (
         <Flex>
-            <SidebarContainer color="var(--sidebar)" flexDirection="column" alignItems="center"
-                width={"var(--sidebarWidth)"}>
+            <div className={SidebarContainerClass}>
                 <Link data-component={"logo"} to="/">
                     <Icon name="logoEsc" mt="10px" size="34px" />
                 </Link>
@@ -344,14 +349,14 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                     </span>
                 </ClickableDropdown>
                 <Box mb="10px" />
-            </SidebarContainer>
+            </div>
 
             <SidebarAdditional
                 data-tag="additional"
                 hovered={hoveredPage}
                 clicked={selectedPage}
                 clearHover={() => setHoveredPage("")}
-                clearClicked={()=> setSelectedPage("")}
+                clearClicked={() => setSelectedPage("")}
             />
         </Flex>
     );
@@ -400,9 +405,9 @@ function SidebarAdditional({hovered, clicked, clearHover, clearClicked}: {hovere
 
     const active = hovered ? hovered : clicked;
     /* TODO(Jonas): hovering should slide over, while clicking should push */
-    return (<SidebarAdditionalStyle onMouseLeave={e => {
-        if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover()
-    }} className={SIDEBAR_IDENTIFIER} flexDirection="column" forceOpen={clicked !== "" || hovered !== ""}>
+    return (<SidebarAdditionalStyle className={SIDEBAR_IDENTIFIER} onMouseLeave={e => {
+        if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover();
+    }} forceOpen={clicked !== "" || hovered !== ""}>
         <Box ml="6px">
             <Flex>
                 <TextSpan bold color="var(--white)">{active}</TextSpan>
@@ -450,7 +455,7 @@ function SidebarAdditional({hovered, clicked, clearHover, clearClicked}: {hovere
             {active !== "Resources" ? null : (<ResourceLinks />)}
             {active !== "Admin" ? null : (<AdminLinks />)}
         </Box>
-    </SidebarAdditionalStyle >)
+    </SidebarAdditionalStyle>)
 }
 
 function Username(): JSX.Element | null {
