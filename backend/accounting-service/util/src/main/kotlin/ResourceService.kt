@@ -1089,9 +1089,15 @@ abstract class ResourceService<
     ): List<String> {
         return Wallets.retrieveWalletsInternal.call(
             WalletsInternalRetrieveRequest(
-                if (useProject)
-                    WalletOwner.Project(actorAndProject.project!!)
-                else WalletOwner.User(actorAndProject.actor.safeUsername())
+                if (useProject) {
+                    if (actorAndProject.project == null ) {
+                        WalletOwner.User(actorAndProject.actor.safeUsername())
+                    } else {
+                        WalletOwner.Project(actorAndProject.project!!)
+                    }
+                } else {
+                    WalletOwner.User(actorAndProject.actor.safeUsername())
+                }
             ),
             serviceClient
         ).orThrow()

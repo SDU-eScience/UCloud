@@ -61,19 +61,6 @@ class GrantSettingsService(
                             into("new_include_list_type") { it.type }
                             into("new_include_list_entity") { it.id }
                         }
-
-                        req.automaticApproval.from.split {
-                            into("auto_approve_list_type") { it.type }
-                            into("auto_approve_list_entity") { it.id }
-                        }
-
-                        req.automaticApproval.maxResources.split {
-                            into("auto_approve_category") { it.category }
-                            into("auto_approve_provider") { it.provider }
-                            into("auto_approve_quota") { null }
-                            into("auto_approve_grant_giver") {actorAndProject.project}
-                            into("auto_approve_credits") { it.balanceRequested }
-                        }
                     },
                     """
                     select "grant".upload_request_settings(
@@ -82,9 +69,6 @@ class GrantSettingsService(
                         :new_exclude_list,
                         
                         :new_include_list_type, :new_include_list_entity,
-                        
-                        :auto_approve_list_type, :auto_approve_list_entity, :auto_approve_category,
-                        :auto_approve_provider, :auto_approve_credits, :auto_approve_quota, :auto_approve_grant_giver
                     )
                 """
                 )

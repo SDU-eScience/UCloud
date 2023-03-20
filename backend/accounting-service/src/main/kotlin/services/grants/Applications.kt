@@ -24,13 +24,13 @@ class GrantApplicationService(
     private val providers: Providers<SimpleProviderCommunication>,
     private val projectNotifications: ProviderNotificationService,
     private val accounting: AccountingService
-    ) {
+) {
     suspend fun retrieveProducts(
         actorAndProject: ActorAndProject,
         request: GrantsBrowseProductsRequest,
     ): List<Product> {
         return db.withSession(remapExceptions = true) { session ->
-            session.sendPreparedStatement(
+            val allowed = session.sendPreparedStatement(
                 {
                     setParameter("source", request.projectId)
                     setParameter("username", actorAndProject.actor.safeUsername())
@@ -62,23 +62,71 @@ class GrantApplicationService(
                                 from approver_permission_check
                             ) t
                         )
-                    select accounting.product_to_json(p, pc, null)
-                    from
-                        permission_check join
-                        accounting.products p on can_submit join
-                        accounting.product_categories pc on p.category = pc.id join
-                        accounting.wallet_owner wo on wo.project_id = :source join
-                        accounting.wallets w on
-                            wo.id = w.owned_by and
-                            pc.id = w.category join
-                        accounting.wallet_allocations alloc on
-                            alloc.associated_wallet = w.id and
-                            now() >= alloc.start_date and
-                            (alloc.end_date is null or now() <= alloc.end_date)
-                    order by pc.provider, pc.category
+                    select *
+                    from permission_check
                 """
+            ).rows
+                .singleOrNull()
+                ?.getBoolean(0) ?: throw RPCException.fromStatusCode(
+                HttpStatusCode.InternalServerError,
+                "Permissions wrong"
             )
-        }.rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
+
+            val products = if (allowed) {
+                val owner = if (actorAndProject.project == null) {
+                    WalletOwner.User(actorAndProject.actor.safeUsername())
+                } else {
+                    WalletOwner.Project(actorAndProject.project!!)
+                }
+                val products = accounting.retrieveWalletsInternal(
+                    ActorAndProject(Actor.System, null),
+                    owner
+                ).mapNotNull { wallet ->
+                    val now = System.currentTimeMillis()
+                    val activeAllocs = wallet.allocations.mapNotNull { alloc ->
+                        if (alloc.startDate <= now && (alloc.endDate ?: Long.MAX_VALUE) > now) {
+                            alloc
+                        } else {
+                            null
+                        }
+                    }
+                    if (activeAllocs.isEmpty()) {
+                        null
+                    } else {
+                        wallet.copy(allocations = activeAllocs)
+                    }
+                }.map {
+                    it.paysFor
+                }
+
+                val results = session.sendPreparedStatement(
+                    {
+                        products.split {
+                            into("providers") {it.provider}
+                            into("category_names") { it.name}
+                        }
+                    },
+                    """
+                        with names_and_providers as (
+                            select 
+                                unnest(:providers::text[]) provider,
+                                unnest(:category_names::text[]) category_name
+                        )
+                        select accounting.product_to_json(p, pc, null)
+                        from
+                            accounting.products p join
+                            accounting.product_categories pc on p.category = pc.id join 
+                            names_and_providers nap on pc.provider = nap.provider and pc.category = nap.category_name                        
+                        order by pc.provider, pc.category
+                    """.trimIndent()
+                ).rows.map { defaultMapper.decodeFromString<Product>(it.getString(0)!!) }
+                results
+            } else {
+                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Not allowed to make requests to grant")
+            }
+
+            return@withSession products
+        }
     }
 
     suspend fun retrieveGrantApplication(
@@ -152,7 +200,7 @@ class GrantApplicationService(
                 ).rows.singleOrNull()?.getLong(0)
                     ?: throw RPCException(
                         "It looks like you are unable to submit a request to this affiliation. " +
-                                "Contact support if this problem persists.",
+                            "Contact support if this problem persists.",
                         HttpStatusCode.Forbidden
                     )
 
@@ -175,7 +223,6 @@ class GrantApplicationService(
                 )
 
                 insertDocument(session, actorAndProject, applicationId, createRequest.document, true)
-                autoApprove(session, actorAndProject, createRequest, applicationId)
 
                 // TODO(Dan): This code is seemingly duplicated later. We should only have one branch for this.
                 val (allApproved, grantGivers) = retrieveGrantGiversStates(session, applicationId)
@@ -191,7 +238,12 @@ class GrantApplicationService(
                             where id = :app_in
                         """
                     )
-                    onApplicationApprove(session, applicationId, createRequest.document.parentProjectId, actorAndProject)
+                    onApplicationApprove(
+                        session,
+                        applicationId,
+                        createRequest.document.parentProjectId,
+                        actorAndProject
+                    )
                     val notification = GrantNotification(
                         applicationId,
                         adminMessage =
@@ -311,116 +363,6 @@ class GrantApplicationService(
         return Pair(allApproved, grantGiverApprovalStates)
     }
 
-    private suspend fun autoApprove(
-        session: AsyncDBConnection,
-        actorAndProject: ActorAndProject,
-        request: CreateApplication,
-        applicationId: Long,
-    ) {
-        val projectToResources = request.document.allocationRequests.groupBy { it.grantGiver }
-        projectToResources.forEach { (projectId, requestedResources) ->
-            val shouldAutoApprove = shouldAutoApprove(
-                session,
-                requestedResources,
-                projectId,
-                actorAndProject.actor.safeUsername()
-            )
-
-            if (shouldAutoApprove) {
-                // NOTE(Henrik): Get pi of approving project
-                val piOfProject = session.sendPreparedStatement(
-                    {
-                        setParameter("projectId", projectId)
-                    },
-                    """
-                    select username
-                    from project.project_members 
-                    where role = 'PI' and project_id = :projectId
-                """
-                ).rows
-                    .firstOrNull()
-                    ?.getString(0)
-                    ?: throw RPCException.fromStatusCode(
-                        HttpStatusCode.InternalServerError,
-                        "More than one or no PI found"
-                    )
-
-                // NOTE(Henrik): update status of the application to APPROVED
-                session.sendPreparedStatement(
-                    {
-                        setParameter("state", GrantApplication.State.APPROVED.name)
-                        setParameter("username", piOfProject)
-                        setParameter("appId", applicationId)
-                        setParameter("projectID", projectId)
-                    },
-                    """
-                        update "grant".grant_giver_approvals gga
-                        set
-                            state = :state,
-                            updated_by = :username
-                        where gga.application_id = :appId and project_id = :projectID
-                    """
-                )
-            }
-        }
-    }
-
-    private suspend fun shouldAutoApprove(
-        session: AsyncDBConnection,
-        requestedResources: List<GrantApplication.AllocationRequest>,
-        grantGiverId: String,
-        applicantId: String
-    ): Boolean {
-        val numberOfAllowedToAutoApprove = session.sendPreparedStatement(
-            {
-                setParameter("product_categories", requestedResources.map { it.category })
-                setParameter("product_providers", requestedResources.map { it.provider })
-                setParameter("balances_requested", requestedResources.map { it.balanceRequested })
-                setParameter("projectId", grantGiverId)
-                setParameter("username", applicantId)
-            },
-            """
-                with
-                    requests as (
-                        select
-                            unnest(:balances_requested::bigint[]) balances_requested,
-                            unnest(:product_categories::text[]) product_category,
-                            unnest(:product_providers::text[]) product_provider
-                    )
-                select count(*)
-                from
-                    requests req join
-                    accounting.product_categories pc on
-                        (req.product_provider = pc.provider and
-                        req.product_category = pc.category) join
-                    "grant".automatic_approval_limits aal on
-                        (pc.id = aal.product_category and
-                        req.balances_requested < aal.maximum_credits) join
-                    "grant".automatic_approval_users aau on
-                        (
-                            aal.project_id = aau.project_id and
-                            aal.project_id = :projectId
-                        ) join
-                    auth.principals prin on
-                        (
-                            aau.type = 'anyone' or
-                            (
-                                aau.type = 'wayf' and
-                                aau.applicant_id = prin.org_id
-                            ) or
-                            (
-                                aau.type = 'email' and
-                                prin.email like '%@' || aau.applicant_id
-                            )
-                        ) and prin.id = :username
-            """
-        ).rows
-            .firstOrNull()
-            ?.getLong(0)
-            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-        return numberOfAllowedToAutoApprove == requestedResources.size.toLong()
-    }
-
     private suspend fun insertDocument(
         session: AsyncDBConnection,
         actorAndProject: ActorAndProject,
@@ -498,49 +440,21 @@ class GrantApplicationService(
         }
 
         if (allocationRequests.isEmpty()) {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Applications without resource requests not allowed")
+            throw RPCException.fromStatusCode(
+                HttpStatusCode.BadRequest,
+                "Applications without resource requests not allowed"
+            )
         }
+        val validRequests = allocationRequests.map{ req ->
+            accounting.retrieveAllocationsInternal(
+                ActorAndProject(Actor.System, null),
+                WalletOwner.Project(req.grantGiver),
+                ProductCategoryId(req.category, req.provider)
+            ).isNotEmpty()
+        }.filter { it }
 
-        val requestIsValid = session.sendPreparedStatement(
-            {
-                setParameter("id", applicationId)
-                allocationRequests.split {
-                    into("source_allocations") { it.sourceAllocation }
-                    into("categories") { it.category }
-                    into("providers") { it.provider }
-                    into("grant_givers") { it.grantGiver }
-                }
-            },
-            """
-                with requests as (
-                    select
-                        :id application_id,
-                        unnest(:categories::text[]) category,
-                        unnest(:providers::text[]) provider_id,
-                        unnest(:source_allocations::bigint[]) source_allocation,
-                        unnest(:grant_givers::text[]) grant_giver
-                ),
-                requested_inserts as (
-                    select req.source_allocation, pc.category, pc.provider
-                    from 
-                        requests req
-                        join accounting.product_categories pc on pc.provider = req.provider_id and pc.category = req.category
-                        join accounting.wallets w on pc.id = w.category
-                        join accounting.wallet_owner wo on w.owned_by = wo.id
-                        left join accounting.wallet_allocations wall on w.id = wall.associated_wallet 
-                        join "grant".applications app on req.application_id = app.id
-                    where
-                        req.grant_giver = wo.project_id and
-                        wall.can_allocate = true
-                )
-                
-                select (select count(*) from requests) - (select count(*) from requested_inserts) as totalCount
-            """
-        ).rows
-            .single()
-            .getLong(0) != 0L
-
-        if (requestIsValid) {
+        val requestIsValid = validRequests.size == allocationRequests.size
+        if (!requestIsValid) {
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Allocations does not match products")
         }
 
@@ -726,7 +640,8 @@ class GrantApplicationService(
 
     suspend fun editApplication(
         actorAndProject: ActorAndProject,
-        requests: BulkRequest<EditApplicationRequest>
+        requests: BulkRequest<EditApplicationRequest>,
+        session: DBContext? = null
     ) {
         db.withSession(remapExceptions = true) { session ->
             requests.items.forEach { request ->
@@ -833,7 +748,7 @@ class GrantApplicationService(
                 if (!hasAllAllocationsSet) {
                     throw RPCException(
                         "Not all requested resources have a source allocation assigned. " +
-                                "You must select one for each resource.",
+                            "You must select one for each resource.",
                         HttpStatusCode.BadRequest
                     )
                 }
@@ -1222,10 +1137,10 @@ class GrantApplicationService(
         parentId: String?,
         actorAndProject: ActorAndProject
     ) {
-        val application = retrieveGrantApplication(applicationId, actorAndProject , session)
+        val application = retrieveGrantApplication(applicationId, actorAndProject, session)
 
         //creating project and PI if newProject and returning workspaceID
-        val (workspaceId, type)  = when (application.currentRevision.document.recipient) {
+        val (workspaceId, type) = when (application.currentRevision.document.recipient) {
             is GrantApplication.Recipient.NewProject -> {
                 val recipient = application.currentRevision.document.recipient as GrantApplication.Recipient.NewProject
                 val createdProject = session.sendPreparedStatement(
@@ -1260,19 +1175,26 @@ class GrantApplicationService(
                 Pair(createdProject, GrantApplication.Recipient.NewProject)
 
             }
+
             is GrantApplication.Recipient.ExistingProject -> {
-                val recipient = application.currentRevision.document.recipient as GrantApplication.Recipient.ExistingProject
+                val recipient =
+                    application.currentRevision.document.recipient as GrantApplication.Recipient.ExistingProject
                 Pair(recipient.id, GrantApplication.Recipient.ExistingProject)
             }
+
             is GrantApplication.Recipient.PersonalWorkspace -> {
-                val recipient = application.currentRevision.document.recipient as GrantApplication.Recipient.PersonalWorkspace
+                val recipient =
+                    application.currentRevision.document.recipient as GrantApplication.Recipient.PersonalWorkspace
                 Pair(recipient.username, GrantApplication.Recipient.PersonalWorkspace)
             }
         }
 
         val requestItems = application.currentRevision.document.allocationRequests.map {
+            if (it.sourceAllocation == null ) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Source Allocations not chosen")
             DepositToWalletRequestItem(
-                recipient = if (type == GrantApplication.Recipient.PersonalWorkspace) WalletOwner.User(workspaceId) else WalletOwner.Project(workspaceId),
+                recipient = if (type == GrantApplication.Recipient.PersonalWorkspace) WalletOwner.User(workspaceId) else WalletOwner.Project(
+                    workspaceId
+                ),
                 sourceAllocation = it.sourceAllocation.toString(),
                 amount = it.balanceRequested!!,
                 description = "Granted In $applicationId",

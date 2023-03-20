@@ -4461,7 +4461,7 @@ export interface SendRequest {
     mail: Mail,
     mandatory: boolean,
 }
-export type Mail = MailNS.TransferApplicationMail | MailNS.LowFundsMail | MailNS.StillLowFundsMail | MailNS.UserRoleChangeMail | MailNS.UserLeftMail | MailNS.UserRemovedMail | MailNS.UserRemovedMailToUser | MailNS.ProjectInviteMail | MailNS.NewGrantApplicationMail | MailNS.GrantAppAutoApproveToAdminsMail | MailNS.GrantApplicationUpdatedMail | MailNS.GrantApplicationUpdatedMailToAdmins | MailNS.GrantApplicationStatusChangedToAdmin | MailNS.GrantApplicationApproveMail | MailNS.GrantApplicationApproveMailToAdmins | MailNS.GrantApplicationRejectedMail | MailNS.GrantApplicationWithdrawnMail | MailNS.NewCommentOnApplicationMail | MailNS.ResetPasswordMail | MailNS.VerificationReminderMail
+export type Mail = MailNS.TransferApplicationMail | MailNS.LowFundsMail | MailNS.StillLowFundsMail | MailNS.UserRoleChangeMail | MailNS.UserLeftMail | MailNS.UserRemovedMail | MailNS.UserRemovedMailToUser | MailNS.ProjectInviteMail | MailNS.NewGrantApplicationMail | MailNS.GrantApplicationUpdatedMail | MailNS.GrantApplicationUpdatedMailToAdmins | MailNS.GrantApplicationStatusChangedToAdmin | MailNS.GrantApplicationApproveMail | MailNS.GrantApplicationApproveMailToAdmins | MailNS.GrantApplicationRejectedMail | MailNS.GrantApplicationWithdrawnMail | MailNS.NewCommentOnApplicationMail | MailNS.ResetPasswordMail | MailNS.VerificationReminderMail
 export interface SendSupportEmailRequest {
     fromEmail: string,
     subject: string,
@@ -4475,7 +4475,6 @@ export interface RetrieveEmailSettingsResponse {
 }
 export interface EmailSettings {
     newGrantApplication: boolean,
-    grantAutoApprove: boolean,
     grantApplicationUpdated: boolean,
     grantApplicationApproved: boolean,
     grantApplicationRejected: boolean,
@@ -4553,12 +4552,6 @@ export interface NewGrantApplicationMail {
     projectTitle: string,
     subject: string,
     type: ("newGrantApplication"),
-}
-export interface GrantAppAutoApproveToAdminsMail {
-    sender: string,
-    projectTitle: string,
-    subject: string,
-    type: ("autoApproveGrant"),
 }
 export interface GrantApplicationUpdatedMail {
     projectTitle: string,
@@ -6806,16 +6799,8 @@ export interface UploadTemplatesRequest {
     existingProject: string,
 }
 export interface ProjectApplicationSettings {
-    automaticApproval: AutomaticApprovalSettings,
     allowRequestsFrom: UserCriteria[],
     excludeRequestsFrom: UserCriteria[],
-}
-export interface AutomaticApprovalSettings {
-    from: UserCriteria[],
-    maxResources: ResourceRequest[],
-}
-export interface ReadRequestSettingsRequest {
-    projectId: string,
 }
 export interface ReadTemplatesRequest {
     projectId: string,
@@ -7021,29 +7006,6 @@ export function uploadTemplates(
         context: "",
         method: "POST",
         path: "/api/grant" + "/upload-templates",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function readRequestSettings(
-    request: ReadRequestSettingsRequest
-): APICallParameters<ReadRequestSettingsRequest, ProjectApplicationSettings> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/grant" + "/request-settings", {projectId: request.projectId}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function uploadRequestSettings(
-    request: ProjectApplicationSettings
-): APICallParameters<ProjectApplicationSettings, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/grant" + "/request-settings",
         parameters: request,
         reloadId: Math.random(),
         payload: request,

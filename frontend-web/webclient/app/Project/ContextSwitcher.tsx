@@ -147,7 +147,7 @@ function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => voi
     }
     initializeResources();
     refresh?.();
-}''
+}
 
 const HoverBox = styled.div`
     display: inline-flex;
