@@ -402,6 +402,7 @@ const ContentWrapper = styled.div`
     left: calc(8px + var(--sidebarWidth));
     width: 450px;
     height: 600px;
+    max-height: 100vh;
     z-index: 10000;
     background: var(--white);
     color: var(--black);

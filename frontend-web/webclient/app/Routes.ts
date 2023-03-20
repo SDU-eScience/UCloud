@@ -20,13 +20,21 @@ const shares = {
     sharedWithMe: () => "/shares"
 }
 
+
+const resources = {
+    publicIps: () => "/public-ips",
+    publicLinks: () => "/public-links",
+    licenses: () => "/licenses",
+    sshKeys: () => "/ssh-keys",
+}
+
 const project = {
     members: (projectId: string) => `/projects/${projectId}/members`,
     usage: (projectId: string) => `/project/resources/${projectId}`,
     allocations: (projectId: string) => `/project/allocations/${projectId}`,
     grants: (projectId: string) => `/project/grants/ingoing/${projectId}`,
     settings: (projectId: string) => `/project/settings/${projectId}`,
-    subprojects: (projectId: string) => `/subprojects/${projectId}`
+    subprojects: (projectId: string) => `/subprojects/${projectId}`,
 }
 
 const AppRoutes = {
@@ -34,7 +42,8 @@ const AppRoutes = {
     users,
     admin,
     shares,
-    project
+    project,
+    resources
 };
 
 export default AppRoutes;

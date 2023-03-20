@@ -1,7 +1,7 @@
 import * as React from "react";
 import {default as IngressApi, Ingress, IngressSupport} from "@/UCloud/IngressApi";
 import {ResourceBrowse} from "@/Resource/Browse";
-import {ResourceTab, ResourceTabOptions} from "@/Resource/ResourceTabs";
+import {ResourceOptions} from "@/Resource/ResourceOptions";
 import {BrowseType} from "@/Resource/BrowseType";
 
 
@@ -22,8 +22,7 @@ const Browse: React.FunctionComponent<{
             domain: text
         })}
         header={
-            browseType === BrowseType.MainContent ? (
-                <ResourceTab active={ResourceTabOptions.PUBLIC_LINKS} />) : undefined
+            browseType === BrowseType.MainContent ? <>{ResourceOptions.PUBLIC_LINKS}</> : undefined
         }
         headerSize={48}
         onSelectRestriction={props.onSelectRestriction}

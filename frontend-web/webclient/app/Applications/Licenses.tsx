@@ -2,7 +2,7 @@ import * as React from "react";
 import {default as LicenseApi, License} from "@/UCloud/LicenseApi";
 import {ResourceBrowse} from "@/Resource/Browse";
 import {ResourceRouter} from "@/Resource/Router";
-import {ResourceTab, ResourceTabOptions} from "@/Resource/ResourceTabs";
+import {ResourceOptions} from "@/Resource/ResourceOptions";
 import {BrowseType} from "@/Resource/BrowseType";
 
 export const LicenseBrowse: React.FunctionComponent<{
@@ -20,8 +20,7 @@ export const LicenseBrowse: React.FunctionComponent<{
         browseType={props.browseType ?? BrowseType.MainContent}
         disableSearch
         header={
-            browseType === BrowseType.MainContent ? (
-                <ResourceTab active={ResourceTabOptions.LICENSES} />) : undefined
+            browseType === BrowseType.MainContent ? (<>{ResourceOptions.LICENSES} </>) : undefined
         }
         headerSize={48}
         onSelectRestriction={props.onSelectRestriction}
@@ -35,7 +34,7 @@ export const LicenseBrowse: React.FunctionComponent<{
         emptyPage={
             <>
                 No licenses match your current search/filter criteria.
-                <br/>
+                <br />
                 You might not have activated any licenses yet. If you have already applied or received a license,
                 then you must first activate it, before you can use it. Click the &quot;Activate license&quot;
                 button to continue.

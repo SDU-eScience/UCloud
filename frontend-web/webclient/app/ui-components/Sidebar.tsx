@@ -50,8 +50,10 @@ import {fileName} from "@/Utilities/FileUtilities";
 import {useNavigate} from "react-router";
 import JobsApi, {Job, jobStateToIconAndColor} from "@/UCloud/JobsApi";
 import {ProjectLinks} from "@/Project/ProjectLinks";
+import {ResourceLinks} from "@/Resource/ResourceOptions";
+import {injectStyleSimple} from "@/Unstyled";
 
-const SidebarElementContainer = styled.div`
+const SidebarElementContainerClass = injectStyleSimple("div", () => `
     display: flex;
     margin-left: 22px;
     justify-content: left;
@@ -61,7 +63,7 @@ const SidebarElementContainer = styled.div`
     & > ${Text} {
         white-space: nowrap;
     }
-`;
+`);
 
 const SidebarAdditionalStyle = styled(Flex) <{forceOpen: boolean}>`
     background-color: #5C89F4;
@@ -69,10 +71,15 @@ const SidebarAdditionalStyle = styled(Flex) <{forceOpen: boolean}>`
     width: ${p => p.forceOpen ? "var(--sidebarAdditionalWidth)" : "0px"};
 `;
 
-const SidebarContainer = styled(Flex) <FlexCProps>`
+const SidebarContainerClass = injectStyleSimple("div", () => `
+    color: var(--sidebar);
+    align-items: center;
+    display: flex;
+    flex-direction: column;
     height: 100vh;
+    width: var(--sidebarWidth);
     background-color: var(--sidebar);
-`;
+`);
 
 const SidebarItemWrapper = styled.div<{active: boolean}>`
     cursor: pointer;
@@ -101,18 +108,17 @@ interface TextLabelProps {
     iconSize?: string;
     textSize?: number;
     space?: string;
-    hover?: boolean;
     title?: string;
 }
 
 export const SidebarTextLabel = ({
     icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
-    iconSize = "18", space = "22px", textSize = 3, hover = true
+    iconSize = "18", space = "22px", textSize = 3
 }: TextLabelProps): JSX.Element => (
-    <SidebarElementContainer title={title} style={{height}}>
+    <div className={SidebarElementContainerClass} title={title} style={{height}}>
         <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
-        <Text fontSize={textSize}> {children} </Text>
-    </SidebarElementContainer>
+        <Text fontSize={textSize}>{children}</Text>
+    </div>
 );
 
 const SidebarLink = styled(Link) <{active?: boolean}>`
@@ -134,45 +140,17 @@ const SidebarLink = styled(Link) <{active?: boolean}>`
 
 interface SidebarElement {
     icon: IconName;
-    label: string;
     to?: string;
-    external?: boolean;
-    activePage: SidebarPages;
 }
 
-function SidebarElement({icon, label, to, activePage}: SidebarElement): JSX.Element {
+function SidebarElement({icon, to}: SidebarElement): JSX.Element {
     if (to) {
         return (
-            <SidebarLink to={to} active={enumToLabel(activePage) === label}>
-                <Icon name={icon} color={"white"} color2={"white"} size={"20"} />
-            </SidebarLink>
+            <Link to={to}>
+                <Icon name={icon} color="white" color2="white" size={"20"} />
+            </Link>
         );
-    } else return <Icon name={icon} color={"white"} color2={"white"} size={"20"} />;
-}
-
-function enumToLabel(value: SidebarPages): string {
-    switch (value) {
-        case SidebarPages.Files:
-            return "Files";
-        case SidebarPages.Shares:
-            return "Shares";
-        case SidebarPages.Projects:
-            return "Projects";
-        case SidebarPages.AppStore:
-            return "Apps";
-        case SidebarPages.Runs:
-            return "Runs";
-        case SidebarPages.Publish:
-            return "Publish";
-        case SidebarPages.Activity:
-            return "Activity";
-        case SidebarPages.Admin:
-            return "Admin";
-        case SidebarPages.Resources:
-            return "Resources";
-        default:
-            return "";
-    }
+    } else return <Icon name={icon} color="white" color2="white" size={"20"} />;
 }
 
 const SidebarPushToBottom = styled.div`
@@ -209,7 +187,7 @@ export const sideBarMenuElements: {
             {icon: "files", label: "Files", to: "/drives/"},
             {icon: "projects", label: "Projects", to: "/projects/", show: () => Client.hasActiveProject},
             {icon: "shareMenu", label: "Shares", to: "/shares/", show: () => !Client.hasActiveProject},
-            {icon: "dashboard", label: "Resources", to: "/public-ips/"},
+            {icon: "dashboard", label: "Resources"},
             {icon: "appStore", label: "Apps", to: "/applications/overview/"},
             {icon: "results", label: "Runs", to: "/jobs/"}
         ], predicate: () => Client.isLoggedIn
@@ -219,7 +197,6 @@ export const sideBarMenuElements: {
 };
 
 interface SidebarStateProps {
-    page: SidebarPages;
     loggedIn: boolean;
     avatar: AvatarType;
     activeProject?: string;
@@ -251,7 +228,7 @@ const SidebarItemsColumn = styled.div`
 
 export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | null => {
     const sidebarEntries = sideBarMenuElements;
-    const {activeProject, loggedIn, page, avatar} = useSidebarReduxProps();
+    const {activeProject, loggedIn, avatar} = useSidebarReduxProps();
 
     const [selectedPage, setSelectedPage] = React.useState("");
     const [hoveredPage, setHoveredPage] = React.useState("");
@@ -274,8 +251,7 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
 
     return (
         <Flex>
-            <SidebarContainer color="var(--sidebar)" flexDirection="column" alignItems="center"
-                width={"var(--sidebarWidth)"}>
+            <div className={SidebarContainerClass}>
                 <Link data-component={"logo"} to="/">
                     <Icon name="logoEsc" mt="10px" size="34px" />
                 </Link>
@@ -297,8 +273,6 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                                 >
                                     <SidebarElement
                                         icon={icon}
-                                        activePage={page}
-                                        label=""
                                         to={typeof to === "function" ? to() : to}
                                     />
                                 </SidebarItemWrapper>
@@ -331,10 +305,10 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                     {!CONF.STATUS_PAGE ? null : (
                         <>
                             <Box>
-                                <ExternalLink color="black" href={CONF.STATUS_PAGE}>
+                                <ExternalLink href={CONF.STATUS_PAGE}>
                                     <Flex color="black">
-                                        <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" />
-                                        <TextSpan>Site status</TextSpan>
+                                        <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="var(--black)" />
+                                        <TextSpan color="var(--black)">Site status</TextSpan>
                                     </Flex>
                                 </ExternalLink>
                             </Box>
@@ -344,8 +318,8 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                     <Box>
                         <Link color="black" to={AppRoutes.users.settings()}>
                             <Flex color="black">
-                                <Icon name="properties" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                                <TextSpan>Settings</TextSpan>
+                                <Icon name="properties" color="var(--black)" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
+                                <TextSpan color="var(--black)">Settings</TextSpan>
                             </Flex>
                         </Link>
                     </Box>
@@ -353,19 +327,19 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                         <Link to={"/users/avatar"}>
                             <Flex color="black">
                                 <Icon name="user" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                                <TextSpan>Edit Avatar</TextSpan>
+                                <TextSpan color="var(--black)">Edit Avatar</TextSpan>
                             </Flex>
                         </Link>
                     </Flex>
                     <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
-                        <Icon name="logout" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
+                        <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
                         Logout
                     </Flex>
                     {!CONF.SITE_DOCUMENTATION_URL ? null : (
                         <div>
                             <ExternalLink hoverColor="text" href={CONF.SITE_DOCUMENTATION_URL}>
                                 <Icon name="docs" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                                <TextSpan>{CONF.PRODUCT_NAME} Docs</TextSpan>
+                                <TextSpan color="var(--black)">{CONF.PRODUCT_NAME} Docs</TextSpan>
                             </ExternalLink>
                         </div>
                     )}
@@ -373,7 +347,7 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                         <div>
                             <ExternalLink hoverColor="text" href={CONF.DATA_PROTECTION_LINK}>
                                 <Icon name="verified" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                                <TextSpan>{CONF.DATA_PROTECTION_TEXT}</TextSpan>
+                                <TextSpan color="var(--black)">{CONF.DATA_PROTECTION_TEXT}</TextSpan>
                             </ExternalLink>
                         </div>
                     )}
@@ -391,9 +365,15 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                     </span>
                 </ClickableDropdown>
                 <Box mb="10px" />
-            </SidebarContainer>
+            </div>
 
-            <SidebarAdditional data-tag="additional" hovered={hoveredPage} clicked={selectedPage} clearHover={() => setHoveredPage("")} />
+            <SidebarAdditional
+                data-tag="additional"
+                hovered={hoveredPage}
+                clicked={selectedPage}
+                clearHover={() => setHoveredPage("")}
+                clearClicked={() => setSelectedPage("")}
+            />
         </Flex>
     );
 
@@ -403,10 +383,10 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
     }
 };
 
-function useSidebarFilesPage(): {
-    drives: APICallState<PageV2<FileCollection>>,
-    favorites: APICallState<PageV2<FileMetadataAttached>>,
-} {
+function useSidebarFilesPage(): [
+    APICallState<PageV2<FileCollection>>,
+    APICallState<PageV2<FileMetadataAttached>>
+] {
     const [drives] = useCloudAPI<PageV2<FileCollection>>(FileCollectionsApi.browse({itemsPerPage: 10/* , filterMemberFiles: "all" */}), emptyPageV2);
 
     const [favorites] = useCloudAPI<PageV2<FileMetadataAttached>>(
@@ -418,10 +398,10 @@ function useSidebarFilesPage(): {
         emptyPageV2
     );
 
-    return {
+    return [
         drives,
         favorites
-    }
+    ];
 }
 
 function useSidebarRunsPage(): APICallState<PageV2<Job>> {
@@ -432,15 +412,8 @@ function useSidebarRunsPage(): APICallState<PageV2<Job>> {
 }
 
 
-function SidebarAdditional({hovered, clicked, clearHover}: {hovered: string; clicked: string; clearHover(): void}): JSX.Element {
-    const [forceOpen, setForceOpen] = React.useState(false);
-    React.useEffect(() => {
-        if (clicked) {
-            setForceOpen(true);
-        }
-    }, [clicked]);
-
-    const {drives, favorites} = useSidebarFilesPage();
+function SidebarAdditional({hovered, clicked, clearHover, clearClicked}: {hovered: string; clicked: string; clearHover(): void; clearClicked(): void}): JSX.Element {
+    const [drives, favorites] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
 
     const navigate = useNavigate();
@@ -448,13 +421,15 @@ function SidebarAdditional({hovered, clicked, clearHover}: {hovered: string; cli
 
     const active = hovered ? hovered : clicked;
     /* TODO(Jonas): hovering should slide over, while clicking should push */
-    return (<SidebarAdditionalStyle onMouseLeave={e => {
-        if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover()
-    }} className={SIDEBAR_IDENTIFIER} flexDirection="column" forceOpen={forceOpen || hovered !== ""}>
+    return (<SidebarAdditionalStyle className={SIDEBAR_IDENTIFIER} onMouseLeave={e => {
+        if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover();
+    }} forceOpen={clicked !== "" || hovered !== ""}>
         <Box ml="6px">
             <Flex>
                 <TextSpan bold color="var(--white)">{active}</TextSpan>
-                {forceOpen ? <TextSpan ml="auto" mr="4px" onClick={() => setForceOpen(false)}>Unlock</TextSpan> : null}
+                {clicked !== "" ? <TextSpan ml="auto" mr="4px" onClick={() => {
+                    clearClicked();
+                }}>Unlock</TextSpan> : null}
             </Flex>
             {active !== "Files" ? null : (
                 <Flex flexDirection="column">
@@ -493,35 +468,22 @@ function SidebarAdditional({hovered, clicked, clearHover}: {hovered: string; cli
                     })}
                 </Flex>
             )}
-            {active !== "Resources" ? null : ("TODO")}
+            {active !== "Resources" ? null : (<ResourceLinks />)}
             {active !== "Admin" ? null : (<AdminLinks />)}
         </Box>
-    </SidebarAdditionalStyle >)
+    </SidebarAdditionalStyle>)
 }
 
 function Username(): JSX.Element | null {
     if (!Client.isLoggedIn) return null;
     return <Tooltip
-        left="-50%"
-        top="1"
-        mb="35px"
         trigger={(
-            <SidebarTextLabel
-                height="25px"
-                hover={false}
-                icon="id"
-                iconSize="1em"
-                textSize={1}
-                space=".5em"
+            <EllipsedText
+                cursor="pointer"
+                onClick={copyUserName}
             >
-                <EllipsedText
-                    cursor="pointer"
-                    onClick={copyUserName}
-                    width="140px"
-                >
-                    {Client.username}
-                </EllipsedText>
-            </SidebarTextLabel>
+                <Icon name="id" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" /> {Client.username}
+            </EllipsedText>
         )}
     >
         Click to copy {Client.username} to clipboard
@@ -599,7 +561,7 @@ function isLocalHost(): boolean {
 function Debugger(): JSX.Element | null {
     return isLocalHost() ? <>
         <ExternalLink href="/debugger?hide-frame">
-            <SidebarTextLabel icon={"bug"} iconSize="18px" textSize={1} height={"25px"} hover={false}>
+            <SidebarTextLabel icon={"bug"} iconSize="18px" textSize={1} height={"25px"}>
                 <div />
             </SidebarTextLabel>
         </ExternalLink>
@@ -615,8 +577,6 @@ function copyUserName(): void {
 
 function useSidebarReduxProps(): SidebarStateProps {
     return useSelector((it: ReduxObject) => ({
-        page: it.status.page,
-
         /* Used to ensure re-rendering of Sidebar after user logs in. */
         loggedIn: Client.isLoggedIn,
 
