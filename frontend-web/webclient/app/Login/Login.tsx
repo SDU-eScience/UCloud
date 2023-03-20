@@ -18,7 +18,7 @@ import deicBackground from "@/Assets/Images/deic-cloud.svg";
 
 const BackgroundImage = styled.div<{image: string}>`
     background: url(${({image}) => image}) no-repeat center;
-    background-size: 200%;
+    background-size: calc(3000px + 80vw);
     overflow: hidden;
 `;
 
@@ -256,7 +256,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                 colorOnHover={false}
                                 keepOpenOnClick
                                 keepOpenOnOutsideClick
-                                top="30px"
+                                bottom="30px"
                                 width="315px"
                                 left="0px"
                                 trigger={(
@@ -533,13 +533,13 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
                 )}
                 {!SITE_DOCUMENTATION_URL ? null : (
                     <LoginExternalLink href={SITE_DOCUMENTATION_URL}>
-                        <LoginIcon name="docs" /> Docs
+                        <LoginIcon name="docs" /> <TextSpan color="#000">Docs</TextSpan>
                     </LoginExternalLink>
                 )}
             </div> : null}
         </Absolute>
         <BackgroundImage image={deicBackground}>
-            <Flex mx="auto" flexDirection={"column"} height="100vh">
+            <Flex mx="auto" flexDirection={"column"} height="100vh" minHeight={"650px"}>
                 {props.children}
             </Flex>
         </BackgroundImage>
