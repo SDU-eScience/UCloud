@@ -1,7 +1,7 @@
 import * as React from "react";
 import {default as NetworkIPApi, NetworkIP} from "@/UCloud/NetworkIPApi";
 import {ResourceBrowse} from "@/Resource/Browse";
-import {ResourceTab, ResourceTabOptions} from "@/Resource/ResourceTabs";
+import {ResourceOptions} from "@/Resource/ResourceOptions";
 import {BrowseType} from "@/Resource/BrowseType";
 
 export const NetworkIPBrowse: React.FunctionComponent<{
@@ -21,8 +21,7 @@ export const NetworkIPBrowse: React.FunctionComponent<{
             product: {id: product.name, category: product.category.name, provider: product.category.provider},
         })}
         header={
-            browseType === BrowseType.MainContent ? (
-                <ResourceTab active={ResourceTabOptions.PUBLIC_IP} />) : undefined
+            browseType === BrowseType.MainContent ? (<>{ResourceOptions.PUBLIC_IP} </>) : undefined
         }
         headerSize={48}
         inlineCreationMode={"NONE"}

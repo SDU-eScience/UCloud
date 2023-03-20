@@ -50,6 +50,7 @@ import {fileName} from "@/Utilities/FileUtilities";
 import {useNavigate} from "react-router";
 import JobsApi, {Job, jobStateToIconAndColor} from "@/UCloud/JobsApi";
 import {ProjectLinks} from "@/Project/ProjectLinks";
+import {ResourceLinks} from "@/Resource/ResourceOptions";
 
 const SidebarElementContainer = styled.div`
     display: flex;
@@ -445,34 +446,22 @@ function SidebarAdditional({hovered, clicked, clearHover}: {hovered: string; cli
                     })}
                 </Flex>
             )}
-            {active !== "Resources" ? null : ("TODO")}
+            {active !== "Resources" ? null : (<ResourceLinks />)}
             {active !== "Admin" ? null : (<AdminLinks />)}
         </Box>
-    </SidebarAdditionalStyle >)
+    </SidebarAdditionalStyle>)
 }
 
 function Username(): JSX.Element | null {
     if (!Client.isLoggedIn) return null;
     return <Tooltip
-        left="-50%"
-        top="1"
-        mb="35px"
         trigger={(
-            <SidebarTextLabel
-                height="25px"
-                icon="id"
-                iconSize="1em"
-                textSize={1}
-                space=".5em"
+            <EllipsedText
+                cursor="pointer"
+                onClick={copyUserName}
             >
-                <EllipsedText
-                    cursor="pointer"
-                    onClick={copyUserName}
-                    width="140px"
-                >
-                    {Client.username}
-                </EllipsedText>
-            </SidebarTextLabel>
+                <Icon name="id" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" /> {Client.username}
+            </EllipsedText>
         )}
     >
         Click to copy {Client.username} to clipboard

@@ -1,6 +1,6 @@
 import * as React from "react";
 import MainContainer from "@/MainContainer/MainContainer";
-import {ResourceTab, ResourceTabOptions} from "@/Resource/ResourceTabs";
+import {ResourceOptions} from "@/Resource/ResourceOptions";
 import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import SshKeyApi from "@/UCloud/SshKeyApi";
@@ -13,9 +13,9 @@ import {callAPI} from "@/Authentication/DataHook";
 import {extractErrorMessage} from "@/UtilityFunctions";
 import {useNavigate} from "react-router";
 import * as Heading from "@/ui-components/Heading";
-import Table, { TableCell, TableHeader, TableHeaderCell, TableRow } from "@/ui-components/Table";
-import { ProviderLogo } from "@/Providers/ProviderLogo";
-import { ProviderTitle } from "@/Providers/ProviderTitle";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
 
 interface GenericInputFieldProps {
     name: string;
@@ -144,7 +144,7 @@ You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/in
     }, []);
 
     return <MainContainer
-        header={<ResourceTab active={ResourceTabOptions.SSH_KEYS} />}
+        header={<>{ResourceOptions.SSH_KEYS}</>}
         headerSize={48}
         main={
             <>
@@ -202,7 +202,7 @@ You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/in
     />;
 };
 
-const ProviderSupportRow: React.FunctionComponent<{ support: { providerId: string; support: string[] } }> = ({support}) => {
+const ProviderSupportRow: React.FunctionComponent<{support: {providerId: string; support: string[]}}> = ({support}) => {
     return <TableRow>
         <TableCell width={40}><ProviderLogo providerId={support.providerId} size={32} /></TableCell>
         <TableCell><ProviderTitle providerId={support.providerId} /></TableCell>
@@ -220,12 +220,12 @@ const ProviderSupportRow: React.FunctionComponent<{ support: { providerId: strin
 }
 
 // NOTE(Dan): This is hardcoded pending proper support from providers and backend
-const hardcodedSshSupport: { providerId: string; support: string[] }[] = [
-    { providerId: "ucloud", support: [] },
-    { providerId: "aau", support: ["None, keys are added through the application"] },
-    { providerId: "hippo", support: ["SSH to frontend"] },
-    { providerId: "sophia", support: ["SSH to frontend"] },
-    { providerId: "lumi", support: [] },
+const hardcodedSshSupport: {providerId: string; support: string[]}[] = [
+    {providerId: "ucloud", support: []},
+    {providerId: "aau", support: ["None, keys are added through the application"]},
+    {providerId: "hippo", support: ["SSH to frontend"]},
+    {providerId: "sophia", support: ["SSH to frontend"]},
+    {providerId: "lumi", support: []},
 ];
 
 export default SshKeysCreate;
