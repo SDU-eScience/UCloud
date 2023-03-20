@@ -87,7 +87,111 @@ sealed class ApplicationDescription(val application: String) {
 
             parameters.forEach { (name, parameter) -> parameter.name = name }
 
+            // Verify default values
+            for (param in parameters.values) {
+                println(param.name)
+                println(param.defaultValue)
+                if (param.defaultValue == null) continue
 
+                when (param) {
+                    is ApplicationParameterYaml.Bool -> {
+                        when (val value = param.defaultValue) {
+                            is Boolean -> continue
+                            is Map<*, *> -> {
+                                value["value"] as? Boolean ?:
+                                    throw ApplicationVerificationException.BadDefaultValue(param.name)
+                            }
+                            else ->
+                                throw ApplicationVerificationException.BadDefaultValue(param.name)
+                        }
+                    }
+
+                    is ApplicationParameterYaml.Enumeration -> {
+                        when (val value = param.defaultValue) {
+                            is String -> {
+                                if (!param.options.map { it.value }.contains(value)) {
+                                    throw ApplicationVerificationException.BadDefaultValue(param.name)
+                                }
+                            }
+                            is Map<*, *> -> {
+                                val normalizedDefault = value["value"] as? String ?:
+                                    throw ApplicationVerificationException.BadDefaultValue(param.name)
+
+                                if (!param.options.map { it.value }.contains(normalizedDefault)) {
+                                    throw ApplicationVerificationException.BadDefaultValue(param.name)
+                                }
+                            }
+                            else ->
+                                throw ApplicationVerificationException.BadDefaultValue(param.name)
+                        }
+                    }
+                    is ApplicationParameterYaml.FloatingPoint -> {
+                        when (val value = param.defaultValue) {
+                            is Double -> {
+                                if (param.min != null) {
+                                    if (value < param.min) {
+                                        throw ApplicationVerificationException.BadDefaultValue(param.name)
+                                    }
+                                }
+                                if (param.max != null) {
+                                    if (value > param.max) {
+                                        throw ApplicationVerificationException.BadDefaultValue(param.name)
+                                    }
+                                }
+                            }
+                            is Map<*, *> -> {
+                                val normalizedDefault = value["value"] as? Double ?:
+                                    throw ApplicationVerificationException.BadDefaultValue(param.name)
+
+                                if (param.min != null) {
+                                    if (normalizedDefault < param.min) {
+                                        throw ApplicationVerificationException.BadDefaultValue(param.name)
+                                    }
+                                }
+                                if (param.max != null) {
+                                    if (normalizedDefault > param.max) {
+                                        throw ApplicationVerificationException.BadDefaultValue(param.name)
+                                    }
+                                }
+                            }
+                            else ->
+                                throw ApplicationVerificationException.BadDefaultValue(param.name)
+                        }
+                    }
+                    is ApplicationParameterYaml.Ingress -> continue
+                    is ApplicationParameterYaml.InputDirectory -> TODO(Brian)
+                    is ApplicationParameterYaml.InputFile -> TODO(Brian)
+                    is ApplicationParameterYaml.Integer -> TODO(Brian)
+                    is ApplicationParameterYaml.LicenseServer -> continue
+                    is ApplicationParameterYaml.NetworkIP -> continue
+                    is ApplicationParameterYaml.Peer -> continue
+                    is ApplicationParameterYaml.Text -> {
+                        when (val value = param.defaultValue) {
+                            is String -> continue
+                            is Map<*, *> -> {
+                                value["value"] as? String ?: throw ApplicationVerificationException.BadDefaultValue(
+                                    param.name
+                                )
+                            }
+                            else ->
+                                throw ApplicationVerificationException.BadDefaultValue(param.name)
+                        }
+                    }
+                    is ApplicationParameterYaml.TextArea -> {
+                        when (val value = param.defaultValue) {
+                            is String -> continue
+                            is Map<*, *> -> {
+                                value["value"] as? String ?: throw ApplicationVerificationException.BadDefaultValue(
+                                    param.name
+                                )
+                            }
+                            else ->
+                                throw ApplicationVerificationException.BadDefaultValue(param.name)
+                        }
+                    }
+                }
+
+            }
 
             this.invocation = invocation.mapIndexed { index, it ->
                 val parameterName = "invocation[$index]"
