@@ -141,11 +141,15 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
                     <Spacer
                         left={
                             <Flex>
-                                <Text fontSize={5}>Title: </Text><Input pt={0} pb={0} noBorder defaultValue={props.post.title} ref={titleRef} fontSize={5} />
+                                <Text fontSize={5}>Title: </Text>
+                                <Input pt={0} pb={0} noBorder defaultValue={props.post.title} inputRef={titleRef} />
                             </Flex>}
                         right={<Button type="button" onClick={() => props.stopEditing(false)} color="red">Cancel</Button>}
                     />
-                    <Flex><Text fontSize={3}>Subtitle: </Text><Input pt={0} pb={0} noBorder defaultValue={props.post.subtitle} ref={subtitleRef} fontSize={3} /></Flex>
+                    <Flex>
+                        <Text fontSize={3}>Subtitle: </Text>
+                        <Input pt={0} pb={0} noBorder defaultValue={props.post.subtitle} inputRef={subtitleRef} />
+                    </Flex>
                     <Box>
                         <Text fontSize={1}><Flex>By: <Text mx="6px" bold>{props.post.postedBy}</Text></Flex></Text>
                         <Text fontSize={1}>
@@ -181,14 +185,14 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
                             </Flex>
                         </Text>
                         <Input
-                            width={1}
+                            width={"100%"}
                             autoComplete="off"
                             onKeyUp={onKeyUp}
                             defaultValue={props.post.category}
                             my="3px"
                             placeholder="Category"
                             required
-                            ref={categoryRef}
+                            inputRef={categoryRef}
                         />
                         <Categories categories={results} onSelect={category => {
                             categoryRef.current!.value = category;

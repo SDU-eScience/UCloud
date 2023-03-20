@@ -38,7 +38,7 @@ export const History: React.FunctionComponent<{
 
     const hasActivity = metadata.metadata[template.namespaceId] != null;
     const activity = useMemo(() => metadata.metadata[template.namespaceId] ?? [], [metadata]);
-    const changeLogRef = useRef<HTMLTextAreaElement>(null);
+    const changeLogRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (!hasActivity) {
@@ -141,7 +141,7 @@ export const History: React.FunctionComponent<{
                                 <Heading.h3 flexGrow={1}>New document</Heading.h3>
                                 <Label>
                                     Changes<br/>
-                                    <TextArea width={"100%"} rows={4} ref={changeLogRef}/>
+                                    <TextArea width={"100%"} rows={4} inputRef={changeLogRef}/>
                                 </Label>
                                 <ConfirmationButton mt={"8px"} color={"green"} icon={"check"} actionText={"Save"}
                                                     onAction={submitNewVersion} fullWidth/>

@@ -215,7 +215,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                     <><Icon color={"red"} name={"close"} mr={8} /> {sharedByMe ? "Rejected" : null}</>
                 }
                 {!isValid ? null : <form onSubmit={preventDefault} style={{marginLeft: "16px"}}>
-                    <RadioTilesContainer height={48} onClick={stopPropagation} title="Share Permission">
+                    <RadioTilesContainer height={48} onClick={stopPropagation}>
                         {sharedByMe || !isEdit ? <RadioTile
                             disabled={resource.owner.createdBy !== Client.username}
                             label={"Read"}
@@ -271,7 +271,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 if (isEnabled !== true) return isEnabled;
                 return selected.every(share => share.owner.createdBy === Client.username);
             };
-            /* Note(Jonas): 
+            /* Note(Jonas):
                 As Shares currently don't have a properties page, why remove the context redirection on delete.
              */
             deleteOp.onClick = async (selected, cb) => {

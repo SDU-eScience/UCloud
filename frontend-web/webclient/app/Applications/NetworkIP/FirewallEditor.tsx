@@ -118,8 +118,8 @@ export const FirewallEditor: React.FunctionComponent<{
                         </TableRow>
                     })}
                     <TableRow>
-                        <TableCell><Input ref={portFirstRef}/></TableCell>
-                        <TableCell><Input ref={portLastRef}/></TableCell>
+                        <TableCell><Input inputRef={portFirstRef}/></TableCell>
+                        <TableCell><Input inputRef={portLastRef}/></TableCell>
                         <TableCell>
                             <Select selectRef={protocolRef}>
                                 <option>TCP</option>

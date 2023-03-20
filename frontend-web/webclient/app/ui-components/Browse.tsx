@@ -21,7 +21,6 @@ import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {StickyBox} from "@/ui-components/StickyBox";
 import MainContainer from "@/MainContainer/MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";
-import {SmallScreenSearchField} from "@/Navigation/Header";
 
 interface BrowseProps<T> {
     preloadedResources?: T[];
@@ -109,7 +108,6 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
     if (props.hide === true) return null;
 
     return <>
-        {props.isSearch && props.browseType === BrowseType.MainContent ? <SmallScreenSearchField /> : null}
         <Pagination.ListV2 page={resources} pageRenderer={props.pageRenderer} loading={isLoading}
             onLoadMore={loadMore} customEmptyPage={props.pageRenderer([], {hasNext: false})} error={error}
             infiniteScrollGeneration={infScroll} dataIsStatic={hasPreloadedResources} />

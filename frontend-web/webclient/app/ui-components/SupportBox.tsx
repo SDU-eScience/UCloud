@@ -33,8 +33,8 @@ function submitTicket(request: {subject: string, message: string}): APICallParam
 }
 
 export default function Support(): JSX.Element {
-    const textArea = useRef<HTMLTextAreaElement>(null);
-    const titleArea = useRef<HTMLTextAreaElement>(null);
+    const textArea = useRef<HTMLInputElement>(null);
+    const titleArea = useRef<HTMLInputElement>(null);
     const [type, setType] = useState(SupportType.SUGGESTION);
     const [loading, invokeCommand] = useCloudCommand();
     const [statusUCloud, setUCloudStatus] = useState<SystemStatus | "">("");
@@ -132,13 +132,13 @@ export default function Support(): JSX.Element {
 
                     <form onSubmit={onSubmit}>
                         <TextDiv mt="10px"> Subject </TextDiv>
-                        <TextArea width="100%" ref={titleArea} rows={1} />
+                        <TextArea width="100%" inputRef={titleArea} rows={1} />
                         <TextDiv mt="10px">
                             {type === SupportType.BUG ? "Describe your problem below and we will investigate it." :
                                 "Describe your suggestion and we will look into it."
                             }
                         </TextDiv>
-                        <TextArea width="100%" ref={textArea} rows={6} />
+                        <TextArea width="100%" inputRef={textArea} rows={6} />
                         <Button
                             mt="6px"
                             fullWidth

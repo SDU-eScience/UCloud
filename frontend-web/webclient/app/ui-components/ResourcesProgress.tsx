@@ -1,15 +1,7 @@
 import * as React from "react";
-import styled, {keyframes} from "styled-components";
-import {fontWeight, FontWeightProps} from "styled-system";
 import {ThemeColor} from "./theme";
-
-const animatePositive = keyframes`
-    0% { width: 0%; }
-`;
-
-const animateNegative = keyframes`
-    0% { width: 100%; }
-`;
+import {injectStyle} from "@/Unstyled";
+import {CSSProperties} from "react";
 
 const thresholds: {maxValue: number, color: ThemeColor}[] = [
     {
@@ -26,72 +18,81 @@ const thresholds: {maxValue: number, color: ThemeColor}[] = [
     }
 ];
 
-const ANIMATION_LENGTH = "1s";
-
 function getColorFromValue(value: number): string {
     return thresholds.find(it => it.maxValue >= value)?.color ?? "red";
 }
 
-const Bar = styled.div<{value: number; width: number | string; fontWeight?: FontWeightProps;}>`
-    position: absolute;
-    top: 0;
-    height: 100%;
-    overflow: hidden;
-    & > span {
+const BarClass = injectStyle("resources-bar", k => `
+    ${k} {
+        position: absolute;
+        top: 0;
+        height: 100%;
+        overflow: hidden;
+        
+        --barBackground: var(--green);
+        --animationLength: 1s;
+    }
+        
+    ${k} > span {
         padding-top: 2px;
         padding-bottom: auto;
         position: absolute;
         display: block;
-        width: ${props => props.width};
         min-width: 200px;
         height: 100%;
         text-align: center;
-        ${fontWeight}
     }
-
-    &.positive {      
-        background: var(--${props => getColorFromValue(props.value)});
+    
+    ${k}.positive {
+        background: var(--barBackground);
         left: 0;
-        width: ${props => Math.min(props.value, 100)}%;
-        animation: ${animatePositive} ${ANIMATION_LENGTH};
+        width: var(--percentage, 0%);
+        animation: animatePositive var(--animationLength);
     }
-
-    &.positive > span {
+    
+    ${k}.positive > span {
         left: 0;
         color: var(--white);
     }
-
-    &.negative {
+    
+    ${k}.negative {
         background: var(--appCard);
         right: 0;
-        width: ${props => 100 - Math.min(props.value, 100)}%;
-        animation: ${animateNegative} ${ANIMATION_LENGTH};
+        animation: animateNegative var(--animationLength);
+        width: calc(100% - var(--percentage, 0%));
     }
 
-    &.negative > span {
+    ${k}.negative > span {
         right: 0;
         color: var(--black);
     }
-`;
+    
+    @keyframes animatePositive {
+        0% { width: 0; }
+    }
+    
+    @keyframes animateNegative {
+        0% { width: 100%; }
+    }
+`);
 
-const ProgressBar = styled.div<{value: number; width: number | string; height: number | string;}>`
-    border-radius: 4px;
-    position: relative;
-    width: ${props => props.width};
-    min-width: 200px;
-    height: ${props => props.height};
-    line-height: 15px;
-    vertical-align: middle;
-    overflow: hidden;
-    font-size: 12px;
-`;
+const ContainerClass = injectStyle("resource-progress-container", k => `
+    ${k} {
+        border-radius: 4px;
+        position: relative;
+        min-width: 200px;
+        line-height: 15px;
+        vertical-align: middle;
+        overflow: hidden;
+        font-size: 12px;
+    }
+`);
 
 interface ResourceProgressProps {
     text?: string;
     value: number;
     width?: string;
     height?: string;
-    fontWeight?: FontWeightProps;
 }
 
 /* https://codepen.io/valiooo/pen/ALXodB */
@@ -101,15 +102,19 @@ export function ResourceProgress(
     if (isNaN(props.value)) return null;
     const width = props.width ?? "200px";
     const height = props.height ?? "20px";
-    const fontWeight = props.fontWeight ?? {fontWeight: "bold"};
+
+    const style: CSSProperties = { width, height };
+    style["--barBackground"] = `var(--${getColorFromValue(props.value)})`
+    style["--percentage"] = `${props.value}%`;
+
     return (
-        <ProgressBar width={width} height={height} value={props.value}>
-            <Bar className="positive" width={width} value={props.value} fontWeight={fontWeight}>
+        <div className={ContainerClass} style={style}>
+            <div className={`${BarClass} positive`}>
                 <span>{props.text ?? props.value}</span>
-            </Bar>
-            <Bar className="negative" width={width} value={props.value} fontWeight={fontWeight}>
+            </div>
+            <div className={`${BarClass} negative`}>
                 <span>{props.text ?? props.value}</span>
-            </Bar>
-        </ProgressBar>
+            </div>
+        </div>
     );
 }

@@ -1,5 +1,4 @@
-import styled from "styled-components";
-import Box from "./Box";
+import {BoxProps} from "./Box";
 import * as React from "react";
 import {IconName} from "@/ui-components/Icon";
 import {Icon} from "@/ui-components/index";
@@ -7,34 +6,43 @@ import {ThemeColor} from "./theme";
 import {Cursor} from "@/ui-components/Types";
 import {EventHandler, MouseEvent, useCallback} from "react";
 import {deviceBreakpoint} from "@/ui-components/Hide";
+import {extractSize, injectStyle, unbox} from "@/Unstyled";
 
-type StringOrNumber = string | number;
-
-interface UseChildPaddingProps {
-    childPadding?: StringOrNumber;
-}
-
-function useChildPadding(
-    props: UseChildPaddingProps
-): null | {marginBottom: StringOrNumber; marginTop: StringOrNumber} {
-    return props.childPadding ? {marginBottom: props.childPadding, marginTop: props.childPadding} : null;
-}
-
-const List = styled(Box) <{fontSize?: string; childPadding?: string | number; bordered?: boolean}>`
-    font-size: ${props => props.fontSize};
-
-    & > *, .list-item {
-        ${props => props.bordered ? "border-bottom: 1px solid lightGrey;" : null}
-        ${useChildPadding};
+const ListClass = injectStyle("list", k => `
+    ${k} {
+        --listChildPadding: 0;
     }
-
-    & > *:last-child {
-        ${props => props.bordered ? "border-bottom: 0px;" : null}
+    
+    ${k} > *, .list-item {
+        margin-top: var(--listChildPadding);
+        margin-bottom: var(--listChildPadding);
     }
-`;
+    
+    ${k}[data-bordered="true"] > *, .list-item {
+        border-bottom: 1px solid var(--borderGray);
+    }
+    
+    ${k}[data-bordered="true"] > *:last-child {
+        border-bottom: 0;
+    }
+`);
+
+const List: React.FunctionComponent<BoxProps & {
+    childPadding?: number | string;
+    bordered?: boolean;
+    children?: React.ReactNode;
+}> = props => {
+    const style = unbox(props);
+    if (props.childPadding) style["--listChildPadding"] = extractSize(props.childPadding);
+    return <div
+        className={ListClass}
+        data-bordered={props.bordered !== false}
+        children={props.children}
+        style={style}
+    />;
+};
 
 List.defaultProps = {
-    fontSize: "large",
     bordered: true
 };
 
@@ -68,28 +76,29 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
         if (stopPropagation) e.stopPropagation();
     }, [props.select, stopPropagation]);
 
-    return <ListStyle
+    return <div
+        className={ListRowClass}
         data-component={"list-row"}
         data-highlighted={props.highlight === true}
         data-selected={props.isSelected === true}
         data-navigate={props.navigate !== undefined}
         onClick={doSelect}
-        fontSize={props.fontSize}
+        style={{fontSize: props.fontSize ?? "20px"}}
         onContextMenu={props.onContextMenu}
     >
         {props.icon ? <div className="row-icon">{props.icon}</div> : null}
         <div className="row-left">
             <div className="row-left-wrapper">
                 <div className="row-left-content" onClick={doNavigate}>{props.left}</div>
-                <div className="row-left-padding" />
+                <div className="row-left-padding"/>
             </div>
             <div className="row-left-sub">{props.leftSub}</div>
         </div>
         <div className="row-right">{props.right}</div>
-    </ListStyle>;
+    </div>;
 }
 
-export const ListStatContainer: React.FunctionComponent<{children: React.ReactNode}> = props => <>{props.children}</>;
+export const ListStatContainer: React.FunctionComponent<{ children: React.ReactNode }> = props => <>{props.children}</>;
 
 export const ListRowStat: React.FunctionComponent<{
     icon?: IconName;
@@ -103,7 +112,7 @@ export const ListRowStat: React.FunctionComponent<{
     const color: ThemeColor = props.color ?? "gray";
     const color2: ThemeColor = props.color2 ?? "white";
     const body = <>
-        {!props.icon ? null : <Icon size={"10"} color={color} color2={color2} name={props.icon} />}
+        {!props.icon ? null : <Icon size={"10"} color={color} color2={color2} name={props.icon}/>}
         {props.children}
     </>;
 
@@ -114,43 +123,44 @@ export const ListRowStat: React.FunctionComponent<{
     }
 };
 
-const ListStyle = styled.div<{fontSize?: string;}>`
-    transition: background-color 0.3s;
-    padding: 5px 0;
-    width: 100%;
-    height: 56px;
-    align-items: center;
-    display: flex;
+const ListRowClass = injectStyle("list-item", k => `
+    ${k} {
+        padding: 5px 0;
+        width: 100%;
+        height: 56px;
+        align-items: center;
+        display: flex;
+    }
 
-    &[data-highlighted="true"] {
+    ${k}[data-highlighted="true"] {
         background-color: var(--projectHighlight);
     }
 
-    &[data-selected="true"] {
+    ${k}[data-selected="true"] {
         background-color: var(--lightBlue);
     }
 
-    &:hover {
+    ${k}:hover {
         background-color: var(--lightBlue);
     }
 
-    .row-icon {
+    ${k} .row-icon {
         margin-right: 12px;
         margin-left: 8px;
         flex-shrink: 0;
     }
 
-    .row-left {
+    ${k} .row-left {
         flex-grow: 1;
         overflow: hidden;
         max-width: calc(100vw - var(--sidebarWidth));
     }
 
-    &[data-navigate="true"] .row-left-content {
+    ${k}[data-navigate="true"] .row-left-content {
         cursor: pointer;
     }
 
-    .row-left-content {
+    ${k} .row-left-content {
         margin-bottom: -4px;
         font-size: ${p => p.fontSize ?? "20px"};
         overflow: hidden;
@@ -158,54 +168,54 @@ const ListStyle = styled.div<{fontSize?: string;}>`
         text-overflow: ellipsis;
     }
 
-    .row-left-content:has(> form) {
+    ${k} .row-left-content:has(> form) {
         width: 100%;
     }
   
     ${deviceBreakpoint({minWidth: "767px", maxWidth: "1279px"})} {
-      .row-left{
+      ${k} .row-left{
         max-width: calc(100vw - 435px);
       }
     }
 
     ${deviceBreakpoint({maxWidth: "767px"})} {
-        .row-left {
+        ${k} .row-left {
             max-width: calc(100vw - 210px);
         }
     }
 
-    .row-left-wrapper {
+    ${k} .row-left-wrapper {
         display: flex;
     }
 
-    .row-left-padding {
+    ${k} .row-left-padding {
         width: auto;
         cursor: auto;
     }
 
-    .row-left-sub {
+    ${k} .row-left-sub {
         display: flex;
         margin-top: 4px;
     }
     
-    .row-left-sub > * {
+    ${k} .row-left-sub > * {
         margin-right: 16px;
         color: var(--gray);
         text-decoration: none;
         font-size: 10px;
     }
     
-    .row-left-sub > * > svg {
+    ${k} .row-left-sub > * > svg {
         margin-top: -2px;
         margin-right: 4px;
     }
 
-    .row-right {
+    ${k} .row-right {
         text-align: right;
         display: flex;
         margin-right: 8px;
         flex-shrink: 0;
     }
-`;
+`);
 
 export default List;

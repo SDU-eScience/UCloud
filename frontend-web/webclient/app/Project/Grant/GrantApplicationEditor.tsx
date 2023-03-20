@@ -8,7 +8,7 @@ import Button from "@/ui-components/Button";
 import {CardClass} from "@/ui-components/Card";
 import ExternalLink from "@/ui-components/ExternalLink";
 import Flex from "@/ui-components/Flex";
-import Icon, {IconName} from "@/ui-components/Icon";
+import Icon, {IconClass, IconName} from "@/ui-components/Icon";
 import Input, {HiddenInputField} from "@/ui-components/Input";
 import Label from "@/ui-components/Label";
 import List from "@/ui-components/List";
@@ -122,7 +122,7 @@ export enum RequestTarget {
 const THIRTY_DAYS_AGO = new Date().getTime() - 30 * 24 * 60 * 60 * 1000;
 
 export const RequestForSingleResourceWrapper = styled.div`
-    ${Icon} {
+    .${IconClass} {
         float: right;
         margin-left: 10px;
     }
@@ -173,7 +173,7 @@ const ResourceContainer = styled.div`
 const RequestFormContainer = styled.div`
     width: 100%;
 
-    ${TextArea} {
+    textarea {
         width: 100%;
         height: calc(100% - 40px);
         margin: 10px 0;
@@ -630,7 +630,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
 
     const {appId} = useParams<{appId: string;}>();
     const projectId = useProjectId();
-    const documentRef = useRef<HTMLTextAreaElement>(null);
+    const documentRef = useRef<HTMLInputElement>(null);
 
     const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
     const [isEditingProjectReferenceId, setIsEditingProjectReference] = useState(false);
@@ -1193,7 +1193,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                                 </Label>
                                 <Label mb={16} mt={16}>
                                     Project title
-                                    <Input ref={projectTitleRef} disabled={target !== RequestTarget.NEW_PROJECT} />
+                                    <Input inputRef={projectTitleRef} disabled={target !== RequestTarget.NEW_PROJECT} />
                                 </Label>
                             </>
                         )}
@@ -1254,7 +1254,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                                                                             }}>
                                                                                 <Input
                                                                                     placeholder={"e.g. DeiC-SDU-L1-000001"}
-                                                                                    ref={projectReferenceIdRef}
+                                                                                    inputRef={projectReferenceIdRef}
                                                                                 />
                                                                             </form>
                                                                         </td>
@@ -1422,7 +1422,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                                 <TextArea
                                     disabled={grantFinalized || isLocked}
                                     rows={25}
-                                    ref={documentRef}
+                                    inputRef={documentRef}
                                 />
                             </RequestFormContainer>
 
@@ -1944,7 +1944,7 @@ const PostCommentWrapper = styled.form`
         display: flex;
     }
 
-    ${TextArea} {
+    textarea {
         flex-grow: 1;
         margin-left: 6px;
     }
@@ -1973,7 +1973,7 @@ const PostCommentWidget: React.FunctionComponent<{
     onPostedComment(comment: Comment): void;
     disabled: boolean;
 }> = ({grantId, avatar, onPostedComment, disabled}) => {
-    const commentBoxRef = useRef<HTMLTextAreaElement>(null);
+    const commentBoxRef = useRef<HTMLInputElement>(null);
     const [loading, runWork] = useCloudCommand();
     const submitComment = useCallback(async (e) => {
         e.preventDefault();
@@ -2002,7 +2002,7 @@ const PostCommentWidget: React.FunctionComponent<{
     return <PostCommentWrapper onSubmit={submitComment}>
         <div className="wrapper">
             <UserAvatar avatar={avatar} width={"48px"} />
-            <TextArea rows={3} ref={commentBoxRef} disabled={disabled} placeholder={"Your comment"} />
+            <TextArea rows={3} inputRef={commentBoxRef} disabled={disabled} placeholder={"Your comment"} />
         </div>
         <div className="buttons">
             {disabled ? <Tooltip trigger={<Button disabled>Send</Button>}>Submit application to allow comments</Tooltip> :

@@ -24,6 +24,7 @@ import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
 import {JobBrowse} from "../Browse";
 import {format, isToday} from "date-fns/esm";
 import {ButtonClass} from "@/ui-components/Button";
+import {IconClass} from "@/ui-components/Icon";
 
 export const ImportParameters: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -526,7 +527,7 @@ async function cleanupImportResult(
 const MessageBox = styled.ul`
     list-style-type: none;
     padding-left: 0;
-    ${Icon} {
+    .${IconClass} {
         margin-right: 10px;
     }
 `;

@@ -1,8 +1,7 @@
 import {IconName} from "@/ui-components/Icon";
-import {Box, Button, Divider, Flex, Icon, OutlineButton, Tooltip} from "@/ui-components/index";
+import {Box, Button, Flex, Icon, Tooltip} from "@/ui-components/index";
 import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useRef, useState} from "react";
 import * as React from "react";
-import styled, {StyledComponent} from "styled-components";
 import {TextSpan} from "@/ui-components/Text";
 import ClickableDropdown, {ClickableDropdownProps} from "@/ui-components/ClickableDropdown";
 import {doNothing, preventDefault, stopPropagation} from "@/UtilityFunctions";
@@ -10,8 +9,9 @@ import Grid from "@/ui-components/Grid";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import theme, {ThemeColor} from "@/ui-components/theme";
 import * as Heading from "@/ui-components/Heading";
+import {injectStyle} from "@/Unstyled";
 
-type OperationComponentType = typeof OutlineButton | typeof Box | typeof Button | typeof Flex |
+type OperationComponentType = typeof Box | typeof Button | typeof Flex |
     typeof ConfirmationButton;
 
 export type OperationLocation = "SIDEBAR" | "IN_ROW" | "TOPBAR";
@@ -52,7 +52,7 @@ export function defaultOperationType(
     } else if (op.primary) {
         return Button;
     } else if (allOperations.length === 1) {
-        return OutlineButton;
+        return Button;
     } else if (location === "IN_ROW" || location === "TOPBAR") {
         return Flex;
     } else {
@@ -184,11 +184,11 @@ export const Operations: OperationsType = props => {
             const text = typeof op.text === "string" ? op.text : op.text(selected, props.extra);
             const opTypeFn = op.operationType ?? ((a, b) => defaultOperationType(a, b, op));
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const As = opTypeFn(props.location, props.operations) as StyledComponent<any, any>;
+            const As = opTypeFn(props.location, props.operations) as React.ComponentType<any>;
             const elem = <OperationComponent key={text} As={As} op={op} extra={props.extra} selected={selected}
                 reasonDisabled={reasonDisabled} location={props.location} all={props.all}
                 onAction={closeDropdown} text={text} />;
-            const priority = As === OutlineButton ? 0 : As === Button ? 0 : As === Box ? 2 : 2;
+            const priority = As === Button ? 0 : As === Box ? 2 : 2;
             return {elem, priority, primary: op.primary === true};
         })
         .filter(op => op !== null)
@@ -249,7 +249,7 @@ export const Operations: OperationsType = props => {
         switch (props.location) {
             case "IN_ROW":
                 return <>
-                    <InRowPrimaryButtons onClick={stopPropagation}>{primaryContent}</InRowPrimaryButtons>
+                    <div onClick={stopPropagation} className={InRowPrimaryButtonsClass}>{primaryContent}</div>
                     <Box mr={"10px"} />
                     {content.length === 0 ? <Box ml={"33px"} /> :
                         <Flex alignItems={"center"} justifyContent={"center"}>
@@ -308,14 +308,16 @@ export const Operations: OperationsType = props => {
     }
 };
 
-const InRowPrimaryButtons = styled.div`
-    & > button {
+const InRowPrimaryButtonsClass = injectStyle("in-row-primary-buttons", k => `
+    ${k} {
+        margin-top: 4px;
+        margin-left: 8px;
+    }
+    
+    ${k} > button {
         max-width: 150px;
     }
-
-    margin-top: 4px;
-    margin-left: 8px;
-`;
+`);
 
 export function useOperationOpener(): [React.MutableRefObject<(left: number, top: number) => void>, EventHandler<MouseEvent<never>>] {
     const openOperationsRef = useRef<(left: number, top: number) => void>(doNothing);

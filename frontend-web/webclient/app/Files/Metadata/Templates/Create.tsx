@@ -38,9 +38,9 @@ const Create: React.FunctionComponent = () => {
 
     const idRef = useRef<HTMLInputElement>(null);
     const titleRef = useRef<HTMLInputElement>(null);
-    const descriptionRef = useRef<HTMLTextAreaElement>(null);
+    const descriptionRef = useRef<HTMLInputElement>(null);
     const versionRef = useRef<HTMLInputElement>(null);
-    const changeLogRef = useRef<HTMLTextAreaElement>(null);
+    const changeLogRef = useRef<HTMLInputElement>(null);
     const namespaceRef = useRef<HTMLSelectElement>(null);
     const requireApprovalRef = useRef<HTMLSelectElement>(null);
     const inheritRef = useRef<HTMLSelectElement>(null);
@@ -197,7 +197,7 @@ const Create: React.FunctionComponent = () => {
                             <Heading.h3>Information</Heading.h3>
                             <Label>
                                 ID
-                                <Input ref={idRef} placeholder={"schema-xyz"} disabled={id != null} />
+                                <Input inputRef={idRef} placeholder={"schema-xyz"} disabled={id != null} />
                                 {id == null ? null :
                                     <Text color={"gray"}>
                                         <b>NOTE:</b>{" "}
@@ -207,12 +207,12 @@ const Create: React.FunctionComponent = () => {
                             </Label>
                             <Label>
                                 Title
-                                <Input ref={titleRef} placeholder={"Metadata Schema for XYZ"} />
+                                <Input inputRef={titleRef} placeholder={"Metadata Schema for XYZ"} />
                             </Label>
                             <Label>
                                 Description <br />
                                 <TextArea
-                                    ref={descriptionRef}
+                                    inputRef={descriptionRef}
                                     rows={5}
                                     width={"100%"}
                                     placeholder={"This metadata schema contains information about..."}
@@ -224,12 +224,12 @@ const Create: React.FunctionComponent = () => {
                             <Heading.h3>Versioning</Heading.h3>
                             <Label>
                                 Version
-                                <Input ref={versionRef} placeholder={"1.0.0"} />
+                                <Input inputRef={versionRef} placeholder={"1.0.0"} />
                             </Label>
 
                             <Label>
                                 Changes since last version <br />
-                                <TextArea ref={changeLogRef} rows={2} width={"100%"}
+                                <TextArea inputRef={changeLogRef} rows={2} width={"100%"}
                                     placeholder={"Version 1.1.0 has made the following changes..."} />
                             </Label>
                         </Section>

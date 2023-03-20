@@ -1,12 +1,10 @@
 import * as React from "react";
-import styled from "styled-components";
-import {color, ColorProps, space, SpaceProps} from "styled-system";
 import {extensionType} from "@/UtilityFunctions";
 import Icon from "./Icon";
 import theme from "./theme";
-import {Cursor} from "./Types";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {FileIconHint} from "@/Files";
+import {injectStyle} from "@/Unstyled";
 
 const ftColor = (fType: string): string => {
     switch (fType) {
@@ -219,6 +217,7 @@ interface FtIconBaseProps {
     fileIcon: FileIconProps;
     size?: string | number;
     iconHint?: FileIconHint;
+    className?: string;
 }
 const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size, ...props}) => {
     const hasExt = fileIcon.ext ? true : false;
@@ -266,21 +265,20 @@ const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size, .
     );
 };
 
-export interface FtIconProps extends SpaceProps, ColorProps {
-    cursor?: Cursor;
-}
+const FtIconClass = injectStyle("ft-icon", k => `
+    ${k} {
+        flex: none;
+        vertical-align: middle;
+    }
+`);
 
-const FtIcon = styled(FtIconBase) <FtIconProps>`
-  flex: none;
-  vertical-align: middle;
-  cursor: ${props => props.cursor};
-  ${space} ${color};
-`;
+const FtIcon: React.FunctionComponent<FtIconBaseProps> = props => {
+    return <FtIconBase {...props} className={FtIconClass} />;
+}
 
 FtIcon.displayName = "FtIcon";
 
 FtIcon.defaultProps = {
-    cursor: "inherit",
     size: 24
 };
 

@@ -253,7 +253,7 @@ export const OptionalWidgetSearch: React.FunctionComponent<{
             </Box>
             <Box flexShrink={0}>
                 <Input
-                    ref={searchRef}
+                    inputRef={searchRef}
                     placeholder={"Search"}
                     onChange={(e) => search(e.target.value)}
                 />

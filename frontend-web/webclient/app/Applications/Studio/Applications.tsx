@@ -320,7 +320,7 @@ export const App: React.FunctionComponent = () => {
                                             leftLabel
                                             required
                                             type="text"
-                                            ref={userEntityField}
+                                            inputRef={userEntityField}
                                             placeholder="Username"
                                         />
                                     ) : (
@@ -331,7 +331,7 @@ export const App: React.FunctionComponent = () => {
                                                 required
                                                 width={180}
                                                 type="text"
-                                                ref={projectEntityField}
+                                                inputRef={projectEntityField}
                                                 placeholder="Project name"
                                             />
                                             <Input
@@ -340,7 +340,7 @@ export const App: React.FunctionComponent = () => {
                                                 required
                                                 width={180}
                                                 type="text"
-                                                ref={groupEntityField}
+                                                inputRef={groupEntityField}
                                                 placeholder="Group name"
                                             />
                                         </>

@@ -85,7 +85,7 @@ const MembersPanel: React.FunctionComponent = () => {
                         placeholder="Username"
                         autoComplete="off"
                         disabled={isLoading}
-                        ref={newMemberRef}
+                        inputRef={newMemberRef}
                         onChange={e => {
                             const shouldShow = e.target.value === "";
                             if (showId !== shouldShow) setShowId(shouldShow);
@@ -168,7 +168,7 @@ const MembersPanel: React.FunctionComponent = () => {
             <Pagination.ListV2
                 loading={outgoingInvites.loading}
                 page={outgoingInvites.data}
-                onLoadMore={() => 
+                onLoadMore={() =>
                     ProjectAPI.browseInvites({itemsPerPage: outgoingInvites.data.itemsPerPage, next: outgoingInvites.data.next, filterType: "OUTGOING"})
                 }
                 customEmptyPage={<></>}

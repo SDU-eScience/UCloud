@@ -69,7 +69,7 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
                     <Label>
                         Current Password
                         <Input
-                            ref={currentPassword}
+                            inputRef={currentPassword}
                             type="password"
                             placeholder={"Current password"}
                         />
@@ -81,7 +81,7 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
                     <Label>
                         New Password
                         <Input
-                            ref={newPassword}
+                            inputRef={newPassword}
                             type="password"
                             placeholder="New password"
                         />
@@ -94,7 +94,7 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
                     <Label>
                         Repeat new password
                         <Input
-                            ref={repeatedPassword}
+                            inputRef={repeatedPassword}
                             type="password"
                             placeholder="Repeat password"
                         />

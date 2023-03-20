@@ -81,7 +81,7 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
         retrieveDescription({projectId}),
         {description: ""}
     );
-    const descriptionField = useRef<HTMLTextAreaElement>(null);
+    const descriptionField = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (!projectId) return;
@@ -157,9 +157,9 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         {type: "plain_text", existingProject: "", newProject: "", personalProject: ""}
     );
 
-    const templatePersonal = useRef<HTMLTextAreaElement>(null);
-    const templateExisting = useRef<HTMLTextAreaElement>(null);
-    const templateNew = useRef<HTMLTextAreaElement>(null);
+    const templatePersonal = useRef<HTMLInputElement>(null);
+    const templateExisting = useRef<HTMLInputElement>(null);
+    const templateNew = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         fetchEnabled((externalApplicationsEnabled({projectId})));
@@ -421,7 +421,7 @@ const UserExclusionRowEditor: React.FunctionComponent<{
         <TableCell>
             <form onSubmit={onClick}>
                 <Flex height={47}>
-                    <Input ref={inputRef} placeholder={"Email domain"} />
+                    <Input inputRef={inputRef} placeholder={"Email domain"} />
                     <ConfirmCancelButtons height={"unset"} onConfirm={onClick} onCancel={props.onCancel} />
                 </Flex>
             </form>
@@ -490,7 +490,7 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
                 <Flex height={47}>
                     {type.type !== "anyone" ? null : null}
                     {type.type !== "email" ? null : <>
-                        <Input ref={inputRef} placeholder={"Email domain"} />
+                        <Input inputRef={inputRef} placeholder={"Email domain"} />
                     </>}
                     {type.type !== "wayf" ? null : <>
                         {/* WAYF idps extracted from https://metadata.wayf.dk/idps.js*/}
@@ -514,24 +514,24 @@ function productCategoryId(pid: ProductCategoryId): string {
 }
 
 const TemplateEditor: React.FunctionComponent<{
-    templatePersonal: React.Ref<HTMLTextAreaElement>,
-    templateExisting: React.Ref<HTMLTextAreaElement>,
-    templateNew: React.Ref<HTMLTextAreaElement>,
+    templatePersonal: React.RefObject<HTMLInputElement>,
+    templateExisting: React.RefObject<HTMLInputElement>,
+    templateNew: React.RefObject<HTMLInputElement>,
     onUploadTemplate: () => Promise<void>
 }> = ({templatePersonal, templateExisting, templateNew, onUploadTemplate}) => {
     return <>
         <Grid gridGap={32} gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"}>
             <Box>
                 <Heading.h5>Personal</Heading.h5>
-                <TextArea width={"100%"} rows={15} ref={templatePersonal} />
+                <TextArea width={"100%"} rows={15} inputRef={templatePersonal} />
             </Box>
             <Box>
                 <Heading.h5>Existing Project</Heading.h5>
-                <TextArea width={"100%"} rows={15} ref={templateExisting} />
+                <TextArea width={"100%"} rows={15} inputRef={templateExisting} />
             </Box>
             <Box>
                 <Heading.h5>New Project</Heading.h5>
-                <TextArea width={"100%"} rows={15} ref={templateNew} />
+                <TextArea width={"100%"} rows={15} inputRef={templateNew} />
             </Box>
         </Grid>
         <Flex justifyContent={"center"} mt={32}>
@@ -541,14 +541,14 @@ const TemplateEditor: React.FunctionComponent<{
 };
 
 const DescriptionEditor: React.FunctionComponent<{
-    templateDescription: React.Ref<HTMLTextAreaElement>,
+    templateDescription: React.RefObject<HTMLInputElement>,
     onUploadDescription: () => Promise<void>
 }> = ({templateDescription, onUploadDescription}) =>
         <>
             <Grid gridGap={32} gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"}>
                 <Box>
                     <Heading.h5>Description</Heading.h5>
-                    <TextArea width={"100%"} rows={15} ref={templateDescription} />
+                    <TextArea width={"100%"} rows={15} inputRef={templateDescription} />
                 </Box>
             </Grid>
             <Flex justifyContent={"center"} mt={32}>

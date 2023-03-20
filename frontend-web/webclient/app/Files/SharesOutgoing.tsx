@@ -225,7 +225,7 @@ const ShareGroup: React.FunctionComponent<{
                     />)}
             {isCreatingShare ? <form onSubmit={onShare}>
                 <Flex mb={"16px"} mt={"8px"}>
-                    <Input placeholder={"Username"} ref={usernameInputRef} />
+                    <Input placeholder={"Username"} inputRef={usernameInputRef} />
                     <Button type="submit" width="128px" ml="8px"><Icon name={"share"} color={"white"} size={"14px"} mr={".7em"} /> Share</Button>
                     <RadioTilesContainer height={42} mx={"8px"} onClick={stopPropagation}>
                         <RadioTile

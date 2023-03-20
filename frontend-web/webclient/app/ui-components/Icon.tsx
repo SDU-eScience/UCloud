@@ -1,13 +1,14 @@
 import * as CSS from "csstype";
 import * as React from "react";
-import styled from "styled-components";
-import {color, ResponsiveValue, space, SpaceProps, style} from "styled-system";
+import {ResponsiveValue, SpaceProps, style} from "styled-system";
 import Bug from "./Bug";
 import * as icons from "./icons";
-import theme, {Theme} from "./theme";
+import theme from "./theme";
 import {Cursor} from "./Types";
+import {injectStyle, unbox} from "@/Unstyled";
+import {CSSProperties} from "react";
 
-const IconBase = ({name, size, squared, theme, color2, spin, hoverColor, ...props}: IconBaseProps): JSX.Element => {
+const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: IconBaseProps): JSX.Element => {
     let Component = icons[name];
     if (!Component) {
         if (name === "bug") {
@@ -39,13 +40,14 @@ export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivEl
     color?: string;
     color2?: string;
     rotation?: number;
-    theme: Theme;
     cursor?: Cursor;
     size?: string | number;
     squared?: boolean;
     spin?: boolean;
     hoverColor?: ResponsiveValue<CSS.Property.Color>;
     title?: string;
+    className?: string;
+    style?: CSSProperties;
 }
 
 const spin = (props: {spin?: boolean}): string | null => props.spin ? `
@@ -56,25 +58,39 @@ const spin = (props: {spin?: boolean}): string | null => props.spin ? `
   }
 ` : null;
 
-const Icon = styled(IconBase) <IconBaseProps>`
-  flex: none;
-  vertical-align: middle;
-  cursor: ${props => props.cursor};
-  ${props => props.rotation ? `transform: rotate(${props.rotation}deg);` : ""}
-  ${space} ${color};
-  ${spin};
+export const IconClass = injectStyle("icon", k => `
+    ${k} {
+        flex: none;
+        vertical-align: middle;
+        transition: transform .2s ease-in-out; 
+        --hoverColor: var(--black);
+    }
+    
+    ${k}:hover {
+        color: var(--hoverColor);
+    }
+    
+    ${k}[data-spin="true"] {
+        animation: icon-spin 1s linear infinite;
+    }
+    
+    @keyframes icon-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+`);
 
-  transition: transform .2s ease-in-out; 
+const Icon: React.FunctionComponent<IconBaseProps> = props => {
+    const style: CSSProperties = unbox(props);
+    if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;
+    if (props.rotation) style.transform = `rotate(${props.rotation}deg)`;
 
-  &:hover {
-    ${hoverColor};
-  }
-`;
+    return <IconBase {...props} className={IconClass} data-spin={props.spin === true} style={style} />
+};
 
 Icon.displayName = "Icon";
 
 Icon.defaultProps = {
-    theme,
     cursor: "inherit",
     name: "notification",
     size: 24,

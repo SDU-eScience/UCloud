@@ -397,7 +397,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                             <Flex onClick={() => toggleIsProject(recipient.id, false)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"user"} /> User</Flex>
                         </ClickableDropdown>
                     </Flex>
-                    <Input ml="10px" ref={recipient.ref} placeholder={recipient.isProject ? "Projectname..." : "Username..."} />
+                    <Input ml="10px" inputRef={recipient.ref} placeholder={recipient.isProject ? "Projectname..." : "Username..."} />
                 </Flex>}
                 titleContent={
                     <Button ml="8px" mt="4px" height="32px" color="red" onClick={() => removeNewRecipientRow(recipient.id)}>Discard</Button>

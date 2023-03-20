@@ -65,7 +65,7 @@ const GroupView: React.FunctionComponent = () => {
                             borderRadius="0px"
                             type="text"
                             width="100%"
-                            ref={renameRef}
+                            inputRef={renameRef}
                             autoFocus
                             defaultValue={group?.specification.title}
                         />

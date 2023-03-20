@@ -1,9 +1,8 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
 import styled, {css} from "styled-components";
-import {Absolute, Flex, Icon, RatingBadge, Text} from "@/ui-components";
+import {Absolute, Flex, Icon, Text} from "@/ui-components";
 import Box from "@/ui-components/Box";
-import * as Heading from "@/ui-components/Heading";
 import Link from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
 import {EllipsedText} from "@/ui-components/Text";
@@ -174,7 +173,20 @@ export const AppCard = styled(Link)`
 `;
 
 export const Tag = ({label, bg = "darkGray"}: {label: string; bg?: string}): JSX.Element => (
-    <RatingBadge mr="3px" bg={bg}><Heading.h6>{label}</Heading.h6></RatingBadge>
+    <div style={{
+        marginRight: "3px",
+        background: `var(--${bg})`,
+        display: "inline-block",
+        lineHeight: 1.5,
+        color: "white",
+        textTransform: "uppercase",
+        fontSize: "10px",
+        fontWeight: 700,
+        borderRadius: "6px",
+        padding: "3px"
+    }}>
+        {label}
+    </div>
 );
 
 const appColors = theme.appColors;

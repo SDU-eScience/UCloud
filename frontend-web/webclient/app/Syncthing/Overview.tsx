@@ -9,7 +9,7 @@ import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
-import {Label, Input, Image, Box, Flex, Tooltip, NoSelect, Icon, Text, Button, ExternalLink, FtIcon, List} from "@/ui-components";
+import {Label, Input, Image, Box, Flex, Tooltip, Icon, Text, Button, ExternalLink, FtIcon, List} from "@/ui-components";
 import MainContainer from "@/MainContainer/MainContainer";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import styled from "styled-components";
@@ -987,7 +987,7 @@ const AddDeviceWizard: React.FunctionComponent<{
                     <form onSubmit={tutorialNext}>
                         <Label>
                             Device Name
-                            <Input ref={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null} />
+                            <Input inputRef={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null} />
                             {!deviceNameError ?
                                 <Text color="gray">
                                     A name to help you remember which device this is. For example: "Work phone".
@@ -999,7 +999,7 @@ const AddDeviceWizard: React.FunctionComponent<{
                         <Label mt="8px">
                             My Device ID
                             <Input
-                                ref={deviceIdRef}
+                                inputRef={deviceIdRef}
                                 placeholder="XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX"
                                 error={deviceIdError !== null}
                             />
@@ -1084,8 +1084,9 @@ const Screenshot = styled(Image)`
     max-height: 250px;
 `;
 
-const DeviceBox = styled(NoSelect)`
+const DeviceBox = styled.div`
     cursor: pointer;
+    user-select: none;
 `;
 
 export default Overview;

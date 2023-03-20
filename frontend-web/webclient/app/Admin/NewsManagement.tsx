@@ -9,7 +9,7 @@ import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {
-    Box, Button, Flex, Input, InputGroup, List, TextArea, Link, Text, Card, Markdown, SelectableText, Checkbox, Label
+    Box, Button, Flex, Input, List, TextArea, Link, Text, Card, Markdown, SelectableText, Checkbox, Label
 } from "@/ui-components";
 import {DatePicker} from "@/ui-components/DatePicker";
 import * as Heading from "@/ui-components/Heading";
@@ -32,7 +32,7 @@ function NewsManagement(): JSX.Element | null {
     const [news, setNews] = React.useState<Page<NewsPost>>(emptyPage);
     const titleRef = React.useRef<HTMLInputElement>(null);
     const subtitleRef = React.useRef<HTMLInputElement>(null);
-    const bodyRef = React.useRef<HTMLTextAreaElement>(null);
+    const bodyRef = React.useRef<HTMLInputElement>(null);
     const categoryRef = React.useRef<HTMLInputElement>(null);
     const promises = usePromiseKeeper();
 
@@ -83,7 +83,7 @@ function NewsManagement(): JSX.Element | null {
                     <Box maxWidth="800px" width={1}>
                         <form onSubmit={submit}>
                             <Flex justifyContent="center" mx="6px">
-                                <InputGroup>
+                                <Flex alignItems={"center"}>
                                     <DatePicker
                                         placeholderText="Show from"
                                         selected={start}
@@ -105,10 +105,10 @@ function NewsManagement(): JSX.Element | null {
                                         selectsEnd
                                         isClearable
                                     />
-                                </InputGroup>
+                                </Flex>
                             </Flex>
-                            <Input width={1} my="3px" required placeholder="Post title..." ref={titleRef} />
-                            <Input width={1} my="3px" required placeholder="Short summation..." ref={subtitleRef} />
+                            <Input width={1} my="3px" required placeholder="Post title..." inputRef={titleRef} />
+                            <Input width={1} my="3px" required placeholder="Short summation..." inputRef={subtitleRef} />
                             <Flex mb="3px">
                                 <SelectableText
                                     cursor="pointer"
@@ -125,7 +125,7 @@ function NewsManagement(): JSX.Element | null {
                             <TextAreaWithResize
                                 width={1}
                                 placeholder="Post body... (supports markdown)"
-                                ref={bodyRef}
+                                inputRef={bodyRef}
                                 rows={5}
                                 required
                                 hidden={showPreview}
@@ -144,7 +144,7 @@ function NewsManagement(): JSX.Element | null {
                                 my="3px"
                                 placeholder="Category"
                                 required
-                                ref={categoryRef}
+                                inputRef={categoryRef}
                             />
                             <Categories categories={results} onSelect={category => {
                                 categoryRef.current!.value = category;

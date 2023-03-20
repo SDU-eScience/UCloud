@@ -97,7 +97,7 @@ export const ShareModal: React.FunctionComponent<{
                 });
             }}>
                 <Flex>
-                    <Input ref={usernameRef} placeholder={"Username"} rightLabel />
+                    <Input inputRef={usernameRef} placeholder={"Username"} rightLabel />
                     <Button type={"submit"} color={"green"} attached>Share</Button>
                 </Flex>
             </form>
@@ -167,7 +167,7 @@ export const ShareModal: React.FunctionComponent<{
                                 <Button
                                     mr="5px"
                                     height={40}
-                                    onClick={() => 
+                                    onClick={() =>
                                         setEditingLink(link.token)
                                     }
                                 >
@@ -210,7 +210,7 @@ export const ShareModal: React.FunctionComponent<{
                         useMousePositioning
                         width="100px"
                         chevron
-                        trigger={<>{permissions.find(it => it.value === selectedPermission)?.text}</>} 
+                        trigger={<>{permissions.find(it => it.value === selectedPermission)?.text}</>}
                         options={permissions}
                         onChange={async chosen => {
                             const newPermissions = chosen == "EDIT" ? ["EDIT", "READ"] : ["READ"];
@@ -224,11 +224,11 @@ export const ShareModal: React.FunctionComponent<{
                             );
                         }}
                     />
-                </SelectBox> 
+                </SelectBox>
             </Flex>
         </Box>
     </>;
-        
+
 };
 
 export const ShareBrowse: React.FunctionComponent<{
@@ -275,7 +275,7 @@ export const ShareBrowse: React.FunctionComponent<{
 
     return <ResourceBrowse
         api={SharesApi}
-        disableSearch // HACK(Jonas): THIS IS TEMPORARY, UNTIL SEARCH WORKS FOR ALL SHARES 
+        disableSearch // HACK(Jonas): THIS IS TEMPORARY, UNTIL SEARCH WORKS FOR ALL SHARES
         onSelect={props.onSelect}
         browseType={browseType}
         isSearch={props.isSearch}

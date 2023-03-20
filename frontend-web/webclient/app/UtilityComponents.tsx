@@ -226,7 +226,7 @@ export const NamingField: React.FunctionComponent<{
                     type="text"
                     width="100%"
                     autoFocus
-                    ref={props.inputRef}
+                    inputRef={props.inputRef}
                 />
                 {props.suffix ? <Text mt="4px" color={"gray"} mr={8}>{props.suffix}</Text> : null}
             </Flex>

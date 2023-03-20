@@ -10,7 +10,6 @@ import * as UCloud from "@/UCloud";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {ApplicationCard} from "@/Applications/Card";
 import * as Pagination from "@/Pagination";
-import {SmallScreenSearchField} from "@/Navigation/Header";
 import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
 
 interface SearchQuery {
@@ -71,7 +70,7 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
             UCloud.compute.apps.searchApps({
                 query: new URLSearchParams(queryParams).get("q") ?? "",
                 itemsPerPage: 100,
-                page: parsedQuery.page, 
+                page: parsedQuery.page,
             })
         );
     }, [queryParams, /* This isn't needed for this one, is it? */entriesPerPage]);
@@ -89,7 +88,6 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
 
     return <>
         <FilesSearchTabs active={"APPLICATIONS"} />
-        <SmallScreenSearchField />
         <Pagination.List
             loading={results.loading}
             page={results.data}

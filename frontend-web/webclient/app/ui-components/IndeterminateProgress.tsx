@@ -1,35 +1,29 @@
 import * as React from "react";
-import styled from "styled-components";
-import Box from "./Box";
 import Flex from "./Flex";
 import Text from "./Text";
 import {ThemeColor} from "./theme";
+import {injectStyle, unbox} from "@/Unstyled";
 
 interface ProgressBaseProps {
     height?: number | string;
     value?: number | string;
     active?: boolean;
+    color?: ThemeColor;
+    children?: React.ReactNode;
 }
 
-const ProgressBase = styled.div<ProgressBaseProps>`
-    border-radius: 5px;
-    background-color: var(--lightGray, #foo);
-    height: ${props => props.height};
-    position: relative;
-    overflow: hidden;
-    width: 100%;
-
-    @keyframes movingbox {
-        from {
-            left: -120px;
-        }
-
-        to {
-            left: 100%;
-        }
+const ProgressBaseClass = injectStyle("progress-base", k => `
+    ${k} {
+        border-radius: 5px;
+        background-color: var(--lightGray, #foo);
+        height: ${props => props.height};
+        position: relative;
+        overflow: hidden;
+        width: 100%;
+        --progressColor: var(--green);
     }
-
-    &:after {
+    
+    ${k}:after {
         content: " ";
         display: block;
         width: 120px;
@@ -39,11 +33,27 @@ const ProgressBase = styled.div<ProgressBaseProps>`
         height: 100%;
 
         z-index: 2;
-        background-color: var(--${p => p.color}, #f00);
+        background-color: var(--progressColor, #f00);
 
         animation: movingbox 3s linear infinite;
     }
-`;
+    
+    @keyframes movingbox {
+        from {
+            left: -120px;
+        }
+
+        to {
+            left: 100%;
+        }
+    }
+`);
+
+const ProgressBase: React.FunctionComponent<ProgressBaseProps> = props => {
+    const style = unbox(props);
+    if (props.color) style["--progressColor"] = `var(--${props.color})`;
+    return <div className={ProgressBaseClass} style={style} children={props.children} />;
+};
 
 ProgressBase.defaultProps = {
     color: "green",

@@ -234,7 +234,7 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
                             rightLabel
                             required
                             type="text"
-                            ref={newProjectTitle}
+                            inputRef={newProjectTitle}
                             placeholder="New project title"
                             autoComplete="off"
                             onChange={() => {

@@ -269,7 +269,7 @@ export default function SubprojectList(): JSX.Element | null {
                                         <Button color="green" type="submit">Create</Button>
                                         <Button color="red" type="button" onClick={() => setCreating(false)}>Cancel</Button>
                                     </ButtonGroup>
-                                    <Input noBorder placeholder="Project name..." ref={creationRef} />
+                                    <Input noBorder placeholder="Project name..." inputRef={creationRef} />
                                 </Flex>
                             </form>
                         }
@@ -283,7 +283,7 @@ export default function SubprojectList(): JSX.Element | null {
                                 <Button color="green" type="submit">Rename</Button>
                                 <Button color="red" type="button" onClick={() => setRenameId("")}>Cancel</Button>
                             </ButtonGroup>
-                            <Input noBorder placeholder="Project name..." defaultValue={it.project.title} ref={renameRef} />
+                            <Input noBorder placeholder="Project name..." defaultValue={it.project.title} inputRef={renameRef} />
                         </Flex>
                     </form>
                 ) : (

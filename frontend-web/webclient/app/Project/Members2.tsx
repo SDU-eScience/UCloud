@@ -17,7 +17,6 @@ import {
     Input,
     Label,
     Link, List,
-    NoSelect,
     RadioTile,
     RadioTilesContainer,
     Relative,
@@ -598,11 +597,11 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                         id="new-project-member"
                                         placeholder="Username"
                                         autoComplete="off"
-                                        ref={newMemberRef}
+                                        inputRef={newMemberRef}
                                         rightLabel
                                     />
                                     <Button attached type={"submit"}>Add</Button>
-                                    <Relative left="-95px" top="8px">
+                                    <Relative left="-135px" top="8px">
                                         <Absolute>
                                             <Tooltip tooltipContentWidth="160px" trigger={<HelpCircle />}>
                                                 <Text color="black" fontSize={12}>
@@ -1396,6 +1395,8 @@ const SearchContainer = styled(Flex)`
     display: flex;
     margin-right: 10px;
     margin-bottom: 10px;
+    flex-grow: 1;
+    flex-basis: 350px;
   }
 `;
 

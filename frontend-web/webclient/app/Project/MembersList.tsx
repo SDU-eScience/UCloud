@@ -4,7 +4,7 @@ import * as React from "react";
 import {useEffect} from "react";
 import styled from "styled-components";
 import {Flex, Icon, Text, Box, Button, RadioTile, RadioTilesContainer} from "@/ui-components";
-import {IconName} from "@/ui-components/Icon";
+import {IconClass, IconName} from "@/ui-components/Icon";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {addStandardDialog} from "@/UtilityComponents";
@@ -178,7 +178,7 @@ const ConfirmationButtonStyling = styled(Box)`
         font-size: 12px;
     }
 
-    & ${Icon} {
+    & .${IconClass} {
         height: 12px;
         width: 12px;
     }

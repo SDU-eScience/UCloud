@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Button, Flex, Input, OutlineButton, Text} from "@/ui-components";
+import {Button, Flex, Input, Text} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {TextSpan} from "@/ui-components/Text";
 
@@ -22,8 +22,8 @@ export function PaginationButtons({totalPages, currentPage, toPage}: PaginationB
         <Flex ml="15px" width="75px">
             {totalPages > 20 ? (
                 <>
-                    <Input defaultValue="1" autoComplete="off" type="number" min={"1"} max={totalPages} ref={ref} />
-                    <OutlineButton
+                    <Input defaultValue="1" autoComplete="off" type="number" min={"1"} max={totalPages} inputRef={ref} />
+                    <Button
                         ml="2px"
                         fullWidth
                         onClick={() => {
@@ -33,7 +33,7 @@ export function PaginationButtons({totalPages, currentPage, toPage}: PaginationB
                         }}
                     >
                         →
-                    </OutlineButton>
+                    </Button>
                 </>
             ) : null}
         </Flex>

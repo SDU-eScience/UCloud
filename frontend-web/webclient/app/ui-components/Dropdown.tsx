@@ -63,10 +63,10 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
     }
     
     ${k}[data-padding-controlled="false"] > div {
-        margin-left -17px;
-        margin-right -17px;
-        padding-left 17px;
-        padding-right 17px;
+        margin-left: -17px;
+        margin-right: -17px;
+        padding-left: 17px;
+        padding-right: 17px;
     }
     
     ${k}[data-square="true"] {

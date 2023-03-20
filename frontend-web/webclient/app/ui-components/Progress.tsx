@@ -1,30 +1,33 @@
 import * as React from "react";
-import styled from "styled-components";
 import Flex from "./Flex";
 import Text from "./Text";
 import {ThemeColor} from "./theme";
+import {injectStyle} from "@/Unstyled";
+import {CSSProperties} from "react";
 
-interface ProgressBaseProps {
-    height?: number | string;
-    value?: number | string;
-    label?: string;
-}
-
-const ProgressBase = styled.div<ProgressBaseProps>`
-    border-radius: 5px;
-    background-color: var(--${p => p.color}, #f00);
-    height: ${props => props.height};
-    width: 100%;
-`;
-
-const ProgressPulse = styled(ProgressBase) <{active: boolean}>`
-    ${p => p.active ? "" : "display: none;"}
-    height: 100%;
-    /* From semantic-ui-css */
-    animation: progress-active 2s ease infinite;
-    color: black;
-    width: 100%;
-
+const ProgressBaseClass = injectStyle("progress-base", k => `
+    ${k} {
+        border-radius: 5px;
+        background-color: var(--progressColor, #f00);
+        height: ${props => props.height};
+        width: 100%;
+        
+        --progressColor: var(--green):
+    }
+    
+    ${k}[data-active="false"] {
+        display: none;
+    }
+    
+    ${k}[data-pulse="true"] {
+        height: 100%;
+        
+        /* From semantic-ui-css */
+        animation: progress-active 2s ease infinite;
+        color: black;
+        width: 100%;
+    }
+    
     @keyframes progress-active {
         0% {
             opacity: 0.3;
@@ -35,12 +38,7 @@ const ProgressPulse = styled(ProgressBase) <{active: boolean}>`
             width: 100%;
         }
     }
-`;
-
-ProgressBase.defaultProps = {
-    color: "green",
-    height: "30px",
-};
+`);
 
 interface Progress {
     color: ThemeColor;
@@ -49,17 +47,23 @@ interface Progress {
     label: string;
 }
 
-const Progress = ({color, percent, active, label}: Progress): JSX.Element => (
-    <>
-        <ProgressBase height="30px" color="lightGray">
-            <ProgressBase height="30px" color={color} style={{width: `${percent}%`}}>
-                <ProgressPulse active={active} />
-            </ProgressBase>
-        </ProgressBase>
-        {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}
-    </>
-);
+const Progress = ({color, percent, active, label}: Progress): JSX.Element => {
+    const topLevelStyle: CSSProperties = { height: "30px" };
+    topLevelStyle["--progressColor"] = `var(--${color})`;
 
-ProgressBase.displayName = "ProgressBase";
+    const secondaryStyle = {...topLevelStyle};
+    secondaryStyle.width = `${percent}%`;
+
+    return (
+        <>
+            <div className={ProgressBaseClass} style={topLevelStyle}>
+                <div className={ProgressBaseClass} style={secondaryStyle}>
+                    <div className={ProgressBaseClass} data-pulse={"true"} data-active={active}/>
+                </div>
+            </div>
+            {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}
+        </>
+    );
+};
 
 export default Progress;

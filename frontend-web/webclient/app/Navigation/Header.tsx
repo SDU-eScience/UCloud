@@ -75,24 +75,3 @@ const Logo = (): JSX.Element => (
         </ui.Flex>
     </Link>
 );
-
-export function SmallScreenSearchField(): JSX.Element {
-    const [searchPlaceholder] = useGlobal("searchPlaceholder", defaultSearchPlaceholder);
-    const [onSearch] = useGlobal("onSearch", defaultSearch);
-    const ref = React.useRef<HTMLInputElement>(null);
-    const navigate = useNavigate();
-
-    return <ui.Hide xl xxl>
-        <form onSubmit={e => (e.preventDefault(), onSearch(ref.current?.value ?? "", navigate))}>
-            <ui.Text fontSize="20px" mt="4px">Search</ui.Text>
-            <ui.Input
-                required
-                mt="3px"
-                width={"100%"}
-                placeholder={searchPlaceholder}
-                ref={ref}
-            />
-            <ui.Button mt="3px" width={"100%"}>Search</ui.Button>
-        </form>
-    </ui.Hide>;
-}

@@ -15,6 +15,7 @@ import styled from "styled-components";
 import { boxShadow, BoxShadowProps } from "styled-system";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
+import {IconClass} from "@/ui-components/Icon";
 
 const NEED_CONNECT = "need-connection";
 
@@ -278,7 +279,7 @@ export const ProductSelector: React.FunctionComponent<{
                                 <Input
                                     placeholder={`Search ${productName}s...`}
                                     autoComplete={"off"}
-                                    ref={searchRef}
+                                    inputRef={searchRef}
                                     onInput={onSearchType}
                                 />
                             </div>
@@ -480,7 +481,7 @@ const SelectorBox = styled.div`
         margin: 0;
     }
 
-    & ${Icon} {
+    & .${IconClass} {
         position: absolute;
         bottom: 15px;
         right: 15px;
@@ -527,7 +528,7 @@ const SelectorBox = styled.div`
         padding: 5px;
     }
 
-    &.slim ${Icon} {
+    &.slim .${IconClass} {
         position: absolute;
         top: calc(50% - 4px);
         right: 5px;

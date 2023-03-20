@@ -922,7 +922,7 @@ async function queryTemplateName(name: string, invokeCommand: InvokeCommand, nex
 function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCommand: InvokeCommand; reload: () => void;}): JSX.Element {
     const originalSensitivity = useSensitivity(file) ?? "INHERIT" as SensitivityLevel;
     const selection = React.useRef<HTMLSelectElement>(null);
-    const reason = React.useRef<HTMLTextAreaElement>(null);
+    const reason = React.useRef<HTMLInputElement>(null);
 
     const onUpdate = React.useCallback(async (e: React.SyntheticEvent) => {
         e.preventDefault();
@@ -989,7 +989,7 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
             id={"sensitivityDialogReason"}
             style={{marginTop: "6px", marginBottom: "6px"}}
             required
-            ref={reason}
+            inputRef={reason}
             width="100%"
             rows={4}
             placeholder="Reason for sensitivity change..."

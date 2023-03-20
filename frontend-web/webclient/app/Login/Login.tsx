@@ -19,6 +19,8 @@ import aarhusu_logo from "@/Assets/Images/aarhusu_logo.png";
 import aalborgu_logo from "@/Assets/Images/aalborgu_logo.png";
 import dtu_logo from "@/Assets/Images/dtu_logo.png";
 import {useLocation, useNavigate} from "react-router";
+import {IconClass} from "@/ui-components/Icon";
+import {ImageClass} from "@/ui-components/Image";
 
 const BackgroundImage = styled.div<{image: string}>`
     background: url(${({image}) => image}) no-repeat 40% 0%;
@@ -319,7 +321,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                                     placeholder="Email address"
                                                     name="email"
                                                     type="email"
-                                                    ref={resetEmailInput}
+                                                    inputRef={resetEmailInput}
                                                     autoFocus required
                                                 />
                                                 {!inDevEnvironment ? null : (
@@ -362,14 +364,14 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                                     mb={10}
                                                     type="password"
                                                     placeholder="New password"
-                                                    ref={resetPasswordInput}
+                                                    inputRef={resetPasswordInput}
                                                     autoFocus
                                                 />
 
                                                 <Input
                                                     type="password"
                                                     placeholder="Repeat new password"
-                                                    ref={resetPasswordRepeatInput}
+                                                    inputRef={resetPasswordRepeatInput}
                                                 />
                                                 <Button
                                                     fullWidth
@@ -432,7 +434,7 @@ interface TwoFactorProps {
 
 const TwoFactor: React.FunctionComponent<TwoFactorProps> = ({enabled2fa, inputRef}) => enabled2fa ? (
     <LoginInput
-        ref={inputRef}
+        inputRef={inputRef}
         autoComplete="off"
         autoFocus
         type="text"
@@ -452,14 +454,14 @@ const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): JSX.Element 
     <>
         <LoginInput type="hidden" value="web-csrf" name="service" />
         <LoginInput
-            ref={usernameRef}
+            inputRef={usernameRef}
             autoFocus
             type="text"
             name="username"
             id="username"
             placeholder="Username"
         />
-        <LoginInput ref={passwordRef} mb="0.8em" type="password" name="password" id="password" placeholder="Password" />
+        <LoginInput inputRef={passwordRef} mb="0.8em" type="password" name="password" id="password" placeholder="Password" />
     </>
 ) : null;
 
@@ -578,12 +580,12 @@ const WidthAwareDiv = styled.div`
         width: 150px;
     }
 
-    & > ${Image}, & > ${Icon} {
+    & > .${ImageClass}, & > .${IconClass} {
         width: 160px;
         vertical-align: baseline;
         object-fit: contain;
     }
-    & > ${Icon} { 
+    & > .${IconClass} { 
         max-height: 41px;
         height: 150px;
     }

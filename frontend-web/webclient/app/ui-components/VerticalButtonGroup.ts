@@ -1,7 +1,6 @@
 import styled from "styled-components";
 import Button, {ButtonClass} from "./Button";
 import Flex from "./Flex";
-import OutlineButton from "./OutlineButton";
 
 const VerticalButtonGroup = styled(Flex)`
     height: 98%;
@@ -10,7 +9,7 @@ const VerticalButtonGroup = styled(Flex)`
     //leave some space on top if buttons grow on hover
     margin-top: 4px;
 
-    & .${ButtonClass}, & ${OutlineButton} {
+    & .${ButtonClass} {
         width: 100%;
         margin-bottom: 8px;
     }

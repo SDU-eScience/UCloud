@@ -8,7 +8,7 @@ import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Box, Flex, Label, OutlineButton, Select} from "@/ui-components";
+import {Box, Button, Flex, Label, Select} from "@/ui-components";
 import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {findAvatarQuery} from "@/Utilities/AvatarUtilities";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
@@ -49,7 +49,7 @@ function Modification(props: AvataaarModificationOperations): JSX.Element {
                         <Box mr="auto" />
                     </Flex>
                     <Flex>
-                        <OutlineButton
+                        <Button
                             ml="auto"
                             mr="auto"
                             onClick={() => props.save(avatar)}
@@ -58,7 +58,7 @@ function Modification(props: AvataaarModificationOperations): JSX.Element {
                             color="blue"
                         >
                             Update avatar
-                        </OutlineButton>
+                        </Button>
                     </Flex>
                 </>
             )}

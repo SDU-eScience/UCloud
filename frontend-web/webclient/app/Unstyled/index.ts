@@ -1,6 +1,6 @@
 import {BoxProps} from "@/ui-components/Box";
 import {CSSProperties} from "react";
-import {ResponsiveValue} from "styled-system";
+import {ResponsiveValue, SpaceProps} from "styled-system";
 import * as React from "react";
 
 export function extractSize(size: ResponsiveValue<any>): string {
@@ -8,7 +8,7 @@ export function extractSize(size: ResponsiveValue<any>): string {
     return `${size}px`;
 }
 
-export function unbox(props: BoxProps): CSSProperties {
+export function unbox(props: BoxProps | SpaceProps): CSSProperties {
     let result: CSSProperties = {};
 
     const px = props.px ?? props.paddingX;
@@ -59,27 +59,37 @@ export function unbox(props: BoxProps): CSSProperties {
     if (ml) result.marginLeft = extractSize(ml);
     if (m) result.margin = extractSize(m);
 
-    const bg = props.bg ?? props.background;
-    if (bg) result.background = bg.toString();
+    if ("color" in props && props.color) {
+        const stringified = props.color.toString();
+        if (stringified.startsWith("#") || stringified.startsWith("rgb")) {
+            result.color = stringified;
+        } else {
+            result.color = `var(--${stringified})`;
+        }
+    }
+    if ("cursor" in props && props.cursor) result.cursor = props.cursor;
 
-    if (props.borderRadius) result.borderRadius = extractSize(props.borderRadius);
-    if (props.zIndex) result.zIndex = props.zIndex.toString();
-    if (props.color) result.color = props.color.toString();
-    if (props.width) result.width = extractSize(props.width);
-    if (props.height) result.height = extractSize(props.height);
-    if (props.maxWidth) result.maxWidth = extractSize(props.maxWidth);
-    if (props.minWidth) result.minWidth = extractSize(props.minWidth);
-    if (props.maxHeight) result.maxHeight = extractSize(props.maxHeight);
-    if (props.minHeight) result.minHeight = extractSize(props.minHeight);
-    if (props.overflow) result.overflow = props.overflow.toString();
-    if (props.overflowY) result.overflowY = props.overflowY.toString() as any;
-    if (props.overflowX) result.overflowX = props.overflowX.toString() as any;
-    if (props.alignItems) result.alignItems = props.alignItems.toString() as any;
-    if (props.justifyContent) result.justifyContent = props.justifyContent.toString() as any;
-    if (props.flexGrow) result.flexGrow = props.flexGrow.toString();
-    if (props.flexShrink) result.flexShrink = props.flexShrink.toString();
-    if (props.textAlign) result.textAlign = props.textAlign.toString() as any;
-    if (props.cursor) result.cursor = props.cursor;
+    if ("bg" in props || "background" in props) {
+        const bg = props.bg ?? props.background;
+        if (bg) result.background = bg.toString();
+    }
+
+    if ("borderRadius" in props && props.borderRadius) result.borderRadius = extractSize(props.borderRadius);
+    if ("zIndex" in props && props.zIndex) result.zIndex = props.zIndex.toString();
+    if ("width" in props && props.width) result.width = extractSize(props.width);
+    if ("height" in props && props.height) result.height = extractSize(props.height);
+    if ("maxWidth" in props && props.maxWidth) result.maxWidth = extractSize(props.maxWidth);
+    if ("minWidth" in props && props.minWidth) result.minWidth = extractSize(props.minWidth);
+    if ("maxHeight" in props && props.maxHeight) result.maxHeight = extractSize(props.maxHeight);
+    if ("minHeight" in props && props.minHeight) result.minHeight = extractSize(props.minHeight);
+    if ("overflow" in props && props.overflow) result.overflow = props.overflow.toString();
+    if ("overflowY" in props && props.overflowY) result.overflowY = props.overflowY.toString() as any;
+    if ("overflowX" in props && props.overflowX) result.overflowX = props.overflowX.toString() as any;
+    if ("alignItems" in props && props.alignItems) result.alignItems = props.alignItems.toString() as any;
+    if ("justifyContent" in props && props.justifyContent) result.justifyContent = props.justifyContent.toString() as any;
+    if ("flexGrow" in props && props.flexGrow) result.flexGrow = props.flexGrow.toString();
+    if ("flexShrink" in props && props.flexShrink) result.flexShrink = props.flexShrink.toString();
+    if ("textAlign" in props && props.textAlign) result.textAlign = props.textAlign.toString() as any;
 
     return result;
 }
@@ -104,6 +114,7 @@ export function injectStyleSimple(title: string, fn: () => string): string {
 }
 
 export type WithEventHandlers = Omit<Omit<React.DOMAttributes<any>, "dangerouslySetInnerHTML">, "children">;
+
 export function extractEventHandlers(props: WithEventHandlers): WithEventHandlers {
     const result: WithEventHandlers = {};
     for (const key of Object.keys(props)) {

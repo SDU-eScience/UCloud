@@ -98,7 +98,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                         <Label>
                             First names
                             <Input
-                                ref={userFirstNames}
+                                inputRef={userFirstNames}
                                 type="text"
                                 placeholder={state.placeHolderFirstNames}
                             />
@@ -109,7 +109,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                         <Label>
                             Last name
                             <Input
-                                ref={userLastName}
+                                inputRef={userLastName}
                                 type="text"
                                 placeholder={state.placeHolderLastName}
                             />
@@ -119,7 +119,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                         <Label>
                             Email
                             <Input
-                                ref={userEmail}
+                                inputRef={userEmail}
                                 type="email"
                                 placeholder={state.placeHolderEmail}
                             />

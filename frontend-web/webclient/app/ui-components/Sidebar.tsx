@@ -13,7 +13,7 @@ import CONF from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
 import Flex, {FlexCProps} from "./Flex";
-import Icon, {IconName} from "./Icon";
+import Icon, {IconClass, IconName} from "./Icon";
 import Link from "./Link";
 import Text, {EllipsedText, TextSpan} from "./Text";
 import {ThemeColor} from "./theme";
@@ -85,7 +85,7 @@ const SidebarItemWrapper = styled.div<{active: boolean}>`
     width: 32px;
     height: 32px;
     margin-top: 8px;
-    & > a, & > ${Icon} {
+    & > a, & > .${IconClass} {
         margin: auto auto auto auto;
     }
 `;
@@ -127,7 +127,7 @@ const SidebarLink = styled(Link) <{active?: boolean}>`
 
     text-decoration: none;
 
-    &:hover > ${Text}, &:hover > * > ${Icon} {
+    &:hover > ${Text}, &:hover > * > .${IconClass} {
         filter: saturate(500%);
     }
 `;

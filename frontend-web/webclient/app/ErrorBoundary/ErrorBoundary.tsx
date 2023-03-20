@@ -19,7 +19,7 @@ export class ErrorBoundary extends React.Component<{children: React.ReactNode}, 
         Client.openLandingPage();
     }
 
-    private ref = React.createRef<HTMLTextAreaElement>();
+    private ref = React.createRef<HTMLInputElement>();
 
 
     constructor(props: Readonly<{children: React.ReactNode;}>) {
@@ -46,7 +46,7 @@ export class ErrorBoundary extends React.Component<{children: React.ReactNode}, 
                                     placeholder="Please enter any information regarding the action you performed that caused an error"
                                     rows={5}
                                     width="100%"
-                                    ref={this.ref}
+                                    inputRef={this.ref}
                                 />
                             </Box>
                             <Button mr="1em" onClick={this.submitError} color="blue">Submit</Button>

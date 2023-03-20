@@ -39,7 +39,7 @@ function ApproveOrSign(): JSX.Element | null {
                 <form onSubmit={submit}>
                     <Label>
                         Enter authorization code:
-                        <Input ref={inputRef} height={"48px"}/>
+                        <Input inputRef={inputRef} height={"48px"}/>
                     </Label>
 
                     {!userIsAdmin || !devMode ? null :
