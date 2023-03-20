@@ -1,7 +1,9 @@
 package dk.sdu.cloud.app.store.api
 
+import app.store.api.ApplicationParameterYaml
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import kotlinx.serialization.json.*
 import kotlin.reflect.KProperty0
 
 @JsonTypeInfo(
@@ -24,7 +26,7 @@ sealed class ApplicationDescription(val application: String) {
         val title: String,
         val description: String,
         invocation: List<Any>,
-        val parameters: Map<String, ApplicationParameter> = emptyMap(),
+        val parameters: Map<String, ApplicationParameterYaml> = emptyMap(),
         outputFileGlobs: List<String> = emptyList(),
         applicationType: String? = null,
         val vnc: VncDescription? = null,
@@ -83,7 +85,9 @@ sealed class ApplicationDescription(val application: String) {
 
             this.applicationType = applicationType?.let { ApplicationType.valueOf(it) } ?: ApplicationType.BATCH
 
-            parameters.forEach { name, parameter -> parameter.name = name }
+            parameters.forEach { (name, parameter) -> parameter.name = name }
+
+
 
             this.invocation = invocation.mapIndexed { index, it ->
                 val parameterName = "invocation[$index]"
@@ -231,10 +235,265 @@ sealed class ApplicationDescription(val application: String) {
                 false
             )
 
+            val normalizedParameters = parameters.values.map { param ->
+                when (param) {
+                    is ApplicationParameterYaml.Bool -> {
+                        ApplicationParameter.Bool(
+                            param.name,
+                            param.optional,
+                            JsonObject(
+                                mapOf(
+                                    "value" to when(val value = param.defaultValue) {
+                                        is Boolean -> JsonPrimitive(value)
+                                        is Map<*, *> -> {
+                                            val defaultValue = value["value"] as? Boolean ?: error("bad default value")
+                                            JsonPrimitive(defaultValue)
+                                        }
+                                        else -> {
+                                            if (value == null) {
+                                                JsonNull
+                                            } else {
+                                                error("bad default value")
+                                            }
+                                        }
+                                    }
+                                )
+                            ),
+                            param.title,
+                            param.description,
+                            param.trueValue,
+                            param.falseValue
+                        )
+                    }
+                    is ApplicationParameterYaml.Enumeration -> {
+                        ApplicationParameter.Enumeration(
+                            param.name,
+                            param.optional,
+                            JsonObject(
+                                mapOf(
+                                    "value" to when(val value = param.defaultValue) {
+                                        is String -> JsonPrimitive(value)
+                                        is Map<*, *> -> {
+                                            val defaultValue = value["value"] as? String ?: error("bad default value")
+                                            JsonPrimitive(defaultValue)
+                                        }
+                                        else -> {
+                                            if (value == null) {
+                                                JsonNull
+                                            } else {
+                                                error("bad default value")
+                                            }
+                                        }
+                                    }
+                                )
+                            ),
+                            param.title,
+                            param.description,
+                            param.options.map { ApplicationParameter.EnumOption(it.name, it.value) }
+                        )
+                    }
+                    is ApplicationParameterYaml.FloatingPoint -> {
+                        ApplicationParameter.FloatingPoint(
+                            param.name,
+                            param.optional,
+                            JsonObject(
+                                mapOf(
+                                    "value" to when(val value = param.defaultValue) {
+                                        is Double -> JsonPrimitive(value)
+                                        is Map<*, *> -> {
+                                            val defaultValue = value["value"] as? Double ?: error("bad default value")
+                                            JsonPrimitive(defaultValue)
+                                        }
+                                        else -> {
+                                            if (value == null) {
+                                                JsonNull
+                                            } else {
+                                                error("bad default value")
+                                            }
+                                        }
+                                    }
+                                )
+                            ),
+                            param.title,
+                            param.description,
+                            param.min,
+                            param.max,
+                            param.step,
+                            param.unitName
+                        )
+                    }
+                    is ApplicationParameterYaml.Ingress -> {
+                        ApplicationParameter.Ingress(
+                            param.name,
+                            param.title,
+                            param.description
+                        )
+                    }
+                    is ApplicationParameterYaml.InputDirectory -> {
+                        ApplicationParameter.InputDirectory(
+                            param.name,
+                            param.optional,
+                            JsonObject(
+                                mapOf(
+                                    "value" to when(val value = param.defaultValue) {
+                                        is String -> JsonPrimitive(value)
+                                        is Map<*, *> -> {
+                                            val defaultValue = value["value"] as? String ?: error("bad default value")
+                                            JsonPrimitive(defaultValue)
+                                        }
+                                        else -> {
+                                            if (value == null) {
+                                                JsonNull
+                                            } else {
+                                                error("bad default value")
+                                            }
+                                        }
+                                    }
+                                )
+                            ),
+                            param.title,
+                            param.description
+                        )
+                    }
+                    is ApplicationParameterYaml.InputFile -> {
+                        ApplicationParameter.InputFile(
+                            param.name,
+                            param.optional,
+                            JsonObject(
+                                mapOf(
+                                    "value" to when(val value = param.defaultValue) {
+                                        is String -> JsonPrimitive(value)
+                                        is Map<*, *> -> {
+                                            val defaultValue = value["value"] as? String ?: error("bad default value")
+                                            JsonPrimitive(defaultValue)
+                                        }
+                                        else -> {
+                                            if (value == null) {
+                                                JsonNull
+                                            } else {
+                                                error("bad default value")
+                                            }
+                                        }
+                                    }
+                                )
+                            ),
+                            param.title,
+                            param.description,
+                        )
+                    }
+                    is ApplicationParameterYaml.Integer -> {
+                        ApplicationParameter.Integer(
+                            param.name,
+                            param.optional,
+                            JsonObject(
+                                mapOf(
+                                    "value" to when(val value = param.defaultValue) {
+                                        is Int -> JsonPrimitive(value)
+                                        is Map<*, *> -> {
+                                            val defaultValue = value["value"] as? Int ?: error("bad default value")
+                                            JsonPrimitive(defaultValue)
+                                        }
+                                        else -> {
+                                            if (value == null) {
+                                                JsonNull
+                                            } else {
+                                                error("bad default value")
+                                            }
+                                        }
+                                    }
+                                )
+                            ),
+                            param.title,
+                            param.description,
+                            param.min,
+                            param.max,
+                            param.step,
+                            param.unitName
+                        )
+                    }
+                    is ApplicationParameterYaml.LicenseServer -> {
+                        ApplicationParameter.LicenseServer(
+                            param.name,
+                            param.title,
+                            param.optional,
+                            param.description,
+                            param.tagged
+                        )
+                    }
+                    is ApplicationParameterYaml.NetworkIP -> {
+                        ApplicationParameter.NetworkIP(
+                            param.name,
+                            param.title,
+                            param.description
+                        )
+                    }
+                    is ApplicationParameterYaml.Peer -> {
+                        ApplicationParameter.Peer(
+                            param.name,
+                            param.title,
+                            param.description,
+                            param.suggestedApplication
+                        )
+                    }
+                    is ApplicationParameterYaml.Text -> {
+                        ApplicationParameter.Text(
+                            param.name,
+                            param.optional,
+                            JsonObject(
+                                mapOf(
+                                    "value" to when(val value = param.defaultValue) {
+                                        is String -> JsonPrimitive(value)
+                                        is Map<*, *> -> {
+                                            val defaultValue = value["value"] as? String ?: error("bad default value")
+                                            JsonPrimitive(defaultValue)
+                                        }
+                                        else -> {
+                                            if (value == null) {
+                                                JsonNull
+                                            } else {
+                                                error("bad default value")
+                                            }
+                                        }
+                                    }
+                                )
+                            ),
+                            param.title,
+                            param.description
+                        )
+                    }
+                    is ApplicationParameterYaml.TextArea -> {
+                        ApplicationParameter.TextArea(
+                            param.name,
+                            param.optional,
+                            JsonObject(
+                                mapOf(
+                                    "value" to when(val value = param.defaultValue) {
+                                        is String -> JsonPrimitive(value)
+                                        is Map<*, *> -> {
+                                            val defaultValue = value["value"] as? String ?: error("bad default value")
+                                            JsonPrimitive(defaultValue)
+                                        }
+                                        else -> {
+                                            if (value == null) {
+                                                JsonNull
+                                            } else {
+                                                error("bad default value")
+                                            }
+                                        }
+                                    }
+                                )
+                            ),
+                            param.title,
+                            param.description
+                        )
+                    }
+                }
+            }
+
             val invocation = ApplicationInvocationDescription(
                 ToolReference(tool.name, tool.version, null),
                 invocation,
-                parameters.values.toList(),
+                normalizedParameters,
                 outputFileGlobs,
                 applicationType,
                 vnc = vnc,
