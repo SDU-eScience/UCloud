@@ -346,7 +346,13 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                 <Box mb="10px" />
             </SidebarContainer>
 
-            <SidebarAdditional data-tag="additional" hovered={hoveredPage} clicked={selectedPage} clearHover={() => setHoveredPage("")} />
+            <SidebarAdditional
+                data-tag="additional"
+                hovered={hoveredPage}
+                clicked={selectedPage}
+                clearHover={() => setHoveredPage("")}
+                clearClicked={()=> setSelectedPage("")}
+            />
         </Flex>
     );
 
@@ -356,10 +362,10 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
     }
 };
 
-function useSidebarFilesPage(): {
-    drives: APICallState<PageV2<FileCollection>>,
-    favorites: APICallState<PageV2<FileMetadataAttached>>,
-} {
+function useSidebarFilesPage(): [
+    APICallState<PageV2<FileCollection>>,
+    APICallState<PageV2<FileMetadataAttached>>
+] {
     const [drives] = useCloudAPI<PageV2<FileCollection>>(FileCollectionsApi.browse({itemsPerPage: 10/* , filterMemberFiles: "all" */}), emptyPageV2);
 
     const [favorites] = useCloudAPI<PageV2<FileMetadataAttached>>(
@@ -371,10 +377,10 @@ function useSidebarFilesPage(): {
         emptyPageV2
     );
 
-    return {
+    return [
         drives,
         favorites
-    }
+    ];
 }
 
 function useSidebarRunsPage(): APICallState<PageV2<Job>> {
@@ -385,15 +391,8 @@ function useSidebarRunsPage(): APICallState<PageV2<Job>> {
 }
 
 
-function SidebarAdditional({hovered, clicked, clearHover}: {hovered: string; clicked: string; clearHover(): void}): JSX.Element {
-    const [forceOpen, setForceOpen] = React.useState(false);
-    React.useEffect(() => {
-        if (clicked) {
-            setForceOpen(true);
-        }
-    }, [clicked]);
-
-    const {drives, favorites} = useSidebarFilesPage();
+function SidebarAdditional({hovered, clicked, clearHover, clearClicked}: {hovered: string; clicked: string; clearHover(): void; clearClicked(): void}): JSX.Element {
+    const [drives, favorites] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
 
     const navigate = useNavigate();
@@ -403,11 +402,13 @@ function SidebarAdditional({hovered, clicked, clearHover}: {hovered: string; cli
     /* TODO(Jonas): hovering should slide over, while clicking should push */
     return (<SidebarAdditionalStyle onMouseLeave={e => {
         if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover()
-    }} className={SIDEBAR_IDENTIFIER} flexDirection="column" forceOpen={forceOpen || hovered !== ""}>
+    }} className={SIDEBAR_IDENTIFIER} flexDirection="column" forceOpen={clicked !== "" || hovered !== ""}>
         <Box ml="6px">
             <Flex>
                 <TextSpan bold color="var(--white)">{active}</TextSpan>
-                {forceOpen ? <TextSpan ml="auto" mr="4px" onClick={() => setForceOpen(false)}>Unlock</TextSpan> : null}
+                {clicked !== "" ? <TextSpan ml="auto" mr="4px" onClick={() => {
+                    clearClicked();
+                }}>Unlock</TextSpan> : null}
             </Flex>
             {active !== "Files" ? null : (
                 <Flex flexDirection="column">
@@ -449,7 +450,7 @@ function SidebarAdditional({hovered, clicked, clearHover}: {hovered: string; cli
             {active !== "Resources" ? null : (<ResourceLinks />)}
             {active !== "Admin" ? null : (<AdminLinks />)}
         </Box>
-    </SidebarAdditionalStyle>)
+    </SidebarAdditionalStyle >)
 }
 
 function Username(): JSX.Element | null {

@@ -57,18 +57,18 @@ const spin = (props: {spin?: boolean}): string | null => props.spin ? `
 ` : null;
 
 const Icon = styled(IconBase) <IconBaseProps>`
-  flex: none;
-  vertical-align: middle;
-  cursor: ${props => props.cursor};
-  ${props => props.rotation ? `transform: rotate(${props.rotation}deg);` : ""}
-  ${space} ${color};
-  ${spin};
+    flex: none;
+    vertical-align: middle;
+    cursor: ${props => props.cursor};
+    ${props => props.rotation ? `transform: rotate(${props.rotation}deg);` : ""}
+    ${space} ${color};
+    ${spin};
 
-  transition: transform .2s ease-in-out; 
+    transition: transform .2s ease-in-out; 
 
-  &:hover {
-    ${hoverColor};
-  }
+    &:hover {
+        ${hoverColor};
+    }
 `;
 
 Icon.displayName = "Icon";
