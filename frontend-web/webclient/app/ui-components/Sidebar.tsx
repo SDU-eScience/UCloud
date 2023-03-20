@@ -509,15 +509,14 @@ function ProjectID(): JSX.Element | null {
         left="-50%"
         top="1"
         mb="35px"
-        trigger={<SidebarTextLabel key={projectId} icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1} space={".5em"}>
+        trigger={
             <EllipsedText
                 cursor="pointer"
                 onClick={copyProjectPath}
                 width="140px"
             >
-                {projectPath}
+                <Icon key={projectId} name={"projects"} color2="white" color="black" mr="0.5em" my="0.2em" size="1.3em" />{projectPath}
             </EllipsedText>
-        </SidebarTextLabel>
         }
     >
         Click to copy to clipboard
