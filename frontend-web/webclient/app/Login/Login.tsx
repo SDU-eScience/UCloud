@@ -240,10 +240,10 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
         <LoginWrapper>
             <LoginIcon mx="auto" name={"deiCLogo"} size="180px" />
             <Text mx="auto" py="30px" fontSize={32}>Integration Portal</Text>
-            <LoginBox width="315px" mx="auto" my="auto">
+            <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset ? (
                     <a href={`/auth/saml/login?service=${service}`}>
-                        <Button mb="8px" style={{borderRadius: "24px"}} height={"92px"} disabled={loading} fullWidth color="wayfGreen">
+                        <Button mb="8px" style={{borderRadius: "18px"}} height={"92px"} disabled={loading} fullWidth color="wayfGreen">
                             <Image color="white" width="100px" src={wayfLogo} />
                             <LoginTextSpan fontSize={2} ml="2.5em">Login</LoginTextSpan>
                         </Button>
@@ -271,8 +271,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                     </Text>
                                 )}
                             >
-                                {/* add 17px to width to compensate for negative margin */}
-                                <LoginBox color="red" width="calc(100% + 17px)">
+                                <Box>
                                     <form onSubmit={preventDefault}>
                                         <Login
                                             enabled2fa={!!challengeId}
@@ -289,12 +288,12 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                             Login
                                         </LoginButton>
                                     </form>
-                                    <Box mt={20}>
+                                    <Box mt={20} textAlign="center">
                                         <Link to="/login?password-reset=true" mt={20}>
                                             <BlackLoginText fontSize={1}>Forgot your password?</BlackLoginText>
                                         </Link>
                                     </Box>
-                                </LoginBox>
+                                </Box>
                             </ClickableDropdown>
                         </DropdownContentWrapper>
                     ) : (
@@ -312,23 +311,24 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                     colorOnHover={false}
                                     visible
                                 >
-                                    <LoginBox width="100%">
+                                    <Box width="100%">
                                         <form onSubmit={(e) => submitResetPassword(e)}>
-                                            <Input
+                                            <LoginInput
                                                 placeholder="Email address"
                                                 name="email"
                                                 type="email"
                                                 ref={resetEmailInput}
-                                                autoFocus required
+                                                autoFocus
+                                                required
                                             />
                                             {!inDevEnvironment ? null : (
-                                                <Button
+                                                <LoginButton
                                                     fullWidth
                                                     disabled={loading}
                                                     marginTop={10}
                                                 >
                                                     Reset password
-                                                </Button>
+                                                </LoginButton>
                                             )}
                                         </form>
                                         <Box mt={20}>
@@ -338,11 +338,11 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                                 </BlackLoginText>
                                             </Link>
                                         </Box>
-                                    </LoginBox>
+                                    </Box>
                                 </LoginDropdownContent>
                             </>
                         ) : (
-                            <LoginBox width="315px">
+                            <Box width="315px">
                                 <LoginText fontSize={1} mt="5px">
                                     Please enter a new password
                                 </LoginText>
@@ -355,9 +355,9 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                     colorOnHover={false}
                                     visible
                                 >
-                                    <LoginBox width="100%">
+                                    <Box mx={0} my={0} width="100%">
                                         <form onSubmit={(e) => attemptSaveNewPassword(e)}>
-                                            <Input
+                                            <LoginInput
                                                 mb={10}
                                                 type="password"
                                                 placeholder="New password"
@@ -365,27 +365,27 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                                 autoFocus
                                             />
 
-                                            <Input
+                                            <LoginInput
                                                 type="password"
                                                 placeholder="Repeat new password"
                                                 ref={resetPasswordRepeatInput}
                                             />
-                                            <Button
+                                            <LoginButton
                                                 fullWidth
                                                 disabled={loading}
                                                 marginTop={10}
                                             >
                                                 Save new password
-                                            </Button>
+                                            </LoginButton>
                                         </form>
                                         <Box mt={20}>
                                             <Link to="/login">
                                                 <BlackLoginText fontSize={1}>Return to Login page</BlackLoginText>
                                             </Link>
                                         </Box>
-                                    </LoginBox>
+                                    </Box>
                                 </LoginDropdownContent>
-                            </LoginBox>
+                            </Box>
 
                         )
                     )
@@ -403,7 +403,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                             hover={false}
                             visible
                         >
-                            <LoginBox width="100%">
+                            <Box width="100%">
                                 <form onSubmit={preventDefault}>
                                     <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
                                     <Button
@@ -414,11 +414,11 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                         Submit
                                     </Button>
                                 </form>
-                            </LoginBox>
+                            </Box>
                         </LoginDropdownContent>
                     </>
                 )}
-            </LoginBox>
+            </Box>
             <Box mx="auto" mt="auto" width="280px"><img src={ucloudBlue} /> </Box>
             <Flex height="60px" backgroundColor="#cecfd1">
                 <Text mx="auto" my="auto" fontSize={12}>
@@ -468,8 +468,14 @@ const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): JSX.Element 
 ) : null;
 
 const LoginDropdownContent = styled(DropdownContent)`
-    background-color: white;
+    background-color: #c8dd51;
     color: white;
+    box-shadow: none;
+    border-radius: 18px;
+    & > div {
+        margin: 0 0 0 0;
+        padding: 0 0 0 0;
+    }
 `;
 
 const LoginExternalLink = styled(ExternalLink)`
@@ -481,16 +487,24 @@ const LoginTextSpan = styled(TextSpan)`
 `;
 
 const DropdownContentWrapper = styled.div`
+    
     & > ${Dropdown} > ${DropdownContent} {
         color: black;
-        background-color: white;
+        box-shadow: none;
+        border-radius: 18px;
+        background-color: #c8dd51;
     }
 `;
 
 const LoginInput = styled(Input)`
     margin-bottom: 0.5em;
-    border-color: lightgray;
+    border-color: gray;
+    background-color: white;
     color: black;
+
+    &:focus {
+        background-color: white;
+    }
 `;
 
 const LoginText = styled(Text)`
@@ -501,12 +515,9 @@ const LoginIcon = styled(Icon)`
     color: black;
 `;
 
-const LoginBox = styled(Box)`
-    color: white;
-`;
-
 const LoginButton = styled(Button)`
-    color: white;
+    background-color: white;
+    color: black;
 `;
 
 const BlackLoginText = styled(Text)`
