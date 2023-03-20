@@ -12,7 +12,7 @@ import {
 import CONF from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
-import Flex, {FlexCProps} from "./Flex";
+import Flex from "./Flex";
 import Icon, {IconName} from "./Icon";
 import Link from "./Link";
 import Text, {EllipsedText, TextSpan} from "./Text";
@@ -170,7 +170,7 @@ export const sideBarMenuElements: {
             {icon: "files", label: "Files", to: "/drives/"},
             {icon: "projects", label: "Projects", to: "/projects/", show: () => Client.hasActiveProject},
             {icon: "shareMenu", label: "Shares", to: "/shares/", show: () => !Client.hasActiveProject},
-            {icon: "dashboard", label: "Resources", to: "/public-ips/"},
+            {icon: "dashboard", label: "Resources"},
             {icon: "appStore", label: "Apps", to: "/applications/overview/"},
             {icon: "results", label: "Runs", to: "/jobs/"}
         ], predicate: () => Client.isLoggedIn
@@ -180,7 +180,6 @@ export const sideBarMenuElements: {
 };
 
 interface SidebarStateProps {
-    page: SidebarPages;
     loggedIn: boolean;
     avatar: AvatarType;
     activeProject?: string;
@@ -212,7 +211,7 @@ const SidebarItemsColumn = styled.div`
 
 export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | null => {
     const sidebarEntries = sideBarMenuElements;
-    const {activeProject, loggedIn, page, avatar} = useSidebarReduxProps();
+    const {activeProject, loggedIn, avatar} = useSidebarReduxProps();
 
     const [selectedPage, setSelectedPage] = React.useState("");
     const [hoveredPage, setHoveredPage] = React.useState("");
@@ -561,8 +560,6 @@ function copyUserName(): void {
 
 function useSidebarReduxProps(): SidebarStateProps {
     return useSelector((it: ReduxObject) => ({
-        page: it.status.page,
-
         /* Used to ensure re-rendering of Sidebar after user logs in. */
         loggedIn: Client.isLoggedIn,
 

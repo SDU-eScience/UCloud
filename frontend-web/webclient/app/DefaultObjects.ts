@@ -70,7 +70,6 @@ export interface ComponentWithPage<T> extends ComponentWithLoadingState {
 
 export interface StatusReduxObject {
     title: string;
-    page: SidebarPages;
     loading: boolean;
 }
 
@@ -139,7 +138,6 @@ export const initHeader = (): HeaderSearchReduxObject => ({
 
 export const initStatus = (): StatusReduxObject => ({
     title: "",
-    page: SidebarPages.None,
     loading: false
 });
 
