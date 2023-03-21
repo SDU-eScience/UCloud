@@ -251,7 +251,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                         <a href={`/auth/saml/login?service=${service}`}>
                             <Button mb="8px" disabled={loading} fullWidth color="wayfGreen">
                                 <Image width="100px" src={wayfLogo} />
-                                <LoginTextSpan fontSize={2} ml="2.5em">Login</LoginTextSpan>
+                                <LoginTextSpan ml="2.5em">Login</LoginTextSpan>
                             </Button>
                         </a>
                     ) : null}
@@ -266,10 +266,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                     width="315px"
                                     left="0px"
                                     trigger={(
-                                        <LoginText
-                                            fontSize={1}
-                                            mt="5px"
-                                        >
+                                        <LoginText mt="5px">
                                             More login options
                                         </LoginText>
                                     )}
@@ -294,7 +291,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                         </form>
                                         <Box mt={20}>
                                             <Link to="/login?password-reset=true" mt={20}>
-                                                <BlackLoginText fontSize={1}>Forgot your password?</BlackLoginText>
+                                                <BlackLoginText>Forgot your password?</BlackLoginText>
                                             </Link>
                                         </Box>
                                     </LoginBox>
@@ -303,7 +300,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                         ) : (
                             resetToken == null ? (
                                 <>
-                                    <LoginText fontSize={1} mt="5px">
+                                    <LoginText mt="5px">
                                         To reset your password, enter your email address
                                     </LoginText>
                                     <LoginDropdownContent
@@ -336,7 +333,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                             </form>
                                             <Box mt={20}>
                                                 <Link to="/login">
-                                                    <BlackLoginText fontSize={1}>
+                                                    <BlackLoginText>
                                                         Return to Login page
                                                     </BlackLoginText>
                                                 </Link>
@@ -346,7 +343,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                 </>
                             ) : (
                                 <LoginBox width="315px">
-                                    <LoginText fontSize={1} mt="5px">
+                                    <LoginText mt="5px">
                                         Please enter a new password
                                     </LoginText>
                                     <LoginDropdownContent
@@ -383,7 +380,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                             </form>
                                             <Box mt={20}>
                                                 <Link to="/login">
-                                                    <BlackLoginText fontSize={1}>Return to Login page</BlackLoginText>
+                                                    <BlackLoginText>Return to Login page</BlackLoginText>
                                                 </Link>
                                             </Box>
                                         </LoginBox>
@@ -394,7 +391,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                         )
                     ) : (
                         <>
-                            <LoginText fontSize={1} mt="5px">
+                            <LoginText mt="5px">
                                 Enter 2-factor authentication code
                             </LoginText>
                             <LoginDropdownContent
@@ -493,6 +490,7 @@ const LoginInput = styled(Input)`
 
 const LoginText = styled(Text)`
     color: white;
+    font-size: 20px;
 `;
 
 const LoginIcon = styled(Icon)`
@@ -509,6 +507,7 @@ const LoginButton = styled(Button)`
 
 const BlackLoginText = styled(Text)`
     color: black;
+    font-size: 20px;
 `;
 
 function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JSX.Element {

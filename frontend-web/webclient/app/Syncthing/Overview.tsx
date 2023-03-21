@@ -445,7 +445,7 @@ export const Overview: React.FunctionComponent = () => {
                         <Button onClick={openWizard}>Add device</Button>
                     </Flex>}
                 >
-                    <Text color="darkGray" fontSize={1}>
+                    <Text color="darkGray">
                         UCloud can synchronize files to any of your devices which run Syncthing.
                         Download and install Syncthing to add one of your devices here.
                     </Text>
@@ -473,7 +473,7 @@ export const Overview: React.FunctionComponent = () => {
                         title={servers.length > 1 ? "Syncthing servers" : "Syncthing server"}
                         color="blue"
                     >
-                        <Text color="darkGray" fontSize={1}>
+                        <Text color="darkGray">
                             We synchronize your files from this server. Monitor the health of your servers here.
                         </Text>
 
@@ -509,7 +509,7 @@ export const Overview: React.FunctionComponent = () => {
                 color="blue"
                 subtitle={<Button onClick={openFileSelector}>Add Folder</Button>}
             >
-                <Text color="darkGray" fontSize={1}>
+                <Text color="darkGray">
                     These are the files which will be synchronized to your devices.
                     Add a new folder to start synchronizing data.
                 </Text>
@@ -619,7 +619,7 @@ const FolderRenderer: ItemRenderer<SyncthingFolder> = {
 
         const prettyPath = usePrettyFilePath(resource?.ucloudPath ?? "/");
         return <>
-            <Tooltip tooltipContentWidth="200px" trigger={
+            <Tooltip trigger={
                 <Icon name="warning" color="red" />
             }>
                 Some files in {prettyPath} might not be synchronized due to lack of permissions.

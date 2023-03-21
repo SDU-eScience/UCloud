@@ -61,7 +61,7 @@ const Logo = (): JSX.Element => (
     >
         <ui.Flex alignItems="center" ml="15px">
             <ui.Icon name="logoEsc" size="38px" />
-            <ui.Text color="headerText" fontSize={4} ml="8px">{CONF.PRODUCT_NAME}</ui.Text>
+            <ui.Text color="headerText" ml="8px">{CONF.PRODUCT_NAME}</ui.Text>
             {!CONF.VERSION_TEXT ? null : (
                 <LogoText
                     ml="4px"

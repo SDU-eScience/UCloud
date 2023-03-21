@@ -193,12 +193,7 @@ const ShareGroup: React.FunctionComponent<{
                         </Link>) : (<>
                             <Heading.h3><PrettyFilePath path={group.sourceFilePath} /></Heading.h3>
                             {shareValidated !== ShareValidateState.DELETED ? null : (
-                                <Tooltip
-                                    left="-50%"
-                                    top="1"
-                                    mb="35px"
-                                    trigger={<Icon cursor="pointer" mt="6px" ml="18px" color="red" name="close" />}
-                                >
+                                <Tooltip trigger={<Icon cursor="pointer" mt="6px" ml="18px" color="red" name="close" />}>
                                     The folder associated with the share no longer exists.
                                 </Tooltip>
                             )}

@@ -143,9 +143,6 @@ export const ShareModal: React.FunctionComponent<{
 
                             <Flex flexDirection={"column"}>
                                 <Tooltip
-                                    left="-50%"
-                                    top="1"
-                                    mb="35px"
                                     trigger={(
                                             <Input
                                                 readOnly

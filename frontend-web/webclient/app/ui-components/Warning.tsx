@@ -1,9 +1,7 @@
 import * as React from "react";
-import styled from "styled-components";
 import Box from "@/ui-components/Box";
 import Flex from "@/ui-components/Flex";
 import Icon from "@/ui-components/Icon";
-import Text from "@/ui-components/Text";
 import {ErrorWrapper} from "./Error";
 
 interface WarningProps {
@@ -28,7 +26,10 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
             width={props.width}
         >
             <Flex alignItems="center">
-                <div><WhiteSpacedText fontSize={1} color="black"><span>{props.warning}</span>{props.children}</WhiteSpacedText></div>
+                <div style={{whiteSpace: "pre"}}>
+                    {props.warning}
+                    {props.children}
+                </div>
                 {!props.clearWarning ? null : (
                     <Box ml="auto">
                         <Icon
@@ -43,12 +44,6 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
         </ErrorWrapper>
     );
 };
-
-const WhiteSpacedText = styled(Text)`
-    & > span {
-        white-space: pre;
-    }
-`;
 
 export default Warning;
 

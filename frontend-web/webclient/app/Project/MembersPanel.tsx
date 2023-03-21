@@ -72,7 +72,7 @@ const MembersPanel: React.FunctionComponent = () => {
                 <form onSubmit={onSubmit}>
                     <Relative left="120px" top="8px">
                         {showId && allowManagement ?
-                            <Tooltip tooltipContentWidth="160px" trigger={
+                            <Tooltip tooltipContentWidth={160} trigger={
                                 <Circle>
                                     <Text mt="-3px" ml="5px">?</Text>
                                 </Circle>

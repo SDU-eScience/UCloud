@@ -1,14 +1,19 @@
-import styled from "styled-components";
 import Text, {TextProps} from "./Text";
-import {display, DisplayProps} from "styled-system";
+import * as React from "react";
+import {injectStyle} from "@/Unstyled";
 
-const Truncate = styled(Text)<TextProps & DisplayProps>`
-    flex: 1;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    ${display};
-`;
+const TruncateClass = injectStyle("truncate", k => `
+    ${k} {
+        flex: 1;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+`);
+
+const Truncate: React.FunctionComponent<TextProps & { children?: React.ReactNode; }> = props => {
+    return <Text {...props} className={TruncateClass} />;
+}
 
 Truncate.displayName = "Truncate";
 

@@ -603,7 +603,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                     <Button attached type={"submit"}>Add</Button>
                                     <Relative left="-135px" top="8px">
                                         <Absolute>
-                                            <Tooltip tooltipContentWidth="160px" trigger={<HelpCircle />}>
+                                            <Tooltip tooltipContentWidth={160} trigger={<HelpCircle />}>
                                                 <Text color="black" fontSize={12}>
                                                     Your username can be found at the bottom of the sidebar next to
                                                     {" "}<Icon name="id" />.
@@ -1215,9 +1215,6 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
 
                             <Flex flexDirection={"column"}>
                                 <Tooltip
-                                    left="-50%"
-                                    top="1"
-                                    mb="35px"
                                     trigger={(
                                             <Input
                                                 readOnly

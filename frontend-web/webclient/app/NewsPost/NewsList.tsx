@@ -58,7 +58,7 @@ export const NewsList: React.FC = () => {
                 <Flex>
                     <Heading.h2>News</Heading.h2>
                     {!filter ? null :
-                        <Text mt="14px" ml="10px" fontSize={1}>
+                        <Text mt="14px" ml="10px">
                             {capitalized(filter)} <Icon cursor="pointer" color="black" onClick={() => navigate("/news/list")} name="close" ml="4px" size={12} />
                         </Text>
                     }
@@ -92,7 +92,7 @@ export const NewsList: React.FC = () => {
                         </Link>
                         <Heading.h5>{item.subtitle}</Heading.h5>
                         <Flex>
-                            <Text fontSize={1}>Posted {format(item.showFrom, "HH:mm dd/MM/yy")}</Text>
+                            <Text>Posted {format(item.showFrom, "HH:mm dd/MM/yy")}</Text>
                             <Box mt="-3px" ml="4px">
                                 <Tag bg={theme.appColors[appColor(hashF(item.category))][0]} label={item.category} />
                             </Box>
@@ -107,7 +107,7 @@ export const NewsList: React.FC = () => {
 
 const IsExpired = (props: {now: number, expiration: number | null}): JSX.Element | null => {
     if (props.expiration != null && props.now > props.expiration)
-        return <Text fontSize={1} color="red">Expired at {format(props.expiration, "HH:mm dd/MM/yy")}</Text>;
+        return <Text color="red">Expired at {format(props.expiration, "HH:mm dd/MM/yy")}</Text>;
     return null;
 };
 

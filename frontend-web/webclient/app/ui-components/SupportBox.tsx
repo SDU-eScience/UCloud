@@ -146,7 +146,7 @@ export default function Support(): JSX.Element {
                             disabled={loading}
                         >
                             <Icon name="mail" size="1.5em" mr=".5em" color="white" color2="midGray" />
-                            <TextSpan fontSize={2}>Send</TextSpan>
+                            <TextSpan>Send</TextSpan>
                         </Button>
                     </form>
                 </Box>

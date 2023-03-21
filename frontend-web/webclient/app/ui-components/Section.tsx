@@ -1,17 +1,29 @@
 import * as React from "react";
-import styled from "styled-components";
+import {injectStyle} from "@/Unstyled";
+import {CSSProperties} from "react";
 
-export const Section = styled.section<{ highlight?: boolean, gap?: string }>`
-  padding: 16px;
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
-  background-color: var(${props => props.highlight ? "--appStoreFavBg" : "--lightGray"}, #f00);
-  ${props => props.gap === undefined ? null : ({
-    display: "grid",
-    gridGap: props.gap
-  })}
-`;
+const SectionClass = injectStyle("section", k => `
+    ${k} {
+        padding: 25px;
+        border-radius: 25px;
+    }
+`);
+
+export const Section: React.FunctionComponent<{ highlight?: boolean; gap?: string; children?: React.ReactNode; }> = props => {
+    const style: CSSProperties = {};
+    if (props.highlight === true) {
+        style.background = "var(--appStoreFavBg)";
+    } else {
+        style.background = "var(--lightGray)";
+    }
+    if (props.gap !== undefined) {
+        style.display = "grid";
+        style.gap = props.gap;
+    }
+
+    return <section className={SectionClass} style={style} children={props.children} />;
+}
 
 Section.defaultProps = {
-  gap: "16px"
+    gap: "16px"
 };

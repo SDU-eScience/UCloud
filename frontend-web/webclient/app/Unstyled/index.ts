@@ -4,8 +4,8 @@ import {ResponsiveValue, SpaceProps} from "styled-system";
 import * as React from "react";
 
 export function extractSize(size: ResponsiveValue<any>): string {
-    if (size === 1) return "100%";
     if (typeof size === "string") return size;
+    if (size <= 1 && size >= 0) return `${size * 100}%`;
     return `${size}px`;
 }
 
