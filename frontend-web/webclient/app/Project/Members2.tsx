@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useRef, useCallback, useEffect, useMemo, useReducer, useState} from "react";
-import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole, ProjectInviteLink, projectRoleToString} from "./Api";
+import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole, ProjectInviteLink} from "./Api";
 import styled from "styled-components";
 import {NavigateFunction, useLocation, useNavigate, useParams} from "react-router";
 import MainContainer from "@/MainContainer/MainContainer";
@@ -17,7 +17,6 @@ import {
     Input,
     Label,
     Link, List,
-    NoSelect,
     RadioTile,
     RadioTilesContainer,
     Relative,
@@ -26,7 +25,7 @@ import {
 } from "@/ui-components";
 import {shorten} from "@/Utilities/TextUtilities";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
-import {addStandardDialog, addStandardInputDialog, NamingField} from "@/UtilityComponents";
+import {addStandardDialog, NamingField} from "@/UtilityComponents";
 import {copyToClipboard, doNothing, preventDefault} from "@/UtilityFunctions";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
@@ -48,11 +47,8 @@ import {emptyPageV2} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
-import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {DropdownContent} from "@/ui-components/Dropdown";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {ProductSelector} from "@/Products/Selector";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 // UI state management
@@ -1065,8 +1061,8 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
         {text: "Admin", value: "ADMIN"}
     ];
 
-    const groupItems = groups.map(g => 
-        g ? 
+    const groupItems = groups.map(g =>
+        g ?
         {text: g.specification.title, value: g.id}
         : null
     ).filter(g => g?.text != "All users");
@@ -1126,7 +1122,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                             useMousePositioning
                             width="100px"
                             chevron
-                            trigger={<>{roles.find(it => it.value === selectedRole)?.text}</>} 
+                            trigger={<>{roles.find(it => it.value === selectedRole)?.text}</>}
                             options={roles}
                             onChange={async role => {
                                 await callAPIWithErrorHandler({
@@ -1140,7 +1136,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                 });
                             }}
                         />
-                    </SelectBox> 
+                    </SelectBox>
                 </Flex>
                 <Flex justifyContent="space-between">
                     <Text pt="10px">Assign members to groups</Text>
@@ -1149,44 +1145,40 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                         <ClickableDropdown
                             useMousePositioning
                             width="300px"
+                            height={300}
                             chevron
-                            trigger={<>{selectedGroups.length} selected groups</>} 
+                            trigger={<>{selectedGroups.length} selected groups</>}
                             keepOpenOnClick={true}
-                            onChange={() =>
-                                console.log("closed")
-                            }
                         >
-                            <>
-                                {groupItems.length < 1 ? 
-                                    <>No selectable groups</>
-                                :
-                                    groupItems.map(item =>
-                                        item ?
-                                            <Box
-                                                key={item.value}
-                                                onClick={async _ => {
-                                                    const newSelection = selectedGroups.length < 1 ? [item.value] :
-                                                        selectedGroups.includes(item.value) ?
-                                                        selectedGroups.filter(it => it != item.value) : selectedGroups.concat([item.value]);
+                            {groupItems.length < 1 ?
+                                <>No selectable groups</>
+                            :
+                                groupItems.map(item =>
+                                    item ?
+                                        <Box
+                                            key={item.value}
+                                            onClick={async _ => {
+                                                const newSelection = selectedGroups.length < 1 ? [item.value] :
+                                                    selectedGroups.includes(item.value) ?
+                                                    selectedGroups.filter(it => it != item.value) : selectedGroups.concat([item.value]);
 
-                                                    await callAPIWithErrorHandler({
-                                                        ...Api.updateInviteLink({token: editingLink, role: selectedRole, groups: newSelection}),
-                                                        projectOverride: project.id
-                                                    });
-                                                    
-                                                    fetchInviteLinks({
-                                                        ...Api.browseInviteLinks({itemsPerPage: 10}),
-                                                        projectOverride: project.id
-                                                    });
-                                                }}
-                                            >
-                                                <Checkbox checked={selectedGroups.includes(item.value)} readOnly />
-                                                {item.text}
-                                            </Box>
-                                        : <></>
-                                    )
-                                }
-                            </>
+                                                await callAPIWithErrorHandler({
+                                                    ...Api.updateInviteLink({token: editingLink, role: selectedRole, groups: newSelection}),
+                                                    projectOverride: project.id
+                                                });
+
+                                                fetchInviteLinks({
+                                                    ...Api.browseInviteLinks({itemsPerPage: 10}),
+                                                    projectOverride: project.id
+                                                });
+                                            }}
+                                        >
+                                            <Checkbox checked={selectedGroups.includes(item.value)} readOnly />
+                                            {item.text}
+                                        </Box>
+                                    : <></>
+                                )
+                            }
                         </ClickableDropdown>
                     </SelectBox>
                 </Flex>
@@ -1236,11 +1228,11 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                 </Tooltip>
                                 <Text fontSize={12}>This link will automatically expire in {daysLeftToTimestamp(link.expires)} days</Text>
                             </Flex>
-                            <Box>
+                            <Flex>
                                 <Button
                                     mr="5px"
                                     height={40}
-                                    onClick={() => 
+                                    onClick={() =>
                                         setEditingLink(link.token)
                                     }
                                 >
@@ -1263,7 +1255,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                     }}
                                     icon="trash"
                                 />
-                            </Box>
+                            </Flex>
                         </Flex>
                     </Box>
                 ))}
@@ -1390,12 +1382,12 @@ const TwoColumnLayout = styled.div`
 
 const SearchContainer = styled(Flex)`
   flex-wrap: wrap;
-  justify-content: space-between;
-
+  
   form {
     display: flex;
     margin-right: 10px;
     margin-bottom: 10px;
+    flex-grow: 1;
   }
 `;
 
