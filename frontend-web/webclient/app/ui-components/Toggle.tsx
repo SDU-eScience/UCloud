@@ -1,6 +1,6 @@
 import * as React from "react";
 import {injectStyle} from "@/Unstyled";
-import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {useCallback} from "react";
 
 interface ToggleProps {
     checked: boolean;
@@ -11,10 +11,13 @@ export const Toggle: React.FC<ToggleProps> = ({
     checked,
     onChange
 }) => {
-    return <div onClick={e => {
-        stopPropagationAndPreventDefault(e);
-        onChange();
-    }} data-active={checked} className={ToggleWrapperClass}>
+    const handler = useCallback((e: React.SyntheticEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onChange()
+    }, [onChange]);
+
+    return <div onClick={handler} data-active={checked} className={ToggleWrapperClass}>
         <div />
     </div>
 }
