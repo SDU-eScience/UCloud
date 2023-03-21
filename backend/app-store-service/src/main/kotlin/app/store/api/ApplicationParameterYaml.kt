@@ -115,20 +115,6 @@ sealed class ApplicationParameterYaml {
         override val defaultValue: Any? = null
         override val optional = false
 
-        /*
-        override var name: String = name
-            set(value) {
-                if (!value.matches(hostNameRegex)) {
-                    throw ApplicationVerificationException.BadValue(
-                        value,
-                        "Peer parameter '$value' must be a valid hostname!"
-                    )
-                }
-
-                field = value
-            }
-         */
-
         companion object {
             private val hostNameRegex =
                 Regex(
