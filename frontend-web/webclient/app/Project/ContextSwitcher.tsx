@@ -140,6 +140,10 @@ function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => voi
         if (splitPath[0] === "app" && splitPath[1] === "projects") {
             navigate(`/projects/${projectId}`);
         }
+    } else if (splitPath.length === 5) {
+        if (splitPath[0] === "app" && splitPath[2] === "grants" && splitPath[3] == "view") {
+            navigate(`/project/grants/ingoing/${projectId}`);
+        }
     }
     initializeResources();
     refresh?.();

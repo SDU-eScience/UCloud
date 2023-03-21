@@ -232,9 +232,6 @@ class MailService(
             is Mail.GrantApplicationUpdatedMail -> {
                 updatedTemplate(mail.projectTitle, recipient, mail.sender)
             }
-            is Mail.GrantAppAutoApproveToAdminsMail -> {
-                autoApproveTemplateToAdmins(recipient, mail.sender, mail.projectTitle)
-            }
             is Mail.GrantApplicationApproveMailToAdmins -> {
                 approvedProjectToAdminsTemplate(recipient, mail.sender, mail.projectTitle)
             }

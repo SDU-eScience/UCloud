@@ -80,16 +80,6 @@ fun approvedProjectToAdminsTemplate(receiver: String, sender: String, projectTit
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
-fun autoApproveTemplateToAdmins(receiver: String, sender: String, projectTitle: String) =
-    """
-        <p>Dear ${escapeHtml(receiver)}</p>
-        <p>
-            You have received a new application from ${escapeHtml(sender)} in the project 
-            '${escapeHtml(projectTitle)}', which has been automatically approved by your project policy. 
-        </p>
-        $NO_NOTIFICATIONS_DISCLAIMER
-    """.trimIndent()
-
 fun statusChangeTemplateToAdmins(status: String, receiver: String, sender: String, projectTitle: String) =
     """
         <p>Dear ${escapeHtml(receiver)}</p>

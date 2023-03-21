@@ -17,7 +17,6 @@ interface UserDetailsState {
 
 export const defaultEmailSettings: EmailSettings = {
     newGrantApplication: true,
-    grantAutoApprove: true,
     grantApplicationUpdated: true,
     grantApplicationApproved: true,
     grantApplicationRejected: true,
@@ -108,9 +107,6 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
         switch (type) {
             case MailType.NEW_GRANT_APPLICATION:
                 state.settings.newGrantApplication = !state.settings.newGrantApplication
-                break;
-            case MailType.GRANT_AUTO_APPROVE:
-                state.settings.grantAutoApprove = !state.settings.grantAutoApprove
                 break;
             case MailType.GRANT_APPLICATION_UPDATED:
                 state.settings.grantApplicationUpdated = !state.settings.grantApplicationUpdated
@@ -219,15 +215,6 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.applicationTransfer}
                     />
                     <Box as="span">Transfers From Other Projects</Box>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
-                    <Checkbox
-                        size={27}
-                        onClick={() => toggleSubscription(MailType.GRANT_AUTO_APPROVE)}
-                        onChange={() => undefined}
-                        checked={state.settings.grantAutoApprove}
-                    />
-                    <Box as="span">On Auto Approval</Box>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
