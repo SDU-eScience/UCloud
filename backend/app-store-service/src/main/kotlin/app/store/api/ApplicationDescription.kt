@@ -89,8 +89,6 @@ sealed class ApplicationDescription(val application: String) {
 
             // Verify default values
             for (param in parameters.values) {
-                println(param.name)
-                println(param.defaultValue)
                 if (param.defaultValue == null) continue
 
                 when (param) {
