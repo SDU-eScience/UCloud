@@ -48,8 +48,6 @@ const subprojectsRenderer: ItemRenderer<MemberInProject, MemberInProjectCallback
             {resource.project.archived ? <Icon mr="8px" mt="7px" name="tags" /> : null}
             {resource.role ? <Box mt="7px" title="Set as active project" mr="12px">
                 <Toggle
-                    scale={1.5}
-                    activeColor="--green"
                     checked={isActive}
                     onChange={() => callbacks.setActiveProject(resource.project.id, resource.project.title)}
                 />
