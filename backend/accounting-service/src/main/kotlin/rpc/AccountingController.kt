@@ -5,7 +5,9 @@ import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.bulkResponseOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
@@ -40,6 +42,19 @@ class AccountingController(
         }
     }
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implementOrDispatch(Accounting.findRelevantProviders) {
+            val responses = request.items.map {
+                val providers = accounting.findRelevantProviders(
+                    actorAndProject,
+                    it.username,
+                    it.project,
+                    it.useProject
+                )
+                FindRelevantProvidersResponse(providers)
+            }
+            ok(BulkResponse(responses))
+        }
+
         implementOrDispatch(Accounting.charge) {
             ok(accounting.charge(actorAndProject, request))
         }

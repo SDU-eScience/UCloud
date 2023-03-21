@@ -49,6 +49,22 @@ class AccountingService(
         )).allocations
     }
 
+    suspend fun findRelevantProviders(
+        actorAndProject: ActorAndProject,
+        username: String,
+        project: String?,
+        useProject: Boolean
+    ): List<String> {
+        return processor.findRelevantProviders(
+            AccountingRequest.FindRelevantProviders(
+                actorAndProject.actor,
+                username,
+                project,
+                useProject
+            )
+        ).providers
+    }
+
     suspend fun resetCache() {
         processor.clearCache()
     }

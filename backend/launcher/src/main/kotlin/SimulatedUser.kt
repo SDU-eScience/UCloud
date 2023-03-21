@@ -198,7 +198,6 @@ class Simulator(
                 bulkRequestOf(
                     ProjectApplicationSettings(
                         root,
-                        AutomaticApprovalSettings(emptyList(), emptyList()),
                         listOf(UserCriteria.Anyone()),
                         emptyList()
                     )

@@ -695,6 +695,17 @@ data class UpdateAllocationRequestItem(
 
 typealias UpdateAllocationResponse = Unit
 
+@Serializable
+data class FindRelevantProvidersRequestItem(
+    val username: String,
+    val project: String? = null,
+    val useProject: Boolean
+)
+@Serializable
+data class FindRelevantProvidersResponse(
+    val providers: List<String>
+)
+
 @UCloudApiDoc("See `DepositToWalletRequestItem`")
 @Serializable
 @UCloudApiInternal(InternalLevel.BETA)
@@ -1823,5 +1834,9 @@ object Accounting : CallDescriptionContainer("accounting") {
 
     val rootDeposit = call("rootDeposit", BulkRequest.serializer(RootDepositRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "rootDeposit", roles = Roles.PRIVILEGED)
+    }
+
+    val findRelevantProviders = call("findRelevantProviders", BulkRequest.serializer(FindRelevantProvidersRequestItem.serializer()), BulkResponse.serializer(FindRelevantProvidersResponse.serializer()), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "findRelevantProviders", Roles.PRIVILEGED)
     }
 }

@@ -9,7 +9,6 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.accounting.services.projects.v2.*
 import dk.sdu.cloud.calls.BulkResponse
 import io.ktor.server.request.*
-import kotlinx.coroutines.delay
 
 class ProjectsControllerV2(
     private val projects: ProjectService,

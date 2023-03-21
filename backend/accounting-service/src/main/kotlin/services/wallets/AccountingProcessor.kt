@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.services.wallets
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -265,6 +266,16 @@ sealed class AccountingRequest {
 
         override var id: Long = -1
     ) : AccountingRequest()
+
+    data class FindRelevantProviders(
+        override val actor: Actor,
+
+        val username: String,
+        val project: String?,
+        val useProject: Boolean,
+
+        override var id: Long = -1
+    ) : AccountingRequest()
 }
 
 sealed class AccountingResponse {
@@ -315,6 +326,11 @@ sealed class AccountingResponse {
         val wallets: List<WalletSummary>,
         override var id: Long = -1
     ) : AccountingResponse()
+
+    data class FindRelevantProviders(
+        val providers: List<String>,
+        override var id: Long = -1
+    ): AccountingResponse()
 }
 
 inline fun <reified T : AccountingResponse> AccountingResponse.orThrow(): T {
@@ -325,6 +341,9 @@ inline fun <reified T : AccountingResponse> AccountingResponse.orThrow(): T {
     }
 }
 
+suspend fun AccountingProcessor.findRelevantProviders(request: AccountingRequest.FindRelevantProviders): AccountingResponse.FindRelevantProviders {
+    return sendRequest(request).orThrow()
+}
 suspend fun AccountingProcessor.rootDeposit(request: AccountingRequest.RootDeposit): AccountingResponse.RootDeposit {
     return sendRequest(request).orThrow()
 }
@@ -560,6 +579,7 @@ class AccountingProcessor(
             is AccountingRequest.RetrieveRelevantWalletsProviderNotifications -> retrieveRelevantWalletsNotifications(
                 request
             )
+            is AccountingRequest.FindRelevantProviders -> findRelevantProviders(request)
         }
 
         if (doDebug) {
@@ -1164,6 +1184,44 @@ class AccountingProcessor(
             canAllocate = canAllocate,
             allowSubAllocationsToAllocate = allowSubAllocationsToAllocate
         )
+    }
+
+    private suspend fun findRelevantProviders(
+        request: AccountingRequest.FindRelevantProviders
+    ): AccountingResponse {
+        val providers = if (!request.useProject) {
+            val projectsUserIsPartOf = db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("username", request.username)
+                    },
+                    """
+                        Select project_id 
+                        from project.project_members
+                        where username = :username
+                    """.trimIndent()
+                ).rows.map { it.getString(0)!! }
+            }
+            val allWorkspaces = projectsUserIsPartOf + listOf(request.username)
+            val relevantProviders = mutableSetOf<String>()
+
+            allWorkspaces.forEach { projectId ->
+                wallets
+                    .filter { wallet ->  wallet?.owner == projectId }
+                    .forEach {
+                        val provider = it?.paysFor?.provider
+                        if (provider != null) {
+                            relevantProviders.add(provider)
+                        }
+                    }
+            }
+            relevantProviders.toSet()
+        } else {
+            val k = wallets.filter { it?.owner == (request.project ?: request.username)}.mapNotNull { it?.paysFor?.provider }.toSet()
+            k
+        }
+        val allProviders  = providers + products.findAllFreeProducts().map { it.category.provider }.toSet()
+        return AccountingResponse.FindRelevantProviders(allProviders.toList())
     }
 
     // Utilities for enforcing allocation period constraints
@@ -2468,6 +2526,11 @@ private class ProductCache(private val db: DBContext) {
                 }
             }
         }
+    }
+
+    suspend fun findAllFreeProducts(): List<Product> {
+        val products = products.get()
+        return products.filter{ it.first.freeToUse }.map { it.first }
     }
 
     suspend fun retrieveProduct(reference: ProductReference, allowCacheRefill: Boolean = true): Pair<Product, Long>? {

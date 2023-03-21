@@ -37,3 +37,6 @@ $$;
 
 alter function upload_request_settings(text, text, text[], text[], text[]) owner to postgres;
 
+drop table "grant".automatic_approval_limits;
+drop table "grant".automatic_approval_users;
+

@@ -1087,26 +1087,24 @@ abstract class ResourceService<
         useProject: Boolean = true,
         ctx: DBContext? = null,
     ): List<String> {
-        return Wallets.retrieveWalletsInternal.call(
-            WalletsInternalRetrieveRequest(
-                if (useProject) {
-                    if (actorAndProject.project == null ) {
-                        WalletOwner.User(actorAndProject.actor.safeUsername())
-                    } else {
-                        WalletOwner.Project(actorAndProject.project!!)
-                    }
-                } else {
-                    WalletOwner.User(actorAndProject.actor.safeUsername())
-                }
+        val relevantProviders = mutableSetOf<String>()
+        Accounting.findRelevantProviders.call(
+            bulkRequestOf(
+                FindRelevantProvidersRequestItem(
+                    actorAndProject.actor.safeUsername(),
+                    actorAndProject.project,
+                    useProject
+                )
             ),
             serviceClient
         ).orThrow()
-            .wallets
-            .filter { it.productType?.name == productArea.name }
-            .map {
-                it.paysFor.provider
+            .responses
+            .forEach { response ->
+                response.providers.forEach { relevant ->
+                    relevantProviders.add(relevant)
+                }
             }
-            .toSet().toList()
+        return relevantProviders.toList()
     }
 
     override suspend fun chargeCredits(

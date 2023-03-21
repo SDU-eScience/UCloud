@@ -380,9 +380,8 @@ class RpcServer {
 
             val jobIdForDebug = ctx.jobIdOrNull?.take(4) ?: Random.nextInt(10_000).toString()
 
-//            if (!call.fullName.contains("retrieveProviderSummary")) {
-//                log.info("Incoming call [$jobIdForDebug]: ${call.fullName}")
- //           }
+            log.info("Incoming call [$jobIdForDebug]: ${call.fullName}")
+
             val callHandler = CallHandler(ctx, capturedRequest, call).also { handler(it) }
 
             val responseResult = callHandler.result
@@ -397,9 +396,9 @@ class RpcServer {
             beforeResponse
                 .filter { it.canUseContext(ctx) }
                 .forEach { it.run(ctx, call, capturedRequest, responseResult) }
- //           if (!call.fullName.contains("retrieveProviderSummary")) {
- //               log.debug("   Responding [$jobIdForDebug]: ${call.fullName}")
- //           }
+
+            log.debug("   Responding [$jobIdForDebug]: ${call.fullName}")
+
             source.produceResponse(ctx, call, responseResult)
         } catch (ex: Throwable) {
             val isEarlyClose = ex is ClosedSendChannelException ||
