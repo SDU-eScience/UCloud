@@ -1581,6 +1581,8 @@ class AccountingProcessor(
             current = if (parent == null) null else allocations[parent]
         }
 
+        if (maximumCharge < 0L) maximumCharge = 0L
+
         current = allocations[allocation]
         while (current != null) {
             current.begin()
@@ -2002,7 +2004,7 @@ class AccountingProcessor(
         if (isLoading) return
 
         if (lastSync != -1L && requestsHandled > 0) {
-            val timeDiff = lastSync - now
+            val timeDiff = now - lastSync
             log.info("Handled $requestsHandled in ${timeDiff}ms. " +
                     "Average speed was ${requestTimeSum / requestsHandled} nanoseconds. " +
                     "Slowest request was: $slowestRequestName at $slowestRequest nanoseconds.")
@@ -2181,7 +2183,7 @@ class AccountingProcessor(
                                     if (it is Transaction.Charge) it.periods else null
                                 }
                                 into("units") {
-                                    if (it is Transaction.Charge) it.periods else null
+                                    if (it is Transaction.Charge) it.units else null
                                 }
                                 into("start_dates") {
                                     when (it) {
