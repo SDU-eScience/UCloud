@@ -152,8 +152,19 @@ sealed class ApplicationDescription(val application: String) {
                         }
                     }
                     is ApplicationParameterYaml.Ingress -> continue
-                    is ApplicationParameterYaml.InputDirectory -> TODO()
-                    is ApplicationParameterYaml.InputFile -> TODO()
+                    is ApplicationParameterYaml.InputDirectory,
+                    is ApplicationParameterYaml.InputFile -> {
+                        when (val value = param.defaultValue) {
+                            is String -> continue
+                            is Map<*, *> -> {
+                                value["value"] as? String ?: throw ApplicationVerificationException.BadDefaultValue(
+                                    param.name
+                                )
+                            }
+                            else ->
+                                throw ApplicationVerificationException.BadDefaultValue(param.name)
+                        }
+                    }
                     is ApplicationParameterYaml.Integer -> {
                         val normalizedDefault = when (val value = param.defaultValue) {
                             is Int -> {
@@ -183,18 +194,7 @@ sealed class ApplicationDescription(val application: String) {
                     is ApplicationParameterYaml.LicenseServer -> continue
                     is ApplicationParameterYaml.NetworkIP -> continue
                     is ApplicationParameterYaml.Peer -> continue
-                    is ApplicationParameterYaml.Text -> {
-                        when (val value = param.defaultValue) {
-                            is String -> continue
-                            is Map<*, *> -> {
-                                value["value"] as? String ?: throw ApplicationVerificationException.BadDefaultValue(
-                                    param.name
-                                )
-                            }
-                            else ->
-                                throw ApplicationVerificationException.BadDefaultValue(param.name)
-                        }
-                    }
+                    is ApplicationParameterYaml.Text,
                     is ApplicationParameterYaml.TextArea -> {
                         when (val value = param.defaultValue) {
                             is String -> continue
