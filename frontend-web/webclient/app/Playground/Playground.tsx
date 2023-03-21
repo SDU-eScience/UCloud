@@ -14,11 +14,14 @@ import {timestampUnixMs} from "@/UtilityFunctions";
 import {ProductSelectorPlayground} from "@/Products/Selector";
 import {useSelector} from "react-redux";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {Toggle} from "@/ui-components/Toggle";
 
 export const Playground: React.FunctionComponent = () => {
+    const [checked, setChecked] = React.useState(false);
     const main = (
         <>
             <UtilityBar searchEnabled />
+            <Toggle checked={checked} onChange={() => setChecked(e => !e)} />
 
             <ProductSelectorPlayground />
             <Button onClick={() => {
