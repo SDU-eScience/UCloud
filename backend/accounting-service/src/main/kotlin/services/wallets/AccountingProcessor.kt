@@ -461,7 +461,7 @@ class AccountingProcessor(
                         }
 
                         turnstile.withLock {
-                            if (!lock.renew(60_000)) {
+                            if (!disableMasterElection && !lock.renew(60_000)) {
                                 return@runBlocking
                             }
 

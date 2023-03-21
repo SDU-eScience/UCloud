@@ -51,7 +51,8 @@ class Server(
             simpleProviders,
             distributedLocks,
             distributedState = DistributedStateFactory(micro),
-            addressToSelf = micro.serviceInstance.ipAddress ?: "127.0.0.1"
+            addressToSelf = micro.serviceInstance.ipAddress ?: "127.0.0.1",
+            disableMasterElection = micro.commandLineArguments.contains("--single-instance")
         )
         val accountingService = AccountingService(db, simpleProviders, accountingProcessor)
 

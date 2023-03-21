@@ -11,7 +11,7 @@ For details look in the `k8.kts` folders of each microservice.
 
 ```
 Type 1/SDU Provider @ 2023.1.1
-UCloud/Core @ 2023.1.5
+UCloud/Core @ 2023.1.6
 ```
 
 ## 13-03-23
