@@ -391,7 +391,7 @@ function useSidebarFilesPage(): [
 
 function useSidebarRunsPage(): APICallState<PageV2<Job>> {
     /* TODO(Jonas): This should be fetched from the same source as the runs page. */
-    const [runs] = useCloudAPI<PageV2<Job>>(JobsApi.browse({itemsPerPage: 10}), emptyPageV2);
+    const [runs] = useCloudAPI<PageV2<Job>>(JobsApi.browse({itemsPerPage: 10, filterState: "RUNNING"}), emptyPageV2);
 
     return runs;
 }

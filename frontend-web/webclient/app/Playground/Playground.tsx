@@ -144,10 +144,10 @@ const colors: ThemeColor[] = [
 ];
 
 export function UtilityBar(props: {searchEnabled: boolean}): JSX.Element {
-    return (<Flex width="180px">
+    return (<Flex>
         <Box width="32px"><SearchThing enabled={props.searchEnabled} /></Box>
         <Box width="32px"><RefreshThing /></Box>
-        <ContextSwitcher />
+        <Box width="200px"><ContextSwitcher /></Box>
     </Flex>)
 }
 

@@ -114,6 +114,9 @@ html {
     --sidebarWidth: 64px;
     --sidebarAdditionalWidth: 220px;
     --popInWidth: 368px;
+    /* LIGHT */
+    --gradientStart: #B6D8FB;
+    --gradientEnd: #fff;    
 
     /* FONT-SIZES */
     --secondaryText: 12px;
@@ -212,6 +215,9 @@ html.dark {
     --appStoreFavBg: #00204d;
     --activeSpreadsheet: #000;
     --modalShadow: rgba(0, 0, 0, 0.75);
+    
+    --gradientStart: #375BB1;
+    --gradientEnd: #282C33;
 }
 
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */

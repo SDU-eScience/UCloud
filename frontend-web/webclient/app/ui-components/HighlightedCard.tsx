@@ -31,8 +31,10 @@ export const HighlightedCard: React.FunctionComponent<{
     icon?: IconName;
     height?: string;
     minHeight?: string;
+    maxHeight?: string;
     width?: string;
     minWidth?: string;
+    maxWidth?: string;
     onClick?: () => void;
     onContextMenu?: (e: React.MouseEvent) => void;
     className?: string;
@@ -44,20 +46,18 @@ export const HighlightedCard: React.FunctionComponent<{
     title,
     subtitle,
     onClick,
-    color,
     error,
     isLoading = false,
     icon = undefined,
     children,
     height = "auto",
     minHeight,
+    maxHeight,
     width = "100%",
     minWidth,
+    maxWidth,
     onContextMenu,
     className,
-    highlightSize = "5px",
-    innerPaddingX = "16px",
-    innerPaddingY = "4px",
 }) => (
         <Card
             onClick={onClick}
@@ -66,6 +66,8 @@ export const HighlightedCard: React.FunctionComponent<{
             width={width}
             minWidth={minWidth}
             minHeight={minHeight}
+            maxHeight={maxHeight}
+            maxWidth={maxWidth}
             onContextMenu={onContextMenu}
             className={`${className ?? ""} ${style}`}
         >

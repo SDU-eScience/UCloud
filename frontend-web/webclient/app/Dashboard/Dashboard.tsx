@@ -15,12 +15,11 @@ import {DashboardOperations, DashboardProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
 import {APICallState, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {GridCardGroup} from "@/ui-components/Grid";
 import {Spacer} from "@/ui-components/Spacer";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {dispatchSetProjectAction} from "@/Project/Redux";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
-import {GrantApplicationFilter, IngoingGrantApplicationsResponse,} from "@/Project/Grant";
+import {GrantApplicationFilter, IngoingGrantApplicationsResponse, } from "@/Project/Grant";
 import {GrantApplicationList} from "@/Project/Grant/GrantApplications";
 import * as UCloud from "@/UCloud";
 import {PageV2} from "@/UCloud";
@@ -55,6 +54,8 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
 import {StandardButtonSize} from "@/ui-components/Button";
+import {injectStyleSimple} from "@/Unstyled";
+import {UtilityBar} from "@/Playground/Playground";
 
 const MY_WORKSPACE = "My Workspace";
 
@@ -122,31 +123,52 @@ function Dashboard(props: DashboardProps): JSX.Element {
         fetchRuns(JobsApi.browse({itemsPerPage: 10, sortBy: "MODIFIED_AT"}));
     }
 
-    const main = (
-        <GridCardGroup minmax={435} gridGap={16}>
+    const main = (<Box mx="auto" maxWidth={"1200px"}>
+        <Flex><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
+        <div>
             <DashboardNews news={news} />
 
-            <DashboardFavoriteFiles
-                favoriteFiles={favoriteFiles}
-                onDeFavorite={() => fetchFavoriteFiles(metadataApi.browse({
-                    filterActive: true,
-                    filterTemplate: "Favorite",
-                    itemsPerPage: 10
-                }))}
-            />
-
-            <DashboardRuns runs={recentRuns} />
-
+            <div className={GridClass}>
+                <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
+                <DashboardRuns runs={recentRuns} />
+            </div>
+            <div style={{marginBottom: "24px"}}>
             <NotificationDashboardCard />
-            <DashboardResources products={products} />
-            <DashboardProjectUsage charts={usage} />
-            <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
-            <Connect embedded />
-        </GridCardGroup>
-    );
+            </div>
+            <UsageAndResources charts={usage} products={products} />
+            <div className={GridClass}>
+                <Connect embedded />
+                <DashboardFavoriteFiles
+                    favoriteFiles={favoriteFiles}
+                    onDeFavorite={() => fetchFavoriteFiles(metadataApi.browse({
+                        filterActive: true,
+                        filterTemplate: "Favorite",
+                        itemsPerPage: 10
+                    }))}
+                />
+            </div>
+        </div>
+    </Box>);
 
-    return (<MainContainer main={main} />);
+    return (
+        <div className={Gradient}>
+            <MainContainer main={main} />
+        </div>
+    );
 }
+
+const GridClass = injectStyleSimple("grid", () => `
+    display: grid;
+    margin-top: 24px;
+    margin-bottom: 24px;
+    grid-template-columns: repeat(auto-fill, minmax(490px, auto));
+    grid-auto-rows: minmax(450px, auto);
+    gap: 20px;
+`);
+
+const Gradient = injectStyleSimple("gradient", () => `
+    background: linear-gradient(var(--gradientStart), var(--gradientEnd));
+`);
 
 interface DashboardFavoriteFilesProps {
     favoriteFiles: APICallState<PageV2<FileMetadataAttached>>;
@@ -172,7 +194,6 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
             isLoading={props.favoriteFiles.loading}
             icon="starFilled"
             title="Favorites"
-            minWidth="100%"
             error={props.favoriteFiles.error?.why}
         >
             {favorites.length !== 0 ? null : (
@@ -268,16 +289,37 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string; children
     </Flex>
 );
 
-function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[]}>}): JSX.Element | null {
+const ResourceGridClass = injectStyleSimple("grid", () => `
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+    grid-auto-rows: minmax(450px, auto);
+`);
+
+function UsageAndResources(props: {charts: APICallState<{charts: UsageChart[]}>; products: APICallState<PageV2<Product>>}): JSX.Element {
+    const usage = React.useMemo(() => <DashboardProjectUsage charts={props.charts} />, [props.charts]);
+    const products = React.useMemo(() => <DashboardResources products={props.products} />, [props.products]);
+
     return (
         <HighlightedCard
-            title={<Link to={`/project/resources/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource usage</Heading.h3></Link>}
-            icon="hourglass"
             color="yellow"
         >
+            <div className={ResourceGridClass}>
+                {usage}
+                {products}
+            </div>
+        </HighlightedCard>
+    );
+}
+
+function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[]}>}): JSX.Element | null {
+    return (<div>
+        <div>
+            <Link to={`/project/resources/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource usage</Heading.h3></Link>
+        </div>
+        <div>
             {props.charts.data.charts.length !== 0 ? null : (
                 <NoResultsCardBody title={"No usage"}>
-                    <Text textAlign="center">
+                    <Text style={{wordBreak: "break-word"}} textAlign="center">
                         As you use the platform, usage will appear here.
                     </Text>
                 </NoResultsCardBody>
@@ -298,8 +340,8 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
                     ))}
                 </tbody>
             </Table>
-        </HighlightedCard>
-    );
+        </div>
+    </div>);
 }
 
 function DashboardRuns({runs}: {
@@ -391,13 +433,8 @@ function DashboardResources({products}: {
     </Link>;
 
     return (
-        <HighlightedCard
-            title={<Link to={`/project/allocations/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource allocations</Heading.h3></Link>}
-            color="red"
-            isLoading={products.loading}
-            icon={"grant"}
-            error={products.error?.why}
-        >
+        <div>
+            <Link to={`/project/allocations/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource allocations</Heading.h3></Link>
             {wallets.length === 0 ? (
                 <NoResultsCardBody title={"No available resources"}>
                     {!canApply ? null : <Text>
@@ -432,7 +469,7 @@ function DashboardResources({products}: {
                     </Flex>
                 </>
             }
-        </HighlightedCard>
+        </div>
     );
 }
 
@@ -460,7 +497,6 @@ const DashboardGrantApplications: React.FunctionComponent<{
     return <HighlightedCard
         title={title}
         color="green"
-        minWidth="450px"
         isLoading={outgoingApps.loading}
         icon="mail"
         error={outgoingApps.error?.why ?? ingoingApps.error?.why}
