@@ -171,6 +171,18 @@ class VolcanoRuntime(
         return result
     }
 
+    override suspend fun isJobKnown(jobId: String): Boolean {
+        return runCatching {
+            k8.client.getResource(
+                VolcanoJob.serializer(),
+                KubernetesResourceLocator.common.volcanoJob.withNameAndNamespace(
+                    k8.nameAllocator.jobIdToJobName(jobId),
+                    k8.nameAllocator.namespace()
+                )
+            )
+        }.isSuccess
+    }
+
     override suspend fun listNodes(): List<ComputeNode> {
         val namespace = k8.client.getResource(
             Namespace.serializer(),
