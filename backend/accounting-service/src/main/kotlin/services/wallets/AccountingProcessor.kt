@@ -2,7 +2,6 @@ package dk.sdu.cloud.accounting.services.wallets
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -132,12 +131,12 @@ private data class WalletAllocation(
 
         isDirty =
             isDirty ||
-                beginNotBefore != notBefore ||
-                beginNotAfter != notAfter ||
-                beginInitialBalance != initialBalance ||
-                beginLocalBalance != localBalance ||
-                beginCurrentBalance != currentBalance ||
-                beginGrantedIn != grantedIn
+                    beginNotBefore != notBefore ||
+                    beginNotAfter != notAfter ||
+                    beginInitialBalance != initialBalance ||
+                    beginLocalBalance != localBalance ||
+                    beginCurrentBalance != currentBalance ||
+                    beginGrantedIn != grantedIn
         inProgress = false
 
         verifyIntegrity()
@@ -330,7 +329,7 @@ sealed class AccountingResponse {
     data class FindRelevantProviders(
         val providers: List<String>,
         override var id: Long = -1
-    ): AccountingResponse()
+    ) : AccountingResponse()
 }
 
 inline fun <reified T : AccountingResponse> AccountingResponse.orThrow(): T {
@@ -344,6 +343,7 @@ inline fun <reified T : AccountingResponse> AccountingResponse.orThrow(): T {
 suspend fun AccountingProcessor.findRelevantProviders(request: AccountingRequest.FindRelevantProviders): AccountingResponse.FindRelevantProviders {
     return sendRequest(request).orThrow()
 }
+
 suspend fun AccountingProcessor.rootDeposit(request: AccountingRequest.RootDeposit): AccountingResponse.RootDeposit {
     return sendRequest(request).orThrow()
 }
@@ -436,6 +436,13 @@ class AccountingProcessor(
 
     private var isLoading = false
 
+    // Metrics
+    private var requestsHandled = 0
+    private var slowestRequest = 0L
+    private var slowestRequestName = "?"
+    private var requestTimeSum = 0L
+    private var lastSync = Time.now()
+
     // Primary interface
     // =================================================================================================================
     // The accounting processors is fairly simple to use. It must first be started by call start(). After this you can
@@ -501,8 +508,18 @@ class AccountingProcessor(
                             // timeout is never triggered.
                             attemptSynchronize()
 
+                            val start = System.nanoTime()
+
                             val response = handleRequest(request)
                             response.id = request.id
+
+                            requestsHandled++
+                            val end = System.nanoTime()
+                            requestTimeSum += (end - start)
+                            if (end - start > slowestRequest) {
+                                slowestRequest = end - start
+                                slowestRequestName = request.javaClass.simpleName
+                            }
 
                             if (doDebug) {
                                 println("Request: $request")
@@ -579,6 +596,7 @@ class AccountingProcessor(
             is AccountingRequest.RetrieveRelevantWalletsProviderNotifications -> retrieveRelevantWalletsNotifications(
                 request
             )
+
             is AccountingRequest.FindRelevantProviders -> findRelevantProviders(request)
         }
 
@@ -1190,37 +1208,30 @@ class AccountingProcessor(
         request: AccountingRequest.FindRelevantProviders
     ): AccountingResponse {
         val providers = if (!request.useProject) {
-            val projectsUserIsPartOf = db.withSession { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("username", request.username)
-                    },
-                    """
-                        Select project_id 
-                        from project.project_members
-                        where username = :username
-                    """.trimIndent()
-                ).rows.map { it.getString(0)!! }
-            }
+            val projectsUserIsPartOf = projects.fetchMembership(request.username, allowCacheRefill = false)
             val allWorkspaces = projectsUserIsPartOf + listOf(request.username)
-            val relevantProviders = mutableSetOf<String>()
 
-            allWorkspaces.forEach { projectId ->
-                wallets
-                    .filter { wallet ->  wallet?.owner == projectId }
-                    .forEach {
-                        val provider = it?.paysFor?.provider
-                        if (provider != null) {
-                            relevantProviders.add(provider)
-                        }
-                    }
-            }
-            relevantProviders.toSet()
+            allWorkspaces
+                .flatMap { projectId ->
+                    wallets
+                        .asSequence()
+                        .filter { wallet -> wallet?.owner == projectId }
+                        .mapNotNull { it?.paysFor?.provider }
+                }
+                .toSet()
         } else {
-            val k = wallets.filter { it?.owner == (request.project ?: request.username)}.mapNotNull { it?.paysFor?.provider }.toSet()
-            k
+            val project = request.project
+            if (project != null && projects.retrieveProjectRole(request.username, project) == null) {
+                emptySet()
+            } else {
+                wallets
+                    .asSequence()
+                    .filter { it?.owner == (project ?: request.username) }
+                    .mapNotNull { it?.paysFor?.provider }
+                    .toSet()
+            }
         }
-        val allProviders  = providers + products.findAllFreeProducts().map { it.category.provider }.toSet()
+        val allProviders = providers + products.findAllFreeProducts().map { it.category.provider }.toSet()
         return AccountingResponse.FindRelevantProviders(allProviders.toList())
     }
 
@@ -1495,7 +1506,7 @@ class AccountingProcessor(
                     while (idx < myAllocations.size) {
                         val isFirst = idx == 0
                         val toCharge = amountToDeductPerAllocation +
-                            (if (!isFirst) 0 else amountMissing % myAllocations.size)
+                                (if (!isFirst) 0 else amountMissing % myAllocations.size)
 
                         deductWithoutChecks(
                             charge,
@@ -1974,8 +1985,8 @@ class AccountingProcessor(
             val query = request.query
             list.filter {
                 it.workspaceTitle.contains(query) ||
-                    it.productCategoryId.name.contains(query) ||
-                    it.productCategoryId.provider.contains(query)
+                        it.productCategoryId.name.contains(query) ||
+                        it.productCategoryId.provider.contains(query)
             }
         }
         return AccountingResponse.BrowseSubAllocations(filteredList)
@@ -1989,6 +2000,20 @@ class AccountingProcessor(
         val now = System.currentTimeMillis()
         if (now < nextSynchronization && !forced) return
         if (isLoading) return
+
+        if (lastSync != -1L && requestsHandled > 0) {
+            val timeDiff = lastSync - now
+            log.info("Handled $requestsHandled in ${timeDiff}ms. " +
+                    "Average speed was ${requestTimeSum / requestsHandled} nanoseconds. " +
+                    "Slowest request was: $slowestRequestName at $slowestRequest nanoseconds.")
+
+            slowestRequestName = ""
+            slowestRequest = 0
+            requestsHandled = 0
+            requestTimeSum = 0L
+            lastSync = now
+        }
+
         log.info("Synching")
         debug.enterContext("Synchronizing accounting data") {
             debug.detailD("Filling products", Unit.serializer(), Unit)
@@ -2463,6 +2488,21 @@ private class ProjectCache(private val db: DBContext) {
         }
         return pi
     }
+
+    suspend fun fetchMembership(username: String, allowCacheRefill: Boolean = true): List<String> {
+        val result = projectMembers.get()
+            .asSequence()
+            .filter { it.username == username }
+            .map { it.project }
+            .toList()
+
+        if (result.isEmpty() && allowCacheRefill) {
+            fillCache()
+            return fetchMembership(username, allowCacheRefill = false)
+        }
+
+        return result
+    }
 }
 
 private class ProductCache(private val db: DBContext) {
@@ -2530,15 +2570,15 @@ private class ProductCache(private val db: DBContext) {
 
     suspend fun findAllFreeProducts(): List<Product> {
         val products = products.get()
-        return products.filter{ it.first.freeToUse }.map { it.first }
+        return products.filter { it.first.freeToUse }.map { it.first }
     }
 
     suspend fun retrieveProduct(reference: ProductReference, allowCacheRefill: Boolean = true): Pair<Product, Long>? {
         val products = products.get()
         val product = products.find {
             it.first.name == reference.id &&
-                it.first.category.name == reference.category &&
-                it.first.category.provider == reference.provider
+                    it.first.category.name == reference.category &&
+                    it.first.category.provider == reference.provider
         }
 
         if (product == null && allowCacheRefill) {
@@ -2553,7 +2593,7 @@ private class ProductCache(private val db: DBContext) {
         val products = products.get()
         val product = products.find {
             it.first.category.name == category.name &&
-                it.first.category.provider == category.provider
+                    it.first.category.provider == category.provider
         }
 
         if (product == null && allowCacheRefill) {
@@ -2568,7 +2608,7 @@ private class ProductCache(private val db: DBContext) {
         val products = products.get()
         val product = products.find {
             it.first.category.name == category.name &&
-                it.first.category.provider == category.provider
+                    it.first.category.provider == category.provider
         }
 
         if (product == null && allowCacheRefill) {
@@ -2583,7 +2623,7 @@ private class ProductCache(private val db: DBContext) {
         val products = products.get()
         val product = products.find {
             it.first.category.name == category.name &&
-                it.first.category.provider == category.provider
+                    it.first.category.provider == category.provider
         }
 
         if (product == null && allowCacheRefill) {
