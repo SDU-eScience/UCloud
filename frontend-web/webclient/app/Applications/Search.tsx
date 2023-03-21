@@ -20,21 +20,6 @@ interface SearchQuery {
     itemsPerPage: number;
 }
 
-interface SearchStampsProps {
-    stamps: Set<string>;
-    onStampRemove: (stamp: string) => void;
-    clearAll: () => void;
-}
-
-export const SearchStamps: React.FunctionComponent<SearchStampsProps> = ({stamps, onStampRemove, clearAll}) => {
-    return <Box pb="5px">
-        {[...stamps].map(l => (
-            <Stamp onClick={() => onStampRemove(l)} ml="2px" mt="2px" color="blue" key={l} text={l} />))}
-        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" color="red" onClick={() => clearAll()} text="Clear all" />) : null}
-    </Box>;
-};
-
-
 function readQuery(queryParams: string): SearchQuery {
     const tags: string[] = [];
     const tagsQuery = getQueryParamOrElse(queryParams, "tags", "");

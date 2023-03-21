@@ -51,16 +51,18 @@ import {useNavigate} from "react-router";
 import JobsApi, {Job, jobStateToIconAndColor} from "@/UCloud/JobsApi";
 import {ProjectLinks} from "@/Project/ProjectLinks";
 import {ResourceLinks} from "@/Resource/ResourceOptions";
-import {injectStyleSimple} from "@/Unstyled";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
-const SidebarElementContainerClass = injectStyleSimple("div", () => `
-    display: flex;
-    margin-left: 22px;
-    justify-content: left;
-    flex-flow: row;
-    align-items: center;
+const SidebarElementContainerClass = injectStyle("sidebar-element", k => `
+    ${k} {
+        display: flex;
+        margin-left: 22px;
+        justify-content: left;
+        flex-flow: row;
+        align-items: center;
+    }
 
-    & > ${Text} {
+    ${k} > ${Text} {
         white-space: nowrap;
     }
 `);
@@ -71,7 +73,7 @@ const SidebarAdditionalStyle = styled(Flex) <{forceOpen: boolean}>`
     width: ${p => p.forceOpen ? "var(--sidebarAdditionalWidth)" : "0px"};
 `;
 
-const SidebarContainerClass = injectStyleSimple("div", () => `
+const SidebarContainerClass = injectStyleSimple("sidebar-container", () => `
     color: var(--sidebar);
     align-items: center;
     display: flex;
@@ -120,23 +122,6 @@ export const SidebarTextLabel = ({
         <Text fontSize={textSize}>{children}</Text>
     </div>
 );
-
-const SidebarLink = styled(Link) <{active?: boolean}>`
-    ${props => props.active ?
-        `&:not(:hover) > * > ${Text} {
-            color: ${props.theme.colors.blue};
-        }
-        &:not(:hover) > * > ${Icon} {
-            filter: saturate(500%);
-        }
-    ` : null}
-
-    text-decoration: none;
-
-    &:hover > ${Text}, &:hover > * > .${IconClass} {
-        filter: saturate(500%);
-    }
-`;
 
 interface SidebarElement {
     icon: IconName;

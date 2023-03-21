@@ -8,7 +8,7 @@ import ApplicationParameter = compute.ApplicationParameter;
 import {Box, Button, Flex, Icon, Input, Label, Markdown, Text} from "@/ui-components";
 import {FilesParameter, FilesSetter, FilesValidator} from "./GenericFiles";
 import styled from "styled-components";
-import {EllipsedText, TextP, TextSpan} from "@/ui-components/Text";
+import {EllipsedText, TextClass, TextP, TextSpan} from "@/ui-components/Text";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import Fuse from "fuse.js";
 import {GenericTextParameter, GenericTextAreaAppParameter, GenericTextSetter, GenericTextValidator} from "@/Applications/Jobs/Widgets/GenericText";
@@ -89,7 +89,7 @@ const InactiveWidget = styled(Flex)`
     align-items: center;
     cursor: pointer;
 
-    strong, & > ${EllipsedText} {
+    strong, & > .${TextClass} {
         user-select: none;
     }
 
@@ -99,12 +99,12 @@ const InactiveWidget = styled(Flex)`
         flex-shrink: 0;
     }
 
-    & > ${EllipsedText} {
+    & > .${TextClass} {
         color: var(--gray, #f00);
         flex-grow: 1;
     }
 
-    & > ${EllipsedText} > p {
+    & > .${TextClass} > p {
         margin: 0;
         white-space: nowrap;
         overflow: hidden;

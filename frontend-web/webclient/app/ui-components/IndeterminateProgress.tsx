@@ -15,8 +15,7 @@ interface ProgressBaseProps {
 const ProgressBaseClass = injectStyle("progress-base", k => `
     ${k} {
         border-radius: 5px;
-        background-color: var(--lightGray, #foo);
-        height: ${props => props.height};
+        background-color: var(--lightGray, #f00);
         position: relative;
         overflow: hidden;
         width: 100%;

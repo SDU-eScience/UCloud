@@ -318,7 +318,6 @@ const ProjectRenderer: ItemRenderer<Project> = {
 
                 <Toggle
                     scale={1.5}
-                    activeColor="--green"
                     checked={isActive}
                     onChange={() => {
                         if (isActive) return;

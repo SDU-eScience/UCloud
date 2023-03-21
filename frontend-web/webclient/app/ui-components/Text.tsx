@@ -1,78 +1,92 @@
 import * as React from "react";
-import styled from "styled-components";
-import {
-    color,
-    ColorProps, flexGrow, FlexGrowProps,
-    fontSize,
-    FontSizeProps,
-    fontWeight,
-    lineHeight,
-    maxWidth,
-    MaxWidthProps,
-    space,
-    SpaceProps,
-    textAlign,
-    TextAlignProps,
-    textStyle,
-    width,
-    WidthProps
-} from "styled-system";
-import {Theme} from "./theme";
-import {Cursor} from "./Types";
+import {extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
+import {CSSProperties} from "react";
+import {BoxProps} from "@/ui-components/Box";
 
-export const caps = (props: {caps?: boolean}): {textTransform: "uppercase"} | null =>
-    props.caps ? {textTransform: "uppercase"} : null;
-
-export const regular = (props: {regular?: boolean, theme: Theme}) =>
-    props.regular ? {fontWeight: props.theme.regular} : null;
-
-export const bold = (props: {bold?: boolean, theme: Theme}) =>
-    props.bold ? {fontWeight: props.theme.bold} : null;
-
-export const italic = (props: {italic?: boolean}) => (props.italic ? {fontStyle: "italic"} : null);
-
-export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProps, WidthProps, FlexGrowProps {
+export interface TextProps extends BoxProps {
     align?: "left" | "right";
     caps?: boolean;
     regular?: boolean;
     italic?: boolean;
     bold?: boolean;
-    cursor?: Cursor;
     selectable?: boolean;
+    title?: string;
+    style?: CSSProperties;
 }
 
-const Text = styled.div<TextProps>`
-    cursor: ${props => props.cursor};
-    ${p => p.selectable === false ? "user-select: none;" : null}
-    ${width}
-    ${textStyle}
-    ${fontSize}
-    ${fontWeight}
-    ${textAlign}
-    ${lineHeight}
-    ${space}
-    ${color}
-    ${flexGrow}
-    ${caps}
-    ${regular}
-    ${bold}
-    ${italic}
-`;
+export const TextClass = injectStyle("text", () => ``);
+
+function extractCss(props: TextProps): CSSProperties {
+    const style = {...unbox(props), ...(props.style ?? {})};
+    if (props.selectable === false) style.userSelect = "none";
+    if (props.caps === true) style.textTransform = "uppercase";
+    if (props.regular === true) style.fontWeight = "normal";
+    if (props.italic === true) style.fontStyle = "italic";
+    if (props.align !== undefined) style.textAlign = props.align;
+    if (props.cursor !== undefined) style.cursor = props.cursor;
+    return style;
+}
+
+const Text: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
+    return <div className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+                title={props.title} children={props.children}/>;
+};
 
 export const TextDiv = Text;
-export const TextSpan = (props: any) => <Text as="span" {...props} />;
-export const TextP = (props: any) => <Text as="p" {...props} />;
+export const TextSpan: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
+    return <span className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+                 title={props.title} children={props.children}/>;
+}
+export const TextP: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
+    return <p className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+              title={props.title} children={props.children}/>;
+}
 
-type EllipsedTextProps = TextProps & WidthProps & MaxWidthProps;
-export const EllipsedText = styled(Text) <EllipsedTextProps>`
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  ${width};
-  ${maxWidth};
-  display: inline-block;
-  vertical-align: bottom;
-`;
+export const TextH1: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
+    return <h1 className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+              title={props.title} children={props.children}/>;
+}
+
+export const TextH2: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
+    return <h2 className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+              title={props.title} children={props.children}/>;
+}
+
+export const TextH3: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
+    return <h3 className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+              title={props.title} children={props.children}/>;
+}
+
+export const TextH4: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
+    return <h4 className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+              title={props.title} children={props.children}/>;
+}
+
+export const TextH5: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
+    return <h5 className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+              title={props.title} children={props.children}/>;
+}
+
+export const TextH6: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
+    return <h6 className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+              title={props.title} children={props.children}/>;
+}
+
+const EllipsedTextClass = injectStyle("ellipsed-text", k => `
+    ${k} {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: inline-block;
+        vertical-align: bottom;   
+    }
+`);
+
+export const EllipsedText: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
+    return <div className={TextClass + " " + EllipsedTextClass}
+                style={extractCss(props)} {...extractEventHandlers(props)}
+                title={props.title} children={props.children}/>;
+}
 
 EllipsedText.displayName = "EllipsedText";
 

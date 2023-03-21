@@ -5,7 +5,7 @@ import {Absolute, Flex, Icon, Text} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import Link from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
-import {EllipsedText} from "@/ui-components/Text";
+import {EllipsedText, TextClass} from "@/ui-components/Text";
 import theme from "@/ui-components/theme";
 import * as Pages from "./Pages";
 import {compute} from "@/UCloud";
@@ -40,12 +40,12 @@ const AppCardBase = styled(Link)`
         flex-shrink: 0;
     }
 
-    & > ${EllipsedText} {
+    & > .${TextClass} {
         color: var(--gray, #f00);
         flex-grow: 1;
     }
 
-    & > ${EllipsedText} > p {
+    & > .${TextClass} > p {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;

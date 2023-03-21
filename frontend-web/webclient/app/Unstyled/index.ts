@@ -4,6 +4,7 @@ import {ResponsiveValue, SpaceProps} from "styled-system";
 import * as React from "react";
 
 export function extractSize(size: ResponsiveValue<any>): string {
+    if (size === 1) return "100%";
     if (typeof size === "string") return size;
     return `${size}px`;
 }
@@ -90,6 +91,8 @@ export function unbox(props: BoxProps | SpaceProps): CSSProperties {
     if ("flexGrow" in props && props.flexGrow) result.flexGrow = props.flexGrow.toString();
     if ("flexShrink" in props && props.flexShrink) result.flexShrink = props.flexShrink.toString();
     if ("textAlign" in props && props.textAlign) result.textAlign = props.textAlign.toString() as any;
+    if ("verticalAlign" in props && props.verticalAlign) result.verticalAlign = props.verticalAlign.toString() as any;
+    if ("fontSize" in props && props.fontSize) result.fontSize = extractSize(props.fontSize);
 
     return result;
 }

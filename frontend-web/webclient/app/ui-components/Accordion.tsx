@@ -78,7 +78,7 @@ const AccordionStyleClass = injectStyle("accordion", k => `
 const PanelClass = injectStyle("accordion-panel", k => `
     ${k} {
         display: block;
-        display: border-bottom: 1px solid var(--lightGray);
+        border-bottom: 1px solid var(--lightGray);
         max-height: auto;
         overflow: hidden;
         transition: all 0.2s ease-out;

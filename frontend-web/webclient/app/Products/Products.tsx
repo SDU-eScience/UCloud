@@ -64,7 +64,7 @@ const DetailedView = styled(Table)`
         border-top: 1px solid rgba(34, 36, 38, .1);
     }
 
-    th, ${TableCell} {
+    th, td {
         padding: 16px 0;
     }
 `;
@@ -221,15 +221,15 @@ const TruncatedTableCell = styled(TableCell)`
 `;
 
 const MachineTypesWrapper = styled.div`
-  ${TableHeaderCell} {
+  th {
     text-align: left;
   }
 
-  ${TableRow} {
+  tr {
     padding: 8px;
   }
 
-  tbody > ${TableRow}:hover {
+  tbody > tr:hover {
     cursor: pointer;
     background-color: var(--lightGray, #f00);
     color: var(--black, #f00);

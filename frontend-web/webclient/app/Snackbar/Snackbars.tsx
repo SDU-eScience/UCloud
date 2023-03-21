@@ -80,7 +80,7 @@ const Snackbars: React.FunctionComponent = () => {
         <CustomSnack onCancel={onCancellation} snack={activeSnack} /> :
         <DefaultSnack onCancel={onCancellation} snack={activeSnack} />;
 
-    return <Snackbar key={activeSnack.message} visible>{snackElement}</Snackbar>;
+    return <Snackbar key={activeSnack.message}>{snackElement}</Snackbar>;
 
     function onCancellation(): void {
         snackbarStore.requestCancellation();

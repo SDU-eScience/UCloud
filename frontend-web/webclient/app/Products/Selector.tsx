@@ -407,7 +407,7 @@ const SelectorDialog = styled.div<BoxShadowProps>`
         user-select: none;
     }
 
-    table > tbody > ${TableRow}:hover {
+    table > tbody > tr:hover {
         cursor: pointer;
         background-color: var(--lightGray, #f00);
     }
@@ -434,7 +434,7 @@ const SelectorDialog = styled.div<BoxShadowProps>`
         margin-top: -16px;
     }
 
-    ${TableRow}.disabled {
+    tr.disabled {
         background-color: var(--lightGray);
         color: var(--borderGray);
         cursor: not-allowed !important;

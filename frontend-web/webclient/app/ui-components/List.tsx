@@ -162,7 +162,6 @@ const ListRowClass = injectStyle("list-item", k => `
 
     ${k} .row-left-content {
         margin-bottom: -4px;
-        font-size: ${p => p.fontSize ?? "20px"};
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;

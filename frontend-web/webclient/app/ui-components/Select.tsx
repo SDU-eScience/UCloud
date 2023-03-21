@@ -1,74 +1,58 @@
 import * as React from "react";
-import styled, {css} from "styled-components";
-import {fontSize, space, SpaceProps, WidthProps} from "styled-system";
+import {SpaceProps, WidthProps} from "styled-system";
 import Flex from "./Flex";
-import Icon from "./Icon";
-import theme from "./theme";
+import Icon, {IconClass} from "./Icon";
+import {injectStyle, unbox} from "@/Unstyled";
 
-const ClickableIcon = styled(Icon)`
-  pointer-events: none;
-`;
-
-const left = ({leftLabel}: {leftLabel?: boolean}) =>
-    leftLabel ? css`border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
-const right = ({rightLabel}: {rightLabel?: boolean}) =>
-    rightLabel ? css`border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
-
-
-interface SelectProps extends SpaceProps, WidthProps {
-    fontSize?: number | string;
-    leftLabel?: boolean;
-    rightLabel?: boolean;
+interface SelectProps extends SpaceProps, WidthProps, React.SelectHTMLAttributes<HTMLSelectElement> {
     error?: boolean;
+    selectRef?: React.RefObject<HTMLSelectElement>;
 }
 
-const SelectBase = styled.select<SelectProps>`
-  appearance: none;
-  display: block;
-  width: 100%;
-  font-family: inherit;
-  color: inherit;
+const SelectClass = injectStyle("select", k => `
+    ${k} {
+        appearance: none;
+        display: block;
+        width: 100%;
+        font-family: inherit;
+        color: inherit;
+        background-color: transparent;
+        border-radius: 5px;
+        border-width: 2px;
+        border-style: solid;
+        border-color: var(--borderGray, #f00);
+        
+        margin: 0;
+        padding-left: 12px;
+        padding-right: 32px;
+        padding-top: 7px;
+        padding-bottom: 7px;
+    }
+    
+    ${k} > option {
+        color: black;
+    }
 
-  & > option {
-    color: black;
-  }
+    ${k}:invalid, ${k}[data-error="true"] {
+        border-color: var(--red, #f00);
+    }
 
-  &:invalid {
-    border-color: var(--red, #f00);
-  }
+    ${k}:focus {
+        outline: none;
+        border-color: var(--blue, #f00);
+    }
+    
+    ${k} + .${IconClass} {
+        pointer-events: none;
+        margin-left: -32px;
+    }
+`);
 
-  background-color: transparent;
-  border-radius: ${theme.radius};
-  border-width: ${p => p.theme.borderWidth};
-  border-style: solid;
-  border-color: var(--borderGray, #f00);
-  ${p => p.error ? "border-color: var(--red, #f00);" : null}
-
-  &:focus {
-    outline: none;
-    border-color: var(--blue, #f00);
-  }
-
-  ${space} ${fontSize}
-  ${left} ${right}
-`;
-
-SelectBase.defaultProps = {
-    m: 0,
-    pl: 12,
-    pr: 32,
-    py: 7
+const Select: React.FunctionComponent<SelectProps> = props => {
+    return <Flex width={1} alignItems="center" style={unbox(props)}>
+        <select className={SelectClass} {...props} ref={props.selectRef}/>
+        <Icon name="chevronDown" color="gray" size="0.7em"/>
+    </Flex>;
 };
-
-type Props = SelectProps &
-    React.SelectHTMLAttributes<HTMLSelectElement> &
-{selectRef?: React.RefObject<HTMLSelectElement>};
-
-const Select = styled((props: Props) => (
-    <Flex width={1} alignItems="center">
-        <SelectBase {...props} ref={props.selectRef} />
-        <ClickableIcon ml={-32} name="chevronDown" color="gray" size="0.7em" />
-    </Flex>
-))``;
 
 export default Select;

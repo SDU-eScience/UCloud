@@ -30,7 +30,7 @@ export const CardClass = injectStyleSimple("card", () => `
     border-radius: 25px;
     background: #FAFBFC;
     border: 1px solid #E2DDDD;
-    padding: 30px;
+    padding: 0 25px 25px 25px;
     box-shadow: 0px 3px 6px rgba(0, 0, 0, 16%);
 `);
 

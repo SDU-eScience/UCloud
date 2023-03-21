@@ -12,6 +12,7 @@ import {NavigateFunction, useNavigate} from "react-router";
 import {initializeResources} from "@/Services/ResourceInit";
 import {useProject} from "./cache";
 import ProjectAPI, {Project, useProjectId} from "@/Project/Api";
+import {TextClass} from "@/ui-components/Text";
 
 export function ContextSwitcher(): JSX.Element | null {
     const {activeProject, refresh} = useSelector((it: ReduxObject) => ({activeProject: it.project.project, refresh: it.header.refresh}));
@@ -117,7 +118,7 @@ const BoxForPadding = styled.div`
         margin-left: 26px;
     }
 
-    & > ${Text} {
+    & > .${TextClass} {
         padding-left: 10px;
     }
 

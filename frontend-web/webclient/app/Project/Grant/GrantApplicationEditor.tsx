@@ -241,7 +241,7 @@ const Wrapper = styled.div`
         margin-left: -9px;
     }
 
-    & > table > tbody > ${TableRow}:hover {
+    & > table > tbody > tr:hover {
         cursor: pointer;
         background-color: var(--lightGray, #f00);
         color: var(--black, #f00);

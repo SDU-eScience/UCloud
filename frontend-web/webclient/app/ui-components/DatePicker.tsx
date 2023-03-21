@@ -43,7 +43,7 @@ export const DatePicker: React.FunctionComponent<ReactDatePickerProps<never, tru
 DatePicker.displayName = "DatePicker";
 
 export const SlimDatePickerClass = injectStyle("slim-date-picker", k => `
-    ${k} .react-datepicker__day-name, & .react-datepicker__day, & .react-datepicker__time-name {
+    ${k} .react-datepicker__day-name, ${k} .react-datepicker__day, ${k} .react-datepicker__time-name {
         width: 1.4rem;
         line-height: 1.4rem;
     }  

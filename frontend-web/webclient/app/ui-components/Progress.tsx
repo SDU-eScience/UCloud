@@ -9,7 +9,6 @@ const ProgressBaseClass = injectStyle("progress-base", k => `
     ${k} {
         border-radius: 5px;
         background-color: var(--progressColor, #f00);
-        height: ${props => props.height};
         width: 100%;
         
         --progressColor: var(--green):

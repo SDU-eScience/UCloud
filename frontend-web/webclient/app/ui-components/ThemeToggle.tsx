@@ -1,6 +1,6 @@
 import * as React from "react";
-import styled from "styled-components";
 import Relative from "./Relative";
+import {injectStyle} from "@/Unstyled";
 
 /*!
 
@@ -24,15 +24,10 @@ import Relative from "./Relative";
 
  */
 
-interface ThemeToggleProps {
-    size: number;
-    active: boolean;
-}
-export function ThemeToggler({
-    isLightTheme,
-    onClick
-}: {isLightTheme: boolean; onClick: (e: React.SyntheticEvent<HTMLDivElement>) => void}): JSX.Element {
-
+export function ThemeToggler({isLightTheme, onClick}: {
+    isLightTheme: boolean;
+    onClick: (e: React.SyntheticEvent<HTMLDivElement>) => void
+}): JSX.Element {
     function toggleActive(): void {
         setActive(!active);
     }
@@ -40,196 +35,224 @@ export function ThemeToggler({
     const [active, setActive] = React.useState<boolean>(isLightTheme);
     return (
         <Relative onClick={onClick} marginLeft="auto" marginRight="auto">
-            <Wrapper onClick={toggleActive} size={1} active={active}>
-                <Switch size={1} active={active}>
-                    <Moon>
-                        <Crater active={active} />
-                        <Crater active={active} />
-                        <Crater active={active} />
-                    </Moon>
-                </Switch>
-                <Clouds active={active}>
-                    <Cloud />
-                    <Cloud />
-                    <Cloud />
-                </Clouds>
-                <Stars active={active}>
-                    <Star active={active} />
-                    <Star active={active} />
-                    <Star active={active} />
-                    <Star active={active} />
-                    <Star active={active} />
-                    <Star active={active} />
-                </Stars>
-            </Wrapper>
+            <div className={Wrapper} onClick={toggleActive} data-active={active}>
+                <div className={Switch} data-active={active}>
+                    <div className={Moon}>
+                        <div className={Crater} data-active={active}/>
+                        <div className={Crater} data-active={active}/>
+                        <div className={Crater} data-active={active}/>
+                    </div>
+                </div>
+                <div className={StarsAndsCloudsBase + " " + Clouds} data-active={active}>
+                    <div className={Cloud}/>
+                    <div className={Cloud}/>
+                    <div className={Cloud}/>
+                </div>
+                <div className={StarsAndsCloudsBase + " " + Stars} data-active={active}>
+                    <div className={Star} data-active={active}/>
+                    <div className={Star} data-active={active}/>
+                    <div className={Star} data-active={active}/>
+                    <div className={Star} data-active={active}/>
+                    <div className={Star} data-active={active}/>
+                    <div className={Star} data-active={active}/>
+                </div>
+            </div>
         </Relative>
     );
 }
 
-const Moon = styled.div`
+const Moon = injectStyle("moon", k => ``);
 
-`;
-
-
-const activeWrapper = ({active}: ThemeToggleProps) => active ? ({
-    background: "#3F97FF"
-}) : null;
-
-const Wrapper = styled.div<ThemeToggleProps>`
-    height: ${p => p.size * 1.2}em;
-    width: ${p => p.size * 2.8}em;
-    background: #3c4145;
-    overflow: hidden;
-    border-radius: ${p => p.size * 0.4}em;
-    transition: all 0.35s ease;
-    &:hover {
+const Wrapper = injectStyle("switch-wrapper", k => `
+    ${k} {
+        height: 1.2em;
+        width: 2.8em;
+        background: #3c4145;
+        overflow: hidden;
+        border-radius: 0.4em;
+        transition: all 0.35s ease;
+    }
+    
+    ${k}:hover {
         cursor: pointer;
     }
-    ${activeWrapper}
-`;
+    
+    ${k}[data-active="true"] {
+        background: #3f97ff;
+    }
+`);
 
-const activeSwitch = ({active, size}: ThemeToggleProps) => active ? ({
-    left: `${size * 1.5}em`,
-    background: "#ffdf6d",
-    borderColor: "#e1c448"
-}) : null;
+const Switch = injectStyle("switch", k => `
+    ${k} {
+        position: absolute;
+        z-index: 2;
+        transition: all 0.35s ease;
+        margin: 0.1em;
+        height: 1em;
+        width: 1em;
+        left: 0.1em;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 0.15em solid #333;
+        box-sizing: border-box;
+        border-color: #e3e7c7;
+    }
+    
+    ${k}[data-active="true"] {
+        left: 1.5em;
+        background: $ffdf6d;
+        border-color: #e1c448;
+    }
+`);
 
-const Switch = styled.div<ThemeToggleProps>`
-    position: absolute;
-    z-index: 2;
-    transition: all 0.35s ease;
-    margin: ${p => p.size * 0.1}em;
-    height: ${p => p.size * 1}em;
-    width: ${p => p.size * 1}em;
-    left: ${p => p.size * 0.1}em;
-    border-radius: 50%;
-    background: #ffffff;
-    border: ${p => p.size * 0.15}em solid #333;
-    box-sizing: border-box;
-    border-color: #e3e7c7;
-    ${activeSwitch}
-`;
-
-const activeCrater = ({active}: {active: boolean}) => active ? ({
-    display: "none"
-}) : null;
-
-const Crater = styled.div`
-    position: absolute;
-    border-radius: 50%;
-    height: 25%;
-    width: 25%;
-    background: transparent;
-    box-shadow: inset 0 0 0 4px #e3e7c7;
-    &:nth-child(1) {
+const Crater = injectStyle("crater", k => `
+    ${k} {
+        position: absolute;
+        border-radius: 50%;
+        height: 25%;
+        width: 25%;
+        background: transparent;
+        box-shadow: inset 0 0 0 4px #e3e7c7;
+    }
+    
+    ${k}:nth-child(1) {
         top: 12%;
         left: 22%;
     }
-    &:nth-child(2) {
+    
+    ${k}:nth-child(2) {
         top: 49%;
         left: 10%;
         transform: scale(0.7);
     }
-    &:nth-child(3) {
+    
+    ${k}:nth-child(3) {
         top: 50%;
         left: 60%;
     }
-    ${activeCrater}
-`;
+    
+    ${k}[data-active="true"] {
+        display: none;
+    }
+`);
 
-const StarsAndsCloudsBase = styled.div`
-    position: absolute;
-    height: 100%;
-    width: 66%;
-    z-index: 1;
-    transition: all 0.35s ease;
-`;
+const StarsAndsCloudsBase = injectStyle("stars-and-clouds", k => `
+    ${k} {
+        position: absolute;
+        height: 100%;
+        width: 66%;
+        z-index: 1;
+        transition: all 0.35s ease;
+    }
+`);
 
-const Cloud = styled.div`
-    position: absolute;
-    background: #fff;
-    border-radius: 999px;
-    &:nth-child(1) {
+const Cloud = injectStyle("cloud", k => `
+    ${k} {
+        position: absolute;
+        background: #fff;
+        border-radius: 999px;
+    }
+    
+    ${k}:nth-child(1) {
         top: 45%;
         left: 25%;
         width: 50%;
         height: 30%;
         border-radius: 999px;
     }
-    &:nth-child(2) {
+    
+    ${k}:nth-child(2) {
         top: 30%;
         left: 52%;
         width: 15%;
         padding-bottom: 15%;
         height: 0;
     }
-    &:nth-child(3) {
+    
+    ${k}:nth-child(3) {
         top: 24%;
         left: 32%;
         width: 25%;
         padding-bottom: 25%;
         height: 0;
     }
-`;
+`);
 
-const Clouds = styled(StarsAndsCloudsBase) <{active: boolean}>`
-    left: -5%;
-    opacity: ${props => props.active ? 1 : 0};
-`;
+const Clouds = injectStyle("clouds", k => `
+    ${k} {
+        left: -5%;
+        opacity: 0;
+    }
+    
+    ${k}[data-active="true"] {
+        opacity: 1;
+    }
+`);
 
-const activeStar = ({active}: {active: boolean}) => active ? ({
-    transform: "scale(0) !important",
-    transition: "all 0.7s ease"
-}) : null;
+const Star = injectStyle("star", k => `
+    ${k} {
+        position: absolute;
+        height: 3px;
+        width: 3px;
+        border-radius: 50%;
+        background: #fff;
+    }
 
-const Star = styled.div`
-    position: absolute;
-    height: 3px;
-    width: 3px;
-    border-radius: 50%;
-    background: #fff;
-
-    &:nth-child(1) {
+    ${k}:nth-child(1) {
         top: 26%;
         left: 64%;
         transform: scale(0.6);
         transition-delay: 0.2s;
     }
-    &:nth-child(2) {
+    
+    ${k}:nth-child(2) {
         top: 20%;
         left: 34%;
         transform: scale(0.7);
         transition-delay: 0.4s;
     }
-    &:nth-child(3) {
+    
+    ${k}:nth-child(3) {
         top: 38%;
         left: 18%;
         transform: scale(0.4);
         transition-delay: 0.65s;
     }
-    &:nth-child(4) {
+    
+    ${k}:nth-child(4) {
         top: 67%;
         left: 30%;
         transform: scale(0.55);
         transition-delay: 0.85s;
     }
-    &:nth-child(5) {
+    
+    ${k}:nth-child(5) {
         top: 49%;
         left: 48%;
         transform: scale(0.7);
         transition-delay: 1s;
     }
-    &:nth-child(6) {
+    
+    ${k}:nth-child(6) {
         top: 68%;
         left: 72%;
         transform: scale(0.7);
         transition-delay: 1.05s;
     }
+    
+    ${k}[data-active="true"] {
+        transform: scale(0) !important;
+        transition: all 0.7s ease;
+    }
+`);
 
-    ${activeStar}
-`;
-
-const Stars = styled(StarsAndsCloudsBase) <{active: boolean}>`
-    right: 0;
-    opacity: ${props => props.active ? 0 : 1};
-`;
+const Stars = injectStyle("stars", k => `
+    ${k} {
+        right: 0;
+        opacity: 1;
+    }
+    
+    ${k}[data-active="true"] {
+        opacity: 0;
+    }
+`);

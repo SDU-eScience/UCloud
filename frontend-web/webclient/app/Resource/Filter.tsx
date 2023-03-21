@@ -166,7 +166,7 @@ export const FilterPill: React.FunctionComponent<{
     canRemove?: boolean;
     children: React.ReactNode;
 }> = ({icon, onRemove, canRemove, children}) => {
-    return <Stamp onClick={canRemove ? onRemove : undefined} icon={icon} color={"lightBlue"}>
+    return <Stamp onClick={canRemove ? onRemove : undefined} icon={icon}>
         {children}
     </Stamp>;
 };

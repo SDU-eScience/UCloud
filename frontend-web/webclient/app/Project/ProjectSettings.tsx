@@ -79,7 +79,7 @@ const PageTab: React.FunctionComponent<{
     activePage: SettingsPage;
     projectId: string;
 }> = ({page, title, activePage, projectId}) => {
-    return <SelectableText mr={"1em"} fontSize={3} selected={activePage === page}>
+    return <SelectableText mr={"1em"} selected={activePage === page}>
         <Link to={`/project/settings/${projectId}/${page}?`}>
             {title}
         </Link>
