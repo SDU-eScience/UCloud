@@ -126,42 +126,60 @@ sealed class ApplicationDescription(val application: String) {
                         }
                     }
                     is ApplicationParameterYaml.FloatingPoint -> {
-                        when (val value = param.defaultValue) {
+                        val normalizedDefault = when (val value = param.defaultValue) {
                             is Double -> {
-                                if (param.min != null) {
-                                    if (value < param.min) {
-                                        throw ApplicationVerificationException.BadDefaultValue(param.name)
-                                    }
-                                }
-                                if (param.max != null) {
-                                    if (value > param.max) {
-                                        throw ApplicationVerificationException.BadDefaultValue(param.name)
-                                    }
-                                }
+                                value as? Double ?: throw ApplicationVerificationException.BadDefaultValue(param.name)
                             }
                             is Map<*, *> -> {
-                                val normalizedDefault = value["value"] as? Double ?:
-                                    throw ApplicationVerificationException.BadDefaultValue(param.name)
-
-                                if (param.min != null) {
-                                    if (normalizedDefault < param.min) {
-                                        throw ApplicationVerificationException.BadDefaultValue(param.name)
-                                    }
-                                }
-                                if (param.max != null) {
-                                    if (normalizedDefault > param.max) {
-                                        throw ApplicationVerificationException.BadDefaultValue(param.name)
-                                    }
-                                }
+                                value["value"] as? Double ?: throw ApplicationVerificationException.BadDefaultValue(
+                                    param.name
+                                )
                             }
-                            else ->
+                            else -> {
                                 throw ApplicationVerificationException.BadDefaultValue(param.name)
+                            }
+                        }
+
+                        if (param.min != null) {
+                            if (normalizedDefault < param.min) {
+                                throw ApplicationVerificationException.BadDefaultValue(param.name)
+                            }
+                        }
+                        if (param.max != null) {
+                            if (normalizedDefault > param.max) {
+                                throw ApplicationVerificationException.BadDefaultValue(param.name)
+                            }
                         }
                     }
                     is ApplicationParameterYaml.Ingress -> continue
-                    is ApplicationParameterYaml.InputDirectory -> TODO(Brian)
-                    is ApplicationParameterYaml.InputFile -> TODO(Brian)
-                    is ApplicationParameterYaml.Integer -> TODO(Brian)
+                    is ApplicationParameterYaml.InputDirectory -> TODO()
+                    is ApplicationParameterYaml.InputFile -> TODO()
+                    is ApplicationParameterYaml.Integer -> {
+                        val normalizedDefault = when (val value = param.defaultValue) {
+                            is Int -> {
+                                value as? Int ?: throw ApplicationVerificationException.BadDefaultValue(param.name)
+                            }
+                            is Map<*, *> -> {
+                                value["value"] as? Int ?: throw ApplicationVerificationException.BadDefaultValue(
+                                    param.name
+                                )
+                            }
+                            else -> {
+                                throw ApplicationVerificationException.BadDefaultValue(param.name)
+                            }
+                        }
+
+                        if (param.min != null) {
+                            if (normalizedDefault < param.min) {
+                                throw ApplicationVerificationException.BadDefaultValue(param.name)
+                            }
+                        }
+                        if (param.max != null) {
+                            if (normalizedDefault > param.max) {
+                                throw ApplicationVerificationException.BadDefaultValue(param.name)
+                            }
+                        }
+                    }
                     is ApplicationParameterYaml.LicenseServer -> continue
                     is ApplicationParameterYaml.NetworkIP -> continue
                     is ApplicationParameterYaml.Peer -> continue
