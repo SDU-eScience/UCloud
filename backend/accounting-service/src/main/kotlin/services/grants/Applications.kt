@@ -73,11 +73,7 @@ class GrantApplicationService(
             )
 
             val products = if (allowed) {
-                val owner = if (actorAndProject.project == null) {
-                    WalletOwner.User(actorAndProject.actor.safeUsername())
-                } else {
-                    WalletOwner.Project(actorAndProject.project!!)
-                }
+                val owner = WalletOwner.Project(request.projectId)
                 val products = accounting.retrieveWalletsInternal(
                     ActorAndProject(Actor.System, null),
                     owner

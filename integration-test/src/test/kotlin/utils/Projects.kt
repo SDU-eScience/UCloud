@@ -8,6 +8,8 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
+import dk.sdu.cloud.grant.api.BrowseProjectsRequest
+import dk.sdu.cloud.grant.api.Grants
 import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.adminUsername
 import dk.sdu.cloud.integration.serviceClient
@@ -172,5 +174,39 @@ suspend fun addMemberToProject(
             ),
             adminClient.withProject(projectId)
         ).orThrow()
+    }
+}
+
+suspend fun projectExistsForUser(
+    client: AuthenticatedClient,
+    projectId: String,
+    next: String? = null,
+    firstPage: Boolean = true
+): Boolean {
+    if (firstPage) {
+        val page = Grants.browseProjects.call(
+            BrowseProjectsRequest(),
+            client
+        ).orThrow()
+        return if (page.items.find { it.projectId == projectId } != null) {
+            true
+        } else {
+            projectExistsForUser(client, projectId, page.next, false)
+        }
+    } else {
+        if (next == null) {
+            return false
+        }
+        val page = Grants.browseProjects.call(
+            BrowseProjectsRequest(
+                next = next
+            ),
+            client
+        ).orThrow()
+        return if (page.items.find { it.projectId == projectId } != null) {
+            true
+        } else {
+            projectExistsForUser(client, projectId, page.next, false)
+        }
     }
 }

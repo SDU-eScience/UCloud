@@ -1,4 +1,4 @@
-create function upload_request_settings(actor_in text, project_in text, new_exclude_list_in text[], new_include_list_type_in text[], new_include_list_entity_in text[]) returns void
+create function "grant".upload_request_settings(actor_in text, project_in text, new_exclude_list_in text[], new_include_list_type_in text[], new_include_list_entity_in text[]) returns void
 	language plpgsql
 as $$
 declare
@@ -35,7 +35,7 @@ begin
 end;
 $$;
 
-alter function upload_request_settings(text, text, text[], text[], text[]) owner to postgres;
+alter function "grant".upload_request_settings(text, text, text[], text[], text[]) owner to postgres;
 
 drop table "grant".automatic_approval_limits;
 drop table "grant".automatic_approval_users;

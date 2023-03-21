@@ -16,7 +16,7 @@ repositories {
 
 dependencies {
      run {
-        val version = "2022.3.31"
+        val version = "2022.3.36"
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 
         ucloud("file-orchestrator-service-api")

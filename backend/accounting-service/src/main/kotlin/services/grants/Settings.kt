@@ -68,7 +68,7 @@ class GrantSettingsService(
                         
                         :new_exclude_list,
                         
-                        :new_include_list_type, :new_include_list_entity,
+                        :new_include_list_type, :new_include_list_entity
                     )
                 """
                 )
@@ -90,10 +90,6 @@ class GrantSettingsService(
                 """
                     select jsonb_build_object(
                         'projectId', :project::text,
-                        'automaticApproval', jsonb_build_object(
-                            'from', auto_approve_from,
-                            'maxResources', auto_limit
-                        ),
                         'allowRequestsFrom', allow_from,
                         'excludeRequestsFrom', exclude_from
                     )
@@ -118,49 +114,14 @@ class GrantSettingsService(
                                         jsonb_build_object('org', allow_entry.applicant_id)
                                 end
                                 end
-                            ), null) allow_from,
-                            
-                            array_remove(array_agg(
-                                case when auto_users.type is null then null else 
-                                jsonb_build_object('type', auto_users.type) || case
-                                    when auto_users.type = 'anyone' then '{}'::jsonb
-                                    when auto_users.type = 'email' then
-                                        jsonb_build_object('domain', auto_users.applicant_id)
-                                    when auto_users.type = 'wayf' then
-                                        jsonb_build_object('org', auto_users.applicant_id)
-                                end
-                                end
-                            ), null) auto_approve_from,
-                            
-                            array_remove(array_agg(
-                                case when pc.category is null then null else 
-                                jsonb_build_object(
-                                    'category', pc.category,
-                                    'provider', pc.provider,
-                                    'creditsRequested', auto_limits.maximum_credits,
-                                    'quotaRequested', auto_limits.maximum_quota_bytes,
-                                    'grantGiver', auto_limits.grant_giver,
-                                    'period', jsonb_build_object(
-                                        'start', :period_start::bigint,
-                                        'end', null
-                                    )
-                                )
-                                end
-                            ), null) auto_limit
+                            ), null) allow_from
                             
                         from
                             project.project_members pm left join
                             "grant".allow_applications_from allow_entry on
                                 pm.project_id = allow_entry.project_id left join
                             "grant".exclude_applications_from exclude_entry on
-                                pm.project_id = exclude_entry.project_id left join
-                            "grant".automatic_approval_users auto_users on
-                                pm.project_id = auto_users.project_id left join
-                            "grant".automatic_approval_limits auto_limits on
-                                pm.project_id = auto_limits.project_id left join
-                            accounting.product_categories pc on
-                                auto_limits.product_category = pc.id
-                                
+                                pm.project_id = exclude_entry.project_id
                         where
                             pm.project_id = :project::text and
                             (pm.role = 'ADMIN' or pm.role = 'PI') and
@@ -168,9 +129,7 @@ class GrantSettingsService(
                     ) t 
                     where 
                         allow_from is not null or 
-                        auto_approve_from is not null or 
-                        exclude_from is not null or 
-                        auto_limit is not null;
+                        exclude_from is not null
                 """
             )
         }.rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) }
