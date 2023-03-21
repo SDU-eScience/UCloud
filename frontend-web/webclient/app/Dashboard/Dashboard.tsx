@@ -282,7 +282,7 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
                     </Text>
                 </NoResultsCardBody>
             )}
-            {props.charts.data.charts.length === 0 ? null : <Text color="darkGray" fontSize={1}>Past 30 days</Text>}
+            {props.charts.data.charts.length === 0 ? null : <Heading.h3 color="darkGray">Past 30 days</Heading.h3>}
             <Table>
                 <tbody>
                     {props.charts.data.charts.map((it, idx) => (

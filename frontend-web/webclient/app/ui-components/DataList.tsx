@@ -1,6 +1,6 @@
 import Fuse from "fuse.js";
 import * as React from "react";
-import {Box, FormField, Icon, Input} from "@/ui-components";
+import {Box, Icon, Input} from "@/ui-components";
 import ClickableDropdown from "./ClickableDropdown";
 
 interface ContentValuePair {content: string; value: string}
@@ -50,7 +50,7 @@ export class DataList extends React.PureComponent<DataListProps, {
                 colorOnHover={results.length !== 0}
                 fullWidth
                 trigger={(
-                    <FormField>
+                    <div style={{ display: "flex", alignItems: "center" }}>
                         <Input
                             leftLabel={this.props.leftLabel}
                             rightLabel={this.props.rightLabel}
@@ -67,8 +67,8 @@ export class DataList extends React.PureComponent<DataListProps, {
                                 }
                             }}
                         />
-                        <Icon name="chevronDown" mb="9px" size={14} />
-                    </FormField>
+                        <Icon name="chevronDown" ml="-32px" size={14} />
+                    </div>
                 )}
             >
                 {results.map(({content, value}) => (

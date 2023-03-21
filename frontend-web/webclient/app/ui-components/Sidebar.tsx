@@ -1,7 +1,6 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
-import styled from "styled-components";
 import {
     copyToClipboard,
     isLightThemeStored,
@@ -12,8 +11,8 @@ import {
 import CONF from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
-import Flex, {FlexCProps} from "./Flex";
-import Icon, {IconClass, IconName} from "./Icon";
+import Flex from "./Flex";
+import Icon, {IconName} from "./Icon";
 import Link from "./Link";
 import Text, {EllipsedText, TextSpan} from "./Text";
 import {ThemeColor} from "./theme";
@@ -32,7 +31,6 @@ import {emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {navigateByFileType, NewsPost} from "@/Dashboard/Dashboard";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
 import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
-import {SidebarPages} from "./SidebarPagesEnum";
 import ClickableDropdown from "./ClickableDropdown";
 import Divider from "./Divider";
 import {ThemeToggler} from "./ThemeToggle";
@@ -60,6 +58,7 @@ const SidebarElementContainerClass = injectStyle("sidebar-element", k => `
         justify-content: left;
         flex-flow: row;
         align-items: center;
+        padding-bottom: 10px;
     }
 
     ${k} > ${Text} {
@@ -67,11 +66,77 @@ const SidebarElementContainerClass = injectStyle("sidebar-element", k => `
     }
 `);
 
-const SidebarAdditionalStyle = styled(Flex) <{forceOpen: boolean}>`
-    background-color: #5C89F4;
-    transition: width 0.2s;
-    width: ${p => p.forceOpen ? "var(--sidebarAdditionalWidth)" : "0px"};
-`;
+const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
+    ${k} {
+        background-color: #5C89F4;
+        transition: transform 0.1s;
+        width: 0;
+        
+        display: flex;
+        flex-direction: column;
+        transform: translate(-300px, 0);
+        box-sizing: border-box;
+    }
+    
+    ${k}, ${k} a, ${k} a:hover {
+        color: white;
+    }
+    
+    ${k}[data-open="true"] {
+        transform: translate(0, 0);
+        padding: 16px;
+    }
+    
+    ${k} header {
+        display: flex;
+        align-items: center;
+    }
+    
+    ${k} header h1 {
+        font-weight: bold;
+        font-size: 20px;
+        flex-grow: 1;
+        margin: 0;
+    }
+    
+    ${k} header div {
+        cursor: pointer;
+    }
+    
+    ${k} h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: bold;
+    }
+    
+    ${k} ul {
+        padding-left: 0;
+    }
+    
+    ${k} > ul > li {
+        font-size: 16px;
+        font-weight: bold;
+        list-style: none;
+    }
+    
+    ${k} > ul span,
+    ${k} > ul a {
+        border-radius: 10px;
+        padding: 5px 10px;
+        display: block;
+        margin-left: -5px;
+    }
+    
+    ${k} > ul span:hover,
+    ${k} > ul a:hover {
+        background-color: rgba(255, 255, 255, 0.35);
+    }
+    
+    ${k} > ul > li > ul > li {
+        font-size: 14px;
+    }
+`);
+
 
 const SidebarContainerClass = injectStyleSimple("sidebar-container", () => `
     color: var(--sidebar);
@@ -81,24 +146,28 @@ const SidebarContainerClass = injectStyleSimple("sidebar-container", () => `
     height: 100vh;
     width: var(--sidebarWidth);
     background-color: var(--sidebar);
+    gap: 18px;
+    z-index: 100000;
 `);
 
-const SidebarItemWrapper = styled.div<{active: boolean}>`
-    cursor: pointer;
-    display: flex;
-    border-radius: 5px;
-    ${p => p.active ? "background-color: rgba(255, 255, 255, 0.35);" : null}
-    &:hover {
+const SidebarMenuItem = injectStyle("sidebar-item", k => `
+    ${k} {
+        cursor: pointer;
+        display: flex;
+        border-radius: 5px;
+        width: 32px;
+        height: 32px;
+        margin-top: 8px;
+    }
+    
+    ${k}:hover, ${k}[data-active="true"] {
         background-color: rgba(255, 255, 255, 0.35);
     }
-    width: 32px;
-    height: 32px;
-    margin-top: 8px;
-    & > a, & > .${IconClass} {
-        margin: auto auto auto auto;
+    
+    ${k} > * {
+        margin: auto;
     }
-`;
-
+`);
 
 interface TextLabelProps {
     icon: IconName;
@@ -114,11 +183,11 @@ interface TextLabelProps {
 }
 
 export const SidebarTextLabel = ({
-    icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
-    iconSize = "18", space = "22px", textSize = 3
-}: TextLabelProps): JSX.Element => (
+                                     icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
+                                     iconSize = "18", space = "22px", textSize = 3
+                                 }: TextLabelProps): JSX.Element => (
     <div className={SidebarElementContainerClass} title={title} style={{height}}>
-        <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
+        <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space}/>
         <Text fontSize={textSize}>{children}</Text>
     </div>
 );
@@ -132,15 +201,11 @@ function SidebarElement({icon, to}: SidebarElement): JSX.Element {
     if (to) {
         return (
             <Link to={to}>
-                <Icon name={icon} color="white" color2="white" size={"20"} />
+                <Icon name={icon} color="white" color2="white" size={"20"}/>
             </Link>
         );
-    } else return <Icon name={icon} color="white" color2="white" size={"20"} />;
+    } else return <Icon name={icon} color="white" color2="white" size={"20"}/>;
 }
-
-const SidebarPushToBottom = styled.div`
-    flex-grow: 1;
-`;
 
 interface MenuElement {
     icon: IconName;
@@ -204,14 +269,91 @@ function hasOrParentHasClass(t: EventTarget | null, classname: string): boolean 
 
 const SIDEBAR_IDENTIFIER = "SIDEBAR_IDENTIFIER";
 
-const SidebarItemsColumn = styled.div`
-    margin-left: auto;
-    width: calc(var(--sidebarWidth) - 32px / 2);
-    padding-top: 6px;
-    padding-bottom: 8px;
-`
+const SidebarItemsClass = injectStyle("sidebar-items", k => `
+    ${k} {
+        padding-top: 7px 0;
+        flex-grow: 1;
+    }
+`);
 
-export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | null => {
+const UserMenu: React.FunctionComponent<{
+    avatar: AvatarType;
+    onToggleTheme: (e: React.SyntheticEvent<HTMLDivElement, Event>) => void;
+}> = ({avatar, onToggleTheme}) => {
+    return <ClickableDropdown
+        width="230px"
+        left="var(--sidebarWidth)"
+        bottom="0"
+        colorOnHover={false}
+        trigger={Client.isLoggedIn ?
+            <UserAvatar avatarStyle={""} height="42px" width="42px" avatar={avatar}/> : null}
+    >
+        {!CONF.STATUS_PAGE ? null : (
+            <>
+                <Box>
+                    <ExternalLink href={CONF.STATUS_PAGE}>
+                        <Flex color="black">
+                            <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="var(--black)"/>
+                            <TextSpan color="var(--black)">Site status</TextSpan>
+                        </Flex>
+                    </ExternalLink>
+                </Box>
+                <Divider/>
+            </>
+        )}
+        <Box>
+            <Link color="black" to={AppRoutes.users.settings()}>
+                <Flex color="black">
+                    <Icon name="properties" color="var(--black)" color2="var(--black)" mr="0.5em" my="0.2em"
+                          size="1.3em"/>
+                    <TextSpan color="var(--black)">Settings</TextSpan>
+                </Flex>
+            </Link>
+        </Box>
+        <Flex>
+            <Link to={"/users/avatar"}>
+                <Flex color="black">
+                    <Icon name="user" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em"/>
+                    <TextSpan color="var(--black)">Edit Avatar</TextSpan>
+                </Flex>
+            </Link>
+        </Flex>
+        <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
+            <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em"/>
+            Logout
+        </Flex>
+        {!CONF.SITE_DOCUMENTATION_URL ? null : (
+            <div>
+                <ExternalLink hoverColor="text" href={CONF.SITE_DOCUMENTATION_URL}>
+                    <Icon name="docs" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em"/>
+                    <TextSpan color="var(--black)">{CONF.PRODUCT_NAME} Docs</TextSpan>
+                </ExternalLink>
+            </div>
+        )}
+        {!CONF.DATA_PROTECTION_LINK ? null : (
+            <div>
+                <ExternalLink hoverColor="text" href={CONF.DATA_PROTECTION_LINK}>
+                    <Icon name="verified" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em"/>
+                    <TextSpan color="var(--black)">{CONF.DATA_PROTECTION_TEXT}</TextSpan>
+                </ExternalLink>
+            </div>
+        )}
+        <Divider/>
+        <Username/>
+        <ProjectID/>
+        <Divider/>
+        <span>
+                        <Flex cursor="auto">
+                            <ThemeToggler
+                                isLightTheme={isLightThemeStored()}
+                                onClick={onToggleTheme}
+                            />
+                        </Flex>
+                    </span>
+    </ClickableDropdown>;
+}
+
+export const Sidebar = ({toggleTheme}: { toggleTheme(): void; }): JSX.Element | null => {
     const sidebarEntries = sideBarMenuElements;
     const {activeProject, loggedIn, avatar} = useSidebarReduxProps();
 
@@ -230,136 +372,63 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
     if (useFrameHidden()) return null;
     if (!loggedIn) return null;
 
-    const sidebar = Object.keys(sidebarEntries)
+    const sidebar: MenuElement[] = Object.keys(sidebarEntries)
         .map(key => sidebarEntries[key])
-        .filter(it => it.predicate());
+        .filter(it => it.predicate())
+        .flatMap(category => category.items.filter((it: MenuElement) => it?.show?.() ?? true));
+
 
     return (
-        <Flex>
-            <div className={SidebarContainerClass}>
+        <div style={{display: "flex"}}>
+            <div className={SidebarContainerClass + " " + SIDEBAR_IDENTIFIER}>
                 <Link data-component={"logo"} to="/">
-                    <Icon name="logoEsc" mt="10px" size="34px" />
+                    <Icon name="logoEsc" mt="10px" size="34px"/>
                 </Link>
-                <SidebarItemsColumn className={SIDEBAR_IDENTIFIER} onMouseLeave={e => {
-                    if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) setHoveredPage("")
-                }}>
-                    {sidebar.map((category, categoryIdx) => (
-                        <React.Fragment key={categoryIdx}>
-                            {category.items.filter((it: MenuElement) => it?.show?.() ?? true).map(({
-                                icon,
-                                label,
-                                to
-                            }: MenuElement) => (
-                                <SidebarItemWrapper
-                                    key={label}
-                                    active={label === selectedPage}
-                                    onClick={() => setSelectedPage(label)}
-                                    onMouseEnter={() => setHoveredPage(label)}
-                                >
-                                    <SidebarElement
-                                        icon={icon}
-                                        to={typeof to === "function" ? to() : to}
-                                    />
-                                </SidebarItemWrapper>
-                            ))}
-                        </React.Fragment>
-                    ))}
-                </SidebarItemsColumn>
-                <SidebarPushToBottom />
-                <AutomaticGiftClaim />
-                <ResourceInit />
-                <Debugger />
-                {/* TODO(Jonas): These should be inside the above node. Only render if above node is rendered. */}
-                <Box height="18px" />
-                <Support />
-                {/* TODO(Jonas): These should be inside the above node. Only render if above node is rendered. */}
-                <Box height="18px" />
-                <Notification />
-                {/* TODO(Jonas): These should be inside the above node. Only render if above node is rendered. */}
-                <Box height="18px" />
-                <VersionManager />
-                <BackgroundTasks />
-                <Downtimes />
-                <ClickableDropdown
-                    width="230px"
-                    left="var(--sidebarWidth)"
-                    bottom="0"
-                    colorOnHover={false}
-                    trigger={Client.isLoggedIn ? <UserAvatar avatarStyle={""} height="42px" width="42px" avatar={avatar} /> : null}
+
+                <div
+                    className={SidebarItemsClass}
+                    onMouseLeave={e => {
+                        if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) setHoveredPage("")
+                    }}
                 >
-                    {!CONF.STATUS_PAGE ? null : (
-                        <>
-                            <Box>
-                                <ExternalLink href={CONF.STATUS_PAGE}>
-                                    <Flex color="black">
-                                        <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="var(--black)" />
-                                        <TextSpan color="var(--black)">Site status</TextSpan>
-                                    </Flex>
-                                </ExternalLink>
-                            </Box>
-                            <Divider />
-                        </>
-                    )}
-                    <Box>
-                        <Link color="black" to={AppRoutes.users.settings()}>
-                            <Flex color="black">
-                                <Icon name="properties" color="var(--black)" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
-                                <TextSpan color="var(--black)">Settings</TextSpan>
-                            </Flex>
-                        </Link>
-                    </Box>
-                    <Flex>
-                        <Link to={"/users/avatar"}>
-                            <Flex color="black">
-                                <Icon name="user" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                                <TextSpan color="var(--black)">Edit Avatar</TextSpan>
-                            </Flex>
-                        </Link>
-                    </Flex>
-                    <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
-                        <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
-                        Logout
-                    </Flex>
-                    {!CONF.SITE_DOCUMENTATION_URL ? null : (
-                        <div>
-                            <ExternalLink hoverColor="text" href={CONF.SITE_DOCUMENTATION_URL}>
-                                <Icon name="docs" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                                <TextSpan color="var(--black)">{CONF.PRODUCT_NAME} Docs</TextSpan>
-                            </ExternalLink>
-                        </div>
-                    )}
-                    {!CONF.DATA_PROTECTION_LINK ? null : (
-                        <div>
-                            <ExternalLink hoverColor="text" href={CONF.DATA_PROTECTION_LINK}>
-                                <Icon name="verified" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                                <TextSpan color="var(--black)">{CONF.DATA_PROTECTION_TEXT}</TextSpan>
-                            </ExternalLink>
-                        </div>
-                    )}
-                    <Divider />
-                    <Username />
-                    <ProjectID />
-                    <Divider />
-                    <span>
-                        <Flex cursor="auto">
-                            <ThemeToggler
-                                isLightTheme={isLightThemeStored()}
-                                onClick={onToggleTheme}
+                    {sidebar.map(({label, icon, to}) =>
+                        <div
+                            key={label}
+                            data-active={label === selectedPage}
+                            onClick={() => setSelectedPage(label)}
+                            onMouseEnter={() => setHoveredPage(label)}
+                            className={SidebarMenuItem}
+                        >
+                            <SidebarElement
+                                icon={icon}
+                                to={typeof to === "function" ? to() : to}
                             />
-                        </Flex>
-                    </span>
-                </ClickableDropdown>
-                <Box mb="10px" />
+                        </div>
+                    )}
+                </div>
+
+                <>
+                    {/* (Typically) invisible elements here to run various background tasks */}
+                    <AutomaticGiftClaim/>
+                    <ResourceInit/>
+                    <VersionManager/>
+                    <BackgroundTasks/>
+                    <Downtimes/>
+                </>
+
+                <Notification/>
+                <Support/>
+                <UserMenu avatar={avatar} onToggleTheme={onToggleTheme}/>
             </div>
 
-            <SidebarAdditional
-                data-tag="additional"
+            <SecondarySidebar
+                data-tag="secondary"
                 hovered={hoveredPage}
                 clicked={selectedPage}
                 clearHover={() => setHoveredPage("")}
                 clearClicked={() => setSelectedPage("")}
             />
-        </Flex>
+        </div>
     );
 
     function onToggleTheme(e: React.SyntheticEvent<HTMLDivElement, Event>): void {
@@ -397,66 +466,122 @@ function useSidebarRunsPage(): APICallState<PageV2<Job>> {
 }
 
 
-function SidebarAdditional({hovered, clicked, clearHover, clearClicked}: {hovered: string; clicked: string; clearHover(): void; clearClicked(): void}): JSX.Element {
+function SecondarySidebar({
+                              hovered,
+                              clicked,
+                              clearHover,
+                              clearClicked
+                          }: { hovered: string; clicked: string; clearHover(): void; clearClicked(): void }): JSX.Element {
     const [drives, favorites] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
 
     const navigate = useNavigate();
     const [, invokeCommand] = useCloudCommand();
 
+    const rootRef = React.useRef<HTMLDivElement>(null);
+    const toggleSize = useCallback(() => {
+        if (!rootRef.current) return;
+        const attribute = rootRef.current.getAttribute("data-open");
+        if (attribute === "false") rootRef.current.style.width = "0";
+    }, []);
+
+    const isOpen = clicked !== "" || hovered !== "";
+    React.useEffect(() => {
+        const current = rootRef.current;
+        if (!current) return;
+        if (isOpen) current.style.width = "var(--secondarySidebarWidth)";
+    }, [isOpen]);
+
     const active = hovered ? hovered : clicked;
     /* TODO(Jonas): hovering should slide over, while clicking should push */
-    return (<SidebarAdditionalStyle className={SIDEBAR_IDENTIFIER} onMouseLeave={e => {
-        if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover();
-    }} forceOpen={clicked !== "" || hovered !== ""}>
-        <Box ml="6px">
-            <Flex>
-                <TextSpan bold color="var(--white)">{active}</TextSpan>
-                {clicked !== "" ? <TextSpan ml="auto" mr="4px" onClick={() => {
-                    clearClicked();
-                }}>Unlock</TextSpan> : null}
-            </Flex>
-            {active !== "Files" ? null : (
-                <Flex flexDirection="column">
-                    <Flex ml="auto" mr="4px" mb="4px">
-                        <Link hoverColor="white" style={{fontWeight: "bold", cursor: "pointer"}} color="white" to="/drives/">Manage drives</Link>
+    return <div
+        className={SecondarySidebarClass + " " + SIDEBAR_IDENTIFIER}
+        onTransitionEnd={toggleSize}
+        onMouseLeave={e => {
+            if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover();
+        }}
+        data-open={isOpen}
+        ref={rootRef}
+    >
+        <header>
+            <h1>{active}</h1>
+            {clicked !== "" ?
+                <div onClick={clearClicked}>Unlock</div> :
+                null
+            }
+        </header>
+
+        {active !== "Files" ? null : (
+            <>
+                <ul>
+                    <li>
+                        <Link to={"/files"}>Drives</Link>
+                        <ul>
+                            {drives.data.items.map(it =>
+                                <li>
+                                    <Flex key={it.id} ml="4px">
+                                        <Link hoverColor="white" to={`/files?path=${it.id}`}>
+                                            <Truncate color="var(--white)">
+                                                <Icon size={12} mr="4px" name="hdd" color="white" color2="white"/>
+                                                {it.specification.title}
+                                            </Truncate>
+                                        </Link>
+
+                                        <Flex ml="auto" mr="5px" my="auto">
+                                            <ProviderLogo providerId={it.specification.product.provider} size={20}/>
+                                        </Flex>
+                                    </Flex>
+                                </li>
+                            )}
+                        </ul>
+                    </li>
+
+                    <li>
+                        <span>Favorite files</span>
+
+                        <ul>
+                            {favorites.data.items.map(it =>
+                                <li>
+                                    <Flex
+                                        key={it.path}
+                                        cursor="pointer"
+                                        onClick={() => navigateByFileType(it, invokeCommand, navigate)}
+                                    >
+                                        <Flex mx="auto" my="auto">
+                                            <Icon name="starFilled" size={12} mr="4px" color="white" color2="white"/>
+                                        </Flex>
+                                        <Truncate color="white">{fileName(it.path)}</Truncate>
+                                    </Flex>
+                                </li>
+                            )}
+                        </ul>
+                    </li>
+                </ul>
+            </>
+        )}
+
+        {active !== "Projects" ? null : (<ProjectLinks/>)}
+
+        {active !== "Shares" ? null : (<SharesLinks/>)}
+
+        {active !== "Runs" ? null : (
+            <Flex flexDirection="column" mr="4px">
+                <TextSpan bold color="white">Most recent</TextSpan>
+                {recentRuns.data.items.map(it => {
+                    const [icon, color] = jobStateToIconAndColor(it.status.state);
+                    return <Flex>
+                        <Icon name={icon} color={color} mr={"6px"} size={16} my="auto"/>
+                        <Truncate key={it.id}
+                                  color="white">{it.specification.name ?? it.id} ({it.specification.application.name})</Truncate>
                     </Flex>
-                    <TextSpan color="white" bold>Drives</TextSpan>
-                    {drives.data.items.map(it =>
-                        <Flex key={it.id} ml="4px">
-                            <Link hoverColor="white" to={`/files?path=${it.id}`}>
-                                <Truncate color="var(--white)">
-                                    <Icon size={12} mr="4px" name="hdd" color="white" color2="white" />
-                                    {it.specification.title}
-                                </Truncate>
-                            </Link>
-                            <Flex ml="auto" mr="5px" my="auto"><ProviderLogo providerId={it.specification.product.provider} size={20} /></Flex>
-                        </Flex>
-                    )}
-                    <TextSpan bold color="white">Favorite Files</TextSpan>
-                    {favorites.data.items.map(it => <Flex key={it.path} ml="4px" cursor="pointer" onClick={() => navigateByFileType(it, invokeCommand, navigate)}>
-                        <Flex mx="auto" my="auto"><Icon name="starFilled" size={12} mr="4px" color="white" color2="white" /></Flex><Truncate color="white">{fileName(it.path)}</Truncate>
-                    </Flex>)}
-                </Flex>
-            )}
-            {active !== "Projects" ? null : (<ProjectLinks />)}
-            {active !== "Shares" ? null : (<SharesLinks />)}
-            {active !== "Runs" ? null : (
-                <Flex flexDirection="column" mr="4px">
-                    <TextSpan bold color="white">Most recent</TextSpan>
-                    {recentRuns.data.items.map(it => {
-                        const [icon, color] = jobStateToIconAndColor(it.status.state);
-                        return <Flex>
-                            <Icon name={icon} color={color} mr={"6px"} size={16} my="auto" />
-                            <Truncate key={it.id} color="white">{it.specification.name ?? it.id} ({it.specification.application.name})</Truncate>
-                        </Flex>
-                    })}
-                </Flex>
-            )}
-            {active !== "Resources" ? null : (<ResourceLinks />)}
-            {active !== "Admin" ? null : (<AdminLinks />)}
-        </Box>
-    </SidebarAdditionalStyle>)
+                })}
+            </Flex>
+        )}
+
+        {active !== "Resources" ? null : (<ResourceLinks/>)}
+
+        {active !== "Admin" ? null : (<AdminLinks/>)}
+    </div>;
 }
 
 function Username(): JSX.Element | null {
@@ -467,7 +592,7 @@ function Username(): JSX.Element | null {
                 cursor="pointer"
                 onClick={copyUserName}
             >
-                <Icon name="id" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" /> {Client.username}
+                <Icon name="id" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em"/> {Client.username}
             </EllipsedText>
         )}
     >
@@ -491,16 +616,14 @@ function ProjectID(): JSX.Element | null {
 
     if (!projectId) return null;
     return <Tooltip
-        left="-50%"
-        top="1"
-        mb="35px"
         trigger={
             <EllipsedText
                 cursor="pointer"
                 onClick={copyProjectPath}
                 width="140px"
             >
-                <Icon key={projectId} name={"projects"} color2="white" color="black" mr="0.5em" my="0.2em" size="1.3em" />{projectPath}
+                <Icon key={projectId} name={"projects"} color2="white" color="black" mr="0.5em" my="0.2em"
+                      size="1.3em"/>{projectPath}
             </EllipsedText>
         }
     >
@@ -525,31 +648,11 @@ function Downtimes(): JSX.Element | null {
 
     if (upcomingDowntime === -1) return null;
     return <Link to={AppRoutes.news.detailed(upcomingDowntime)}>
-        <Tooltip
-            right="0"
-            bottom="1"
-            tooltipContentWidth="115px"
-            wrapperOffsetLeft="10px"
-            trigger={<Icon color="yellow" name="warning" />}
-        >
-            Upcoming downtime.<br />
+        <Tooltip trigger={<Icon color="yellow" name="warning"/>}>
+            Upcoming downtime.<br/>
             Click to view
         </Tooltip>
     </Link>
-}
-
-function isLocalHost(): boolean {
-    return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-}
-
-function Debugger(): JSX.Element | null {
-    return isLocalHost() ? <>
-        <ExternalLink href="/debugger?hide-frame">
-            <SidebarTextLabel icon={"bug"} iconSize="18px" textSize={1} height={"25px"}>
-                <div />
-            </SidebarTextLabel>
-        </ExternalLink>
-    </> : null
 }
 
 function copyUserName(): void {

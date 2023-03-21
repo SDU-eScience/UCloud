@@ -196,12 +196,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
 
             return <Flex alignItems={"center"}>
                 {isValid ? null : (
-                    <Tooltip
-                        left="-50%"
-                        top="1"
-                        mb="35px"
-                        trigger={<Icon cursor="pointer" mt="6px" mr={8} color="red" name="close" />}
-                    >
+                    <Tooltip trigger={<Icon cursor="pointer" mt="6px" mr={8} color="red" name="close" />}>
                         The folder associated with the share no longer exists.
                     </Tooltip>
                 )}

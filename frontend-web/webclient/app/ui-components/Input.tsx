@@ -111,6 +111,7 @@ const Input: React.FunctionComponent<InputProps & { as?: "input" | "textarea" }>
     if (props.as !== "textarea") {
         return <input {...inputProps} />;
     } else {
+        style.height = "unset";
         return <textarea {...inputProps} />;
     }
 }

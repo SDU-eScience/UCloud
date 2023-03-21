@@ -62,8 +62,8 @@ export const DetailedNews: React.FC = () => {
                     />
                     <Heading.h4>{newsPost.data.subtitle}</Heading.h4>
                     <Box>
-                        <Text fontSize={1}><Flex>By: <Text mx="6px" bold>{newsPost.data.postedBy}</Text></Flex></Text>
-                        <Text fontSize={1}><Flex>Posted {format(newsPost.data.showFrom, "HH:mm dd/MM/yy")}</Flex></Text>
+                        <Text><Flex>By: <Text mx="6px" bold>{newsPost.data.postedBy}</Text></Flex></Text>
+                        <Text><Flex>Posted {format(newsPost.data.showFrom, "HH:mm dd/MM/yy")}</Flex></Text>
                         <Link to={`/news/list/${newsPost.data.category}`}>
                             <Tag
                                 label={newsPost.data.category}
@@ -141,18 +141,18 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
                     <Spacer
                         left={
                             <Flex>
-                                <Text fontSize={5}>Title: </Text>
+                                <Text>Title: </Text>
                                 <Input pt={0} pb={0} noBorder defaultValue={props.post.title} inputRef={titleRef} />
                             </Flex>}
                         right={<Button type="button" onClick={() => props.stopEditing(false)} color="red">Cancel</Button>}
                     />
                     <Flex>
-                        <Text fontSize={3}>Subtitle: </Text>
+                        <Text>Subtitle: </Text>
                         <Input pt={0} pb={0} noBorder defaultValue={props.post.subtitle} inputRef={subtitleRef} />
                     </Flex>
                     <Box>
-                        <Text fontSize={1}><Flex>By: <Text mx="6px" bold>{props.post.postedBy}</Text></Flex></Text>
-                        <Text fontSize={1}>
+                        <Text><Flex>By: <Text mx="6px" bold>{props.post.postedBy}</Text></Flex></Text>
+                        <Text>
                             <Flex>
                                 <Text fontSize="18px">Visible from </Text><DatePicker
                                     placeholderText="Show from"
@@ -168,7 +168,7 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
                                 />
                             </Flex>
                         </Text>
-                        <Text fontSize={1}>
+                        <Text>
                             <Flex>
                                 <Text fontSize="18px">Hidden from </Text><DatePicker
                                     placeholderText="Hide from"

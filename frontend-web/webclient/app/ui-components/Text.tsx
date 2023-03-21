@@ -12,6 +12,7 @@ export interface TextProps extends BoxProps {
     selectable?: boolean;
     title?: string;
     style?: CSSProperties;
+    className?: string;
 }
 
 export const TextClass = injectStyle("text", () => ``);
@@ -28,47 +29,47 @@ function extractCss(props: TextProps): CSSProperties {
 }
 
 const Text: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <div className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+    return <div className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
                 title={props.title} children={props.children}/>;
 };
 
 export const TextDiv = Text;
 export const TextSpan: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <span className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+    return <span className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
                  title={props.title} children={props.children}/>;
 }
 export const TextP: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <p className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+    return <p className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
               title={props.title} children={props.children}/>;
 }
 
 export const TextH1: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <h1 className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+    return <h1 className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
               title={props.title} children={props.children}/>;
 }
 
 export const TextH2: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <h2 className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+    return <h2 className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
               title={props.title} children={props.children}/>;
 }
 
 export const TextH3: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <h3 className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+    return <h3 className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
               title={props.title} children={props.children}/>;
 }
 
 export const TextH4: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <h4 className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+    return <h4 className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
               title={props.title} children={props.children}/>;
 }
 
 export const TextH5: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <h5 className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+    return <h5 className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
               title={props.title} children={props.children}/>;
 }
 
 export const TextH6: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <h6 className={TextClass} style={extractCss(props)} {...extractEventHandlers(props)}
+    return <h6 className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
               title={props.title} children={props.children}/>;
 }
 

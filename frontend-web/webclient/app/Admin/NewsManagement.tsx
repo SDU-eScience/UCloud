@@ -308,7 +308,7 @@ export const Categories = (props: {categories: string[], onSelect: (cat: string)
     if (props.categories.length === 0) return null;
     return (
         <Card p="10px" borderRadius="6px" my="3px">
-            <Text fontSize={1}>Existing categories:</Text>
+            <Heading.h3>Existing categories:</Heading.h3>
             {props.categories.map(it => (
                 <Text
                     pl="4px"

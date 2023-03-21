@@ -112,7 +112,7 @@ html {
     /* REWRITE-VARS */
     --sidebar: #2C68F6;
     --sidebarWidth: 64px;
-    --sidebarAdditionalWidth: 220px;
+    --secondarySidebarWidth: 220px;
     --popInWidth: 368px;
 
     /* FONT-SIZES */

@@ -334,16 +334,8 @@ const ProjectRenderer: ItemRenderer<Project> = {
 
 // Utility components
 const ProjectTooltip: React.FunctionComponent<{text: string; children?: React.ReactNode;}> = props => {
-    return <Tooltip
-        tooltipContentWidth="80px"
-        wrapperOffsetLeft="0"
-        wrapperOffsetTop="4px"
-        right="0"
-        top="1"
-        mb="50px"
-        trigger={<>{props.children}</>}
-    >
-        <Text fontSize={2}>{props.text}</Text>
+    return <Tooltip tooltipContentWidth={80} trigger={<>{props.children}</>}>
+        <Text>{props.text}</Text>
     </Tooltip>
 };
 

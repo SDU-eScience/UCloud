@@ -340,7 +340,7 @@ const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
     if (totalUsage === 0 || props.chart.chart.points.length < 2) return null;
     return (
         <>
-            <Text color="darkGray" fontSize={1}>Usage across different products</Text>
+            <Text color="darkGray">Usage across different products</Text>
 
             <Flex style={{borderBottom: "solid black 1px", marginBottom: "18px"}}>
                 <Flex mt="12px">

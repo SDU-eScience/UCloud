@@ -96,7 +96,7 @@ export const SubAllocationViewer: React.FunctionComponent<{
             }
         />
 
-        <Text color="darkGray" fontSize={1} mb={"16px"}>
+        <Text color="darkGray" mb={"16px"}>
             An overview of workspaces which have received a <i>grant</i> or a <i>deposit</i> from you
         </Text>
 

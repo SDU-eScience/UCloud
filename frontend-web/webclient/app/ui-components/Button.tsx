@@ -64,7 +64,7 @@ export const ButtonClass = injectStyle("button", k => `
     }
     
     ${k}[data-square=true] {
-        border-radius: 0;
+        border-radius: 0 !important;
     }
     
     ${k}[data-fullwidth=true] {

@@ -53,12 +53,6 @@ const subprojectsRenderer: ItemRenderer<MemberInProject, MemberInProjectCallback
                 />
             </Box> : null}
             {resource.role ? <Tooltip
-                tooltipContentWidth="80px"
-                wrapperOffsetLeft="0"
-                wrapperOffsetTop="4px"
-                right="0"
-                top="1"
-                mb="50px"
                 trigger={(
                     <Icon
                         size="30"
@@ -70,7 +64,7 @@ const subprojectsRenderer: ItemRenderer<MemberInProject, MemberInProjectCallback
                     />
                 )}
             >
-                <Text fontSize={2}>{projectRoleToString(resource.role)}</Text>
+                <Text>{projectRoleToString(resource.role)}</Text>
             </Tooltip> : null}
         </>;
     },
