@@ -239,12 +239,12 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
     return (
         <LoginWrapper>
             <LoginIcon mx="auto" name={"deiCLogo"} size="180px" />
-            <Text mx="auto" py="30px" fontSize={32}>Integration Portal</Text>
+            <Text mx="auto" py="30px" color="#000" fontSize={32}>Integration Portal</Text>
             <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset ? (
                     <a href={`/auth/saml/login?service=${service}`}>
                         <Button mb="8px" style={{borderRadius: "18px"}} height={"92px"} disabled={loading} fullWidth color="wayfGreen">
-                            <Image color="white" width="100px" src={wayfLogo} />
+                            <Image color="#fff" width="100px" src={wayfLogo} />
                             <LoginTextSpan fontSize={2} ml="2.5em">Login</LoginTextSpan>
                         </Button>
                     </a>
@@ -264,7 +264,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                         width={"315px"}
                                         fontSize={1}
                                         textAlign="center"
-                                        color="black"
+                                        color="#000"
                                         mt="5px"
                                     >
                                         More login options →
@@ -421,7 +421,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
             </Box>
             <Box mx="auto" mt="auto" width="280px"><img src={ucloudBlue} /> </Box>
             <Flex height="60px" backgroundColor="#cecfd1">
-                <Text mx="auto" my="auto" fontSize={12}>
+                <Text color="#000" mx="auto" my="auto" fontSize={12}>
                     Delivered by the Danish e-Infrastrucure Consortium
                 </Text>
             </Flex>
@@ -525,7 +525,7 @@ const BlackLoginText = styled(Text)`
 `;
 
 function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JSX.Element {
-    return (<Box height="100vh">
+    return (<Box backgroundColor="#fff" height="100vh">
         <Absolute right="1em" top=".5em">
             {!props.selection ? <div>
                 {!SUPPORT_EMAIL ? null : (
