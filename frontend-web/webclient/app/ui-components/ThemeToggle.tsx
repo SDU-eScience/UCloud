@@ -100,7 +100,7 @@ const Switch = injectStyle("switch", k => `
     
     ${k}[data-active="true"] {
         left: 1.5em;
-        background: $ffdf6d;
+        background: #ffdf6d;
         border-color: #e1c448;
     }
 `);

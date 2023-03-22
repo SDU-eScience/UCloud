@@ -55,10 +55,6 @@ div.popover.show.bs-popover-auto {
     padding-right: 4px;
     padding-bottom: 4px;
     padding-top: 4px;
-
-    .popover-inner {
-        border: none;
-    }
 }
 
 span.toggle-collapse {
@@ -837,15 +833,16 @@ div.tooltip-content {
 
 div.tooltip-content.centered {
     justify-content: center;
+}
 
-    .user-box {
-        width: 350px;
-        height: 190px;
-        .centered {
-            display: flex;
-            justify-content: center;
-        }
-    }
+div.tooltip-content.centered.user-box {
+    width: 350px;
+    height: 190px;
+}
+
+div.tooltip-content.centered.user-box.centered {
+    display: flex;
+    justify-content: center;
 }
 
 div.tooltip:hover {

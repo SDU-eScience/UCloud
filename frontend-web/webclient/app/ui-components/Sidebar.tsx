@@ -14,7 +14,7 @@ import ExternalLink from "./ExternalLink";
 import Flex from "./Flex";
 import Icon, {IconName} from "./Icon";
 import Link from "./Link";
-import Text, {EllipsedText, TextSpan} from "./Text";
+import Text, {EllipsedText, TextClass, TextSpan} from "./Text";
 import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
 import {useCallback} from "react";
@@ -61,7 +61,7 @@ const SidebarElementContainerClass = injectStyle("sidebar-element", k => `
         padding-bottom: 10px;
     }
 
-    ${k} > ${Text} {
+    ${k} > ${TextClass} {
         white-space: nowrap;
     }
 `);

@@ -70,8 +70,8 @@ import JobRouter from "@/Applications/Jobs/Browse";
 import {CONTEXT_SWITCH, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
 import {Provider} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
-import {createGlobalStyle, ThemeProvider} from "styled-components";
-import {Absolute, Flex, theme, UIGlobalStyle} from "@/ui-components";
+import {ThemeProvider} from "styled-components";
+import {Flex, theme, UIGlobalStyle} from "@/ui-components";
 import {invertedColors} from "@/ui-components/theme";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
 import {store} from "@/Utilities/ReduxUtilities";
@@ -83,6 +83,7 @@ import {TerminalContainer} from "@/Terminal/Container";
 import {LOGIN_REDIRECT_KEY} from "@/Login/Login";
 import AppRoutes from "./Routes";
 import {RightPopIn} from "./ui-components/PopIn";
+import {injectStyle} from "./Unstyled";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -268,9 +269,9 @@ export async function onLogin(): Promise<void> {
     if (action !== null) store.dispatch(action);
 }
 
-const GlobalStyle = createGlobalStyle`
+const _ignored = injectStyle("ignored", () => `
     ${UIGlobalStyle}
-`;
+`);
 
 Client.initializeStore(store);
 removeExpiredFileUploads();
@@ -290,7 +291,6 @@ function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
 
     return (
         <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
-            <GlobalStyle />
             <BrowserRouter basename="app">
                 <Flex>
                     <Sidebar toggleTheme={toggle} />
