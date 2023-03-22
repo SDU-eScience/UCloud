@@ -1,6 +1,6 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
-import {Flex, Card, Icon, Box} from "@/ui-components";
+import {Flex, Icon, Box} from "@/ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -8,7 +8,6 @@ import {loadingAction} from "@/Loading";
 import {dispatchSetProjectAction} from "@/Project/Redux";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
-import styled from "styled-components";
 import {useNavigate} from "react-router";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "@/ui-components/SidebarPagesEnum";
@@ -16,6 +15,7 @@ import HighlightedCard from "@/ui-components/HighlightedCard";
 import {useProject} from "./cache";
 import {isAdminOrPI} from "./Api";
 import {CardClass} from "@/ui-components/Card";
+import {injectStyle} from "@/Unstyled";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
     const project = useProject();
@@ -106,7 +106,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         )}
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null :
                             <HighlightedCard
-                                subtitle={<RightArrow/>}
+                                subtitle={<RightArrow />}
                                 onClick={() => navigate(`/subprojects?subproject=${projectId}`)}
                                 title="Subprojects"
                                 icon="projects"
@@ -128,17 +128,18 @@ export function RightArrow(): JSX.Element {
     );
 }
 
-const ProjectDashboardGrid = styled(GridCardGroup)`
-    & > .${CardClass} {
+const ProjectDashboardGrid = injectStyle("ProjectDashboardGrid", k => `
+    ${k} > .${CardClass} {
         position: relative;
         min-height: 200px;
         cursor: pointer;
         transition: transform 0.2s;
-        &:hover {
-            transform: translateY(-2px);
-        }
     }
-`;
+
+    ${k}:hover {
+        transform: translateY(-2px);
+    }
+`);
 
 interface ProjectDashboardOperations {
     setRefresh: (refresh?: () => void) => void;
