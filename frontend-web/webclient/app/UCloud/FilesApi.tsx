@@ -498,7 +498,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 text: "Download",
                 icon: "download",
-                enabled: selected => selected.every(it => it.status.type === "FILE"),
+                enabled: selected => selected.length > 0 && selected.every(it => it.status.type === "FILE"),
                 onClick: async (selected, cb) => {
                     // TODO(Dan): We should probably add a feature flag for file types
                     const result = await cb.invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
