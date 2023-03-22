@@ -80,8 +80,7 @@ object FeatureAccounting : JobFeature, Loggable {
             ).orThrow().insufficientFunds.isNotEmpty()
 
             if (insufficientFunds) {
-                log.info("Wanted to kill ${rootJob.jobId} because no more resources")
-//                children.forEach { it.cancel() }
+                children.forEach { it.cancel() }
             }
         }
 

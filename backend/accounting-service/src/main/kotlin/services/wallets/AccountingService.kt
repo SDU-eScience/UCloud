@@ -149,7 +149,7 @@ class AccountingService(
                     deposit.amount,
                     deposit.startDate ?: Time.now(),
                     deposit.endDate,
-                    isProject = deposit.isProject
+                    isProject = deposit.recipient is WalletOwner.Project
                 )
             )
         }
@@ -846,8 +846,8 @@ class AccountingService(
         // NOTE(Dan): Obtaining the maximum usable by allocation is as simple as finding the smallest balance in an
         // allocation path. It doesn't matter which element it is, we can never use more than the smallest number.
         val unorderedSummary = summaryPerAllocation.map { alloc ->
-            val maxUsable = alloc.allocPath.minOf { balanceByAllocation.getValue(it) }
-            val maxPromised = alloc.allocPath.minOf { initialBalanceByAllocation.getValue(it) }
+            val maxUsable = alloc.allocPath.mapNotNull { balanceByAllocation[it] }.min()
+            val maxPromised = alloc.allocPath.mapNotNull { initialBalanceByAllocation[it] }.min()
             ProviderWalletSummary(
                 alloc.walletId.toString(),
                 when {
@@ -867,7 +867,8 @@ class AccountingService(
         }
 
         val summaryItems = unorderedSummary.sortedBy { it.id.toLongOrNull() }.toList()
-        val next = summaryItems.lastOrNull()?.id
+        var next = summaryItems.lastOrNull()?.id
+        if (request.next == next) next = null
 
         // NOTE(Henrik) Returns more than itemPerPage items, but is limited to itemPerPage Wallets
         return PageV2(itemsPerPage, summaryItems, next)

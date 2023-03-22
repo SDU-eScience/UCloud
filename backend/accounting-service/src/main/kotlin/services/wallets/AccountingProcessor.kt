@@ -461,7 +461,7 @@ class AccountingProcessor(
                         }
 
                         turnstile.withLock {
-                            if (!lock.renew(60_000)) {
+                            if (!disableMasterElection && !lock.renew(60_000)) {
                                 return@runBlocking
                             }
 
@@ -1581,6 +1581,8 @@ class AccountingProcessor(
             current = if (parent == null) null else allocations[parent]
         }
 
+        if (maximumCharge < 0L) maximumCharge = 0L
+
         current = allocations[allocation]
         while (current != null) {
             current.begin()
@@ -1842,11 +1844,10 @@ class AccountingProcessor(
         }
     }
 
+    val UUID_REGEX =
+        Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
     private suspend fun retrieveRelevantWalletsNotifications(request: AccountingRequest.RetrieveRelevantWalletsProviderNotifications): AccountingResponse {
-        val UUID_REGEX =
-            Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
-
-
         // NOTE(Henrik): We fetch all the relevant data.
         //
         // The first we retrieve the relevant wallets, filteres them by request filters and creates pagination of
@@ -1971,7 +1972,7 @@ class AccountingProcessor(
                     unit = wall.unit,
                     workspaceId = projectInfo.first.projectId,
                     workspaceTitle = projectInfo.first.title,
-                    workspaceIsProject = true,
+                    workspaceIsProject = wall.owner.matches(UUID_REGEX),
                     projectPI = projectInfo.second,
                     remaining = allocation.currentBalance,
                     initialBalance = allocation.initialBalance
@@ -2002,7 +2003,7 @@ class AccountingProcessor(
         if (isLoading) return
 
         if (lastSync != -1L && requestsHandled > 0) {
-            val timeDiff = lastSync - now
+            val timeDiff = now - lastSync
             log.info("Handled $requestsHandled in ${timeDiff}ms. " +
                     "Average speed was ${requestTimeSum / requestsHandled} nanoseconds. " +
                     "Slowest request was: $slowestRequestName at $slowestRequest nanoseconds.")
@@ -2181,7 +2182,7 @@ class AccountingProcessor(
                                     if (it is Transaction.Charge) it.periods else null
                                 }
                                 into("units") {
-                                    if (it is Transaction.Charge) it.periods else null
+                                    if (it is Transaction.Charge) it.units else null
                                 }
                                 into("start_dates") {
                                     when (it) {
@@ -2459,10 +2460,15 @@ private class ProjectCache(private val db: DBContext) {
         }
     }
 
+    val UUID_REGEX =
+        Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
     suspend fun retrieveProjectInfoFromId(
         id: String,
         allowCacheRefill: Boolean = true
     ): Pair<ProjectWithTitle, String> {
+        if (!id.matches(UUID_REGEX)) return Pair(ProjectWithTitle(id, id), id)
+
         val project = projects.get().find { it.first.projectId == id }
         if (project == null && allowCacheRefill) {
             fillCache()

@@ -137,7 +137,6 @@ suspend fun initializeNormalProject(
                         alloc.id,
                         amount,
                         "wallet init",
-                        isProject = true
                     )
                 }
             ),
