@@ -236,187 +236,126 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
         );
     }
 
+    const [showingWayf, setShowingWayf] = useState(true);
+
     return (
         <LoginWrapper>
             <LoginIcon mx="auto" name={"deiCLogo"} size="180px" />
             <Text mx="auto" py="30px" color="#000" fontSize={32}>Integration Portal</Text>
             <Box width="315px" mx="auto" my="auto">
-                {enabledWayf && !challengeId && !isPasswordReset ? (
+                {enabledWayf && !challengeId && !isPasswordReset && showingWayf ? (<>
                     <a href={`/auth/saml/login?service=${service}`}>
                         <Button mb="8px" style={{borderRadius: "18px"}} height={"92px"} disabled={loading} fullWidth color="wayfGreen">
                             <Image color="#fff" width="100px" src={wayfLogo} />
                             <LoginTextSpan fontSize={2} ml="2.5em">Login</LoginTextSpan>
                         </Button>
                     </a>
-                ) : null}
+                    <Text onClick={() => setShowingWayf(false)} textAlign="center">Other login options →</Text>
+                </>) : null}
                 {(!challengeId) ? (
-                    !isPasswordReset ? (
-                        <DropdownContentWrapper>
-                            <ClickableDropdown
-                                colorOnHover={false}
-                                keepOpenOnClick
-                                keepOpenOnOutsideClick
-                                bottom="30px"
-                                width="315px"
-                                left="0px"
-                                trigger={(
-                                    <Text
-                                        width={"315px"}
-                                        fontSize={1}
-                                        textAlign="center"
-                                        color="#000"
-                                        mt="5px"
-                                    >
-                                        More login options →
-                                    </Text>
-                                )}
-                            >
-                                <Box>
-                                    <form onSubmit={preventDefault}>
-                                        <Login
-                                            enabled2fa={!!challengeId}
-                                            usernameRef={usernameInput}
-                                            passwordRef={passwordInput}
-                                        />
-                                        <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
-
-                                        <LoginButton
-                                            fullWidth
-                                            disabled={loading}
-                                            onClick={() => challengeId ? submit2FA() : attemptLogin()}
-                                        >
-                                            Login
-                                        </LoginButton>
-                                    </form>
-                                    <Box mt={20} textAlign="center">
-                                        <Link to="/login?password-reset=true" mt={20}>
-                                            <BlackLoginText fontSize={1}>Forgot your password?</BlackLoginText>
-                                        </Link>
-                                    </Box>
-                                </Box>
-                            </ClickableDropdown>
-                        </DropdownContentWrapper>
-                    ) : (
-                        resetToken == null ? (
-                            <>
-                                <LoginText fontSize={1} mt="5px">
-                                    To reset your password, enter your email address
-                                </LoginText>
-                                <LoginDropdownContent
-                                    overflow="visible"
-                                    squareTop={false}
-                                    cursor="pointer"
-                                    width="315px"
-                                    hover={false}
-                                    colorOnHover={false}
-                                    visible
-                                >
-                                    <Box width="100%">
-                                        <form onSubmit={(e) => submitResetPassword(e)}>
-                                            <LoginInput
-                                                placeholder="Email address"
-                                                name="email"
-                                                type="email"
-                                                ref={resetEmailInput}
-                                                autoFocus
-                                                required
-                                            />
-                                            {!inDevEnvironment ? null : (
-                                                <LoginButton
-                                                    fullWidth
-                                                    disabled={loading}
-                                                    marginTop={10}
-                                                >
-                                                    Reset password
-                                                </LoginButton>
-                                            )}
-                                        </form>
-                                        <Box mt={20}>
-                                            <Link to="/login">
-                                                <BlackLoginText fontSize={1}>
-                                                    Return to Login page
-                                                </BlackLoginText>
-                                            </Link>
-                                        </Box>
-                                    </Box>
-                                </LoginDropdownContent>
-                            </>
-                        ) : (
-                            <Box width="315px">
-                                <LoginText fontSize={1} mt="5px">
-                                    Please enter a new password
-                                </LoginText>
-                                <LoginDropdownContent
-                                    overflow="visible"
-                                    squareTop={false}
-                                    cursor="pointer"
-                                    width="315px"
-                                    hover={false}
-                                    colorOnHover={false}
-                                    visible
-                                >
-                                    <Box mx={0} my={0} width="100%">
-                                        <form onSubmit={(e) => attemptSaveNewPassword(e)}>
-                                            <LoginInput
-                                                mb={10}
-                                                type="password"
-                                                placeholder="New password"
-                                                ref={resetPasswordInput}
-                                                autoFocus
-                                            />
-
-                                            <LoginInput
-                                                type="password"
-                                                placeholder="Repeat new password"
-                                                ref={resetPasswordRepeatInput}
-                                            />
-                                            <LoginButton
-                                                fullWidth
-                                                disabled={loading}
-                                                marginTop={10}
-                                            >
-                                                Save new password
-                                            </LoginButton>
-                                        </form>
-                                        <Box mt={20}>
-                                            <Link to="/login">
-                                                <BlackLoginText fontSize={1}>Return to Login page</BlackLoginText>
-                                            </Link>
-                                        </Box>
-                                    </Box>
-                                </LoginDropdownContent>
-                            </Box>
-
-                        )
-                    )
-                ) : (
-                    <>
-                        <LoginText fontSize={1} mt="5px">
-                            Enter 2-factor authentication code
-                        </LoginText>
-                        <LoginDropdownContent
-                            overflow="visible"
-                            squareTop={false}
-                            cursor="pointer"
-                            width="315px"
-                            colorOnHover={false}
-                            hover={false}
-                            visible
-                        >
-                            <Box width="100%">
+                    !isPasswordReset ? (!showingWayf ? (
+                        <>
+                            <DropdownLike>
                                 <form onSubmit={preventDefault}>
+                                    <Login
+                                        enabled2fa={!!challengeId}
+                                        usernameRef={usernameInput}
+                                        passwordRef={passwordInput}
+                                    />
                                     <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
-                                    <Button
+                                    <LoginButton
                                         fullWidth
                                         disabled={loading}
                                         onClick={() => challengeId ? submit2FA() : attemptLogin()}
                                     >
-                                        Submit
-                                    </Button>
+                                        Login
+                                    </LoginButton>
                                 </form>
-                            </Box>
-                        </LoginDropdownContent>
-                    </>
+                                <Box mt={20} textAlign="center">
+                                    <Link to="/login?password-reset=true" mt={20}>
+                                        <BlackLoginText fontSize={1}>Forgot your password?</BlackLoginText>
+                                    </Link>
+                                </Box>
+                            </DropdownLike>
+                            <Text mt="8px" onClick={() => setShowingWayf(true)} textAlign="center">← Wayf login</Text>
+                        </>
+                    ) : null) : (
+                        resetToken == null ? (
+                            <DropdownLike>
+                                <form onSubmit={(e) => submitResetPassword(e)}>
+                                    <LoginInput
+                                        placeholder="Email address"
+                                        name="email"
+                                        type="email"
+                                        ref={resetEmailInput}
+                                        autoFocus
+                                        required
+                                    />
+                                    {!inDevEnvironment ? null : (
+                                        <LoginButton
+                                            fullWidth
+                                            disabled={loading}
+                                            marginTop={10}
+                                        >
+                                            Reset password
+                                        </LoginButton>
+                                    )}
+                                </form>
+                                <Box mt={20}>
+                                    <Link to="/login">
+                                        <BlackLoginText fontSize={1}>
+                                            Return to Login page
+                                        </BlackLoginText>
+                                    </Link>
+                                </Box>
+                            </DropdownLike>
+                        ) : (
+                            <DropdownLike>
+                                <div>
+                                    <form onSubmit={(e) => attemptSaveNewPassword(e)}>
+                                        <LoginInput
+                                            mb={10}
+                                            type="password"
+                                            placeholder="New password"
+                                            ref={resetPasswordInput}
+                                            autoFocus
+                                        />
+
+                                        <LoginInput
+                                            type="password"
+                                            placeholder="Repeat new password"
+                                            ref={resetPasswordRepeatInput}
+                                        />
+                                        <LoginButton
+                                            fullWidth
+                                            disabled={loading}
+                                            marginTop={10}
+                                        >
+                                            Save new password
+                                        </LoginButton>
+                                    </form>
+                                    <Box mt={20}>
+                                        <Link to="/login">
+                                            <BlackLoginText textAlign="center" fontSize={1}>Return to Login page</BlackLoginText>
+                                        </Link>
+                                    </Box>
+                                </div>
+                            </DropdownLike>
+                        )
+                    )
+                ) : (
+                    <DropdownLike>
+                        <form onSubmit={preventDefault}>
+                            <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
+                            <Button
+                                fullWidth
+                                disabled={loading}
+                                onClick={() => challengeId ? submit2FA() : attemptLogin()}
+                            >
+                                Submit
+                            </Button>
+                        </form>
+                    </DropdownLike>
                 )}
             </Box>
             <Box mx="auto" mt="auto" width="280px"><img src={ucloudBlue} /> </Box>
@@ -425,7 +364,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                     Delivered by the Danish e-Infrastrucure Consortium
                 </Text>
             </Flex>
-        </LoginWrapper>
+        </LoginWrapper >
     );
 };
 
@@ -486,14 +425,16 @@ const LoginTextSpan = styled(TextSpan)`
     color: white;
 `;
 
-const DropdownContentWrapper = styled.div`
-    
-    & > ${Dropdown} > ${DropdownContent} {
-        color: black;
-        box-shadow: none;
-        border-radius: 18px;
-        background-color: #c8dd51;
-    }
+const DropdownLike = styled.div`
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    background-color: #c8dd51;
+    color: black;
+    width: 315px;
+    border: 1px solid #808080;
+    padding: 12px 16px;
 `;
 
 const LoginInput = styled(Input)`
