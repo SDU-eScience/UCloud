@@ -41,7 +41,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
             sidebar={null}
             main={(
                 <>
-                    <ProjectDashboardGrid minmax={330}>
+                    <div className={ProjectDashboardGrid}>
                         {projectId !== undefined && projectId !== "" ? (
                             <HighlightedCard
                                 subtitle={<RightArrow />}
@@ -115,7 +115,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 View and manage sub-projects.
                             </HighlightedCard>
                         }
-                    </ProjectDashboardGrid>
+                    </div>
                 </>
             )}
         />
@@ -129,6 +129,11 @@ export function RightArrow(): JSX.Element {
 }
 
 const ProjectDashboardGrid = injectStyle("ProjectDashboardGrid", k => `
+    ${k} {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    }
+
     ${k} > .${CardClass} {
         position: relative;
         min-height: 200px;
