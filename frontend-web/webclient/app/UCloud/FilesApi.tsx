@@ -501,6 +501,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: selected => selected.length > 0 && selected.every(it => it.status.type === "FILE"),
                 onClick: async (selected, cb) => {
                     // TODO(Dan): We should probably add a feature flag for file types
+
+                    if (selected.length > 1) {
+                        snackbarStore.addInformation("For downloading multiple files, you may need to enable pop-ups.", false, 8000);
+                    }
+
                     const result = await cb.invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
                         this.createDownload(bulkRequestOf(
                             ...selected.map(it => ({id: it.id})),
