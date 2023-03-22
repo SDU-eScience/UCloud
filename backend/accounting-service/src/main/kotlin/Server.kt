@@ -16,6 +16,7 @@ import dk.sdu.cloud.accounting.services.projects.ProjectService
 import dk.sdu.cloud.accounting.services.providers.ProviderIntegrationService
 import dk.sdu.cloud.accounting.services.providers.ProviderService
 import dk.sdu.cloud.accounting.services.serviceJobs.LowFundsJob
+import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.accounting.util.ProjectCache
@@ -24,6 +25,7 @@ import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.grant.rpc.GiftController
 import dk.sdu.cloud.grant.rpc.GrantController
 import dk.sdu.cloud.micro.*
@@ -40,12 +42,25 @@ class Server(
     override fun start() {
         val db = AsyncDBSessionFactory(micro)
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val productService = ProductService(db)
-        val projectCache = ProjectCache(DistributedStateFactory(micro), db)
+        val distributedLocks = DistributedLockFactory(micro)
 
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
-        val accountingService = AccountingService(db, simpleProviders)
+        val accountingProcessor = AccountingProcessor(
+            db,
+            micro.featureOrNull(DebugSystemFeature),
+            simpleProviders,
+            distributedLocks,
+            distributedState = DistributedStateFactory(micro),
+            addressToSelf = micro.serviceInstance.ipAddress ?: "127.0.0.1",
+            disableMasterElection = micro.commandLineArguments.contains("--single-instance")
+        )
+        val accountingService = AccountingService(db, simpleProviders, accountingProcessor)
+
+        val productService = ProductService(db, accountingProcessor)
+        val projectCache = ProjectCache(DistributedStateFactory(micro), db)
+
         val depositNotifications = DepositNotificationService(db)
+        accountingProcessor.start()
 
         val projectsV2 = dk.sdu.cloud.accounting.services.projects.v2.ProjectService(db, client, projectCache,
             micro.developmentModeEnabled, micro.backgroundScope)
@@ -56,10 +71,10 @@ class Server(
         val projectQueryService = ProjectQueryService(projectService)
         val favoriteProjects = FavoriteProjectService(projectsV2)
 
-        val giftService = GiftService(db)
+        val giftService = GiftService(db, accountingService)
         val settings = GrantSettingsService(db)
         val notifications = GrantNotificationService(db, client)
-        val grantApplicationService = GrantApplicationService(db, notifications, simpleProviders, projectNotifications)
+        val grantApplicationService = GrantApplicationService(db, notifications, simpleProviders, projectNotifications, accountingService)
         val templates = GrantTemplateService(db, config)
         val comments = GrantCommentService(db)
 
@@ -104,8 +119,8 @@ class Server(
 
         with(micro.server) {
             configureControllers(
-                AccountingController(accountingService, depositNotifications),
-                ProductController(productService),
+                AccountingController(accountingService, depositNotifications, client),
+                ProductController(productService, accountingService, client),
                 FavoritesController(db, favoriteProjects),
                 GiftController(giftService),
                 GrantController(grantApplicationService, comments, settings, templates),

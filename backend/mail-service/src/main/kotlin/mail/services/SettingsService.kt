@@ -66,7 +66,6 @@ class SettingsService(
             is Mail.GrantApplicationStatusChangedToAdmin -> settings.applicationStatusChange
             is Mail.GrantApplicationUpdatedMailToAdmins -> settings.grantApplicationUpdated
             is Mail.GrantApplicationUpdatedMail -> settings.grantApplicationUpdated
-            is Mail.GrantAppAutoApproveToAdminsMail -> settings.grantAutoApprove
             is Mail.GrantApplicationApproveMailToAdmins -> settings.grantApplicationApproved
             is Mail.NewGrantApplicationMail -> settings.newGrantApplication
             is Mail.LowFundsMail -> settings.lowFunds

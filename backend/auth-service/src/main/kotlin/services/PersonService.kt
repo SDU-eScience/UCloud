@@ -21,7 +21,7 @@ class PersonService(
         twoFactorAuthentication: Boolean = false,
         organization: String? = null,
     ): Person.ByPassword {
-        if (username.contains(Regex("[\\\\?\\/!@\$%^&*)(\\[\\]}{':;\\r?\\n]+"))) {
+        if (username.contains(Regex("[\\\\?\\/!\$%^&*)(\\[\\]}{':;\\r?\\n]+"))) {
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Username contains illegal chars")
         }
         val (hashed, salt) = passwordHashingService.hashPassword(password)

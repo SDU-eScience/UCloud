@@ -2,19 +2,19 @@ package dk.sdu.cloud.accounting.services.products
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.util.PartialQuery
+import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 
 class ProductService(
     private val db: DBContext,
+    private val processor: AccountingProcessor
 ) {
     suspend fun create(
         actorAndProject: ActorAndProject,
@@ -161,7 +161,6 @@ class ProductService(
     ): PageV2<Product> {
         return db.withSession { session ->
             val itemsPerPage = request.normalize().itemsPerPage
-
             val rows = session.sendPreparedStatement(
                 {
                     setParameter("name_filter", request.filterName)
@@ -169,7 +168,6 @@ class ProductService(
                     setParameter("product_filter", request.filterArea?.name)
                     setParameter("category_filter", request.filterCategory)
                     setParameter("version_filter", request.filterVersion)
-                    setParameter("include_balance", request.includeBalance == true)
                     setParameter("accountId", actorAndProject.project ?: actorAndProject.actor.safeUsername())
                     setParameter("account_is_project", actorAndProject.project != null)
 
@@ -179,46 +177,14 @@ class ProductService(
                     setParameter("next_name", nextParts?.get(2))
                 },
                 """
-                    with my_wallets as (
-                        select wa.category as wallet_category, wa.id as wallet_id, username, project_id, provider, balance
-                        from
-                            accounting.wallets wa join
-                            accounting.wallet_owner wo on wo.id = wa.owned_by join
-                            accounting.product_categories pc on pc.id = wa.category left join
-                            (
-                                select sum(walloc.balance) balance, wa.id
-                                from
-                                    accounting.wallets wa join
-                                    accounting.wallet_allocations walloc on wa.id = walloc.associated_wallet
-                                group by wa.id
-                            ) as balances on (:include_balance and balances.id = wa.id)
-                        where
-                            (
-                                (not :account_is_project and wo.username = :accountId) or
-                                (:account_is_project and wo.project_id = :accountId)
-                            ) and
-                            (
-                                :category_filter::text is null or
-                                pc.category = :category_filter
-                            ) and
-                            (
-                                :provider_filter::text is null or
-                                pc.provider = :provider_filter
-                            ) and
-                            (
-                                :product_filter::accounting.product_type is null or
-                                pc.product_type = :product_filter
-                            )
-                    )
                     select accounting.product_to_json(
                         p,
                         pc,
-                        (CASE WHEN :include_balance = true THEN (coalesce(balance::bigint, 0)) END)
+                        0
                     )
                     from
                         accounting.products p join
-                        accounting.product_categories pc on pc.id = p.category left outer join
-                        my_wallets mw on (pc.id = mw.wallet_category and pc.provider = mw.provider)
+                        accounting.product_categories pc on pc.id = p.category 
                     where
                         (
                             (:next_provider::text is null or :next_category::text is null or :next_name::text is null) or
@@ -242,20 +208,23 @@ class ProductService(
                         (
                             :name_filter::text is null or
                             p.name = :name_filter
-                        ) and
-                        (
-                            not :include_balance or
-                            (
-                                (mw.balance is not null and mw.balance > 0) or
-                                (p.free_to_use)
-                            )
                         )
                     order by pc.provider, pc.category, p.name
                     limit $itemsPerPage;
                 """
             ).rows
 
-            val result = rows.map { defaultMapper.decodeFromString(Product.serializer(), it.getString(0)!!) }
+            val result = rows.mapNotNull {
+                val product = defaultMapper.decodeFromString(Product.serializer(), it.getString(0)!!)
+                if (request.includeBalance == true) {
+                    val owner = actorAndProject.project ?: actorAndProject.actor.safeUsername()
+                    val balance = processor.retrieveBalanceFromProduct(owner, product.category)
+                        ?: return@mapNotNull null
+                    product.balance = balance
+                }
+                return@mapNotNull product
+            }
+
             val next = if (result.size < itemsPerPage) {
                 null
             } else buildString {

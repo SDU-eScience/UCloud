@@ -11,11 +11,14 @@ bundle {
     }
 
     withAdHocJob(deployment, "elastic-insta-clean", { listOf("--cleanup")}) {}
+    withAdHocJob(deployment, "grafana-insta", { listOf("--grafanaAliases") }) {}
 
     withCronJob(deployment, "*/10 * * * *", listOf("--entryDelete"), name="elastic-entry-cleaner") {}
     withCronJob(deployment, "0 1 * * *", listOf("--cleanup"), name="elastic-cleanup") {}
     withCronJob(deployment, "0 3 * * *", listOf("--reindex"), name="elastic-reindex") {}
-    withCronJob(deployment, "0 */3 * * *", listOf("--grafanaAliases"), name="manage-grafana-alias") {}
+    withCronJob(deployment, "0 */3 * * *", listOf("--grafanaAliases"), name="manage-grafana-alias") {
+        job.spec.startingDeadlineSeconds = 180
+    }
 
 
     resources.remove(deployment)

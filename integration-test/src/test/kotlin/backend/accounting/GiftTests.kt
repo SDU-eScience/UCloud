@@ -1,13 +1,12 @@
 package dk.sdu.cloud.integration.backend.accounting
 
-import dk.sdu.cloud.accounting.api.Wallet
-import dk.sdu.cloud.accounting.api.WalletBrowseRequest
-import dk.sdu.cloud.accounting.api.Wallets
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.projects.UserCriteria
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.integration.IntegrationTest
+import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.utils.*
 import java.util.*
 
@@ -74,7 +73,12 @@ class GiftTest : IntegrationTest() {
                     //Deletes all data about gift before next text
                     Gifts.deleteGift.call(DeleteGiftRequest(giftId), createdProject.piClient).orThrow()
 
-                    val walletsOfUser = Wallets.browse.call(WalletBrowseRequest(), normalUser.client).orThrow().items
+                    val walletsOfUser = Wallets.retrieveWalletsInternal.call(
+                        WalletsInternalRetrieveRequest(
+                            WalletOwner.User(normalUser.username)
+                        ),
+                        adminClient
+                    ).orThrow().wallets
                     Out(availableGifts, walletsOfUser)
                 }
 

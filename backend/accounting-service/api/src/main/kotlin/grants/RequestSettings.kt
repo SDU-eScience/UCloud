@@ -87,7 +87,6 @@ data class AutomaticApprovalSettings(
 @UCloudApiInternal(InternalLevel.STABLE)
 data class ProjectApplicationSettings(
     val projectId: String,
-    val automaticApproval: AutomaticApprovalSettings,
     val allowRequestsFrom: List<UserCriteria>,
     val excludeRequestsFrom: List<UserCriteria>
 )

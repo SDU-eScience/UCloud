@@ -53,6 +53,9 @@ interface ContainerRuntime {
     suspend fun list(): List<Container>
     suspend fun listNodes(): List<ComputeNode>
     suspend fun openTunnel(jobId: String, rank: Int, port: Int): Tunnel
+    suspend fun isJobKnown(jobId: String): Boolean {
+        return retrieve(jobId, 0) != null
+    }
 }
 
 data class Tunnel(val hostnameOrIpAddress: String, val port: Int, val close: suspend () -> Unit)
