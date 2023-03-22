@@ -400,6 +400,7 @@ class EventController(
                 ),
                 controllerContext.pluginContext.rpcClient
             ).orThrow().items
+
             for (providerSummary in combinedProviderSummary) {
                 val productType = providerSummary.productType
 

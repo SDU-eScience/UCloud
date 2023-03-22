@@ -37,6 +37,7 @@ const Studio = React.lazy(() => import("@/Applications/Studio/Page"));
 const Tool = React.lazy(() => import("@/Applications/Studio/Tool"));
 const Scripts = React.lazy(() => import("@/Admin/Scripts"));
 const UserCreation = React.lazy(() => import("@/Admin/UserCreation"));
+const DevTestData = React.lazy(() => import("@/Admin/DevTestData"));
 const UserSettings = React.lazy(() => import("@/UserSettings/UserSettings"));
 const Wayf = React.lazy(() => import("@/Login/Wayf"));
 const AppK8Admin = React.lazy(() => import("@/Admin/AppK8Admin"));

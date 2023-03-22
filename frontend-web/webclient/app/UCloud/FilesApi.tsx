@@ -80,7 +80,7 @@ export interface UFileStatus extends ResourceStatus {
     sizeInBytes?: number;
     sizeIncludingChildrenInBytes?: number;
     modifiedAt?: number;
-    accessedA?: number;
+    accessedAt?: number;
     unixMode?: number;
     unixOwner?: number;
     unixGroup?: number;

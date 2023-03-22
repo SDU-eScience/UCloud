@@ -4461,7 +4461,7 @@ export interface SendRequest {
     mail: Mail,
     mandatory: boolean,
 }
-export type Mail = MailNS.TransferApplicationMail | MailNS.LowFundsMail | MailNS.StillLowFundsMail | MailNS.UserRoleChangeMail | MailNS.UserLeftMail | MailNS.UserRemovedMail | MailNS.UserRemovedMailToUser | MailNS.ProjectInviteMail | MailNS.NewGrantApplicationMail | MailNS.GrantAppAutoApproveToAdminsMail | MailNS.GrantApplicationUpdatedMail | MailNS.GrantApplicationUpdatedMailToAdmins | MailNS.GrantApplicationStatusChangedToAdmin | MailNS.GrantApplicationApproveMail | MailNS.GrantApplicationApproveMailToAdmins | MailNS.GrantApplicationRejectedMail | MailNS.GrantApplicationWithdrawnMail | MailNS.NewCommentOnApplicationMail | MailNS.ResetPasswordMail | MailNS.VerificationReminderMail
+export type Mail = MailNS.TransferApplicationMail | MailNS.LowFundsMail | MailNS.StillLowFundsMail | MailNS.UserRoleChangeMail | MailNS.UserLeftMail | MailNS.UserRemovedMail | MailNS.UserRemovedMailToUser | MailNS.ProjectInviteMail | MailNS.NewGrantApplicationMail | MailNS.GrantApplicationUpdatedMail | MailNS.GrantApplicationUpdatedMailToAdmins | MailNS.GrantApplicationStatusChangedToAdmin | MailNS.GrantApplicationApproveMail | MailNS.GrantApplicationApproveMailToAdmins | MailNS.GrantApplicationRejectedMail | MailNS.GrantApplicationWithdrawnMail | MailNS.NewCommentOnApplicationMail | MailNS.ResetPasswordMail | MailNS.VerificationReminderMail
 export interface SendSupportEmailRequest {
     fromEmail: string,
     subject: string,
@@ -4475,7 +4475,6 @@ export interface RetrieveEmailSettingsResponse {
 }
 export interface EmailSettings {
     newGrantApplication: boolean,
-    grantAutoApprove: boolean,
     grantApplicationUpdated: boolean,
     grantApplicationApproved: boolean,
     grantApplicationRejected: boolean,
@@ -4553,12 +4552,6 @@ export interface NewGrantApplicationMail {
     projectTitle: string,
     subject: string,
     type: ("newGrantApplication"),
-}
-export interface GrantAppAutoApproveToAdminsMail {
-    sender: string,
-    projectTitle: string,
-    subject: string,
-    type: ("autoApproveGrant"),
 }
 export interface GrantApplicationUpdatedMail {
     projectTitle: string,
@@ -4786,13 +4779,11 @@ export type Person = PersonNS.ByWAYF | PersonNS.ByPassword
 export interface ServicePrincipal {
     id: string,
     role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
-    uid: number /* int64 */,
     type: ("service"),
 }
 export interface ProviderPrincipal {
     id: string,
     role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
-    uid: number /* int64 */,
     type: ("provider"),
 }
 export interface GetPrincipalRequest {
@@ -4811,7 +4802,6 @@ export interface LookupUsersResponse {
 }
 export interface UserLookup {
     subject: string,
-    uid: number /* int64 */,
     role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
 }
 export interface LookupUsersRequest {
@@ -4831,12 +4821,7 @@ export interface LookupUserWithEmailResponse {
 export interface LookupUserWithEmailRequest {
     email: string,
 }
-export interface LookupUIDResponse {
-    users: Record<string, UserLookup>,
-}
-export interface LookupUIDRequest {
-    uids: number /* int64 */[],
-}
+
 export interface Create2FACredentialsResponse {
     otpAuthUri: string,
     qrCodeB64Data: string,
@@ -4989,18 +4974,6 @@ export function lookupUserWithEmail(
         context: "",
         method: "POST",
         path: "/auth/users" + "/lookup" + "/with-email",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function lookupUID(
-    request: LookupUIDRequest
-): APICallParameters<LookupUIDRequest, LookupUIDResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/auth/users" + "/lookup-uid",
         parameters: request,
         reloadId: Math.random(),
         payload: request,
@@ -5200,7 +5173,6 @@ export interface ByWAYF {
     phoneNumber?: string,
     orcId?: string,
     email?: string,
-    uid: number /* int64 */,
     serviceLicenseAgreement: number /* int32 */,
     organizationId: string,
     wayfId: string,
@@ -5217,7 +5189,6 @@ export interface ByPassword {
     phoneNumber?: string,
     orcId?: string,
     email?: string,
-    uid: number /* int64 */,
     twoFactorAuthentication: boolean,
     serviceLicenseAgreement: number /* int32 */,
     displayName: string,
@@ -6124,6 +6095,7 @@ export interface ProductsBrowseRequest {
     filterUsable?: boolean,
     filterCategory?: string,
     includeBalance?: boolean,
+    includeMaxBalance?: boolean,
 }
 export interface UsageResponse {
     charts: UsageChart[],
@@ -6240,7 +6212,7 @@ export function browse(
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/products" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, filterProvider: request.filterProvider, filterArea: request.filterArea, filterUsable: request.filterUsable, filterCategory: request.filterCategory, includeBalance: request.includeBalance}),
+        path: buildQueryString("/api/products" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, filterProvider: request.filterProvider, filterArea: request.filterArea, filterUsable: request.filterUsable, filterCategory: request.filterCategory, includeBalance: request.includeBalance, includeMaxBalance: request.includeMaxBalance}),
         parameters: request,
         reloadId: Math.random(),
     };
@@ -6827,16 +6799,8 @@ export interface UploadTemplatesRequest {
     existingProject: string,
 }
 export interface ProjectApplicationSettings {
-    automaticApproval: AutomaticApprovalSettings,
     allowRequestsFrom: UserCriteria[],
     excludeRequestsFrom: UserCriteria[],
-}
-export interface AutomaticApprovalSettings {
-    from: UserCriteria[],
-    maxResources: ResourceRequest[],
-}
-export interface ReadRequestSettingsRequest {
-    projectId: string,
 }
 export interface ReadTemplatesRequest {
     projectId: string,
@@ -7042,29 +7006,6 @@ export function uploadTemplates(
         context: "",
         method: "POST",
         path: "/api/grant" + "/upload-templates",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function readRequestSettings(
-    request: ReadRequestSettingsRequest
-): APICallParameters<ReadRequestSettingsRequest, ProjectApplicationSettings> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/grant" + "/request-settings", {projectId: request.projectId}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function uploadRequestSettings(
-    request: ProjectApplicationSettings
-): APICallParameters<ProjectApplicationSettings, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/grant" + "/request-settings",
         parameters: request,
         reloadId: Math.random(),
         payload: request,

@@ -80,7 +80,8 @@ object FeatureAccounting : JobFeature, Loggable {
             ).orThrow().insufficientFunds.isNotEmpty()
 
             if (insufficientFunds) {
-                children.forEach { it.cancel() }
+                log.info("Wanted to kill ${rootJob.jobId} because no more resources")
+//                children.forEach { it.cancel() }
             }
         }
 
@@ -100,10 +101,10 @@ object FeatureAccounting : JobFeature, Loggable {
 
     private val Container.lastAccountingTs: Long?
         get() {
-            return annotations[LAST_PERFORMED_AT_ANNOTATION]?.toLongOrNull()
+            return annotations[LAST_PERFORMED_AT_ANNOTATION]?.replace("\"", "")?.trim()?.toLongOrNull()
         }
     private val Container.jobStartedAt: Long?
         get() {
-            return annotations[FeatureExpiry.JOB_START]?.toLongOrNull()
+            return annotations[FeatureExpiry.JOB_START]?.replace("\"", "")?.trim()?.toLongOrNull()
         }
 }

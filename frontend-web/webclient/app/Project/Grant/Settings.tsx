@@ -148,7 +148,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
     );
     const [settings, fetchSettings] = useCloudAPI<ProjectGrantSettings>(
         {noop: true},
-        {projectId: "", allowRequestsFrom: [], automaticApproval: {from: [], maxResources: []}, excludeRequestsFrom: []}
+        {projectId: "", allowRequestsFrom: [], excludeRequestsFrom: []}
     );
 
     const [templates, fetchTemplates] = useCloudAPI<ReadTemplatesResponse>(

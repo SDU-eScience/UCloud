@@ -189,6 +189,7 @@ data class WalletAllocation(
         "ID reference to which grant application this allocation was granted in"
     )
     val grantedIn: Long?,
+    val maxUsableBalance: Long? = null,
     @UCloudApiDoc("A property which indicates if this allocation can be used to create sub-allocations")
     val canAllocate: Boolean = false,
     @UCloudApiDoc("A property which indicates that new sub-allocations of this allocation by default should have canAllocate = true")
@@ -219,8 +220,33 @@ data class WalletBrowseRequest(
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
+    override val filterEmptyAllocations: Boolean? = null,
+    override val includeMaxUsableBalance: Boolean? = null,
     val filterType: ProductType? = null
-) : WithPaginationRequestV2
+) : WithPaginationRequestV2, BrowseAllocationsFlags
+
+interface BrowseAllocationsFlags{
+    val includeMaxUsableBalance: Boolean?
+    val filterEmptyAllocations: Boolean?
+}
+
+@Serializable
+data class WalletsInternalRetrieveRequest(
+    val owner: WalletOwner
+)
+@Serializable
+data class WalletsInternalRetrieveResponse(
+    val wallets: List<Wallet>
+)
+@Serializable
+data class WalletAllocationsInternalRetrieveRequest (
+    val owner: WalletOwner,
+    val categoryId: ProductCategoryId
+)
+@Serializable
+data class WalletAllocationsInternalRetrieveResponse(
+    val allocations: List<WalletAllocation>
+)
 
 typealias PushWalletChangeResponse = Unit
 
@@ -290,6 +316,8 @@ data class WalletsRetrieveRecipientResponse(
     val principalInvestigator: String,
     val numberOfMembers: Int,
 )
+
+typealias TestResetCaches = Unit
 
 @Serializable
 @UCloudApiInternal(InternalLevel.BETA)
@@ -404,6 +432,15 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
+    val testResetCaches = call("resetCache", TestResetCaches.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve("resetCache")
+
+        auth {
+            roles = Roles.SERVICE
+            access = AccessRight.READ_WRITE
+        }
+    }
+
     @UCloudApiExperimental(ExperimentalLevel.BETA)
     val register = call("register", BulkRequest.serializer(RegisterWalletRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "register", roles = Roles.PROVIDER)
@@ -419,6 +456,51 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
 
         documentation {
             summary = "Browses the catalog of accessible Wallets"
+        }
+    }
+
+    val retrieveWalletsInternal = call(
+        "retrieveWalletsInternal",
+        WalletsInternalRetrieveRequest.serializer(),
+        WalletsInternalRetrieveResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
+        httpUpdate(baseContext, "retrieveWalletsInternal")
+
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PRIVILEGED
+        }
+
+        documentation {
+            summary = "Retrieves a list of up-to-date wallets from the in-memory DB"
+            description = """
+                This endpoint will return a list of $TYPE_REF Wallet s which are related to the active workspace.
+                This is mainly for backend use. For frontend, use the browse call instead for a paginated response
+            """.trimIndent()
+        }
+    }
+
+    val retrieveAllocationsInternal = call(
+        "retrieveAllocationsInternal",
+        WalletAllocationsInternalRetrieveRequest.serializer(),
+        WalletAllocationsInternalRetrieveResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
+        httpUpdate(baseContext, "retrieveAllocationsInternal")
+
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PRIVILEGED
+        }
+
+        documentation {
+            summary = "Retrieves a list of product specific up-to-date allocation from the in-memory DB"
+            description = """
+                This endpoint will return a list of $TYPE_REF WalletAllocation s which are related to the given product
+                available to the user.
+                This is mainly for backend use. For frontend, use the browse call instead for a paginated response
+            """.trimIndent()
         }
     }
 
@@ -554,9 +636,13 @@ data class DepositToWalletRequestItem(
     @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
     var transactionId: String = Random.nextLong().toString() + Time.now(),
     val dry: Boolean = false,
+    val isProject: Boolean
 )
 
 typealias DepositToWalletResponse = Unit
+
+typealias ForceInMemoryDBSyncRequest = Unit
+typealias ForceInMemoryDBSyncResponse = Unit
 
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -609,6 +695,17 @@ data class UpdateAllocationRequestItem(
 
 typealias UpdateAllocationResponse = Unit
 
+@Serializable
+data class FindRelevantProvidersRequestItem(
+    val username: String,
+    val project: String? = null,
+    val useProject: Boolean
+)
+@Serializable
+data class FindRelevantProvidersResponse(
+    val providers: List<String>
+)
+
 @UCloudApiDoc("See `DepositToWalletRequestItem`")
 @Serializable
 @UCloudApiInternal(InternalLevel.BETA)
@@ -620,7 +717,8 @@ data class RootDepositRequestItem(
     var startDate: Long? = null,
     val endDate: Long? = null,
     var transactionId: String = Random.nextLong().toString() + Time.now(),
-    val providerGeneratedId: String? = null
+    val providerGeneratedId: String? = null,
+    val forcedSync: Boolean = false
 )
 
 @UCloudApiInternal(InternalLevel.BETA)
@@ -643,8 +741,6 @@ object Accounting : CallDescriptionContainer("accounting") {
               the same amount. The local balances of an ancestor remains unchanged. 
             - $CALL_REF accounting.deposit: Creates a new _sub-allocation_ from a parent allocation. The new allocation
               will have the current allocation as a parent. The balance of the parent allocation is not changed.
-            - $CALL_REF accounting.transfer: Creates a new root allocation from a parent allocation. The new allocation 
-              will have no parents. The balance of the parent allocation is immediately removed, in full.
 
             ---
 
@@ -686,7 +782,6 @@ object Accounting : CallDescriptionContainer("accounting") {
     private const val chargeAbsoluteMultiMissingUseCase = "charge-absolute-multi-missing"
     private const val chargeDifferentialMultiMissingUseCase = "charge-differential-multi-missing"
     private const val depositUseCase = "deposit"
-    private const val transferUseCase = "transfer"
 
     override fun documentation() {
         val defaultOwner: WalletOwner = WalletOwner.Project("my-research")
@@ -704,7 +799,8 @@ object Accounting : CallDescriptionContainer("accounting") {
                 balance, initialBalance, localBalance,
                 1633941615074L,
                 null,
-                1
+                1,
+                maxUsableBalance = null
             )
         }
 
@@ -1574,7 +1670,8 @@ object Accounting : CallDescriptionContainer("accounting") {
                             leafOwner,
                             "42",
                             100,
-                            "Create sub-allocation"
+                            "Create sub-allocation",
+                            isProject = true
                         )
                     ),
                     Unit,
@@ -1612,111 +1709,10 @@ object Accounting : CallDescriptionContainer("accounting") {
                 )
             }
         )
-
-        useCase(
-            transferUseCase,
-            "Creating a new root allocation (transfer operation)",
-            flow = {
-                val piRoot = actor("piRoot", "The PI of the root project")
-                val piSecondRoot = actor("piSecondRoot", "The PI of the new root project")
-
-                val rootOwner = WalletOwner.Project("root-project")
-                val secondRootOwner = WalletOwner.Project("second-root-project")
-
-                comment(
-                    """
-                    In this example, we will show how a workspace can transfer money to another workspace. This is not 
-                    the recommended way of creating granting resources. This approach immediately removes all resources 
-                    from the parent. The parent cannot observe usage from the child. In addition, the workspace is not 
-                    allowed to over-allocate resources. We recommend using deposit for almost all cases. Workspace PIs 
-                    should only use transfers if they wish to give away resources that they otherwise will not be able 
-                    to consume. 
-                """.trimIndent()
-                )
-
-                success(
-                    Wallets.browse,
-                    WalletBrowseRequest(),
-                    walletPage(
-                        ChargeType.ABSOLUTE,
-                        allocation(listOf("42"), 500, 500, 500),
-                        owner = rootOwner,
-                    ),
-                    piRoot
-                )
-
-                success(
-                    Wallets.browse,
-                    WalletBrowseRequest(),
-                    walletPage(
-                        ChargeType.ABSOLUTE,
-                        owner = secondRootOwner,
-                    ),
-                    piSecondRoot
-                )
-
-                comment(
-                    """
-                    Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
-                    resources at the moment.
-                """.trimIndent()
-                )
-
-                comment(
-                    """
-                    We now perform a transfer operation with the leaf workspace as the target.
-                """.trimIndent()
-                )
-
-                success(
-                    transfer,
-                    bulkRequestOf(
-                        TransferToWalletRequestItem(
-                            ProductCategoryId(absoluteProductReference.category, absoluteProductReference.provider),
-                            secondRootOwner,
-                            rootOwner,
-                            100,
-                        )
-                    ),
-                    Unit,
-                    piRoot
-                )
-
-                success(
-                    Wallets.browse,
-                    WalletBrowseRequest(),
-                    walletPage(
-                        ChargeType.ABSOLUTE,
-                        allocation(listOf("42"), 400, 400, 500),
-                        owner = rootOwner,
-                    ),
-                    piRoot
-                )
-
-                success(
-                    Wallets.browse,
-                    WalletBrowseRequest(),
-                    walletPage(
-                        ChargeType.ABSOLUTE,
-                        allocation(listOf("52"), 100, 100, 100),
-                        owner = secondRootOwner,
-                    ),
-                    piSecondRoot
-                )
-
-                comment(
-                    """
-                    After inspecting the allocations, we see that the original (root) allocation has changed. The 
-                    system has immediately removed all the resources. The leaf workspace now have a new allocation. 
-                    The new allocation does not have a parent.
-                """.trimIndent()
-                )
-            }
-        )
     }
 
     val charge = call("charge", BulkRequest.serializer(ChargeWalletRequestItem.serializer()), BulkResponse.serializer(Boolean.serializer()), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "charge", roles = Roles.SERVICE)
+        httpUpdate(baseContext, "charge", roles = Roles.PRIVILEGED)
 
         documentation {
             summary = "Records usage in the system"
@@ -1806,22 +1802,6 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
-    @Deprecated("Is going away")
-    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-    val transfer = call("transfer", BulkRequest.serializer(TransferToWalletRequestItem.serializer()), TransferToWalletResponse.serializer(), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "transfer")
-
-        documentation {
-            summary = "Creates a new root allocation from a parent allocation"
-            description = """
-                The new allocation will have no parents. The balance of the parent allocation is immediately removed, 
-                in full.
-            """.trimIndent()
-
-            useCaseReference(transferUseCase, "Creating a new root allocation")
-        }
-    }
-
     val updateAllocation = call("updateAllocation", BulkRequest.serializer(UpdateAllocationRequestItem.serializer()), UpdateAllocationResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "allocation")
 
@@ -1854,5 +1834,9 @@ object Accounting : CallDescriptionContainer("accounting") {
 
     val rootDeposit = call("rootDeposit", BulkRequest.serializer(RootDepositRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "rootDeposit", roles = Roles.PRIVILEGED)
+    }
+
+    val findRelevantProviders = call("findRelevantProviders", BulkRequest.serializer(FindRelevantProvidersRequestItem.serializer()), BulkResponse.serializer(FindRelevantProvidersResponse.serializer()), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "findRelevantProviders", Roles.PRIVILEGED)
     }
 }
