@@ -19,6 +19,7 @@ UCloud/Core @ 2023.1.9
 ```
 Type 1/SDU Provider @ 2023.1.1
 UCloud/Core @ 2023.1.6
+UCloud/Frontend @ 2023.1.0
 ```
 
 ## 13-03-23
