@@ -84,7 +84,7 @@ export default function Support(): JSX.Element {
             )}
             width="650px"
             left="calc(var(--sidebarWidth))"
-            bottom="-100px"
+            bottom="-60px"
         >
             <div>
                 <Box width="100%" pr={"16px"} color="text">

@@ -147,7 +147,8 @@ const SidebarContainerClass = injectStyleSimple("sidebar-container", () => `
     width: var(--sidebarWidth);
     background-color: var(--sidebar);
     gap: 18px;
-    z-index: 100000;
+    z-index: 1000;
+    padding-bottom: 12px;
 `);
 
 const SidebarMenuItem = injectStyle("sidebar-item", k => `
@@ -183,11 +184,11 @@ interface TextLabelProps {
 }
 
 export const SidebarTextLabel = ({
-                                     icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
-                                     iconSize = "18", space = "22px", textSize = 3
-                                 }: TextLabelProps): JSX.Element => (
+    icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
+    iconSize = "18", space = "22px", textSize = 3
+}: TextLabelProps): JSX.Element => (
     <div className={SidebarElementContainerClass} title={title} style={{height}}>
-        <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space}/>
+        <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
         <Text fontSize={textSize}>{children}</Text>
     </div>
 );
@@ -201,10 +202,10 @@ function SidebarElement({icon, to}: SidebarElement): JSX.Element {
     if (to) {
         return (
             <Link to={to}>
-                <Icon name={icon} color="white" color2="white" size={"20"}/>
+                <Icon name={icon} color="white" color2="white" size={"20"} />
             </Link>
         );
-    } else return <Icon name={icon} color="white" color2="white" size={"20"}/>;
+    } else return <Icon name={icon} color="white" color2="white" size={"20"} />;
 }
 
 interface MenuElement {
@@ -286,26 +287,26 @@ const UserMenu: React.FunctionComponent<{
         bottom="0"
         colorOnHover={false}
         trigger={Client.isLoggedIn ?
-            <UserAvatar avatarStyle={""} height="42px" width="42px" avatar={avatar}/> : null}
+            <UserAvatar avatarStyle={""} height="42px" width="42px" avatar={avatar} /> : null}
     >
         {!CONF.STATUS_PAGE ? null : (
             <>
                 <Box>
                     <ExternalLink href={CONF.STATUS_PAGE}>
                         <Flex color="black">
-                            <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="var(--black)"/>
+                            <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="var(--black)" />
                             <TextSpan color="var(--black)">Site status</TextSpan>
                         </Flex>
                     </ExternalLink>
                 </Box>
-                <Divider/>
+                <Divider />
             </>
         )}
         <Box>
             <Link color="black" to={AppRoutes.users.settings()}>
                 <Flex color="black">
                     <Icon name="properties" color="var(--black)" color2="var(--black)" mr="0.5em" my="0.2em"
-                          size="1.3em"/>
+                        size="1.3em" />
                     <TextSpan color="var(--black)">Settings</TextSpan>
                 </Flex>
             </Link>
@@ -313,19 +314,19 @@ const UserMenu: React.FunctionComponent<{
         <Flex>
             <Link to={"/users/avatar"}>
                 <Flex color="black">
-                    <Icon name="user" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em"/>
+                    <Icon name="user" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
                     <TextSpan color="var(--black)">Edit Avatar</TextSpan>
                 </Flex>
             </Link>
         </Flex>
         <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
-            <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em"/>
+            <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
             Logout
         </Flex>
         {!CONF.SITE_DOCUMENTATION_URL ? null : (
             <div>
                 <ExternalLink hoverColor="text" href={CONF.SITE_DOCUMENTATION_URL}>
-                    <Icon name="docs" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em"/>
+                    <Icon name="docs" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
                     <TextSpan color="var(--black)">{CONF.PRODUCT_NAME} Docs</TextSpan>
                 </ExternalLink>
             </div>
@@ -333,27 +334,27 @@ const UserMenu: React.FunctionComponent<{
         {!CONF.DATA_PROTECTION_LINK ? null : (
             <div>
                 <ExternalLink hoverColor="text" href={CONF.DATA_PROTECTION_LINK}>
-                    <Icon name="verified" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em"/>
+                    <Icon name="verified" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
                     <TextSpan color="var(--black)">{CONF.DATA_PROTECTION_TEXT}</TextSpan>
                 </ExternalLink>
             </div>
         )}
-        <Divider/>
-        <Username/>
-        <ProjectID/>
-        <Divider/>
+        <Divider />
+        <Username />
+        <ProjectID />
+        <Divider />
         <span>
-                        <Flex cursor="auto">
-                            <ThemeToggler
-                                isLightTheme={isLightThemeStored()}
-                                onClick={onToggleTheme}
-                            />
-                        </Flex>
-                    </span>
+            <Flex cursor="auto">
+                <ThemeToggler
+                    isLightTheme={isLightThemeStored()}
+                    onClick={onToggleTheme}
+                />
+            </Flex>
+        </span>
     </ClickableDropdown>;
 }
 
-export const Sidebar = ({toggleTheme}: { toggleTheme(): void; }): JSX.Element | null => {
+export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | null => {
     const sidebarEntries = sideBarMenuElements;
     const {activeProject, loggedIn, avatar} = useSidebarReduxProps();
 
@@ -382,7 +383,7 @@ export const Sidebar = ({toggleTheme}: { toggleTheme(): void; }): JSX.Element | 
         <div style={{display: "flex"}}>
             <div className={SidebarContainerClass + " " + SIDEBAR_IDENTIFIER}>
                 <Link data-component={"logo"} to="/">
-                    <Icon name="logoEsc" mt="10px" size="34px"/>
+                    <Icon name="logoEsc" mt="10px" size="34px" />
                 </Link>
 
                 <div
@@ -409,16 +410,16 @@ export const Sidebar = ({toggleTheme}: { toggleTheme(): void; }): JSX.Element | 
 
                 <>
                     {/* (Typically) invisible elements here to run various background tasks */}
-                    <AutomaticGiftClaim/>
-                    <ResourceInit/>
-                    <VersionManager/>
-                    <BackgroundTasks/>
-                    <Downtimes/>
+                    <AutomaticGiftClaim />
+                    <ResourceInit />
+                    <VersionManager />
+                    <BackgroundTasks />
+                    <Downtimes />
                 </>
 
-                <Notification/>
-                <Support/>
-                <UserMenu avatar={avatar} onToggleTheme={onToggleTheme}/>
+                <Notification />
+                <Support />
+                <UserMenu avatar={avatar} onToggleTheme={onToggleTheme} />
             </div>
 
             <SecondarySidebar
@@ -467,11 +468,11 @@ function useSidebarRunsPage(): APICallState<PageV2<Job>> {
 
 
 function SecondarySidebar({
-                              hovered,
-                              clicked,
-                              clearHover,
-                              clearClicked
-                          }: { hovered: string; clicked: string; clearHover(): void; clearClicked(): void }): JSX.Element {
+    hovered,
+    clicked,
+    clearHover,
+    clearClicked
+}: {hovered: string; clicked: string; clearHover(): void; clearClicked(): void}): JSX.Element {
     const [drives, favorites] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
 
@@ -522,13 +523,13 @@ function SecondarySidebar({
                                     <Flex key={it.id} ml="4px">
                                         <Link hoverColor="white" to={`/files?path=${it.id}`}>
                                             <Truncate color="var(--white)">
-                                                <Icon size={12} mr="4px" name="hdd" color="white" color2="white"/>
+                                                <Icon size={12} mr="4px" name="hdd" color="white" color2="white" />
                                                 {it.specification.title}
                                             </Truncate>
                                         </Link>
 
                                         <Flex ml="auto" mr="5px" my="auto">
-                                            <ProviderLogo providerId={it.specification.product.provider} size={20}/>
+                                            <ProviderLogo providerId={it.specification.product.provider} size={20} />
                                         </Flex>
                                     </Flex>
                                 </li>
@@ -548,7 +549,7 @@ function SecondarySidebar({
                                         onClick={() => navigateByFileType(it, invokeCommand, navigate)}
                                     >
                                         <Flex mx="auto" my="auto">
-                                            <Icon name="starFilled" size={12} mr="4px" color="white" color2="white"/>
+                                            <Icon name="starFilled" size={12} mr="4px" color="white" color2="white" />
                                         </Flex>
                                         <Truncate color="white">{fileName(it.path)}</Truncate>
                                     </Flex>
@@ -560,9 +561,9 @@ function SecondarySidebar({
             </>
         )}
 
-        {active !== "Projects" ? null : (<ProjectLinks/>)}
+        {active !== "Projects" ? null : (<ProjectLinks />)}
 
-        {active !== "Shares" ? null : (<SharesLinks/>)}
+        {active !== "Shares" ? null : (<SharesLinks />)}
 
         {active !== "Runs" ? null : (
             <Flex flexDirection="column" mr="4px">
@@ -570,17 +571,17 @@ function SecondarySidebar({
                 {recentRuns.data.items.map(it => {
                     const [icon, color] = jobStateToIconAndColor(it.status.state);
                     return <Flex>
-                        <Icon name={icon} color={color} mr={"6px"} size={16} my="auto"/>
+                        <Icon name={icon} color={color} mr={"6px"} size={16} my="auto" />
                         <Truncate key={it.id}
-                                  color="white">{it.specification.name ?? it.id} ({it.specification.application.name})</Truncate>
+                            color="white">{it.specification.name ?? it.id} ({it.specification.application.name})</Truncate>
                     </Flex>
                 })}
             </Flex>
         )}
 
-        {active !== "Resources" ? null : (<ResourceLinks/>)}
+        {active !== "Resources" ? null : (<ResourceLinks />)}
 
-        {active !== "Admin" ? null : (<AdminLinks/>)}
+        {active !== "Admin" ? null : (<AdminLinks />)}
     </div>;
 }
 
@@ -592,7 +593,7 @@ function Username(): JSX.Element | null {
                 cursor="pointer"
                 onClick={copyUserName}
             >
-                <Icon name="id" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em"/> {Client.username}
+                <Icon name="id" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" /> {Client.username}
             </EllipsedText>
         )}
     >
@@ -623,7 +624,7 @@ function ProjectID(): JSX.Element | null {
                 width="140px"
             >
                 <Icon key={projectId} name={"projects"} color2="white" color="black" mr="0.5em" my="0.2em"
-                      size="1.3em"/>{projectPath}
+                    size="1.3em" />{projectPath}
             </EllipsedText>
         }
     >
@@ -648,8 +649,8 @@ function Downtimes(): JSX.Element | null {
 
     if (upcomingDowntime === -1) return null;
     return <Link to={AppRoutes.news.detailed(upcomingDowntime)}>
-        <Tooltip trigger={<Icon color="yellow" name="warning"/>}>
-            Upcoming downtime.<br/>
+        <Tooltip trigger={<Icon color="yellow" name="warning" />}>
+            Upcoming downtime.<br />
             Click to view
         </Tooltip>
     </Link>
