@@ -867,7 +867,8 @@ class AccountingService(
         }
 
         val summaryItems = unorderedSummary.sortedBy { it.id.toLongOrNull() }.toList()
-        val next = summaryItems.lastOrNull()?.id
+        var next = summaryItems.lastOrNull()?.id
+        if (request.next == next) next = null
 
         // NOTE(Henrik) Returns more than itemPerPage items, but is limited to itemPerPage Wallets
         return PageV2(itemsPerPage, summaryItems, next)

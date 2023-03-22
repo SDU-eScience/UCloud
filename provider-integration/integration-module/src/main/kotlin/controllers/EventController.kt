@@ -669,6 +669,10 @@ class EventController(
                 isActive = false
                 return@whileGraal
             }
+            if (next == null) {
+                isActive = false
+                // Don't break yet
+            }
 
             // NOTE(Dan): Before we synchronize the allocations, attempt to synchronize the project. This will solve
             // issues when the project has failed the synchronization earlier.

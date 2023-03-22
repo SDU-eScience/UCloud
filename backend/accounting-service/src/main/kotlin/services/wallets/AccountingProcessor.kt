@@ -1844,11 +1844,10 @@ class AccountingProcessor(
         }
     }
 
+    val UUID_REGEX =
+        Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
     private suspend fun retrieveRelevantWalletsNotifications(request: AccountingRequest.RetrieveRelevantWalletsProviderNotifications): AccountingResponse {
-        val UUID_REGEX =
-            Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
-
-
         // NOTE(Henrik): We fetch all the relevant data.
         //
         // The first we retrieve the relevant wallets, filteres them by request filters and creates pagination of
@@ -1973,7 +1972,7 @@ class AccountingProcessor(
                     unit = wall.unit,
                     workspaceId = projectInfo.first.projectId,
                     workspaceTitle = projectInfo.first.title,
-                    workspaceIsProject = true,
+                    workspaceIsProject = wall.owner.matches(UUID_REGEX),
                     projectPI = projectInfo.second,
                     remaining = allocation.currentBalance,
                     initialBalance = allocation.initialBalance
@@ -2461,10 +2460,15 @@ private class ProjectCache(private val db: DBContext) {
         }
     }
 
+    val UUID_REGEX =
+        Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
     suspend fun retrieveProjectInfoFromId(
         id: String,
         allowCacheRefill: Boolean = true
     ): Pair<ProjectWithTitle, String> {
+        if (!id.matches(UUID_REGEX)) return Pair(ProjectWithTitle(id, id), id)
+
         val project = projects.get().find { it.first.projectId == id }
         if (project == null && allowCacheRefill) {
             fillCache()
