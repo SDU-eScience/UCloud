@@ -2,7 +2,6 @@ package dk.sdu.cloud.news.rpc
 
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.server.securityPrincipalOrNull
 import dk.sdu.cloud.news.api.News
 import dk.sdu.cloud.news.services.NewsService

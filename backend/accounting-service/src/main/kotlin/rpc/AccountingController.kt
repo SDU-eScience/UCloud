@@ -1,55 +1,65 @@
 package dk.sdu.cloud.accounting.rpc
 
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
-import dk.sdu.cloud.accounting.util.accountingPerformanceMitigations
 import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.bulkResponseOf
+import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.actorAndProject
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.selects.select
-import kotlinx.coroutines.sync.Mutex
 
 
 class AccountingController(
     private val accounting: AccountingService,
     private val notifications: DepositNotificationService,
+    private val client: AuthenticatedClient,
 ) : Controller {
-    @OptIn(ExperimentalCoroutinesApi::class)
-    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        val chargeMutex = Mutex()
-
-        implement(Accounting.charge) {
-//            println("CHARGEMELATER: $request")
-//            ok(BulkResponse(request.items.map { true }))
-            if (accountingPerformanceMitigations) {
-                select {
-                    chargeMutex.onLock {
-                        try {
-                            ok(accounting.charge(actorAndProject, request))
-                        } finally {
-                            chargeMutex.unlock()
-                        }
-                    }
-
-                    onTimeout(30_000) {
-                        log.info("Failed to start charge within 60 seconds")
-                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-                    }
-                }
+    private fun <R : Any, S : Any, E : Any> RpcServer.implementOrDispatch(
+        call: CallDescription<R, S, E>,
+        handler: suspend CallHandler<R, S, E>.() -> Unit,
+    ) {
+        implement(call) {
+            val activeProcessor = accounting.retrieveActiveProcessorAddress()
+            if (activeProcessor == null) {
+                handler()
             } else {
-                ok(accounting.charge(actorAndProject, request))
+                ok(
+                    call.call(
+                        request,
+                        client.withFixedHost(HostInfo(activeProcessor, "http", 8080))
+                    ).orThrow()
+                )
             }
         }
+    }
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implementOrDispatch(Accounting.findRelevantProviders) {
+            val responses = request.items.map {
+                val providers = accounting.findRelevantProviders(
+                    actorAndProject,
+                    it.username,
+                    it.project,
+                    it.useProject
+                )
+                FindRelevantProvidersResponse(providers)
+            }
+            ok(BulkResponse(responses))
+        }
 
-        implement(Accounting.deposit) {
+        implementOrDispatch(Accounting.charge) {
+            ok(accounting.charge(actorAndProject, request))
+        }
+
+        implementOrDispatch(Accounting.deposit) {
             val user = ctx.securityPrincipal.username
             request.items.forEach { req ->
                 req.transactionId = "${user}-${req.transactionId}"
@@ -58,29 +68,19 @@ class AccountingController(
             ok(accounting.deposit(actorAndProject, request))
         }
 
-        implement(Accounting.check) {
+        implementOrDispatch(Accounting.check) {
             ok(accounting.check(actorAndProject, request))
-//            ok(BulkResponse(request.items.map { true }))
         }
 
-        implement(Accounting.transfer) {
+        implementOrDispatch(Accounting.updateAllocation) {
             val user = ctx.securityPrincipal.username
             request.items.forEach { req ->
-                req.transactionId = "${user}-${req.transactionId}"
-            }
-            ok(accounting.transfer(actorAndProject, request))
-        }
-
-        implement(Accounting.updateAllocation) {
-            val user = ctx.securityPrincipal.username
-            request.items.forEach { req ->
-                req.startDate = (req.startDate + 60000) //adds a single minute to handle that we divide with 1000 before entering it to the DB (millisecs are cut)
                 req.transactionId = "${user}-${req.transactionId}"
             }
             ok(accounting.updateAllocation(actorAndProject, request))
         }
 
-        implement(Accounting.rootDeposit) {
+        implementOrDispatch(Accounting.rootDeposit) {
             val user = ctx.securityPrincipal.username
             request.items.forEach { req ->
                 req.transactionId = "${user}-${req.transactionId}"
@@ -91,6 +91,29 @@ class AccountingController(
 
         implement(Wallets.browse) {
             ok(accounting.browseWallets(actorAndProject, request))
+        }
+
+        implementOrDispatch(Wallets.retrieveWalletsInternal) {
+            val walletOwner = request.owner
+
+            ok(WalletsInternalRetrieveResponse(accounting.retrieveWalletsInternal(ActorAndProject(Actor.System, null), walletOwner)))
+        }
+
+        implementOrDispatch(Wallets.retrieveAllocationsInternal) {
+            val walletOwner = request.owner
+            ok(
+                WalletAllocationsInternalRetrieveResponse(
+                    accounting.retrieveAllocationsInternal(
+                        ActorAndProject(Actor.System, null),
+                        walletOwner,
+                        request.categoryId
+                    )
+                )
+            )
+        }
+
+        implementOrDispatch(Wallets.testResetCaches) {
+            ok(accounting.resetCache())
         }
 
         implement(Wallets.searchSubAllocations) {
@@ -105,15 +128,11 @@ class AccountingController(
             ok(accounting.retrieveRecipient(actorAndProject, request))
         }
 
-        implement(Wallets.push) {
-            ok(accounting.pushWallets(actorAndProject, request))
-        }
-
         implement(Wallets.register) {
             ok(accounting.register(actorAndProject, request))
         }
 
-        implement(Wallets.retrieveProviderSummary) {
+        implementOrDispatch(Wallets.retrieveProviderSummary) {
             ok(accounting.retrieveProviderSummary(actorAndProject, request))
         }
 

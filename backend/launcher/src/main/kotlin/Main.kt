@@ -19,16 +19,21 @@ import dk.sdu.cloud.news.NewsService
 import dk.sdu.cloud.notification.NotificationService
 import dk.sdu.cloud.password.reset.PasswordResetService
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.support.SupportService
 import dk.sdu.cloud.task.TaskService
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.apache.logging.log4j.Level
 import kotlin.system.exitProcess
+import kotlin.time.measureTime
 
 object Launcher : Loggable {
     override val log = logger()

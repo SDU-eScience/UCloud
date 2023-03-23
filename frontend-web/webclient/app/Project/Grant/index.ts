@@ -91,14 +91,8 @@ export interface UserCriteriaWayf {
     org: string;
 }
 
-export interface AutomaticApprovalSettings {
-    from: UserCriteria[];
-    maxResources: ResourceRequest[];
-}
-
 export interface ProjectGrantSettings {
     projectId: string;
-    automaticApproval: AutomaticApprovalSettings;
     allowRequestsFrom: UserCriteria[];
     excludeRequestsFrom: UserCriteria[];
 }

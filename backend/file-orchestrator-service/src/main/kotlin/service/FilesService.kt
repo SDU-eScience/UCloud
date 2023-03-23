@@ -1,9 +1,7 @@
 package dk.sdu.cloud.file.orchestrator.service
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.calls.*
@@ -447,24 +445,7 @@ class FilesService(
                 throw RPCException("Bad project supplied", HttpStatusCode.Forbidden)
             }
 
-            val relevantProviders = session.sendPreparedStatement(
-                {
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("project", actorAndProject.project)
-                },
-                """
-                    select distinct pc.provider
-                    from
-                        accounting.product_categories pc join
-                        accounting.wallets w on pc.id = w.category join
-                        accounting.wallet_owner wo on w.owned_by = wo.id join
-                        accounting.wallet_allocations wa on w.id = wa.associated_wallet
-                    where
-                        pc.product_type = 'STORAGE' and
-                        (:project::text is not null or wo.username = :username) and
-                        (:project::text is null or wo.project_id = :project)
-                """
-            ).rows.map { it.getString(0)!! }
+            val relevantProviders = retrieveRelevantProviders(actorAndProject)
 
             val collectionIds = HashSet<String>()
             val partialsByParent = HashMap<String, List<PartialUFile>>()
@@ -619,6 +600,29 @@ class FilesService(
         }
     }
 
+    private suspend fun retrieveRelevantProviders(actorAndProject: ActorAndProject): List<String> {
+        val walletOwner = if (actorAndProject.project != null ) {
+            WalletOwner.Project(actorAndProject.project!!)
+        } else {
+            WalletOwner.User(actorAndProject.actor.safeUsername())
+        }
+        return Wallets.retrieveWalletsInternal.call(
+            WalletsInternalRetrieveRequest(
+                walletOwner
+            ),
+            serviceClient
+        ).orThrow()
+            .wallets
+            .filter {
+                it.productType?.name == "STORAGE"
+            }
+            .map {
+                it.paysFor.provider
+            }
+            .toSet()
+            .toList()
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun streamingSearch(
         handler: CallHandler<FilesStreamingSearchRequest, FilesStreamingSearchResult, CommonErrorMessage>
@@ -648,24 +652,7 @@ class FilesService(
             val relevantProviders = if (collection != null) {
                 listOf(collection.specification.product.provider)
             } else {
-                session.sendPreparedStatement(
-                    {
-                        setParameter("username", actorAndProject.actor.safeUsername())
-                        setParameter("project", actorAndProject.project)
-                    },
-                    """
-                        select distinct pc.provider
-                        from
-                            accounting.product_categories pc join
-                            accounting.wallets w on pc.id = w.category join
-                            accounting.wallet_owner wo on w.owned_by = wo.id join
-                            accounting.wallet_allocations wa on w.id = wa.associated_wallet
-                        where
-                            pc.product_type = 'STORAGE' and
-                            (:project::text is not null or wo.username = :username) and
-                            (:project::text is null or wo.project_id = :project)
-                    """
-                ).rows.map { it.getString(0)!! }
+                retrieveRelevantProviders(actorAndProject)
             }
 
             data class SearchSummary(

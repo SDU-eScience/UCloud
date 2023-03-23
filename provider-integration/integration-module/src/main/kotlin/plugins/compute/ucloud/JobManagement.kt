@@ -448,18 +448,23 @@ class JobManagement(
             for (ucloudJob in jobs) {
                 if (ucloudJob.status.state == JobState.SUSPENDED) continue
                 if (ucloudJob.id !in knownJobs) {
-                    JobsControl.update.call(
-                        bulkRequestOf(
-                            ResourceUpdateAndId(
-                                ucloudJob.id,
-                                JobUpdate(
-                                    state = JobState.FAILURE,
-                                    status = "UCloud/Compute lost track of this job"
+                    // NOTE(Dan): Added here to make absolutely sure that we are not sending a failure for a job
+                    // which is still known. This will normally try to query something like the Volcano resource,
+                    // which might exist before and after the pod.
+                    if (!runtime.isJobKnown(ucloudJob.id)) {
+                        JobsControl.update.call(
+                            bulkRequestOf(
+                                ResourceUpdateAndId(
+                                    ucloudJob.id,
+                                    JobUpdate(
+                                        state = JobState.FAILURE,
+                                        status = "UCloud/Compute lost track of this job"
+                                    )
                                 )
-                            )
-                        ),
-                        k8.serviceClient
-                    ).orThrow()
+                            ),
+                            k8.serviceClient
+                        ).orThrow()
+                    }
                 }
             }
         }

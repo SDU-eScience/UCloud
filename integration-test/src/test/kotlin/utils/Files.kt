@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.integration.backend.compute.toReference
+import kotlinx.coroutines.delay
 
 data class InitializedCollection(
     val collection: FileCollection,
@@ -57,7 +58,6 @@ suspend fun initializeCollection(
             rpcClient
         )
     }
-
     val collection = retrySection(attempts = 30, delay = 1000) {
         FileCollections.browse
             .call(
@@ -81,7 +81,6 @@ suspend fun initializeCollection(
             rpcClient
         ).orThrow()
     }
-
     return InitializedCollection(
         collection,
         createdCollectionWithSupport.product,

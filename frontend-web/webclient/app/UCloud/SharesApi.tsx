@@ -17,7 +17,7 @@ import {PrettyFilePath} from "@/Files/FilePath";
 import {Operation} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud";
-import {apiBrowse, apiUpdate} from "@/Authentication/DataHook";
+import {apiBrowse, apiCreate, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {fileName} from "@/Utilities/FileUtilities";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
@@ -67,6 +67,46 @@ export interface OutgoingShareGroupPreview {
     permissions: ("READ" | "EDIT")[];
     state: ShareState;
     shareId: string;
+}
+
+export interface ShareLink {
+    token: string;
+    expires: number;
+    permissions: ("READ" | "EDIT")[];
+}
+
+export interface CreateLinkRequest {
+    path: string;
+}
+
+export interface BrowseLinksRequest {
+    path: string;
+}
+
+export interface RetrieveLinkRequest {
+    token: string;
+}
+
+export interface RetrieveLinkResponse {
+    token: string;
+    path: string;
+    sharedBy: string;
+    sharePath?: string;
+}
+
+export interface DeleteLinkRequest {
+    token: string;
+    path: string;
+}
+
+export interface UpdateLinkRequest {
+    token: string;
+    path: string;
+    permissions: string[];
+}
+
+export interface AcceptLinkRequest {
+    token: string;
 }
 
 class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpdate,
@@ -320,4 +360,34 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
     }
 }
 
+export class ShareLinksApi {
+    baseContext = "/api/shares/links"
+
+    public create(request: CreateLinkRequest): APICallParameters {
+        return apiCreate(request, this.baseContext);
+    }
+
+    public browse(request: PaginationRequestV2 & BrowseLinksRequest): APICallParameters {
+        return apiBrowse(request, this.baseContext);
+    }
+
+    public retrieve(request: RetrieveLinkRequest): APICallParameters {
+        return apiRetrieve(request, this.baseContext)
+    }
+
+    public delete(request: DeleteLinkRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "delete");
+    }
+
+    public update(request: UpdateLinkRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "update");
+    }
+
+    public accept(request: AcceptLinkRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "accept")
+    }
+}
+
+const shareLinksApi = new ShareLinksApi();
+export {shareLinksApi};
 export default new ShareApi();

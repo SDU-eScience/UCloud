@@ -7,7 +7,6 @@ import kotlinx.serialization.Serializable
 data class EmailSettings(
     //Grant applications
     val newGrantApplication: Boolean = true,
-    val grantAutoApprove: Boolean = true,
     val grantApplicationUpdated: Boolean = true,
     val grantApplicationApproved: Boolean = true,
     val grantApplicationRejected: Boolean = true,
@@ -106,14 +105,6 @@ sealed class Mail {
         val sender: String,
         val projectTitle: String,
         override val subject: String = "New grant application"
-    ): Mail()
-
-    @Serializable
-    @SerialName("autoApproveGrant")
-    data class GrantAppAutoApproveToAdminsMail(
-        val sender: String,
-        val projectTitle: String,
-        override val subject: String = "Grant application for subproject automatically approved"
     ): Mail()
 
     @Serializable

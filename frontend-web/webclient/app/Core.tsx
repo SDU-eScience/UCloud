@@ -11,6 +11,7 @@ const FilesRouter = React.lazy(() => import("@/Files/Files"));
 const ProviderRouter = React.lazy(() => import("@/Admin/Providers/Router"));
 const FileCollectionsRouter = React.lazy(() => import("@/Files/FileCollections"));
 const MetadataNamespacesRouter = React.lazy(() => import("@/Files/Metadata/Templates/Namespaces"));
+const SharesAcceptLink = React.lazy(() => import("@/Files/SharesAcceptLink"));
 const ShareRouter = React.lazy(() => import("@/Files/Shares"));
 const IngoingApplications = React.lazy(() => import("@/Project/Grant/IngoingApplications"));
 const OutgoingApplications = React.lazy(() => import("@/Project/Grant/OutgoingApplications"));
@@ -29,12 +30,14 @@ const ProjectAllocations = React.lazy(() => import("@/Project/Allocations"));
 const ProjectList = React.lazy(() => import("@/Project/ProjectList2"));
 const ProjectDashboard = React.lazy(() => import("@/Project/Dashboard2"));
 const ProjectMembers = React.lazy(() => import("@/Project/Members2"));
+const ProjectAcceptInviteLink = React.lazy(() => import("@/Project/AcceptInviteLink"));
 const Search = React.lazy(() => import("@/Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("@/ServiceLicenseAgreement"));
 const Studio = React.lazy(() => import("@/Applications/Studio/Page"));
 const Tool = React.lazy(() => import("@/Applications/Studio/Tool"));
 const Scripts = React.lazy(() => import("@/Admin/Scripts"));
 const UserCreation = React.lazy(() => import("@/Admin/UserCreation"));
+const DevTestData = React.lazy(() => import("@/Admin/DevTestData"));
 const UserSettings = React.lazy(() => import("@/UserSettings/UserSettings"));
 const Wayf = React.lazy(() => import("@/Login/Wayf"));
 const AppK8Admin = React.lazy(() => import("@/Admin/AppK8Admin"));
@@ -108,6 +111,7 @@ const Core = (): JSX.Element => (
                         <Route path={"/files/*"} element={React.createElement(requireAuth(FilesRouter))} />
                         <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
                         <Route path={"/shares/outgoing"} element={React.createElement(requireAuth(SharesOutgoing))} />
+                        <Route path={"/shares/invite/:id"} element={React.createElement(requireAuth(SharesAcceptLink))} />
                         <Route path={"/shares/*"} element={React.createElement(requireAuth(ShareRouter))} />
 
                         <Route path={"/syncthing"} element={React.createElement(requireAuth(SyncthingOverview))} />
@@ -176,6 +180,7 @@ const Core = (): JSX.Element => (
                         <Route path="/projects/" element={React.createElement(requireAuth(ProjectList))} />
                         <Route path="/projects/:project" element={React.createElement(requireAuth(ProjectDashboard))} />
                         <Route path={AppRoutes.project.members(":project")} element={React.createElement(requireAuth(ProjectMembers))} />
+                        <Route path={"/projects/invite/:id"} element={React.createElement(requireAuth(ProjectAcceptInviteLink))} />
 
                         <Route path="/subprojects/:project" element={React.createElement(requireAuth(SubprojectList))} />
 
