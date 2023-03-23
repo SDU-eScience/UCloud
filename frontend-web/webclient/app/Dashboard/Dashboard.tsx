@@ -101,7 +101,8 @@ function Dashboard(props: DashboardProps): JSX.Element {
         fetchProducts(UCloud.accounting.products.browse({
             itemsPerPage: 250,
             filterUsable: true,
-            includeBalance: true
+            includeBalance: true,
+            includeMaxBalance: true
         }));
         fetchOutgoingApps(browseGrantApplications({
             itemsPerPage: 10,

@@ -10,7 +10,6 @@ import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
 
 class ProjectController(
     private val db: DBContext,

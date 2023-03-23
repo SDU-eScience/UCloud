@@ -268,6 +268,7 @@ implement(Descriptions.call) {
     }
 
     val create = call("create", BulkRequest.serializer(Project.Specification.serializer()), BulkResponse.serializer(FindByStringId.serializer()), CommonErrorMessage.serializer()) {
+        httpCreate(baseContext, roles = Roles.END_USER + Roles.SERVICE)
         httpCreate(baseContext, roles = Roles.END_USER + Roles.PROVIDER)
     }
 

@@ -18,6 +18,7 @@ import dk.sdu.cloud.sql.bindStringNullable
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
@@ -100,135 +101,133 @@ class TaskSystem(
     }
 
     fun launchScheduler(scope: CoroutineScope) {
-        repeat(1) {
-            scope.launch {
-                while (isActive) {
-                    var taskInProgress: String? = null
-                    try {
-                        val task = db.withSession { session ->
-                            val processorAndTask = run {
-                                val rows = ArrayList<Pair<String?, StorageTask>>()
-                                session
-                                    .prepareStatement(
-                                        """
-                                            select processor_id, id, request_name, requirements, request, progress,
-                                                   last_update
-                                            from ucloud_storage_tasks 
-                                            where 
-                                                complete = false and
-                                                (
-                                                    last_update is null or 
-                                                    last_update < (now() - interval '5 minutes')
-                                                ) and
-                                                (processor_id is null or processor_id != :processor_id)
-                                            limit 1
-                                        """
-                                    )
-                                    .useAndInvoke(
-                                        prepare = {
-                                            bindString("processor_id", processorId)
-                                        },
-                                        readRow = { row ->
-                                            rows.add(
-                                                Pair(
-                                                    row.getString(0),
-                                                    StorageTask(
-                                                        row.getString(1)!!,
-                                                        row.getString(2)!!,
-                                                        row.getString(3)?.let { defaultMapper.decodeFromString(TaskRequirements.serializer(), it) },
-                                                        row.getString(4)!!.let { defaultMapper.decodeFromString(JsonObject.serializer(), it) },
-                                                        row.getString(5)?.let { defaultMapper.decodeFromString(JsonObject.serializer(), it) },
-                                                        row.getLong(6) ?: 0L
-                                                    )
-                                                )
-                                            )
-                                        }
-                                    )
-
-                                rows.singleOrNull()
-                            }
-
-                            if (processorAndTask == null) {
-                                null
-                            } else {
-                                val (oldProcessor, task) = processorAndTask
-
-                                var success = false
-                                session.prepareStatement(
+        scope.launch {
+            whileGraal({ isActive }) {
+                var taskInProgress: String? = null
+                try {
+                    val task = db.withSession { session ->
+                        val processorAndTask = run {
+                            val rows = ArrayList<Pair<String?, StorageTask>>()
+                            session
+                                .prepareStatement(
                                     """
-                                        update ucloud_storage_tasks 
-                                        set processor_id = :processor_id 
+                                        select processor_id, id, request_name, requirements, request, progress,
+                                               last_update
+                                        from ucloud_storage_tasks 
                                         where 
-                                            id = :id and
+                                            complete = false and
                                             (
-                                                (processor_id is null and :last_processor::text is null) or 
-                                                processor_id = :last_processor
-                                            )
-                                        returning id
+                                                last_update is null or 
+                                                last_update < (now() - interval '5 minutes')
+                                            ) and
+                                            (processor_id is null or processor_id != :processor_id)
+                                        limit 1
                                     """
-                                ).useAndInvoke(
+                                )
+                                .useAndInvoke(
                                     prepare = {
                                         bindString("processor_id", processorId)
-                                        bindStringNullable("last_processor", oldProcessor)
-                                        bindString("id", task.taskId)
                                     },
-                                    readRow = { success = true}
+                                    readRow = { row ->
+                                        rows.add(
+                                            Pair(
+                                                row.getString(0),
+                                                StorageTask(
+                                                    row.getString(1)!!,
+                                                    row.getString(2)!!,
+                                                    row.getString(3)?.let { defaultMapper.decodeFromString(TaskRequirements.serializer(), it) },
+                                                    row.getString(4)!!.let { defaultMapper.decodeFromString(JsonObject.serializer(), it) },
+                                                    row.getString(5)?.let { defaultMapper.decodeFromString(JsonObject.serializer(), it) },
+                                                    row.getLong(6) ?: 0L
+                                                )
+                                            )
+                                        )
+                                    }
                                 )
 
-                                if (!success) {
-                                    null
-                                } else {
-                                    task
-                                }
+                            rows.singleOrNull()
+                        }
+
+                        if (processorAndTask == null) {
+                            null
+                        } else {
+                            val (oldProcessor, task) = processorAndTask
+
+                            var success = false
+                            session.prepareStatement(
+                                """
+                                    update ucloud_storage_tasks 
+                                    set processor_id = :processor_id 
+                                    where 
+                                        id = :id and
+                                        (
+                                            (processor_id is null and :last_processor::text is null) or 
+                                            processor_id = :last_processor
+                                        )
+                                    returning id
+                                """
+                            ).useAndInvoke(
+                                prepare = {
+                                    bindString("processor_id", processorId)
+                                    bindStringNullable("last_processor", oldProcessor)
+                                    bindString("id", task.taskId)
+                                },
+                                readRow = { success = true}
+                            )
+
+                            if (!success) {
+                                null
+                            } else {
+                                task
                             }
                         }
-
-                        if (task == null) {
-                            delay(10_000)
-                            continue
-                        }
-
-                        taskInProgress = task.taskId
-
-                        val handler = handlers.find {
-                            with(it) {
-                                taskContext.canHandle(task.requestName, task.rawRequest)
-                            }
-                        } ?: run {
-                            log.warn("Unable to handle request: ${task}")
-                            throw RPCException("Unable to handle this request", HttpStatusCode.InternalServerError)
-                        }
-
-                        with(handler) {
-                            val requirements = task.requirements
-                                ?: (taskContext.collectRequirements(task.requestName, task.rawRequest, null)
-                                    ?: error("Handler returned no requirements $task"))
-
-                            log.debug("Starting work of $task")
-                            FilesControl.addUpdate.call(
-                                bulkRequestOf(
-                                    FilesControlAddUpdateRequestItem(
-                                        task.taskId,
-                                        "Resuming work on task..."
-                                    )
-                                ),
-                                client
-                            )
-                            taskContext.execute(task.copy(requirements = requirements))
-                            FilesControl.markAsComplete.call(
-                                bulkRequestOf(
-                                    FilesControlMarkAsCompleteRequestItem(task.taskId)
-                                ),
-                                client
-                            )
-                            log.debug("Completed the execution of $task")
-
-                            markJobAsComplete(db, task.taskId)
-                        }
-                    } catch (ex: Throwable) {
-                        log.warn("Execution of task failed!\n${ex.stackTraceToString()}")
-                        if (taskInProgress != null) markJobAsComplete(db, taskInProgress)
                     }
+
+                    if (task == null) {
+                        delay(10_000)
+                        return@whileGraal
+                    }
+
+                    taskInProgress = task.taskId
+
+                    val handler = handlers.find {
+                        with(it) {
+                            taskContext.canHandle(task.requestName, task.rawRequest)
+                        }
+                    } ?: run {
+                        log.warn("Unable to handle request: ${task}")
+                        throw RPCException("Unable to handle this request", HttpStatusCode.InternalServerError)
+                    }
+
+                    with(handler) {
+                        val requirements = task.requirements
+                            ?: (taskContext.collectRequirements(task.requestName, task.rawRequest, null)
+                                ?: error("Handler returned no requirements $task"))
+
+                        log.debug("Starting work of $task")
+                        FilesControl.addUpdate.call(
+                            bulkRequestOf(
+                                FilesControlAddUpdateRequestItem(
+                                    task.taskId,
+                                    "Resuming work on task..."
+                                )
+                            ),
+                            client
+                        )
+                        taskContext.execute(task.copy(requirements = requirements))
+                        FilesControl.markAsComplete.call(
+                            bulkRequestOf(
+                                FilesControlMarkAsCompleteRequestItem(task.taskId)
+                            ),
+                            client
+                        )
+                        log.debug("Completed the execution of $task")
+
+                        markJobAsComplete(db, task.taskId)
+                    }
+                } catch (ex: Throwable) {
+                    log.warn("Execution of task failed!\n${ex.stackTraceToString()}")
+                    if (taskInProgress != null) markJobAsComplete(db, taskInProgress)
                 }
             }
         }

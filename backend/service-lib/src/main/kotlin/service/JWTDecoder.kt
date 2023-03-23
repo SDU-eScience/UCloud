@@ -18,7 +18,13 @@ private fun <T> DecodedJWT.optionalClaim(
     name: String,
     mapper: (Claim) -> T
 ): T? {
-    return runCatching { requiredClaim(name, mapper) }.getOrNull()
+    val claim = getClaim(name) ?: return null
+
+    return try {
+        mapper(claim) ?: return null
+    } catch (ex: Exception) {
+        return null
+    }
 }
 
 private fun <T> DecodedJWT.requiredClaim(

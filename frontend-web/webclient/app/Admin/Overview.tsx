@@ -18,6 +18,10 @@ const linkInfo: LinkInfo[] = [
     {to: "/admin/scripts", text: "Scripts", icon: "play", color: "white", color2: "white"},
 ];
 
+if (DEVELOPMENT_ENV) {
+    linkInfo.push({to: "/admin/devData", text: "Development Test Data", icon: "activity", color: "white", color2: "white"})
+}
+
 interface LinkInfo {
     to: string;
     text: string;

@@ -152,18 +152,13 @@ export const ShareModal: React.FunctionComponent<{
                                 </Tooltip>
                                 <Text fontSize={12}>This link will automatically expire in {daysLeftToTimestamp(link.expires)} days</Text>
                             </Flex>
-                            <Box>
-                                <Button
-                                    mr="5px"
-                                    height={40}
-                                    onClick={() => 
-                                        setEditingLink(link.token)
-                                    }
-                                >
+                            <Flex>
+                                <Button mr="5px" height={40} onClick={() => setEditingLink(link.token)}>
                                     <Icon name="edit" size={20} />
                                 </Button>
 
                                 <ConfirmationButton
+                                    icon="trash"
                                     color="red"
                                     height={40}
                                     onAction={async () => {
@@ -175,9 +170,8 @@ export const ShareModal: React.FunctionComponent<{
                                             shareLinksApi.browse({itemsPerPage: 10, path: selected.id})
                                         );
                                     }}
-                                    icon="trash"
                                 />
-                            </Box>
+                            </Flex>
                         </Flex>
                     </Box>
                 ))}
@@ -199,7 +193,7 @@ export const ShareModal: React.FunctionComponent<{
                         useMousePositioning
                         width="100px"
                         chevron
-                        trigger={<>{permissions.find(it => it.value === selectedPermission)?.text}</>} 
+                        trigger={<>{permissions.find(it => it.value === selectedPermission)?.text}</>}
                         options={permissions}
                         onChange={async chosen => {
                             const newPermissions = chosen == "EDIT" ? ["EDIT", "READ"] : ["READ"];
@@ -213,11 +207,11 @@ export const ShareModal: React.FunctionComponent<{
                             );
                         }}
                     />
-                </SelectBox> 
+                </SelectBox>
             </Flex>
         </Box>
     </>;
-        
+
 };
 
 export const ShareBrowse: React.FunctionComponent<{
@@ -264,7 +258,7 @@ export const ShareBrowse: React.FunctionComponent<{
 
     return <ResourceBrowse
         api={SharesApi}
-        disableSearch // HACK(Jonas): THIS IS TEMPORARY, UNTIL SEARCH WORKS FOR ALL SHARES 
+        disableSearch // HACK(Jonas): THIS IS TEMPORARY, UNTIL SEARCH WORKS FOR ALL SHARES
         onSelect={props.onSelect}
         browseType={browseType}
         isSearch={props.isSearch}

@@ -224,8 +224,12 @@ class EnhancedPreparedStatement(
         collection.split(builder)
     }
 
-    inline fun <T> Collection<T>.split(builder: SplitBuilder<T>.() -> Unit) {
-        SplitBuilder(this, this@EnhancedPreparedStatement).also(builder).endSplitting()
+    inline fun <T> Iterable<T>.split(builder: SplitBuilder<T>.() -> Unit) {
+        SplitBuilder(this.iterator(), this@EnhancedPreparedStatement).also(builder).endSplitting()
+    }
+
+    inline fun <T> Sequence<T>.split(builder: SplitBuilder<T>.() -> Unit) {
+        SplitBuilder(this.iterator(), this@EnhancedPreparedStatement).also(builder).endSplitting()
     }
 
     override fun toString(): String {
@@ -294,7 +298,7 @@ class SqlBoundDelegate<T>(
 }
 
 class SplitBuilder<T>(
-    private val collection: Collection<T>,
+    private val collection: Iterator<T>,
     private val statement: EnhancedPreparedStatement
 ) {
     private val splits = ArrayList<Pair<String, (T) -> Any?>>()
