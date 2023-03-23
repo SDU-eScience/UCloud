@@ -39,7 +39,7 @@ interface FlexShrinkProps {
     flexShrink?: number;
 }
 
-export const BoxClass = injectStyleSimple("box", () => ``);
+export const BoxClass = injectStyleSimple("box", ``);
 const Box: React.FunctionComponent<BoxProps & {
     children?: React.ReactNode;
     divRef?: React.RefObject<HTMLDivElement>;

@@ -3,13 +3,14 @@ import * as React from "react";
 import styled, {css} from "styled-components";
 import {Absolute, Flex, Icon, Text} from "@/ui-components";
 import Box from "@/ui-components/Box";
-import Link from "@/ui-components/Link";
+import Link, {LinkProps} from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
 import {EllipsedText, TextClass} from "@/ui-components/Text";
 import theme from "@/ui-components/theme";
 import * as Pages from "./Pages";
 import {compute} from "@/UCloud";
 import ApplicationWithFavoriteAndTags = compute.ApplicationWithFavoriteAndTags;
+import {injectStyle} from "@/Unstyled";
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void;
@@ -20,13 +21,15 @@ interface ApplicationCardProps {
     tags: string[];
 }
 
-const AppCardBase = styled(Link)`
-    padding: 10px;
-    width: 100%;
-    display: flex;
-    align-items: center;
+const AppCardBase = injectStyle("app-card-base", k => `
+    ${k} {
+        padding: 10px;
+        width: 100%;
+        display: flex;
+        align-items: center;
+    }
 
-    & > img {
+    ${k} > img {
         width: 32px;
         height: 32px;
         margin-right: 16px;
@@ -34,49 +37,51 @@ const AppCardBase = styled(Link)`
         flex-shrink: 0;
     }
 
-    & > strong {
+    ${k} > strong {
         margin-right: 16px;
         font-weight: bold;
         flex-shrink: 0;
     }
 
-    & > .${TextClass} {
+    ${k} > .${TextClass} {
         color: var(--gray, #f00);
         flex-grow: 1;
     }
 
-    & > .${TextClass} > p {
+    ${k} > .${TextClass} > p {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
-`;
+`);
 
-export const ApplicationCardContainer = styled.div`
-    display: flex;
-    flex-direction: column;
+export const ApplicationCardContainer = injectStyle("application-card-container", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+    }
 
-    & > ${AppCardBase}:first-child {
+    ${k} > ${AppCardBase}:first-child {
         border: 1px solid var(--borderGray, #f00);
         border-top-left-radius: 5px;
         border-top-right-radius: 5px;
     }
 
-    & > ${AppCardBase} {
+    ${k} > ${AppCardBase} {
         border: 1px solid var(--borderGray, #f00);
         border-top: 0;
     }
 
-    & > ${AppCardBase}:last-child {
+    ${k} > ${AppCardBase}:last-child {
         border-bottom-left-radius: 5px;
         border-bottom-right-radius: 5px;
     }
-`;
+`);
 
 export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
     const {metadata} = props.app;
     return (
-        <AppCardBase to={Pages.runApplication(metadata)}>
+        <Link className={AppCardBase} to={Pages.runApplication(metadata)}>
             <Box mr={16}>
                 <AppToolLogo name={metadata.name} type={"APPLICATION"} size={"32px"} />
             </Box>
@@ -111,36 +116,40 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
                 </Markdown>
             </EllipsedText>
             <Flex><Icon name="chevronDown" size={"18px"} rotation={-90} /></Flex>
-        </AppCardBase>
+        </Link>
     );
 };
 
-export const AppCard = styled(Link)`
-    padding: 10px 20px 10px 10px;
-    width: 100%;
-    min-width: 400px;
-    height: 128px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    border-radius: ${theme.radius};
-    position: relative;
-    overflow: hidden;
-    box-shadow: ${theme.shadows.sm};
-    background-color: var(--appCard, #f00);
+export function AppCard(props: LinkProps): JSX.Element {
+    return <Link className={AppCardClass} {...props} />
+}
 
-    transition: transform ${theme.timingFunctions.easeIn} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-    will-change: transform;
+const AppCardClass = injectStyle("app-card-class", k => `
+    ${k} {
+        padding: 10px 20px 10px 10px;
+        width: 100%;
+        min-width: 400px;
+        height: 128px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        border-radius: ${theme.radius};
+        position: relative;
+        overflow: hidden;
+        box-shadow: ${theme.shadows.sm};
+        background-color: var(--appCard, #f00);
+        transition: transform ${theme.timingFunctions.easeIn} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
+        will-change: transform;
+    }
 
-    &:hover {
+
+    ${k}:hover {
         transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-        // box-shadow: ${theme.shadows.md};
         box-shadow: 0px  3px  5px -1px rgba(0,106,255,0.2), 0px  6px 10px 0px rgba(0,106,255,.14),0px 1px 18px 0px rgba(0,106,255,.12);
         transform: translateY(-2px);
     }
 
-    // Background
-    &:before {
+    ${k}:before {
         pointer-events: none;
         content: "";
         position: absolute;
@@ -152,7 +161,7 @@ export const AppCard = styled(Link)`
         background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxwYXR0ZXJuIHZpZXdCb3g9IjAgMCBhdXRvIGF1dG8iIHg9IjAiIHk9IjAiIGlkPSJwMSIgd2lkdGg9IjU2IiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoMTUpIHNjYWxlKDAuNSAwLjUpIiBoZWlnaHQ9IjEwMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+PHBhdGggZD0iTTI4IDBMMjggMzRMMCA1MEwwIDg0TDI4IDEwMEw1NiA4NEw1NiA1MEwyOCAzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iNCI+PC9wYXRoPjwvcGF0dGVybj48L2RlZnM+PHJlY3QgZmlsbD0idXJsKCNwMSkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjwvcmVjdD48L3N2Zz4=");
     }
 
-    &:after {
+    ${k}:after {
         content: "";
         position: absolute;
         width: 100%;
@@ -163,14 +172,14 @@ export const AppCard = styled(Link)`
         border: 2px solid var(--textHighlight, #f00);
         opacity: 0;
         border-radius: ${theme.radius};
-        pointer-events: none; //needed for star-badge
+        pointer-events: none;
         will-change: opacity;
     }
 
-    &:hover:after {
+    ${k}:hover:after {
         opacity: 1;
     }
-`;
+`);
 
 export const Tag = ({label, bg = "darkGray"}: {label: string; bg?: string}): JSX.Element => (
     <div style={{
@@ -262,16 +271,16 @@ const AppRibbonContainer = styled.div<{favorite?: boolean}>`
   cursor: inherit;
   right: 20px;
   top: 8px;
-  ${({favorite}) => favorite ? null : 
-      css`
+  ${({favorite}) => favorite ? null :
+        css`
           transition: opacity ease 0.1s;
           opacity: 0;
 
-          ${AppCard}:hover & {
+          ${AppCardClass}:hover & {
               opacity: 1;
           }
       `
-  };
+    };
 `;
 
 
@@ -329,7 +338,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                 </Flex>
             </Flex>
             <EllipsedText title={`by ${metadata.authors.join(", ")} `} color="gray" width={1} mt={"4px"}>
-                        by {app.metadata.authors.join(", ")}
+                by {app.metadata.authors.join(", ")}
             </EllipsedText>
             <Box mt="auto" />
             <Flex flexDirection="row" alignItems="flex-start" zIndex={1}>

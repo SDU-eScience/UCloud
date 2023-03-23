@@ -138,7 +138,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
 `);
 
 
-const SidebarContainerClass = injectStyleSimple("sidebar-container", () => `
+const SidebarContainerClass = injectStyleSimple("sidebar-container", `
     color: var(--sidebar);
     align-items: center;
     display: flex;

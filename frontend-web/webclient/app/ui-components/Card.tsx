@@ -26,7 +26,7 @@ export interface CardProps extends HeightProps,
     className?: string;
 }
 
-export const CardClass = injectStyleSimple("card", () => `
+export const CardClass = injectStyleSimple("card", `
     border-radius: 25px;
     background: #FAFBFC;
     border: 1px solid #E2DDDD;

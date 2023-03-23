@@ -17,6 +17,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
+import {injectStyleSimple} from "./Unstyled";
 
 interface StandardDialog {
     title?: string;
@@ -53,7 +54,7 @@ export function addStandardDialog({
             <div>
                 <Heading.h3>{title}</Heading.h3>
                 {title ? <Divider /> : null}
-                <StandardDialogFlex>{message}</StandardDialogFlex>
+                <div className={StandardDialogFlexClass}>{message}</div>
             </div>
             <Flex mt="20px" style={{justifyContent: "end", gap: "8px"}}>
                 <Button
@@ -68,12 +69,12 @@ export function addStandardDialog({
     ), onCancel, addToFront);
 }
 
-const StandardDialogFlex = styled.div`
+const StandardDialogFlexClass = injectStyleSimple("standard-dialog-flex", `
     display: flex;
     flex-direction: column;
     min-height: 200px;
     overflow-y: auto;
-`;
+`);
 
 interface InputDialog {
     title: string;

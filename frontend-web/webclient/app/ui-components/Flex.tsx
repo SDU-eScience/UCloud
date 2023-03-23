@@ -13,7 +13,7 @@ export type FlexCProps =
         style?: CSSProperties;
     };
 
-export const FlexClass = injectStyleSimple("flex", () => ``);
+export const FlexClass = injectStyleSimple("flex", ``);
 
 const Flex: React.FunctionComponent<FlexCProps & { children?: React.ReactNode }> = props => {
     return <div

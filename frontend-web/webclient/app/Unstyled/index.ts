@@ -108,10 +108,10 @@ export function injectStyle(title: string, fn: (k: string) => string): string {
     return className;
 }
 
-export function injectStyleSimple(title: string, fn: () => string): string {
+export function injectStyleSimple(title: string, css: string): string {
     return injectStyle(title, (k) => `
         ${k} {
-            ${fn()}
+            ${css}
         }
     `)
 }

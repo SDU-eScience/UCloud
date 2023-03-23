@@ -3,7 +3,7 @@ import { BoxProps } from "./Box";
 import {extractEventHandlers, injectStyleSimple, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
 
-export const LabelClass = injectStyleSimple("label", () => `
+export const LabelClass = injectStyleSimple("label", `
     width: 100%;
     font-weight: bold;
     color: var(--black);

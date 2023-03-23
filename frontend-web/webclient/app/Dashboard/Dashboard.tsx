@@ -157,7 +157,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
     );
 }
 
-const GridClass = injectStyleSimple("grid", () => `
+const GridClass = injectStyleSimple("grid", `
     display: grid;
     margin-top: 24px;
     margin-bottom: 24px;
@@ -166,7 +166,7 @@ const GridClass = injectStyleSimple("grid", () => `
     gap: 20px;
 `);
 
-const Gradient = injectStyleSimple("gradient", () => `
+const Gradient = injectStyleSimple("gradient", `
     background: linear-gradient(var(--gradientStart), var(--gradientEnd));
 `);
 
@@ -289,7 +289,7 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string; children
     </Flex>
 );
 
-const ResourceGridClass = injectStyleSimple("grid", () => `
+const ResourceGridClass = injectStyleSimple("grid", `
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
     grid-auto-rows: minmax(450px, auto);

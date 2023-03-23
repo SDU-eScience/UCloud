@@ -845,10 +845,8 @@ div.tooltip-content.centered.user-box.centered {
     justify-content: center;
 }
 
-div.tooltip:hover {
-    div.tooltip-content {
-        display: flex;
-    }
+div.tooltip:hover > div.tooltip-content {
+    display: flex;
 }
 
 a {
