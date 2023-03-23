@@ -11,11 +11,21 @@ import dk.sdu.cloud.service.Time
 import kotlinx.serialization.json.JsonNull
 import java.io.File
 
+object NopDebugSystem : DebugSystem {
+    override suspend fun sendMessage(message: DebugMessage) {
+    }
+}
+
 class DebugSystemFeature : MicroFeature, DebugSystem {
     private var developmentMode: Boolean = false
     private lateinit var delegate: DebugSystem
 
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
+        if (cliArgs.contains("--no-debugger")) {
+            delegate = NopDebugSystem
+            return
+        }
+
         developmentMode = ctx.developmentModeEnabled
         var logLocation = "."
         val potentialDirectories = listOf("/var/log/ucloud/structured", "/tmp", "./")

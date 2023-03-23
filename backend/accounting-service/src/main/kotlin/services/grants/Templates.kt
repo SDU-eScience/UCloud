@@ -20,9 +20,6 @@ class GrantTemplateService(
         template: UploadTemplatesRequest
     ) {
         db.withSession(remapExceptions = true) { session ->
-            println(template)
-            println(actorAndProject.actor.safeUsername())
-            println(actorAndProject.project)
             val success = session.sendPreparedStatement(
                 {
                     setParameter("username", actorAndProject.actor.safeUsername())

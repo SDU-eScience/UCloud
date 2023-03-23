@@ -262,6 +262,7 @@ class UCloudFilePlugin : FilePlugin {
                 trashSupported = true,
                 isReadOnly = false,
                 streamingSearchSupported = true,
+                sharesSupported = true
             )
         )
 

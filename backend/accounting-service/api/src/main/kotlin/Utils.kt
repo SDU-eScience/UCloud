@@ -6,7 +6,19 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.OutgoingWSCall
 import dk.sdu.cloud.calls.client.withHooks
 import io.ktor.client.request.*
+import java.util.Calendar
 
+fun getTime(atStartOfDay: Boolean): Long {
+    if (atStartOfDay) {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        return cal.time.time
+    }
+    return System.currentTimeMillis()
+}
 fun AuthenticatedClient.withProxyInfo(username: String?, signedIntent: String?): AuthenticatedClient {
     return withHooks(
         beforeHook = {

@@ -4,6 +4,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
@@ -358,6 +359,17 @@ class GenericLicensePlugin : LicensePlugin {
                         LicenseState.READY,
                         "License is ready for use"
                     )
+                )
+            ),
+            rpcClient
+        ).orThrow()
+        LicenseControl.chargeCredits.call(
+            bulkRequestOf(
+                ResourceChargeCredits(
+                    resource.id,
+                    "Generic-${resource.id}",
+                    1,
+                    1
                 )
             ),
             rpcClient

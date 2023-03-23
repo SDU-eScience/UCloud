@@ -7,8 +7,12 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductType
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.util.*
+import dk.sdu.cloud.accounting.util.ProviderSupport
+import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -18,13 +22,13 @@ import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.api.NotificationType
-import dk.sdu.cloud.provider.api.Permission
-import dk.sdu.cloud.provider.api.ResourceUpdateAndId
-import dk.sdu.cloud.provider.api.UpdatedAcl
+import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
+import java.time.OffsetDateTime
+import java.util.*
 
 typealias ShareSvc = ResourceService<Share, Share.Spec, Share.Update, ShareFlags, Share.Status, Product.Storage,
         ShareSupport, StorageCommunication>
@@ -80,6 +84,27 @@ class ShareService(
                         (original_file_path = e.old_path or original_file_path like e.old_path || '/%');
                 """
             )
+
+            // Note(Brian): Move share links
+            session.sendPreparedStatement(
+                {
+                    batch.split {
+                        into("old_paths") { it.oldId.normalize() }
+                        into("new_paths") { it.newId.normalize() }
+                    }
+                },
+                """
+                    with entries as (
+                        select unnest(:old_paths::text[]) old_path, unnest(:new_paths::text[]) new_path
+                    )
+                    update file_orchestrator.shares_links
+                    set
+                        file_path = e.new_path || substring(file_path, length(e.old_path) + 1)
+                    from entries e
+                    where
+                        (file_path = e.old_path or file_path like e.old_path || '/%')
+                """
+            )
         }
     }
 
@@ -127,6 +152,13 @@ class ShareService(
                             where
                             fc.resource::text = affected_shares.available_at
                             returning fc.resource
+                        ),
+                        delete_share_links as (
+                            delete from file_orchestrator.shares_links sl 
+                            using entries e
+                            where
+                                e.path = sl.file_path or 
+                                sl.file_path like e.path || '/%'
                         ),
                         delete_resources_updates as (
                             delete from provider.resource_update ru
@@ -220,8 +252,11 @@ class ShareService(
         actorAndProject: ActorAndProject,
         idWithSpec: List<Pair<Long, Share.Spec>>,
         session: AsyncDBConnection,
-        allowDuplicates: Boolean
+        allowDuplicates: Boolean,
     ) {
+        // HACK(Dan): We should only send notifications if the share is not initiated by the system
+        val shouldSendNotification = actorAndProject.actor !is Actor.SystemOnBehalfOfUser
+
         if (actorAndProject.project != null) {
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Shares not possible from projects")
         }
@@ -295,18 +330,20 @@ class ShareService(
             else throw ex
         }
 
-        idWithSpec.forEach {
-            NotificationDescriptions.create.call(
-                CreateNotification(
-                    it.second.sharedWith,
-                    Notification(
-                        NotificationType.SHARE_REQUEST.name,
-                        "${actorAndProject.actor.safeUsername()} wants to share a folder with you",
-                        meta = JsonObject(emptyMap())
-                    )
-                ),
-                serviceClient
-            )
+        if (shouldSendNotification) {
+            idWithSpec.forEach {
+                NotificationDescriptions.create.call(
+                    CreateNotification(
+                        it.second.sharedWith,
+                        Notification(
+                            NotificationType.SHARE_REQUEST.name,
+                            "${actorAndProject.actor.safeUsername()} wants to share a folder with you",
+                            meta = JsonObject(emptyMap())
+                        )
+                    ),
+                    serviceClient
+                )
+            }
         }
     }
 
@@ -666,5 +703,299 @@ class ShareService(
                     )
             """
         )
+    }
+
+    suspend fun createLink(actorAndProject: ActorAndProject, request: ShareLinksCreateRequest, ctx: DBContext = db): ShareLink {
+        val token = UUID.randomUUID().toString()
+
+        if (actorAndProject.project != null) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Shares not possible from projects")
+        }
+
+        val collectionId = extractPathMetadata(request.path).collection
+        val collection = collections.retrieve(actorAndProject, collectionId, null, ctx = ctx)
+
+        if (collection.owner.createdBy != actorAndProject.actor.safeUsername()) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        val provider = collection.specification.product.provider
+        val products = support.retrieveProducts(listOf(provider))[provider]
+
+        if (products.isNullOrEmpty()) {
+            throw RPCException("Shares not supported by provider", HttpStatusCode.BadRequest)
+        }
+
+        return ctx.withSession { session ->
+            val count = session.sendPreparedStatement(
+                {
+                    setParameter("file_path", request.path)
+                },
+                """
+                    select count(*) from file_orchestrator.shares_links where file_path = :file_path and now() < expires
+                """
+            ).rows.first().getLong(0) ?: 0
+
+            if (count >= 2) {
+                throw RPCException(
+                    "Unable to create more invitation links for this folder",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("file_path", request.path)
+                    setParameter("token", token)
+                    setParameter("shared_by", actorAndProject.actor.safeUsername())
+                },
+                """
+                    insert into file_orchestrator.shares_links (file_path, shared_by, token, expires) values
+                        (:file_path, :shared_by, :token, now() + '10 days')
+                        returning token, expires, permissions
+                """
+            ).rows.firstNotNullOf { row ->
+                val permissions =  row.getAs<List<String>>("permissions")
+
+                ShareLink(
+                    row.getAs<UUID>("token").toString(),
+                    row.getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
+                    permissions.map { Permission.valueOf(it) }
+                )
+            }
+        }
+    }
+
+    suspend fun browseLinks(actorAndProject: ActorAndProject, request: ShareLinksBrowseRequest, ctx: DBContext = db): PageV2<ShareLink> {
+        val result = ctx.withSession { session ->
+            val collectionId = extractPathMetadata(request.path).collection
+            val collection = collections.retrieve(actorAndProject, collectionId, null, ctx = ctx)
+
+            if (collection.owner.createdBy != actorAndProject.actor.safeUsername()) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            }
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("file_path", request.path)
+                },
+                """
+                    select token, expires, permissions from file_orchestrator.shares_links
+                    where file_path = :file_path and now() < expires
+                    order by expires desc
+                """
+            ).rows.groupBy { it.getAs<UUID>("token") }.map { entry ->
+                ShareLink(
+                    entry.key.toString(),
+                    entry.value.first().getAs<OffsetDateTime>("expires").toInstant().toEpochMilli(),
+                    entry.value.first().getAs<List<String>>("permissions").map { Permission.valueOf(it) }
+                )
+            }
+        }
+
+        return PageV2(20, result, null)
+    }
+
+    suspend fun retrieveLink(
+        actorAndProject: ActorAndProject,
+        request: ShareLinksRetrieveRequest,
+        ctx: DBContext = db
+    ): ShareLinksRetrieveResponse {
+
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("token", request.token)
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                },
+                """
+                    select file_path, shared_by, available_at from file_orchestrator.shares_links l
+                    left join file_orchestrator.shares s on
+                        file_path = original_file_path and (
+                            shared_with = :username or shared_by = :username
+                        )
+                    where token = :token
+                    group by available_at, shared_by, file_path
+                """
+            ).rows.firstOrNull()?.let {
+                val path = it.getString("file_path")
+                val sharePath = it.getString("available_at")
+                val sharedBy = it.getString("shared_by")
+
+                if (path == null || sharedBy == null) {
+                    throw RPCException("Link expired", HttpStatusCode.NotFound)
+                }
+
+                ShareLinksRetrieveResponse(
+                    request.token,
+                    path,
+                    sharedBy,
+                    sharePath
+                )
+            } ?:
+                throw RPCException("Link expired", HttpStatusCode.NotFound)
+
+
+        }
+    }
+
+    suspend fun deleteLink(
+        actorAndProject: ActorAndProject,
+        request: ShareLinksDeleteRequest,
+        ctx: DBContext = db
+    ) {
+        val collectionId = extractPathMetadata(request.path).collection
+        val owner = collections.retrieve(actorAndProject, collectionId, null, ctx = ctx).owner.createdBy
+
+        if (actorAndProject.actor.safeUsername() != owner) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        ctx.withSession { session ->
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("file_path", request.path)
+                    setParameter("token", request.token)
+                },
+                """
+                    delete from file_orchestrator.shares_links where file_path = :file_path and token = :token
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Unable to delete share link",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+    }
+
+    suspend fun updateLink(
+        actorAndProject: ActorAndProject,
+        request: ShareLinksUpdateRequest,
+        ctx: DBContext = db
+    ) {
+        val collectionId = extractPathMetadata(request.path).collection
+        val owner = collections.retrieve(actorAndProject, collectionId, null, ctx = ctx).owner.createdBy
+
+        if (actorAndProject.actor.safeUsername() != owner) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        ctx.withSession { session ->
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("file_path", request.path)
+                    setParameter("token", request.token)
+                    setParameter("permissions", "{" +
+                        request.permissions.filter { it.canBeGranted }.joinToString(",") { it.name } + "}")
+                },
+                """
+                    update file_orchestrator.shares_links
+                    set permissions = :permissions::text[]
+                    where file_path = :file_path and token = :token
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Link might not be valid anymore or have been deleted",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+    }
+
+    suspend fun acceptLink(
+        actorAndProject: ActorAndProject,
+        request: ShareLinksAcceptRequest,
+        ctx: DBContext = db
+    ) : ShareLinksAcceptResponse {
+        data class ShareLinkInfo(
+            val sharedBy: String,
+            val permissions: List<Permission>,
+            val path: String
+        )
+
+        return ctx.withSession { session ->
+            val linkInfo = session.sendPreparedStatement(
+                {
+                    setParameter("token", request.token)
+                },
+                """
+                    select file_path, permissions, shared_by
+                    from file_orchestrator.shares_links l
+                    where
+                        now() < expires and
+                        token = cast(:token as uuid)
+                """
+            ).rows.map { entry ->
+                val filePath = entry.getString("file_path")
+                val permissions = entry.getAs<List<String>>("permissions")?.map { Permission.valueOf(it) }
+                val sharedBy = entry.getString("shared_by")
+
+                if (filePath == null || permissions == null || sharedBy == null) {
+                    throw RPCException("Link expired", HttpStatusCode.BadRequest)
+                }
+
+                ShareLinkInfo(sharedBy, permissions, filePath)
+            }.firstOrNull() ?: throw RPCException("Link expired", HttpStatusCode.BadRequest)
+
+            val owner = ActorAndProject(Actor.SystemOnBehalfOfUser(linkInfo.sharedBy), null)
+            val collectionId = extractPathMetadata(linkInfo.path).collection
+            val provider = collections.retrieve(owner, collectionId, null, ctx = ctx).specification.product.provider
+
+            val product = support.retrieveProducts(listOf(provider))[provider]?.firstOrNull()?.product
+                ?: throw RPCException("Shares not supported by provider", HttpStatusCode.BadRequest)
+
+            // Check if share already exists, and delete if so
+            val existingShareId = session.sendPreparedStatement(
+                {
+                    setParameter("user", actorAndProject.actor.safeUsername())
+                    setParameter("original_path", linkInfo.path)
+                },
+                """
+                    select resource from file_orchestrator.shares
+                    where shared_with = :user and original_file_path = :original_path
+                """
+            ).rows.firstOrNull()?.getLong("resource")
+
+            if (existingShareId != null) {
+                this.delete(owner, bulkRequestOf(FindByStringId(existingShareId.toString())))
+            }
+
+            // Create share
+            val share = this.create(
+                owner,
+                bulkRequestOf(
+                    Share.Spec(
+                        actorAndProject.actor.safeUsername(),
+                        linkInfo.path,
+                        linkInfo.permissions,
+                        ProductReference(product.name, product.category.name, provider)
+                    )
+                ),
+                ctx
+            ).responses[0] ?: throw RPCException("Failed to accept invitation to share", HttpStatusCode.BadRequest)
+
+            // Accept share
+            this.approve(
+                actorAndProject,
+                bulkRequestOf(FindByStringId(share.id)),
+            )
+
+            this.retrieve(actorAndProject, share.id, null, ctx)
+        }
+    }
+
+    suspend fun cleanUpInviteLinks(ctx: DBContext = db) {
+        ctx.withSession { session ->
+            val cleaned = session.sendPreparedStatement("""
+                delete from file_orchestrator.shares_links where expires < now()
+            """).rowsAffected
+
+            log.debug("Cleaned up $cleaned expired shares invite links")
+        }
     }
 }

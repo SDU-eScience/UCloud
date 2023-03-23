@@ -76,6 +76,30 @@ class ProjectsControllerV2(
             ok(projects.deleteInvite(actorAndProject, request))
         }
 
+        implement(Projects.createInviteLink) {
+            ok(projects.createInviteLink(actorAndProject))
+        }
+
+        implement(Projects.browseInviteLinks) {
+            ok(projects.browseInviteLinks(actorAndProject))
+        }
+
+        implement(Projects.retrieveInviteLinkInfo) {
+            ok(projects.retrieveInviteLinkInfo(actorAndProject, request))
+        }
+
+        implement(Projects.deleteInviteLink) {
+            ok(projects.deleteInviteLink(actorAndProject, request))
+        }
+
+        implement(Projects.updateInviteLink) {
+            ok(projects.updateInviteLink(actorAndProject, request))
+        }
+
+        implement(Projects.acceptInviteLink) {
+            ok(projects.acceptInviteLink(actorAndProject, request))
+        }
+
         implement(Projects.deleteMember) {
             ok(projects.deleteMember(actorAndProject, request))
         }

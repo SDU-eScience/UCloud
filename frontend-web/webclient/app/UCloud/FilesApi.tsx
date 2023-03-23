@@ -1,5 +1,5 @@
 import {
-    CREATE_TAG, DELETE_TAG, FindById, PERMISSIONS_TAG,
+    CREATE_TAG, DELETE_TAG, PERMISSIONS_TAG,
     Resource,
     ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,
@@ -8,7 +8,7 @@ import {
     ResourceUpdate,
 } from "@/UCloud/ResourceApi";
 import {FileIconHint, FileType} from "@/Files";
-import {BulkRequest, BulkResponse, compute, PageV2} from "@/UCloud/index";
+import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Box, Button, Flex, FtIcon, Icon, Link, Select, Text, TextArea} from "@/ui-components";
@@ -20,7 +20,7 @@ import {
     sizeToString
 } from "@/Utilities/FileUtilities";
 import {
-    displayErrorMessageOrDefault, doNothing, extensionFromPath, inDevEnvironment, isLikelySafari,
+    displayErrorMessageOrDefault, doNothing, extensionFromPath, inDevEnvironment, 
     onDevSite,
     prettierString, removeTrailingSlash
 } from "@/UtilityFunctions";
@@ -42,11 +42,10 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {OpenWith} from "@/Applications/OpenWith";
 import {FilePreview} from "@/Files/Preview";
-import {addStandardDialog, addStandardInputDialog, Sensitivity} from "@/UtilityComponents";
+import {addStandardDialog, Sensitivity} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
-import SharesApi from "@/UCloud/SharesApi";
 import {BrowseType} from "@/Resource/BrowseType";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {apiCreate, apiUpdate, callAPI, InvokeCommand} from "@/Authentication/DataHook";
@@ -60,8 +59,8 @@ import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api
 import {useNavigate} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
-import { ProviderTitle } from "@/Providers/ProviderTitle";
-import { ProviderLogo } from "@/Providers/ProviderLogo";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {ShareModal} from "@/Files/Shares";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -499,11 +498,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 text: "Download",
                 icon: "download",
-                enabled: selected =>
-                    ((isLikelySafari && selected.length === 1) || (!isLikelySafari && selected.length >= 1)) &&
-                    selected.every(it => it.status.type === "FILE"),
+                enabled: selected => selected.length > 0 && selected.every(it => it.status.type === "FILE"),
                 onClick: async (selected, cb) => {
                     // TODO(Dan): We should probably add a feature flag for file types
+
+                    if (selected.length > 1) {
+                        snackbarStore.addInformation("For downloading multiple files, you may need to enable pop-ups.", false, 8000);
+                    }
+
                     const result = await cb.invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
                         this.createDownload(bulkRequestOf(
                             ...selected.map(it => ({id: it.id})),
@@ -512,7 +514,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
                     const responses = result?.responses ?? [];
                     for (const {endpoint} of responses) {
-                        downloadFile(normalizeDownloadEndpoint(endpoint));
+                        downloadFile(normalizeDownloadEndpoint(endpoint), responses.length > 1);
                     }
                 }
             },
@@ -526,7 +528,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: (selected, cb) => {
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
-                        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async res => {
+                        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelectRestriction={f => f.status.type === "DIRECTORY"
+                        } onSelect={async res => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
                             await cb.invokeCommand(
@@ -595,11 +598,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Share",
                 enabled: (selected, cb) => {
                     if (Client.hasActiveProject) {return false;}
-                    if (selected.length === 0) return false;
+                    if (selected.length != 1) return false;
 
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
-                    if ((support as FileCollectionSupport).files.shareSupport === false) return false;
+                    if ((support as FileCollectionSupport).files.sharesSupported === false) return false;
 
                     const isMissingPermissions = selected.some(it => !it.permissions.myself.some(p => p === "ADMIN"));
                     const hasNonDirectories = selected.some(it => it.status.type != "DIRECTORY");
@@ -621,30 +624,13 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return true;
                 },
                 onClick: async (selected, cb) => {
-                    const username = await addStandardInputDialog({
-                        title: "Share",
-                        help: <>The username of the user you wish to share this file with</>,
-                        addToFront: true,
-                        confirmText: "Share",
-                        width: "100%"
-                    });
-
-                    await cb.invokeCommand<BulkResponse<FindById>>(
-                        SharesApi.create(
-                            bulkRequestOf(
-                                ...selected.map(file => ({
-                                    sharedWith: username.result,
-                                    sourceFilePath: file.id,
-                                    permissions: ["READ" as const],
-                                    product: file.specification.product
-                                }))
-                            )
-                        )
-                    ).then(it => {
-                        if (it?.responses) {
-                            cb.navigate(`/shares/outgoing`);
-                        }
-                    });
+                    dialogStore.addDialog(
+                        <ShareModal
+                            selected={selected[0]}
+                            cb={cb}
+                        />,
+                        doNothing, true
+                    );
                 }
             },
             {
@@ -652,7 +638,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "sensitivity",
                 enabled(selected, cb) {
                     const support = cb.collection?.status.resolvedSupport?.support;
-                    if ((support as FileCollectionSupport)) {}
+                    if ((support as FileCollectionSupport)) { }
 
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;
@@ -1018,11 +1004,10 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
     </form>);
 }
 
-function downloadFile(url: string) {
+function downloadFile(url: string, usePopup: boolean) {
     const element = document.createElement("a");
     element.setAttribute("href", url);
-    element.style.display = "none";
-    element.download = url;
+    if (usePopup) element.setAttribute("target", "_blank");
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);

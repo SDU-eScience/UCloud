@@ -1,8 +1,8 @@
 import {BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud";
-import {apiBrowse, apiCreate, apiRetrieve, apiUpdate, useCloudAPI, useGlobalCloudAPI} from "@/Authentication/DataHook";
+import {apiBrowse, apiCreate, apiRetrieve, apiUpdate, useCloudAPI, useCloudCommand, useGlobalCloudAPI} from "@/Authentication/DataHook";
 import {useSelector} from "react-redux";
 import {IconName} from "@/ui-components/Icon";
-import {useLocation, useParams} from "react-router";
+import {Navigate, useLocation, useNavigate, useParams} from "react-router";
 import {useCallback, useEffect, useState} from "react";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {emptyProject} from "./cache";
@@ -81,6 +81,41 @@ export interface ProjectInvite {
     projectTitle: string;
 }
 
+export interface ProjectInviteLink {
+    token: string;
+    expires: number;
+    groupAssignment: string[];
+    roleAssignment: ProjectRole;
+}
+
+interface RetrieveInviteLinkInfoRequest {
+    token: string;
+}
+
+export interface RetrieveInviteLinkInfoResponse {
+    token: string;
+    project: Project;
+    isMember: boolean;
+}
+
+interface DeleteInviteLinkRequest {
+    token: string;
+}
+
+interface UpdateInviteLinkRequest {
+    token: string;
+    role: string;
+    groups: string[];
+}
+
+interface AcceptInviteLinkRequest {
+    token: string;
+}
+
+export interface AcceptInviteLinkResponse {
+    project: string;
+}
+
 interface RenameProjectRequest {
     id: string;
     newTitle: string;
@@ -149,6 +184,30 @@ class ProjectApi {
 
     public deleteInvite(request: BulkRequest<{username: string, project: string}>): APICallParameters {
         return apiUpdate(request, this.baseContext, "deleteInvite");
+    }
+
+    public createInviteLink(): APICallParameters {
+        return apiCreate(undefined, this.baseContext, "link");
+    }
+
+    public browseInviteLinks(request: PaginationRequestV2): APICallParameters {
+        return apiBrowse(request, this.baseContext, "link");
+    }
+
+    public retrieveInviteLinkInfo(request: RetrieveInviteLinkInfoRequest): APICallParameters {
+        return apiRetrieve(request, this.baseContext, "link");
+    }
+
+    public deleteInviteLink(request: DeleteInviteLinkRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "deleteInviteLink");
+    }
+
+    public updateInviteLink(request: UpdateInviteLinkRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "updateInviteLink");
+    }
+
+    public acceptInviteLink(request: AcceptInviteLinkRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "acceptInviteLink")
     }
 
     public deleteMember(request: BulkRequest<{username: string}>): APICallParameters {

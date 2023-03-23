@@ -2,9 +2,7 @@ package dk.sdu.cloud.accounting.util
 
 import com.github.jasync.sql.db.ResultSet
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductType
-import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.*
@@ -1089,54 +1087,24 @@ abstract class ResourceService<
         useProject: Boolean = true,
         ctx: DBContext? = null,
     ): List<String> {
-        val relevantProviders = (ctx ?: db).withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("area", productArea.name)
-                        setParameter("project", actorAndProject.project)
-                        setParameter("username", actorAndProject.actor.safeUsername())
-                        setParameter("use_project", useProject)
-                    },
-                    """
-                        select distinct pc.provider
-                        from
-                            accounting.product_categories pc join
-                            accounting.products product on product.category = pc.id left join
-                            accounting.wallets w on pc.id = w.category left join
-                            accounting.wallet_owner wo on wo.id = w.owned_by left join
-                            project.project_members pm on
-                                pm.username = :username and
-                                (
-                                    (
-                                        :use_project and
-                                        wo.project_id = pm.project_id and
-                                        pm.project_id = :project::text
-                                    ) or
-                                    (
-                                        not :use_project
-                                    )
-                                )
-                        where
-                            pc.product_type = :area::accounting.product_type and
-                            (
-                                product.free_to_use or
-                                (
-                                    wo.username = :username and
-                                    w.id is not null and
-                                    :project::text is null
-                                ) or
-                                (
-                                    pm.project_id is not null and
-                                    w.id is not null
-                                )
-                            );
-                        """
+        val relevantProviders = mutableSetOf<String>()
+        Accounting.findRelevantProviders.call(
+            bulkRequestOf(
+                FindRelevantProvidersRequestItem(
+                    actorAndProject.actor.safeUsername(),
+                    actorAndProject.project,
+                    useProject
                 )
-                .rows
-                .map { it.getString(0)!! }
-        }
-        return relevantProviders
+            ),
+            serviceClient
+        ).orThrow()
+            .responses
+            .forEach { response ->
+                response.providers.forEach { relevant ->
+                    relevantProviders.add(relevant)
+                }
+            }
+        return relevantProviders.toList()
     }
 
     override suspend fun chargeCredits(

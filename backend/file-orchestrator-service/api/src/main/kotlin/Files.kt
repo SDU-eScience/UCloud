@@ -599,7 +599,8 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                                         FSFileSupport(
                                             aclModifiable = false,
                                             trashSupported = true,
-                                            isReadOnly = false
+                                            isReadOnly = false,
+                                            sharesSupported = true
                                         )
                                     )
                                 )
