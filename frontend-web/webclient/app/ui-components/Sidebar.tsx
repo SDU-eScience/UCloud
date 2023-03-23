@@ -519,8 +519,8 @@ function SecondarySidebar({
                         <Link to={"/files"}>Drives</Link>
                         <ul>
                             {drives.data.items.map(it =>
-                                <li>
-                                    <Flex key={it.id} ml="4px">
+                                <li key={it.id}>
+                                    <Flex ml="4px">
                                         <Link hoverColor="white" to={`/files?path=${it.id}`}>
                                             <Truncate color="var(--white)">
                                                 <Icon size={12} mr="4px" name="hdd" color="white" color2="white" />
@@ -542,9 +542,8 @@ function SecondarySidebar({
 
                         <ul>
                             {favorites.data.items.map(it =>
-                                <li>
+                                <li key={it.path}>
                                     <Flex
-                                        key={it.path}
                                         cursor="pointer"
                                         onClick={() => navigateByFileType(it, invokeCommand, navigate)}
                                     >
@@ -570,7 +569,7 @@ function SecondarySidebar({
                 <TextSpan bold color="white">Most recent</TextSpan>
                 {recentRuns.data.items.map(it => {
                     const [icon, color] = jobStateToIconAndColor(it.status.state);
-                    return <Flex>
+                    return <Flex key={it.id}>
                         <Icon name={icon} color={color} mr={"6px"} size={16} my="auto" />
                         <Truncate key={it.id}
                             color="white">{it.specification.name ?? it.id} ({it.specification.application.name})</Truncate>
