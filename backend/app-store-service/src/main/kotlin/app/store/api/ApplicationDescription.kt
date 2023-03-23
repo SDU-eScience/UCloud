@@ -106,18 +106,10 @@ sealed class ApplicationDescription(val application: String) {
 
                     is ApplicationParameterYaml.Enumeration -> {
                         when (val value = param.defaultValue) {
-                            is String -> {
-                                if (!param.options.map { it.value }.contains(value)) {
-                                    throw ApplicationVerificationException.BadDefaultValue(param.name)
-                                }
-                            }
+                            is String -> continue
                             is Map<*, *> -> {
-                                val normalizedDefault = value["value"] as? String ?:
+                                value["value"] as? String ?:
                                     throw ApplicationVerificationException.BadDefaultValue(param.name)
-
-                                if (!param.options.map { it.value }.contains(normalizedDefault)) {
-                                    throw ApplicationVerificationException.BadDefaultValue(param.name)
-                                }
                             }
                             else ->
                                 throw ApplicationVerificationException.BadDefaultValue(param.name)
