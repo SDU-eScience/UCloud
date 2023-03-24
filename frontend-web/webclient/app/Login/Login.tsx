@@ -245,12 +245,12 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
             <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset && showingWayf ? (<>
                     <a href={`/auth/saml/login?service=${service}`}>
-                        <Button mb="8px" style={{borderRadius: "18px"}} height={"92px"} disabled={loading} fullWidth color="wayfGreen">
+                        <Button mb="8px" style={{borderRadius: "16px"}} height={"92px"} disabled={loading} fullWidth color="wayfGreen">
                             <Image color="#fff" width="100px" src={wayfLogo} />
                             <LoginTextSpan fontSize={2} ml="2.5em">Login</LoginTextSpan>
                         </Button>
                     </a>
-                    <Text onClick={() => setShowingWayf(false)} textAlign="center">Other login options →</Text>
+                    <Text onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other login options →</Text>
                 </>) : null}
                 {(!challengeId) ? (
                     !isPasswordReset ? (!showingWayf ? (
@@ -277,7 +277,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                     </Link>
                                 </Box>
                             </DropdownLike>
-                            <Text mt="8px" onClick={() => setShowingWayf(true)} textAlign="center">← Wayf login</Text>
+                            <Text mt="8px" cursor="pointer" onClick={() => setShowingWayf(true)} textAlign="center">← Wayf login</Text>
                         </>
                     ) : null) : (
                         resetToken == null ? (
@@ -406,17 +406,6 @@ const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): JSX.Element 
     </>
 ) : null;
 
-const LoginDropdownContent = styled(DropdownContent)`
-    background-color: #c8dd51;
-    color: white;
-    box-shadow: none;
-    border-radius: 18px;
-    & > div {
-        margin: 0 0 0 0;
-        padding: 0 0 0 0;
-    }
-`;
-
 const LoginExternalLink = styled(ExternalLink)`
     color: white;
 `;
@@ -426,15 +415,11 @@ const LoginTextSpan = styled(TextSpan)`
 `;
 
 const DropdownLike = styled.div`
-    border-bottom-left-radius: 5px;
-    border-bottom-right-radius: 5px;
-    border-top-left-radius: 5px;
-    border-top-right-radius: 5px;
+    border-radius: 16px;
     background-color: #c8dd51;
     color: black;
     width: 315px;
-    border: 1px solid #808080;
-    padding: 12px 16px;
+    padding: 16px 16px;
 `;
 
 const LoginInput = styled(Input)`
