@@ -1,8 +1,7 @@
-import { emptyPage, emptyPageV2 } from "@/DefaultObjects";
+import {emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import styled from "styled-components";
 import {Box, Flex, Link} from "@/ui-components";
 import Grid from "@/ui-components/Grid";
 import * as Heading from "@/ui-components/Heading";
@@ -22,7 +21,9 @@ import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
 import {PageV2, provider} from "@/UCloud";
 import IntegrationApi = provider.im;
-import { inDevEnvironment, onDevSite } from "@/UtilityFunctions";
+import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {BoxProps} from "@/ui-components/Box";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -164,11 +165,10 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
     return (<MainContainer main={main} />);
 };
 
-const ScrollBox = styled(Box)`
-    overflow-x: auto;
-`;
-
-const ToolGroupWrapper = styled(Box)`
+function ToolGroupWrapper(props: React.PropsWithChildren<BoxProps>): JSX.Element {
+    return <Box className={ToolGroupWrapperClass} {...props} />
+}
+const ToolGroupWrapperClass = injectStyleSimple("tool-group-wrapper", `
     width: 100%;
     padding-bottom: 10px;
     padding-left: 10px;
@@ -178,19 +178,23 @@ const ToolGroupWrapper = styled(Box)`
     box-shadow: ${theme.shadows.sm};
     border-radius: 5px;
     background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxwYXR0ZXJuIHZpZXdCb3g9IjAgMCBhdXRvIGF1dG8iIHg9IjAiIHk9IjAiIGlkPSJwMSIgd2lkdGg9IjU2IiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoMTUpIHNjYWxlKDAuNSAwLjUpIiBoZWlnaHQ9IjEwMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+PHBhdGggZD0iTTI4IDBMMjggMzRMMCA1MEwwIDg0TDI4IDEwMEw1NiA4NEw1NiA1MEwyOCAzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iNCI+PC9wYXRoPjwvcGF0dGVybj48L2RlZnM+PHJlY3QgZmlsbD0idXJsKCNwMSkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjwvcmVjdD48L3N2Zz4=");
-`;
+`);
 
-const ToolImageWrapper = styled(Box)`
+function ToolImageWrapper(props: React.PropsWithChildren<BoxProps>): JSX.Element {
+    return <Box className={ToolImageWrapperClass} {...props} />
+}
+
+const ToolImageWrapperClass = injectStyleSimple("tool-image-wrapper", `
     display: flex;
     width: 200px;
     justify-items: center;
     justify-content: center;
     align-items: center;
     margin-right: 10px;
-`;
+`);
 
-const ToolImage = styled.div`
-    & > * {
+const ToolImageClass = injectStyle("tool-image", k => `
+    ${k} > * {
       max-width: 200px;
       max-height: 190px;
       margin-left: auto;
@@ -200,29 +204,38 @@ const ToolImage = styled.div`
       height: auto;
       width: 100%;
     }
-`;
+`);
 
 // NOTE(Dan): We don't allow new lines in tags normally. As a result, we can be pretty confident that no application
 // will have this tag.
 const SPECIAL_FAVORITE_TAG = "\n\nFavorites\n\n";
 
-type TagGridBoxProps = {
-    isFavorite: boolean;
-}
+const TagGridTopBox = injectStyle("tag-grid-top-box", k => `
+    ${k} {
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        background-color: var(--lightGray);
+    }
 
-const TagGridTopBox = styled.div<TagGridBoxProps>`
-    border-top-left-radius: 10px;
-    border-top-right-radius: 10px;
-    background-color: var(${props => props.isFavorite ? "--appStoreFavBg" : "--lightGray"},#f00);
-`;
+    ${k}[data-is-favorite="true"] {
+        background-color: var(--appStoreFavBf);
+    }
+`);
 
-const TagGridBottomBox = styled.div<TagGridBoxProps>`
-    padding: 0px 10px 15px 10px;
-    ${props => props.isFavorite ? null : "overflow-x: scroll;"}
-    border-bottom-left-radius: 10px;
-    border-bottom-right-radius: 10px;
-    background-color: var(${props => props.isFavorite ? "--appStoreFavBg" : "--lightGray"},#f00);
-`;
+const TagGridBottomBox = injectStyle("tag-grid-bottom-box", k => `
+    ${k} {
+        padding: 0px 10px 15px 10px;
+        border-bottom-left-radius: 10px;
+        border-bottom-right-radius: 10px;
+        background-color: var(--lightGray);
+    }
+
+    ${k}[data-is-favorite="true"] {
+        background-color: var(--appStoreFavBg);
+        overflow-x: scroll;
+    }
+
+`);
 
 
 interface TagGridProps {
@@ -289,7 +302,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
 
     return (
         <>
-            <TagGridTopBox isFavorite={showFavorites}>
+            <div className={TagGridTopBox} data-is-favorite={showFavorites}>
                 <Spacer
                     mt="15px" px="10px" alignItems={"center"}
                     left={<Heading.h2>{showFavorites ? "Favorites" : tag}</Heading.h2>}
@@ -301,8 +314,8 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                         )
                     )}
                 />
-            </TagGridTopBox>
-            <TagGridBottomBox isFavorite={showFavorites}>
+            </div>
+            <div className={TagGridBottomBox} data-is-favorite={showFavorites}>
                 <Grid
                     pt="20px"
                     gridGap="15px"
@@ -320,7 +333,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                         />
                     ))}
                 </Grid>
-            </TagGridBottomBox>
+            </div>
         </>
     );
 };
@@ -353,12 +366,12 @@ const ToolGroup: React.FunctionComponent<{tag: string, refreshId: number}> = ({t
             />
             <Flex>
                 <ToolImageWrapper>
-                    <ToolImage>
+                    <div className={ToolImageClass}>
                         <AppToolLogo size="148px" name={tag.toLowerCase().replace(/\s+/g, "")} type={"TOOL"} />
-                    </ToolImage>
+                    </div>
                 </ToolImageWrapper>
                 <CardToolContainer>
-                    <ScrollBox>
+                    <Box overflowX="scroll">
                         <Grid
                             py="10px"
                             pl="10px"
@@ -386,7 +399,7 @@ const ToolGroup: React.FunctionComponent<{tag: string, refreshId: number}> = ({t
                                 );
                             })}
                         </Grid>
-                    </ScrollBox>
+                    </Box>
                     <Flex flexDirection="row" alignItems="flex-start">
                         {[...tags].filter(it => it !== tag).map(tag => (
                             <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag} /></ShowAllTagItem>

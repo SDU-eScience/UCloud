@@ -1,10 +1,17 @@
+import * as React from "react";
 import {AppCard} from "@/Applications/Card";
-import styled from "styled-components";
+import {injectStyleSimple} from "@/Unstyled";
 
-export const SmallAppToolCard = styled(AppCard)`
+const SmallAppToolCardClass = injectStyleSimple("SmallAppToolCard", `
     max-width: 400px;
     min-width: 400px;
     width: 400px;
     max-height: 70px;
     margin: 8px;
-`;
+`);
+
+export function SmallAppToolCard(props: any): JSX.Element {
+    return <div className={SmallAppToolCardClass}>
+        <AppCard {...props} />
+    </div>
+}
