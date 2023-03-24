@@ -7,6 +7,11 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 24-03-23
+ Deployment(alerting, 2023.1.10) (UP-TO-DATE)
+ Deployment(audit-ingestion, 2023.1.10) (UP-TO-DATE)
+
+
 ## 22-03-23
 
 ```
