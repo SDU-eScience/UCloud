@@ -24,7 +24,7 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
     private var rsv1 by Schema.rsv1
 
     override fun toString(): String {
-        return "(ctxGeneration=$ctxGeneration, ctxParent=$ctxParent, ctxId=$ctxId, timestamp=$timestamp, importance=$importance, id=$id)"
+        return "(ctxGeneration=$ctxGeneration, ctxParent=$ctxParent, ctxId=$ctxId, timestamp=$timestamp, importance=$importance, id=$id, type=$type)"
     }
 
     companion object Schema : BinaryFrameSchema() {
@@ -66,8 +66,7 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
         override fun create(buf: ByteBuffer, offset: Int): ClientResponse = ClientResponse(buf, offset)
 
         companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
-            val responseCode = int1()
-            // Set as Int4, but is a long.
+            val responseCode = int2()
             val responseTime = int4()
             val call = text(64)
             val response = text(64)
@@ -98,7 +97,7 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
         override fun create(buf: ByteBuffer, offset: Int): ServerResponse = ServerResponse(buf, offset)
 
         companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
-            val responseCode = int1()
+            val responseCode = int2()
             val responseTime = int4()
             val call = text(64)
             val response = text(64)

@@ -1,6 +1,31 @@
 import * as React from "react";
-import {BinaryDebugMessageType, ClientRequest, ClientResponse, DatabaseQuery, DatabaseResponse, DatabaseTransaction, DBTransactionEvent, DebugContext, DebugContextType, DebugMessage, LargeText, Log, MessageImportance, ServerRequest, ServerResponse} from "../WebSockets/Schema";
-import {activeService, DebugContextAndChildren, fetchPreviousMessage, fetchTextBlob, logMessages, debugMessageStore, replayMessages, historyWatcherService} from "../WebSockets/Socket";
+import {
+    BinaryDebugMessageType,
+    ClientRequest,
+    ClientResponse,
+    DatabaseQuery,
+    DatabaseResponse,
+    DatabaseTransaction,
+    DBTransactionEvent,
+    DebugContext,
+    DebugContextType,
+    DebugMessage,
+    LargeText,
+    Log,
+    MessageImportance,
+    ServerRequest,
+    ServerResponse
+} from "../WebSockets/Schema";
+import {
+    activeService,
+    DebugContextAndChildren,
+    fetchPreviousMessage,
+    fetchTextBlob,
+    logMessages,
+    debugMessageStore,
+    replayMessages,
+    historyWatcherService
+} from "../WebSockets/Socket";
 import "./MainContent.css";
 import {FixedSizeList, FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -14,10 +39,196 @@ import {isDebugMessage, pushStateToHistory} from "../Utilities/Utilities";
 //     - Works, but what other behavior should we expect? Maybe clear a service contexts when more than 5 minutes since activation (and not selected). (High)
 //  Handle long-running situations where memory usage has become high. (High)
 
+// Rendering of message content (rows and detailed)
+// =====================================================================================================================
+
+function contextTypeToEmoji(ctxType: DebugContextType): string {
+    switch (ctxType) {
+        case DebugContextType.CLIENT_REQUEST: {
+            return "🌍️";
+        }
+        case DebugContextType.SERVER_REQUEST: {
+            return "💁";
+        }
+        case DebugContextType.DATABASE_TRANSACTION: {
+            return "🗃️";
+        }
+        case DebugContextType.BACKGROUND_TASK: {
+            return "🫥";
+        }
+        case DebugContextType.OTHER: {
+            return "👾"
+        }
+    }
+}
+
+function getMessageText(message: DebugMessage): string | JSX.Element {
+    const requestEmoji = "📮 "
+    const responseEmoji = "📨 "
+    switch (message.type) {
+        case BinaryDebugMessageType.CLIENT_REQUEST: {
+            return requestEmoji + largeTextPreview((message as ClientRequest).call);
+        }
+        case BinaryDebugMessageType.CLIENT_RESPONSE: {
+            const m = message as ClientResponse;
+            return `${responseEmoji}${m.responseCode} ${m.responseTime}ms (${largeTextPreview(m.response)})`;
+        }
+        case BinaryDebugMessageType.SERVER_REQUEST: {
+            return requestEmoji + largeTextPreview((message as ServerRequest).payload);
+        }
+        case BinaryDebugMessageType.SERVER_RESPONSE: {
+            const m = message as ServerResponse;
+            return `${responseEmoji}${m.responseCode} ${m.responseTime}ms (${largeTextPreview(m.response)})`;
+        }
+        case BinaryDebugMessageType.DATABASE_TRANSACTION: {
+            const dt = message as DatabaseTransaction;
+            return eventToEmoji(dt) + " " + prettierString(dt.eventString);
+        }
+        case BinaryDebugMessageType.DATABASE_QUERY: {
+            return requestEmoji + largeTextPreview((message as DatabaseQuery).query).trim();
+        }
+        case BinaryDebugMessageType.DATABASE_RESPONSE: {
+            return `${responseEmoji}${(message as DatabaseResponse).responseTime}ms`;
+        }
+        case BinaryDebugMessageType.LOG: {
+            return "📜 " + largeTextPreview((message as Log).message);
+        }
+
+        default:
+            return `‼️ UNHANDLED CASE ${message.typeString}`;
+    }
+}
+
+function eventToEmoji(message: DatabaseTransaction): string {
+    switch (message.event) {
+        case DBTransactionEvent.COMMIT:
+            return "✅";
+        case DBTransactionEvent.ROLLBACK:
+            return "🔙";
+        default:
+            return "❓";
+    }
+}
+
+function largeTextPreview(text: LargeText): string {
+    const preview = text.previewOrContent;
+    const dots = text.overflowIdentifier ? "..." : "";
+    return `${preview}${dots}`;
+}
+
+function DetailedMessage({message}: { message: DebugMessage }): JSX.Element {
+    let left: React.ReactNode | undefined = undefined;
+    let right: React.ReactNode = <DebugMessageDetails dm={message}/>;
+
+    switch (message.type) {
+        case BinaryDebugMessageType.CLIENT_REQUEST: {
+            const clientRequest = message as ClientRequest;
+            left = <code><pre><ShowLargeText largeText={clientRequest.payload} textTransform={prettyJSON}/></pre></code>;
+            break;
+        }
+
+        case BinaryDebugMessageType.CLIENT_RESPONSE: {
+            const clientResponse = message as ClientResponse;
+            left = <code><pre><ShowLargeText largeText={clientResponse.response} textTransform={prettyJSON}/></pre></code>;
+            break;
+        }
+
+        case BinaryDebugMessageType.DATABASE_QUERY: {
+            const databaseQuery = message as DatabaseQuery;
+            left = <code><pre><ShowLargeText largeText={databaseQuery.query} textTransform={trimIndent}/></pre></code>;
+            break;
+        }
+
+        case BinaryDebugMessageType.DATABASE_RESPONSE: {
+            const databaseResponse = message as DatabaseResponse;
+            left = `Took ${databaseResponse.responseTime}ms`;
+            break;
+        }
+
+        case BinaryDebugMessageType.DATABASE_TRANSACTION: {
+            const databaseTransaction = message as DatabaseTransaction;
+            left = `Event: ${databaseTransaction.eventString}`;
+            break;
+        }
+
+        case BinaryDebugMessageType.SERVER_REQUEST: {
+            const serverRequest = message as ServerRequest;
+            left = <code><pre><ShowLargeText largeText={serverRequest.payload} textTransform={prettyJSON}/></pre></code>;
+            break;
+        }
+
+        case BinaryDebugMessageType.SERVER_RESPONSE: {
+            const serverResponse = message as ServerResponse;
+            left = <code><pre><ShowLargeText largeText={serverResponse.response} textTransform={prettyJSON}/></pre></code>;
+            break;
+        }
+
+        case BinaryDebugMessageType.LOG: {
+            const log = message as Log;
+            left = <ShowLargeText largeText={log.message}/>;
+            break;
+        }
+
+        default: {
+            left = <>UNHANDLED TYPE {message.type}</>;
+            break;
+        }
+    }
+
+    return <DetailsCard left={left} right={right}/>;
+}
+
+function DebugMessageDetails({dm}: { dm: DebugMessage }): JSX.Element {
+    return <div>
+        <b>Timestamp:</b> {formatTimestamp(dm.timestamp)}<br/>
+        <b>Type:</b> {prettierString(dm.typeString)}<br/>
+        <b>Context ID:</b> {dm.ctxId}<br/>
+        <b>Importance:</b> {prettierString(dm.importanceString)}<br/>
+        {"call" in dm ? <><b>Call:</b> <ShowLargeText largeText={dm.call}/><br/></> : null}
+        {"responseCode" in dm ? <>
+            <b>Response code:</b> {dm.responseCode} <br/></> : null
+        }
+        {"responseTime" in dm ?
+            <><b>Response time:</b> {dm.responseTime} ms <br/></> : null
+        }
+        {"extra" in dm ?
+            <>
+                <ShowLargeText largeText={dm.extra}/><br/>
+            </> : null}
+        {"parameters" in dm ? <>
+            <b>Parameters:</b> <code><pre><ShowLargeText largeText={dm.parameters} textTransform={prettyJSON}/></pre></code>
+        </> : null}
+        {/* TODO: Probably more here */}
+    </div>
+}
+
+
+const USE_DEBUGGER_DEBUG_INFO = false;
+
+function DebugContextDetails({ctx}: { ctx: DebugContext }): JSX.Element {
+    return <>
+        <div className="card query">
+            <b>Name:</b> {contextTypeToEmoji(ctx.type)} {ctx.name}<br/>
+            <b>Timestamp:</b> {formatTimestamp(ctx.timestamp)}<br/>
+            {USE_DEBUGGER_DEBUG_INFO ? <>
+                <b>Type:</b> {prettierString(ctx.typeString)}<br/>
+                <b>Context ID:</b> {ctx.id}<br/>
+                <b>Parent ID:</b> {ctx.parent} {isRootContext(ctx.parent)}<br/>
+            </> : null}
+            <b>Importance:</b> {prettierString(ctx.importanceString)}
+        </div>
+    </>
+}
+
+// Rendering of the UI
+// =====================================================================================================================
+
 type DebugMessageOrCtx = DebugMessage | DebugContext;
 const ITEM_SIZE = 22;
 
-export function MainContent(): JSX.Element {
+export const MainContent: React.FunctionComponent<{
+    setLevel: (level: string) => void;
+}> = props => {
     const [routeComponents, setRouteComponents] = React.useState<DebugMessageOrCtx[]>([]);
     const service = React.useSyncExternalStore(s => activeService.subscribe(s), () => activeService.getSnapshot());
     const logs = React.useSyncExternalStore(s => debugMessageStore.subscribe(s), () => debugMessageStore.getSnapshot());
@@ -43,17 +254,25 @@ export function MainContent(): JSX.Element {
 
     const setContext = React.useCallback((d: DebugContext | null) => {
         if (d === null) {
-            if (debugMessageStore.contextRoot() != null) {
-                debugMessageStore.clearActiveContext();
-            }
-            setRouteComponents([]);
-            pushStateToHistory(activeService.service, activeService.generation, historyWatcherService.info.activeContext);
-            return;
+            props.setLevel("THIS_IS_NORMAL");
+        } else {
+            props.setLevel("IMPLEMENTATION_DETAIL");
         }
-        debugMessageStore.addDebugRoot(d);
-        replayMessages(activeService.generation, d.id, d.timestamp);
-        pushStateToHistory(activeService.service, activeService.generation, {id: d.id, timestamp: d.timestamp});
-        setRouteComponents([d]);
+
+        setTimeout(() => {
+            if (d === null) {
+                if (debugMessageStore.contextRoot() != null) {
+                    debugMessageStore.clearActiveContext();
+                }
+                setRouteComponents([]);
+                pushStateToHistory(activeService.service, activeService.generation, historyWatcherService.info.activeContext);
+                return;
+            }
+            debugMessageStore.addDebugRoot(d);
+            replayMessages(activeService.generation, d.id, d.timestamp);
+            pushStateToHistory(activeService.service, activeService.generation, {id: d.id, timestamp: d.timestamp});
+            setRouteComponents([d]);
+        }, 0);
     }, [setRouteComponents]);
 
     React.useEffect(() => {
@@ -82,7 +301,7 @@ export function MainContent(): JSX.Element {
                     routeComponents={routeComponents}
                     setRouteComponents={setRouteComponents}
                 />
-                <RequestDetails key={activeContextOrMessage?.id} activeContextOrMessage={activeContextOrMessage} />
+                <RequestDetails key={activeContextOrMessage?.id} activeContextOrMessage={activeContextOrMessage}/>
                 {activeContextOrMessage ? null : (
                     <button className="pointer button" onClick={fetchPreviousMessage}>Load previous</button>
                 )}
@@ -96,17 +315,32 @@ export function MainContent(): JSX.Element {
                     />
                 </div>) : (<AutoSizer defaultHeight={200}>
                     {({height, width}) => {
-                        if (serviceLogs.length === 0) return <div />;
+                        if (serviceLogs.length === 0) return <div/>;
                         return <div onScroll={e => console.log(e)}>
-                            <List initialScrollOffset={Number.MAX_VALUE} ref={scrollRef} itemData={serviceLogs} height={height - 25} width={width} itemSize={ITEM_SIZE} itemCount={serviceLogs.length} className="card">
+                            <List
+                                initialScrollOffset={Number.MAX_VALUE}
+                                ref={scrollRef}
+                                itemData={serviceLogs}
+                                height={height - 25}
+                                width={width}
+                                itemSize={ITEM_SIZE}
+                                itemCount={serviceLogs.length}
+                                className="card"
+                            >
                                 {({index, data, style}) => {
                                     const item = data[index];
+                                    const previous: DebugContext | undefined = index > 0 ? data[index - 1] : undefined;
+                                    const timeDiff = previous ? item.timestamp - previous.timestamp : undefined;
                                     lastInViewRef.current = index;
                                     return <DebugContextRow
                                         key={item.id}
                                         style={style}
-                                        setRouteComponents={() => {setContext(item); setRouteComponents([item]);}}
+                                        setRouteComponents={() => {
+                                            setContext(item);
+                                            setRouteComponents([item]);
+                                        }}
                                         debugContext={item}
+                                        myTimeDiff={timeDiff}
                                     />
                                 }}
                             </List>
@@ -118,33 +352,64 @@ export function MainContent(): JSX.Element {
     </div>
 }
 
-function contextTypeToEmoji(ctxType: DebugContextType): string {
-    switch (ctxType) {
-        case DebugContextType.CLIENT_REQUEST: {
-            return "📯";
-        }
-        case DebugContextType.SERVER_REQUEST: {
-            return "💻";
-        }
-        case DebugContextType.DATABASE_TRANSACTION: {
-            return "🗃️";
-        }
-        case DebugContextType.BACKGROUND_TASK: {
-            return "🫥";
-        }
-        case DebugContextType.OTHER: {
-            return "👾"
+function fetchTimestampFromRow(child: DebugContextAndChildren | DebugMessage, atStart: boolean): number {
+    if (isDebugMessage(child)) {
+        return child.timestamp;
+    } else {
+        if (child.children.length > 0 && !atStart) {
+            const lastChild = child.children[child.children.length - 1];
+            const res =  fetchTimestampFromRow(lastChild, false);
+            return res;
+        } else {
+            return child.ctx.timestamp;
         }
     }
 }
 
-function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], style, activeLogOrCtx}: {
+function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], style, activeLogOrCtx, myTimeDiff}: {
     debugContext: DebugContext;
     activeLogOrCtx?: DebugMessageOrCtx;
     setRouteComponents(ctx: DebugMessageOrCtx[]): void;
     ctxChildren?: (DebugContextAndChildren | DebugMessage)[];
     style?: React.CSSProperties | undefined;
+    myTimeDiff?: number;
 }): JSX.Element {
+    const children: JSX.Element[] = [];
+    let lastTimestamp = debugContext.timestamp;
+    for (const child of ctxChildren) {
+        let timestamp = fetchTimestampFromRow(child, true);
+        const timeDiff = timestamp - lastTimestamp;
+        const formattedTimeDiff = "[" + timeDiff.toString().padStart(3, ' ') + "ms] ";
+        lastTimestamp = fetchTimestampFromRow(child, false);
+
+        if (isDebugMessage(child)) {
+            children.push(
+                <div key={"log" + child.id}
+                     className="request-list-row left-border-black"
+                     data-selected={child === activeLogOrCtx}
+                     data-has-error={hasError(child.importance)}
+                     data-is-odd={isOdd(child.importance)}
+                     onClick={() => setRouteComponents([debugContext, child])}
+                >
+                    &nbsp;
+                    <pre style={{display: "inline"}}>{formattedTimeDiff}</pre>
+                    {getMessageText(child)}
+                </div>
+            );
+        } else {
+            children.push(
+                <DebugContextRow
+                    key={child.ctx.id}
+                    setRouteComponents={ctx => setRouteComponents([debugContext, ...ctx])}
+                    style={{borderLeft: "solid 1px black"}}
+                    activeLogOrCtx={activeLogOrCtx}
+                    debugContext={child.ctx}
+                    ctxChildren={child.children}
+                    myTimeDiff={timeDiff}
+                />
+            );
+        }
+    }
     return <>
         <div
             key={debugContext.id}
@@ -156,103 +421,26 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
             data-has-error={hasError(debugContext.importance)}
             data-is-odd={isOdd(debugContext.importance)}
         >
-            <div>&nbsp;{contextTypeToEmoji(debugContext.type)}&nbsp;{debugContext.name}</div>
+            <div>
+                &nbsp;
+                <pre style={{display: "inline"}}>{"[" + (myTimeDiff ?? 0).toString().padStart(3, ' ') + "ms] "}</pre>
+                {contextTypeToEmoji(debugContext.type)}
+                &nbsp;
+                {debugContext.name}
+            </div>
         </div>
         <div className="ml-24px">
-            {ctxChildren.map(it => {
-                if (isDebugMessage(it)) {
-                    return <div key={"log" + it.id}
-                        className="request-list-row left-border-black"
-                        data-selected={it === activeLogOrCtx}
-                        data-has-error={hasError(it.importance)}
-                        data-is-odd={isOdd(it.importance)}
-                        onClick={() => setRouteComponents([debugContext, it])}
-                    >
-                        &nbsp;{getMessageText(it)}
-                    </div>
-                } else {
-                    return <DebugContextRow
-                        key={it.ctx.id}
-                        setRouteComponents={ctx => setRouteComponents([debugContext, ...ctx])}
-                        style={{borderLeft: "solid 1px black"}}
-                        activeLogOrCtx={activeLogOrCtx}
-                        debugContext={it.ctx}
-                        ctxChildren={it.children}
-                    />
-                }
-            })}
+            {children}
         </div>
     </>
 }
 
-function getMessageText(message: DebugMessage): string | JSX.Element {
-    switch (message.type) {
-        case BinaryDebugMessageType.CLIENT_REQUEST: {
-            return "🫴 " + largeTextPreview((message as ClientRequest).call);
-        }
-        case BinaryDebugMessageType.CLIENT_RESPONSE: {
-            return "🫳 " + largeTextPreview((message as ClientResponse).call);
-        }
-        case BinaryDebugMessageType.SERVER_REQUEST: {
-            return "🤖 Request: " + largeTextPreview((message as ServerRequest).payload);
-        }
-        case BinaryDebugMessageType.SERVER_RESPONSE: {
-            return "🗣️ " + largeTextPreview((message as ServerResponse).call);
-        }
-        case BinaryDebugMessageType.DATABASE_TRANSACTION: {
-            const dt = message as DatabaseTransaction;
-            return eventToEmoji(dt) + " Event: " + dt.eventString;
-        }
-        case BinaryDebugMessageType.DATABASE_QUERY: {
-            return "🔦 Query: " + largeTextPreview((message as DatabaseQuery).query).trim();;
-        }
-        case BinaryDebugMessageType.DATABASE_RESPONSE: {
-            return <b>🔦 Query response in {(message as DatabaseResponse).responseTime}ms</b>
-        }
-        case BinaryDebugMessageType.LOG: {
-            return "📜 " + largeTextPreview((message as Log).message);
-        }
-
-        default:
-            return `‼️ UNHANDLED CASE ${message.typeString}`;
-    }
-}
-
-function eventToEmoji(message: DatabaseTransaction): string {
-    switch (message.event) {
-        case DBTransactionEvent.COMMIT:
-            return "✅";
-        case DBTransactionEvent.ROLLBACK:
-            return "🔙";
-        default:
-            return "❓";
-    }
-}
-
-function largeTextPreview(text: LargeText): string {
-    const preview = text.previewOrContent;
-    const dots = text.overflowIdentifier ? "..." : "";
-    return `${preview}${dots}`;
-}
-
-function hasError(importance: MessageImportance): boolean {
-    return [MessageImportance.THIS_IS_WRONG, MessageImportance.THIS_IS_DANGEROUS].includes(importance);
-}
-
-function isOdd(importance: MessageImportance): boolean {
-    return importance === MessageImportance.THIS_IS_ODD;
-}
-
 function RequestDetails({activeContextOrMessage}: Partial<RequestDetailsByTypeProps>): JSX.Element {
-    if (!activeContextOrMessage) return <div />;
+    if (!activeContextOrMessage) return <div/>;
     return <div className="card details flex">
-        <RequestDetailsByType activeContextOrMessage={activeContextOrMessage} />
+        <RequestDetailsByType activeContextOrMessage={activeContextOrMessage}/>
     </div>;
 }
-
-const {locale, timeZone} = Intl.DateTimeFormat().resolvedOptions();
-
-const DATE_FORMAT = new Intl.DateTimeFormat(locale, {timeZone, dateStyle: "short", timeStyle: "long"});
 
 interface RequestDetailsByTypeProps {
     activeContextOrMessage: DebugMessageOrCtx;
@@ -260,7 +448,7 @@ interface RequestDetailsByTypeProps {
 
 function RequestDetailsByType({activeContextOrMessage}: RequestDetailsByTypeProps): JSX.Element {
     if (isDebugMessage(activeContextOrMessage)) {
-        return <Message message={activeContextOrMessage} />
+        return <DetailedMessage message={activeContextOrMessage}/>
     }
 
     switch (activeContextOrMessage.type) {
@@ -269,33 +457,14 @@ function RequestDetailsByType({activeContextOrMessage}: RequestDetailsByTypeProp
         case DebugContextType.CLIENT_REQUEST:
         case DebugContextType.BACKGROUND_TASK:
         case DebugContextType.OTHER:
-            return <DebugContextDetails ctx={activeContextOrMessage} />
+            return <DebugContextDetails ctx={activeContextOrMessage}/>
     }
 }
 
-const USE_DEBUGGER_DEBUG_INFO = false;
-function DebugContextDetails({ctx}: {ctx: DebugContext}): JSX.Element {
-    return <>
-        <div className="card query">
-            <pre>
-                Name: {contextTypeToEmoji(ctx.type)} {ctx.name}<br />
-                Timestamp: {DATE_FORMAT.format(ctx.timestamp)}<br />
-                {USE_DEBUGGER_DEBUG_INFO ? <>
-                    Type: {prettierString(ctx.typeString)}<br />
-                    Context ID: {ctx.id}<br />
-                    Parent ID: {ctx.parent} {isRootContext(ctx.parent)}<br />
-                </> : null}
-                Importance: {prettierString(ctx.importanceString)}
-            </pre>
-        </div>
-    </>
-}
-
-function isRootContext(parentId: number): string {
-    return parentId === 1 ? "(Root)" : "";
-}
-
-function ShowLargeText({largeText, textTransform = handleIfEmpty}: {largeText: LargeText; textTransform?: (str: string) => string}): JSX.Element {
+function ShowLargeText({
+                           largeText,
+                           textTransform = handleIfEmpty
+                       }: { largeText: LargeText; textTransform?: (str: string) => string }): JSX.Element {
     React.useSyncExternalStore(subscription => logMessages.subscribe(subscription), () => logMessages.getSnapshot());
     React.useEffect(() => {
         const messageOverflow = largeText.overflowIdentifier;
@@ -308,6 +477,84 @@ function ShowLargeText({largeText, textTransform = handleIfEmpty}: {largeText: L
     const message = logMessages.get(largeText.overflowIdentifier) ?? largeText.previewOrContent
 
     return <>{textTransform(message)}</>;
+}
+
+interface BreadcrumbsProps {
+    clearContext(): void;
+
+    routeComponents: DebugMessageOrCtx[];
+    setRouteComponents: React.Dispatch<React.SetStateAction<DebugMessageOrCtx[]>>;
+}
+
+function BreadCrumbs({routeComponents, setRouteComponents, clearContext}: BreadcrumbsProps): JSX.Element {
+    const setToParentComponent = React.useCallback((id: number) => {
+        if (id === -1) {
+            setRouteComponents([]);
+            clearContext();
+        }
+        setRouteComponents(r => r.slice(0, id + 1));
+    }, [setRouteComponents, clearContext]);
+
+    if (routeComponents.length === 0) return <div/>
+    return <div className="flex full-width">
+        <div className="breadcrumb pointer" onClick={() => setToParentComponent(-1)}>Root</div>
+        {routeComponents.map((it, idx) =>
+            <div
+                key={it.id}
+                className="breadcrumb pointer"
+                onClick={() => setToParentComponent(idx)}
+            >
+                {prettierString(it.typeString)}
+            </div>
+        )}
+    </div>;
+}
+
+function DetailsCard({left, right}: { left: React.ReactNode; right?: React.ReactNode; }): JSX.Element {
+    return <>
+        <div className="card query">
+            {left}
+        </div>
+        {!right ? null :
+            <div className="card query-details">
+                {right}
+            </div>
+        }
+    </>;
+}
+
+// Utility functions
+// =====================================================================================================================
+
+export function prettierString(str: string): string {
+    if (str.length === 0 || str.length === 1) return str;
+    const lowerCasedAndReplaced = str.toLocaleLowerCase().replaceAll("_", " ");
+    return lowerCasedAndReplaced[0].toLocaleUpperCase() + lowerCasedAndReplaced.slice(1);
+}
+
+function hasError(importance: MessageImportance): boolean {
+    return [MessageImportance.THIS_IS_WRONG, MessageImportance.THIS_IS_DANGEROUS].includes(importance);
+}
+
+function isOdd(importance: MessageImportance): boolean {
+    return importance === MessageImportance.THIS_IS_ODD;
+}
+
+function formatTimestamp(ts: number): string {
+    const d = new Date(ts);
+    let result = "";
+    result += d.getHours().toString().padStart(2, '0');
+    result += ":";
+    result += d.getMinutes().toString().padStart(2, '0');
+    result += ":";
+    result += d.getSeconds().toString().padStart(2, '0');
+    result += ".";
+    result += d.getMilliseconds().toString().padStart(3, '0');
+    return result;
+}
+
+function isRootContext(parentId: number): string {
+    return parentId === 1 ? "(Root)" : "";
 }
 
 function prettyJSON(json: string): string {
@@ -341,146 +588,6 @@ function trimIndent(input: string): string {
     return result;
 }
 
-function DetailsCard({left, right}: {left: React.ReactNode; right?: React.ReactNode;}): JSX.Element {
-    return <>
-        <div className="card query">
-            {left}
-        </div>
-        {!right ? null :
-            <div className="card query-details">
-                {right}
-            </div>
-        }
-    </>;
-}
-
-function Message({message}: {message: DebugMessage}): JSX.Element {
-    switch (message.type) {
-        case BinaryDebugMessageType.CLIENT_REQUEST: {
-            const clientRequest = message as ClientRequest;
-            return <DetailsCard
-                left={<ShowLargeText largeText={clientRequest.payload} />}
-                right={<DebugMessageDetails dm={clientRequest} />}
-            />;
-        }
-        case BinaryDebugMessageType.CLIENT_RESPONSE: {
-            const clientResponse = message as ClientResponse;
-            return <DetailsCard
-                left={<ShowLargeText largeText={clientResponse.response} />}
-                right={<DebugMessageDetails dm={clientResponse} />}
-            />
-        }
-        case BinaryDebugMessageType.DATABASE_QUERY: {
-            const databaseQuery = message as DatabaseQuery;
-            return <DetailsCard
-                left={<pre><ShowLargeText largeText={databaseQuery.query} textTransform={trimIndent} /></pre>}
-                right={<DebugMessageDetails dm={databaseQuery} />}
-            />;
-        }
-        case BinaryDebugMessageType.DATABASE_RESPONSE: {
-            const databaseResponse = message as DatabaseResponse;
-            return <DetailsCard left={`Took ${databaseResponse.responseTime}ms`} right={<DebugMessageDetails dm={databaseResponse} />} />
-        }
-        case BinaryDebugMessageType.DATABASE_TRANSACTION: {
-            const databaseTransaction = message as DatabaseTransaction;
-            return <DetailsCard
-                left={`Event: ${databaseTransaction.eventString}`}
-                right={<DebugMessageDetails dm={databaseTransaction} />} />
-        }
-        case BinaryDebugMessageType.SERVER_REQUEST: {
-            const serverRequest = message as ServerRequest;
-            return <DetailsCard
-                left={<ShowLargeText largeText={serverRequest.payload} />}
-                right={<DebugMessageDetails dm={serverRequest} />}
-            />
-        }
-        case BinaryDebugMessageType.SERVER_RESPONSE: {
-            const serverResponse = message as ServerResponse;
-            return <DetailsCard
-                left={<pre><ShowLargeText largeText={serverResponse.response} textTransform={prettyJSON} /></pre>}
-                right={<DebugMessageDetails dm={serverResponse} />}
-            />
-        }
-        case BinaryDebugMessageType.LOG: {
-            const log = message as Log;
-            return <DetailsCard
-                left={<ShowLargeText largeText={log.message} />}
-                right={<DebugMessageDetails dm={log} />}
-            />
-        }
-        default:
-            return <>UNHANDLED TYPE {message.type}</>
-    }
-}
-
-function DebugMessageDetails({dm}: {dm: DebugMessage}): JSX.Element {
-    return <pre>
-        <Timestamp ts={dm.timestamp} />
-        Type: {prettierString(dm.typeString)}<br />
-        Context ID: {dm.ctxId}<br />
-        Importance: {prettierString(dm.importanceString)}<br />
-        {"call" in dm ? <Call call={dm.call} /> : null}
-        {"responseCode" in dm ? <>
-            Response code: {dm.responseCode} <br /></> : null
-        }
-        {"responseTime" in dm ?
-            <>Response time: {dm.responseTime} ms <br /></> : null
-        }
-        {"extra" in dm ?
-            <>
-                <ShowLargeText largeText={dm.extra} /><br />
-            </> : null}
-        {"parameters" in dm ? <>
-            Parameters: <ShowLargeText largeText={dm.parameters} textTransform={prettyJSON} />
-        </> : null}
-        {/* TODO: Probably more here */}
-    </pre>
-}
-
-function Call({call}: {call: LargeText}): JSX.Element {
-    return <>Call: <ShowLargeText largeText={call} /><br /></>
-}
-
-function Timestamp({ts}: {ts: number}): JSX.Element {
-    return <>Timestamp: {DATE_FORMAT.format(ts)}<br /></>
-}
-
 function handleIfEmpty(str: string): string {
     return str.length === 0 ? "<empty string>" : str;
-}
-
-interface BreadcrumbsProps {
-    clearContext(): void;
-    routeComponents: DebugMessageOrCtx[];
-    setRouteComponents: React.Dispatch<React.SetStateAction<DebugMessageOrCtx[]>>;
-}
-
-function BreadCrumbs({routeComponents, setRouteComponents, clearContext}: BreadcrumbsProps): JSX.Element {
-    const setToParentComponent = React.useCallback((id: number) => {
-        if (id === -1) {
-            setRouteComponents([]);
-            clearContext();
-        }
-        setRouteComponents(r => r.slice(0, id + 1));
-    }, [setRouteComponents, clearContext]);
-
-    if (routeComponents.length === 0) return <div />
-    return <div className="flex full-width">
-        <div className="breadcrumb pointer" onClick={() => setToParentComponent(-1)}>Root</div>
-        {routeComponents.map((it, idx) =>
-            <div
-                key={it.id}
-                className="breadcrumb pointer"
-                onClick={() => setToParentComponent(idx)}
-            >
-                {prettierString(it.typeString)}
-            </div>
-        )}
-    </div>;
-}
-
-export function prettierString(str: string): string {
-    if (str.length === 0 || str.length === 1) return str;
-    const lowerCasedAndReplaced = str.toLocaleLowerCase().replaceAll("_", " ");
-    return lowerCasedAndReplaced[0].toLocaleUpperCase() + lowerCasedAndReplaced.slice(1);
 }

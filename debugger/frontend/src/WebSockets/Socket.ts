@@ -31,7 +31,11 @@ export function initializeConnection(opts: SocketOptions) {
 const FRAME_SIZE = 256;
 
 function initializeSocket() {
-    socket = new WebSocket("ws://localhost:5511");
+    if (window.location.host === "localhost") {
+        socket = new WebSocket("ws://localhost:5511");
+    } else {
+        socket = new WebSocket("wss://debugger-api.localhost.direct");
+    }
     socket.binaryType = "arraybuffer";
 
     socket.onopen = () => {
@@ -386,7 +390,7 @@ export const serviceStore = new class {
 
 type Nullable<T> = T | null;
 
-/* 
+/*
  * CALLS
  **/
 
@@ -431,7 +435,7 @@ export function fetchTextBlob(generation: string, blobId: string, fileIndex: str
     socket.send(req);
 }
 
-/* 
+/*
  * CALLS
  **/
 

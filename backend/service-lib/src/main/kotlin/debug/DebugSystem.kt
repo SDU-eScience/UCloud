@@ -435,6 +435,7 @@ suspend fun BinaryDebugSystem.clientRequest(
     call: String?,
     payload: JsonElement?,
 ) {
+    println("clientRequest $importance $call $payload")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
     val payloadEncoded = if (payload == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), payload)
 
@@ -462,6 +463,7 @@ suspend fun BinaryDebugSystem.clientResponse(
     responseCode: HttpStatusCode,
     responseTime: Long,
 ) {
+    println("clientResponse $importance $call $response $responseCode $responseTime")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
     val responseEncoded = if (response == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), response)
 
@@ -476,7 +478,7 @@ suspend fun BinaryDebugSystem.clientResponse(
 
         message.call = text(call ?: "", BinaryDebugMessage.ClientResponse.call)
         message.response = text(responseEncoded, BinaryDebugMessage.ClientResponse.response)
-        message.responseCode = responseCode.value.toByte()
+        message.responseCode = responseCode.value.toShort()
         message.responseTime = responseTime.toInt()
         message
     }
@@ -488,6 +490,7 @@ suspend fun BinaryDebugSystem.serverRequest(
     call: String?,
     payload: JsonElement?,
 ) {
+    println("serverRequest $importance $call $payload")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
     val payloadEncoded = if (payload == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), payload)
 
@@ -515,6 +518,7 @@ suspend fun BinaryDebugSystem.serverResponse(
     responseCode: HttpStatusCode,
     responseTime: Long,
 ) {
+    println("serverResponse $importance $call $response $responseCode $responseTime")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
     val responseEncoded = if (response == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), response)
 
@@ -529,7 +533,7 @@ suspend fun BinaryDebugSystem.serverResponse(
 
         message.call = text(call ?: "", BinaryDebugMessage.ServerResponse.call)
         message.response = text(responseEncoded, BinaryDebugMessage.ServerResponse.response)
-        message.responseCode = responseCode.value.toByte()
+        message.responseCode = responseCode.value.toShort()
         message.responseTime = responseTime.toInt()
         message
     }
@@ -540,6 +544,7 @@ suspend fun BinaryDebugSystem.databaseTransaction(
 
     event: DBTransactionEvent
 ) {
+    println("databaseTransaction $importance $event")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
 
     emit {
@@ -561,6 +566,7 @@ suspend fun BinaryDebugSystem.databaseQuery(
     parameters: JsonElement?,
     query: String,
 ) {
+    println("databaseQuery $importance $parameters $query")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
     val parametersEncoded =
         if (parameters == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), parameters)
@@ -584,6 +590,7 @@ suspend fun BinaryDebugSystem.databaseResponse(
 
     responseTime: Long
 ) {
+    println("databaseResponse $importance $responseTime")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
 
     emit {
@@ -606,6 +613,7 @@ suspend fun BinaryDebugSystem.log(
     log: String,
     extra: JsonElement? = null,
 ) {
+    println("log $importance $log $extra")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
     val extraEncoded = if (extra == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), extra)
 
@@ -622,6 +630,48 @@ suspend fun BinaryDebugSystem.log(
         message.extra = text(extraEncoded, BinaryDebugMessage.Log.extra)
         message
     }
+}
+
+suspend fun BinaryDebugSystem.everything(
+    log: String,
+    extra: JsonElement? = null,
+) {
+    log(MessageImportance.TELL_ME_EVERYTHING, log, extra)
+}
+
+suspend fun BinaryDebugSystem.detail(
+    log: String,
+    extra: JsonElement? = null,
+) {
+    log(MessageImportance.IMPLEMENTATION_DETAIL, log, extra)
+}
+
+suspend fun BinaryDebugSystem.normal(
+    log: String,
+    extra: JsonElement? = null,
+) {
+    log(MessageImportance.THIS_IS_NORMAL, log, extra)
+}
+
+suspend fun BinaryDebugSystem.odd(
+    log: String,
+    extra: JsonElement? = null,
+) {
+    log(MessageImportance.THIS_IS_ODD, log, extra)
+}
+
+suspend fun BinaryDebugSystem.wrong(
+    log: String,
+    extra: JsonElement? = null,
+) {
+    log(MessageImportance.THIS_IS_WRONG, log, extra)
+}
+
+suspend fun BinaryDebugSystem.dangerous(
+    log: String,
+    extra: JsonElement? = null,
+) {
+    log(MessageImportance.THIS_IS_DANGEROUS, log, extra)
 }
 
 fun buildBlobFilePath(generation: Long, fileIdx: Int): String {

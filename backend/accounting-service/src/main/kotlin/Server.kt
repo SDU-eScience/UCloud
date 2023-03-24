@@ -47,7 +47,7 @@ class Server(
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
         val accountingProcessor = AccountingProcessor(
             db,
-            micro.featureOrNull(DebugSystemFeature),
+            micro.feature(DebugSystemFeature).system,
             simpleProviders,
             distributedLocks,
             distributedState = DistributedStateFactory(micro),

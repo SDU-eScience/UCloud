@@ -7,12 +7,14 @@ import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.debug.DebugContextType
 import dk.sdu.cloud.accounting.api.WalletAllocation as ApiWalletAllocation
 import dk.sdu.cloud.accounting.api.Wallet as ApiWallet
 import dk.sdu.cloud.accounting.api.WalletOwner as ApiWalletOwner
 import dk.sdu.cloud.debug.DebugSystem
-import dk.sdu.cloud.debug.detailD
-import dk.sdu.cloud.debug.enterContext
+import dk.sdu.cloud.debug.MessageImportance
+import dk.sdu.cloud.debug.detail
+import dk.sdu.cloud.debug.log
 import dk.sdu.cloud.grant.api.GrantApplication
 import dk.sdu.cloud.grant.api.ProjectWithTitle
 import dk.sdu.cloud.project.api.ProjectRole
@@ -386,7 +388,7 @@ suspend fun AccountingProcessor.retrieveRelevantWalletsNotifications(
 
 class AccountingProcessor(
     private val db: DBContext,
-    private val debug: DebugSystem?,
+    private val debug: DebugSystem,
     private val providers: Providers<SimpleProviderCommunication>,
     private val distributedLocks: DistributedLockFactory,
     private val disableMasterElection: Boolean = false,
@@ -492,9 +494,8 @@ class AccountingProcessor(
         activeProcessor.set(ActiveProcessor(addressToSelf))
         isActiveProcessor = true
 
-        debug.enterContext("Loading accounting database") {
+        debug.useContext(DebugContextType.BACKGROUND_TASK, "Loading accounting database") {
             loadDatabase()
-            logExit("Success")
         }
 
         nextSynchronization = System.currentTimeMillis() + 0
@@ -2016,15 +2017,14 @@ class AccountingProcessor(
         }
 
         log.info("Synching")
-        debug.enterContext("Synchronizing accounting data") {
-            debug.detailD("Filling products", Unit.serializer(), Unit)
+        debug.useContext(DebugContextType.BACKGROUND_TASK, "Synchronizing accounting data") {
+            debug.detail("Filling products")
             products.fillCache()
-            debug.detailD("Filling projects", Unit.serializer(), Unit)
+            debug.detail("Filling projects")
             projects.fillCache()
 
             db.withSession { session ->
-
-                debug.detailD("Dealing with wallets", Unit.serializer(), Unit)
+                debug.detail("Dealing with wallets")
                 wallets.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
                     val filtered = chunk
                         .filter { it.isDirty }
@@ -2089,7 +2089,8 @@ class AccountingProcessor(
                     )
                 }
 
-                debug.detailD("Dealing with allocations", Unit.serializer(), Unit)
+                debug.detail("Dealing with allocations")
+
                 allocations.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
                     val filtered = chunk
                         .filter { it.isDirty }
@@ -2150,7 +2151,7 @@ class AccountingProcessor(
                     )
                 }
 
-                debug.detailD("Dealing with transactions", Unit.serializer(), Unit)
+                debug.detail("Dealing with transactions")
 
                 dirtyTransactions.chunkedSequence(500).forEach { chunk ->
                     session.sendPreparedStatement(
@@ -2305,7 +2306,6 @@ class AccountingProcessor(
             allocations.asSequence().filterNotNull().filter { it.isDirty }.forEach { it.isDirty = false }
 
             dirtyTransactions.clear()
-            logExit("Done!")
             nextSynchronization = Time.now() + 30_000
             log.info("Synching of DB is done!")
         }

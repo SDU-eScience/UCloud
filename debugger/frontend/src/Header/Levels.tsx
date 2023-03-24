@@ -8,7 +8,7 @@ export function Levels({level, setLevel}: {level: string; setLevel(level: string
     return <Dropdown trigger={
         <div className="header-dropdown flex">
             <span className="ml-10px vertically-centered">
-                Level: {level === "" ? "NONE" : level}
+                Level: {prettierString(level === "" ? "NONE" : level)}
             </span>
         </div>
     }>

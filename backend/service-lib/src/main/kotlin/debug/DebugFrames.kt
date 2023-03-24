@@ -66,7 +66,7 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
         override fun create(buf: ByteBuffer, offset: Int): ClientResponse = ClientResponse(buf, offset)
 
         companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
-            val responseCode = int1()
+            val responseCode = int2()
             val responseTime = int4()
             val call = text(64)
             val response = text(64)
@@ -97,7 +97,7 @@ sealed class BinaryDebugMessage<Self : BinaryDebugMessage<Self>>(
         override fun create(buf: ByteBuffer, offset: Int): ServerResponse = ServerResponse(buf, offset)
 
         companion object Schema : BinaryFrameSchema(BinaryDebugMessage) {
-            val responseCode = int1()
+            val responseCode = int2()
             val responseTime = int4()
             val call = text(64)
             val response = text(64)

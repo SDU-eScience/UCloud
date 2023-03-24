@@ -75,7 +75,7 @@ function App(): JSX.Element {
             <Sidebar>
                 <ServiceList services={serviceNodes} />
             </Sidebar>
-            <MainContent />
+            <MainContent setLevel={setLevel} />
         </div>
     </>;
 }

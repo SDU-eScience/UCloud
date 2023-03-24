@@ -29,9 +29,11 @@ val trackedServices = AtomicReference(emptyMap<String, TrackedService>())
 
 val sessions = ArrayList<ClientSession>()
 val sessionMutex = Mutex()
+lateinit var directory: File
 
+@Suppress("ExtractKtorModule")
 fun main(args: Array<String>) {
-    val directory = args.getOrNull(0)?.let { File(it) } ?: error("Missing root directory")
+    directory = args.getOrNull(0)?.let { File(it) } ?: error("Missing root directory")
     if (args.contains("--producer")) {
         exampleProducer(directory)
         return
@@ -128,7 +130,6 @@ fun main(args: Array<String>) {
                         for (logFile in openLogFiles) {
                             while (logFile.next()) {
                                 val message = logFile.retrieve() ?: break
-//                                println(message.toString())
                                 sessionMutex.withLock {
                                     for (session in sessions) {
                                         session.acceptLogMessage(message, session.activeContexts)
@@ -154,12 +155,8 @@ fun main(args: Array<String>) {
                         while (iterator.hasNext()) {
                             val contextFile = iterator.next()
 
-                            val shouldClose =
-                                // Close if generation is no longer valid
-                                currentServices.none { it.value.generation == contextFile.generation }
-                            // TODO Close files which are no longer actively used
-                            // What does this mean? This should probably depend on the ReplayMessage request.
-
+                            // Close if generation is no longer valid
+                            val shouldClose = currentServices.none { it.value.generation == contextFile.generation }
                             if (shouldClose) {
                                 println("Closing context")
                                 contextFile.close()
@@ -263,9 +260,9 @@ fun main(args: Array<String>) {
                                 val generation = session.generation ?: break
                                 val startTime = session.toReplayFrom ?: break
                                 session.toReplayFrom = null
-                                val endTime = getTimeMillis()
+                                val endTime = System.currentTimeMillis()
                                 sessionMutex.withLock {
-                                    session.findContexts(startTime, endTime, directory, generation, 1L, true)
+                                    session.findContexts(startTime, endTime, generation, 1L)
                                 }
                                 session.activeContexts = arrayListOf(1L)
                             }
@@ -275,14 +272,14 @@ fun main(args: Array<String>) {
                                 session.clearContextMessages()
                                 session.clearLogMessages()
 
-                                session.toReplayFrom = getTimeMillis()
+                                session.toReplayFrom = System.currentTimeMillis()
                                 val generation = request.generation.toLong()
                                 val startTime = request.timestamp
                                 val endTime = startTime + 15.minutes.inWholeMilliseconds
                                 sessionMutex.withLock {
                                     val contexts =
-                                        session.findContexts(startTime, endTime, directory, generation, request.context)
-                                    session.findLogs(startTime, endTime, directory, generation, contexts)
+                                        session.findContexts(startTime, endTime, generation, request.context)
+                                    session.findLogs(startTime, endTime, generation, contexts)
                                     session.activeContexts = contexts
                                 }
                             }
@@ -294,7 +291,7 @@ fun main(args: Array<String>) {
                                 session.generation = generation
 
                                 sessionMutex.withLock {
-                                    session.findNewestContext(directory, generation, activeService)
+                                    session.emitNewestContext(directory, generation, activeService)
                                 }
                             }
 
@@ -308,22 +305,30 @@ fun main(args: Array<String>) {
                                 val generation = request.generation.toLong()
                                 val id = request.id.toInt()
                                 val fileIndex = request.fileIndex.toInt()
-                                val result = findBlobEntry(directory, generation, id, fileIndex) ?: continue
-                                val newBlobWriteBuffer =
-                                    ByteBuffer.allocateDirect(result.size + 8 + 4) // Add long (type), id for overflow identifier.
-                                newBlobWriteBuffer.putLong(4)
-                                newBlobWriteBuffer.putInt(id)
-                                newBlobWriteBuffer.put(result)
-                                newBlobWriteBuffer.flip()
-                                session.session.send(Frame.Binary(true, newBlobWriteBuffer))
-                                // Note(Jonas): Anything else we need to do? E.g. cleaning the buffer?
+
+                                useBlobEntry(generation, id, fileIndex) { buf ->
+                                    val newBlobWriteBuffer =
+                                        ByteBuffer.allocateDirect(buf.limit() + 8 + 4) // Add long (type), id for overflow identifier.
+                                    newBlobWriteBuffer.putLong(4)
+                                    newBlobWriteBuffer.putInt(id)
+                                    newBlobWriteBuffer.put(buf)
+                                    newBlobWriteBuffer.flip()
+                                    session.session.send(Frame.Binary(true, newBlobWriteBuffer))
+                                }
                             }
 
                             is ClientRequest.FetchPreviousMessage -> {
                                 val generation = session.generation ?: continue
-                                val startFile = findStartFile(directory, generation, request.timestamp) ?: continue
+                                val startFile =
+                                    findFirstContextIdContainingTimestamp(generation, request.timestamp) ?: continue
                                 sessionMutex.withLock {
-                                    session.findContextsBackwards(directory, generation, startFile, request.id, request.onlyFindSelf ?: false)
+                                    session.findContextsBackwards(
+                                        directory,
+                                        generation,
+                                        startFile,
+                                        request.id,
+                                        request.onlyFindSelf ?: false
+                                    )
                                 }
                             }
                         }
@@ -343,7 +348,13 @@ fun main(args: Array<String>) {
 }
 
 const val CONTEXT_FIND_COUNT = 20
-suspend fun ClientSession.findContextsBackwards(directory: File, generation: Long, fileIndex: Int, ctxId: Int, onlyFindSelf: Boolean = false) {
+suspend fun ClientSession.findContextsBackwards(
+    directory: File,
+    generation: Long,
+    fileIndex: Int,
+    ctxId: Int,
+    onlyFindSelf: Boolean = false
+) {
     var remainingToFind = CONTEXT_FIND_COUNT
     var startAdding = false
     var currentFileIndex = fileIndex
@@ -374,89 +385,86 @@ suspend fun ClientSession.findContextsBackwards(directory: File, generation: Lon
     this.flushContextMessage()
 }
 
-fun findStartFile(directory: File, generation: Long, startTime: Long): Int? {
+fun findFirstContextIdContainingTimestamp(generation: Long, timestamp: Long): Int? {
     var ctxFileId = 1
-    var currentFile = ContextReader(directory, generation, ctxFileId)
-    var fileEnd = currentFile.seekLastTimestamp() ?: return null
 
-    // Find the file that contains our first potentially valid context
-    while (startTime > fileEnd) {
-        if (!ContextReader.exists(directory, generation, ++ctxFileId)) return null
-        currentFile = ContextReader(directory, generation, ctxFileId)
-        fileEnd = currentFile.seekLastTimestamp() ?: return null
+    while (ContextReader.exists(directory, generation, ctxFileId)) {
+        val currentFile = ContextReader(directory, generation, ctxFileId)
+        try {
+            val fileEnd = currentFile.seekLastTimestamp() ?: return null
+            if (timestamp < fileEnd) return ctxFileId
+        } finally {
+            currentFile.close()
+            ctxFileId++
+        }
     }
-
-    return ctxFileId
+    return null
 }
 
-suspend fun ClientSession.findNewestContext(
+suspend fun ClientSession.emitNewestContext(
     directory: File,
     generation: Long?,
     service: String?
 ) {
     if (service == null || generation == null) return
+
+    // Find the newest context file
     var highestCtxFile = 0
     while (ContextReader.exists(directory, generation, highestCtxFile + 1)) {
-        highestCtxFile += 1
+        highestCtxFile++
     }
     if (highestCtxFile == 0) return
 
-    var ctxFile = ContextReader(directory, generation, highestCtxFile)
-    ctxFile.seekToEnd()
-    var last = ctxFile.retrieve() ?: return
-    while (last.parent != 1) {
-        println("${last.parent}, $highestCtxFile")
-        if (!ctxFile.previous()) {
-            highestCtxFile -= 1
-            if (highestCtxFile == 0) return
-            ctxFile = ContextReader(directory, generation, highestCtxFile)
+    // Move through the entries backwards (potentially through files) to find the oldest root context
+    while (ContextReader.exists(directory, generation, highestCtxFile)) {
+        val ctxFile = ContextReader(directory, generation, highestCtxFile)
+        try {
             ctxFile.seekToEnd()
+            while (true) {
+                val entry = ctxFile.retrieve() ?: break
+                if (entry.parent == 1) {
+                    acceptContext(generation, entry, listOf(1))
+                    flushContextMessage()
+                    return
+                }
+
+                if (!ctxFile.previous()) break
+            }
+        } finally {
+            ctxFile.close()
+            highestCtxFile--
         }
-        last = ctxFile.retrieve() ?: return
     }
-    // The 'last' context will only be accepted provided it has parentId == 1
-    this.acceptContext(generation, last, arrayListOf(1L))
-    this.flushContextMessage()
 }
 
 suspend fun ClientSession.findContexts(
     startTime: Long,
     endTime: Long,
-    directory: File,
     generation: Long,
-    initialContext: Long,
-    dontAddToActiveContext: Boolean = false
+    initialContext: Long
 ): ArrayList<Long> {
     val contextIds = arrayListOf(initialContext)
+    var ctxFileId = findFirstContextIdContainingTimestamp(generation, startTime) ?: return contextIds
 
-    var ctxFileId = findStartFile(directory, generation, startTime) ?: return contextIds
-    var currentFile = ContextReader(directory, generation, ctxFileId)
+    while (ContextReader.exists(directory, generation, ctxFileId)) {
+        val currentFile = ContextReader(directory, generation, ctxFileId)
+        try {
+            while (currentFile.next()) {
+                val currentEntry = currentFile.retrieve() ?: break
+                if (currentEntry.timestamp < startTime) continue // keep looking
+                if (currentEntry.timestamp > endTime) break // finished
 
-    while (currentFile.next()) {
-        val currentEntry = currentFile.retrieve() ?: break
-        if (currentEntry.timestamp < startTime) continue // keep looking
-        if (currentEntry.timestamp > endTime) break // finished
-
-        if (currentEntry.parent.toLong() in contextIds) {
-            // NOTE(Jonas): Ignore the ctx and children of ignored ctxes.
-            // TODO(Jonas): the 'skipContext'-call is also made inside `acceptContext`. Once would be fine.
-            if (!dontAddToActiveContext && !skipContext(
-                    generation,
-                    currentEntry,
-                    contextIds
-                )
-            ) contextIds.add(currentEntry.id.toLong())
-            acceptContext(generation, currentEntry, contextIds)
-        }
-
-        if (!currentFile.isValid(currentFile.cursor + 1)) {
-            if (ContextReader.exists(directory, generation, ++ctxFileId)) {
-                currentFile = ContextReader(directory, generation, ctxFileId)
-            } else {
-                break
+                if (currentEntry.parent.toLong() in contextIds) {
+                    contextIds.add(currentEntry.id.toLong())
+                    acceptContext(generation, currentEntry, contextIds)
+                }
             }
+        } finally {
+            currentFile.close()
+            ctxFileId++
         }
     }
+
     flushContextMessage()
     return contextIds
 }
@@ -464,49 +472,40 @@ suspend fun ClientSession.findContexts(
 suspend fun ClientSession.findLogs(
     startTime: Long,
     endTime: Long,
-    directory: File,
     generation: Long,
     contextIds: ArrayList<Long>
 ) {
     var logFileId = 0
-    var logCount = 0
+
     outer@ while (LogFileReader.exists(directory, generation, logFileId)) {
-        var logFile = LogFileReader(directory, generation, logFileId)
-        var fileEnd = logFile.seekLastTimestamp() ?: break@outer
+        val logFile = LogFileReader(directory, generation, logFileId)
+        try {
+            val fileEnd = logFile.seekLastTimestamp() ?: break@outer
+            if (startTime > fileEnd) continue
 
-        while (startTime > fileEnd) {
-            if (!LogFileReader.exists(directory, generation, ++logFileId)) break@outer
-            logFile = LogFileReader(directory, generation, logFileId)
-            fileEnd = logFile.seekLastTimestamp() ?: break@outer
-        }
+            while (logFile.next()) {
+                val currentEntry = logFile.retrieve() ?: break@outer
+                if (currentEntry.timestamp < startTime) continue
+                if (currentEntry.timestamp > endTime) break@outer
+                if (currentEntry.ctxId.toLong() !in contextIds) continue
 
-        while (logFile.next()) {
-            val currentEntry = logFile.retrieve() ?: break@outer
-            if (currentEntry.timestamp < startTime) continue // keep looking
-            if (currentEntry.timestamp > endTime) break@outer // finished
-
-            if (currentEntry.ctxId.toLong() in contextIds) {
-                logCount++
                 acceptLogMessage(currentEntry, contextIds)
             }
-
-            if (!logFile.isValid(logFile.cursor + 1)) {
-                if (LogFileReader.exists(directory, generation, ++logFileId)) {
-                    logFile = LogFileReader(directory, generation, logFileId)
-                } else {
-                    break@outer
-                }
-            }
+        } finally {
+            logFile.close()
+            logFileId++
         }
     }
     flushLogsMessage()
 }
 
-fun findBlobEntry(directory: File, generation: Long, blobId: Int, fileIndex: Int): ByteArray? =
-    if (BlobSystem.exists(directory, generation, fileIndex)) {
-        val blobSystem = BlobSystem(directory, generation, fileIndex)
-        blobSystem.getBlob(blobId)
-    } else null
+inline fun useBlobEntry(generation: Long, blobId: Int, fileIndex: Int, fn: (ByteBuffer) -> Unit): Boolean {
+    if (!BlobSystem.exists(directory, generation, fileIndex)) return false
+    BlobSystem(directory, generation, fileIndex).use {
+        fn(it.getBlob(blobId))
+    }
+    return true
+}
 
 @Serializable
 sealed class ClientRequest {
@@ -649,27 +648,27 @@ data class ClientSession(
         }
     }
 
-    fun skipContext(generation: Long, context: DebugContextDescriptor, contexts: ArrayList<Long>): Boolean {
+    fun skipContext(generation: Long, context: DebugContextDescriptor, contexts: List<Long>): Boolean {
         val service = activeService ?: return true
         val services = trackedServices.get()
         val trackedService = services.values.find { it.title == service }
         if (trackedService == null || trackedService.generation != generation) return true
         if (!contexts.contains(context.parent.toLong())) return true
         if (context.importance < this.minimumLevel) return true
+
+        // NOTE(Jonas): Context is root, which is needed to filter based on query
         val queryFilter = this.filterQuery
-        if (
-            queryFilter != null && // Note(Jonas): If null, nothing to match. This will not block it.
-            context.parent == 1 && // Context is root, which is needed to filter
-            !context.name.contains(
-                queryFilter,
-                ignoreCase = true
-            )
-        ) return true
+        if (queryFilter != null && context.parent == 1) {
+            if (!context.name.contains(queryFilter, ignoreCase = true)) {
+                return true
+            }
+        }
+
         val filters = this.filters
         return filters != null && !filters.contains(context.type)
     }
 
-    suspend fun acceptContext(generation: Long, context: DebugContextDescriptor, contextIds: ArrayList<Long>) {
+    suspend fun acceptContext(generation: Long, context: DebugContextDescriptor, contextIds: List<Long>) {
         if (skipContext(generation, context, contextIds)) return
 
         writeMutex.withLock {
@@ -688,7 +687,6 @@ data class ClientSession(
     }
 
     suspend fun acceptService(serviceName: String, generation: Long) {
-
         writeMutex.withLock {
             val encodedServiceName = serviceName.encodeToByteArray()
             if (encodedServiceName.size >= MAX_SERVICENAME_LENGTH) return

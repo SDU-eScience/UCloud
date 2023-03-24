@@ -6,18 +6,15 @@ pre {
     margin: 0;
 }
 
-* {
-    font-family: 'JetBrains Mono', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-        sans-serif;
+@font-face {
+    font-family: 'JetBrains Mono';
     src: url(/public/JetBrainsMono-VariableFont_wght.ttf) format('ttf');
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
 }
 
 code {
-    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    font-family: 'JetBrains Mono', source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
         monospace;
+    font-size: 16px;
 }
 
 .flex {
@@ -66,7 +63,8 @@ html {
     --tableRowHighlight: var(--lightBlue, #f00);
     --appCard: #ebeff3;
     --wayfGreen: #66b340;
-    --appStoreFavBg: #e8f1fc --invertedThemeColor: #fff;
+    --appStoreFavBg: #e8f1fc;
+    --invertedThemeColor: #fff;
     --fixedBlack: #000;
     --activeSpreadsheet: #dcebf6;
     --lightOrange: #ffc107;
@@ -76,6 +74,7 @@ html {
     /* TODO This is not currently enforced in the sidebar */
     --sidebarWidth: 190px;
 
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
     font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;
 }
 

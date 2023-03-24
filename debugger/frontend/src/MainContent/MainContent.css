@@ -39,6 +39,9 @@ div.card.query-details {
 }
 
 div.request-list-row {
+    height: 22px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
     border-top: 1px solid var(--black);
     color: black;
     background-color: var(--white);
@@ -55,8 +58,13 @@ div.request-list-row[data-has-error="true"] {
 }
 
 div.request-list-row[data-is-odd="true"] {
-    color: var(--white);
+    color: var(--black);
     background-color: var(--yellow, pink);
+}
+
+div.request-list-row[data-selected="true"] {
+    color: var(--black) !important;
+    background-color: var(--lightBlue, pink) !important;
 }
 
 div.request-list-row:last-child {

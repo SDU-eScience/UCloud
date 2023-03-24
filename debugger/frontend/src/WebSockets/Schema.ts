@@ -128,7 +128,7 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
     }
 
     get ctxParent(): number {
-        return readInt4(this.buffer, this.offset + 9); // 1 + 8 = 9 
+        return readInt4(this.buffer, this.offset + 9); // 1 + 8 = 9
     }
 
     get ctxId(): number {
@@ -174,19 +174,19 @@ export class ClientResponse extends BaseBinaryDebugMessage {
     }
 
     get responseCode(): number {
-        return readInt1(this.buffer, this.offset + HDRL);
+        return readInt2(this.buffer, this.offset + HDRL);
     }
 
     get responseTime(): number {
-        return readInt4(this.buffer, this.offset + HDRL + 1);
+        return readInt4(this.buffer, this.offset + HDRL + 2);
     }
 
     get call(): LargeText {
-        return readText(this.buffer, this.offset + HDRL + 1 + 4, 64);
+        return readText(this.buffer, this.offset + HDRL + 2 + 4, 64);
     }
 
     get response(): LargeText {
-        return readText(this.buffer, this.offset + HDRL + 1 + 4 + 64, 64);
+        return readText(this.buffer, this.offset + HDRL + 2 + 4 + 64, 64);
     }
 }
 
@@ -212,19 +212,19 @@ export class ServerResponse extends BaseBinaryDebugMessage {
     }
 
     get responseCode(): number {
-        return readInt1(this.buffer, this.offset + HDRL);
+        return readInt2(this.buffer, this.offset + HDRL);
     }
 
     get responseTime(): number {
-        return readInt4(this.buffer, this.offset + HDRL + 1);
+        return readInt4(this.buffer, this.offset + HDRL + 2);
     }
 
     get call(): LargeText {
-        return readText(this.buffer, this.offset + HDRL + 1 + 4, 64);
+        return readText(this.buffer, this.offset + HDRL + 2 + 4, 64);
     }
 
     get response(): LargeText {
-        return readText(this.buffer, this.offset + HDRL + 1 + 4 + 64, 64);
+        return readText(this.buffer, this.offset + HDRL + 2 + 4 + 64, 64);
     }
 }
 

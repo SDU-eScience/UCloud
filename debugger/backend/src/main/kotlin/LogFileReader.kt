@@ -1,10 +1,11 @@
 package dk.sdu.cloud.debugger
 
+import java.io.Closeable
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.channels.FileChannel
 
-class LogFileReader(directory: File, val generation: Long, val idx: Int) {
+class LogFileReader(directory: File, val generation: Long, val idx: Int) : Closeable {
     private val file = File(directory, "$generation-$idx.log")
     private val logChannel = RandomAccessFile(file, "r").channel
     private val buf = logChannel.map(FileChannel.MapMode.READ_ONLY, 0, logChannel.size())
@@ -124,7 +125,7 @@ class LogFileReader(directory: File, val generation: Long, val idx: Int) {
         }
     }
 
-    fun close() {
+    override fun close() {
         logChannel.close()
     }
 

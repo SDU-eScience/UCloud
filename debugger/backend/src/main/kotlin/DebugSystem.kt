@@ -19,10 +19,12 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import java.io.Closeable
 import java.io.File
 import java.lang.NumberFormatException
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
+import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.StandardOpenOption
 import java.util.concurrent.atomic.AtomicInteger
@@ -470,7 +472,7 @@ suspend fun BinaryDebugSystem.clientResponse(
 
         message.call = text(call ?: "", BinaryDebugMessage.ClientResponse.call)
         message.response = text(responseEncoded, BinaryDebugMessage.ClientResponse.response)
-        message.responseCode = responseCode.value.toByte()
+        message.responseCode = responseCode.value.toShort()
         message.responseTime = responseTime.toInt()
         message
     }
@@ -523,7 +525,7 @@ suspend fun BinaryDebugSystem.serverResponse(
 
         message.call = text(call ?: "", BinaryDebugMessage.ServerResponse.call)
         message.response = text(responseEncoded, BinaryDebugMessage.ServerResponse.response)
-        message.responseCode = responseCode.value.toByte()
+        message.responseCode = responseCode.value.toShort()
         message.responseTime = responseTime.toInt()
         message
     }
@@ -628,7 +630,7 @@ class BlobSystem(
     directory: File,
     generation: Long,
     fileIndex: Int
-) {
+) : Closeable {
     private val channel = FileChannel.open(
         File(directory, buildBlobFilePath(generation, fileIndex)).toPath(),
         StandardOpenOption.READ,
@@ -647,21 +649,12 @@ class BlobSystem(
         return pos.toString()
     }
 
-    fun getBlob(pos: Int): ByteArray? {
-        return try {
-            val size = buf.getInt(pos)
-            val INT_WIDTH_IN_BYTES = 4
-            ByteArray(size) {
-                buf[pos + it + INT_WIDTH_IN_BYTES]
-            }
-        } catch (e: NumberFormatException) {
-            println(e.stackTraceToString())
-            null
-        }
+    fun getBlob(pos: Int): MappedByteBuffer {
+        val size = buf.getInt(pos)
+        return buf.slice(pos + 4, size)
     }
 
-    fun close() {
-        channel.truncate(buf.position().toLong())
+    override fun close() {
         channel.close()
     }
 
