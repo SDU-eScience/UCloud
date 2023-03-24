@@ -21,6 +21,8 @@ class FileCollectionController(
         plugins: Collection<FileCollectionPlugin>,
         api: FileCollectionsProvider
     ) {
-
+        implement(api.rename) {
+            ok(BulkResponse(request.items.map { Unit }))
+        }
     }
 }
