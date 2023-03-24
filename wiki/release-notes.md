@@ -10,6 +10,8 @@ For details look in the `k8.kts` folders of each microservice.
 ## 24-03-23
 
 ```
+Deployment(alerting, 2023.1.10) (UP-TO-DATE)
+Deployment(audit-ingestion, 2023.1.10) (UP-TO-DATE)
 Type 1/SDU Provider @ 2023.1.11
 ```
 
