@@ -433,10 +433,6 @@ const LoginInput = styled(Input)`
     }
 `;
 
-const LoginText = styled(Text)`
-    color: white;
-`;
-
 const LoginIcon = styled(Icon)`
     color: black;
 `;
