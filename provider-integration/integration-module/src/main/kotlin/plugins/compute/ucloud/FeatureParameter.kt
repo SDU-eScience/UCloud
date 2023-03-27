@@ -85,11 +85,7 @@ class FeatureParameter(
                 app.parameters.find { it.name == paramName }!! to value
             }.toMap()
 
-        println(givenParameters)
-
         val allParameters = defaultParameters + givenParameters
-
-        println(allParameters)
 
         builder.command(app.invocation.flatMap { parameter ->
             parameter.buildInvocationList(allParameters, builder = argBuilder)
