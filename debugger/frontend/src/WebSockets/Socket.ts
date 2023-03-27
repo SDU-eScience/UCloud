@@ -57,13 +57,19 @@ function initializeSocket() {
 
         const view = new DataView(e.data);
         switch (Number(view.getBigInt64(0, false))) {
-            case 1:
-                const service = getServiceName(view);
-                const generation = getGenerationName(view);
-                serviceStore.add(service, generation);
+            case 1: {
+                const numberOfEntries = (message.length - 8) / 256;
+                for (let i = 0; i < numberOfEntries; i++) {
+                    const service = getServiceName(view, 8 + (i * 256));
+                    const generation = getGenerationName(view, 8 + (i * 256));
+                    console.log("Receiving services", service, generation);
+                    serviceStore.add(service, generation);
+                }
+                serviceStore.emitChange();
                 break;
+            }
 
-            case 2:
+            case 2: {
                 const numberOfEntries = (message.length - 8) / 388;
                 for (let i = 0; i < numberOfEntries; i++) {
                     const ctx = new DebugContext(view, 8 + i * 388);
@@ -71,15 +77,18 @@ function initializeSocket() {
                 }
                 debugMessageStore.emitChange();
                 break;
+            }
 
             case 3: {
                 const numberOfEntries = (message.length - 8) / FRAME_SIZE;
                 for (let i = 0; i < numberOfEntries; i++) {
                     const offset = 8 + i * FRAME_SIZE;
                     const debugMessage = debugMessageFromType(view, offset)
+                    console.log(debugMessage);
                     debugMessageStore.addLog(debugMessage);
                 }
-                if (numberOfEntries > 0) {debugMessageStore.emitChange();}
+
+                if (numberOfEntries > 0) debugMessageStore.emitChange();
                 break;
             }
             case 4: {
@@ -94,7 +103,7 @@ function initializeSocket() {
                 let slice = u8a.slice(TYPE_SIZE + ID_SIZE);
                 const text = textDecoder.decode(slice)
 
-                logMessages.addMessage(text, id);
+                blobMessages.addMessage(text, id);
                 break;
             }
             default: {
@@ -127,30 +136,30 @@ function debugMessageFromType(view: DataView, offset: number): DebugMessage {
 }
 
 
-type LogMessageExtraCache = Record<string, string>;
-type LogMessageObject = Record<string, LogMessageExtraCache>
+type BlobMessageExtraCache = Record<string, string>;
+type BlobMessageObject = Record<string, BlobMessageExtraCache>;
 
-export const logMessages = new class {
-    private messages: LogMessageObject = {};
+export const blobMessages = new class {
+    private blobs: BlobMessageObject = {};
     private subscriptions: (() => void)[] = [];
     private generation = 0;
 
     public addMessage(message: string, id: number) {
-        if (!this.messages[activeService.service]) {
-            this.messages[activeService.service] = {};
+        if (!this.blobs[activeService.service]) {
+            this.blobs[activeService.service] = {};
         }
-        this.messages[activeService.service][id] = message;
+        this.blobs[activeService.service][id] = message;
         this.generation++;
         this.emitChange();
     }
 
     public get(id: string | undefined): string | undefined {
         if (id === undefined) return undefined;
-        return this.messages[activeService.service]?.[id];
+        return this.blobs[activeService.service]?.[id];
     }
 
     public has(id: string): boolean {
-        return this.messages[activeService.service]?.[id] !== undefined;
+        return this.blobs[activeService.service]?.[id] !== undefined;
     }
 
     public getSnapshot(): number {
@@ -481,6 +490,10 @@ window.onpageshow = () => {
 
     pushStateToHistory(service, generation, ctxInfo);
     historyWatcherService.info.activeContext = ctxInfo;
+    if (ctxInfo == null) {
+        historyWatcherService.info.shouldClearRoot = true;
+    }
+
     updateWhenReady(() => {
         activeService.setService(service ?? "", generation);
         if (service && generation) {

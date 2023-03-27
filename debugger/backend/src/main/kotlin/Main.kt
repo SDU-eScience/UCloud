@@ -132,7 +132,7 @@ fun main(args: Array<String>) {
                                 val message = logFile.retrieve() ?: break
                                 sessionMutex.withLock {
                                     for (session in sessions) {
-                                        session.acceptLogMessage(message, session.activeContexts)
+                                        session.acceptMessage(message, session.activeContexts)
                                     }
                                 }
                             }
@@ -255,7 +255,7 @@ fun main(args: Array<String>) {
 
                         when (request) {
                             is ClientRequest.ClearActiveContext -> {
-                                session.clearLogMessages()
+                                session.clearMessages()
                                 session.clearContextMessages()
                                 val generation = session.generation ?: break
                                 val startTime = session.toReplayFrom ?: break
@@ -270,7 +270,7 @@ fun main(args: Array<String>) {
                             is ClientRequest.ReplayMessages -> {
                                 // Clear Log and Context Buffer
                                 session.clearContextMessages()
-                                session.clearLogMessages()
+                                session.clearMessages()
 
                                 session.toReplayFrom = System.currentTimeMillis()
                                 val generation = request.generation.toLong()
@@ -279,6 +279,7 @@ fun main(args: Array<String>) {
                                 sessionMutex.withLock {
                                     val contexts =
                                         session.findContexts(startTime, endTime, generation, request.context)
+                                    println("Found the following contexts: $contexts")
                                     session.findLogs(startTime, endTime, generation, contexts)
                                     session.activeContexts = contexts
                                 }
@@ -488,8 +489,11 @@ suspend fun ClientSession.findLogs(
                 if (currentEntry.timestamp < startTime) continue
                 if (currentEntry.timestamp > endTime) break@outer
                 if (currentEntry.ctxId.toLong() !in contextIds) continue
+                if (currentEntry.ctxId == 297251) {
+                    println("Sending message: $currentEntry")
+                }
 
-                acceptLogMessage(currentEntry, contextIds)
+                acceptMessage(currentEntry, contextIds)
             }
         } finally {
             logFile.close()
@@ -559,7 +563,7 @@ data class ClientSession(
     // Buffers used for various messages. We keep a separate buffer per message type to make it slightly easier to
     // handle concurrency.
     private val newContextWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 512),
-    private val newLogsWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 512),
+    private val newMessageWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 512),
     private val newServiceWriteBuffer: ByteBuffer = ByteBuffer.allocateDirect(1024 * 32),
 ) {
     init {
@@ -567,7 +571,7 @@ data class ClientSession(
         runBlocking {
             clearServiceMessages()
             clearContextMessages()
-            clearLogMessages()
+            clearMessages()
         }
     }
 
@@ -595,12 +599,12 @@ data class ClientSession(
 
     suspend fun flushLogsMessage() {
         writeMutex.withLock {
-            newLogsWriteBuffer.flip()
-            if (newLogsWriteBuffer.remaining() > 8) {
-                session.send(Frame.Binary(true, newLogsWriteBuffer))
+            newMessageWriteBuffer.flip()
+            if (newMessageWriteBuffer.remaining() > 8) {
+                session.send(Frame.Binary(true, newMessageWriteBuffer))
             }
-            newLogsWriteBuffer.clear()
-            newLogsWriteBuffer.putLong(3)
+            newMessageWriteBuffer.clear()
+            newMessageWriteBuffer.putLong(3)
         }
     }
 
@@ -618,14 +622,17 @@ data class ClientSession(
         }
     }
 
-    suspend fun clearLogMessages() {
+    suspend fun clearMessages() {
         writeMutex.withLock {
-            newLogsWriteBuffer.clear()
-            newLogsWriteBuffer.putLong(3)
+            newMessageWriteBuffer.clear()
+            newMessageWriteBuffer.putLong(3)
         }
     }
 
-    suspend fun acceptLogMessage(message: BinaryDebugMessage<*>, contextIds: ArrayList<Long>) {
+    // NOTE(Dan): opcode 4 is used for blobs
+    // TODO(Dan): move opcode 4 down here?
+
+    suspend fun acceptMessage(message: BinaryDebugMessage<*>, contextIds: ArrayList<Long>) {
         val service = activeService ?: return
         if (message.importance.ordinal < minimumLevel.ordinal) return
         val services = trackedServices.get()
@@ -634,14 +641,14 @@ data class ClientSession(
         if (!contextIds.contains(message.ctxId.toLong())) return
 
         writeMutex.withLock {
-            if (newLogsWriteBuffer.remaining() < FRAME_SIZE) return
+            if (newMessageWriteBuffer.remaining() < FRAME_SIZE) return
             val oldPos = message.buf.position()
             val oldLim = message.buf.limit()
 
             message.buf.position(message.offset)
             message.buf.limit(message.offset + FRAME_SIZE)
 
-            newLogsWriteBuffer.put(message.buf)
+            newMessageWriteBuffer.put(message.buf)
 
             message.buf.position(oldPos)
             message.buf.limit(oldLim)
@@ -707,6 +714,5 @@ data class ClientSession(
     }
 }
 
-// NOTE(Jonas): An additional byte (type) is in the buffer ahead of this, making it 264 bytes long in total.
 const val MAX_GENERATION_LENGTH = 16
 const val MAX_SERVICENAME_LENGTH = 256 - MAX_GENERATION_LENGTH

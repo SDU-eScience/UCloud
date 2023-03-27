@@ -346,10 +346,10 @@ function readNameFromBuffer(buffer: DataView, offset: number, size: number) {
     return textDecoder.decode(slice);
 }
 
-export function getServiceName(buffer: DataView) {
-    return readNameFromBuffer(buffer, 8, 264 - 16);
+export function getServiceName(buffer: DataView, offset: number) {
+    return readNameFromBuffer(buffer, offset, 256 - 16);
 }
 
-export function getGenerationName(buffer: DataView) {
-    return readNameFromBuffer(buffer, 264 - 16, 16);
+export function getGenerationName(buffer: DataView, offset: number) {
+    return readNameFromBuffer(buffer, 256 - 16 + offset, 16);
 }

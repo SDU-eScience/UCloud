@@ -35,7 +35,7 @@ class DebugSystemFeature : MicroFeature {
             break
         }
 
-        system = DebugSystem(logLocation, serviceDescription.name)
+        system = DebugSystem(logLocation, serviceDescription.name, enabled = ctx.developmentModeEnabled)
         system.start(ctx.backgroundScope)
 
         if (ctx.featureOrNull(ClientFeature) != null) {

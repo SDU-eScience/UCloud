@@ -184,10 +184,11 @@ typealias DebugSystem = BinaryDebugSystem
 class BinaryDebugSystem(
     private val directory: String,
     private val serviceName: String,
+    val enabled: Boolean,
 ) {
     private val lock = Mutex()
 
-    private var buffer = BinaryFrameAllocator(File(directory), generation, fileIdAcc.getAndIncrement())
+    private var buffer = BinaryFrameAllocator(File(directory), generation, if (!enabled) 0 else fileIdAcc.getAndIncrement())
     private var blobs = BlobSystem(File(directory), generation, buffer.fileIndex)
 
     private val closeSignal = Channel<Unit>(Channel.CONFLATED)
@@ -217,6 +218,8 @@ class BinaryDebugSystem(
     }
 
     suspend fun emit(fn: suspend BinaryFrameAllocator.() -> BinaryDebugMessage<*>?) {
+        if (!enabled) return
+
         var success = false
         while (coroutineContext.isActive && !success) {
             var requestFlush: Boolean
@@ -267,7 +270,6 @@ class BinaryDebugSystem(
     ): T {
         val descriptor = allocateContext()
 
-
         return withContext(BinaryDebugCoroutineContext(descriptor)) {
             try {
                 descriptor.type = type
@@ -290,6 +292,8 @@ class BinaryDebugSystem(
     }
 
     fun start(scope: CoroutineScope): Job {
+        if (!enabled) return scope.launch {  }
+
         File(directory, "$generation.service").writeText(buildString {
             appendLine(serviceName)
             appendLine(generation)
@@ -435,7 +439,6 @@ suspend fun BinaryDebugSystem.clientRequest(
     call: String?,
     payload: JsonElement?,
 ) {
-    println("clientRequest $importance $call $payload")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
     val payloadEncoded = if (payload == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), payload)
 
@@ -463,7 +466,6 @@ suspend fun BinaryDebugSystem.clientResponse(
     responseCode: HttpStatusCode,
     responseTime: Long,
 ) {
-    println("clientResponse $importance $call $response $responseCode $responseTime")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
     val responseEncoded = if (response == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), response)
 
@@ -490,7 +492,6 @@ suspend fun BinaryDebugSystem.serverRequest(
     call: String?,
     payload: JsonElement?,
 ) {
-    println("serverRequest $importance $call $payload")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
     val payloadEncoded = if (payload == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), payload)
 
@@ -518,7 +519,6 @@ suspend fun BinaryDebugSystem.serverResponse(
     responseCode: HttpStatusCode,
     responseTime: Long,
 ) {
-    println("serverResponse $importance $call $response $responseCode $responseTime")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
     val responseEncoded = if (response == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), response)
 
@@ -544,7 +544,6 @@ suspend fun BinaryDebugSystem.databaseTransaction(
 
     event: DBTransactionEvent
 ) {
-    println("databaseTransaction $importance $event")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
 
     emit {
@@ -566,7 +565,6 @@ suspend fun BinaryDebugSystem.databaseQuery(
     parameters: JsonElement?,
     query: String,
 ) {
-    println("databaseQuery $importance $parameters $query")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
     val parametersEncoded =
         if (parameters == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), parameters)
@@ -590,7 +588,6 @@ suspend fun BinaryDebugSystem.databaseResponse(
 
     responseTime: Long
 ) {
-    println("databaseResponse $importance $responseTime")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
 
     emit {
@@ -613,7 +610,6 @@ suspend fun BinaryDebugSystem.log(
     log: String,
     extra: JsonElement? = null,
 ) {
-    println("log $importance $log $extra")
     val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
     val extraEncoded = if (extra == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), extra)
 

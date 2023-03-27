@@ -9,43 +9,46 @@
 
 div.card {
     width: 100%;
-    border: 1px solid black;
-    border-radius: 6px;
-    margin-bottom: 4px;
-    margin-top: 4px;
+    border: 1px solid #e2dddd;
+    border-radius: 12px;
+    background: #fafbfc;
+    box-shadow: 0 3px 6px rgba(1, 1, 1, 16%);
 }
 
 .full-width {
     width: 100%;
 }
 
-div.card.details {
-    height: 200px;
+div.details {
+    height: calc(200px - 16px);
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
 }
 
 div.card.query {
     width: 100%;
-    margin: 5px 5px 5px 5px;
     overflow-y: auto;
     overflow-x: scroll;
-    padding: 5px 5px 5px 5px;
+    padding: 16px;
 }
 
 div.card.query-details {
     width: 40%;
-    margin: 5px 5px 5px 0;
     overflow-y: auto;
-    padding: 5px 5px 5px 5px;
+    padding: 16px;
 }
 
 div.request-list-row {
-    height: 22px;
+    --border: 1px solid #5c89f4;
+    padding: 3px;
+    height: 25px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 16px;
-    border-top: 1px solid var(--black);
+    font-size: 18px;
+    border-top: var(--border);
     color: black;
-    background-color: var(--white);
     cursor: pointer;
+    user-select: none;
 }
 
 div.request-list-row:first-child {
@@ -68,11 +71,11 @@ div.request-list-row[data-selected="true"] {
 }
 
 div.request-list-row:last-child {
-    border-bottom: 1px solid black;
+    border-bottom: var(--border);
 }
 
 div[data-haschildren="true"] {
-    border-bottom: solid var(--black) 1px;
+    border-bottom: var(--border);
 }
 
 .leaf {
@@ -87,7 +90,7 @@ div[data-haschildren="true"] {
 }
 
 .left-border-black {
-    border-left: solid 1px var(--black);
+    border-left: var(--border);
 }
 
 div.managed-list {

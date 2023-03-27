@@ -21,7 +21,7 @@ import {
     DebugContextAndChildren,
     fetchPreviousMessage,
     fetchTextBlob,
-    logMessages,
+    blobMessages,
     debugMessageStore,
     replayMessages,
     historyWatcherService
@@ -62,7 +62,7 @@ function contextTypeToEmoji(ctxType: DebugContextType): string {
     }
 }
 
-function getMessageText(message: DebugMessage): string | JSX.Element {
+function getMessageText(message: DebugMessage): string {
     const requestEmoji = "📮 "
     const responseEmoji = "📨 "
     switch (message.type) {
@@ -112,6 +112,9 @@ function eventToEmoji(message: DatabaseTransaction): string {
 
 function largeTextPreview(text: LargeText): string {
     const preview = text.previewOrContent;
+    if (preview.length > 100) {
+        return preview.slice(0, 97) + "...";
+    }
     const dots = text.overflowIdentifier ? "..." : "";
     return `${preview}${dots}`;
 }
@@ -165,7 +168,7 @@ function DetailedMessage({message}: { message: DebugMessage }): JSX.Element {
 
         case BinaryDebugMessageType.LOG: {
             const log = message as Log;
-            left = <ShowLargeText largeText={log.message}/>;
+            left = <code><pre><ShowLargeText largeText={log.extra} textTransform={prettyJSON}/></pre></code>;
             break;
         }
 
@@ -203,7 +206,7 @@ function DebugMessageDetails({dm}: { dm: DebugMessage }): JSX.Element {
 }
 
 
-const USE_DEBUGGER_DEBUG_INFO = false;
+const USE_DEBUGGER_DEBUG_INFO = true;
 
 function DebugContextDetails({ctx}: { ctx: DebugContext }): JSX.Element {
     return <>
@@ -224,7 +227,7 @@ function DebugContextDetails({ctx}: { ctx: DebugContext }): JSX.Element {
 // =====================================================================================================================
 
 type DebugMessageOrCtx = DebugMessage | DebugContext;
-const ITEM_SIZE = 22;
+const ITEM_SIZE = 25;
 
 export const MainContent: React.FunctionComponent<{
     setLevel: (level: string) => void;
@@ -242,10 +245,13 @@ export const MainContent: React.FunctionComponent<{
         if (ctx == null) return;
         const entry = logRef.find(it => it.id === ctx.id);
         if (entry) {
-            setRouteComponents([entry]);
-            debugMessageStore.addDebugRoot(entry);
-            historyWatcherService.info.activeContext = undefined;
-            replayMessages(activeService.generation, entry.id, entry.timestamp)
+            props.setLevel("IMPLEMENTATION_DETAIL");
+            setTimeout(() => {
+                setRouteComponents([entry]);
+                debugMessageStore.addDebugRoot(entry);
+                historyWatcherService.info.activeContext = undefined;
+                replayMessages(activeService.generation, entry.id, entry.timestamp)
+            }, 50);
         }
     }, [historyInfo.activeContext, logRef]);
 
@@ -401,7 +407,6 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
                 <DebugContextRow
                     key={child.ctx.id}
                     setRouteComponents={ctx => setRouteComponents([debugContext, ...ctx])}
-                    style={{borderLeft: "solid 1px black"}}
                     activeLogOrCtx={activeLogOrCtx}
                     debugContext={child.ctx}
                     ctxChildren={child.children}
@@ -413,7 +418,7 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
     return <>
         <div
             key={debugContext.id}
-            className="request-list-row"
+            className="request-list-row left-border-black"
             onClick={() => setRouteComponents([debugContext])}
             data-selected={activeLogOrCtx === debugContext}
             style={style}
@@ -437,7 +442,7 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
 
 function RequestDetails({activeContextOrMessage}: Partial<RequestDetailsByTypeProps>): JSX.Element {
     if (!activeContextOrMessage) return <div/>;
-    return <div className="card details flex">
+    return <div className="details">
         <RequestDetailsByType activeContextOrMessage={activeContextOrMessage}/>
     </div>;
 }
@@ -465,16 +470,16 @@ function ShowLargeText({
                            largeText,
                            textTransform = handleIfEmpty
                        }: { largeText: LargeText; textTransform?: (str: string) => string }): JSX.Element {
-    React.useSyncExternalStore(subscription => logMessages.subscribe(subscription), () => logMessages.getSnapshot());
+    React.useSyncExternalStore(subscription => blobMessages.subscribe(subscription), () => blobMessages.getSnapshot());
     React.useEffect(() => {
         const messageOverflow = largeText.overflowIdentifier;
         const blobFileId = largeText.blobFileId;
         if (messageOverflow === undefined || blobFileId === undefined) return;
 
-        if (logMessages.has(messageOverflow)) return;
+        if (blobMessages.has(messageOverflow)) return;
         fetchTextBlob(activeService.generation, messageOverflow, blobFileId);
     }, [largeText]);
-    const message = logMessages.get(largeText.overflowIdentifier) ?? largeText.previewOrContent
+    const message = blobMessages.get(largeText.overflowIdentifier) ?? largeText.previewOrContent
 
     return <>{textTransform(message)}</>;
 }
