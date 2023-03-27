@@ -3,8 +3,8 @@ import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
 import {TextArea, Input} from "@/ui-components";
 import {compute} from "@/UCloud";
-import ApplicationParameter = compute.ApplicationParameter;
 import styled from "styled-components";
+import AppParameterValueNS = compute.AppParameterValueNS;
 
 type GenericTextType =
     UCloud.compute.ApplicationParameterNS.Text |
@@ -24,12 +24,53 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
         placeholder = "Number (example 12.34)"
     }
 
+    let defaultValue: AppParameterValueNS.FloatingPoint | AppParameterValueNS.Text | AppParameterValueNS.Integer | undefined = undefined;
+    
+    if (props.parameter.defaultValue != undefined) {
+        if (props.parameter.type === "integer") {
+            defaultValue = props.parameter.defaultValue as unknown as AppParameterValueNS.Integer;
+        } else if (props.parameter.type === "floating_point") {
+            defaultValue = props.parameter.defaultValue as unknown as AppParameterValueNS.FloatingPoint;
+        } else {
+            defaultValue = props.parameter.defaultValue as unknown as AppParameterValueNS.Text;
+        }
+    }
+
     const error = props.errors[props.parameter.name] != null;
-    return <Input
+
+    let elem = <Input
         id={widgetId(props.parameter)}
+        defaultValue={defaultValue?.value}
         placeholder={placeholder}
         error={error}
     />;
+
+    if (props.parameter.type === "integer") {
+        elem = <Input
+            id={widgetId(props.parameter)}
+            type={"number"}
+            defaultValue={defaultValue?.value}
+            min={props.parameter.min}
+            max={props.parameter.max}
+            step={props.parameter.step ?? 1}
+            placeholder={placeholder}
+            error={error}
+        />
+    } else if (props.parameter.type === "floating_point") {
+        elem = <Input
+            id={widgetId(props.parameter)}
+            type={"number"}
+            defaultValue={defaultValue?.value}
+            min={props.parameter.min}
+            max={props.parameter.max}
+            step={props.parameter.step ?? "any"}
+            placeholder={placeholder}
+            error={error}
+        />
+    }
+
+
+    return elem;
 };
 
 const TextAreaApp = styled(TextArea)`
