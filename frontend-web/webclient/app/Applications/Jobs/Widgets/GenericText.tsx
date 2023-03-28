@@ -24,6 +24,9 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
         placeholder = "Number (example 12.34)"
     }
 
+    // NOTE(Brian): This is a bit hacky. The defaultValue is not actually sent as a parameter on submit.
+    // If changed, the correct value should be sent as a parameter, and otherwise the backend will
+    // handle the defaultValue.
     let defaultValue: AppParameterValueNS.FloatingPoint | AppParameterValueNS.Text | AppParameterValueNS.Integer | undefined = undefined;
     
     if (props.parameter.defaultValue != undefined) {
@@ -45,6 +48,9 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
         error={error}
     />;
 
+    // NOTE(Brian): The use of input fields of type "number" have previously been removed for
+    // some reason. I have re-added them here, since we don't remember the exact reason for the removal.
+    // If they misbehave we can simply remove the following section.
     if (props.parameter.type === "integer") {
         elem = <Input
             id={widgetId(props.parameter)}
