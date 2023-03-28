@@ -20,19 +20,23 @@ const PROJECT_ITEMS_PER_PAGE = 250;
 const REQUESTED_ITEMS = 1000;
 const PAGES_TO_REQUEST = REQUESTED_ITEMS / PROJECT_ITEMS_PER_PAGE - 1; // We deduct the page that's fetched regardless. 
 
+const DEFAULT_FETCH_ARGS = {
+    itemsPerPage: PROJECT_ITEMS_PER_PAGE,
+    includeFavorite: true,
+    sortBy: "favorite" as const,
+    sortDirection: "descending" as const
+}
+
 export function ContextSwitcher(): JSX.Element | null {
-    const {activeProject, refresh} = useSelector((it: ReduxObject) => ({activeProject: it.project.project, refresh: it.header.refresh}));
+    const activeProject = useSelector((it: ReduxObject) => it.project.project);
+    const refresh = useSelector((it: ReduxObject) => it.header.refresh);
+
     const project = useProject();
     const projectId = useProjectId();
     const [response, setFetchParams] = useCloudAPI<PageV2<Project>, ProjectFlags & ProjectsSortByFlags & PaginationRequestV2>(
-        ProjectAPI.browse({
-            itemsPerPage: PROJECT_ITEMS_PER_PAGE,
-            includeFavorite: true,
-        }),
+        ProjectAPI.browse(DEFAULT_FETCH_ARGS),
         emptyPageV2
     );
-
-    const searchRef = React.useRef(null);
 
     const remainingFetches = React.useRef(PAGES_TO_REQUEST);
     const nextInvalidation = React.useRef(new Date().getTime() + 1000 * 10);
@@ -45,8 +49,7 @@ export function ContextSwitcher(): JSX.Element | null {
         if (remainingFetches.current === 0) return;
         if (response.data.next) {
             setFetchParams(ProjectAPI.browse({
-                itemsPerPage: PROJECT_ITEMS_PER_PAGE,
-                includeFavorite: true,
+                ...DEFAULT_FETCH_ARGS,
                 next: response.data.next
             }));
             remainingFetches.current -= 1;
@@ -77,9 +80,10 @@ export function ContextSwitcher(): JSX.Element | null {
     const checkIfShouldInvalidate = React.useCallback(() => {
         const nextInvalidationTs = nextInvalidation.current;
         if (nextInvalidationTs <= new Date().getTime()) {
+            console.log("INVALIDATING!");
             setFetchParams(ProjectAPI.browse({
-                itemsPerPage: PROJECT_ITEMS_PER_PAGE,
-                includeFavorite: true,
+                ...DEFAULT_FETCH_ARGS,
+                next: undefined
             }));
             remainingFetches.current = PAGES_TO_REQUEST;
             nextInvalidation.current = new Date().getTime() + 1000 * 10
@@ -88,20 +92,12 @@ export function ContextSwitcher(): JSX.Element | null {
     }, []);
 
     const navigate = useNavigate();
-        
 
-    // Note(Jonas): Doesn't seem to be done in the backend.
-    const sortedProjects = React.useMemo(() => {
-        return projects.sort((a, b) => {
-            if (a.status.isFavorite === true && b.status.isFavorite !== true) {
-                return -1;
-            } else if (b.status.isFavorite === true && a.status.isFavorite !== true) {
-                return 1;
-            } else {
-                return a.specification.title.localeCompare(b.specification.title);
-            }
-        }).slice(0, 25);
-    }, [projects])
+    const [filter, setTitleFilter] = React.useState("");
+
+    const filteredProjects = React.useMemo(() => {
+        return projects.filter(it => it.specification.title.toLocaleLowerCase().includes(filter.toLocaleLowerCase()))
+    }, [projects, filter]);
 
     return (
         <Flex key={activeContext} pr="12px" alignItems={"center"} data-component={"project-switcher"}>
@@ -119,9 +115,11 @@ export function ContextSwitcher(): JSX.Element | null {
             >
                 <div style={{maxHeight: "385px"}}>
                     <TextH3 bold mt="0" mb="8px">Select workspace</TextH3>
-                    <Flex><Input type="text" /><Relative right="34px" top="6px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
+                    <Flex>
+                        <Input onKeyUp={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")} type="text" />
+                        <Relative right="34px" top="6px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
                     <div style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px"}}>
-                        {sortedProjects.map(it =>
+                        {filteredProjects.map(it =>
                             <div key={it.id + it.status.isFavorite} className={BottomBorderedRow} onClick={() => {
                                 onProjectUpdated(navigate, () => setProject(it.id), refresh, it.id)
                             }}>
@@ -133,7 +131,7 @@ export function ContextSwitcher(): JSX.Element | null {
                         <Box mt="8px">
                             <Error error={response.error?.why} />
                         </Box>
-                        {sortedProjects.length !== 0 || response.error !== undefined ? null : (
+                        {filteredProjects.length !== 0 || response.error !== undefined ? null : (
                             <Box mt="8px" textAlign="center">No workspaces found</Box>
                         )}
                     </div>

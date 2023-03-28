@@ -166,7 +166,7 @@ html {
     --spinnerColor: var(--blue, #f00);
     --tableRowHighlight: var(--lightBlue, #f00);
     --appCard: #ebeff3;
-    --wayfGreen: #66b340;
+    --wayfGreen: #c8dd51;
     --appStoreFavBg: #e8f1fc
     --invertedThemeColor: #fff;
     --fixedBlack: #000;

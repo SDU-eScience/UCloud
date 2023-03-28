@@ -664,13 +664,12 @@ function copyUserName(): void {
 }
 
 function useSidebarReduxProps(): SidebarStateProps {
-    return useSelector((it: ReduxObject) => ({
-        /* Used to ensure re-rendering of Sidebar after user logs in. */
-        loggedIn: Client.isLoggedIn,
-
-        /* Used to ensure re-rendering of Sidebar after project change. */
-        activeProject: it.project.project,
-
-        avatar: it.avatar
-    }))
+    const loggedIn = Client.isLoggedIn;
+    const activeProject = useSelector((it: ReduxObject) => it.project.project);
+    const avatar = useSelector((it: ReduxObject) => it.avatar);
+    return {
+        loggedIn,
+        activeProject,
+        avatar
+    }
 }

@@ -93,6 +93,7 @@ export function unbox(props: BoxProps | SpaceProps): CSSProperties {
     if ("textAlign" in props && props.textAlign) result.textAlign = props.textAlign.toString() as any;
     if ("verticalAlign" in props && props.verticalAlign) result.verticalAlign = props.verticalAlign.toString() as any;
     if ("fontSize" in props && props.fontSize) result.fontSize = extractSize(props.fontSize);
+    if ("backgroundColor" in props && props.backgroundColor) result.backgroundColor = props.backgroundColor.toString();
 
     return result;
 }

@@ -340,10 +340,7 @@ function AvailableBalance(props: {allocation: WalletAllocation, wallet: Wallet})
     } else {
         return <Flex>
             {usageExplainer(maxBalance, props.wallet.productType, props.wallet.chargeType, props.wallet.unit)} available <Tooltip
-                right="0"
-                bottom="1"
-                tooltipContentWidth="115px"
-                wrapperOffsetLeft="10px"
+                tooltipContentWidth={115}
                 trigger={<Icon color="black" name="warning" />}
             >
                 Allocation giver does not have enough resources to fulfil allocation
