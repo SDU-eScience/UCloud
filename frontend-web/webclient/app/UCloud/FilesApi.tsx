@@ -19,7 +19,7 @@ import {
     sizeToString
 } from "@/Utilities/FileUtilities";
 import {
-    displayErrorMessageOrDefault, doNothing, extensionFromPath, inDevEnvironment, isLikelySafari,
+    displayErrorMessageOrDefault, doNothing, extensionFromPath, inDevEnvironment, 
     onDevSite,
     prettierString, removeTrailingSlash
 } from "@/UtilityFunctions";
@@ -41,11 +41,10 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {OpenWith} from "@/Applications/OpenWith";
 import {FilePreview} from "@/Files/Preview";
-import {addStandardDialog, addStandardInputDialog, Sensitivity} from "@/UtilityComponents";
+import {addStandardDialog, Sensitivity} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
-import SharesApi from "@/UCloud/SharesApi";
 import {BrowseType} from "@/Resource/BrowseType";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {apiCreate, apiUpdate, callAPI, InvokeCommand} from "@/Authentication/DataHook";
@@ -499,11 +498,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 text: "Download",
                 icon: "download",
-                enabled: selected =>
-                    ((isLikelySafari && selected.length === 1) || (!isLikelySafari && selected.length >= 1)) &&
-                    selected.every(it => it.status.type === "FILE"),
+                enabled: selected => selected.length > 0 && selected.every(it => it.status.type === "FILE"),
                 onClick: async (selected, cb) => {
                     // TODO(Dan): We should probably add a feature flag for file types
+
+                    if (selected.length > 1) {
+                        snackbarStore.addInformation("For downloading multiple files, you may need to enable pop-ups.", false, 8000);
+                    }
+
                     const result = await cb.invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
                         this.createDownload(bulkRequestOf(
                             ...selected.map(it => ({id: it.id})),
@@ -512,7 +514,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
                     const responses = result?.responses ?? [];
                     for (const {endpoint} of responses) {
-                        downloadFile(normalizeDownloadEndpoint(endpoint));
+                        downloadFile(normalizeDownloadEndpoint(endpoint), responses.length > 1);
                     }
                 }
             },
@@ -1002,11 +1004,10 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
     </form>);
 }
 
-function downloadFile(url: string) {
+function downloadFile(url: string, usePopup: boolean) {
     const element = document.createElement("a");
     element.setAttribute("href", url);
-    element.style.display = "none";
-    element.download = url;
+    if (usePopup) element.setAttribute("target", "_blank");
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);

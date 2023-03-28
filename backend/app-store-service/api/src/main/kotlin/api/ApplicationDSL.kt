@@ -18,6 +18,13 @@ sealed class ApplicationVerificationException(why: String, httpStatusCode: HttpS
     class BadValue(parameter: String, why: String) :
         ApplicationVerificationException("Parameter '$parameter' received a bad value. $why", HttpStatusCode.BadRequest)
 
+    class BadDefaultValue(parameter: String) :
+        ApplicationVerificationException(
+            "Invalid defaultValue for parameter '$parameter'",
+            HttpStatusCode.BadRequest
+        )
+
+
     class BadVariableReference(where: String, name: String) :
         ApplicationVerificationException(
             "Variable referenced at $where with name '$name' could not be resolved",

@@ -678,7 +678,7 @@ class ProjectService(
             session.sendPreparedStatement(
                 {
                     setParameter("ids", ids)
-                    setParameter("username", piUsername)
+                    setParameter("username", piOverride ?: actor.safeUsername())
                 },
                 """
                     insert into project.project_members (created_at, modified_at, role, username, project_id) 

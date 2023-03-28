@@ -160,18 +160,13 @@ export const ShareModal: React.FunctionComponent<{
                                 </Tooltip>
                                 <Text fontSize={12}>This link will automatically expire in {daysLeftToTimestamp(link.expires)} days</Text>
                             </Flex>
-                            <Box>
-                                <Button
-                                    mr="5px"
-                                    height={40}
-                                    onClick={() =>
-                                        setEditingLink(link.token)
-                                    }
-                                >
+                            <Flex>
+                                <Button mr="5px" height={40} onClick={() => setEditingLink(link.token)}>
                                     <Icon name="edit" size={20} />
                                 </Button>
 
                                 <ConfirmationButton
+                                    icon="trash"
                                     color="red"
                                     height={40}
                                     onAction={async () => {
@@ -183,9 +178,8 @@ export const ShareModal: React.FunctionComponent<{
                                             shareLinksApi.browse({itemsPerPage: 10, path: selected.id})
                                         );
                                     }}
-                                    icon="trash"
                                 />
-                            </Box>
+                            </Flex>
                         </Flex>
                     </Box>
                 ))}

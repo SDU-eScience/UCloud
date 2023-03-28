@@ -11,6 +11,10 @@ const linkInfo: LinkInfo[] = [
     {to: AppRoutes.admin.scripts(), text: "Scripts", icon: "play"},
 ];
 
+if (DEVELOPMENT_ENV) {
+    linkInfo.push({to: "/admin/devData", text: "Development Test Data", icon: "activity"})
+}
+
 
 function AdminLinks(): JSX.Element | null {
     if (!Client.userIsAdmin) return null;

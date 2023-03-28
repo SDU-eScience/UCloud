@@ -1275,6 +1275,13 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
     const app = job.specification.application;
     return <CompletedTextWrapper>
         <Heading.h2>Your job has {jobStateToText(state)}</Heading.h2>
+        {state === "FAILURE" ?
+            <Heading.h3>
+                UCloud might be operating at full capacity at the moment.
+                See <ExternalLink href={"https://status.cloud.sdu.dk"}>status.cloud.sdu.dk</ExternalLink> for more information.
+            </Heading.h3> :
+            null
+        }
         <Heading.h3>
             {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
             {" "}{job.specification.application.version}{" "}

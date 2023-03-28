@@ -5,7 +5,7 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {PageV2, PaginationRequestV2} from "@/UCloud";
-import {Box, Flex, Grid, Icon, Link, Text} from "@/ui-components";
+import {Box, Flex, Grid, Icon, Link, Text, Tooltip} from "@/ui-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import * as React from "react";
 import {useCallback, useState} from "react";
@@ -51,7 +51,6 @@ export function searchSubAllocations(request: {query: string} & PaginationReques
     return apiSearch(request, "/api/accounting/wallets", "subAllocation");
 }
 
-
 const FORMAT = "dd/MM/yyyy";
 
 function Allocations(): JSX.Element {
@@ -59,7 +58,7 @@ function Allocations(): JSX.Element {
 
     useTitle("Allocations");
 
-    const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
+    const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true", includeMaxUsableBalance: "true"});
     const [allocations, fetchAllocations] = useCloudAPI<PageV2<SubAllocation>>({noop: true}, emptyPageV2);
     const [allocationGeneration, setAllocationGeneration] = useState(0);
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
@@ -332,6 +331,27 @@ const WalletViewer: React.FunctionComponent<{wallet: Wallet}> = ({wallet}) => {
     </>
 }
 
+function AvailableBalance(props: {allocation: WalletAllocation, wallet: Wallet}) :JSX.Element {
+    let maxBalance = props.allocation.maxUsableBalance ?? props.allocation.balance
+    if ((maxBalance - props.allocation.initialBalance) == (props.allocation.balance - props.allocation.initialBalance)) {
+        return <div>
+            {usageExplainer(maxBalance, props.wallet.productType, props.wallet.chargeType, props.wallet.unit)} available
+        </div>
+    } else {
+        return <Flex>
+            {usageExplainer(maxBalance, props.wallet.productType, props.wallet.chargeType, props.wallet.unit)} available <Tooltip
+                right="0"
+                bottom="1"
+                tooltipContentWidth="115px"
+                wrapperOffsetLeft="10px"
+                trigger={<Icon color="black" name="warning" />}
+            >
+                Allocation giver does not have enough resources to fulfil allocation
+            </Tooltip>
+        </Flex>
+    }
+}
+
 export const AllocationViewer: React.FunctionComponent<{
     wallet: Wallet;
     allocation: WalletAllocation;
@@ -351,6 +371,7 @@ export const AllocationViewer: React.FunctionComponent<{
                     <Box flexGrow={1} />
                 </Flex>}
                 <div>{usageExplainer(allocation.initialBalance - allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} used</div>
+                <AvailableBalance allocation={allocation} wallet={wallet} />
                 <div>{usageExplainer(allocation.initialBalance, wallet.productType, wallet.chargeType, wallet.unit)} allocated</div>
                 <Box flexGrow={1} mt={"8px"} />
                 <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate} /></div>
