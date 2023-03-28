@@ -201,13 +201,23 @@ class EventController(
                 // NOTE(Dan): It is crucial that events are _always_ processed in this order, regardless of
                 // how the pull requests arrive at the provider. We must know about a new project _before_ any
                 // allocations are processed.
-                debug.useContext(DebugContextType.BACKGROUND_TASK, "Project notifications") {
-                    processProjects()
-                }
+                debug.useContext(
+                    DebugContextType.BACKGROUND_TASK,
+                    "Project notifications",
+                    MessageImportance.IMPLEMENTATION_DETAIL,
+                    block = {
+                        processProjects()
+                    }
+                )
 
-                debug.useContext(DebugContextType.BACKGROUND_TASK, "Allocation notifications") {
-                    processAllocations()
-                }
+                debug.useContext(
+                    DebugContextType.BACKGROUND_TASK,
+                    "Allocation notifications",
+                    MessageImportance.IMPLEMENTATION_DETAIL,
+                    block = {
+                        processAllocations()
+                    }
+                )
             } catch (ex: Throwable) {
                 log.info(
                     "Caught exception while processing notifications from UCloud/Core: " +
@@ -228,9 +238,14 @@ class EventController(
         val now = Time.now()
         try {
             if (now >= nextRescan) {
-                debug.useContext(DebugContextType.BACKGROUND_TASK, "Allocation scan") {
-                    scanAllocations()
-                }
+                debug.useContext(
+                    DebugContextType.BACKGROUND_TASK,
+                    "Allocation scan",
+                    MessageImportance.IMPLEMENTATION_DETAIL,
+                    block = {
+                        scanAllocations()
+                    }
+                )
                 nextRescan = now + (1000L * 60 * 60 * 3)
             }
             delay(1000)

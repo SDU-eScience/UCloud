@@ -6,9 +6,15 @@ import {Header} from "./Header/Header";
 import {Levels} from "./Header/Levels";
 import {SearchBar} from "./Header/SearchBar";
 import {MainContent} from "./MainContent/MainContent";
-import {Sidebar} from "./Sidebar/Sidebar";
 import {DebugContextType} from "./WebSockets/Schema";
-import {activeService, serviceStore, setSessionState} from "./WebSockets/Socket";
+import {
+    activeService,
+    serviceStore,
+    sendSetSessionState,
+    sendFetchPreviousMessages,
+    sendReplayMessages, historyWatcherService, sendClearActiveContext, debugMessageStore
+} from "./WebSockets/Socket";
+import {pushStateToHistory} from "./Utilities/Utilities";
 
 interface ServiceNode {
     serviceName: string;
@@ -62,7 +68,14 @@ function App(): JSX.Element {
     }, [services]);
 
     React.useEffect(() => {
-        setSessionState(query, filters, level);
+        sendSetSessionState(query, filters, level);
+        const info = historyWatcherService.info;
+        if (info.generation && info.contextId) {
+            debugMessageStore.clearChildren();
+            sendReplayMessages(info.generation, info.contextId, new Date().getTime() - (1000 * 60 * 15));
+        } else if (info.generation) {
+            debugMessageStore.clearActiveContext();
+        }
     }, [query, filters, level]);
 
     return <>
@@ -72,9 +85,9 @@ function App(): JSX.Element {
             <Levels level={level} setLevel={setLevel} />
         </Header>
         <div className="flex">
-            <Sidebar>
+            <div className="sidebar">
                 <ServiceList services={serviceNodes} />
-            </Sidebar>
+            </div>
             <MainContent setLevel={setLevel} />
         </div>
     </>;
@@ -92,7 +105,7 @@ function ServiceList({services}: ServiceListProps): JSX.Element {
     ) => {
         e.preventDefault();
         e.stopPropagation();
-        activeService.setService(servicePath)
+        pushStateToHistory(servicePath);
     }, []);
 
     if (services.length === 0) return <div />;

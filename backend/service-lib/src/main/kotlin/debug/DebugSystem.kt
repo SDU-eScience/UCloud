@@ -719,13 +719,8 @@ fun DebugSystem.installCommon(client: RpcClient) {
             @Suppress("UNCHECKED_CAST") val call = callDescription as CallDescription<Any, Any, Any>
             val debugPayload = if (request == null) JsonNull else defaultMapper.encodeToJsonElement(call.requestType, request)
 
-            /*
-            context.attributes[key] = id
-            context.attributes[payloadKey] = debugPayload
-            */
-
             debugSystem.clientRequest(
-                MessageImportance.IMPLEMENTATION_DETAIL,
+                MessageImportance.THIS_IS_NORMAL,
                 callDescription.fullName,
                 debugPayload
             )

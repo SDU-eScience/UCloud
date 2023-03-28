@@ -17,8 +17,6 @@ import dk.sdu.cloud.plugins.FileUploadSession
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.controllers.RequestContext
-import dk.sdu.cloud.debug.detailD
-import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.components
 import dk.sdu.cloud.plugins.fileName
@@ -33,7 +31,6 @@ import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.delay
@@ -41,7 +38,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.builtins.serializer
 import libc.clib
 import java.io.File
 import java.io.FileNotFoundException
@@ -56,7 +52,6 @@ import kotlin.io.path.absolutePathString
 import kotlin.math.min
 import kotlin.system.exitProcess
 import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
 import java.nio.file.Files as NioFiles
 
 class PosixFilesPlugin : FilePlugin {

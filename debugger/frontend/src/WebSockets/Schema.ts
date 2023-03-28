@@ -1,16 +1,16 @@
-export function readInt1(buffer: DataView, offset: number): number {
+export function readInt8(buffer: DataView, offset: number): number {
     return buffer.getInt8(offset);
 }
 
-export function readInt2(buffer: DataView, offset: number): number {
+export function readInt16(buffer: DataView, offset: number): number {
     return buffer.getInt16(offset, false);
 }
 
-export function readInt4(buffer: DataView, offset: number): number {
+export function readInt32(buffer: DataView, offset: number): number {
     return buffer.getInt32(offset, false);
 }
 
-export function readInt8(buffer: DataView, offset: number): bigint {
+export function readInt64(buffer: DataView, offset: number): bigint {
     return buffer.getBigInt64(offset, false);
 }
 
@@ -124,23 +124,23 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
     }
 
     get ctxGeneration(): number {
-        return Number(readInt8(this.buffer, this.offset + 1)); // 1
+        return Number(readInt64(this.buffer, this.offset + 1)); // 1
     }
 
     get ctxParent(): number {
-        return readInt4(this.buffer, this.offset + 9); // 1 + 8 = 9
+        return readInt32(this.buffer, this.offset + 9); // 1 + 8 = 9
     }
 
     get ctxId(): number {
-        return readInt4(this.buffer, this.offset + 13); // 1 + 8 + 4 = 13
+        return readInt32(this.buffer, this.offset + 13); // 1 + 8 + 4 = 13
     }
 
     get timestamp(): number {
-        return Number(readInt8(this.buffer, this.offset + 17)); // 1 + 8 + 4 + 4 = 17
+        return Number(readInt64(this.buffer, this.offset + 17)); // 1 + 8 + 4 + 4 = 17
     }
 
     get importance(): MessageImportance {
-        return readInt1(this.buffer, this.offset + 25) as MessageImportance; // 1 + 8 + 4 + 4 + 8 = 25
+        return readInt8(this.buffer, this.offset + 25) as MessageImportance; // 1 + 8 + 4 + 4 + 8 = 25
     }
 
     get importanceString(): string {
@@ -148,7 +148,7 @@ abstract class BaseBinaryDebugMessage implements BinaryDebugMessage {
     }
 
     get id(): number {
-        return readInt4(this.buffer, this.offset + 26); // 1 + 8 + 4 + 4 + 8 + 4 = 29
+        return readInt32(this.buffer, this.offset + 26); // 1 + 8 + 4 + 4 + 8 + 4 = 29
     }
 }
 
@@ -174,11 +174,11 @@ export class ClientResponse extends BaseBinaryDebugMessage {
     }
 
     get responseCode(): number {
-        return readInt2(this.buffer, this.offset + HDRL);
+        return readInt16(this.buffer, this.offset + HDRL);
     }
 
     get responseTime(): number {
-        return readInt4(this.buffer, this.offset + HDRL + 2);
+        return readInt32(this.buffer, this.offset + HDRL + 2);
     }
 
     get call(): LargeText {
@@ -212,11 +212,11 @@ export class ServerResponse extends BaseBinaryDebugMessage {
     }
 
     get responseCode(): number {
-        return readInt2(this.buffer, this.offset + HDRL);
+        return readInt16(this.buffer, this.offset + HDRL);
     }
 
     get responseTime(): number {
-        return readInt4(this.buffer, this.offset + HDRL + 2);
+        return readInt32(this.buffer, this.offset + HDRL + 2);
     }
 
     get call(): LargeText {
@@ -235,7 +235,7 @@ export class DatabaseTransaction extends BaseBinaryDebugMessage {
     }
 
     get event(): DBTransactionEvent {
-        return readInt1(this.buffer, this.offset + HDRL)
+        return readInt8(this.buffer, this.offset + HDRL)
     }
 
     get eventString(): string {
@@ -266,7 +266,7 @@ export class DatabaseResponse extends BaseBinaryDebugMessage {
     }
 
     get responseTime(): number {
-        return readInt4(this.buffer, this.offset + HDRL);
+        return readInt32(this.buffer, this.offset + HDRL);
     }
 }
 // Log.type === 8
@@ -306,15 +306,15 @@ export class DebugContext {
     }
 
     get parent(): number {
-        return readInt4(this.buffer, this.offset + 0);
+        return readInt32(this.buffer, this.offset + 0);
     }
 
     get id(): number {
-        return readInt4(this.buffer, this.offset + 4);
+        return readInt32(this.buffer, this.offset + 4);
     }
 
     get importance(): MessageImportance {
-        return readInt1(this.buffer, this.offset + 8) as MessageImportance;
+        return readInt8(this.buffer, this.offset + 8) as MessageImportance;
     }
 
     get importanceString(): string {
@@ -322,7 +322,7 @@ export class DebugContext {
     }
 
     get type(): DebugContextType {
-        return readInt1(this.buffer, this.offset + 9) as DebugContextType;
+        return readInt8(this.buffer, this.offset + 9) as DebugContextType;
     }
 
     get typeString(): string {
@@ -330,7 +330,7 @@ export class DebugContext {
     }
 
     get timestamp(): number {
-        return Number(readInt8(this.buffer, this.offset + 10));
+        return Number(readInt64(this.buffer, this.offset + 10));
     }
 
     get name(): string {

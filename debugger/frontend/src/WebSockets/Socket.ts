@@ -2,11 +2,7 @@ import {
     contextSort, debugMessageOrCtxSort, nullIfEmpty, pushStateToHistory, toNumberOrUndefined
 } from "../Utilities/Utilities";
 import {
-    activateServiceRequest, fetchPreviousMessagesRequest, fetchTextBlobRequest,
-    replayMessagesRequest, resetMessagesRequest, setSessionStateRequest
-} from "./Requests";
-import {
-    Log, DebugContext, getServiceName, DebugContextType, getGenerationName, readInt4,
+    Log, DebugContext, getServiceName, DebugContextType, getGenerationName, readInt32,
     BinaryDebugMessageType, DebugMessage, ClientRequest, ClientResponse, DatabaseQuery,
     DatabaseResponse, DatabaseTransaction, ServerRequest, ServerResponse
 } from "./Schema";
@@ -62,7 +58,6 @@ function initializeSocket() {
                 for (let i = 0; i < numberOfEntries; i++) {
                     const service = getServiceName(view, 8 + (i * 256));
                     const generation = getGenerationName(view, 8 + (i * 256));
-                    console.log("Receiving services", service, generation);
                     serviceStore.add(service, generation);
                 }
                 serviceStore.emitChange();
@@ -84,7 +79,6 @@ function initializeSocket() {
                 for (let i = 0; i < numberOfEntries; i++) {
                     const offset = 8 + i * FRAME_SIZE;
                     const debugMessage = debugMessageFromType(view, offset)
-                    console.log(debugMessage);
                     debugMessageStore.addLog(debugMessage);
                 }
 
@@ -97,7 +91,7 @@ function initializeSocket() {
                 // Followed by text of length size.
                 const ID_SIZE = 4;
                 const TYPE_SIZE = 8;
-                const id = readInt4(view, TYPE_SIZE);
+                const id = readInt32(view, TYPE_SIZE);
                 const textDecoder = new TextDecoder();
                 const u8a = new Uint8Array(view.buffer);
                 let slice = u8a.slice(TYPE_SIZE + ID_SIZE);
@@ -181,19 +175,51 @@ export const blobMessages = new class {
 }();
 
 interface HistoryWatcherService {
-    activeContext?: Pick<DebugContext, "id" | "timestamp">;
-    shouldClearRoot: boolean;
+    service?: string;
+    generation?: string;
+    contextId?: number;
+    contextTimestamp?: number;
 }
 export const historyWatcherService = new class {
-    public info: HistoryWatcherService = {
-        activeContext: undefined,
-        shouldClearRoot: false
-    }
+    public info: HistoryWatcherService = {};
     private subscriptions: (() => void)[] = [];
+
+    constructor() {
+        window.onpopstate = () => {
+            this.onUrlChanged();
+        };
+
+        window.onpageshow = () => {
+            this.onUrlChanged();
+        };
+    }
+
+    public onUrlChanged() {
+        const {pathname} = window.location;
+        const [generation, contextId, contextTimestamp] = pathname.split("/").filter(it => it);
+        const service = window.location.hash.length > 0 ? window.location.hash.slice(1) : "";
+
+        const parsedCtxId = toNumberOrUndefined(contextId);
+        const parsedCtxTs = toNumberOrUndefined(contextTimestamp);
+
+        this.info = {
+            contextId: parsedCtxId,
+            contextTimestamp: parsedCtxTs,
+            service: service,
+            generation,
+        };
+
+        this.emitChange();
+    }
 
     public subscribe(subscription: () => void) {
         this.subscriptions = [...this.subscriptions, subscription];
+        let running = true;
+        updateWhenReady(() => {
+            if (running) subscription();
+        });
         return () => {
+            running = false;
             this.subscriptions = this.subscriptions.filter(s => s !== subscription);
         };
     }
@@ -214,6 +240,17 @@ export const activeService = new class {
     private activeGeneration: string = "";
     private subscriptions: (() => void)[] = [];
 
+    constructor() {
+        historyWatcherService.subscribe(() => {
+            const info = historyWatcherService.info;
+            if (info.service) {
+                this.setService(info.service, info.generation);
+            } else {
+                this.clearService();
+            }
+        });
+    }
+
     public get service() {
         return this.activeService;
     }
@@ -222,15 +259,29 @@ export const activeService = new class {
         return this.activeGeneration;
     }
 
-    public setService(service: string, generation?: string): void {
+    private clearService() {
+        this.activeService = "";
+        this.activeGeneration = "";
+        this.emitChange();
+    }
+
+    private setService(service: string, generation?: string, attempts: number = 0): void {
+        if (attempts > 6) return;
+
+        if (!isSocketReady(socket)) {
+            window.setTimeout(() => this.setService(service, generation, attempts + 1), 500);
+            return;
+        }
+
         const oldService = this.activeService;
         this.activeService = service;
         this.activeGeneration = generation ?? serviceStore.getGeneration(service);
         if (service && oldService !== service && isSocketReady(socket)) {
-            activateService(service, this.activeGeneration);
-            pushStateToHistory(service, this.activeGeneration, historyWatcherService.info.activeContext);
+            sendActivateService(service, this.activeGeneration);
+            this.emitChange();
+        } else {
+            window.setTimeout(() => this.setService(service, generation, attempts + 1), 500);
         }
-        this.emitChange();
     }
 
     public subscribe(subscription: () => void) {
@@ -267,37 +318,90 @@ export const debugMessageStore = new class {
     private subscriptions: (() => void)[] = [];
     private isDirty = false;
     public entryCount = 0;
+    private activeAttempts: number = -1;
 
     public contextRoot(): DebugContextAndChildren | null {
         return this.activeContexts;
     }
 
-    public clearActiveContext(): void {
+    constructor() {
+        historyWatcherService.subscribe(() => {
+            if (this.activeAttempts !== -1) {
+                window.clearTimeout(this.activeAttempts);
+                this.activeAttempts = -1;
+            }
+
+            const info = historyWatcherService.info;
+            this.attemptToFindContext(info);
+        });
+    }
+
+    private attemptToFindContext(info: HistoryWatcherService, attempts: number = 0) {
+        if (attempts > 3) {
+            // If we don't the context then push to the page without the context. We could
+            // potentially show a message stating that we couldn't find the context.
+            pushStateToHistory(info.service, info.generation);
+            return;
+        }
+
+        if (info.service) {
+            const contexts = this.debugMessages.content[info.service];
+
+            if (info.contextId) {
+                if (contexts) {
+                    const theContext = contexts.find(it => it.id === info.contextId)
+                    if (theContext) {
+                        this.setActiveContext(theContext);
+                        return
+                    }
+                }
+
+                this.activeAttempts = window.setTimeout(() => this.attemptToFindContext(info, attempts + 1), 1000);
+            } else {
+                this.clearActiveContext();
+            }
+        }
+    }
+
+    clearActiveContext(): void {
+        console.log("clearing context");
         this.ctxMap = {};
         this.activeContexts = null;
         this.entryCount = 0;
+        this.debugMessages.content = {};
         this.emitChange();
-        resetMessages();
+        sendClearActiveContext();
     }
 
-    public addDebugRoot(debugContext: DebugContext): void {
+    clearChildren() {
+        const currentRoot = this.activeContexts?.ctx;
+        if (!currentRoot) return;
+        const newRoot = {ctx: currentRoot, children: []};
+        this.activeContexts = newRoot;
+        this.ctxMap[currentRoot.id] = newRoot;
+        this.entryCount = 0;
+        this.isDirty = true;
+        this.emitChange();
+    }
+
+    private setActiveContext(debugContext: DebugContext): void {
         const newRoot = {ctx: debugContext, children: []};
         this.activeContexts = newRoot;
         this.ctxMap[debugContext.id] = newRoot;
         this.entryCount++;
+
+        this.emitChange();
+        sendReplayMessages(activeService.generation, debugContext.id, debugContext.timestamp);
     }
 
     public addDebugContext(debugContext: DebugContext): void {
+        console.log("adding context")
         this.isDirty = true;
-
 
         if (this.activeContexts) {
             const newEntry = {ctx: debugContext, children: []};
             this.ctxMap[debugContext.parent].children.push(newEntry);
             this.ctxMap[debugContext.parent].children.sort(debugMessageOrCtxSort);
-            if (this.ctxMap[debugContext.id]) {
-                console.log("Already filled! This shouldn't happen!", debugContext.id);
-            }
             this.ctxMap[debugContext.id] = newEntry;
             this.entryCount++;
             return;
@@ -306,6 +410,7 @@ export const debugMessageStore = new class {
         if (!this.debugMessages.content[activeService.service]) {
             this.debugMessages.content[activeService.service] = [debugContext];
         } else {
+            // NOTE(Dan): Push the context while preserving correct order in the array
             const ctxTimestamp = debugContext.timestamp;
             const earliestTimestamp = this.earliestTimestamp();
             const latestTimestamp = this.latestTimestamp();
@@ -358,6 +463,7 @@ export const debugMessageStore = new class {
     }
 
     public emitChange(): void {
+        console.log("emit change");
         for (const subscriber of this.subscriptions) {
             subscriber();
         }
@@ -403,111 +509,74 @@ type Nullable<T> = T | null;
  * CALLS
  **/
 
-function activateService(service: Nullable<string>, generation: Nullable<string>) {
+function sendActivateService(service: Nullable<string>, generation: Nullable<string>) {
     if (!isSocketReady(socket)) return;
-    socket.send(activateServiceRequest(service, generation));
+    socket.send(JSON.stringify({
+        type: "activate_service",
+        service,
+        generation
+    }));
 }
 
-function resetMessages(): void {
+export function sendClearActiveContext(): void {
     if (!isSocketReady(socket)) return;
-    socket.send(resetMessagesRequest());
+    socket.send(JSON.stringify({type: "clear_active_context"}));
 }
 
-export function replayMessages(generation: string, context: number, timestamp: number): void {
+export function sendReplayMessages(generation: string, context: number, timestamp: number): void {
     if (!isSocketReady(socket)) return;
-    socket.send(replayMessagesRequest(generation, context, timestamp));
+    socket.send(
+        JSON.stringify({
+            type: "replay_messages",
+            generation,
+            context,
+            timestamp,
+        })
+    );
 }
 
-export function fetchPreviousMessage(): void {
+export function sendFetchPreviousMessages(): void {
     const ctx = debugMessageStore.earliestContext();
     if (!isSocketReady(socket)) return;
-    socket.send(fetchPreviousMessagesRequest(ctx != null ? ctx : {timestamp: new Date().getTime(), id: 2}, false));
+
+    socket.send(
+        JSON.stringify({
+            type: "fetch_previous_messages",
+            timestamp: ctx?.timestamp ?? new Date().getTime(),
+            id: ctx?.id ?? 2,
+            onlyFindSelf: false
+        })
+    );
 }
 
-export function setSessionState(query: string, filters: Set<DebugContextType>, level: string): void {
+export function sendSetSessionState(query: string, filters: Set<DebugContextType>, level: string): void {
     if (!isSocketReady(socket)) return;
     const debugContextFilters: string[] = [];
     filters.forEach(entry => {
         debugContextFilters.push(DebugContextType[entry]);
     });
-    const req = setSessionStateRequest(
-        nullIfEmpty(query),
-        nullIfEmpty(debugContextFilters),
-        nullIfEmpty(level)
-    );
-    socket.send(req);
+
+    socket.send(JSON.stringify({
+        type: "set_session_state",
+        query: nullIfEmpty(query),
+        filters: nullIfEmpty(debugContextFilters),
+        level: nullIfEmpty(level),
+    }));
 }
 
-export function fetchTextBlob(generation: string, blobId: string, fileIndex: string): void {
+export function sendFetchTextBlob(generation: string, blobId: string, fileIndex: string): void {
     if (!isSocketReady(socket)) return;
-    const req = fetchTextBlobRequest(generation, blobId, fileIndex);
-    socket.send(req);
+    socket.send(JSON.stringify({
+        type: "fetch_text_blob",
+        generation,
+        id: blobId,
+        fileIndex,
+    }));
 }
-
-/*
- * CALLS
- **/
 
 function isSocketReady(socket: WebSocket | null): socket is WebSocket {
     return !!(socket && socket.readyState === socket.OPEN);
 }
-
-export function isSocketOpen(): boolean {
-    return isSocketReady(socket);
-}
-
-window.onpopstate = e => {
-    const {service, generation, context} = e.state as {
-        service?: string;
-        generation?: string;
-        context?: Pick<DebugContext, "id" | "timestamp">
-    };
-    activeService.setService(service ?? "", generation ?? "");
-    historyWatcherService.info.activeContext = context;
-    if (context == null) {
-        historyWatcherService.info.shouldClearRoot = true;
-        debugMessageStore.clearActiveContext();
-        activeService.emitChange();
-    }
-}
-
-/**
- * WINDOW-EVENTS
- **/
-
-window.onpageshow = () => {
-    const {pathname} = window.location;
-    const [generation, contextId, contextTimestamp] = pathname.split("/").filter(it => it);
-    const service = window.location.hash.length > 0 ? window.location.hash.slice(1) : "";
-
-    const parsedCtxId = toNumberOrUndefined(contextId);
-    const parsedCtxTs = toNumberOrUndefined(contextTimestamp);
-
-    const ctxInfo = parsedCtxId && parsedCtxTs ? {
-        id: parsedCtxId,
-        timestamp: parsedCtxTs,
-    } : undefined;
-
-    pushStateToHistory(service, generation, ctxInfo);
-    historyWatcherService.info.activeContext = ctxInfo;
-    if (ctxInfo == null) {
-        historyWatcherService.info.shouldClearRoot = true;
-    }
-
-    updateWhenReady(() => {
-        activeService.setService(service ?? "", generation);
-        if (service && generation) {
-            if (parsedCtxId && parsedCtxTs) {
-                if (!isSocketReady(socket)) return;
-                socket.send(fetchPreviousMessagesRequest({timestamp: parsedCtxTs, id: parsedCtxId}, true));
-            }
-        }
-    });
-}
-
-/**
- * WINDOW-EVENTS
- **/
 
 function updateWhenReady(func: () => void): void {
     if (isSocketReady(socket)) {

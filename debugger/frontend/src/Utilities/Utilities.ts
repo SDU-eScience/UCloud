@@ -1,13 +1,5 @@
 import {DebugContext, DebugMessage} from "../WebSockets/Schema";
-import {DebugContextAndChildren} from "../WebSockets/Socket";
-
-export function newURL(service?: string, generation?: string, ctx?: Pick<DebugContext, "id" | "timestamp">): string {
-    if (!service || !generation) return "";
-    let url = `/${generation}`;
-    if (ctx) url += `/${ctx.id}/${ctx.timestamp}`;
-    url += `#${service}`;
-    return url;
-}
+import {DebugContextAndChildren, historyWatcherService} from "../WebSockets/Socket";
 
 export function toNumberOrUndefined(str?: string): number | undefined {
     if (!str) return undefined;
@@ -18,18 +10,32 @@ export function toNumberOrUndefined(str?: string): number | undefined {
     }
 }
 
-// Note(Jonas): This function currently trashes history as this function is sometimes called when going back.
-// Possible solutions:
-//      - Move pushStateToHistory-calls higher up, so it's more controlled when it happens.
-//      - Add a `noUpdateHistory`-variable that skips the calls. Essentially the same as above.
-//              - Both are error prone.
-//      - Other ways?
 export function pushStateToHistory(service?: string, generation?: string, ctx?: Pick<DebugContext, "id" | "timestamp">) {
-    window.history.pushState({
-        service,
-        generation,
-        context: ctx
-    }, "", newURL(service, generation, ctx));
+    function computeUrl(service?: string, generation?: string, ctx?: Pick<DebugContext, "id" | "timestamp">): string {
+        if (!service && !generation) return "/";
+        let url = "";
+
+        if (generation) {
+            url += `/${generation}`;
+            if (ctx) url += `/${ctx.id}/${ctx.timestamp}`;
+        } else {
+            url += "/";
+        }
+
+        url += `#${service}`;
+        return url;
+    }
+
+    const newUrl = computeUrl(service, generation, ctx);
+    if (window.location.href.substring(window.location.origin.length) === newUrl) return;
+
+    window.history.pushState(
+        "",
+        "",
+        computeUrl(service, generation, ctx)
+    );
+
+    historyWatcherService.onUrlChanged();
 }
 
 interface WithLength {

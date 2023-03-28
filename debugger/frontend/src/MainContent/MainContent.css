@@ -49,6 +49,7 @@ div.request-list-row {
     color: black;
     cursor: pointer;
     user-select: none;
+    box-sizing: border-box;
 }
 
 div.request-list-row:first-child {
@@ -96,6 +97,7 @@ div[data-haschildren="true"] {
 div.managed-list {
     height: calc(100vh - var(--headerHeight) - 10px - 10px - 200px - 20px);
     overflow-y: scroll;
+    overflow-x: hidden;
 }
 
 div.managed-list > div:first-child {

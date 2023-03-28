@@ -2,6 +2,8 @@ package dk.sdu.cloud.sql
 
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.debug.DebugContextType
+import dk.sdu.cloud.debugSystem
 import kotlinx.coroutines.delay
 import org.postgresql.util.PSQLException
 
@@ -17,8 +19,11 @@ sealed class DBContext {
         abstract suspend fun commit()
         abstract suspend fun isReady(): Boolean
         open suspend fun rollback() {}
+
         @Suppress("EmptyFunctionBlock")
-        open fun flush() {}
+        open fun flush() {
+        }
+
         abstract fun prepareStatement(statement: String): PreparedStatement
     }
 
@@ -90,7 +95,7 @@ suspend inline fun PreparedStatement.useAndInvoke(
 suspend inline fun PreparedStatement.invokeAndDiscard(
     prepare: PreparedStatement.() -> Unit = {},
 ) {
-    invoke(prepare) {  }
+    invoke(prepare) { }
 }
 
 suspend inline fun PreparedStatement.invoke(
@@ -158,14 +163,16 @@ suspend fun <R> DBContext.Connection.withTransaction(
     autoFlush: Boolean = false,
     closure: suspend (DBContext.Connection) -> R
 ): R {
-    openTransaction()
-    try {
-        val result = closure(this)
-        if (autoFlush) flush()
-        if (autoCommit) commit()
-        return result
-    } catch (ex: Throwable) {
-        rollback()
-        throw ex
+    return debugSystem.useContext(DebugContextType.DATABASE_TRANSACTION) {
+        openTransaction()
+        try {
+            val result = closure(this)
+            if (autoFlush) flush()
+            if (autoCommit) commit()
+            result
+        } catch (ex: Throwable) {
+            rollback()
+            throw ex
+        }
     }
 }

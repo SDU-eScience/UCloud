@@ -257,14 +257,15 @@ fun main(args: Array<String>) {
                             is ClientRequest.ClearActiveContext -> {
                                 session.clearMessages()
                                 session.clearContextMessages()
-                                val generation = session.generation ?: break
-                                val startTime = session.toReplayFrom ?: break
-                                session.toReplayFrom = null
-                                val endTime = System.currentTimeMillis()
-                                sessionMutex.withLock {
-                                    session.findContexts(startTime, endTime, generation, 1L)
+                                val generation = session.generation
+                                if (generation != null) {
+                                    val startTime = (System.currentTimeMillis() - 15.minutes.inWholeMilliseconds)
+                                    val endTime = System.currentTimeMillis()
+                                    session.activeContexts = arrayListOf(1L)
+                                    sessionMutex.withLock {
+                                        session.findAndEmitContexts(startTime, endTime, generation, 1L)
+                                    }
                                 }
-                                session.activeContexts = arrayListOf(1L)
                             }
 
                             is ClientRequest.ReplayMessages -> {
@@ -272,16 +273,16 @@ fun main(args: Array<String>) {
                                 session.clearContextMessages()
                                 session.clearMessages()
 
-                                session.toReplayFrom = System.currentTimeMillis()
                                 val generation = request.generation.toLong()
                                 val startTime = request.timestamp
                                 val endTime = startTime + 15.minutes.inWholeMilliseconds
                                 sessionMutex.withLock {
+                                    session.activeContexts = arrayListOf(request.context)
                                     val contexts =
-                                        session.findContexts(startTime, endTime, generation, request.context)
+                                        session.findAndEmitContexts(startTime, endTime, generation, request.context)
+                                    session.activeContexts = contexts
                                     println("Found the following contexts: $contexts")
                                     session.findLogs(startTime, endTime, generation, contexts)
-                                    session.activeContexts = contexts
                                 }
                             }
 
@@ -291,8 +292,15 @@ fun main(args: Array<String>) {
                                 session.activeService = activeService
                                 session.generation = generation
 
-                                sessionMutex.withLock {
-                                    session.emitNewestContext(directory, generation, activeService)
+                                if (generation != null) {
+                                    sessionMutex.withLock {
+                                        session.findAndEmitContexts(
+                                            System.currentTimeMillis() - 15.minutes.inWholeMilliseconds,
+                                            System.currentTimeMillis(),
+                                            generation,
+                                            1L
+                                        )
+                                    }
                                 }
                             }
 
@@ -438,16 +446,18 @@ suspend fun ClientSession.emitNewestContext(
     }
 }
 
-suspend fun ClientSession.findContexts(
+suspend fun ClientSession.findAndEmitContexts(
     startTime: Long,
     endTime: Long,
     generation: Long,
     initialContext: Long
 ): ArrayList<Long> {
+    val debug = initialContext == 1L
     val contextIds = arrayListOf(initialContext)
     var ctxFileId = findFirstContextIdContainingTimestamp(generation, startTime) ?: return contextIds
 
     while (ContextReader.exists(directory, generation, ctxFileId)) {
+        if (debug) println("Looking in $directory $generation $ctxFileId $startTime $endTime ${endTime - startTime}")
         val currentFile = ContextReader(directory, generation, ctxFileId)
         try {
             while (currentFile.next()) {
@@ -457,6 +467,12 @@ suspend fun ClientSession.findContexts(
 
                 if (currentEntry.parent.toLong() in contextIds) {
                     contextIds.add(currentEntry.id.toLong())
+                    if (debug) {
+                        debugSkip = true
+                        println("$generation ${currentEntry.id} ${currentEntry.parent} $contextIds")
+                    } else {
+                        debugSkip = false
+                    }
                     acceptContext(generation, currentEntry, contextIds)
                 }
             }
@@ -489,9 +505,6 @@ suspend fun ClientSession.findLogs(
                 if (currentEntry.timestamp < startTime) continue
                 if (currentEntry.timestamp > endTime) break@outer
                 if (currentEntry.ctxId.toLong() !in contextIds) continue
-                if (currentEntry.ctxId == 297251) {
-                    println("Sending message: $currentEntry")
-                }
 
                 acceptMessage(currentEntry, contextIds)
             }
@@ -542,6 +555,8 @@ sealed class ClientRequest {
     data class FetchPreviousMessage(val timestamp: Long, val id: Int, val onlyFindSelf: Boolean?) : ClientRequest()
 }
 
+var debugSkip = false
+
 data class ClientSession(
     // The WebSocket session itself, used for sending communication to the client.
     val session: WebSocketServerSession,
@@ -553,10 +568,6 @@ data class ClientSession(
     var activeService: String? = null,
     var generation: Long? = null,
     var filters: List<DebugContextType>? = null,
-
-    // To denote when the user requested children of a specific debug context.
-    // Used to find out which contexts the user may have missed.
-    var toReplayFrom: Long? = null,
 
     val writeMutex: Mutex = Mutex(),
 
@@ -656,23 +667,44 @@ data class ClientSession(
     }
 
     fun skipContext(generation: Long, context: DebugContextDescriptor, contexts: List<Long>): Boolean {
-        val service = activeService ?: return true
+        val service = activeService ?: run {
+            if (debugSkip) println("skipping entry - no active service")
+            return true
+        }
         val services = trackedServices.get()
         val trackedService = services.values.find { it.title == service }
-        if (trackedService == null || trackedService.generation != generation) return true
-        if (!contexts.contains(context.parent.toLong())) return true
-        if (context.importance < this.minimumLevel) return true
+        if (trackedService == null || trackedService.generation != generation) {
+            if (debugSkip) println("skipping entry - bad tracked")
+            return true
+        }
+        if (!contexts.contains(context.parent.toLong())) {
+            if (debugSkip) println("skipping entry - bad parent")
+            return true
+        }
+        if (context.importance < this.minimumLevel) {
+            if (debugSkip) println("skipping entry - unimportant")
+            return true
+        }
+        if (this.activeContexts.singleOrNull() == 1L && context.parent != 1) {
+            if (debugSkip) println("skipping entry - not root")
+            return true
+        }
 
         // NOTE(Jonas): Context is root, which is needed to filter based on query
         val queryFilter = this.filterQuery
         if (queryFilter != null && context.parent == 1) {
             if (!context.name.contains(queryFilter, ignoreCase = true)) {
+                if (debugSkip) println("skipping entry - bad query")
                 return true
             }
         }
 
         val filters = this.filters
-        return filters != null && !filters.contains(context.type)
+        if (filters != null && !filters.contains(context.type)) {
+            if (debugSkip) println("skipping entry - bad filter")
+            return true
+        }
+        return false
     }
 
     suspend fun acceptContext(generation: Long, context: DebugContextDescriptor, contextIds: List<Long>) {

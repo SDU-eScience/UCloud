@@ -19,11 +19,10 @@ import {
 import {
     activeService,
     DebugContextAndChildren,
-    fetchPreviousMessage,
-    fetchTextBlob,
+    sendFetchPreviousMessages,
+    sendFetchTextBlob,
     blobMessages,
     debugMessageStore,
-    replayMessages,
     historyWatcherService
 } from "../WebSockets/Socket";
 import "./MainContent.css";
@@ -238,66 +237,36 @@ export const MainContent: React.FunctionComponent<{
     const historyInfo = React.useSyncExternalStore(s => historyWatcherService.subscribe(s), () => historyWatcherService.getSnapshot());
 
     const logRef = logs.content[service];
-
-    React.useEffect(() => {
-        if (logRef == null) return;
-        const ctx = historyInfo.activeContext;
-        if (ctx == null) return;
-        const entry = logRef.find(it => it.id === ctx.id);
-        if (entry) {
-            props.setLevel("IMPLEMENTATION_DETAIL");
-            setTimeout(() => {
-                setRouteComponents([entry]);
-                debugMessageStore.addDebugRoot(entry);
-                historyWatcherService.info.activeContext = undefined;
-                replayMessages(activeService.generation, entry.id, entry.timestamp)
-            }, 50);
-        }
-    }, [historyInfo.activeContext, logRef]);
+    console.log("We have", (logRef ?? []).length, "items");
 
     const scrollRef = React.useRef<FixedSizeList<DebugContext[]> | null>(null);
     const lastInViewRef = React.useRef(0);
 
-    const setContext = React.useCallback((d: DebugContext | null) => {
-        if (d === null) {
-            props.setLevel("THIS_IS_NORMAL");
-        } else {
-            props.setLevel("IMPLEMENTATION_DETAIL");
-        }
+    React.useEffect(() => {
+        const root = debugMessageStore.contextRoot();
+        if (root) setRouteComponents([root.ctx]);
+        else setRouteComponents([]);
+    }, [debugMessageStore.contextRoot()]);
 
+    const setContext = React.useCallback((d: DebugContext | null) => {
         setTimeout(() => {
-            if (d === null) {
-                if (debugMessageStore.contextRoot() != null) {
-                    debugMessageStore.clearActiveContext();
-                }
-                setRouteComponents([]);
-                pushStateToHistory(activeService.service, activeService.generation, historyWatcherService.info.activeContext);
-                return;
-            }
-            debugMessageStore.addDebugRoot(d);
-            replayMessages(activeService.generation, d.id, d.timestamp);
-            pushStateToHistory(activeService.service, activeService.generation, {id: d.id, timestamp: d.timestamp});
-            setRouteComponents([d]);
+            pushStateToHistory(activeService.service, activeService.generation, d ?? undefined);
         }, 0);
     }, [setRouteComponents]);
-
-    React.useEffect(() => {
-        historyWatcherService.info.shouldClearRoot = false;
-        setContext(null);
-    }, [historyInfo.shouldClearRoot, setContext]);
 
     const activeContextOrMessage = routeComponents.at(-1);
     const serviceLogs = logRef ?? [];
 
     React.useEffect(() => {
         if (scrollRef.current) {
-            if (lastInViewRef.current === serviceLogs.length - 1) {
+            if (serviceLogs.length - lastInViewRef.current < 20) {
                 scrollRef.current.scrollToItem(serviceLogs.length - 1, "smart");
             }
         }
     }, [serviceLogs.length, scrollRef]);
 
     const root = debugMessageStore.contextRoot();
+    console.log(root, root?.children);
 
     return <div className="main-content">
         {!service ? <h3>Select a service to view requests</h3> :
@@ -309,7 +278,7 @@ export const MainContent: React.FunctionComponent<{
                 />
                 <RequestDetails key={activeContextOrMessage?.id} activeContextOrMessage={activeContextOrMessage}/>
                 {activeContextOrMessage ? null : (
-                    <button className="pointer button" onClick={fetchPreviousMessage}>Load previous</button>
+                    <button className="pointer button" onClick={sendFetchPreviousMessages}>Load previous</button>
                 )}
                 {serviceLogs.length === 0 ? <div>No context found for service</div> : null}
                 {root ? (<div key={debugMessageStore.entryCount} className="card managed-list">
@@ -432,6 +401,8 @@ function DebugContextRow({debugContext, setRouteComponents, ctxChildren = [], st
                 {contextTypeToEmoji(debugContext.type)}
                 &nbsp;
                 {debugContext.name}
+                &nbsp;
+                ({debugContext.id})
             </div>
         </div>
         <div className="ml-24px">
@@ -477,7 +448,7 @@ function ShowLargeText({
         if (messageOverflow === undefined || blobFileId === undefined) return;
 
         if (blobMessages.has(messageOverflow)) return;
-        fetchTextBlob(activeService.generation, messageOverflow, blobFileId);
+        sendFetchTextBlob(activeService.generation, messageOverflow, blobFileId);
     }, [largeText]);
     const message = blobMessages.get(largeText.overflowIdentifier) ?? largeText.previewOrContent
 

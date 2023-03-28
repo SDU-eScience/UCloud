@@ -2,8 +2,6 @@ package dk.sdu.cloud.plugins.storage.ucloud
 
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.debug.DebugSystem
-import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.file.orchestrator.api.joinPath

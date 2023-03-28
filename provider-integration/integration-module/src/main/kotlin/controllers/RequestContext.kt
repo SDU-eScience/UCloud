@@ -28,7 +28,7 @@ class SimpleRequestContext(
         get() = delegate.ipcServerOptional
     override val commandLineInterface: CommandLineInterface?
         get() = delegate.commandLineInterface
-    override val debugSystem: DebugSystem?
+    override val debugSystem: DebugSystem
         get() = delegate.debugSystem
 }
 
