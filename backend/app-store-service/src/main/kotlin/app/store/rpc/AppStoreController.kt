@@ -83,7 +83,7 @@ class AppStoreController(
                 error(
                     CommonErrorMessage(
                         "Bad value for parameter ${ex.pathReference.replace(
-                            "dk.sdu.cloud.app.api.",
+                            "dk.sdu.cloud.app.store.api.",
                             ""
                         )}. ${ex.message}"
                     ),
