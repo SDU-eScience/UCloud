@@ -13,8 +13,11 @@ interface EnumProps extends WidgetProps {
 
 export const EnumParameter: React.FunctionComponent<EnumProps> = props => {
     const error = props.errors[props.parameter.name] != null;
+    const defaultValue: string | undefined = props.parameter.defaultValue != undefined ?
+        (props.parameter.defaultValue as unknown as AppParameterValueNS.Text).value : undefined;
+
     return <Flex>
-        <Select id={widgetId(props.parameter)} error={error}>
+        <Select defaultValue={defaultValue} id={widgetId(props.parameter)} error={error}>
             <option value={""} />
             {props.parameter.options.map(it => (
                 <option key={it.value} value={it.value}>{it.name}</option>
