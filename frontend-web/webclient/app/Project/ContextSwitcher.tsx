@@ -1,30 +1,57 @@
-import {emptyPage} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
-import {shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, shortUUID} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {dispatchSetProjectAction, getStoredProject} from "@/Project/Redux";
-import {Flex, Truncate, Text, Icon, Divider} from "@/ui-components";
+import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import styled from "styled-components";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {NavigateFunction, useNavigate} from "react-router";
 import {initializeResources} from "@/Services/ResourceInit";
 import {useProject} from "./cache";
-import ProjectAPI, {Project, useProjectId} from "@/Project/Api";
-import {TextClass} from "@/ui-components/Text";
+import ProjectAPI, {Project, ProjectFlags, ProjectsSortByFlags, useProjectId} from "@/Project/Api";
+import {TextH3} from "@/ui-components/Text";
+import {injectStyle} from "@/Unstyled";
+import Api from "@/Project/Api";
+import {PageV2, PaginationRequestV2} from "@/UCloud";
+
+const PROJECT_ITEMS_PER_PAGE = 250;
+const REQUESTED_ITEMS = 1000;
+const PAGES_TO_REQUEST = REQUESTED_ITEMS / PROJECT_ITEMS_PER_PAGE - 1; // We deduct the page that's fetched regardless. 
 
 export function ContextSwitcher(): JSX.Element | null {
     const {activeProject, refresh} = useSelector((it: ReduxObject) => ({activeProject: it.project.project, refresh: it.header.refresh}));
     const project = useProject();
     const projectId = useProjectId();
-    const [response, setFetchParams, params] = useCloudAPI<Page<Project>>(
+    const [response, setFetchParams] = useCloudAPI<PageV2<Project>, ProjectFlags & ProjectsSortByFlags & PaginationRequestV2>(
         ProjectAPI.browse({
-            itemsPerPage: 250,
+            itemsPerPage: PROJECT_ITEMS_PER_PAGE,
             includeFavorite: true,
         }),
-        emptyPage
+        emptyPageV2
     );
+
+    const searchRef = React.useRef(null);
+
+    const remainingFetches = React.useRef(PAGES_TO_REQUEST);
+    const nextInvalidation = React.useRef(new Date().getTime() + 1000 * 10);
+
+    const [projects, setProjects] = React.useState<Project[]>([]);
+
+    React.useEffect(() => {
+        if (response.error || response.loading) return;
+        setProjects(p => p.concat(response.data.items));
+        if (remainingFetches.current === 0) return;
+        if (response.data.next) {
+            setFetchParams(ProjectAPI.browse({
+                itemsPerPage: PROJECT_ITEMS_PER_PAGE,
+                includeFavorite: true,
+                next: response.data.next
+            }));
+            remainingFetches.current -= 1;
+        }
+    }, [response]);
 
     const dispatch = useDispatch();
 
@@ -42,9 +69,30 @@ export function ContextSwitcher(): JSX.Element | null {
         }
     }
 
+    useEffect(() => {
+        const storedProject = getStoredProject();
+        setProject(storedProject ?? undefined);
+    }, []);
+
+    const checkIfShouldInvalidate = React.useCallback(() => {
+        const nextInvalidationTs = nextInvalidation.current;
+        if (nextInvalidationTs <= new Date().getTime()) {
+            setFetchParams(ProjectAPI.browse({
+                itemsPerPage: PROJECT_ITEMS_PER_PAGE,
+                includeFavorite: true,
+            }));
+            remainingFetches.current = PAGES_TO_REQUEST;
+            nextInvalidation.current = new Date().getTime() + 1000 * 10
+            setProjects([]);
+        };
+    }, []);
+
+    const navigate = useNavigate();
+        
+
+    // Note(Jonas): Doesn't seem to be done in the backend.
     const sortedProjects = React.useMemo(() => {
-        // Note(Jonas): Is this still relevant? Is this not done by the backend?
-        return response.data.items.sort((a, b) => {
+        return projects.sort((a, b) => {
             if (a.status.isFavorite === true && b.status.isFavorite !== true) {
                 return -1;
             } else if (b.status.isFavorite === true && a.status.isFavorite !== true) {
@@ -53,14 +101,7 @@ export function ContextSwitcher(): JSX.Element | null {
                 return a.specification.title.localeCompare(b.specification.title);
             }
         }).slice(0, 25);
-    }, [response.data.items]);
-
-    useEffect(() => {
-        const storedProject = getStoredProject();
-        setProject(storedProject ?? undefined);
-    }, []);
-
-    const navigate = useNavigate();
+    }, [projects])
 
     return (
         <Flex key={activeContext} pr="12px" alignItems={"center"} data-component={"project-switcher"}>
@@ -72,65 +113,56 @@ export function ContextSwitcher(): JSX.Element | null {
                     </Flex>
                 }
                 colorOnHover={false}
-                paddingControlledByContent
-                onTriggerClick={() => {
-                    setFetchParams({...params});
-                    // Note(Jonas): Should this always happen?
-                    project.reload()
-                }}
+                onTriggerClick={checkIfShouldInvalidate}
                 left="0px"
-                width="250px"
+                width="500px"
             >
-                <BoxForPadding>
-                    {activeProject ?
-                        (
-                            <Text onClick={() => onProjectUpdated(navigate, () => setProject(), refresh, "My Workspace")}>
-                                My Workspace
-                            </Text>
-                        ) : null
-                    }
-                    {sortedProjects.filter(it => !(it.id === activeProject)).map(project =>
-                        <Text
-                            key={project.id}
-                            onClick={() => onProjectUpdated(navigate, () => setProject(project.id), refresh, project.id)}
-                        >
-                            <Truncate width="215px">{project.specification.title}</Truncate>
-                        </Text>
-                    )}
-                    {activeProject || response.data.items.length > 0 ? <Divider /> : null}
-                    <Text onClick={() => navigate("/projects")}>Manage projects</Text>
-                    <Text onClick={() => navigate(`/projects/${projectId ?? "My Workspace"}`)}>
-                        {projectId ? "Manage active project" : "Manage my workspace"}
-                    </Text>
-                </BoxForPadding>
+                <div style={{maxHeight: "385px"}}>
+                    <TextH3 bold mt="0" mb="8px">Select workspace</TextH3>
+                    <Flex><Input type="text" /><Relative right="34px" top="6px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
+                    <div style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px"}}>
+                        {sortedProjects.map(it =>
+                            <div key={it.id + it.status.isFavorite} className={BottomBorderedRow} onClick={() => {
+                                onProjectUpdated(navigate, () => setProject(it.id), refresh, it.id)
+                            }}>
+                                <Favorite project={it} />
+                                <Text fontSize="var(--secondaryText)">{it.specification.title}</Text>
+                            </div>
+                        )}
+
+                        <Box mt="8px">
+                            <Error error={response.error?.why} />
+                        </Box>
+                        {sortedProjects.length !== 0 || response.error !== undefined ? null : (
+                            <Box mt="8px" textAlign="center">No workspaces found</Box>
+                        )}
+                    </div>
+                </div>
             </ClickableDropdown>
         </Flex>
     );
 }
 
-const BoxForPadding = styled.div`
-    & > div:hover {
-        background-color: var(--lightBlue);
-    }
+function Favorite({project}: {project: Project}): JSX.Element {
+    const [isFavorite, setIsFavorite] = React.useState(project.status.isFavorite);
 
-    & > hr {
-        width: 80%;
-        margin-left: 26px;
-    }
+    const [commandLoading, invokeCommand] = useCloudCommand();
+    const onFavorite = React.useCallback((e: React.SyntheticEvent, p: Project) => {
+        e.stopPropagation();
+        if (commandLoading) return;
+        setIsFavorite(f => !f);
+        try {
+            invokeCommand(Api.toggleFavorite(
+                bulkRequestOf({id: p.id})
+            ), {defaultErrorHandler: false});
+        } catch (e) {
+            setIsFavorite(f => !f);
+            displayErrorMessageOrDefault(e, "Failed to toggle favorite");
+        }
+    }, [commandLoading]);
 
-    & > .${TextClass} {
-        padding-left: 10px;
-    }
-
-    margin-top: 12px;
-    margin-bottom: 12px;
-`;
-
-const HoverIcon = styled(Icon)`
-    &:hover {
-        transform: scale(1.1);
-    }
-`;
+    return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="2px" size="12px" color="blue" hoverColor="blue" name={isFavorite ? "starFilled" : "starEmpty"} />
+}
 
 function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId: string): void {
     const {pathname} = window.location;
@@ -146,3 +178,15 @@ function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => voi
     initializeResources();
     refresh?.();
 }
+
+const BottomBorderedRow = injectStyle("bottom-bordered-row", k => `
+    ${k}:hover, ${k}[data-active="true"] {
+        background-color: var(--lightBlue);
+    }
+
+    ${k} {
+        transition: 0.1s background-color;
+        display: flex;
+        border-bottom: 0.5px solid var(--blue);
+    }
+`);

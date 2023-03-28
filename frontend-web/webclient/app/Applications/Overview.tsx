@@ -8,7 +8,7 @@ import * as Heading from "@/ui-components/Heading";
 import {Spacer} from "@/ui-components/Spacer";
 import {EllipsedText} from "@/ui-components/Text";
 import theme from "@/ui-components/theme";
-import {ApplicationCard, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
+import {AppCard, ApplicationCardType, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
 import * as Pages from "./Pages";
 import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
@@ -324,8 +324,9 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                     style={{gridAutoFlow: showFavorites ? "row" : "column"}}
                 >
                     {filteredItems.map(app => (
-                        <ApplicationCard
+                        <AppCard
                             key={`${app.metadata.name}-${app.metadata.version}`}
+                            type={ApplicationCardType.TALL}
                             onFavorite={() => onFavorite(app)}
                             app={app}
                             isFavorite={showFavorites}
@@ -430,5 +431,3 @@ function getColorFromName(name: string): [string, string, string] {
     const num = (hash >>> 22) % (theme.appColors.length - 1);
     return theme.appColors[num] as [string, string, string];
 }
-
-export default ApplicationsOverview;

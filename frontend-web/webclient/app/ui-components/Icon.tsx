@@ -50,14 +50,6 @@ export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivEl
     style?: CSSProperties;
 }
 
-const spin = (props: {spin?: boolean}): string | null => props.spin ? `
-  animation: spin 1s linear infinite;
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-` : null;
-
 export const IconClass = injectStyle("icon", k => `
     ${k} {
         flex: none;

@@ -18,8 +18,8 @@ import {emptyPage} from "@/DefaultObjects";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
-import {ApplicationCard} from "@/Applications/Card";
 import {GridCardGroup} from "@/ui-components/Grid";
+import {AppCard, ApplicationCardType} from "./Card";
 
 export const Applications: React.FunctionComponent = () => {
     useTitle("Applications");
@@ -84,11 +84,12 @@ export const Applications: React.FunctionComponent = () => {
                     loading={appResp.loading}
                     pageRenderer={page =>
                         <GridCardGroup gridGap={15}>
-                            {page.items.map((it, idx) => (
-                                <ApplicationCard
+                            {page.items.map(it => (
+                                <AppCard
+                                    type={ApplicationCardType.TALL}
                                     onFavorite={toggleFavorite}
                                     app={it}
-                                    key={idx}
+                                    key={it.metadata.name + "-" + it.metadata.version}
                                     isFavorite={it.favorite}
                                     tags={it.tags}
                                 />

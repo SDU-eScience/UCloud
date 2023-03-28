@@ -566,7 +566,7 @@ function SecondarySidebar({
 
         {active !== "Runs" ? null : (
             <Flex flexDirection="column" mr="4px">
-                <TextSpan bold color="white">Most recent</TextSpan>
+                <TextSpan bold color="white">Running jobs</TextSpan>
                 {recentRuns.data.items.map(it => {
                     const [icon, color] = jobStateToIconAndColor(it.status.state);
                     return <Flex key={it.id}>
@@ -575,6 +575,7 @@ function SecondarySidebar({
                             color="white">{it.specification.name ?? it.id} ({it.specification.application.name})</Truncate>
                     </Flex>
                 })}
+                {recentRuns.data.items.length !== 0 ? null : <Text fontSize="var(--secondaryText)">No jobs running.</Text>}
             </Flex>
         )}
 

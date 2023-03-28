@@ -1,7 +1,6 @@
 import * as React from "react";
 
 const Applications = React.lazy(() => import("@/Applications/Browse"));
-const ApplicationsOverview = React.lazy(() => import("@/Applications/Overview"));
 const App = React.lazy(() => import("@/Applications/Studio/Applications"));
 const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("@/Dashboard/Dashboard"));
@@ -112,7 +111,6 @@ const Core = (): JSX.Element => (
                         <Route path={"/syncthing"} element={React.createElement(requireAuth(SyncthingOverview))} />
 
                         <Route path="/applications" element={React.createElement(requireAuth(Applications))} />
-                        <Route path="/applications/overview_old" element={React.createElement(requireAuth(ApplicationsOverview))} />
                         <Route path="/applications/overview" element={React.createElement(requireAuth(ApplicationsOverview2))} />
                         <Route path="/applications/search" element={React.createElement(requireAuth(Search))} />
 

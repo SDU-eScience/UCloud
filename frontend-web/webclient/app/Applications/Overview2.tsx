@@ -9,7 +9,7 @@ import * as Heading from "@/ui-components/Heading";
 import {Spacer} from "@/ui-components/Spacer";
 import {EllipsedText} from "@/ui-components/Text";
 import theme from "@/ui-components/theme";
-import {ApplicationCard, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
+import {AppCard, ApplicationCardType, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
 import * as Pages from "./Pages";
 import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
@@ -117,7 +117,7 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
                         refreshId={refreshId}
                     />
                     :
-                    <ToolGroup refreshId={refreshId} items={section.applications} key={section.name + section.type} tag={section.name} />
+                    <ToolGroup items={section.applications} key={section.name + section.type} tag={section.name} />
             )}
         </>
     );
@@ -197,7 +197,7 @@ interface TagGridProps {
 }
 
 const TagGrid: React.FunctionComponent<TagGridProps> = (
-    {tag, rows, items, tagBanList = [], favoriteStatus, onFavorite, refreshId}: TagGridProps
+    {tag, rows, items, tagBanList = [], favoriteStatus, onFavorite}: TagGridProps
 ) => {
     const showFavorites = tag == SPECIAL_FAVORITE_TAG;
 
@@ -257,14 +257,32 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                     gridTemplateColumns={showFavorites ? "repeat(auto-fill, minmax(400px, 1fr))" : "repeat(auto-fill, 400px)"}
                     style={{gridAutoFlow: showFavorites ? "row" : "column"}}
                 >
-                    {filteredItems.map(app =>
-                        <ApplicationCard
+                    {filteredItems.map(app => <>
+                        <AppCard
                             key={`${app.metadata.name}`}
+                            type={ApplicationCardType.WIDE}
                             onFavorite={() => onFavorite(app)}
                             app={app}
                             isFavorite={showFavorites}
                             tags={app.tags}
                         />
+                        <AppCard
+                            key={`${app.metadata.name}`}
+                            type={ApplicationCardType.TALL}
+                            onFavorite={() => onFavorite(app)}
+                            app={app}
+                            isFavorite={showFavorites}
+                            tags={app.tags}
+                        />
+                        <AppCard
+                            key={`${app.metadata.name}`}
+                            type={ApplicationCardType.EXTRA_WIDE}
+                            onFavorite={() => onFavorite(app)}
+                            app={app}
+                            isFavorite={showFavorites}
+                            tags={app.tags}
+                        />
+                    </>
                     )}
                 </Grid>
             </TagGridBottomBox>
@@ -272,7 +290,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
     );
 };
 
-const ToolGroup: React.FunctionComponent<{tag: string, items: ApplicationSummaryWithFavorite[], refreshId: number}> = ({tag, items, refreshId}) => {
+const ToolGroup: React.FunctionComponent<{tag: string, items: ApplicationSummaryWithFavorite[]}> = ({tag, items}) => {
     const allTags = items.map(it => it.tags);
     const tags = new Set<string>();
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));

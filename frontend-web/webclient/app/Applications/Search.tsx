@@ -8,7 +8,7 @@ import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {GridCardGroup} from "@/ui-components/Grid";
-import {ApplicationCard} from "@/Applications/Card";
+import {AppCard, ApplicationCardType} from "@/Applications/Card";
 import * as Pagination from "@/Pagination";
 import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
 
@@ -79,9 +79,10 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
             pageRenderer={page => (
                 <GridCardGroup>
                     {page.items.map(app => (
-                        <ApplicationCard
+                        <AppCard
                             key={`${app.metadata.name}${app.metadata.version}`}
                             app={app}
+                            type={ApplicationCardType.TALL}
                             onFavorite={toggleFavorite}
                             isFavorite={app.favorite}
                             tags={app.tags}

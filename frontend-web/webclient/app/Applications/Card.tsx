@@ -310,56 +310,6 @@ export const AbsoluteNoPointerEvents = styled(Absolute)`
     pointer-events: none;
 `;
 
-export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
-    app,
-    onFavorite,
-    isFavorite,
-    colorBySpecificTag
-}: ApplicationCardProps) => {
-    const hash = hashF(colorBySpecificTag ?? app.metadata.title ?? "fallback");
-    const {metadata} = app;
-    const appC = appColor(hash);
-    return (<>
-        <AppCard app={app} tags={app.tags} type={ApplicationCardType.TALL} />
-        <AppCard app={app} tags={app.tags} type={ApplicationCardType.WIDE} />
-        <AppCard app={app} tags={app.tags} type={ApplicationCardType.EXTRA_WIDE} />
-    </>
-
-        /* <AppCard data-component={"app-card"} to={Pages.runApplication(metadata)}>
-            <AbsoluteNoPointerEvents right={0} top={0}
-                cursor="inherit"
-                height="100%"
-                width="10px"
-                background={bgGradients[appC]} />
-            {(!onFavorite && !isFavorite) ? null : (
-                <AppRibbonContainer favorite={isFavorite} onClick={onFavoriteClick}>
-                    <Icon name={isFavorite ? "starFilled" : "starEmpty"} color="red" size={32} />
-                </AppRibbonContainer>
-            )}
-            <Flex flexDirection="row" alignItems="flex-start" zIndex={1}>
-                <AppToolLogo name={app.metadata.name} type="APPLICATION" size="60px" />
-                <Flex flexDirection="column" ml="10px">
-                    <EllipsedText fontSize="20px" maxWidth="220px" data-component={"app-title"}>{metadata.title}</EllipsedText>
-                    <Text data-component={"app-version"}>{metadata.version}</Text>
-
-                </Flex>
-            </Flex>
-            <EllipsedText title={`by ${metadata.authors.join(", ")} `} color="gray" width={1} mt={"4px"}>
-                by {app.metadata.authors.join(", ")}
-            </EllipsedText>
-            <Box mt="auto" />
-            <Flex flexDirection="row" alignItems="flex-start" zIndex={1}>
-                {buildTags(app.tags).map((tag, idx) => <Tag label={tag} key={idx} />)}
-            </Flex>
-        </AppCard> */
-    );
-
-    function onFavoriteClick(e: React.MouseEvent<HTMLDivElement, MouseEvent>): void {
-        e.preventDefault();
-        onFavorite?.(metadata.name, metadata.version);
-    }
-};
-
 export const CardToolContainer = styled(Box)`
     display: grid;
     flex-direction: column;
@@ -421,21 +371,23 @@ const TallApplicationCard = injectStyle("tall-application-card", k => `
     ${k} {
         width: 156px;
         height: 240px;
-        cursor: pointer
-    }
-
-    ${k} > div.image {
-        margin-top: 30px;
-    }
-
-    ${k}:hover {
-        /* TODO(Jonas): Missing inset box-shadow on hover. */
+        cursor: pointer;
     }
 
     ${k} > div.image {
         width: 75px;
-        margin-left: auto;
-        margin-right: auto;
+        height: 75px;
+        margin-top: 30px;
+        margin-bottom: 8px;
+    }
+    
+    ${k} > div.image > * {
+        width: 52px;
+        height: 52px;
+    }
+
+    ${k}:hover {
+        /* TODO(Jonas): Missing inset box-shadow on hover. */
     }
 `);
 
@@ -449,11 +401,10 @@ const WideApplicationCard = injectStyle("wide-application-card", k => `
     }
 
     ${k} > div.image {
-        margin-left: auto;
-        margin-right: auto;
+        width: 84px;
+        height: 84px;
         margin-top: auto;
         margin-bottom: auto;
-        width: 100px;
         text-align: center;
     }
 
@@ -468,7 +419,8 @@ const WideApplicationCard = injectStyle("wide-application-card", k => `
     }
 
     ${k}[data-xl="true"] > div.image {
-        width: 140px;
+        width: 100px;
+        height: 100px;
     }
 
     ${k}[data-xl="true"] > div.${TitleAndDescriptionClass} {
@@ -480,10 +432,9 @@ const ApplicationCardClass = injectStyle("application-card", k => `
     ${k} {
         border-radius: 16px;
         /* TODO(Jonas): Change color to a var, so we handle theming */
-        border: 1px solid #E2DDDD;
         box-shadow: ${theme.shadows.sm};
         /* TODO(Jonas): Change color to a var, so we handle theming */
-        background-color: #FAFBFC;
+        background-color: var(--white);
     }
 
     ${k} > div > span {
@@ -494,10 +445,25 @@ const ApplicationCardClass = injectStyle("application-card", k => `
         padding-right: 8px;
         height: 90px;
     }
+    
+    ${k} > div.image > * {
+        margin-left: auto;
+        margin-right: auto;
+        margin-top: auto;
+        margin-bottom: auto;
+    }
 
     ${k} > div > .${MultiLineTruncateClass} {
         margin-left: 10px;
         margin-right: 10px;
+    }
+
+    ${k} > div.image {
+        background-color: white;
+        border-radius: 12px;
+        margin-left: auto;
+        margin-right: auto;
+        display: flex;
     }
 
     ${k} > div {
@@ -512,17 +478,23 @@ function MultiLineTruncate(props: React.PropsWithChildren<{lines: number}>): JSX
     }} {...p} />;
 }
 
+const FAV_ICON_SIZE = "24px";
 const FavIcon = injectStyleSimple("app-fav-icon", `
-    
+    position: relative; 
+    height: 0;
+    width: 0;
+    top: 4px;
+    left: calc(100% - ${FAV_ICON_SIZE} - 4px);
 `);
 
-enum ApplicationCardType {
+export enum ApplicationCardType {
     WIDE,
+    EXTRA_TALL,
     TALL,
     EXTRA_WIDE,
 }
 
-interface _ApplicationCardProps extends ApplicationCardProps {
+interface AppCardProps extends ApplicationCardProps {
     type: ApplicationCardType;
 }
 
@@ -530,31 +502,49 @@ function lineCountFromType(t: ApplicationCardType): number {
     switch (t) {
         case ApplicationCardType.TALL:
             return 5;
+        case ApplicationCardType.EXTRA_TALL:
+            return 6;
         case ApplicationCardType.WIDE:
-            return 8;
+            return 5;
         case ApplicationCardType.EXTRA_WIDE:
-            return 12;
+            return 9;
     }
 }
 
-export function AppCard(props: _ApplicationCardProps): JSX.Element {
+export function AppCard(props: AppCardProps): JSX.Element {
+    const [isFavorite, setFavorite] = React.useState(!!props.isFavorite);
+
+    React.useEffect(() => {
+        setFavorite(!!props.isFavorite);
+    }, [props.isFavorite]);
+
+    const favorite = React.useCallback(() => {
+        props.onFavorite?.(props.app.metadata.name, props.app.metadata.version);
+    }, [props.app.metadata]);
+
+
     return React.useMemo(() => {
         let lineCount = lineCountFromType(props.type);
-
         const app = props.app;
         const {metadata} = app;
+        const favoriteDiv =
+            <div className={FavIcon} onClick={favorite}>
+                <Icon color="var(--blue)" hoverColor="var(--blue)" size={FAV_ICON_SIZE} name={isFavorite ? "starFilled" : "starEmpty"} />
+            </div>
         const titleAndDescription =
             <div className={TitleAndDescriptionClass}>
-                {/* <div className={FavIcon}></div> */}
                 <div><b>{metadata.title}</b></div>
                 <MultiLineTruncate lines={lineCount}>{metadata.description}</MultiLineTruncate>
             </div>;
-
         switch (props.type) {
+            case ApplicationCardType.EXTRA_TALL:
             case ApplicationCardType.TALL:
+                if (props.type === ApplicationCardType.EXTRA_TALL) console.log("TODO BY EXTRA_TALL");
+
                 return <div className={ApplicationCardClass + " " + TallApplicationCard}>
+                    {favoriteDiv}
                     <div className="image">
-                        <AppToolLogo size={"75px"} name={app.metadata.name} type="APPLICATION" />
+                        <AppToolLogo size={"52px"} name={app.metadata.name} type="APPLICATION" />
                     </div>
                     {titleAndDescription}
                 </div>
@@ -562,11 +552,12 @@ export function AppCard(props: _ApplicationCardProps): JSX.Element {
             case ApplicationCardType.EXTRA_WIDE:
                 const isExtraWide = props.type === ApplicationCardType.EXTRA_WIDE;
                 return <div className={ApplicationCardClass + " " + WideApplicationCard} data-xl={isExtraWide}>
+                    {favoriteDiv}
                     <div className="image">
-                        <AppToolLogo size={isExtraWide ? "99px" : "75px"} name={app.metadata.name} type="APPLICATION" />
+                        <AppToolLogo size={isExtraWide ? "85px" : "65px"} name={app.metadata.name} type="APPLICATION" />
                     </div>
                     {titleAndDescription}
                 </div>
         }
-    }, [props]);
+    }, [props, favorite, isFavorite]);
 }

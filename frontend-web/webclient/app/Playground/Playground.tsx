@@ -70,13 +70,13 @@ export const Playground: React.FunctionComponent = () => {
                 mb={"32px"}
             >
                 {colors.map((c: ThemeColor) => (
-                    <Box
+                    <div
                         title={`${c}, ${getCssVar(c)}`}
                         key={c}
-                        backgroundColor={c}
-                        height={"100px"}
-                        width={"100%"}
-                    />
+                        style={{color: "black", backgroundColor: getCssVar(c), height: "100%", width: "100%"}}
+                    >
+                        {c} {getCssVar(c)}
+                    </div>
                 ))}
             </Grid>
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
