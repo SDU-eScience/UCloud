@@ -147,7 +147,7 @@ sealed class ApplicationDescription(val application: String) {
                         when (val value = param.defaultValue) {
                             is String -> continue
                             is Map<*, *> -> {
-                                value["value"] as? String ?: throw ApplicationVerificationException.BadDefaultValue(
+                                value["path"] as? String ?: throw ApplicationVerificationException.BadDefaultValue(
                                     param.name
                                 )
                             }
@@ -440,10 +440,10 @@ sealed class ApplicationDescription(val application: String) {
                             if (param.defaultValue == null) { JsonNull } else {
                                 JsonObject(
                                     mapOf(
-                                        "value" to when(val value = param.defaultValue) {
+                                        "path" to when(val value = param.defaultValue) {
                                             is String -> JsonPrimitive(value)
                                             is Map<*, *> -> {
-                                                val defaultValue = value["value"] as? String ?: error("bad default value")
+                                                val defaultValue = value["path"] as? String ?: error("bad default value")
                                                 JsonPrimitive(defaultValue)
                                             }
                                             else -> error("bad default value")
@@ -462,10 +462,10 @@ sealed class ApplicationDescription(val application: String) {
                             if (param.defaultValue == null) { JsonNull } else {
                                 JsonObject(
                                     mapOf(
-                                        "value" to when(val value = param.defaultValue) {
+                                        "path" to when(val value = param.defaultValue) {
                                             is String -> JsonPrimitive(value)
                                             is Map<*, *> -> {
-                                                val defaultValue = value["value"] as? String ?: error("bad default value")
+                                                val defaultValue = value["path"] as? String ?: error("bad default value")
                                                 JsonPrimitive(defaultValue)
                                             }
                                             else -> error("bad default value")
