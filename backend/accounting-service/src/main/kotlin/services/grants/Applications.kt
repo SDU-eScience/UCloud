@@ -147,6 +147,22 @@ class GrantApplicationService(
         return defaultMapper.decodeFromString(application)
     }
 
+    private suspend fun willResultInDuplicateProjectTitle(projectTitle: String, parentId: String): Boolean {
+        val titles = db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("parent_id", parentId)
+                },
+                """
+                    select title
+                    from project.projects
+                    where parent = :parent_id
+                """.trimIndent()
+            ).rows.mapNotNull { it.getString(0)?.lowercase() }
+        }
+        return titles.contains(projectTitle.lowercase())
+    }
+
     suspend fun submit(
         actorAndProject: ActorAndProject,
         request: BulkRequest<CreateApplication>
@@ -158,6 +174,11 @@ class GrantApplicationService(
             }
             if (recipient is GrantApplication.Recipient.NewProject && createRequest.document.parentProjectId == null) {
                 throw RPCException("Missing parent ID when creating new project", HttpStatusCode.BadRequest)
+            }
+            if (recipient is GrantApplication.Recipient.NewProject) {
+                if (willResultInDuplicateProjectTitle(recipient.title, createRequest.document.parentProjectId!!)) {
+                    throw RPCException("Parent project already has a project with this title.", HttpStatusCode.BadRequest)
+                }
             }
         }
         val results = mutableListOf<Pair<Long, GrantNotification>>()
