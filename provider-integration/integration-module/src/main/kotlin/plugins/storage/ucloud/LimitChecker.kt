@@ -1,9 +1,15 @@
 package dk.sdu.cloud.plugins.storage.ucloud
 
 import dk.sdu.cloud.accounting.api.ErrorCode
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.FileCollection
+import dk.sdu.cloud.file.orchestrator.api.FileCollectionIncludeFlags
+import dk.sdu.cloud.file.orchestrator.api.FileCollectionsControl
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.bindStringNullable
@@ -12,7 +18,7 @@ import dk.sdu.cloud.sql.withSession
 
 class LimitChecker(
     private val db: DBContext,
-    private val pathConverter: PathConverter,
+    private val serviceClient: AuthenticatedClient,
 ) {
     private data class LimitKey(val username: String?, val projectId: String?, val category: String)
 
@@ -43,8 +49,19 @@ class LimitChecker(
             isLocked
         }
     )
+
+    private val collectionCache = SimpleCache<String, FileCollection> { collectionId ->
+        FileCollectionsControl.retrieve.call(
+            ResourceRetrieveRequest(
+                FileCollectionIncludeFlags(),
+                collectionId
+            ),
+            serviceClient
+        ).orThrow()
+    }
+
     suspend fun checkLimit(collection: String) {
-        val cachedCollection = pathConverter.collectionCache.get(collection)
+        val cachedCollection = collectionCache.get(collection)
             ?: throw RPCException("Unknown drive, are you sure it exists?", HttpStatusCode.NotFound)
 
         val key = LimitKey(

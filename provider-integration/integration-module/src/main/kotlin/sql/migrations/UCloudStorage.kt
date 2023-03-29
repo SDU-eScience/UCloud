@@ -53,3 +53,29 @@ fun V2__UCloudStorage() = MigrationScript("V2__UCloudStorage") { session ->
         """
     )
 }
+
+fun V3__UCloudStorage() = MigrationScript("V3__UCloudStorage") { session ->
+    session.prepareStatement(
+        //language=postgresql
+        """
+            create table ucloud_storage_timestamps(
+                name text primary key,
+                last_run bigint
+            );
+        """
+    ).useAndInvokeAndDiscard()
+
+    session.prepareStatement(
+        //language=postgresql
+        """
+            create table ucloud_storage_drives(
+                collection_id bigint primary key,
+                local_reference text,
+                project text,
+                type text not null,
+                system text not null,
+                in_maintenance_mode bool default false
+            )
+        """
+    ).useAndInvokeAndDiscard()
+}

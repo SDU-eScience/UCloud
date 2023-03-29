@@ -518,6 +518,7 @@ data class Volume(
     var flexVolume: FlexVolumeSource? = null,
     var persistentVolumeClaim: PersistentVolumeClaimSource? = null,
     var cephfs: CephfsVolumeSource? = null,
+    var hostPath: HostPathSource? = null,
 ) {
     @Serializable
     data class EmptyDirVolumeSource(
@@ -569,6 +570,12 @@ data class Volume(
         var path: String? = null,
         var readOnly: Boolean? = null,
         var secret: LocalObjectReference
+    )
+
+    @Serializable
+    data class HostPathSource(
+        var path: String? = null,
+        var type: String? = null,
     )
 }
 

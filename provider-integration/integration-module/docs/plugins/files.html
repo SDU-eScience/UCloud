@@ -114,6 +114,49 @@
         <doc-prop-container>
             <doc-prop name="type" type='"UCloud"' required></doc-prop>
             <doc-prop name="matches" type="string" required></doc-prop>
+            <doc-prop name="defaultSystem" type="string">
+                Reference to <code>systems</code>. This system will be used by default for new drives.
+                This property is required if more than one system exists.
+            </doc-prop>
+            <doc-prop name="systemUsedForLegacyDrives" type="string">
+                Reference to <code>systems</code>. This system will be used for old drives.
+                If not specified, then the <code>defaultSystem</code> will be used instead.
+            </doc-prop>
+            <doc-prop name="systems" type="map[string, section]" required>
+                <section>
+                    <doc-prop name="mountPath" type="string" required>
+                        The path to the file mount used for this system. For example <code>/mnt/storage</code>.
+                    </doc-prop>
+                    <doc-prop name="hostPath" type="string">
+                        Use this property to instruct the partner compute plugin that this system should be mounted using
+                        the <code>hostPath</code> method. Either this property or <code>volumeClaim</code> must be
+                        specified.
+                    </doc-prop>
+
+                    <doc-prop name="volumeClaim" type="string">
+                        Use this property to instruct the partner compute plugin that this system should be mounted using
+                        the <code>volumeClaim</code> method. Either this property or <code>hostPath</code> must be
+                        specified.
+                    </doc-prop>
+
+                    <doc-prop name="type" type="enum">
+                        <doc-table>
+                            <table>
+                            <thead>
+                                <th>Value</th>
+                                <th>Description</th>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>CephFS</code></td>
+                                    <td>Use this if the system is based on CephFS. This enables optimization for this system.</td>
+                                </tr>
+                            </tbody>
+                            </table>
+                        </doc-table>
+                    </doc-prop>
+                </section>
+            </doc-prop>
         </doc-prop-container>
     </section>
 
