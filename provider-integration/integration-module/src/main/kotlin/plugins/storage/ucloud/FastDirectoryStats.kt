@@ -5,10 +5,12 @@ import dk.sdu.cloud.service.Loggable
 import kotlin.math.absoluteValue
 import kotlin.random.Random
 
+const val disabled = true
 class CephFsFastDirectoryStats(private val nativeFs: NativeFS) : Loggable {
     override val log = logger()
 
     fun getRecursiveSize(file: InternalFile): Long? {
+        if (disabled) return null
         return nativeFs.getExtendedAttribute(file, "ceph.dir.rbytes")?.toLongOrNull()
     }
 

@@ -224,8 +224,8 @@ class FileQueries(
             FilesSortBy.PATH
         }
 
-        val foundFilesToStat = HashMap<String, NativeStat>()
-        foundFiles = sortFiles(nativeFs, allowedSortBy, sortOrder, foundFiles, foundFilesToStat)
+        val foundFilesToStat = HashMap<String, NativeFS.StatAndXattr>()
+        foundFiles = sortFiles(nativeFs, allowedSortBy, sortOrder, foundFiles, foundFilesToStat, SENSITIVITY_XATTR)
 
         debugSystem.normal("Files sorted - Retrieving file information...")
 
@@ -239,14 +239,14 @@ class FileQueries(
 
         while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
             val nextInternalFile = foundFiles[i++]
-            val sensitivity = runCatching { nativeFs.getExtendedAttribute(nextInternalFile, SENSITIVITY_XATTR) }
-                .getOrNull()?.takeIf { it != "inherit" } ?: inheritedSensitivity
 
             when (allowedSortBy) {
                 FilesSortBy.PATH -> {
-                    val (stat, time) = measureTimedValue {
-                        nativeFs.stat(nextInternalFile)
+                    val (statAndAttributes, time) = measureTimedValue {
+                        nativeFs.statAndFetchAttributes(nextInternalFile, SENSITIVITY_XATTR)
                     }
+
+                    val sensitivity = statAndAttributes.attributes[0]?.takeIf { it != "inherit" } ?: inheritedSensitivity
 
                     timeInStatNanos += time.inWholeNanoseconds
 
@@ -254,7 +254,7 @@ class FileQueries(
                         val (converted, conversionTime) = measureTimedValue {
                             convertNativeStatToUFile(
                                 nextInternalFile,
-                                stat,
+                                statAndAttributes.stat,
                                 file.path,
                                 sensitivity,
                             )
@@ -274,10 +274,11 @@ class FileQueries(
                         continue
                     }
 
+                    val sensitivity = nextFile.attributes[0]?.takeIf { it != "inherit" } ?: inheritedSensitivity
                     val (converted, conversionTime) = measureTimedValue {
                         convertNativeStatToUFile(
                             nextInternalFile,
-                            nextFile,
+                            nextFile.stat,
                             file.path,
                             sensitivity,
                         )
@@ -400,13 +401,14 @@ fun sortFiles(
     sortBy: FilesSortBy,
     sortOrder: SortDirection?,
     foundFiles: List<InternalFile>,
-    foundFilesToStat: HashMap<String, NativeStat>
+    foundFilesToStat: HashMap<String, NativeFS.StatAndXattr>,
+    vararg attributes: String,
 ): List<InternalFile> {
     if (sortBy != FilesSortBy.PATH) {
         for (file in foundFiles) {
             // NOTE(Dan): Catch any errors, since the files could go away at any point during this process
             runCatching {
-                foundFilesToStat[file.path] = nativeFs.stat(file)
+                foundFilesToStat[file.path] = nativeFs.statAndFetchAttributes(file, *attributes)
             }
         }
     }
@@ -416,8 +418,8 @@ fun sortFiles(
         FilesSortBy.PATH -> pathComparator
 
         FilesSortBy.SIZE -> kotlin.Comparator<InternalFile> { a, b ->
-            val aSize = foundFilesToStat[a.path]?.size ?: 0L
-            val bSize = foundFilesToStat[b.path]?.size ?: 0L
+            val aSize = foundFilesToStat[a.path]?.stat?.size ?: 0L
+            val bSize = foundFilesToStat[b.path]?.stat?.size ?: 0L
             when {
                 aSize < bSize -> -1
                 aSize > bSize ->  1
@@ -426,8 +428,8 @@ fun sortFiles(
         }.thenComparing(pathComparator)
 
         FilesSortBy.MODIFIED_AT -> kotlin.Comparator<InternalFile> { a, b ->
-            val aModifiedAt = foundFilesToStat[a.path]?.modifiedAt ?: 0L
-            val bModifiedAt = foundFilesToStat[b.path]?.modifiedAt ?: 0L
+            val aModifiedAt = foundFilesToStat[a.path]?.stat?.modifiedAt ?: 0L
+            val bModifiedAt = foundFilesToStat[b.path]?.stat?.modifiedAt ?: 0L
             when {
                 aModifiedAt < bModifiedAt -> -1
                 aModifiedAt > bModifiedAt ->  1

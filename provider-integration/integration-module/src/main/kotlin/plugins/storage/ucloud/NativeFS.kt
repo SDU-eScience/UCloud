@@ -14,14 +14,11 @@ import dk.sdu.cloud.utils.LinuxFileHandle
 import dk.sdu.cloud.utils.LinuxInputStream
 import dk.sdu.cloud.utils.LinuxOutputStream
 import dk.sdu.cloud.utils.copyTo
-import io.ktor.network.util.*
 import io.ktor.util.*
 import io.ktor.utils.io.pool.*
 import libc.NativeStat
 import libc.S_ISREG
 import libc.clib
-import java.io.InputStream
-import java.io.OutputStream
 import java.nio.file.attribute.PosixFilePermission
 import kotlin.collections.ArrayList
 
@@ -397,6 +394,20 @@ class NativeFS(
         return nativeStat(fd, autoClose = true)
     }
 
+    class StatAndXattr(val stat: NativeStat, val attributes: Array<String?>)
+    fun statAndFetchAttributes(file: InternalFile, vararg attributes: String): StatAndXattr {
+        val handle = openFile(file)
+        try {
+            val stat = nativeStat(handle, autoClose = false)
+            val fetchedAttributes = arrayOfNulls<String>(attributes.size)
+            for ((index, attr) in attributes.withIndex()) {
+                fetchedAttributes[index] = getExtendedAttribute(handle.fd, attr)
+            }
+            return StatAndXattr(stat, fetchedAttributes)
+        } finally {
+            handle.close()
+        }
+    }
 
     fun chmod(file: InternalFile, mode: Int) {
         val handle = openFile(file)
