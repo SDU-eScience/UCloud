@@ -1,8 +1,10 @@
 package dk.sdu.cloud.sql
 
-import dk.sdu.cloud.debug.DebugContext
-import dk.sdu.cloud.debug.DebugMessage
+import dk.sdu.cloud.debug.DBTransactionEvent
 import dk.sdu.cloud.debug.MessageImportance
+import dk.sdu.cloud.debug.databaseQuery
+import dk.sdu.cloud.debug.databaseResponse
+import dk.sdu.cloud.debug.databaseTransaction
 import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.forEachIndexedGraal
@@ -50,9 +52,7 @@ class SimpleConnectionPool(val size: Int, private val constructor: (pool: Simple
             connection = connections[firstFree]
         }
 
-        return connection.also {
-            it.debugContext = DebugContext.create()
-        }
+        return connection
     }
 
     suspend fun recycle(instance: JdbcConnection) {
@@ -76,9 +76,6 @@ class JdbcConnection(
     private val pool: SimpleConnectionPool
 ) : DBContext.Connection() {
     var _connectionTicket = -1
-    lateinit var debugContext: DebugContext
-    private lateinit var currentTransactionContext: DebugContext
-
     init {
         connection.autoCommit = false
     }
@@ -93,43 +90,25 @@ class JdbcConnection(
 
     override suspend fun openTransaction() {
         // Already open
-        currentTransactionContext = DebugContext.createWithParent(debugContext.id)
-        debugSystem?.sendMessage(
-            DebugMessage.DatabaseTransaction(
-                currentTransactionContext,
-                DebugMessage.DBTransactionEvent.OPEN
-            )
-        )
     }
 
     override suspend fun commit() {
         connection.commit()
-        debugSystem?.sendMessage(
-            DebugMessage.DatabaseTransaction(
-                DebugContext.createWithParent(currentTransactionContext.id),
-                DebugMessage.DBTransactionEvent.COMMIT
-            )
-        )
+        debugSystem.databaseTransaction(MessageImportance.IMPLEMENTATION_DETAIL, DBTransactionEvent.COMMIT)
     }
 
     override suspend fun rollback() {
         connection.rollback()
-        debugSystem?.sendMessage(
-            DebugMessage.DatabaseTransaction(
-                DebugContext.createWithParent(currentTransactionContext.id),
-                DebugMessage.DBTransactionEvent.ROLLBACK
-            )
-        )
+        debugSystem.databaseTransaction(MessageImportance.THIS_IS_ODD, DBTransactionEvent.ROLLBACK)
     }
 
     override fun prepareStatement(statement: String): PreparedStatement =
-        JdbcPreparedStatement(statement, connection, currentTransactionContext)
+        JdbcPreparedStatement(statement, connection)
 }
 
 class JdbcPreparedStatement(
     private val rawStatement: String,
     private val conn: JavaSqlConnection,
-    private val context: DebugContext,
 ) : PreparedStatement {
     private val parameterNamesToIndex: Map<String, List<Int>>
     private val preparedStatement: String
@@ -274,12 +253,10 @@ class JdbcPreparedStatement(
     override suspend fun execute(isUpdateHint: Boolean?): ResultCursor {
         val isUpdate = if (isUpdateHint == true) true else if (isUpdateHint == false) false else !willReturnResults()
 
-        debugSystem?.sendMessage(
-            DebugMessage.DatabaseQuery(
-                DebugContext.createWithParent(context.id),
-                rawStatement,
-                JsonObject(debugParameters)
-            )
+        debugSystem.databaseQuery(
+            MessageImportance.THIS_IS_NORMAL,
+            JsonObject(debugParameters),
+            rawStatement
         )
 
         executeStart = Time.now()
@@ -298,18 +275,13 @@ class JdbcPreparedStatement(
         statement.close()
 
         val responseTime = Time.now() - executeStart
-        debugSystem?.sendMessage(
-            DebugMessage.DatabaseResponse(
-                DebugContext.createWithParent(context.id),
-                responseTime,
-                rawStatement,
-                JsonObject(debugParameters),
-                when {
-                    responseTime >= 300 -> MessageImportance.THIS_IS_WRONG
-                    responseTime >= 150 -> MessageImportance.THIS_IS_ODD
-                    else -> MessageImportance.THIS_IS_NORMAL
-                }
-            )
+        debugSystem.databaseResponse(
+            when {
+                responseTime >= 300 -> MessageImportance.THIS_IS_WRONG
+                responseTime >= 150 -> MessageImportance.THIS_IS_ODD
+                else -> MessageImportance.THIS_IS_NORMAL
+            },
+            responseTime
         )
     }
 

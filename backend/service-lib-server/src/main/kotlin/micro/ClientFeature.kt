@@ -2,6 +2,7 @@ package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.service.DevelopmentOutgoingHostResolver
 import dk.sdu.cloud.service.Loggable
 

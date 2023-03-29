@@ -12,7 +12,7 @@ import dk.sdu.cloud.calls.server.IngoingCallFilter
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.controllers.MessageSigningIpc
-import dk.sdu.cloud.debug.detailD
+import dk.sdu.cloud.debug.detail
 import dk.sdu.cloud.ipc.IpcClient
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.PluginContext
@@ -67,18 +67,17 @@ suspend fun loadE2EValidation(rpcServer: RpcServer, pluginContext: PluginContext
 
                 else -> error("Unexpected server context of type $sctx")
             } ?: run {
-                debugSystem.detailD("Invalid signature: No signed intent found", Unit.serializer(), Unit)
+                debugSystem.detail("Invalid signature: No signed intent found")
                 failInvalidSignature()
             }
 
             val validIntent = certCache.validate(signedIntent) ?: run {
-                debugSystem.detailD("Invalid signature: Metadata did not validate", Unit.serializer(), Unit)
+                debugSystem.detail("Invalid signature: Metadata did not validate")
                 failInvalidSignature()
             }
             if (!doesIntentMatchCall(providerId, validIntent, call)) {
-                debugSystem.detailD(
+                debugSystem.detail(
                     "Invalid signature: Call does not match intention",
-                    JsonObject.serializer(),
                     JsonObject(
                         mapOf(
                             "intendedCall" to JsonPrimitive(validIntent.call),

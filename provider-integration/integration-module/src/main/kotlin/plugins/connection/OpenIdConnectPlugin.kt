@@ -12,7 +12,7 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.controllers.UserMapping
-import dk.sdu.cloud.debug.detailD
+import dk.sdu.cloud.debug.detail
 import dk.sdu.cloud.provider.api.IntegrationControl
 import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
 import dk.sdu.cloud.service.InternalTokenValidationJWT
@@ -22,7 +22,6 @@ import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -174,7 +173,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 val ucloudIdentity = stateTableMutex.withLock {
                     stateTable[OidcState(request.state)]
                 } ?: run {
-                    debugSystem.detailD("Rejecting OIDC callback: Unknown state", Unit.serializer(), Unit)
+                    debugSystem.detail("Rejecting OIDC callback: Unknown state")
                     throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                 }
 
@@ -201,13 +200,8 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                         },
                         ContentType.Application.FormUrlEncoded
                     )
-                ).orRethrowAs {
-                    runBlocking {
-                        debugSystem.detailD(
-                            "Rejecting OIDC callback: Bad response from token callback",
-                            Unit.serializer(), Unit
-                        )
-                    }
+                ).orNull() ?: run {
+                    debugSystem.detail("Rejecting OIDC callback: Bad response from token callback")
                     throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
                 }
 
@@ -227,9 +221,9 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 val jwt = accessTokenValidator.validateOrNull(tokenToUse)?.claims
                     ?: run {
                         log.debug("OIDC failed due to a bad token: ${tokenResponse.access_token}")
-                        debugSystem.detailD(
+                        debugSystem.detail(
                             "Rejecting OIDC callback: Bad token",
-                            OpenIdConnectToken.serializer(), tokenResponse
+                            defaultMapper.encodeToJsonElement(OpenIdConnectToken.serializer(), tokenResponse)
                         )
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
@@ -248,9 +242,9 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                         }.getOrNull() ?: listOfNotNull(jwt["aud"]?.takeIf { !it.isNull }?.asString())
 
                         if (aud.contains(configuration.client.id) != true) {
-                            debugSystem.detailD(
+                            debugSystem.detail(
                                 "Rejecting OIDC callback: Bad session state",
-                                OpenIdConnectToken.serializer(), tokenResponse
+                                defaultMapper.encodeToJsonElement(OpenIdConnectToken.serializer(), tokenResponse)
                             )
                             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                         }
@@ -258,18 +252,18 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                         if (returnedSessionState != request.session_state) {
                             log.debug("OIDC failed due to bad session state ($returnedSessionState != ${request.session_state}")
 
-                            debugSystem.detailD(
+                            debugSystem.detail(
                                 "Rejecting OIDC callback: Bad session state",
-                                OpenIdConnectToken.serializer(), tokenResponse
+                                defaultMapper.encodeToJsonElement(OpenIdConnectToken.serializer(), tokenResponse)
                             )
                             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                         }
 
                         if (azp != null && azp != configuration.client.id) {
                             log.debug("OIDC failed due to azp not matching configured client ($azp != ${configuration.client.id}")
-                            debugSystem.detailD(
+                            debugSystem.detail(
                                 "Rejecting OIDC callback: Bad azp",
-                                OpenIdConnectToken.serializer(), tokenResponse
+                                defaultMapper.encodeToJsonElement(OpenIdConnectToken.serializer(), tokenResponse)
                             )
                             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                         }
@@ -278,9 +272,9 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                     // We also fetch some additional information which can be of use to the extensions which performs
                     // mapping and/or user creation.
                     val subject = jwt["sub"]?.takeIf { !it.isNull }?.asString() ?: run {
-                        debugSystem.detailD(
+                        debugSystem.detail(
                             "Rejecting OIDC callback: Missing subject!",
-                            OpenIdConnectToken.serializer(), tokenResponse
+                            defaultMapper.encodeToJsonElement(OpenIdConnectToken.serializer(), tokenResponse)
                         )
                         throw RPCException("Missing sub", HttpStatusCode.BadRequest)
                     }

@@ -23,13 +23,13 @@ class LibC {
     external fun openat(fd: Int, path: String?, flags: Int, mode: Int): Int
     external fun close(fd: Int): Int
     external fun renameat(oldFd: Int, oldName: String?, newFd: Int, newName: String?): Int
-    external fun write(fd: Int, buffer: ByteArray?, bufferSize: Long): Int
-    external fun read(fd: Int, buffer: ByteArray?, bufferSize: Long): Int
+    external fun write(fd: Int, buffer: ByteBuffer, offset: Int, size: Int): Int
+    external fun read(fd: Int, buffer: ByteBuffer, offset: Int, size: Int): Int
     external fun lseek(fd: Int, offset: Long, whence: Int): Long
     external fun unlinkat(fd: Int, path: String?, flags: Int): Int
     external fun fchown(fd: Int, uid: Int, gid: Int): Int
     external fun fchmod(fd: Int, mode: Int): Int
-    external fun fgetxattr(fd: Int, name: String?, value: ByteArray?, size: Int): Int
+    external fun fgetxattr(fd: Int, name: String?, value: ByteBuffer): Int
     external fun fsetxattr(fd: Int, name: String?, value: ByteArray?, size: Int, flags: Int): Int
     external fun fremovexattr(fd: Int, name: String?): Int
     external fun fdopendir(fd: Int): Long

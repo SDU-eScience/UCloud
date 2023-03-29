@@ -10,10 +10,7 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AtomicInteger
 import dk.sdu.cloud.debug.*
-import dk.sdu.cloud.micro.DatabaseConfig
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.databaseConfig
-import dk.sdu.cloud.micro.featureOrNull
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -110,8 +107,7 @@ suspend fun <R> DBContext.withSession(
 
 data class AsyncDBConnection(
     internal val conn: SuspendingConnectionImpl, // Internal jasync-sql connection
-    val context: DebugContext,
-    internal val debug: DebugSystem? = null,
+    internal val debug: DebugSystemFeature
 ) : DBContext(), SuspendingConnection by conn
 
 /**
@@ -119,9 +115,9 @@ data class AsyncDBConnection(
  */
 class AsyncDBSessionFactory(
     config: DatabaseConfig,
-    private val debug: DebugSystem? = null
+    internal val debug: DebugSystemFeature
 ) : DBSessionFactory<AsyncDBConnection>, DBContext() {
-    constructor(micro: Micro) : this(micro.databaseConfig, micro.featureOrNull(DebugSystemFeature))
+    constructor(micro: Micro) : this(micro.databaseConfig, micro.feature(DebugSystemFeature))
 
     private val schema = config.defaultSchema
 
@@ -149,22 +145,15 @@ class AsyncDBSessionFactory(
 
     override suspend fun closeSession(session: AsyncDBConnection) {
         pool.giveBack((session.conn).connection as PostgreSQLConnection)
-
-        debug?.sendMessage(
-            DebugMessage.DatabaseConnection(
-                DebugContext.createWithParent(session.context.id),
-                isOpen = false
-            )
-        )
     }
 
     override suspend fun commit(session: AsyncDBConnection) {
         session.sendQuery("commit")
-        debug?.sendMessage(
-            DebugMessage.DatabaseTransaction(
-                DebugContext.createWithParent(session.context.id),
-                DebugMessage.DBTransactionEvent.COMMIT
-            )
+        println("-".repeat(10))
+        println("commit")
+        debug.system.databaseTransaction(
+            MessageImportance.THIS_IS_NORMAL,
+            DBTransactionEvent.COMMIT
         )
     }
 
@@ -173,39 +162,25 @@ class AsyncDBSessionFactory(
     }
 
     override suspend fun openSession(): AsyncDBConnection {
-        val context = DebugContext.create()
         val result = AsyncDBConnection(
             pool.take().await().asSuspending as SuspendingConnectionImpl,
-            context,
             debug,
         )
-
-        debug?.sendMessage(DebugMessage.DatabaseConnection(
-            context,
-            isOpen = true
-        ))
-
         return result
     }
 
     override suspend fun rollback(session: AsyncDBConnection) {
         session.sendQuery("rollback")
-        debug?.sendMessage(
-            DebugMessage.DatabaseTransaction(
-                DebugContext.createWithParent(session.context.id),
-                DebugMessage.DBTransactionEvent.ROLLBACK
-            )
+
+        println("-".repeat(10))
+        println("rollback")
+        debug.system.databaseTransaction(
+            MessageImportance.THIS_IS_NORMAL,
+            DBTransactionEvent.ROLLBACK
         )
     }
 
     override suspend fun openTransaction(session: AsyncDBConnection, transactionMode: TransactionMode?) {
-        debug?.sendMessage(
-            DebugMessage.DatabaseTransaction(
-                DebugContext.createWithParent(session.context.id),
-                DebugMessage.DBTransactionEvent.OPEN
-            )
-        )
-
         // We always begin by setting the search_path to our schema. The schema is checked in the init block to make
         // this safe.
         if (setJitOff.get()) {

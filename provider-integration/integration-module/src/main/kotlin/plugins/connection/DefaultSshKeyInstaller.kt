@@ -4,6 +4,7 @@ import dk.sdu.cloud.app.orchestrator.api.SSHKey
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.log
+import dk.sdu.cloud.debug.odd
 import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.service.Time
@@ -46,17 +47,16 @@ suspend fun PluginContext.installSshKeyWithDefaults(
     }
 
     if (!sshDir.exists()) {
-        debugSystem?.log(
+        debugSystem.odd(
             "Unable to initialize SSH directory for user!",
             JsonObject(mapOf("homeDirectory" to JsonPrimitive(homeDir.absolutePath))),
-            MessageImportance.THIS_IS_ODD
         )
         return
     }
 
     val authorizedKeysFile = File(sshDir, "authorized_keys")
     if (authorizedKeysFile.exists() && !authorizedKeysFile.isFile) {
-        debugSystem?.log(
+        debugSystem.odd(
             "~/.ssh/authorized_keys file of a user is actually a directory!",
             JsonObject(
                 mapOf(
@@ -65,7 +65,6 @@ suspend fun PluginContext.installSshKeyWithDefaults(
                     "authorized_keys" to JsonPrimitive(authorizedKeysFile.absolutePath),
                 )
             ),
-            MessageImportance.THIS_IS_ODD
         )
         return
     }

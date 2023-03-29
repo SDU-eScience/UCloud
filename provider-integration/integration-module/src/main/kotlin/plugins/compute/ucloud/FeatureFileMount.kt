@@ -19,6 +19,9 @@ import dk.sdu.cloud.plugins.storage.ucloud.*
 import dk.sdu.cloud.prettyMapper
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.utils.writeString
+import io.ktor.utils.io.pool.*
+import java.nio.CharBuffer
 
 /**
  * A plugin which mounts user-input into the containers
@@ -83,9 +86,9 @@ class FeatureFileMount(
                     ).removeSuffix("/")
                 )
                 try {
-                    fs.openForWriting(jobParamsFile, WriteConflictPolicy.RENAME).second.bufferedWriter().use {
-                        @Suppress("BlockingMethodInNonBlockingContext")
-                        it.write(prettyMapper.encodeToString(ExportedParameters.serializer(), jobParameterJson))
+                    fs.openForWriting(jobParamsFile, WriteConflictPolicy.RENAME).second.use {
+                        val jsonString = prettyMapper.encodeToString(ExportedParameters.serializer(), jobParameterJson)
+                        it.writeString(jsonString)
                     }
                 } catch (ex: Throwable) {
                     log.warn("Unable to create JobParameters.json for job: ${job.id} ${jobParamsFile}. ${ex.stackTraceToString()}")

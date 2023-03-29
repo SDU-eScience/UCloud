@@ -2,6 +2,8 @@ package dk.sdu.cloud.calls.client
 
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.debug.DebugContextType
+import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import kotlin.reflect.KClass
@@ -51,10 +53,23 @@ sealed class OutgoingCallFilter : OutgoingContextFilter {
 class RpcClient {
     private val requestInterceptors = HashMap<OutgoingCallCompanion<*>, OutgoingRequestInterceptor<*, *>>()
     private val callFilters = ArrayList<OutgoingCallFilter>()
+    var debugSystem: DebugSystem? = null
 
     fun attachFilter(filter: OutgoingCallFilter) {
         log.trace("Attaching filter: $filter")
         callFilters.add(filter)
+    }
+
+    private suspend fun <T> wrapContext(
+        callName: String,
+        block: suspend () -> T
+    ): T {
+        val system = debugSystem
+        return if (system == null) {
+            block()
+        } else {
+            system.useContext(DebugContextType.CLIENT_REQUEST, callName, block = block)
+        }
     }
 
     fun <Ctx : OutgoingCall, Companion : OutgoingCallCompanion<Ctx>> attachRequestInterceptor(
@@ -78,24 +93,26 @@ class RpcClient {
         @Suppress("UNCHECKED_CAST")
         interceptor as OutgoingRequestInterceptor<Ctx, Companion>
 
-        val ctx = interceptor.prepareCall(callDescription, request)
-        beforeHook?.invoke(ctx)
+        return wrapContext(callDescription.fullName) {
+            val ctx = interceptor.prepareCall(callDescription, request)
+            beforeHook?.invoke(ctx)
 
-        callFilters.filterIsInstance<OutgoingCallFilter.BeforeCall>().forEach {
-            if (it.canUseContext(ctx)) {
-                it.run(ctx, callDescription, request)
+            callFilters.filterIsInstance<OutgoingCallFilter.BeforeCall>().forEach {
+                if (it.canUseContext(ctx)) {
+                    it.run(ctx, callDescription, request)
+                }
             }
-        }
 
-        afterHook?.invoke(ctx)
+            afterHook?.invoke(ctx)
 
-        val response = interceptor.finalizeCall(callDescription, request, ctx)
-        callFilters.filterIsInstance<OutgoingCallFilter.AfterCall>().forEach {
-            if (it.canUseContext(ctx)) {
-                it.run(ctx, callDescription, response, Time.now() - start)
+            val response = interceptor.finalizeCall(callDescription, request, ctx)
+            callFilters.filterIsInstance<OutgoingCallFilter.AfterCall>().forEach {
+                if (it.canUseContext(ctx)) {
+                    it.run(ctx, callDescription, response, Time.now() - start)
+                }
             }
+            response
         }
-        return response
     }
 
     companion object : Loggable {

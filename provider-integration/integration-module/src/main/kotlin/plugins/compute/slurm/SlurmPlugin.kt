@@ -26,6 +26,7 @@ import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.compute.udocker.UDocker
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionIpc
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
+import dk.sdu.cloud.plugins.storage.ucloud.DefaultDirectBufferPool
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Logger
@@ -33,6 +34,8 @@ import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.*
+import io.ktor.util.*
+import io.ktor.utils.io.pool.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -46,6 +49,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import libc.clib
 import java.io.File
+import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.ArrayList
 import kotlin.math.max
@@ -496,8 +500,7 @@ class SlurmPlugin : ComputePlugin {
 
                         when (userInput) {
                             is ShellRequest.Input -> {
-                                processInput.write(userInput.data.encodeToByteArray())
-                                processInput.flush()
+                                processInput.writeString(userInput.data)
                             }
 
                             is ShellRequest.Resize -> {
@@ -520,7 +523,7 @@ class SlurmPlugin : ComputePlugin {
         }
 
         val sshOutputToUser = ProcessingScope.launch {
-            val readBuffer = ByteArray(256)
+            val readBuffer = ByteBuffer.allocateDirect(256)
 
             shellTracer { "sshOutputToUser ready" }
             while (shellIsActive() && isActive) {
@@ -529,7 +532,9 @@ class SlurmPlugin : ComputePlugin {
                 shellTracer { "sshOutputToUser read $bytesRead" }
 
                 if (bytesRead <= 0) break
-                val decodedString = readBuffer.decodeToString(0, bytesRead)
+                readBuffer.flip()
+                val decodedString = readBuffer.decodeString()
+                readBuffer.clear()
                 emitData(decodedString)
             }
         }
@@ -581,7 +586,7 @@ class SlurmPlugin : ComputePlugin {
 
     // NOTE(Dan): This cannot be inlined in the loop due to a limitation in GraalVM (AOT native images only)
     private suspend fun PluginContext.loop(accountingScan: Boolean) {
-        debugSystem.enterContext("Slurm monitoring") {
+        debugSystem.useContext(DebugContextType.BACKGROUND_TASK, "Slurm monitoring") {
             try {
                 monitorStates()
             } catch (ex: Throwable) {
@@ -589,7 +594,7 @@ class SlurmPlugin : ComputePlugin {
             }
         }
 
-        debugSystem.enterContext("Slurm accounting") {
+        debugSystem.useContext(DebugContextType.BACKGROUND_TASK, "Slurm accounting") {
             try {
                 monitorAccounting(accountingScan)
             } catch (ex: Throwable) {
@@ -695,13 +700,7 @@ class SlurmPlugin : ComputePlugin {
             }
         }
 
-        debugSystem.logD(
-            "Registered $registeredJobs slurm jobs",
-            Unit.serializer(),
-            Unit,
-            if (registeredJobs == 0) MessageImportance.IMPLEMENTATION_DETAIL
-            else MessageImportance.THIS_IS_NORMAL
-        )
+        debugSystem.normal("Registered $registeredJobs slurm jobs")
 
         // Send accounting information to UCloud
         // ------------------------------------------------------------------------------------------------------------
@@ -789,13 +788,7 @@ class SlurmPlugin : ComputePlugin {
 
         lastAccountingCharge = Time.now()
 
-        debugSystem.logD(
-            "Charged $chargedJobs slurm jobs",
-            Unit.serializer(),
-            Unit,
-            if (chargedJobs == 0) MessageImportance.IMPLEMENTATION_DETAIL
-            else MessageImportance.THIS_IS_NORMAL
-        )
+        debugSystem.normal("Charged $chargedJobs slurm jobs")
     }
 
     private val uidToUsernameCache = SimpleCache<Int, String>(
@@ -887,13 +880,7 @@ class SlurmPlugin : ComputePlugin {
             }
         }
 
-        debugSystem.logD(
-            "Updated state of $updatesSent slurm jobs",
-            Unit.serializer(),
-            Unit,
-            if (updatesSent == 0) MessageImportance.IMPLEMENTATION_DETAIL
-            else MessageImportance.THIS_IS_NORMAL,
-        )
+        debugSystem.normal("Updated state of $updatesSent slurm jobs")
     }
 
     override suspend fun RequestContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<ComputeSupport> {

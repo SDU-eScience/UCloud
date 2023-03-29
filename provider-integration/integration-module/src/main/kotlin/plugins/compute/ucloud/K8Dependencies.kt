@@ -14,7 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 interface K8Dependencies {
     val scope: CoroutineScope
     var serviceClient: AuthenticatedClient
-    val debug: DebugSystem?
+    val debug: DebugSystem
     val jobCache: VerifiedJobCache
 
     suspend fun addStatus(jobId: String, message: String): Boolean
@@ -41,7 +41,7 @@ data class K8DependenciesImpl(
     override val scope: CoroutineScope,
     override var serviceClient: AuthenticatedClient,
     val nameAllocator: NameAllocator,
-    override val debug: DebugSystem?,
+    override val debug: DebugSystem,
     override val jobCache: VerifiedJobCache,
 ) : K8Dependencies {
     private val lastMessage = SimpleCache<String, String>(maxAge = 60_000 * 10, lookup = { null })

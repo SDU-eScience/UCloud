@@ -569,11 +569,6 @@ fun main(args: Array<String>) {
 
             // Debug services
             // -------------------------------------------------------------------------------------------------------
-            val debugTransformer = if (config.core.developmentMode) {
-                DebugMessageTransformer.Development
-            } else {
-                DebugMessageTransformer.Production
-            }
             val structuredLogs = File(config.core.logs.directory, "structured").also {
                 it.mkdirs()
                 runCatching {
@@ -583,27 +578,26 @@ fun main(args: Array<String>) {
                     )
                 }
             }.absolutePath
-            val debugSystem: DebugSystem? = when (serverMode) {
-                /*
-                ServerMode.Server -> CommonDebugSystem(
-                    "IM/Server",
-                    CommonFile(structuredLogs),
-                    debugTransformer
+            val debugSystem: DebugSystem = when (serverMode) {
+                ServerMode.Server -> DebugSystem(
+                    structuredLogs,
+                    "${config.core.providerId}/Server",
+                    enabled = config.core.developmentMode
                 )
 
-                ServerMode.User -> CommonDebugSystem(
-                    "IM/User/${clib.getuid()}",
-                    CommonFile(structuredLogs),
-                    debugTransformer
+                ServerMode.User -> DebugSystem(
+                    structuredLogs,
+                    "${config.core.providerId}/User/${clib.getuid()}",
+                    enabled = config.core.developmentMode
                 )
-                 */
 
                 else -> null
-            }
+            } ?: disabledDebugSystem
             debugSystemAtomic.getAndSet(debugSystem)
 
-            if (debugSystem != null && rpcClient != null) {
+            if (config.core.developmentMode && rpcClient != null) {
                 debugSystem.registerMiddleware(rpcClient.client, rpcServer)
+                debugSystem.start(ProcessingScope)
             }
 
             // Configuration debug (before initializing any plugins, which might crash because of config)
@@ -611,16 +605,26 @@ fun main(args: Array<String>) {
             if (config.core.developmentMode) {
                 // NOTE(Dan): Do NOT remove the check as this will cause refresh tokens to be logged which we
                 // shouldn't do.
-                debugSystem.normalD("Configuration has been loaded!", ConfigSchema.serializer(), configSchema)
-                debugSystem.detailD(
-                    "Compute products loaded",
-                    ListSerializer(Product.serializer()),
-                    config.products.compute?.values?.flatten() ?: emptyList()
+                debugSystem.normal(
+                    "Configuration has been loaded!",
+                    defaultMapper.encodeToJsonElement(
+                        ConfigSchema.serializer(),
+                        configSchema
+                    )
                 )
-                debugSystem.detailD(
+                debugSystem.detail(
+                    "Compute products loaded",
+                    defaultMapper.encodeToJsonElement(
+                        ListSerializer(Product.serializer()),
+                        config.products.compute?.values?.flatten() ?: emptyList()
+                    )
+                )
+                debugSystem.detail(
                     "Storage products loaded",
-                    ListSerializer(Product.serializer()),
-                    config.products.storage?.values?.flatten() ?: emptyList()
+                    defaultMapper.encodeToJsonElement(
+                        ListSerializer(Product.serializer()),
+                        config.products.storage?.values?.flatten() ?: emptyList()
+                    )
                 )
             }
 
@@ -833,8 +837,9 @@ fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.callBlocking(
 }
 
 private val debugSystemAtomic = AtomicReference<DebugSystem?>(null)
-val debugSystem: DebugSystem?
-    get() = debugSystemAtomic.get()
+private val disabledDebugSystem = DebugSystem("/tmp", "disabled", enabled = false)
+val debugSystem: DebugSystem
+    get() = debugSystemAtomic.get() ?: disabledDebugSystem
 
 private val dbConfig = AtomicReference<VerifiedConfig.Server.Database>()
 

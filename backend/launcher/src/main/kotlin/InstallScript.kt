@@ -1,5 +1,6 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -47,6 +48,8 @@ fun runInstaller(configDir: File) {
         install(DeinitFeature)
         install(ScriptFeature)
         install(ConfigurationFeature)
+        install(BackgroundScopeFeature)
+        install(DebugSystemFeature)
         install(DatabaseConfigurationFeature)
         install(FlywayFeature)
     }
