@@ -149,7 +149,8 @@ class AccountingService(
                     deposit.amount,
                     deposit.startDate ?: Time.now(),
                     deposit.endDate,
-                    isProject = deposit.recipient is WalletOwner.Project
+                    isProject = deposit.recipient is WalletOwner.Project,
+                    grantedIn = deposit.grantedIn
                 )
             )
         }

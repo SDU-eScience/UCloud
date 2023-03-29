@@ -1975,7 +1975,8 @@ class AccountingProcessor(
                     workspaceIsProject = wall.owner.matches(UUID_REGEX),
                     projectPI = projectInfo.second,
                     remaining = allocation.currentBalance,
-                    initialBalance = allocation.initialBalance
+                    initialBalance = allocation.initialBalance,
+                    grantedIn = allocation.grantedIn
                 )
             } else null
         }

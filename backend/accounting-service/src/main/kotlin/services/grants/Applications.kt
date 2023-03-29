@@ -1217,6 +1217,7 @@ class GrantApplicationService(
                 description = "Granted In $applicationId",
                 startDate = it.period.start,
                 endDate = it.period.end,
+                grantedIn = applicationId
             )
         }
 

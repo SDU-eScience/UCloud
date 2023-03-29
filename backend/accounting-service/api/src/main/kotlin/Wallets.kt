@@ -271,7 +271,9 @@ data class SubAllocation(
     val projectPI: String?,
 
     val remaining: Long,
-    val initialBalance: Long
+    val initialBalance: Long,
+
+    val grantedIn: Long?
 )
 
 interface SubAllocationQuery : WithPaginationRequestV2 {
@@ -635,6 +637,13 @@ data class DepositToWalletRequestItem(
     val endDate: Long? = null,
     @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
     var transactionId: String = Random.nextLong().toString() + Time.now(),
+
+    @UCloudApiDoc(
+        """
+            A id for the grant that approved the deposit
+        """
+    )
+    val grantedIn: Long?,
     val dry: Boolean = false,
 )
 
@@ -1670,6 +1679,7 @@ object Accounting : CallDescriptionContainer("accounting") {
                             "42",
                             100,
                             "Create sub-allocation",
+                            grantedIn = null
                         )
                     ),
                     Unit,
