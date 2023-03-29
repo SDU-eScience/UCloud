@@ -7,8 +7,6 @@ import dk.sdu.cloud.service.Loggable
 import kotlin.math.absoluteValue
 import kotlin.random.Random
 
-private const val useTestingSizes = false
-
 interface FastDirectoryStatsInterface {
     suspend fun getRecursiveSize(file: InternalFile, allowSlowPath: Boolean = false): Long?
 }
@@ -33,42 +31,10 @@ class CephFsFastDirectoryStats(private val nativeFs: NativeFS) : Loggable, FastD
 
     override suspend fun getRecursiveSize(file: InternalFile, allowSlowPath: Boolean): Long? {
         return try {
-            nativeFs.getExtendedAttribute(file, "ceph.dir.rbytes").toLong()
+            nativeFs.getExtendedAttribute(file, "ceph.dir.rbytes")?.toLongOrNull()
         } catch (ex: Throwable) {
-            return if (useTestingSizes) {
-                Random.nextInt().absoluteValue.toLong() // up to 2GB
-            } else {
-                null
-            }
+            null
         }
-    }
-
-    fun getRecursiveEntryCount(file: InternalFile): Long {
-        return try {
-            nativeFs.getExtendedAttribute(file, "ceph.dir.rentries").toLong()
-        } catch (ex: Throwable) {
-            -1
-        }
-    }
-
-    fun getRecursiveFileCount(file: InternalFile): Long {
-        return try {
-            nativeFs.getExtendedAttribute(file, "ceph.dir.rfiles").toLong()
-        } catch (ex: Throwable) {
-            -1
-        }
-    }
-
-    fun getRecursiveDirectoryCount(file: InternalFile): Long {
-        return try {
-            nativeFs.getExtendedAttribute(file, "ceph.dir.rsubdirs").toLong()
-        } catch (ex: Throwable) {
-            -1
-        }
-    }
-
-    fun getRecursiveTime(file: InternalFile): String {
-        return nativeFs.getExtendedAttribute(file, "ceph.dir.rctime")
     }
 }
 
