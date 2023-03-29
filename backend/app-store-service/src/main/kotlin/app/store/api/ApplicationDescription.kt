@@ -147,7 +147,7 @@ sealed class ApplicationDescription(val application: String) {
                         when (val value = param.defaultValue) {
                             is String -> continue
                             is Map<*, *> -> {
-                                value["value"] as? String ?: throw ApplicationVerificationException.BadDefaultValue(
+                                value["path"] as? String ?: throw ApplicationVerificationException.BadDefaultValue(
                                     param.name
                                 )
                             }
@@ -353,24 +353,22 @@ sealed class ApplicationDescription(val application: String) {
                         ApplicationParameter.Bool(
                             param.name,
                             param.optional,
-                            JsonObject(
-                                mapOf(
-                                    "value" to when(val value = param.defaultValue) {
-                                        is Boolean -> JsonPrimitive(value)
-                                        is Map<*, *> -> {
-                                            val defaultValue = value["value"] as? Boolean ?: error("bad default value")
-                                            JsonPrimitive(defaultValue)
-                                        }
-                                        else -> {
-                                            if (value == null) {
-                                                JsonNull
-                                            } else {
-                                                error("bad default value")
+                            if (param.defaultValue == null) { JsonNull } else {
+                                JsonObject(
+                                    mapOf(
+                                        "value" to when (val value = param.defaultValue) {
+                                            is Boolean -> JsonPrimitive(value)
+                                            is Map<*, *> -> {
+                                                val defaultValue =
+                                                    value["value"] as? Boolean ?: error("bad default value")
+                                                JsonPrimitive(defaultValue)
                                             }
+
+                                            else -> error("bad default value")
                                         }
-                                    }
+                                    )
                                 )
-                            ),
+                            },
                             param.title,
                             param.description,
                             param.trueValue,
@@ -381,24 +379,22 @@ sealed class ApplicationDescription(val application: String) {
                         ApplicationParameter.Enumeration(
                             param.name,
                             param.optional,
-                            JsonObject(
-                                mapOf(
-                                    "value" to when(val value = param.defaultValue) {
-                                        is String -> JsonPrimitive(value)
-                                        is Map<*, *> -> {
-                                            val defaultValue = value["value"] as? String ?: error("bad default value")
-                                            JsonPrimitive(defaultValue)
-                                        }
-                                        else -> {
-                                            if (value == null) {
-                                                JsonNull
-                                            } else {
-                                                error("bad default value")
+                            if (param.defaultValue == null) { JsonNull } else {
+                                JsonObject(
+                                    mapOf(
+                                        "value" to when (val value = param.defaultValue) {
+                                            is String -> JsonPrimitive(value)
+                                            is Map<*, *> -> {
+                                                val defaultValue =
+                                                    value["value"] as? String ?: error("bad default value")
+                                                JsonPrimitive(defaultValue)
                                             }
+
+                                            else -> error("bad default value")
                                         }
-                                    }
+                                    )
                                 )
-                            ),
+                            },
                             param.title,
                             param.description,
                             param.options.map { ApplicationParameter.EnumOption(it.name, it.value) }
@@ -408,24 +404,20 @@ sealed class ApplicationDescription(val application: String) {
                         ApplicationParameter.FloatingPoint(
                             param.name,
                             param.optional,
-                            JsonObject(
-                                mapOf(
-                                    "value" to when(val value = param.defaultValue) {
-                                        is Double -> JsonPrimitive(value)
-                                        is Map<*, *> -> {
-                                            val defaultValue = value["value"] as? Double ?: error("bad default value")
-                                            JsonPrimitive(defaultValue)
-                                        }
-                                        else -> {
-                                            if (value == null) {
-                                                JsonNull
-                                            } else {
-                                                error("bad default value")
+                            if (param.defaultValue == null) { JsonNull } else {
+                                JsonObject(
+                                    mapOf(
+                                        "value" to when(val value = param.defaultValue) {
+                                            is Double -> JsonPrimitive(value)
+                                            is Map<*, *> -> {
+                                                val defaultValue = value["value"] as? Double ?: error("bad default value")
+                                                JsonPrimitive(defaultValue)
                                             }
+                                            else -> error("bad default value")
                                         }
-                                    }
+                                    )
                                 )
-                            ),
+                            },
                             param.title,
                             param.description,
                             param.min,
@@ -445,24 +437,20 @@ sealed class ApplicationDescription(val application: String) {
                         ApplicationParameter.InputDirectory(
                             param.name,
                             param.optional,
-                            JsonObject(
-                                mapOf(
-                                    "value" to when(val value = param.defaultValue) {
-                                        is String -> JsonPrimitive(value)
-                                        is Map<*, *> -> {
-                                            val defaultValue = value["value"] as? String ?: error("bad default value")
-                                            JsonPrimitive(defaultValue)
-                                        }
-                                        else -> {
-                                            if (value == null) {
-                                                JsonNull
-                                            } else {
-                                                error("bad default value")
+                            if (param.defaultValue == null) { JsonNull } else {
+                                JsonObject(
+                                    mapOf(
+                                        "path" to when(val value = param.defaultValue) {
+                                            is String -> JsonPrimitive(value)
+                                            is Map<*, *> -> {
+                                                val defaultValue = value["path"] as? String ?: error("bad default value")
+                                                JsonPrimitive(defaultValue)
                                             }
+                                            else -> error("bad default value")
                                         }
-                                    }
+                                    )
                                 )
-                            ),
+                            },
                             param.title,
                             param.description
                         )
@@ -471,24 +459,20 @@ sealed class ApplicationDescription(val application: String) {
                         ApplicationParameter.InputFile(
                             param.name,
                             param.optional,
-                            JsonObject(
-                                mapOf(
-                                    "value" to when(val value = param.defaultValue) {
-                                        is String -> JsonPrimitive(value)
-                                        is Map<*, *> -> {
-                                            val defaultValue = value["value"] as? String ?: error("bad default value")
-                                            JsonPrimitive(defaultValue)
-                                        }
-                                        else -> {
-                                            if (value == null) {
-                                                JsonNull
-                                            } else {
-                                                error("bad default value")
+                            if (param.defaultValue == null) { JsonNull } else {
+                                JsonObject(
+                                    mapOf(
+                                        "path" to when(val value = param.defaultValue) {
+                                            is String -> JsonPrimitive(value)
+                                            is Map<*, *> -> {
+                                                val defaultValue = value["path"] as? String ?: error("bad default value")
+                                                JsonPrimitive(defaultValue)
                                             }
+                                            else -> error("bad default value")
                                         }
-                                    }
+                                    )
                                 )
-                            ),
+                            },
                             param.title,
                             param.description,
                         )
@@ -497,24 +481,20 @@ sealed class ApplicationDescription(val application: String) {
                         ApplicationParameter.Integer(
                             param.name,
                             param.optional,
-                            JsonObject(
-                                mapOf(
-                                    "value" to when(val value = param.defaultValue) {
-                                        is Int -> JsonPrimitive(value)
-                                        is Map<*, *> -> {
-                                            val defaultValue = value["value"] as? Int ?: error("bad default value")
-                                            JsonPrimitive(defaultValue)
-                                        }
-                                        else -> {
-                                            if (value == null) {
-                                                JsonNull
-                                            } else {
-                                                error("bad default value")
+                            if (param.defaultValue == null) { JsonNull } else {
+                                JsonObject(
+                                    mapOf(
+                                        "value" to when (val value = param.defaultValue) {
+                                            is Int -> JsonPrimitive(value)
+                                            is Map<*, *> -> {
+                                                val defaultValue = value["value"] as? Int ?: error("bad default value")
+                                                JsonPrimitive(defaultValue)
                                             }
+                                            else -> error("bad default value")
                                         }
-                                    }
+                                    )
                                 )
-                            ),
+                            },
                             param.title,
                             param.description,
                             param.min,
@@ -551,24 +531,20 @@ sealed class ApplicationDescription(val application: String) {
                         ApplicationParameter.Text(
                             param.name,
                             param.optional,
-                            JsonObject(
-                                mapOf(
-                                    "value" to when(val value = param.defaultValue) {
-                                        is String -> JsonPrimitive(value)
-                                        is Map<*, *> -> {
-                                            val defaultValue = value["value"] as? String ?: error("bad default value")
-                                            JsonPrimitive(defaultValue)
-                                        }
-                                        else -> {
-                                            if (value == null) {
-                                                JsonNull
-                                            } else {
-                                                error("bad default value")
+                            if (param.defaultValue == null) { JsonNull } else {
+                                JsonObject(
+                                    mapOf(
+                                        "value" to when(val value = param.defaultValue) {
+                                            is String -> JsonPrimitive(value)
+                                            is Map<*, *> -> {
+                                                val defaultValue = value["value"] as? String ?: error("bad default value")
+                                                JsonPrimitive(defaultValue)
                                             }
+                                            else -> error("bad default value")
                                         }
-                                    }
+                                    )
                                 )
-                            ),
+                            },
                             param.title,
                             param.description
                         )
@@ -577,24 +553,22 @@ sealed class ApplicationDescription(val application: String) {
                         ApplicationParameter.TextArea(
                             param.name,
                             param.optional,
-                            JsonObject(
-                                mapOf(
-                                    "value" to when(val value = param.defaultValue) {
-                                        is String -> JsonPrimitive(value)
-                                        is Map<*, *> -> {
-                                            val defaultValue = value["value"] as? String ?: error("bad default value")
-                                            JsonPrimitive(defaultValue)
-                                        }
-                                        else -> {
-                                            if (value == null) {
-                                                JsonNull
-                                            } else {
-                                                error("bad default value")
+                            if (param.defaultValue == null) { JsonNull } else {
+                                JsonObject(
+                                    mapOf(
+                                        "value" to when (val value = param.defaultValue) {
+                                            is String -> JsonPrimitive(value)
+                                            is Map<*, *> -> {
+                                                val defaultValue =
+                                                    value["value"] as? String ?: error("bad default value")
+                                                JsonPrimitive(defaultValue)
                                             }
+
+                                            else -> error("bad default value")
                                         }
-                                    }
+                                    )
                                 )
-                            ),
+                            },
                             param.title,
                             param.description
                         )
