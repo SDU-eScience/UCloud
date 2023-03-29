@@ -177,7 +177,7 @@ class GrantApplicationService(
             }
             if (recipient is GrantApplication.Recipient.NewProject) {
                 if (willResultInDuplicateProjectTitle(recipient.title, createRequest.document.parentProjectId!!)) {
-                    throw RPCException("Parent project already has a project with this title.", HttpStatusCode.BadRequest)
+                    throw RPCException("Primary affiliation already has a subproject with this title.", HttpStatusCode.BadRequest)
                 }
             }
         }
