@@ -20,7 +20,6 @@ const shares = {
     sharedWithMe: () => "/shares"
 }
 
-
 const resources = {
     publicIps: () => "/public-ips",
     publicLinks: () => "/public-links",
@@ -37,13 +36,44 @@ const project = {
     subprojects: (projectId: string) => `/subprojects/${projectId}`,
 }
 
+const syncthing = {
+    syncthing: () => "/syncthing"
+}
+
+const apps = {
+    applications: () => "/applications",
+    overview: () => "/applications/overview",
+    search: () => "/applications/search",
+    studio: () => "/applications/studio",
+    studioTool: (tool: string) => `/applications/studio/t/${tool}`,
+    studioApp: (app: string) => `/applications/studio/a/${app}`,
+    shell: (jobId: string, rank: string) => `/applications/shell/${jobId}/${rank}`,
+    web: (jobId: string, rank: string) => `/applications/web/${jobId}/${rank}`,
+    vnc: (jobId: string, rank: string) => `/applications/vnc/${jobId}/${rank}`
+};
+
+const login = {
+    login: () => "/login",
+    loginSuccess: () => "/loginSuccess",
+    loginWayf: () => "/login/wayf",
+};
+
+const dashboard = {
+    dashboardA: () => "/",
+    dashboardB: () => "/dashboard",
+}
+
 const AppRoutes = {
+    apps,
     news,
+    dashboard,
     users,
     admin,
     shares,
     project,
-    resources
+    resources,
+    login,
+    syncthing
 };
 
 export default AppRoutes;

@@ -195,17 +195,10 @@ export const SidebarTextLabel = ({
 
 interface SidebarElement {
     icon: IconName;
-    to?: string;
 }
 
-function SidebarElement({icon, to}: SidebarElement): JSX.Element {
-    if (to) {
-        return (
-            <Link to={to}>
-                <Icon name={icon} color="white" color2="white" size={"20"} />
-            </Link>
-        );
-    } else return <Icon name={icon} color="white" color2="white" size={"20"} />;
+function SidebarElement({icon}: SidebarElement): JSX.Element {
+    return <Icon name={icon} color="white" color2="white" size={"20"} />
 }
 
 interface MenuElement {
@@ -228,18 +221,18 @@ export const sideBarMenuElements: {
 } = {
     guest: {
         items: [
-            {icon: "files", label: "Files", to: "/login"},
-            {icon: "projects", label: "Projects", to: "/login"},
-            {icon: "apps", label: "Apps", to: "/login"}
+            {icon: "files", label: "Files", to: AppRoutes.login.login()},
+            {icon: "projects", label: "Projects", to: AppRoutes.login.login()},
+            {icon: "apps", label: "Apps", to: AppRoutes.login.login()}
         ], predicate: () => !Client.isLoggedIn
     },
     general: {
         items: [
             {icon: "files", label: "Files", to: "/drives/"},
             {icon: "projects", label: "Projects", to: "/projects/", show: () => Client.hasActiveProject},
-            {icon: "shareMenu", label: "Shares", to: "/shares/", show: () => !Client.hasActiveProject},
+            {icon: "shareMenu", label: "Shares", to: AppRoutes.shares.sharedWithMe(), show: () => !Client.hasActiveProject},
             {icon: "dashboard", label: "Resources"},
-            {icon: "appStore", label: "Apps", to: "/applications/overview/"},
+            {icon: "appStore", label: "Apps", to: AppRoutes.apps.overview()},
             {icon: "results", label: "Runs", to: "/jobs/"}
         ], predicate: () => Client.isLoggedIn
     },
@@ -393,17 +386,24 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                     }}
                 >
                     {sidebar.map(({label, icon, to}) =>
-                        <div
-                            key={label}
-                            data-active={label === selectedPage}
-                            onClick={() => setSelectedPage(label)}
-                            onMouseEnter={() => setHoveredPage(label)}
-                            className={SidebarMenuItem}
-                        >
-                            <SidebarElement
-                                icon={icon}
-                                to={typeof to === "function" ? to() : to}
-                            />
+                        to ? (
+                            <Link key={label} to={typeof to === "function" ? to() : to}>
+                                <div
+                                    data-active={label === selectedPage}
+                                    onClick={() => setSelectedPage(label)}
+                                    onMouseEnter={() => setHoveredPage(label)}
+                                    className={SidebarMenuItem}
+                                >
+                                    <SidebarElement icon={icon} />
+                                </div>
+                            </Link>) : <div
+                                key={label}
+                                data-active={label === selectedPage}
+                                onClick={() => setSelectedPage(label)}
+                                onMouseEnter={() => setHoveredPage(label)}
+                                className={SidebarMenuItem}
+                            >
+                            <SidebarElement icon={icon} />
                         </div>
                     )}
                 </div>

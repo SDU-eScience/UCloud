@@ -341,24 +341,6 @@ export const SmallCard = styled(Link) <{color1: string; color2: string; color3: 
     }
 `;
 
-// NOTE: Limit is too arbitrary currently. Might need to find a better solution later.
-function buildTags(tags: string[]): string[] {
-    let limit = 40;
-    if (tags.join().length < limit && tags.length < 4) return tags;
-    const result: string[] = [];
-    tags.forEach(t => {
-        if (t.length > limit) return;
-        result.push(t);
-        limit -= t.length + 2.4;
-    });
-    if (result.length < tags.length) {
-        result.pop();
-        result.push(`+${tags.length - result.length} more`);
-    }
-    return result;
-}
-
-
 const MultiLineTruncateClass = injectStyleSimple("multiline-truncate", `
     display: -webkit-box;
     -webkit-box-orient: vertical;
@@ -431,10 +413,9 @@ const WideApplicationCard = injectStyle("wide-application-card", k => `
 const ApplicationCardClass = injectStyle("application-card", k => `
     ${k} {
         border-radius: 16px;
-        /* TODO(Jonas): Change color to a var, so we handle theming */
         box-shadow: ${theme.shadows.sm};
-        /* TODO(Jonas): Change color to a var, so we handle theming */
         background-color: var(--white);
+        color: var(--text);
     }
 
     ${k} > div > span {
@@ -456,6 +437,7 @@ const ApplicationCardClass = injectStyle("application-card", k => `
     ${k} > div > .${MultiLineTruncateClass} {
         margin-left: 10px;
         margin-right: 10px;
+        color: var(--text);
     }
 
     ${k} > div.image {
@@ -481,6 +463,7 @@ function MultiLineTruncate(props: React.PropsWithChildren<{lines: number}>): JSX
 const FAV_ICON_SIZE = "24px";
 const FavIcon = injectStyleSimple("app-fav-icon", `
     position: relative; 
+    cursor: pointer;
     height: 0;
     width: 0;
     top: 4px;
@@ -494,7 +477,7 @@ export enum ApplicationCardType {
     EXTRA_WIDE,
 }
 
-interface AppCardProps extends ApplicationCardProps {
+export interface AppCardProps extends React.PropsWithChildren<ApplicationCardProps> {
     type: ApplicationCardType;
 }
 

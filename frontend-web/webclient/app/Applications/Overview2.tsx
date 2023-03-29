@@ -1,8 +1,7 @@
-import {emptyPage, emptyPageV2} from "@/DefaultObjects";
+import {emptyPage} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import styled from "styled-components";
 import {Box, Flex, Link} from "@/ui-components";
 import Grid from "@/ui-components/Grid";
 import * as Heading from "@/ui-components/Heading";
@@ -22,6 +21,7 @@ import AppStoreOverview = compute.AppStoreOverview;
 import AppStoreSectionType = compute.AppStoreSectionType;
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -124,11 +124,11 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
     return (<MainContainer main={main} />);
 };
 
-const ScrollBox = styled(Box)`
+const ScrollBoxClass = injectStyleSimple("scroll-box", `
     overflow-x: auto;
-`;
+`);
 
-const ToolGroupWrapper = styled(Box)`
+const ToolGroupWrapperClass = injectStyleSimple("tool-group-wrapper", `
     width: 100%;
     padding-bottom: 10px;
     padding-left: 10px;
@@ -138,19 +138,19 @@ const ToolGroupWrapper = styled(Box)`
     box-shadow: ${theme.shadows.sm};
     border-radius: 5px;
     background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxwYXR0ZXJuIHZpZXdCb3g9IjAgMCBhdXRvIGF1dG8iIHg9IjAiIHk9IjAiIGlkPSJwMSIgd2lkdGg9IjU2IiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoMTUpIHNjYWxlKDAuNSAwLjUpIiBoZWlnaHQ9IjEwMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+PHBhdGggZD0iTTI4IDBMMjggMzRMMCA1MEwwIDg0TDI4IDEwMEw1NiA4NEw1NiA1MEwyOCAzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iNCI+PC9wYXRoPjwvcGF0dGVybj48L2RlZnM+PHJlY3QgZmlsbD0idXJsKCNwMSkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjwvcmVjdD48L3N2Zz4=");
-`;
+`);
 
-const ToolImageWrapper = styled(Box)`
+const ToolImageWrapperClass = injectStyleSimple("tool-image-wrapper", `
     display: flex;
     width: 200px;
     justify-items: center;
     justify-content: center;
     align-items: center;
     margin-right: 10px;
-`;
+`);
 
-const ToolImage = styled.div`
-    & > * {
+const ToolImageClass = injectStyle("tool-image", k => `
+    ${k} > * {
       max-width: 200px;
       max-height: 190px;
       margin-left: auto;
@@ -160,29 +160,40 @@ const ToolImage = styled.div`
       height: auto;
       width: 100%;
     }
-`;
+`);
 
 // NOTE(Dan): We don't allow new lines in tags normally. As a result, we can be pretty confident that no application
 // will have this tag.
 const SPECIAL_FAVORITE_TAG = "\n\nFavorites\n\n";
 
-type TagGridBoxProps = {
-    isFavorite: boolean;
-}
+const TagGridTopBoxClass = injectStyle("tag-grid-top-box", k => `
+    ${k} {
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        background-color: var(--lightGray);
+    }
 
-const TagGridTopBox = styled.div<TagGridBoxProps>`
-    border-top-left-radius: 10px;
-    border-top-right-radius: 10px;
-    background-color: var(${props => props.isFavorite ? "--appStoreFavBg" : "--lightGray"},#f00);
-`;
+    ${k}[data-favorite="true"] {
+        background-color: var(--appStoreFavBg);
+    }
+`);
 
-const TagGridBottomBox = styled.div<TagGridBoxProps>`
-    padding: 0px 10px 15px 10px;
-    ${props => props.isFavorite ? null : "overflow-x: scroll;"}
-    border-bottom-left-radius: 10px;
-    border-bottom-right-radius: 10px;
-    background-color: var(${props => props.isFavorite ? "--appStoreFavBg" : "--lightGray"},#f00);
-`;
+const TagGridBottomBoxClass = injectStyle("tag-grid-bottom-box", k => `
+    ${k} {
+        padding: 0px 10px 15px 10px;
+        border-bottom-left-radius: 10px;
+        border-bottom-right-radius: 10px;
+        background-color: var(--lightGray);
+    }
+
+    ${k}[data-favorite="true"] {
+        background-color: var(--appStoreFavBg);
+    }
+
+    ${k}[data-favorite="false"] {
+        overflow-x: scroll;
+    }
+`);
 
 
 interface TagGridProps {
@@ -233,10 +244,10 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
         filteredItems = newList;
     }
 
-    if (filteredItems.length === 0) return (null);
+    if (filteredItems.length === 0) return null;
     return (
         <>
-            <TagGridTopBox isFavorite={showFavorites}>
+            <div className={TagGridTopBoxClass} data-favorite={showFavorites}>
                 <Spacer
                     mt="15px" px="10px" alignItems={"center"}
                     left={<Heading.h2>{showFavorites ? "Favorites" : tag}</Heading.h2>}
@@ -248,55 +259,43 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                         )
                     )}
                 />
-            </TagGridTopBox>
-            <TagGridBottomBox isFavorite={showFavorites}>
+            </div>
+            <div className={TagGridBottomBoxClass} data-favorite={showFavorites}>
                 <Grid
                     pt="20px"
-                    gridGap="15px"
+                    gridGap="10px"
                     gridTemplateRows={showFavorites ? undefined : `repeat(${rows} , 1fr)`}
-                    gridTemplateColumns={showFavorites ? "repeat(auto-fill, minmax(400px, 1fr))" : "repeat(auto-fill, 400px)"}
+                    gridTemplateColumns={showFavorites ? "repeat(auto-fill, minmax(322px, 1fr))" : "repeat(auto-fill, 322px)"}
                     style={{gridAutoFlow: showFavorites ? "row" : "column"}}
                 >
-                    {filteredItems.map(app => <>
-                        <AppCard
-                            key={`${app.metadata.name}`}
-                            type={ApplicationCardType.WIDE}
-                            onFavorite={() => onFavorite(app)}
-                            app={app}
-                            isFavorite={showFavorites}
-                            tags={app.tags}
-                        />
-                        <AppCard
-                            key={`${app.metadata.name}`}
-                            type={ApplicationCardType.TALL}
-                            onFavorite={() => onFavorite(app)}
-                            app={app}
-                            isFavorite={showFavorites}
-                            tags={app.tags}
-                        />
-                        <AppCard
-                            key={`${app.metadata.name}`}
-                            type={ApplicationCardType.EXTRA_WIDE}
-                            onFavorite={() => onFavorite(app)}
-                            app={app}
-                            isFavorite={showFavorites}
-                            tags={app.tags}
-                        />
-                    </>
+                    {filteredItems.map(app =>
+                        <Link to={Pages.run(app.metadata.name, app.metadata.version)}>
+                            <AppCard
+                                key={`${app.metadata.name}`}
+                                type={ApplicationCardType.WIDE}
+                                onFavorite={() => onFavorite(app)}
+                                app={app}
+                                isFavorite={showFavorites}
+                                tags={app.tags}
+                            />
+                        </Link>
                     )}
                 </Grid>
-            </TagGridBottomBox>
+            </div>
         </>
     );
 };
 
 const ToolGroup: React.FunctionComponent<{tag: string, items: ApplicationSummaryWithFavorite[]}> = ({tag, items}) => {
-    const allTags = items.map(it => it.tags);
-    const tags = new Set<string>();
-    allTags.forEach(list => list.forEach(tag => tags.add(tag)));
+    const tags = React.useMemo(() => {
+        const allTags = items.map(it => it.tags);
+        const t = new Set<string>();
+        allTags.forEach(list => list.forEach(tag => t.add(tag)));
+        return t;
+    }, [items]);
 
     return (
-        <ToolGroupWrapper>
+        <div className={ToolGroupWrapperClass}>
             <Spacer
                 alignItems="center"
                 left={<Heading.h3>{tag}</Heading.h3>}
@@ -307,13 +306,13 @@ const ToolGroup: React.FunctionComponent<{tag: string, items: ApplicationSummary
                 )}
             />
             <Flex>
-                <ToolImageWrapper>
-                    <ToolImage>
+                <div className={ToolImageWrapperClass}>
+                    <div className={ToolImageClass}>
                         <AppToolLogo size="148px" name={tag.toLowerCase().replace(/\s+/g, "")} type={"TOOL"} />
-                    </ToolImage>
-                </ToolImageWrapper>
+                    </div>
+                </div>
                 <CardToolContainer>
-                    <ScrollBox>
+                    <div className={ScrollBoxClass}>
                         <Grid
                             py="10px"
                             pl="10px"
@@ -341,7 +340,7 @@ const ToolGroup: React.FunctionComponent<{tag: string, items: ApplicationSummary
                                 );
                             })}
                         </Grid>
-                    </ScrollBox>
+                    </div>
                     <Flex flexDirection="row" alignItems="flex-start">
                         {[...tags].filter(it => it !== tag).map(tag => (
                             <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag} /></ShowAllTagItem>
@@ -349,7 +348,7 @@ const ToolGroup: React.FunctionComponent<{tag: string, items: ApplicationSummary
                     </Flex>
                 </CardToolContainer>
             </Flex>
-        </ToolGroupWrapper>
+        </div>
     );
 };
 

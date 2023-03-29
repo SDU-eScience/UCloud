@@ -1,7 +1,7 @@
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
-import {displayErrorMessageOrDefault, shortUUID} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {dispatchSetProjectAction, getStoredProject} from "@/Project/Redux";
 import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error} from "@/ui-components";
@@ -113,14 +113,22 @@ export function ContextSwitcher(): JSX.Element | null {
                 left="0px"
                 width="500px"
             >
-                <div style={{maxHeight: "385px"}}>
+                <div style={{maxHeight: "385px", zIndex: 999999999999999}}>
                     <TextH3 bold mt="0" mb="8px">Select workspace</TextH3>
                     <Flex>
                         <Input onKeyUp={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")} type="text" />
                         <Relative right="34px" top="6px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
                     <div style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px"}}>
+                        {projectId !== undefined ? (
+                            <div key={"My Workspace"} style={{width: "100%"}} data-active={projectId === undefined} className={BottomBorderedRow} onClick={() => {
+                                onProjectUpdated(navigate, () => setProject(), refresh, "")
+                            }}>
+                                <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="2px" size="12px" color="blue" hoverColor="blue" name={"starFilled"} />
+                                <Text fontSize="var(--secondaryText)">My Workspace</Text>
+                            </div>
+                        ) : null}
                         {filteredProjects.map(it =>
-                            <div key={it.id + it.status.isFavorite} className={BottomBorderedRow} onClick={() => {
+                            <div key={it.id + it.status.isFavorite} style={{width: "100%"}} data-active={it.id === projectId} className={BottomBorderedRow} onClick={() => {
                                 onProjectUpdated(navigate, () => setProject(it.id), refresh, it.id)
                             }}>
                                 <Favorite project={it} />

@@ -13,7 +13,7 @@ import * as Pagination from "@/Pagination";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Button, Flex, VerticalButtonGroup} from "@/ui-components";
+import {Button, Flex, Link, VerticalButtonGroup} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import * as Heading from "@/ui-components/Heading";
 import {HiddenInputField} from "@/ui-components/Input";
@@ -112,7 +112,7 @@ export const Tool: React.FunctionComponent = () => {
                         pageRenderer={page => (
                             <Flex justifyContent="center" flexWrap="wrap">
                                 {page.items.map(({metadata}) => (
-                                    <SmallAppToolCard
+                                    <Link
                                         key={`${metadata.name}/${metadata.version}`}
                                         to={`/applications/studio/a/${metadata.name}`}
                                     >
@@ -126,7 +126,7 @@ export const Tool: React.FunctionComponent = () => {
                                                 </Truncate>
                                             </Box>
                                         </Flex>
-                                    </SmallAppToolCard>
+                                    </Link>
                                 ))}
                             </Flex>
                         )}

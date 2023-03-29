@@ -83,7 +83,7 @@ import {TerminalContainer} from "@/Terminal/Container";
 import {LOGIN_REDIRECT_KEY} from "@/Login/Login";
 import AppRoutes from "./Routes";
 import {RightPopIn} from "./ui-components/PopIn";
-import {injectStyle} from "./Unstyled";
+import {injectStyle, injectStyleSimple} from "./Unstyled";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -93,15 +93,15 @@ const Core = (): JSX.Element => (
         <Snackbars />
         <Uploader />
         <RightPopIn />
-        <div data-component="router-wrapper" style={{width: "100%", height: "calc(100vh - var(--termsize, 0px))", overflowX: "auto", overflowY: "auto"}}>
+        <div data-component="router-wrapper" className={RouteWrapperClass}>
             <ErrorBoundary>
                 <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>
                     <Routes>
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route path="/loginSuccess" element={<LoginSuccess />} />
-                        <Route path="/login/wayf" element={<Wayf />} />
-                        <Route path="/" element={React.createElement(requireAuth(Dashboard))} />
-                        <Route path="/dashboard" element={React.createElement(requireAuth(Dashboard))} />
+                        <Route path={AppRoutes.login.login()} element={<LoginPage />} />
+                        <Route path={AppRoutes.login.loginSuccess()} element={<LoginSuccess />} />
+                        <Route path={AppRoutes.login.loginWayf()} element={<Wayf />} />
+                        <Route path={AppRoutes.dashboard.dashboardA()} element={React.createElement(requireAuth(Dashboard))} />
+                        <Route path={AppRoutes.dashboard.dashboardB()} element={React.createElement(requireAuth(Dashboard))} />
                         <Route path={"/drives/*"} element={React.createElement(requireAuth(FileCollectionsRouter))} />
                         <Route path={"/files/*"} element={React.createElement(requireAuth(FilesRouter))} />
                         <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
@@ -109,19 +109,19 @@ const Core = (): JSX.Element => (
                         <Route path={"/shares/invite/:id"} element={React.createElement(requireAuth(SharesAcceptLink))} />
                         <Route path={"/shares/*"} element={React.createElement(requireAuth(ShareRouter))} />
 
-                        <Route path={"/syncthing"} element={React.createElement(requireAuth(SyncthingOverview))} />
+                        <Route path={AppRoutes.syncthing.syncthing()} element={React.createElement(requireAuth(SyncthingOverview))} />
 
-                        <Route path="/applications" element={React.createElement(requireAuth(Applications))} />
-                        <Route path="/applications/overview" element={React.createElement(requireAuth(ApplicationsOverview2))} />
-                        <Route path="/applications/search" element={React.createElement(requireAuth(Search))} />
+                        <Route path={AppRoutes.apps.applications()} element={React.createElement(requireAuth(Applications))} />
+                        <Route path={AppRoutes.apps.overview()} element={React.createElement(requireAuth(ApplicationsOverview2))} />
+                        <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(Search))} />
 
                         {!inDevEnvironment() ? null :
                             <Route path="/MANUAL-TESTING-OVERVIEW" element={<ManualTestingOverview />} />
                         }
 
-                        <Route path="/applications/shell/:jobId/:rank" element={React.createElement(requireAuth(JobShell))} />
-                        <Route path="/applications/web/:jobId/:rank" element={React.createElement(requireAuth(JobWeb))} />
-                        <Route path="/applications/vnc/:jobId/:rank" element={React.createElement(requireAuth(JobVnc))} />
+                        <Route path={AppRoutes.apps.shell(":jobId", ":rank")} element={React.createElement(requireAuth(JobShell))} />
+                        <Route path={AppRoutes.apps.web(":jobId", ":rank")} element={React.createElement(requireAuth(JobWeb))} />
+                        <Route path={AppRoutes.apps.vnc(":jobId", ":rank")} element={React.createElement(requireAuth(JobVnc))} />
                         <Route path="/public-links/*" element={React.createElement(requireAuth(IngressRouter))} />
                         <Route path="/jobs/*" element={React.createElement(requireAuth(JobRouter))} />
                         <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
@@ -129,17 +129,17 @@ const Core = (): JSX.Element => (
                         <Route path={"/ssh-keys"} element={React.createElement(requireAuth(SshKeyBrowse))} />
                         <Route path={"/ssh-keys/create"} element={React.createElement(requireAuth(SshKeyCreate))} />
 
-                        <Route path="/applications/studio" element={React.createElement(requireAuth(Studio))} />
-                        <Route path="/applications/studio/t/:name" element={React.createElement(requireAuth(Tool))} />
-                        <Route path="/applications/studio/a/:name" element={React.createElement(requireAuth(App))} />
+                        <Route path={AppRoutes.apps.studio()} element={React.createElement(requireAuth(Studio))} />
+                        <Route path={AppRoutes.apps.studioTool(":name")} element={React.createElement(requireAuth(Tool))} />
+                        <Route path={AppRoutes.apps.studioApp(":name")} element={React.createElement(requireAuth(App))} />
 
                         {!inDevEnvironment() ? null : <Route path={"/playground"} element={<Playground />} />}
                         {!inDevEnvironment() ? null : <Route path={"/playground/demo"} element={<Demo />} />}
                         {!inDevEnvironment() ? null : <Route path={"/playground/lag"} element={<LagTest />} />}
 
-                        <Route path="/admin/userCreation" element={React.createElement(requireAuth(UserCreation))} />
-                        <Route path="/admin/news" element={React.createElement(requireAuth(NewsManagement))} />
-                        <Route path="/admin/scripts" element={React.createElement(requireAuth(Scripts))} />
+                        <Route path={AppRoutes.admin.userCreation()} element={React.createElement(requireAuth(UserCreation))} />
+                        <Route path={AppRoutes.admin.news()} element={React.createElement(requireAuth(NewsManagement))} />
+                        <Route path={AppRoutes.admin.scripts()} element={React.createElement(requireAuth(Scripts))} />
 
                         <Route path="/admin/providers" element={React.createElement(requireAuth(Providers))} />
                         <Route path="/admin/providers/create" element={React.createElement(requireAuth(CreateProvider))} />
@@ -248,6 +248,13 @@ function requireAuth<T>(Delegate: React.FunctionComponent<T>, opts?: RequireAuth
         return <Delegate {...props} />;
     };
 }
+
+const RouteWrapperClass = injectStyleSimple("route-wrapper", `
+    width: 100%;
+    height: calc(100vh - var(--termsize, 0px));
+    overflow-x: auto;
+    overflow-y: auto;
+`);
 
 const LoginSuccess = (): JSX.Element => {
     React.useEffect(() => {

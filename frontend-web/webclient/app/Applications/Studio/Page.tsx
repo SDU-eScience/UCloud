@@ -22,6 +22,7 @@ import {AppToolLogo} from "../AppToolLogo";
 import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import * as UCloud from "@/UCloud";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {Link} from "@/ui-components";
 
 export const Studio: React.FunctionComponent = () => {
     useTitle("Application Studio");
@@ -102,7 +103,7 @@ export const Studio: React.FunctionComponent = () => {
                     pageRenderer={page => (
                         <Flex flexWrap={"wrap"} justifyContent={"center"}>
                             {page.items.map(tool =>
-                                <SmallAppToolCard key={tool.description.info.name}
+                                <Link key={tool.description.info.name}
                                                   to={`/applications/studio/t/${tool.description.info.name}`}>
                                     <Flex>
                                         <AppToolLogo type={"TOOL"} name={tool.description.info.name}/>
@@ -113,7 +114,7 @@ export const Studio: React.FunctionComponent = () => {
                                             <Box cursor={"pointer"}>{tool.description.info.name}</Box>
                                         </Box>
                                     </Flex>
-                                </SmallAppToolCard>
+                                </Link>
                             )}
                         </Flex>
                     )}
