@@ -13,6 +13,8 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.utils.LinuxFileHandle
 import dk.sdu.cloud.utils.LinuxInputStream
 import dk.sdu.cloud.utils.LinuxOutputStream
+import dk.sdu.cloud.utils.copyTo
+import io.ktor.network.util.*
 import io.ktor.util.*
 import io.ktor.utils.io.pool.*
 import libc.NativeStat
@@ -106,8 +108,10 @@ class NativeFS(
 
                     val ins = LinuxInputStream(sourceFd) // Closed later
                     LinuxOutputStream(destFd).use { outs ->
-                        ins.copyTo(outs)
                         fchmod(destFd.fd, sourceStat.mode)
+                        fchown(destFd.fd, sourceStat.ownerUid, sourceStat.ownerGid)
+
+                        ins.copyTo(outs)
                     }
                     return CopyResult.CreatedFile
                 } else if (sourceStat.fileType == FileType.DIRECTORY) {
@@ -311,7 +315,7 @@ class NativeFS(
         permissions: Int? = DEFAULT_FILE_MODE,
         truncate: Boolean = true,
         offset: Long? = null,
-    ): Pair<String, OutputStream> {
+    ): Pair<String, LinuxOutputStream> {
         val parentFd = openFile(file.parent())
         try {
             val (targetName, targetFd) = createAccordingToPolicy(
@@ -342,8 +346,8 @@ class NativeFS(
         }
     }
 
-    fun openForReading(file: InternalFile): InputStream {
-        return LinuxInputStream(openFile(file, O_RDONLY)).buffered()
+    fun openForReading(file: InternalFile): LinuxInputStream {
+        return LinuxInputStream(openFile(file, O_RDONLY))
     }
 
     fun delete(file: InternalFile, allowRecursion: Boolean = true) {
@@ -370,7 +374,7 @@ class NativeFS(
         }
     }
 
-    fun getExtendedAttribute(file: InternalFile, attribute: String): String {
+    fun getExtendedAttribute(file: InternalFile, attribute: String): String? {
         val handle = openFile(file)
         return try {
             getExtendedAttribute(handle.fd, attribute)
@@ -379,11 +383,12 @@ class NativeFS(
         }
     }
 
-    private fun getExtendedAttribute(fd: Int, attribute: String): String {
-        return DefaultByteArrayPool.useInstance { buf ->
-            val xattrSize = clib.fgetxattr(fd, attribute, buf, buf.size)
-            if (xattrSize < 0) throw NativeException(clib.getErrno())
-            String(buf, 0, xattrSize, Charsets.UTF_8)
+    private fun getExtendedAttribute(fd: Int, attribute: String): String? {
+        return DefaultDirectBufferPool.useInstance { buf ->
+            val xattrSize = clib.fgetxattr(fd, attribute, buf)
+            if (xattrSize < 0) return@useInstance null
+            buf.limit(xattrSize)
+            String(buf.moveToByteArray(), 0, xattrSize, Charsets.UTF_8)
         }
     }
 

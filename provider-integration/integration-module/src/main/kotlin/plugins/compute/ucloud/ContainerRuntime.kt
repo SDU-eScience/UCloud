@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins.compute.ucloud
 import dk.sdu.cloud.app.orchestrator.api.CpuAndMemory
 import dk.sdu.cloud.app.orchestrator.api.IPProtocol
 import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.utils.LinuxOutputStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import java.io.OutputStream
@@ -17,7 +18,7 @@ interface Container {
 
     suspend fun cancel(force: Boolean = false)
 
-    suspend fun downloadLogs(out: OutputStream)
+    suspend fun downloadLogs(out: LinuxOutputStream)
     suspend fun watchLogs(scope: CoroutineScope): ReceiveChannel<String>
 
     suspend fun openShell(

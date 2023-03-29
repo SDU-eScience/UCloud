@@ -235,11 +235,13 @@ class FileQueries(
         var i = offset
         var didSkipFiles = false
         var timeInStatNanos = 0L
+        var timeInConversionNanos = 0L
 
         while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
             val nextInternalFile = foundFiles[i++]
             val sensitivity = runCatching { nativeFs.getExtendedAttribute(nextInternalFile, SENSITIVITY_XATTR) }
                 .getOrNull()?.takeIf { it != "inherit" } ?: inheritedSensitivity
+
             when (allowedSortBy) {
                 FilesSortBy.PATH -> {
                     val (stat, time) = measureTimedValue {
@@ -249,14 +251,16 @@ class FileQueries(
                     timeInStatNanos += time.inWholeNanoseconds
 
                     try {
-                        items.add(
+                        val (converted, conversionTime) = measureTimedValue {
                             convertNativeStatToUFile(
                                 nextInternalFile,
                                 stat,
                                 file.path,
                                 sensitivity,
                             )
-                        )
+                        }
+                        timeInConversionNanos += conversionTime.inWholeNanoseconds
+                        items.add(converted)
                     } catch (ex: FSException.NotFound) {
                         // NOTE(Dan): File might have gone away between these two calls
                         didSkipFiles = true
@@ -270,14 +274,16 @@ class FileQueries(
                         continue
                     }
 
-                    items.add(
+                    val (converted, conversionTime) = measureTimedValue {
                         convertNativeStatToUFile(
                             nextInternalFile,
                             nextFile,
                             file.path,
                             sensitivity,
                         )
-                    )
+                    }
+                    timeInConversionNanos += conversionTime.inWholeNanoseconds
+                    items.add(converted)
                 }
             }
         }
@@ -302,7 +308,7 @@ class FileQueries(
             null
         }
 
-        debugSystem.normal("File information gathered (${timeInStatNanos} ns in stat) - Responding")
+        debugSystem.normal("File information gathered (${timeInStatNanos} ns in stat, ${timeInConversionNanos} ns in conversion) - Responding")
 
         return PageV2(pagination.itemsPerPage, items, newNext)
     }

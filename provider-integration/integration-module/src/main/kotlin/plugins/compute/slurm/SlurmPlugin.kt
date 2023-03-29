@@ -26,6 +26,7 @@ import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.compute.udocker.UDocker
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionIpc
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
+import dk.sdu.cloud.plugins.storage.ucloud.DefaultDirectBufferPool
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Logger
@@ -33,6 +34,8 @@ import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.*
+import io.ktor.util.*
+import io.ktor.utils.io.pool.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -46,6 +49,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import libc.clib
 import java.io.File
+import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.ArrayList
 import kotlin.math.max
@@ -496,8 +500,7 @@ class SlurmPlugin : ComputePlugin {
 
                         when (userInput) {
                             is ShellRequest.Input -> {
-                                processInput.write(userInput.data.encodeToByteArray())
-                                processInput.flush()
+                                processInput.writeString(userInput.data)
                             }
 
                             is ShellRequest.Resize -> {
@@ -520,7 +523,7 @@ class SlurmPlugin : ComputePlugin {
         }
 
         val sshOutputToUser = ProcessingScope.launch {
-            val readBuffer = ByteArray(256)
+            val readBuffer = ByteBuffer.allocateDirect(256)
 
             shellTracer { "sshOutputToUser ready" }
             while (shellIsActive() && isActive) {
@@ -529,7 +532,9 @@ class SlurmPlugin : ComputePlugin {
                 shellTracer { "sshOutputToUser read $bytesRead" }
 
                 if (bytesRead <= 0) break
-                val decodedString = readBuffer.decodeToString(0, bytesRead)
+                readBuffer.flip()
+                val decodedString = readBuffer.decodeString()
+                readBuffer.clear()
                 emitData(decodedString)
             }
         }

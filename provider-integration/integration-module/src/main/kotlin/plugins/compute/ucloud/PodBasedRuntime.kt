@@ -3,6 +3,8 @@ package dk.sdu.cloud.plugins.compute.ucloud
 import dk.sdu.cloud.app.orchestrator.api.IPProtocol
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.utils.LinuxOutputStream
+import dk.sdu.cloud.utils.copyTo
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.*
@@ -96,7 +98,7 @@ abstract class PodBasedContainer : Container {
         })
     }
 
-    override suspend fun downloadLogs(out: OutputStream) {
+    override suspend fun downloadLogs(out: LinuxOutputStream) {
         val podMeta = pod.metadata!!
         val podName = podMeta.name!!
         val namespace = podMeta.namespace!!
