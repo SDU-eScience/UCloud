@@ -44,35 +44,35 @@ class FeatureParameter(
                     when (it) {
                         is ApplicationParameter.InputDirectory,
                         is ApplicationParameter.InputFile ->
-                            defaultMapper.decodeFromJsonElement<AppParameterValue.File>(it.defaultValue!!)
+                            defaultMapper.decodeFromJsonElement(AppParameterValue.File.serializer(), it.defaultValue!!)
 
                         is ApplicationParameter.Bool ->
-                            defaultMapper.decodeFromJsonElement<AppParameterValue.Bool>(it.defaultValue!!)
+                            defaultMapper.decodeFromJsonElement(AppParameterValue.Bool.serializer(), it.defaultValue!!)
 
                         is ApplicationParameter.FloatingPoint ->
-                            defaultMapper.decodeFromJsonElement<AppParameterValue.FloatingPoint>(it.defaultValue!!)
+                            defaultMapper.decodeFromJsonElement(AppParameterValue.FloatingPoint.serializer(), it.defaultValue!!)
 
                         is ApplicationParameter.Ingress ->
-                            defaultMapper.decodeFromJsonElement<AppParameterValue.Ingress>(it.defaultValue!!)
+                            defaultMapper.decodeFromJsonElement(AppParameterValue.Ingress.serializer(), it.defaultValue!!)
 
                         is ApplicationParameter.Integer ->
-                            defaultMapper.decodeFromJsonElement<AppParameterValue.Integer>(it.defaultValue!!)
+                            defaultMapper.decodeFromJsonElement(AppParameterValue.Integer.serializer(), it.defaultValue!!)
 
                         is ApplicationParameter.LicenseServer ->
-                            defaultMapper.decodeFromJsonElement<AppParameterValue.License>(it.defaultValue!!)
+                            defaultMapper.decodeFromJsonElement(AppParameterValue.License.serializer(), it.defaultValue!!)
 
                         is ApplicationParameter.NetworkIP ->
-                            defaultMapper.decodeFromJsonElement<AppParameterValue.Network>(it.defaultValue!!)
+                            defaultMapper.decodeFromJsonElement(AppParameterValue.Network.serializer(), it.defaultValue!!)
 
                         is ApplicationParameter.Peer ->
-                            defaultMapper.decodeFromJsonElement<AppParameterValue.Peer>(it.defaultValue!!)
+                            defaultMapper.decodeFromJsonElement(AppParameterValue.Peer.serializer(), it.defaultValue!!)
 
                         is ApplicationParameter.Text,
                         is ApplicationParameter.Enumeration ->
-                            defaultMapper.decodeFromJsonElement<AppParameterValue.Text>(it.defaultValue!!)
+                            defaultMapper.decodeFromJsonElement(AppParameterValue.Text.serializer(), it.defaultValue!!)
 
                         is ApplicationParameter.TextArea ->
-                            defaultMapper.decodeFromJsonElement<AppParameterValue.TextArea>(it.defaultValue!!)
+                            defaultMapper.decodeFromJsonElement(AppParameterValue.TextArea.serializer(), it.defaultValue!!)
                     }
                 }.getOrNull() ?: continue
 
