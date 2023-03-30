@@ -58,6 +58,7 @@ const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTestin
 const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
 const SshKeyBrowse = React.lazy(() => import("@/Applications/SshKeys/Browse"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Create"));
+const ExperimentalFileBrowse = React.lazy(() => import("@/Files/ExperimentalBrowse"));
 
 import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplicationEditor";
 import Sidebar from "@/ui-components/Sidebar";
@@ -109,6 +110,7 @@ const Core = (): JSX.Element => (
                         <Route path={"/debugger"} element={<Debugger />} />
                         <Route path={"/drives/*"} element={React.createElement(requireAuth(FileCollectionsRouter))} />
                         <Route path={"/files/*"} element={React.createElement(requireAuth(FilesRouter))} />
+                        <Route path={"/files-experimental/*"} element={React.createElement(requireAuth(ExperimentalFileBrowse))} />
                         <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
                         <Route path={"/shares/outgoing"} element={React.createElement(requireAuth(SharesOutgoing))} />
                         <Route path={"/shares/invite/:id"} element={React.createElement(requireAuth(SharesAcceptLink))} />

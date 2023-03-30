@@ -3,15 +3,29 @@ package dk.sdu.cloud.avatar.http
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.avatar.api.*
 import dk.sdu.cloud.avatar.services.AvatarService
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.UCloudRpcRequest
+import dk.sdu.cloud.calls.UCloudRpcSubsystem
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.client.HostInfo
+import dk.sdu.cloud.calls.client.OutgoingURPCCall
+import dk.sdu.cloud.calls.client.OutgoingURPCRequestInterceptor
+import dk.sdu.cloud.calls.client.RpcClient
+import dk.sdu.cloud.calls.client.TableSerializer
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.ucloudRpc
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.GlobalScope
+import kotlinx.serialization.builtins.serializer
+import ucloud.AuthenticateRequest
 
 class AvatarController(
     private val avatarService: AvatarService
 ) : Controller {
+    @ExperimentalUnsignedTypes
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
         implement(AvatarDescriptions.update) {
@@ -62,6 +76,31 @@ class AvatarController(
 
         implement(AvatarDescriptions.findBulk) {
             ok(FindBulkResponse(avatarService.bulkFind(request.usernames)))
+        }
+
+        implement(AvatarDescriptions.test) {
+            val client = RpcClient()
+            client.attachRequestInterceptor(
+                OutgoingURPCRequestInterceptor(
+                    HostInfo("localhost", "http", 4234),
+                    GlobalScope
+                )
+            )
+
+            val foo = object : CallDescriptionContainer("foo") {
+                val f = call("f", TableSerializer<AuthenticateRequest>(), Unit.serializer(), Unit.serializer()) {
+                    ucloudRpc(UCloudRpcSubsystem.USER)
+                }
+            }
+
+            client.call(
+                foo.f,
+                AuthenticateRequest().apply {
+                },
+                OutgoingURPCCall.Companion,
+            )
+
+            ok(Unit)
         }
     }
 

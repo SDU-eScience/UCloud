@@ -39,6 +39,18 @@ dependencies {
 
 kotlin {
     sourceSets {
+        val api by creating {
+            dependencies {
+                api("com.google.flatbuffers:flatbuffers-java:23.3.3")
+            }
+        }
+
+        val main by getting {
+            dependencies {
+                dependsOn(api)
+            }
+        }
+
         all {
             languageSettings.enableLanguageFeature("InlineClasses")
             languageSettings.progressiveMode = true
