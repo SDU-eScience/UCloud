@@ -40,7 +40,7 @@ function favoriteStatusKey(app: ApplicationSummaryWithFavorite): string {
 
 type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
 
-export const ApplicationsOverview: React.FunctionComponent = () => {
+const ApplicationsOverview: React.FunctionComponent = () => {
     const defaultTools = [
         "BEDTools",
         "Cell Ranger",
@@ -78,9 +78,9 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
 
     useTitle("Applications");
     useSidebarPage(SidebarPages.AppStore);
-    const refresh = () => {
-        setRefreshId(refreshId + 1);
-    };
+    const refresh = React.useCallback(() => {
+        setRefreshId(id => id + 1);
+    }, []);
     useRefreshFunction(refresh);
 
     const [loadingCommand, invokeCommand] = useCloudCommand();
@@ -105,7 +105,7 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
                 }));
             } catch (e) {
                 newFavorite[key] = {override: isFavorite, app};
-                setFavoriteStatus(newFavorite);
+                setFavoriteStatus({...newFavorite});
             }
         }
     }, [loadingCommand, favoriteStatus]);
@@ -216,10 +216,6 @@ const TagGridTopBox = injectStyle("tag-grid-top-box", k => `
         border-top-right-radius: 10px;
         background-color: var(--lightGray);
     }
-
-    ${k}[data-is-favorite="true"] {
-        background-color: var(--appStoreFavBf);
-    }
 `);
 
 const TagGridBottomBox = injectStyle("tag-grid-bottom-box", k => `
@@ -229,12 +225,6 @@ const TagGridBottomBox = injectStyle("tag-grid-bottom-box", k => `
         border-bottom-right-radius: 10px;
         background-color: var(--lightGray);
     }
-
-    ${k}[data-is-favorite="true"] {
-        background-color: var(--appStoreFavBg);
-        overflow-x: scroll;
-    }
-
 `);
 
 
@@ -248,9 +238,7 @@ interface TagGridProps {
     refreshId: number;
 }
 
-const TagGrid: React.FunctionComponent<TagGridProps> = (
-    {tag, rows, tagBanList = [], favoriteStatus, onFavorite, refreshId}: TagGridProps
-) => {
+function TagGrid({tag, rows, tagBanList = [], favoriteStatus, onFavorite, refreshId}: TagGridProps): JSX.Element | null {
     const showFavorites = tag == SPECIAL_FAVORITE_TAG;
     const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
         {noop: true},
@@ -259,7 +247,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
 
     useEffect(() => {
         if (showFavorites) {
-            fetchApplications(UCloud.compute.apps.retrieveFavorites({itemsPerPage: 100, page: 0}));
+            fetchApplications(UCloud.compute.apps.retrieveFavorites({itemsPerPage: 10, page: 0}));
         } else {
             fetchApplications(UCloud.compute.apps.searchTags({query: tag, itemsPerPage: 100, page: 0}));
         }
@@ -297,12 +285,13 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
         filteredItems = newList;
     }
 
+
     filteredItems = filteredItems.sort((a, b) => a.metadata.title.localeCompare(b.metadata.title));
-    if (filteredItems.length === 0) return (null);
+    if (filteredItems.length === 0) return null;
 
     return (
         <>
-            <div className={TagGridTopBox} data-is-favorite={showFavorites}>
+            <div className={TagGridTopBox}>
                 <Spacer
                     mt="15px" px="10px" alignItems={"center"}
                     left={<Heading.h2>{showFavorites ? "Favorites" : tag}</Heading.h2>}
@@ -315,13 +304,13 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                     )}
                 />
             </div>
-            <div className={TagGridBottomBox} data-is-favorite={showFavorites}>
+            <div className={TagGridBottomBox}>
                 <Grid
                     pt="20px"
                     gridGap="15px"
-                    gridTemplateRows={showFavorites ? undefined : `repeat(${rows} , 1fr)`}
-                    gridTemplateColumns={showFavorites ? "repeat(auto-fill, minmax(400px, 1fr))" : "repeat(auto-fill, 400px)"}
-                    style={{gridAutoFlow: showFavorites ? "row" : "column"}}
+                    gridTemplateRows={`repeat(${rows} , 1fr)`}
+                    gridTemplateColumns={"repeat(auto-fill, 400px)"}
+                    style={{gridAutoFlow: "column"}}
                 >
                     {filteredItems.map(app => (
                         <AppCard

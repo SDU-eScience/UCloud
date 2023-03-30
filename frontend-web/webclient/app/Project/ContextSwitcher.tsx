@@ -39,7 +39,7 @@ export function ContextSwitcher(): JSX.Element | null {
     );
 
     const remainingFetches = React.useRef(PAGES_TO_REQUEST);
-    const nextInvalidation = React.useRef(new Date().getTime() + 1000 * 10);
+    const nextInvalidation = React.useRef(new Date().getTime() + 1000 * 60 * 15);
 
     const [projects, setProjects] = React.useState<Project[]>([]);
 
@@ -80,13 +80,12 @@ export function ContextSwitcher(): JSX.Element | null {
     const checkIfShouldInvalidate = React.useCallback(() => {
         const nextInvalidationTs = nextInvalidation.current;
         if (nextInvalidationTs <= new Date().getTime()) {
-            console.log("INVALIDATING!");
             setFetchParams(ProjectAPI.browse({
                 ...DEFAULT_FETCH_ARGS,
                 next: undefined
             }));
             remainingFetches.current = PAGES_TO_REQUEST;
-            nextInvalidation.current = new Date().getTime() + 1000 * 10
+            nextInvalidation.current = new Date().getTime() + 1000 * 60 * 15
             setProjects([]);
         };
     }, []);

@@ -9,7 +9,7 @@ export type LinkProps = LProps & BaseLinkProps & {
 }
 
 const Link = ({active, ...props}: LinkProps): JSX.Element => {
-const style: CSSProperties = unbox(props);
+    const style: CSSProperties = unbox(props);
     if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;
 
     return <ReactRouterLink

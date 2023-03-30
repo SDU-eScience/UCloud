@@ -1,6 +1,6 @@
 import * as CSS from "csstype";
 import * as React from "react";
-import {ResponsiveValue, SpaceProps, style} from "styled-system";
+import {ResponsiveValue, SpaceProps} from "styled-system";
 import Bug from "./Bug";
 import * as icons from "./icons";
 import theme from "./theme";
@@ -28,12 +28,6 @@ const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: Ico
         />
     );
 };
-
-const hoverColor = style({
-    prop: "hoverColor",
-    cssProperty: "color",
-    key: "colors",
-});
 
 export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivElement> {
     name: IconName | "bug";
@@ -76,6 +70,7 @@ const Icon: React.FunctionComponent<IconBaseProps> = props => {
     const style: CSSProperties = unbox(props);
     if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;
     if (props.rotation) style.transform = `rotate(${props.rotation}deg)`;
+    style.cursor = props.cursor ?? "inherit";
 
     return <IconBase {...props} className={IconClass} data-spin={props.spin === true} style={style} />
 };
@@ -83,8 +78,6 @@ const Icon: React.FunctionComponent<IconBaseProps> = props => {
 Icon.displayName = "Icon";
 
 Icon.defaultProps = {
-    cursor: "inherit",
-    name: "notification",
     size: 24,
     squared: true
 };

@@ -39,7 +39,7 @@ import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {PageV2} from "@/UCloud";
 import AdminLinks from "@/Admin/Links";
-import {SharesLinks} from "@/Files/Shares";
+import {sharesLinksInfo} from "@/Files/Shares";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import Truncate from "./Truncate";
 import metadataApi from "@/UCloud/MetadataDocumentApi";
@@ -229,8 +229,7 @@ export const sideBarMenuElements: {
     general: {
         items: [
             {icon: "files", label: "Files", to: "/drives/"},
-            {icon: "projects", label: "Projects", to: "/projects/", show: () => Client.hasActiveProject},
-            {icon: "shareMenu", label: "Shares", to: AppRoutes.shares.sharedWithMe(), show: () => !Client.hasActiveProject},
+            {icon: "projects", label: "Projects", to: "/projects/"},
             {icon: "dashboard", label: "Resources"},
             {icon: "appStore", label: "Apps", to: AppRoutes.apps.overview()},
             {icon: "results", label: "Runs", to: "/jobs/"}
@@ -556,13 +555,15 @@ function SecondarySidebar({
                             )}
                         </ul>
                     </li>
+
+                    {Client.hasActiveProject ?
+                        null : sharesLinksInfo.map(it => <Link key={it.text} to={it.to}>{it.text}</Link>)
+                    }
                 </ul>
             </>
         )}
 
         {active !== "Projects" ? null : (<ProjectLinks />)}
-
-        {active !== "Shares" ? null : (<SharesLinks />)}
 
         {active !== "Runs" ? null : (
             <Flex flexDirection="column" mr="4px">

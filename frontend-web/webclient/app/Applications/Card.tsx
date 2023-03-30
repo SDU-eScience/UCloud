@@ -1,7 +1,7 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
 import styled, {css} from "styled-components";
-import {Absolute, Flex, Icon, Truncate} from "@/ui-components";
+import {Absolute, Flex, Icon, Relative, Truncate} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import Link from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
@@ -11,6 +11,8 @@ import * as Pages from "./Pages";
 import {compute} from "@/UCloud";
 import ApplicationWithFavoriteAndTags = compute.ApplicationWithFavoriteAndTags;
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import BaseLink, {BaseLinkClass} from "@/ui-components/BaseLink";
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void;
@@ -494,14 +496,36 @@ function lineCountFromType(t: ApplicationCardType): number {
     }
 }
 
+const FavoriteAppClass = injectStyle("favorite-app", k => `
+    ${k} {
+        width: 76px;
+        height: 76px;
+        border-radius: 99999px;
+        box-shadow: rgba(0, 0, 0, 0.2) 0px 3px 5px -1px inset, rgba(0, 0, 0, 0.14) 0px 6px 10px 0px;
+        display: flex;
+        /* TODO(Jonas): This should be calculated much better. */
+        padding-left: 14px;
+        align-items: center;
+    }
+`);
+
+export function FavoriteApp(props: {name: string, version: string, onFavorite(name: string, version: string): void;}): JSX.Element {
+    return <>
+        <Link to={Pages.run(props.name, props.version)}>
+            <div className={FavoriteAppClass}>
+                <AppToolLogo size="48px" name={props.name} type="APPLICATION" />
+            </div>
+        </Link>
+        <Relative top="50px" right="24px" width="0px" height="0px">
+            <Icon cursor="pointer" name="starFilled" color="blue" hoverColor="blue" size={FAV_ICON_SIZE} onClick={() => props.onFavorite(props.name, props.version)} />
+        </Relative>
+    </>
+}
+
 export function AppCard(props: AppCardProps): JSX.Element {
-    const [isFavorite, setFavorite] = React.useState(!!props.isFavorite);
 
-    React.useEffect(() => {
-        setFavorite(!!props.isFavorite);
-    }, [props.isFavorite]);
-
-    const favorite = React.useCallback(() => {
+    const favorite = React.useCallback((e: React.SyntheticEvent) => {
+        stopPropagationAndPreventDefault(e);
         props.onFavorite?.(props.app.metadata.name, props.app.metadata.version);
     }, [props.app.metadata]);
 
@@ -512,7 +536,7 @@ export function AppCard(props: AppCardProps): JSX.Element {
         const {metadata} = app;
         const favoriteDiv =
             <div className={FavIcon} onClick={favorite}>
-                <Icon color="var(--blue)" hoverColor="var(--blue)" size={FAV_ICON_SIZE} name={isFavorite ? "starFilled" : "starEmpty"} />
+                <Icon color="var(--blue)" hoverColor="var(--blue)" size={FAV_ICON_SIZE} name={"starEmpty"} />
             </div>
         const titleAndDescription =
             <div className={TitleAndDescriptionClass}>
@@ -523,7 +547,6 @@ export function AppCard(props: AppCardProps): JSX.Element {
             case ApplicationCardType.EXTRA_TALL:
             case ApplicationCardType.TALL:
                 if (props.type === ApplicationCardType.EXTRA_TALL) console.log("TODO BY EXTRA_TALL");
-
                 return <div className={ApplicationCardClass + " " + TallApplicationCard}>
                     {favoriteDiv}
                     <div className="image">
@@ -542,5 +565,5 @@ export function AppCard(props: AppCardProps): JSX.Element {
                     {titleAndDescription}
                 </div>
         }
-    }, [props, favorite, isFavorite]);
+    }, [props, favorite]);
 }

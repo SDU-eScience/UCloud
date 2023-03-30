@@ -9,16 +9,15 @@ export function ProjectLinks(): JSX.Element {
 
     const links: LinkInfo[] = React.useMemo(() => {
         const active = paramsProjectId.length > 0 ? paramsProjectId : activeProjectId ?? "My Workspace";
-        console.log(active);
+        const isPersonalWorkspace = !activeProjectId;
 
         const result: LinkInfo[] = [];
-        if (active !== "My Workspace") {
-            result.push({
-                to: AppRoutes.project.members(active),
-                text: "Members",
-                icon: "projects",
-            })
-        }
+        result.push({
+            to: AppRoutes.project.members(active),
+            text: "Members",
+            icon: "projects",
+            disabled: isPersonalWorkspace,
+        })
         result.push({
             to: AppRoutes.project.usage(active),
             text: "Resource Usage",
@@ -34,18 +33,18 @@ export function ProjectLinks(): JSX.Element {
             text: "Grant Applications",
             icon: "projects",
         });
-        if (active !== "My Workspace") {
-            result.push({
-                to: AppRoutes.project.settings(active),
-                text: "Settings",
-                icon: "projects",
-            });
-            result.push({
-                to: AppRoutes.project.subprojects(active),
-                text: "Subprojects",
-                icon: "projects",
-            });
-        }
+        result.push({
+            to: AppRoutes.project.settings(active),
+            text: "Settings",
+            icon: "projects",
+            disabled: isPersonalWorkspace
+        });
+        result.push({
+            to: AppRoutes.project.subprojects(active),
+            text: "Subprojects",
+            icon: "projects",
+            disabled: isPersonalWorkspace
+        });
         return result;
     }, [activeProjectId, paramsProjectId]);
     return <SidebarLinkColumn links={links} />

@@ -8,7 +8,7 @@ import * as Heading from "@/ui-components/Heading";
 import {Spacer} from "@/ui-components/Spacer";
 import {EllipsedText} from "@/ui-components/Text";
 import theme from "@/ui-components/theme";
-import {AppCard, ApplicationCardType, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
+import {AppCard, ApplicationCardType, CardToolContainer, FavoriteApp, hashF, SmallCard, Tag} from "./Card";
 import * as Pages from "./Pages";
 import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
@@ -22,6 +22,7 @@ import AppStoreSectionType = compute.AppStoreSectionType;
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {deepCopy} from "@/Utilities/CollectionUtilities";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -65,10 +66,10 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
     const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
         if (!loadingCommand) {
             const key = favoriteStatusKey(app);
-            const isFavorite = key in favoriteStatus ? favoriteStatus[key].override : app.favorite;
-            const newFavorite = {...favoriteStatus};
+            const isFavorite = favoriteStatus[key]?.override ?? app.favorite;
+            const newFavorite: FavoriteStatus = deepCopy(favoriteStatus);
             newFavorite[key] = {override: !isFavorite, app};
-            setFavoriteStatus(newFavorite);
+            setFavoriteStatus({...newFavorite});
 
             try {
                 await invokeCommand(UCloud.compute.apps.toggleFavorite({
@@ -76,8 +77,7 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
                     appVersion: app.metadata.version
                 }));
             } catch (e) {
-                newFavorite[key] = {override: isFavorite, app};
-                setFavoriteStatus(newFavorite);
+                setFavoriteStatus({...favoriteStatus});
             }
         }
     }, [loadingCommand, favoriteStatus]);
@@ -212,7 +212,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
 ) => {
     const showFavorites = tag == SPECIAL_FAVORITE_TAG;
 
-    let filteredItems = items
+    let _filteredItems = items
         .filter(it => !it.tags.some(_tag => tagBanList.includes(_tag)))
         .filter(item => {
             const isFavorite = favoriteStatus[favoriteStatusKey(item)]?.override ?? item.favorite;
@@ -220,20 +220,15 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
         });
 
     if (showFavorites) {
-        filteredItems = filteredItems.concat(
-            Object.values(favoriteStatus)
-                .filter(it => it.override)
-                .map(it => it.app)
-        );
-
-        filteredItems = filteredItems.filter(it => favoriteStatus[favoriteStatusKey(it)]?.override !== false);
+        _filteredItems = _filteredItems.concat(Object.values(favoriteStatus).filter(it => it.override).map(it => it.app));
+        _filteredItems = _filteredItems.filter(it => favoriteStatus[favoriteStatusKey(it)]?.override !== false);
     }
 
     // Remove duplicates (This can happen due to favorite cache)
     {
         const observed = new Set<string>();
         const newList: ApplicationSummaryWithFavorite[] = [];
-        for (const item of filteredItems) {
+        for (const item of _filteredItems) {
             const key = favoriteStatusKey(item);
             if (!observed.has(key)) {
                 observed.add(key);
@@ -241,10 +236,22 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
             }
         }
 
-        filteredItems = newList;
+        _filteredItems = newList;
     }
 
+    const filteredItems = _filteredItems;
+
     if (filteredItems.length === 0) return null;
+
+
+    if (showFavorites) {
+        return <Flex>
+            {filteredItems.map(app =>
+                <FavoriteApp key={app.metadata.name + app.metadata.version} name={app.metadata.name} version={app.metadata.version} onFavorite={() => onFavorite(app)} />
+            )}
+        </Flex>
+    }
+
     return (
         <>
             <div className={TagGridTopBoxClass} data-favorite={showFavorites}>
@@ -269,13 +276,12 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                     style={{gridAutoFlow: showFavorites ? "row" : "column"}}
                 >
                     {filteredItems.map(app =>
-                        <Link to={Pages.run(app.metadata.name, app.metadata.version)}>
+                        <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
                             <AppCard
-                                key={`${app.metadata.name}`}
                                 type={ApplicationCardType.WIDE}
                                 onFavorite={() => onFavorite(app)}
                                 app={app}
-                                isFavorite={showFavorites}
+                                isFavorite={app.favorite}
                                 tags={app.tags}
                             />
                         </Link>
