@@ -26,16 +26,6 @@ value class InternalFile(override val path: String) : PathLike<InternalFile> {
     override fun withNewPath(path: String): InternalFile = InternalFile(path)
 }
 
-/**
- * An internal file where the path is relative to the file-system hosting UCloud/Storage.
- *
- * This path will always start with '/'.
- */
-@JvmInline
-value class RelativeInternalFile(override val path: String) : PathLike<RelativeInternalFile> {
-    override fun withNewPath(path: String): RelativeInternalFile = RelativeInternalFile(path)
-}
-
 @JvmInline
 value class UCloudFile private constructor(override val path: String) : PathLike<UCloudFile> {
     override fun withNewPath(path: String): UCloudFile = UCloudFile(path)
@@ -51,7 +41,7 @@ fun <T : PathLike<T>> T.parents(): List<T> = path.parents().map { withNewPath(it
 fun <T : PathLike<T>> T.normalize(): T = withNewPath(path.normalize())
 fun <T : PathLike<T>> T.components(): List<String> = path.components()
 fun <T : PathLike<T>> T.fileName(): String = path.fileName()
-
+fun <T : PathLike<T>> T.child(fileName: String): T = withNewPath("${path.removeSuffix("/")}/$fileName".removeSuffix("/"))
 
 data class FileDownloadSession(val session: String, val pluginData: String)
 data class FileUploadSession(val session: String, val pluginData: String)

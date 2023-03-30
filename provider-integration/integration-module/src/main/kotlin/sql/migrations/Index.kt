@@ -31,4 +31,5 @@ fun loadMigrations(migrationHandler: MigrationHandler) {
     migrationHandler.addScript(V1__Events())
     migrationHandler.addScript(V1__Maintenance())
     migrationHandler.addScript(V2__UCloudStorage())
+    migrationHandler.addScript(V3__UCloudStorage())
 }

@@ -61,6 +61,10 @@ class MoveTask : TaskHandler {
                 )
             },
             doWork = doWork@{ nextItem ->
+                // NOTE(Dan): This resolves the drive just to be sure we haven't entered maintenance mode
+                pathConverter.locator.resolveDriveByInternalFile(InternalFile(nextItem.oldId))
+                pathConverter.locator.resolveDriveByInternalFile(InternalFile(nextItem.newId))
+
                 try {
                     val needsToRecurse = nativeFs.move(
                         InternalFile(nextItem.oldId),

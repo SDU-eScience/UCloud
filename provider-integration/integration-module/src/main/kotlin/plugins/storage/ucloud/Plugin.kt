@@ -9,20 +9,30 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.cli.CliHandler
+import dk.sdu.cloud.cli.CommandLineInterface
+import dk.sdu.cloud.cli.genericCommandLineHandler
+import dk.sdu.cloud.cli.sendCommandLineUsage
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
+import dk.sdu.cloud.config.removeProvider
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.FileDownloadSession
 import dk.sdu.cloud.plugins.FilePlugin
 import dk.sdu.cloud.plugins.FileUploadSession
-import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.controllers.RequestContext
+import dk.sdu.cloud.ipc.IpcContainer
+import dk.sdu.cloud.ipc.handler
+import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.ConfiguredShare
 import dk.sdu.cloud.plugins.FileCollectionPlugin
+import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.SharePlugin
 import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.fileName
+import dk.sdu.cloud.plugins.ipcClient
+import dk.sdu.cloud.plugins.ipcServer
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.CopyTask
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.CreateFolderTask
@@ -34,11 +44,16 @@ import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashRequestItem
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashTask
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.utils.secureToken
+import dk.sdu.cloud.utils.sendTerminalFrame
+import dk.sdu.cloud.utils.sendTerminalMessage
+import dk.sdu.cloud.utils.sendTerminalTable
 import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
 import kotlin.coroutines.coroutineContext
 
@@ -52,7 +67,7 @@ class UCloudFilePlugin : FilePlugin {
 
     lateinit var fs: NativeFS
     lateinit var trash: TrashService
-    lateinit var cephStats: CephFsFastDirectoryStats
+    lateinit var directoryStats: FastDirectoryStats
     lateinit var queries: FileQueries
     lateinit var limitChecker: LimitChecker
     lateinit var memberFiles: MemberFiles
@@ -61,38 +76,38 @@ class UCloudFilePlugin : FilePlugin {
     lateinit var downloads: DownloadService
     lateinit var pathConverter: PathConverter
     lateinit var usageScan: UsageScan
+    lateinit var driveLocator: DriveLocator
 
     override fun supportsRealUserMode(): Boolean = false
     override fun supportsServiceUserMode(): Boolean = true
 
     override fun configure(config: ConfigSchema.Plugins.Files) {
-        this.pluginConfig = config as ConfigSchema.Plugins.Files.UCloud
+        this.pluginConfig = (config as ConfigSchema.Plugins.Files.UCloud).normalize()
     }
 
     override suspend fun PluginContext.initialize() {
+        registerCli()
+
         if (!config.shouldRunServerCode()) return
 
-        // NOTE(Dan): This is working around an initialization issue when the product hasn't been registered yet
-        val storageProductCategory = productAllocationResolved.getOrNull(0)?.category?.name ?: "UNRESOLVED"
-
-        pathConverter = PathConverter(
-            config.core.providerId,
-            storageProductCategory,
-            InternalFile(pluginConfig.mountLocation),
+        driveLocator = DriveLocator(
+            productAllocationResolved.filterIsInstance<Product.Storage>(),
+            pluginConfig,
             rpcClient
         )
+        pathConverter = PathConverter(rpcClient, driveLocator)
         fs = NativeFS(pathConverter)
         trash = TrashService(pathConverter)
-        cephStats = CephFsFastDirectoryStats(fs)
-        queries = FileQueries(pathConverter, NonDistributedStateFactory(), fs, trash, cephStats)
+        directoryStats = FastDirectoryStats(driveLocator, fs)
+        queries = FileQueries(pathConverter, NonDistributedStateFactory(), fs, trash, directoryStats)
         downloads = DownloadService(pathConverter, fs)
-        limitChecker = LimitChecker(dbConnection, pathConverter)
-        memberFiles = MemberFiles(fs, pathConverter, rpcClient)
+        limitChecker = LimitChecker(dbConnection, rpcClient)
+        memberFiles = MemberFiles(fs, pathConverter)
         tasks = TaskSystem(dbConnection, pathConverter, fs, Dispatchers.IO, rpcClient, debugSystem)
         uploads = ChunkedUploadService(pathConverter, fs)
-        usageScan = UsageScan(pluginName, pathConverter, fs, cephStats, rpcClient, dbConnection)
+        usageScan = UsageScan(pluginName, pathConverter, directoryStats, rpcClient, dbConnection)
 
-        with (tasks) {
+        with(tasks) {
             install(CopyTask())
             install(CreateFolderTask())
             install(DeleteTask())
@@ -102,6 +117,9 @@ class UCloudFilePlugin : FilePlugin {
 
             launchScheduler(ProcessingScope)
         }
+
+        driveLocator.fillDriveDatabase()
+        registerIpcServer()
     }
 
     override suspend fun RequestContext.browse(
@@ -304,15 +322,297 @@ class UCloudFilePlugin : FilePlugin {
     override suspend fun PluginContext.runMonitoringLoopInServerMode() {
         while (coroutineContext.isActive) {
             try {
-                if (pluginConfig.accountingEnabled) {
-                    usageScan.startScanIfNeeded()
-                }
+                usageScan.startScanIfNeeded()
             } catch (ex: Throwable) {
                 debugSystem.logThrowable("Caught exception during monitoring loop", ex)
             }
 
             delay(60_000)
         }
+    }
+
+    private fun PluginContext.registerCli() {
+        commandLineInterface?.addHandler(CliHandler("drives") { args ->
+            fun sendHelp(): Nothing = sendCommandLineUsage("drives", "Manage drives") {
+                subcommand(
+                    "maintenance on",
+                    "Turns maintenance on for a specific drive",
+                    builder = {
+                        arg("path", description = "The local path to a collection")
+                        arg("description", description = "Description to display to end-users")
+                    }
+                )
+
+                subcommand(
+                    "maintenance off",
+                    "Turns maintenance off for a specific drive",
+                    builder = {
+                        arg("path", description = "The local path to a collection")
+                    }
+                )
+
+                subcommand(
+                    "maintenance status",
+                    "Checks the maintenance status of a drive",
+                    builder = {
+                        arg("id", description = "The local path to a collection")
+                    }
+                )
+
+                subcommand(
+                    "maintenance ls",
+                    "Checks the list of drives which are in maintenance mode",
+                )
+
+                subcommand(
+                    "locate-by-path",
+                    "Locates a drive by a local path",
+                    builder = {
+                        arg("path", description = "The local path to a collection")
+                    }
+                )
+
+                subcommand(
+                    "update-system",
+                    "Updates the system of a drive",
+                    builder = {
+                        arg("path", description = "The local path to a collection")
+                        arg("system", description = "The name of the system to use")
+                    }
+                )
+
+                subcommand(
+                    "browse-by-system",
+                    "Browses drives given a specific system",
+                    builder = {
+                        arg("system", description = "The name of the system to look for")
+                    }
+                )
+            }
+
+            val ipcClient = ipcClient
+
+            genericCommandLineHandler {
+                when (args.getOrNull(0)) {
+                    "maintenance" -> {
+                        when (args.getOrNull(1)) {
+                            "on" -> {
+                                val path = args.getOrNull(2) ?: sendHelp()
+                                val description = args.getOrNull(3) ?: sendHelp()
+
+                                ipcClient.sendRequest(
+                                    CliIpc.enableMaintenanceMode,
+                                    EnableMaintenanceMode(path, description)
+                                )
+
+                                sendTerminalMessage { line("OK") }
+                            }
+
+                            "off" -> {
+                                val path = args.getOrNull(2) ?: sendHelp()
+
+                                ipcClient.sendRequest(
+                                    CliIpc.disableMaintenanceMode,
+                                    DisableMaintenanceMode(path)
+                                )
+
+                                sendTerminalMessage { line("OK") }
+                            }
+
+                            "status" -> {
+                                val path = args.getOrNull(2) ?: sendHelp()
+
+                                val result = ipcClient.sendRequest(
+                                    CliIpc.locateByPath,
+                                    LocateByPath(path)
+                                )
+
+                                sendTerminalFrame("Drive") {
+                                    wideTitle = true
+
+                                    field("UCloud ID", result.driveId)
+                                    field("System", result.system)
+                                    field("Maintenance mode?", result.inMaintenanceMode)
+                                    field("Local path", result.localPath)
+                                }
+                            }
+
+                            "ls" -> {
+                                val result = ipcClient.sendRequest(
+                                    CliIpc.locateInMaintenance,
+                                    Unit
+                                )
+
+                                sendDriveInfoTable(result)
+                            }
+
+                            else -> sendHelp()
+                        }
+                    }
+
+                    "locate-by-path" -> {
+                        val path = args.getOrNull(1) ?: sendHelp()
+                        val result = ipcClient.sendRequest(
+                            CliIpc.locateByPath,
+                            LocateByPath(path)
+                        )
+
+                        sendTerminalFrame("Drive") {
+                            wideTitle = true
+
+                            field("UCloud ID", result.driveId)
+                            field("System", result.system)
+                            field("Maintenance mode?", result.inMaintenanceMode)
+                            field("Local path", result.localPath)
+                        }
+                    }
+
+                    "browse-by-system" -> {
+                        val system = args.getOrNull(1) ?: sendHelp()
+                        val result = ipcClient.sendRequest(
+                            CliIpc.browseBySystem,
+                            BrowseBySystem(system)
+                        )
+
+                        sendDriveInfoTable(result)
+                    }
+
+                    "update-system" -> {
+                        val path = args.getOrNull(1) ?: sendHelp()
+                        val system = args.getOrNull(2) ?: sendHelp()
+
+                        ipcClient.sendRequest(
+                            CliIpc.updateSystem,
+                            UpdateSystem(path, system)
+                        )
+
+                        sendTerminalMessage { line("OK") }
+                    }
+
+                    else -> sendHelp()
+                }
+            }
+        })
+    }
+
+    private fun CommandLineInterface.sendDriveInfoTable(result: DriveInfoItems) {
+        sendTerminalTable {
+            header("UCloud ID", 20)
+            header("System", 20)
+            header("Maintenance", 20)
+            header("Local path", 60)
+
+            for (item in result.items) {
+                nextRow()
+                cell(item.driveId)
+                cell(item.system)
+                cell(item.inMaintenanceMode)
+                cell(item.localPath)
+            }
+        }
+    }
+
+    private fun PluginContext.registerIpcServer() {
+        ipcServer.addHandler(CliIpc.enableMaintenanceMode.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            driveLocator.enableMaintenanceModeByInternalPath(InternalFile(request.path), request.description)
+        })
+
+        ipcServer.addHandler(CliIpc.disableMaintenanceMode.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            driveLocator.disableMaintenanceModeByInternalPath(InternalFile(request.path))
+        })
+
+        ipcServer.addHandler(CliIpc.locateByPath.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            val driveAndSystem = driveLocator.resolveDriveByInternalFile(InternalFile(request.path))
+            driveInfo(driveAndSystem)
+        })
+
+        ipcServer.addHandler(CliIpc.browseBySystem.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            DriveInfoItems(
+                driveLocator.enumerateDrives().items
+                    .filter { it.system.name.equals(request.system, ignoreCase = true) }
+                    .map { driveInfo(it) }
+            )
+        })
+
+        ipcServer.addHandler(CliIpc.updateSystem.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            val driveAndSystem = driveLocator.resolveDriveByInternalFile(InternalFile(request.path))
+            val system = driveLocator.systemByName(request.system)
+                ?: throw RPCException("Unknown system: ${request.system}", HttpStatusCode.BadRequest)
+            driveLocator.updateSystem(driveAndSystem.drive.ucloudId, system)
+        })
+
+        ipcServer.addHandler(CliIpc.locateInMaintenance.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            DriveInfoItems(
+                driveLocator.enumerateDrives().items
+                    .filter { it.inMaintenanceMode }
+                    .map { driveInfo(it) }
+            )
+        })
+
+    }
+
+    private fun driveInfo(driveAndSystem: DriveAndSystem) = DriveInfo(
+        driveAndSystem.drive.ucloudId.toString(),
+        driveAndSystem.system.name,
+        driveAndSystem.driveRoot?.path ?: "(Share)",
+        driveAndSystem.inMaintenanceMode
+    )
+
+    @Serializable
+    private data class EnableMaintenanceMode(
+        val path: String,
+        val description: String
+    )
+
+    @Serializable
+    private data class DisableMaintenanceMode(
+        val path: String
+    )
+
+    @Serializable
+    private data class LocateByPath(
+        val path: String,
+    )
+
+    @Serializable
+    private data class UpdateSystem(
+        val path: String,
+        val system: String,
+    )
+
+    @Serializable
+    private data class BrowseBySystem(
+        val system: String
+    )
+
+    @Serializable
+    private data class DriveInfo(
+        val driveId: String,
+        val system: String,
+        val localPath: String,
+        val inMaintenanceMode: Boolean,
+    )
+
+    @Serializable
+    private data class DriveInfoItems(
+        val items: List<DriveInfo>
+    )
+
+    private object CliIpc : IpcContainer("ucloud_storage_drives") {
+        val enableMaintenanceMode =
+            updateHandler("enableMaintenanceMode", EnableMaintenanceMode.serializer(), Unit.serializer())
+        val disableMaintenanceMode =
+            updateHandler("disableMaintenanceMode", DisableMaintenanceMode.serializer(), Unit.serializer())
+        val locateByPath = updateHandler("locateByPath", LocateByPath.serializer(), DriveInfo.serializer())
+        val updateSystem = updateHandler("updateSystem", UpdateSystem.serializer(), Unit.serializer())
+        val browseBySystem = updateHandler("browseBySystem", BrowseBySystem.serializer(), DriveInfoItems.serializer())
+        val locateInMaintenance = updateHandler("locateInMaintenance", Unit.serializer(), DriveInfoItems.serializer())
     }
 }
 
@@ -347,7 +647,17 @@ class UCloudFileCollectionPlugin : FileCollectionPlugin {
     }
 
     override suspend fun RequestContext.create(resource: FileCollection): FindByStringId? {
-        filePlugin.fs.createDirectories(filePlugin.pathConverter.collectionLocation(resource.id))
+        val drive = filePlugin.driveLocator.register(
+            "",
+            UCloudDrive.Collection(resource.id.toLong()),
+            initiatedByEndUser = true,
+        ).drive
+
+        filePlugin.fs.createDirectories(
+            filePlugin.pathConverter.ucloudToInternal(
+                UCloudFile.createFromPreNormalizedString("/${drive.ucloudId}")
+            )
+        )
         return null
     }
 
@@ -388,10 +698,19 @@ class UCloudSharePlugin : SharePlugin() {
             throw RPCException("'${file.fileName()}' no longer exists", HttpStatusCode.BadRequest)
         }
 
+        val title = sourcePath.fileName()
+        val drive = filePlugin.driveLocator.register(
+            title,
+            UCloudDrive.Share(UCloudDrive.PLACEHOLDER_ID, resource.id),
+            createdByUser = "_ucloud",
+            ownedByProject = null
+        ).drive
+
         return ConfiguredShare(
-            sourcePath.fileName(),
-            productAllocation.find { it.id == "share" }!!,
-            PathConverter.COLLECTION_SHARE_PREFIX + resource.id
+            title,
+            filePlugin.driveLocator.driveToProduct(drive).removeProvider(),
+            (drive as UCloudDrive.Share).toProviderId(),
+            drive.ucloudId.toString()
         )
     }
 }

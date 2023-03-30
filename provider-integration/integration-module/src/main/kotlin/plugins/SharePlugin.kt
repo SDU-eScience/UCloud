@@ -27,6 +27,7 @@ data class ConfiguredShare(
     val name: String,
     val product: ProductReferenceWithoutProvider,
     val collectionId: String,
+    val preregisteredShareDrive: String? = null,
 )
 
 // NOTE(Dan): I am copying & pasting the following warning from the documentation. This is why the SharePlugin is
@@ -66,7 +67,7 @@ abstract class SharePlugin : ResourcePlugin<Product.Storage, ShareSupport, Share
 
     final override suspend fun RequestContext.create(resource: Share): FindByStringId? {
         val createdShare = onCreate(resource)
-        val collectionId = FileCollectionsControl.register.call(
+        val collectionId = createdShare.preregisteredShareDrive ?: FileCollectionsControl.register.call(
             bulkRequestOf(
                 ProviderRegisteredResource(
                     FileCollection.Spec(
@@ -79,7 +80,7 @@ abstract class SharePlugin : ResourcePlugin<Product.Storage, ShareSupport, Share
                 )
             ),
             rpcClient
-        ).orThrow().responses.single()
+        ).orThrow().responses.single().id
 
         SharesControl.update.call(
             bulkRequestOf(
@@ -87,7 +88,7 @@ abstract class SharePlugin : ResourcePlugin<Product.Storage, ShareSupport, Share
                     resource.id,
                     Share.Update(
                         newState = Share.State.PENDING,
-                        shareAvailableAt = "/${collectionId.id}",
+                        shareAvailableAt = "/${collectionId}",
                         timestamp = Time.now(),
                         status = null
                     )

@@ -14,6 +14,7 @@ import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlin.coroutines.coroutineContext
+import kotlin.random.Random
 
 // Note: These files are internal
 @Serializable
@@ -111,6 +112,10 @@ class CopyTask : TaskHandler {
                 )
             },
             doWork = doWork@{ nextItem ->
+                // NOTE(Dan): This resolves the drive just to be sure we haven't entered maintenance mode
+                pathConverter.locator.resolveDriveByInternalFile(InternalFile(nextItem.oldId))
+                pathConverter.locator.resolveDriveByInternalFile(InternalFile(nextItem.newId))
+
                 val result = try {
                     nativeFs.copy(
                         InternalFile(nextItem.oldId),
@@ -141,6 +146,7 @@ class CopyTask : TaskHandler {
                             )
                         )
                     }
+
                 }
             }
         )

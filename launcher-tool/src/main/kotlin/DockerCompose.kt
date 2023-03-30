@@ -7,7 +7,6 @@ fun findDocker(): String {
 
 fun findCompose(): DockerCompose {
     val dockerExe = findDocker()
-    println(dockerExe)
 
     val hasPluginStyle = runCatching {
         ExecutableCommand(listOf(dockerExe, "compose", "version"), allowFailure = true).executeToText().first
@@ -19,8 +18,6 @@ fun findCompose(): DockerCompose {
         listOf("/usr/bin/which", "docker-compose"),
         allowFailure = true
     ).executeToText().first?.trim()?.takeIf { it.isNotEmpty() }
-
-    println(dockerComposeExe)
 
     val hasClassicStyle = dockerComposeExe != null
     if (hasClassicStyle) return DockerCompose.Classic(dockerComposeExe!!)

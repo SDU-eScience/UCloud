@@ -3,8 +3,12 @@ package dk.sdu.cloud.notification
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.HostInfo
 import dk.sdu.cloud.calls.client.OutgoingWSCall
+import dk.sdu.cloud.debug.DebugSystemFeature
+import dk.sdu.cloud.micro.BackgroundScopeFeature
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.backgroundScope
 import dk.sdu.cloud.micro.databaseConfig
+import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.micro.serviceInstance
 import dk.sdu.cloud.notification.http.NotificationController
@@ -34,7 +38,14 @@ class Server(override val micro: Micro) : CommonServer {
             HostInfo(ip, port = port)
         }
         val wsClient = micro.authenticator.authenticateClient(OutgoingWSCall)
-        subscriptionService = SubscriptionService(localhost, wsClient, db, SubscriptionDao())
+        subscriptionService = SubscriptionService(
+            micro.backgroundScope,
+            micro.feature(DebugSystemFeature).system,
+            localhost,
+            wsClient,
+            db,
+            SubscriptionDao()
+        )
         notificationService = NotificationService(db, notificationDao, subscriptionService)
 
 

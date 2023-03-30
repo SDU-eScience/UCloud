@@ -17,6 +17,10 @@ import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.parent
 import dk.sdu.cloud.plugins.storage.ucloud.*
 import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.utils.readString
+import dk.sdu.cloud.utils.writeString
+import io.ktor.util.*
+import io.ktor.utils.io.pool.*
 import kotlinx.coroutines.runBlocking
 import java.util.*
 
@@ -78,7 +82,9 @@ class SyncthingService(
         val configFile = findConfigFile(request.principal.createdBy)
 
         try {
-            val rawConfig = fs.openForReading(configFile).use { it.reader().readText() }
+            val rawConfig = fs.openForReading(configFile).use { ins ->
+                ins.readString()
+            }
             return IAppsProviderRetrieveConfigResponse(
                 "",
                 defaultMapper.decodeFromString(SyncthingConfig.serializer(), rawConfig),
@@ -87,8 +93,11 @@ class SyncthingService(
             // No configuration yet
             val defaultConfig = SyncthingConfig(emptyList(), emptyList())
             val (_, fileOutput) = fs.openForWriting(configFile, WriteConflictPolicy.REPLACE)
-            fileOutput.writer().use { w ->
-                w.write(defaultMapper.encodeToString(SyncthingConfig.serializer(), defaultConfig))
+            fileOutput.use { w ->
+                w.writeString(
+                    defaultMapper
+                        .encodeToString(SyncthingConfig.serializer(), defaultConfig)
+                )
             }
 
             return IAppsProviderRetrieveConfigResponse("", defaultConfig)
@@ -96,9 +105,9 @@ class SyncthingService(
             fs.move(configFile, InternalFile(configFile.path + "_backup"), WriteConflictPolicy.RENAME)
 
             throw RPCException(
-                "It looks like your Syncthing configuration might be corrupt. " + 
-                    "If this problem persists try resetting the server. " + 
-                    "Contact support for further assistance.", 
+                "It looks like your Syncthing configuration might be corrupt. " +
+                        "If this problem persists try resetting the server. " +
+                        "Contact support for further assistance.",
                 HttpStatusCode.BadRequest
             )
         }
@@ -128,7 +137,7 @@ class SyncthingService(
         return IAppsProviderRestartResponse<SyncthingConfig>()
     }
 
-    private fun doRestart(configFolder: InternalFile) {
+    private suspend fun doRestart(configFolder: InternalFile) {
         // NOTE(Dan): Restarting works in collaboration with the application. The container will await a `restart.txt`
         // file and restart if it exists. This file is deleted at start-up, so we don't have to worry about the job
         // running when we create it.
@@ -141,9 +150,7 @@ class SyncthingService(
         )
 
         val (_, fileOutput) = fs.openForWriting(restartFile, WriteConflictPolicy.REPLACE)
-        fileOutput.writer().use { w ->
-            w.write("Restart required")
-        }
+        fileOutput.use { it.writeString("Restart required") }
     }
 
     suspend fun updateConfiguration(
@@ -154,8 +161,8 @@ class SyncthingService(
         val configDir = configFile.parent()
         val temporaryFile = InternalFile(joinPath(configDir.path, "ucloud_config_${UUID.randomUUID()}.json"))
         val (_, fileOutput) = fs.openForWriting(temporaryFile, WriteConflictPolicy.REPLACE)
-        fileOutput.writer().use { w ->
-            w.write(defaultMapper.encodeToString(SyncthingConfig.serializer(), request.config.normalize()))
+        fileOutput.use {
+            it.writeString(defaultMapper.encodeToString(SyncthingConfig.serializer(), request.config.normalize()))
         }
 
         // NOTE(Dan): We are intentionally not using the normalized configuration for synchronizing changes. We need to
@@ -197,8 +204,9 @@ class SyncthingService(
     }
 
     private data class SyncthingJobStatus(val job: Job, val wasCreated: Boolean)
+
     private suspend fun startJobIfNeeded(
-        username: String, 
+        username: String,
         initialConfig: SyncthingConfig,
         configFolder: InternalFile,
     ): SyncthingJobStatus {
@@ -233,12 +241,14 @@ class SyncthingService(
                 resources = initialConfig.folders.mapNotNull { folder ->
                     val permissions: List<Permission> = orchestratorInfo.folderPathToPermission[folder.ucloudPath]
                         ?: return@mapNotNull null
-                    if (permissions.isEmpty()) return@mapNotNull null  
+                    if (permissions.isEmpty()) return@mapNotNull null
 
                     val isReadOnly = !permissions.contains(Permission.ADMIN) && !permissions.contains(Permission.EDIT)
                     if (isReadOnly && !permissions.contains(Permission.READ)) {
-                        log.warn("We have determined that we should have read only for ${folder.ucloudPath} " + 
-                            "but we have no read permission! Config: $initialConfig")
+                        log.warn(
+                            "We have determined that we should have read only for ${folder.ucloudPath} " +
+                                    "but we have no read permission! Config: $initialConfig"
+                        )
                         return@mapNotNull null
                     }
 
@@ -299,10 +309,10 @@ class SyncthingService(
                 "Syncthing"
             )
         )
-        
+
         // TODO What if this is not a directory?
         if (fileExists(targetDirectory)) return targetDirectory
-        
+
         fs.createDirectories(targetDirectory)
         return targetDirectory
     }
@@ -318,17 +328,15 @@ class SyncthingService(
     }
 
     // Config normalization
-    private fun SyncthingConfig.normalize(): SyncthingConfig {
+    private suspend fun SyncthingConfig.normalize(): SyncthingConfig {
         return copy(
             folders = folders.map { it.normalize() },
             orchestratorInfo = null,
         )
     }
 
-    private fun SyncthingConfig.Folder.normalize(): SyncthingConfig.Folder {
-        val path = runBlocking {
-            pathConverter.ucloudToRelative(UCloudFile.create(ucloudPath)).path
-        }
+    private suspend fun SyncthingConfig.Folder.normalize(): SyncthingConfig.Folder {
+        val path = pathConverter.ucloudToInternal(UCloudFile.create(ucloudPath)).path
 
         return copy(
             path = "/work/${path.normalize().fileName()}",

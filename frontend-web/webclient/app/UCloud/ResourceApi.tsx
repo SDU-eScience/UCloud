@@ -27,6 +27,9 @@ export interface Maintenance {
     startsAt: number;
     estimatedEndsAt?: number | null;
     availability: MaintenanceAvailability;
+
+    // NOTE(Dan): This property is only set by the frontend
+    frontendAlwaysShow?: boolean;
 }
 
 export enum MaintenanceAvailability {

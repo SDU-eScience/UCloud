@@ -11,11 +11,10 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.controllers.ResourceOwnerWithId
-import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
+import dk.sdu.cloud.debug.DebugContextType
 import dk.sdu.cloud.debug.MessageImportance
-import dk.sdu.cloud.debug.enterContext
-import dk.sdu.cloud.debug.logD
+import dk.sdu.cloud.debug.normal
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
@@ -39,7 +38,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
-import libc.clib
 import java.util.Date
 import kotlin.math.floor
 
@@ -231,7 +229,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         try {
             val now = Time.now()
             if (now >= nextScan) {
-                debugSystem.enterContext("Posix collection monitoring") {
+                debugSystem.useContext(DebugContextType.BACKGROUND_TASK, "Posix collection monitoring") {
                     var updates = 0
                     val batchBuilder = ArrayList<CollectionChargeCredits>()
                     val lastCharges = lastChargeTimes()
@@ -309,13 +307,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                         }
                     }
 
-                    debugSystem.logD(
-                        "Charged $updates posix collections",
-                        Unit.serializer(),
-                        Unit,
-                        if (updates == 0) MessageImportance.IMPLEMENTATION_DETAIL
-                        else MessageImportance.THIS_IS_NORMAL
-                    )
+                    debugSystem.normal("Charged $updates posix collections")
                     nextScan = now + (1000L * 60 * 60 * 4)
                 }
             }

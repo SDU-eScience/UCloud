@@ -8,10 +8,12 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.ConfigSchema
+import dk.sdu.cloud.debug.DebugContextType
 import dk.sdu.cloud.debug.MessageImportance
-import dk.sdu.cloud.debug.enterContext
+import dk.sdu.cloud.debug.detail
 import dk.sdu.cloud.debug.everything
-import dk.sdu.cloud.debug.detailD
+import dk.sdu.cloud.debug.normal
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -273,7 +275,7 @@ class JobManagement(
 
             val isAlive = true
             whileGraal({currentCoroutineContext().isActive && isAlive}) {
-                k8.debug.enterContext("Unsuspend queue") {
+                k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "Unsuspend queue", MessageImportance.IMPLEMENTATION_DETAIL) {
                     // NOTE(Dan): Need to take a copy and release the lock to avoid issues with the mutex not being 
                     // re-entrant.
                     var listCopy: ArrayList<UnsuspendItem>
@@ -282,33 +284,29 @@ class JobManagement(
                         unsuspendQueue.clear()
                     }
 
-                    k8.debug.detailD("Items in queue", ListSerializer(UnsuspendItem.serializer()), listCopy)
+                    k8.debug.detail("Items in queue", defaultMapper.encodeToJsonElement(ListSerializer(UnsuspendItem.serializer()), listCopy))
 
                     val now = Time.now()
                     for ((job, expiry) in listCopy) {
-                        k8.debug.enterContext("Processing ${job.id}") {
+                        k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "Processing ${job.id}") {
                             if (now < expiry) {
                                 create(job, expiry)
                             }
                         }
                     }
 
-                    logExit(
-                        "Processed ${listCopy.size} items. ${unsuspendQueue.size} items remain in queue.",
-                        level = if (listCopy.isNotEmpty()) {
-                            MessageImportance.THIS_IS_NORMAL
-                        } else {
-                            MessageImportance.IMPLEMENTATION_DETAIL
-                        }
-                    )
+                    k8.debug.normal("Processed ${listCopy.size} items. ${unsuspendQueue.size} items remain in queue.")
                 }
 
-                k8.debug.enterContext("K8 Job monitoring") {
+                k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "K8 Job monitoring", MessageImportance.IMPLEMENTATION_DETAIL) {
                     val resources = runtime.list()
 
                     val events = processScan(resources)
-                    k8.debug.detailD("Received ${resources.size} resources from runtime", Unit.serializer(), Unit)
-                    k8.debug.detailD("Events fetched from K8", ListSerializer(String.serializer()), events.map { it.jobId })
+                    k8.debug.detail("Received ${resources.size} resources from runtime")
+                    k8.debug.detail(
+                        "Events fetched from K8",
+                        defaultMapper.encodeToJsonElement(ListSerializer(String.serializer()), events.map { it.jobId })
+                    )
                     // TODO It looks like this code is aware of changes but they are not successfully received by 
                     // UCloud/sent by this service
 
@@ -317,7 +315,7 @@ class JobManagement(
                     var debugUpdates = 0
 
                     events.forEachGraal { event ->
-                        k8.debug.enterContext("Processing: ${event.jobId}") l@{
+                        k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "Processing: ${event.jobId}") l@{
                             when {
                                 event.wasDeleted -> {
                                     val oldJob = event.oldReplicas.find { it.rank == 0 } ?: return@l
@@ -386,8 +384,6 @@ class JobManagement(
                                     // Do nothing, just run the normal job monitoring.
                                 }
                             }
-
-                            logExit("Done", level = MessageImportance.IMPLEMENTATION_DETAIL)
                         }
                     }
 
@@ -397,7 +393,7 @@ class JobManagement(
                         }
                     }
 
-                    logExit(
+                    k8.debug.normal(
                         buildString {
                             if (debugUpdates > 0) {
                                 append(" Updates = ")
@@ -414,11 +410,6 @@ class JobManagement(
                                 append(debugExpirations)
                             }
                         },
-                        level = if (debugUpdates > 0 || debugTerminations > 0 || debugExpirations > 0) {
-                            MessageImportance.THIS_IS_NORMAL
-                        } else {
-                            MessageImportance.IMPLEMENTATION_DETAIL
-                        }
                     )
                     delay(5000)
                 }

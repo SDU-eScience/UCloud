@@ -1,6 +1,7 @@
 package dk.sdu.cloud.service.db
 
-import dk.sdu.cloud.debug.parentContextId
+import dk.sdu.cloud.debug.DebugContextType
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.TransactionMode
 
 interface DBSessionFactory<Session> {
@@ -34,15 +35,18 @@ suspend fun <R, Session> DBSessionFactory<Session>.withTransaction(
     transactionMode: TransactionMode? = null,
     closure: suspend (Session) -> R
 ): R {
-    openTransaction(session, transactionMode)
-    try {
-        val result = closure(session)
-        if (autoFlush) flush(session)
-        if (autoCommit) commit(session)
-        return result
-    } catch (ex: Throwable) {
-        rollback(session)
-        throw ex
+    require(this is AsyncDBSessionFactory)
+    return this.debug.system.useContext(DebugContextType.DATABASE_TRANSACTION) {
+        openTransaction(session, transactionMode)
+        try {
+            val result = closure(session)
+            if (autoFlush) flush(session)
+            if (autoCommit) commit(session)
+            result
+        } catch (ex: Throwable) {
+            rollback(session)
+            throw ex
+        }
     }
 }
 
