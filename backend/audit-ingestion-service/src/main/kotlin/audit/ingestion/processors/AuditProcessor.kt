@@ -5,14 +5,28 @@ import co.elastic.clients.elasticsearch.core.BulkRequest
 import co.elastic.clients.elasticsearch.core.IndexRequest
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
 import co.elastic.clients.elasticsearch.core.bulk.IndexOperation
+import co.elastic.clients.json.JsonData
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonProperty
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.calls.server.ElasticAudit
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStream
 import dk.sdu.cloud.events.EventStreamService
+import dk.sdu.cloud.service.ElasticServiceDefinition
+import dk.sdu.cloud.service.ElasticServiceInstance
 import dk.sdu.cloud.service.Loggable
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
+import java.io.ByteArrayInputStream
+import java.io.StringReader
 import java.net.ConnectException
 import java.time.Instant
 import java.time.LocalDate
@@ -29,6 +43,79 @@ object HttpLogsStream : EventStream<String> {
     override fun serialize(event: String): String = event
 }
 
+@Serializable
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class ElasticAuditIn(
+    @JsonProperty("@timestamp")
+    val timestamp: String?,
+    @JsonProperty("jobId")
+    val jobId: String?,
+    @JsonProperty("handledBy")
+    val handledBy: ElasticServiceInstance?,
+    @JsonProperty("causedBy")
+    val causedBy: String?,
+    @JsonProperty("requestName")
+    val requestName: String?,
+    @JsonProperty("requestJson")
+    val requestJson: JsonObject,
+    @JsonProperty("userAgent")
+    val userAgent: String?,
+    @JsonProperty("remoteOrigin")
+    val remoteOrigin: String?,
+    @JsonProperty("token")
+    val token: ElasticSecurityPrincipalToken?,
+    @JsonProperty("requestSize")
+    val requestSize: Int?,
+    @JsonProperty("responseCode")
+    val responseCode: Int?,
+    @JsonProperty("responseTime")
+    val responseTime: Long?,
+    @JsonProperty("expiry")
+    val expiry: Long?,
+    @JsonProperty("project")
+    val project: String?
+)
+@Serializable
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class ElasticSecurityPrincipalToken(
+    @JsonProperty("project")
+    val principal: ElasticSecurityPrincipal,
+    @JsonProperty("issuedAt")
+    val issuedAt: Long,
+    @JsonProperty("expiresAt")
+    val expiresAt: Long,
+    @JsonProperty("publicSessionReference")
+    val publicSessionReference: String?,
+    @JsonProperty("extendedBy")
+    val extendedBy: String? = null,
+    @JsonProperty("extendedByChain")
+    val extendedByChain: List<String> = emptyList()
+
+    // NOTE: DO NOT ADD SENSITIVE DATA TO THIS CLASS (INCLUDING JWT)
+    // IT IS USED IN THE AUDIT SYSTEM
+)
+@Serializable
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class ElasticSecurityPrincipal(
+    @JsonProperty("username")
+    val username: String,
+    @JsonProperty("role")
+    val role: String,
+    @JsonProperty("firstName")
+    val firstName: String,
+    @JsonProperty("lastName")
+    val lastName: String,
+    @JsonProperty("email")
+    val email: String? = null,
+    @JsonProperty("twoFactorAuthentication")
+    val twoFactorAuthentication: Boolean = true,
+    @JsonProperty("principalType")
+    val principalType: String? = null,
+    @JsonProperty("serviceAgreementAccepted")
+    val serviceAgreementAccepted: Boolean = false,
+    @JsonProperty("organization")
+    val organization: String? = null
+)
 class AuditProcessor(
     private val events: EventStreamService,
     private val client: ElasticsearchClient,
@@ -50,33 +137,68 @@ class AuditProcessor(
                         if (requestName == "healthcheck.status") {
                             return@runCatching null
                         }
-                        val newTree = buildJsonObject {
-                            for (e in tree) {
-                                put(e.key, e.value)
-                            }
+                        val handledBy = defaultMapper.decodeFromJsonElement<JsonObject>(tree["handledBy"]!!)
+                        val handledByDef = defaultMapper.decodeFromJsonElement<JsonObject>(handledBy["definition"]!!)
+                        val token = defaultMapper.decodeFromJsonElement<JsonObject>(tree["token"]!!)
+                        val principal = defaultMapper.decodeFromJsonElement<JsonObject?>(token["principal"] ?: JsonObject(emptyMap()))
+                        val elasticAudit = ElasticAuditIn(
+                            timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
+                            jobId = (tree["jobId"] as JsonPrimitive).content,
+                            handledBy = ElasticServiceInstance(
+                                definition = ElasticServiceDefinition(
+                                    name = (handledByDef["name"] as JsonPrimitive).content,
+                                    version = (handledByDef["version"] as JsonPrimitive).content
+                                ),
+                                hostname = (handledBy["hostname"] as JsonPrimitive).content,
+                                port = (handledBy["port"] as JsonPrimitive).int,
+                                ipAddress = (handledBy["ipAddress"] as JsonPrimitive).content
+                            ),
+                            causedBy = (tree["causedBy"] as JsonPrimitive).content,
+                            requestName = requestName,
+                            userAgent = (tree["userAgent"] as JsonPrimitive).content,
+                            remoteOrigin = (tree["remoteOrigin"] as JsonPrimitive).content,
+                            token = ElasticSecurityPrincipalToken(
+                                principal = ElasticSecurityPrincipal(
+                                    username = (principal?.get("username") as JsonPrimitive).content,
+                                    role = (principal?.get("role") as JsonPrimitive).content,
+                                    firstName = (principal?.get("firstName") as JsonPrimitive).content,
+                                    lastName = (principal?.get("lastName") as JsonPrimitive).content,
+                                    email = (principal?.get("email") as JsonPrimitive).content,
+                                    twoFactorAuthentication = (principal?.get("twoFactorAuthentication") as JsonPrimitive).boolean,
+                                    principalType = (principal?.get("principalType") as JsonPrimitive).content,
+                                    serviceAgreementAccepted = (principal?.get("serviceAgreementAccepted") as JsonPrimitive).boolean,
+                                    organization = (principal?.get("organization") as JsonPrimitive).content
+                                ),
+                                //scopes = emptyList(),
+                                issuedAt = (token["issuedAt"] as JsonPrimitive).long,
+                                expiresAt = (token["expiresAt"] as JsonPrimitive).long,
+                                publicSessionReference = (token["publicSessionReference"] as JsonPrimitive).content,
+                                extendedBy = (token["extendedBy"] as JsonPrimitive).content,
+                                extendedByChain = emptyList()
+                            ),
+                            requestJson = (tree["requestJson"] as JsonObject),
+                            requestSize = (tree["requestSize"] as JsonPrimitive).int ,
+                            responseCode = (tree["responseCode"] as JsonPrimitive).int,
+                            responseTime = (tree["responseTime"] as JsonPrimitive).long,
+                            expiry = (tree["expiry"] as JsonPrimitive).long,
+                            project = (tree["project"] as JsonPrimitive).content
 
-                            put("@timestamp", DateTimeFormatter.ISO_INSTANT.format(Instant.now()))
-                        }
-
-                        Pair(requestName, defaultMapper.encodeToJsonElement(newTree))
+                        )
+                        Pair(requestName, elasticAudit)
                     }.getOrNull()
                 }
                 .groupBy { (requestName, _) -> requestName }
                 .flatMap { (requestName, batch) ->
                     val dateSuffix = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
                     val indexName = "http_logs_$requestName-$dateSuffix".lowercase()
-
                     log.trace("Inserting ${batch.size} elements into $indexName")
-
                     batch
                         .map { (_, doc) ->
                             BulkOperation.Builder()
                                 .index(
-                                    IndexOperation.Builder<JsonElement>()
+                                    IndexOperation.Builder<ElasticAuditIn>()
                                         .index(indexName)
-                                        .document(
-                                            doc
-                                        )
+                                        .document(doc)
                                         .build()
                                 )
                                 .build()
@@ -85,7 +207,7 @@ class AuditProcessor(
                 .chunked(1000)
                 .forEach { chunk ->
                     try {
-                        client.bulk(BulkRequest.Builder().operations(chunk).build())
+                        val reponse = client.bulk(BulkRequest.Builder().operations(chunk).build())
                     } catch (ex: Throwable) {
                         if (ex is ExecutionException || ex is ConnectException || ex.cause is ExecutionException || ex.cause is ConnectException) {
                             if (isDevMode) {

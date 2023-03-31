@@ -8,6 +8,7 @@ import {
     ResourceAclEntry,
     ResourceApi,
     ResourceBrowseCallbacks,
+    ResourceUpdate,
     SupportByProvider,
     UCLOUD_CORE
 } from "@/UCloud/ResourceApi";
@@ -51,8 +52,8 @@ import {connectionState} from "@/Providers/ConnectionState";
 import {ProductSelector} from "@/Products/Selector";
 import {sendNotification} from "@/Notifications";
 import {accounting} from "@/UCloud";
-import ProductReference = accounting.ProductReference;
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
+import ProductReference = accounting.ProductReference;
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -192,10 +193,36 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
 
     const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
-    const findMaintenanceStatus = (pRef: ProductReference): Maintenance | null | undefined => {
+    const findMaintenanceStatus = (pRef: ProductReference, updates: ResourceUpdate[]): Maintenance | null | undefined => {
         const productWithSupport = productsWithSupport.data.productsByProvider[pRef.provider]?.find(it =>
             it.product.name === pRef.id && it.product.category.name === pRef.category);
-        return productWithSupport?.support?.maintenance;
+        const productMaintenance = productWithSupport?.support?.maintenance;
+        if (productMaintenance != null)  {
+            return productMaintenance;
+        }
+
+        let maintenanceReason: string | null = null;
+        const startingPrefix = "Maintenance is starting.";
+        const endingPrefix = "Maintenance has ended.";
+        for (const update of updates) {
+            const status = update.status ?? "";
+            if (status.startsWith(startingPrefix)) {
+                maintenanceReason = status.substring(startingPrefix.length).trim();
+            } else if (status.startsWith(endingPrefix)) {
+                maintenanceReason = null;
+            }
+        }
+
+        if (maintenanceReason != null) {
+            return {
+                startsAt: timestampUnixMs(),
+                description: maintenanceReason,
+                availability: MaintenanceAvailability.NO_SERVICE,
+                frontendAlwaysShow: true
+            };
+        } else {
+            return null;
+        }
     };
     useEffect(() => {
         fetchProductsWithSupport(api.retrieveProducts())
@@ -261,12 +288,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
 
         if (props.isSearch) {
             return api.search({
-                itemsPerPage: 100, flags: {includeOthers, ...filters}, query,
+                itemsPerPage: 100, flags: {includeUpdates: true, includeOthers, ...filters}, query,
                 next, sortDirection, sortBy: sortColumn, ...props.additionalFilters
             });
         } else {
             return api.browse({
-                next, itemsPerPage: 100, includeOthers,
+                next, itemsPerPage: 100, includeUpdates: true, includeOthers,
                 ...filters, sortBy: sortColumn, sortDirection, ...props.additionalFilters
             });
         }
@@ -403,8 +430,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
         const RemainingImportantStats = renderer.ImportantStats;
         renderer.Icon = function icon(params) {
             if (!params.resource) return NormalIcon ? <NormalIcon {...params} /> : null;
-            const maintenance = findMaintenanceStatus(params.resource.specification.product);
-            if (maintenance && !shouldAllowMaintenanceAccess()) {
+            const maintenance = findMaintenanceStatus(params.resource.specification.product, params.resource.updates);
+            if (maintenance && (!shouldAllowMaintenanceAccess() || maintenance.frontendAlwaysShow)) {
                 return <Tooltip
                     trigger={<Icon name={"warning"} size={params.size} color={maintenanceIconColor(maintenance)} />}
                 >
@@ -535,7 +562,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
 
     const navigateCallback = useCallback((item: Res) => {
         const pRef = item.specification.product;
-        const maintenance = findMaintenanceStatus(pRef);
+        const maintenance = findMaintenanceStatus(pRef, item.updates);
         if (maintenance) {
             const availability = maintenance.availability;
             const now = timestampUnixMs();

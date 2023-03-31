@@ -8,17 +8,17 @@ import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.WSSession
 import dk.sdu.cloud.calls.server.sendWSMessage
+import dk.sdu.cloud.debug.DebugContextType
+import dk.sdu.cloud.debug.DebugSystem
+import dk.sdu.cloud.debug.MessageImportance
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.notification.api.InternalNotificationRequest
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.api.SubscriptionResponse
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.async.AsyncDBConnection
-import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.db.withTransaction
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -35,6 +35,8 @@ data class LocalSubscription(
 )
 
 class SubscriptionService(
+    private val backgroundScope: BackgroundScope,
+    private val debug: DebugSystem,
     private val localhost: HostInfo,
     private val wsServiceClient: AuthenticatedClient,
     private val db: DBContext,
@@ -45,9 +47,11 @@ class SubscriptionService(
     init {
         localhost.port ?: throw NullPointerException("localhost.port == null")
 
-        GlobalScope.launch {
+        backgroundScope.launch {
             while (isActive && isRunning) {
-                subscriptionDao.refreshSessions(db, localhost.host, localhost.port!!)
+                debug.useContext(DebugContextType.BACKGROUND_TASK, "Notification cleanup", MessageImportance.TELL_ME_EVERYTHING) {
+                    subscriptionDao.refreshSessions(db, localhost.host, localhost.port!!)
+                }
                 delay(3000)
             }
         }

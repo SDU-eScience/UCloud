@@ -74,6 +74,6 @@ dependencies {
     api("com.github.jasync-sql:jasync-postgresql:$jasyncVersion")
     api("io.lettuce:lettuce-core:5.1.6.RELEASE")
     api("org.elasticsearch.client:elasticsearch-rest-high-level-client:7.17.0")
-    api("co.elastic.clients:elasticsearch-java:8.3.3")
+    api("co.elastic.clients:elasticsearch-java:8.6.0")
     api("com.google.guava:guava:27.0.1-jre")
 }

@@ -64,7 +64,7 @@ class Server(override val micro: Micro) : CommonServer {
 
     override fun start() {
         val elasticHighLevelClient = micro.elasticClient
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val db = AsyncDBSessionFactory(micro)
 
         startServices(wait = false)
 

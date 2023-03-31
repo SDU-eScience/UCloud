@@ -14,7 +14,7 @@ interface PluginContext {
     val ipcClientOptional: IpcClient?
     val ipcServerOptional: IpcServer?
     val commandLineInterface: CommandLineInterface?
-    val debugSystem: DebugSystem?
+    val debugSystem: DebugSystem
 }
 
 val PluginContext.rpcClient: AuthenticatedClient
@@ -32,5 +32,5 @@ class SimplePluginContext(
     override val ipcClientOptional: IpcClient?,
     override val ipcServerOptional: IpcServer?,
     override val commandLineInterface: CommandLineInterface?,
-    override val debugSystem: DebugSystem?,
+    override val debugSystem: DebugSystem,
 ) : PluginContext

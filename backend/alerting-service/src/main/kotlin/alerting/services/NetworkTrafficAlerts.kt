@@ -55,7 +55,7 @@ class NetworkTrafficAlerts(
                             )
                             .filter(
                                 RangeQuery.Builder()
-                                    .field("@timestamp")
+                                    .field("timestamp")
                                     .gte(JsonData.of(Date(Time.now() - FIFTEEN_MIN)))
                                     .lt(JsonData.of(Date(Time.now())))
                                     .build()._toQuery()
@@ -93,7 +93,7 @@ class NetworkTrafficAlerts(
                             )
                             .filter(
                                 RangeQuery.Builder()
-                                    .field("@timestamp")
+                                    .field("timestamp")
                                     .gte(JsonData.of(Date(Time.now() - FIFTEEN_MIN)))
                                     .lt(JsonData.of(Date(Time.now())))
                                     .build()._toQuery()
@@ -204,7 +204,7 @@ class NetworkTrafficAlerts(
                             )
                             .filter(
                                 RangeQuery.Builder()
-                                    .field("@timestamp")
+                                    .field("timestamp")
                                     .gte(JsonData.of(Date(Time.now() - THIRTY_MIN)))
                                     .lt(JsonData.of(Date(Time.now())))
                                     .build()._toQuery()

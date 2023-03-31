@@ -1,8 +1,9 @@
 package dk.sdu.cloud.utils
 
-import dk.sdu.cloud.debug.DebugContext
+import dk.sdu.cloud.debug.DebugContextType
 import dk.sdu.cloud.debug.MessageImportance
-import dk.sdu.cloud.debug.logD
+import dk.sdu.cloud.debug.detail
+import dk.sdu.cloud.debug.log
 import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.service.Loggable
 import java.lang.Process as JvmProcess
@@ -258,37 +259,36 @@ suspend fun executeCommandToText(
 ): ProcessResultText {
     val cmd = buildCommand(executable, block)
 
-    val debugContext = DebugContext.create()
+    return debugSystem.useContext(DebugContextType.OTHER, "Command: $executable") {
+        debugSystem.detail(
+            "Invoking...",
+            JsonObject(
+                mapOf(
+                    "executable" to JsonPrimitive(executable),
+                    "arguments" to JsonArray(cmd.args.map { JsonPrimitive(it) }),
+                    "env" to JsonArray(cmd.envs.map { JsonPrimitive(it) }),
+                    "extra" to (additionalDebug ?: JsonNull)
+                )
+            )
+        )
 
-    debugSystem.logD(
-        "Command: $executable",
-        JsonObject.serializer(),
-        JsonObject(mapOf(
-            "executable" to JsonPrimitive(executable),
-            "arguments" to JsonArray(cmd.args.map { JsonPrimitive(it) }),
-            "env" to JsonArray(cmd.envs.map { JsonPrimitive(it) }),
-            "extra" to (additionalDebug ?: JsonNull)
-        )),
-        MessageImportance.IMPLEMENTATION_DETAIL,
-        debugContext
-    )
+        val result = cmd.executeToText()
 
-    val result = cmd.executeToText()
+        debugSystem.log(
+            if (result.statusCode == 0) MessageImportance.THIS_IS_NORMAL
+            else MessageImportance.THIS_IS_ODD,
+            "Exit (${result.statusCode})",
+            JsonObject(
+                mapOf(
+                    "statusCode" to JsonPrimitive(result.statusCode),
+                    "stdout" to JsonPrimitive(result.stdout),
+                    "stderr" to JsonPrimitive(result.stderr),
+                )
+            ),
+        )
 
-    debugSystem.logD(
-        "Exit (${result.statusCode})",
-        JsonObject.serializer(),
-        JsonObject(mapOf(
-            "statusCode" to JsonPrimitive(result.statusCode),
-            "stdout" to JsonPrimitive(result.stdout),
-            "stderr" to JsonPrimitive(result.stderr),
-        )),
-        if (result.statusCode == 0) MessageImportance.THIS_IS_NORMAL
-        else MessageImportance.THIS_IS_ODD,
-        DebugContext.createWithParent(debugContext.id)
-    )
-
-    return result
+        result
+    }
 }
 
 inline fun executeCommandToBinary(executable: String, block: CommandBuilder.() -> Unit): ProcessResult {

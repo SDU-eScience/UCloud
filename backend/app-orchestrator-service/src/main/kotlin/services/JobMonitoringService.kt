@@ -11,6 +11,9 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.debug.DebugContextType
+import dk.sdu.cloud.debug.DebugSystem
+import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
 import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
 import dk.sdu.cloud.micro.BackgroundScope
@@ -31,6 +34,7 @@ import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 class JobMonitoringService(
+    private val debug: DebugSystem,
     private val scope: BackgroundScope,
     private val distributedLocks: DistributedLockFactory,
     private val db: AsyncDBSessionFactory,
@@ -70,16 +74,17 @@ class JobMonitoringService(
         while (isActive) {
             val now = Time.now()
             if (now >= nextScan) {
-                db.withSession { session ->
-                    val jobs = session
-                        .sendPreparedStatement(
-                            {
-                                setParameter(
-                                    "nonFinalStates",
-                                    JobState.values().filter { !it.isFinal() }.map { it.name }
-                                )
-                            },
-                            """
+                debug.useContext(DebugContextType.BACKGROUND_TASK, "Job monitoring", MessageImportance.TELL_ME_EVERYTHING) {
+                    db.withSession { session ->
+                        val jobs = session
+                            .sendPreparedStatement(
+                                {
+                                    setParameter(
+                                        "nonFinalStates",
+                                        JobState.values().filter { !it.isFinal() }.map { it.name }
+                                    )
+                                },
+                                """
                                 update app_orchestrator.jobs
                                 set last_scan = now()
                                 where
@@ -96,84 +101,86 @@ class JobMonitoringService(
                                     )
                                 returning resource;
                             """,
-                            "job monitoring loop"
-                        )
-                        .rows
-                        .map { it.getLong(0)!! }
-                        .toSet()
-                        .let { set ->
-                            jobOrchestrator.retrieveBulk(
-                                actorAndProject = ActorAndProject(Actor.System, null),
-                                set.map { id -> id.toString() },
-                                permissionOneOf = listOf(Permission.READ)
+                                "job monitoring loop"
                             )
-                        }
-
-                    val jobsByProvider = jobs.map { it }.groupBy { it.specification.product.provider }
-                    scope.launch {
-                        jobsByProvider.forEach { (provider, jobs) ->
-                            val comm = providers.prepareCommunication(provider)
-                            val resp = comm.api.verify.call(
-                                bulkRequestOf(jobs),
-                                comm.client
-                            )
-
-                            if (!resp.statusCode.isSuccess()) {
-                                log.info("Failed to verify block in $provider. Jobs: ${jobs.map { it.id }}")
+                            .rows
+                            .map { it.getLong(0)!! }
+                            .toSet()
+                            .let { set ->
+                                jobOrchestrator.retrieveBulk(
+                                    actorAndProject = ActorAndProject(Actor.System, null),
+                                    set.map { id -> id.toString() },
+                                    permissionOneOf = listOf(Permission.READ)
+                                )
                             }
 
-                            val requiresRestart = jobs.filter { 
-                                it.status.state == JobState.SUSPENDED && it.status.allowRestart == true
-                            }
-                            if (requiresRestart.isNotEmpty()) {
-                                for (job in requiresRestart) {
-                                    try {
-                                        jobOrchestrator.performUnsuspension(listOf(job))
-                                    } catch (ex: Throwable) {
-                                        log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
+                        val jobsByProvider = jobs.map { it }.groupBy { it.specification.product.provider }
+                        scope.launch {
+                            jobsByProvider.forEach { (provider, jobs) ->
+                                val comm = providers.prepareCommunication(provider)
+                                val resp = comm.api.verify.call(
+                                    bulkRequestOf(jobs),
+                                    comm.client
+                                )
+
+                                if (!resp.statusCode.isSuccess()) {
+                                    log.info("Failed to verify block in $provider. Jobs: ${jobs.map { it.id }}")
+                                }
+
+                                val requiresRestart = jobs.filter {
+                                    it.status.state == JobState.SUSPENDED && it.status.allowRestart == true
+                                }
+                                if (requiresRestart.isNotEmpty()) {
+                                    for (job in requiresRestart) {
+                                        try {
+                                            jobOrchestrator.performUnsuspension(listOf(job))
+                                        } catch (ex: Throwable) {
+                                            log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    for (job in jobs) {
-                        // NOTE(Dan): Suspended jobs are re-verified when they are unsuspended. We don't verify them
-                        // right now.
-                        if (job.status.state == JobState.SUSPENDED) continue
+                        for (job in jobs) {
+                            // NOTE(Dan): Suspended jobs are re-verified when they are unsuspended. We don't verify them
+                            // right now.
+                            if (job.status.state == JobState.SUSPENDED) continue
 
-                        log.trace("Checking permissions of ${job.id}")
-                        val (hasPermissions, files) = hasPermissionsForExistingMounts(job, session)
-                        if (!hasPermissions) {
-                            terminateAndUpdateJob(job, files)
-                        }
+                            log.trace("Checking permissions of ${job.id}")
+                            val (hasPermissions, files) = hasPermissionsForExistingMounts(job, session)
+                            if (!hasPermissions) {
+                                terminateAndUpdateJob(job, files)
+                            }
 
-                        val (resourceAvailable, resource) = hasResources(job, session)
-                        if (!resourceAvailable) {
-                            terminateAndUpdateJob(job, resource)
-                        }
+                            val (resourceAvailable, resource) = hasResources(job, session)
+                            if (!resourceAvailable) {
+                                terminateAndUpdateJob(job, resource)
+                            }
 
-                        val quotaOK = hasStorageQuotaLeft(job, session)
-                        if (!quotaOK) {
-                            //TODO Will not kill at the moment just print the intent to do it
-                            log.info("Want to kill job: ${job.id} due to lacking storage")
-                            /*jobOrchestrator.terminate(
-                                ActorAndProject(Actor.System, null),
-                                bulkRequestOf(FindByStringId(job.id))
-                            )
+                            val quotaOK = hasStorageQuotaLeft(job, session)
+                            if (!quotaOK) {
+                                //TODO Will not kill at the moment just print the intent to do it
+                                log.info("Want to kill job: ${job.id} due to lacking storage")
+                                /*jobOrchestrator.terminate(
+                                    ActorAndProject(Actor.System, null),
+                                    bulkRequestOf(FindByStringId(job.id))
+                                )
 
-                            jobOrchestrator.addUpdate(
-                                ActorAndProject(Actor.System, null),
-                                bulkRequestOf(
-                                    ResourceUpdateAndId(
-                                        job.id,
-                                        JobUpdate(
-                                            status = "System initiated cancel: " +
-                                                "You storage quota for has been used up."
+                                jobOrchestrator.addUpdate(
+                                    ActorAndProject(Actor.System, null),
+                                    bulkRequestOf(
+                                        ResourceUpdateAndId(
+                                            job.id,
+                                            JobUpdate(
+                                                status = "System initiated cancel: " +
+                                                    "You storage quota for has been used up."
+                                            )
                                         )
                                     )
-                                )
-                            )*/
+                                )*/
+                            }
+
                         }
                     }
                 }

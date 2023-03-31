@@ -5,20 +5,21 @@ import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.debug.log
+import dk.sdu.cloud.debug.normal
+import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.file.orchestrator.api.FileIconHint
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.file.orchestrator.api.FilesProviderStreamingSearchRequest
 import dk.sdu.cloud.file.orchestrator.api.FilesProviderStreamingSearchResult
 import dk.sdu.cloud.file.orchestrator.api.FilesSortBy
 import dk.sdu.cloud.file.orchestrator.api.PartialUFile
-import dk.sdu.cloud.file.orchestrator.api.UFile
 import dk.sdu.cloud.file.orchestrator.api.UFileIncludeFlags
 import dk.sdu.cloud.file.orchestrator.api.UFileStatus
 import dk.sdu.cloud.file.orchestrator.api.fileName
 import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.UCloudFile
-import dk.sdu.cloud.plugins.components
 import dk.sdu.cloud.plugins.fileName
 import dk.sdu.cloud.plugins.parent
 import dk.sdu.cloud.plugins.parents
@@ -40,6 +41,8 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.ArrayDeque
 import kotlin.collections.ArrayList
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTimedValue
 
 const val PERSONAL_REPOSITORY = "Members' Files"
 const val MAX_FILE_COUNT_FOR_SORTING = 25_000
@@ -89,7 +92,7 @@ class FileQueries(
     private val distributedStateFactory: DistributedStateFactory,
     private val nativeFs: NativeFS,
     private val fileTrashService: TrashService,
-    private val cephStats: CephFsFastDirectoryStats,
+    private val directoryStats: FastDirectoryStats,
 ) {
     suspend fun retrieve(file: UCloudFile, flags: UFileIncludeFlags): PartialUFile {
         try {
@@ -109,14 +112,9 @@ class FileQueries(
     }
 
     private fun findIcon(file: InternalFile): FileIconHint? {
-        val components = pathConverter.internalToRelative(file).components()
         return if (fileTrashService.isTrashFolder(file)) {
             FileIconHint.DIRECTORY_TRASH
-        } else if (
-            (components.size == 3 && components[0] == PathConverter.HOME_DIRECTORY && components[2] == "Jobs") ||
-            (components.size == 5 && components[0] == PathConverter.PROJECT_DIRECTORY &&
-                    components[2] == PERSONAL_REPOSITORY && components[4] == "Jobs")
-        ) {
+        } else if (file.fileName() == "Jobs") {
             FileIconHint.DIRECTORY_JOBS
         } else {
             null
@@ -152,7 +150,7 @@ class FileQueries(
                 nativeStat.fileType,
                 findIcon(file),
                 sizeInBytes = nativeStat.size,
-                sizeIncludingChildrenInBytes = runCatching { cephStats.getRecursiveSize(file) }.getOrNull(),
+                sizeIncludingChildrenInBytes = runCatching { directoryStats.getRecursiveSize(file) }.getOrNull(),
                 modifiedAt = nativeStat.modifiedAt,
                 unixMode = nativeStat.mode,
                 unixOwner = nativeStat.ownerUid,
@@ -163,6 +161,7 @@ class FileQueries(
         )
     }
 
+    @OptIn(ExperimentalTime::class)
     suspend fun browseFiles(
         file: UCloudFile,
         flags: UFileIncludeFlags,
@@ -187,6 +186,7 @@ class FileQueries(
             foundFiles = initialState.get()?.map { InternalFile(it) }
         }
 
+        debugSystem.normal("Locating files")
         val internalFile = try {
             pathConverter.ucloudToInternal(file)
         } catch (ex: RPCException) {
@@ -206,6 +206,7 @@ class FileQueries(
                     }
                 }
         }
+        debugSystem.normal("Files located (file count = ${foundFiles.size}) - Sorting files...")
 
         val inheritedSensitivity: String? = inheritedSensitivity(internalFile)
 
@@ -216,30 +217,43 @@ class FileQueries(
             FilesSortBy.PATH
         }
 
-        val foundFilesToStat = HashMap<String, NativeStat>()
-        foundFiles = sortFiles(nativeFs, allowedSortBy, sortOrder, foundFiles, foundFilesToStat)
+        val foundFilesToStat = HashMap<String, NativeFS.StatAndXattr>()
+        foundFiles = sortFiles(nativeFs, allowedSortBy, sortOrder, foundFiles, foundFilesToStat, SENSITIVITY_XATTR)
+
+        debugSystem.normal("Files sorted - Retrieving file information...")
 
         val offset = pagination.next?.substringBefore('_')?.toIntOrNull() ?: 0
         if (offset < 0) throw RPCException("Bad next token supplied", HttpStatusCode.BadRequest)
         val items = ArrayList<PartialUFile>()
         var i = offset
         var didSkipFiles = false
+        var timeInStatNanos = 0L
+        var timeInConversionNanos = 0L
 
         while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
             val nextInternalFile = foundFiles[i++]
-            val sensitivity = runCatching { nativeFs.getExtendedAttribute(nextInternalFile, SENSITIVITY_XATTR) }
-                .getOrNull()?.takeIf { it != "inherit" } ?: inheritedSensitivity
+
             when (allowedSortBy) {
                 FilesSortBy.PATH -> {
+                    val (statAndAttributes, time) = measureTimedValue {
+                        nativeFs.statAndFetchAttributes(nextInternalFile, SENSITIVITY_XATTR)
+                    }
+
+                    val sensitivity = statAndAttributes.attributes[0]?.takeIf { it != "inherit" } ?: inheritedSensitivity
+
+                    timeInStatNanos += time.inWholeNanoseconds
+
                     try {
-                        items.add(
+                        val (converted, conversionTime) = measureTimedValue {
                             convertNativeStatToUFile(
                                 nextInternalFile,
-                                nativeFs.stat(nextInternalFile),
+                                statAndAttributes.stat,
                                 file.path,
                                 sensitivity,
                             )
-                        )
+                        }
+                        timeInConversionNanos += conversionTime.inWholeNanoseconds
+                        items.add(converted)
                     } catch (ex: FSException.NotFound) {
                         // NOTE(Dan): File might have gone away between these two calls
                         didSkipFiles = true
@@ -253,14 +267,17 @@ class FileQueries(
                         continue
                     }
 
-                    items.add(
+                    val sensitivity = nextFile.attributes[0]?.takeIf { it != "inherit" } ?: inheritedSensitivity
+                    val (converted, conversionTime) = measureTimedValue {
                         convertNativeStatToUFile(
                             nextInternalFile,
-                            nextFile,
+                            nextFile.stat,
                             file.path,
                             sensitivity,
                         )
-                    )
+                    }
+                    timeInConversionNanos += conversionTime.inWholeNanoseconds
+                    items.add(converted)
                 }
             }
         }
@@ -285,12 +302,15 @@ class FileQueries(
             null
         }
 
+        debugSystem.normal("File information gathered (${timeInStatNanos} ns in stat, ${timeInConversionNanos} ns in conversion) - Responding")
+
         return PageV2(pagination.itemsPerPage, items, newNext)
     }
 
-    private fun inheritedSensitivity(internalFile: InternalFile): String? {
-        val ancestors = (pathConverter.internalToRelative(internalFile).parents().drop(1)
-            .map { pathConverter.relativeToInternal(it) }) + internalFile
+    private suspend fun inheritedSensitivity(internalFile: InternalFile): String? {
+        val ancestors = pathConverter.internalToUCloud(internalFile).parents()
+            .filter { f -> f.path.removeSuffix("/").count { it == '/' } > 1 }
+            .map { pathConverter.ucloudToInternal(it) } + internalFile
         var inheritedSensitivity: String? = null
         for (ancestor in ancestors) {
             val value = runCatching { nativeFs.getExtendedAttribute(ancestor, SENSITIVITY_XATTR) }.getOrNull()
@@ -375,13 +395,14 @@ fun sortFiles(
     sortBy: FilesSortBy,
     sortOrder: SortDirection?,
     foundFiles: List<InternalFile>,
-    foundFilesToStat: HashMap<String, NativeStat>
+    foundFilesToStat: HashMap<String, NativeFS.StatAndXattr>,
+    vararg attributes: String,
 ): List<InternalFile> {
     if (sortBy != FilesSortBy.PATH) {
         for (file in foundFiles) {
             // NOTE(Dan): Catch any errors, since the files could go away at any point during this process
             runCatching {
-                foundFilesToStat[file.path] = nativeFs.stat(file)
+                foundFilesToStat[file.path] = nativeFs.statAndFetchAttributes(file, *attributes)
             }
         }
     }
@@ -391,8 +412,8 @@ fun sortFiles(
         FilesSortBy.PATH -> pathComparator
 
         FilesSortBy.SIZE -> kotlin.Comparator<InternalFile> { a, b ->
-            val aSize = foundFilesToStat[a.path]?.size ?: 0L
-            val bSize = foundFilesToStat[b.path]?.size ?: 0L
+            val aSize = foundFilesToStat[a.path]?.stat?.size ?: 0L
+            val bSize = foundFilesToStat[b.path]?.stat?.size ?: 0L
             when {
                 aSize < bSize -> -1
                 aSize > bSize ->  1
@@ -401,8 +422,8 @@ fun sortFiles(
         }.thenComparing(pathComparator)
 
         FilesSortBy.MODIFIED_AT -> kotlin.Comparator<InternalFile> { a, b ->
-            val aModifiedAt = foundFilesToStat[a.path]?.modifiedAt ?: 0L
-            val bModifiedAt = foundFilesToStat[b.path]?.modifiedAt ?: 0L
+            val aModifiedAt = foundFilesToStat[a.path]?.stat?.modifiedAt ?: 0L
+            val bModifiedAt = foundFilesToStat[b.path]?.stat?.modifiedAt ?: 0L
             when {
                 aModifiedAt < bModifiedAt -> -1
                 aModifiedAt > bModifiedAt ->  1

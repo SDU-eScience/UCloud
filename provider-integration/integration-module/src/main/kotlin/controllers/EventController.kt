@@ -75,7 +75,7 @@ object EventIpc : IpcContainer("events") {
 class EventController(
     private val controllerContext: ControllerContext,
 ) : Controller, IpcController {
-    private val debug: DebugSystem?
+    private val debug: DebugSystem
         get() = controllerContext.pluginContext.debugSystem
     private var isPaused = false
 
@@ -201,13 +201,23 @@ class EventController(
                 // NOTE(Dan): It is crucial that events are _always_ processed in this order, regardless of
                 // how the pull requests arrive at the provider. We must know about a new project _before_ any
                 // allocations are processed.
-                debug.enterContext("Project notifications") {
-                    processProjects()
-                }
+                debug.useContext(
+                    DebugContextType.BACKGROUND_TASK,
+                    "Project notifications",
+                    MessageImportance.IMPLEMENTATION_DETAIL,
+                    block = {
+                        processProjects()
+                    }
+                )
 
-                debug.enterContext("Allocation notifications") {
-                    processAllocations()
-                }
+                debug.useContext(
+                    DebugContextType.BACKGROUND_TASK,
+                    "Allocation notifications",
+                    MessageImportance.IMPLEMENTATION_DETAIL,
+                    block = {
+                        processAllocations()
+                    }
+                )
             } catch (ex: Throwable) {
                 log.info(
                     "Caught exception while processing notifications from UCloud/Core: " +
@@ -228,9 +238,14 @@ class EventController(
         val now = Time.now()
         try {
             if (now >= nextRescan) {
-                debug.enterContext("Allocation scan") {
-                    scanAllocations()
-                }
+                debug.useContext(
+                    DebugContextType.BACKGROUND_TASK,
+                    "Allocation scan",
+                    MessageImportance.IMPLEMENTATION_DETAIL,
+                    block = {
+                        scanAllocations()
+                    }
+                )
                 nextRescan = now + (1000L * 60 * 60 * 3)
             }
             delay(1000)
@@ -305,13 +320,7 @@ class EventController(
             ).orThrow()
         }
 
-        debug.logD(
-            "Handled ${acknowlegedEvents.size} project notifications",
-            Unit.serializer(),
-            Unit,
-            if (acknowlegedEvents.size == 0) MessageImportance.IMPLEMENTATION_DETAIL
-            else MessageImportance.THIS_IS_NORMAL
-        )
+        debug.normal("Handled ${acknowlegedEvents.size} project notifications")
     }
 
     // Allocations
@@ -376,13 +385,7 @@ class EventController(
             ).orThrow()
         }
 
-        debug.logD(
-            "Processed ${items.size} allocations",
-            Unit.serializer(),
-            Unit,
-            if (items.size == 0) MessageImportance.IMPLEMENTATION_DETAIL
-            else MessageImportance.THIS_IS_NORMAL
-        )
+        debug.normal("Processed ${items.size} allocations")
     }
 
     private suspend fun processAllocationsSingles(notifications: List<DepositNotification>) {
@@ -761,13 +764,7 @@ class EventController(
 
         }
 
-        debug.logD(
-            "Scanned $allocationsScanned allocations",
-            Unit.serializer(),
-            Unit,
-            if (allocationsScanned == 0) MessageImportance.IMPLEMENTATION_DETAIL
-            else MessageImportance.THIS_IS_NORMAL
-        )
+        debug.normal("Scanned $allocationsScanned allocations")
     }
 
     private suspend fun dispatchSyncToPlugin(plugin: AllocationPlugin, list: List<ProviderWalletSummary>) {

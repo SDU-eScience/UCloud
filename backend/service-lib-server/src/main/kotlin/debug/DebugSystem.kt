@@ -5,27 +5,15 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.io.CommonFile
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.service.Time
 import kotlinx.serialization.json.JsonNull
 import java.io.File
 
-object NopDebugSystem : DebugSystem {
-    override suspend fun sendMessage(message: DebugMessage) {
-    }
-}
-
-class DebugSystemFeature : MicroFeature, DebugSystem {
+class DebugSystemFeature : MicroFeature {
     private var developmentMode: Boolean = false
-    private lateinit var delegate: DebugSystem
+    lateinit var system: DebugSystem
 
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
-        if (cliArgs.contains("--no-debugger")) {
-            delegate = NopDebugSystem
-            return
-        }
-
         developmentMode = ctx.developmentModeEnabled
         var logLocation = "."
         val potentialDirectories = listOf("/var/log/ucloud/structured", "/tmp", "./")
@@ -47,51 +35,42 @@ class DebugSystemFeature : MicroFeature, DebugSystem {
             break
         }
 
-        val directory = CommonFile(logLocation)
-        delegate = CommonDebugSystem(
-            serviceDescription.name,
-            directory,
-            /*if (ctx.developmentModeEnabled) DebugMessageTransformer.Development else*/ DebugMessageTransformer.Disabled
-        )
+        system = DebugSystem(logLocation, serviceDescription.name, enabled = ctx.developmentModeEnabled)
+        system.start(ctx.backgroundScope)
 
-        installCommon(ctx.client)
+        if (ctx.featureOrNull(ClientFeature) != null) {
+            ctx.client.debugSystem = system
+            system.installCommon(ctx.client)
+        }
 
-        ctx.server.attachFilter(object : IngoingCallFilter.AfterParsing() {
-            override fun canUseContext(ctx: IngoingCall): Boolean = true
-            override suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>, request: Any) {
-                @Suppress("UNCHECKED_CAST")
-                call as CallDescription<Any, Any, Any>
+        if (ctx.featureOrNull(ServerFeature) != null) {
+            ctx.server.attachFilter(object : IngoingCallFilter.AfterParsing() {
+                override fun canUseContext(ctx: IngoingCall): Boolean = true
+                override suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>, request: Any) {
+                    @Suppress("UNCHECKED_CAST")
+                    call as CallDescription<Any, Any, Any>
 
-                sendMessage(
-                    DebugMessage.ServerRequest(
-                        currentContext()!!,
-                        Time.now(),
-                        context.securityPrincipalOrNull,
-                        MessageImportance.IMPLEMENTATION_DETAIL,
+                    system.serverRequest(
+                        MessageImportance.THIS_IS_NORMAL,
                         call.fullName,
-                        defaultMapper.encodeToJsonElement(call.requestType, request),
+                        defaultMapper.encodeToJsonElement(call.requestType, request)
                     )
-                )
-            }
-        })
+                }
+            })
 
-        ctx.server.attachFilter(object : IngoingCallFilter.AfterResponse() {
-            override fun canUseContext(ctx: IngoingCall): Boolean = true
-            override suspend fun run(
-                context: IngoingCall,
-                call: CallDescription<*, *, *>,
-                request: Any?,
-                result: OutgoingCallResponse<*, *>,
-                responseTimeMs: Long
-            ) {
-                @Suppress("UNCHECKED_CAST")
-                call as CallDescription<Any, Any, Any>
+            ctx.server.attachFilter(object : IngoingCallFilter.AfterResponse() {
+                override fun canUseContext(ctx: IngoingCall): Boolean = true
+                override suspend fun run(
+                    context: IngoingCall,
+                    call: CallDescription<*, *, *>,
+                    request: Any?,
+                    result: OutgoingCallResponse<*, *>,
+                    responseTimeMs: Long
+                ) {
+                    @Suppress("UNCHECKED_CAST")
+                    call as CallDescription<Any, Any, Any>
 
-                sendMessage(
-                    DebugMessage.ServerResponse(
-                        DebugContext.create(),
-                        Time.now(),
-                        context.securityPrincipalOrNull,
+                    system.serverResponse(
                         when {
                             responseTimeMs >= 300 || result.statusCode.value in 500..599 ->
                                 MessageImportance.THIS_IS_WRONG
@@ -118,16 +97,12 @@ class DebugSystemFeature : MicroFeature, DebugSystem {
 
                             else -> JsonNull
                         },
-                        result.statusCode.value,
+                        result.statusCode,
                         responseTimeMs
                     )
-                )
-            }
-        })
-    }
-
-    override suspend fun sendMessage(message: DebugMessage) {
-        delegate.sendMessage(message)
+                }
+            })
+        }
     }
 
     companion object : MicroFeatureFactory<DebugSystemFeature, Unit>, Loggable {
@@ -136,3 +111,4 @@ class DebugSystemFeature : MicroFeature, DebugSystem {
         override val key = MicroAttributeKey<DebugSystemFeature>("debug-system")
     }
 }
+

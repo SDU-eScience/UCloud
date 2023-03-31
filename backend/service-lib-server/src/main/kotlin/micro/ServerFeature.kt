@@ -2,8 +2,6 @@ package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.server.*
-import dk.sdu.cloud.debug.DebugSystem
-import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.server.engine.ApplicationEngine
@@ -40,7 +38,7 @@ class ServerFeature : MicroFeature {
             engine.start(wait = false)
             ktorApplicationEngine = engine
             server.attachRequestInterceptor(IngoingHttpInterceptor(engine, server, ctx))
-            server.attachRequestInterceptor(IngoingWebSocketInterceptor(engine, server))
+            server.attachRequestInterceptor(IngoingWebSocketInterceptor(engine, server, ctx))
         }
 
         ctx.featureOrNull(DeinitFeature)?.addHandler {

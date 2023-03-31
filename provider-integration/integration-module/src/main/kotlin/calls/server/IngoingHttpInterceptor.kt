@@ -45,9 +45,8 @@ class IngoingHttpInterceptor(
             route(httpDescription.path.toPath(), HttpMethod(httpDescription.method.value)) {
                 handle {
                     val ctx = HttpCall(this as PipelineContext<Any, ApplicationCall>)
-                    val debugCtx = DebugContext.create()
-                    withContext(DebugCoroutineContext(debugCtx)) {
-                        debug.everythingD("Begun parsing of ${call.fullName}", Unit.serializer(), Unit, debugCtx)
+                    debugSystem.useContext(DebugContextType.SERVER_REQUEST, call.fullName) {
+                        debug.everything("Begun parsing of ${call.fullName}")
                         try {
                             // Calls the handler provided by 'implement'
                             @Suppress("UNCHECKED_CAST")
