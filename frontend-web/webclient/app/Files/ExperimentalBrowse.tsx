@@ -182,7 +182,7 @@ class SvgCache {
 }
 
 interface FileRow {
-    row: HTMLElement;
+    container: HTMLElement;
 
     checkbox: HTMLElement;
     favorite: HTMLElement;
@@ -192,19 +192,19 @@ interface FileRow {
     stat3: HTMLElement;
 }
 
-const maxRows = 100;
+const maxRows = 60;
 
 class FileBrowser {
     private root: HTMLDivElement;
     private breadcrumbs: HTMLUListElement;
     private scrolling: HTMLDivElement;
-    private scrollingBefore: HTMLDivElement;
-    private scrollingAfter: HTMLDivElement;
     private rows: FileRow[] = [];
     private lastFetch: Record<string, number> = {};
     private inflightRequests: Record<string, Promise<boolean>> = {};
+    private isFetchingNext: boolean = false;
     private icons: SvgCache = new SvgCache();
 
+    private cachedNext: Record<string, string | null> = {};
     private cachedData: Record<string, UFile[]> = {};
     private currentPath: string = "/4";
 
@@ -223,17 +223,19 @@ class FileBrowser {
                 <ul></ul>
             </header>
             
-            <div style="overflow-y: auto">
+            <div style="overflow-y: auto; position: relative;">
                 <div class="scrolling">
                 </div>
             </div>
         `;
 
         this.scrolling = this.root.querySelector<HTMLDivElement>(".scrolling")!;
-        this.breadcrumbs = this.root.querySelector<HTMLUListElement>("header ul")!;
+        this.scrolling.parentElement!.addEventListener("scroll", () => {
+            this.renderPage();
+            this.fetchNext();
+        });
 
-        this.scrollingBefore = document.createElement("div");
-        this.scrollingAfter = document.createElement("div");
+        this.breadcrumbs = this.root.querySelector<HTMLUListElement>("header ul")!;
 
         const rows: HTMLDivElement[] = [];
         for (let i = 0; i < maxRows; i++) {
@@ -256,7 +258,7 @@ class FileBrowser {
             rows.push(row);
 
             this.rows.push({
-                row,
+                container: row,
                 checkbox: row.querySelector<HTMLElement>("input")!,
                 favorite: row.querySelector<HTMLElement>(".favorite")!,
                 title: row.querySelector<HTMLElement>(".title")!,
@@ -266,9 +268,7 @@ class FileBrowser {
             });
         }
 
-        this.scrolling.append(this.scrollingBefore);
         this.scrolling.append(...rows);
-        this.scrolling.append(this.scrollingAfter);
 
         this.open(this.currentPath);
     }
@@ -295,6 +295,8 @@ class FileBrowser {
 
     open(path: string) {
         this.currentPath = path;
+        this.isFetchingNext = false;
+
         this.setBreadcrumbs(path.split("/"));
         this.renderPage();
         this.prefetch(path).then(wasCached => {
@@ -312,21 +314,44 @@ class FileBrowser {
         console.log("render")
         const page = this.cachedData[this.currentPath] ?? [];
 
-        for (let i = 0; i < maxRows; i++) {
-            const row = this.rows[i];
-            row.row.classList.add("hidden");
-            row.row.removeAttribute("data-file");
-            row.title.innerText = "";
+        // Determine the total size of the page and figure out where we are
+        const rowSize = 55;
+        const totalSize = rowSize * page.length;
+        const firstVisiblePixel = this.scrolling.parentElement!.scrollTop;
+
+        const firstRowInsideRegion = Math.ceil(firstVisiblePixel / rowSize);
+        const firstRowToRender = Math.max(0, firstRowInsideRegion - 6);
+
+        this.scrolling.style.height = `${totalSize}px`;
+
+        const findRow = (idx: number): FileRow | null => {
+            const rowNumber = idx - firstRowToRender;
+            if (rowNumber < 0) return null;
+            if (rowNumber >= maxRows) return null;
+            return this.rows[rowNumber];
         }
 
+        console.log(this.scrolling.scrollTop)
+
+        // Reset rows and place them accordingly
+        for (let i = 0; i < maxRows; i++) {
+            const row = this.rows[i];
+            row.container.classList.add("hidden");
+            row.container.removeAttribute("data-file");
+            row.container.style.position = "absolute";
+            const top = Math.min(totalSize - rowSize, (firstRowToRender + i) * rowSize);
+            row.container.style.top = `${top}px`;
+            row.title.innerHTML = "";
+        }
+
+        // Render the visible rows by iterating over all items
         for (let i = 0; i < page.length; i++) {
             const file = page[i];
-            const row = this.findRow(i);
+            const row = findRow(i);
             if (!row) continue;
 
-            row.row.setAttribute("data-file", file.id);
-            row.row.classList.remove("hidden");
-            row.title.innerHTML = "";
+            row.container.setAttribute("data-file", file.id);
+            row.container.classList.remove("hidden");
             row.title.innerText = fileName(file.id);
             if (file.status.type === "DIRECTORY") {
                 row.title.innerText += "/";
@@ -335,7 +360,7 @@ class FileBrowser {
             let resolved = false;
             this.renderFileIcon(file).then(url => {
                 resolved = true;
-                if (row.row.getAttribute("data-file") !== file.id) return;
+                if (row.container.getAttribute("data-file") !== file.id) return;
                 row.title.prepend(image(url, {width: 20, height: 20, alt: "File icon"}));
             });
         }
@@ -394,6 +419,7 @@ class FileBrowser {
         const promise = callAPI(FilesApi.browse({path, itemsPerPage: 250, includeMetadata: true}))
             .then(result => {
                 this.cachedData[path] = result.items;
+                this.cachedNext[path] = result.next ?? null;
                 return false;
             })
             .finally(() => delete this.inflightRequests[path]);
@@ -402,24 +428,51 @@ class FileBrowser {
         return promise;
     }
 
+    private async fetchNext() {
+        const initialPath = this.currentPath;
+        if (this.isFetchingNext || this.cachedNext[initialPath] === null) return;
+
+        const scrollingContainer = this.scrolling.parentElement!;
+        const scrollingPos = scrollingContainer.scrollTop;
+        const scrollingHeight = scrollingContainer.scrollHeight;
+        console.log(scrollingPos, scrollingHeight);
+        if (scrollingPos < scrollingHeight * 0.8) return;
+        console.log(this.isFetchingNext, this.cachedNext);
+
+        this.isFetchingNext = true;
+        try {
+            const result = await callAPI(
+                FilesApi.browse({
+                    path: this.currentPath,
+                    itemsPerPage: 250,
+                    includeMetadata: true,
+                    next: this.cachedNext[initialPath] ?? undefined
+                })
+            );
+
+            if (initialPath !== this.currentPath) return;
+
+            this.cachedData[initialPath] = this.cachedData[initialPath].concat(result.items);
+            this.cachedNext[initialPath] = result.next ?? null;
+            this.renderPage();
+        } finally {
+            if (initialPath === this.currentPath) this.isFetchingNext = false;
+        }
+    }
+
     private onRowPointerDown(index: number) {
         const row = this.rows[index];
-        const filePath = row.row.getAttribute("data-file");
+        const filePath = row.container.getAttribute("data-file");
         if (!filePath) return;
         this.prefetch(filePath).then(() => console.log("prefetch complete"));
     }
 
     private onRowClicked(index: number) {
         const row = this.rows[index];
-        const filePath = row.row.getAttribute("data-file");
+        const filePath = row.container.getAttribute("data-file");
         if (!filePath) return;
 
         this.open(filePath);
-    }
-
-    private findRow(index: number): FileRow | null {
-        if (index < 0 || index >= maxRows) return null; // TODO improve this
-        return this.rows[index];
     }
 
     static styleInjected = false;
