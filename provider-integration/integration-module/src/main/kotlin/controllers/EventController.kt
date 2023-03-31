@@ -774,7 +774,9 @@ class EventController(
         with(controllerContext.pluginContext) {
             with(plugin) {
                 val items = list.mapNotNull { prepareAllocationNotificationTotal(it) }
+                val singleItems = list.mapNotNull { prepareAllocationNotificationSingle(it) }
                 if (items.isNotEmpty()) onResourceSynchronizationTotal(items)
+                if (items.isNotEmpty()) onResourceSynchronizationSingle(singleItems)
             }
         }
     }

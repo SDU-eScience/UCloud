@@ -29,7 +29,6 @@ import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.sendTerminalMessage
 import io.ktor.client.*
-import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -429,8 +428,8 @@ class PuhuriPlugin : ProjectPlugin {
                     """
                         insert into puhuri_allocations(allocation_id, balance, product_type, synchronized_to_puhuri)
                         values (:id, :balance, :product_type, false)
-                        on conflict (allocation_id) do update set 
-                            synchronized_to_puhuri = synchronized_to_puhuri
+                        on conflict (allocation_id) do update set
+                            allocation_id = :id
                         returning allocation_id, synchronized_to_puhuri
                     """
                 ).useAndInvoke(
@@ -467,6 +466,7 @@ class PuhuriPlugin : ProjectPlugin {
                 puhuri.createOrder(
                     puhuriProjectId,
                     PuhuriAllocation(
+                        // TODO(Brian): These calculations might be wrong
                         cpuKHours = ceil((cpuAllocation?.balance ?: 0) / 1000.0).toInt(),
                         gpuHours = (gpuAllocation?.balance ?: 0).toInt(),
                         gbKHours = ceil((storageAllocation?.balance ?: 0) / 1000.0).toInt(),
@@ -553,8 +553,8 @@ class PuhuriClient(
 ) {
     private val rootEndpoint = endpoint.removeSuffix("/") + "/"
     private val customer = rootEndpoint + "customers/" + customerId + "/"
-    private val offering = rootEndpoint + "marketplace-offerings/" + offeringId + "/"
-    private val plan = rootEndpoint + "marketplace-plans/" + planId + "/"
+    private val offering = rootEndpoint + "marketplace-public-offerings/" + offeringId + "/"
+    private val plan = rootEndpoint + "marketplace-public-plans/" + planId + "/"
 
     private val httpClient = HttpClient(CIO) {
         expectSuccess = false
