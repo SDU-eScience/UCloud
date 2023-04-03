@@ -5,8 +5,8 @@ import * as React from "react";
 export const DividerClass = injectStyleSimple("divider", `
     border: 0;
     border-bottom-style: solid;
-    border-bottom-width: 1px;
-    border-color: var(--borderGray);
+    border-bottom-width: 2px;
+    border-color: var(--blue);
     margin-left: 0;
     margin-right: 0;
 `);

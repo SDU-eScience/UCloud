@@ -94,9 +94,9 @@ export function ContextSwitcher(): JSX.Element | null {
 
     const [filter, setTitleFilter] = React.useState("");
 
-    const filteredProjects = React.useMemo(() => {
-        return projects.filter(it => it.specification.title.toLocaleLowerCase().includes(filter.toLocaleLowerCase()))
-    }, [projects, filter]);
+    const filteredProjects = React.useMemo(() =>
+        projects.filter(it => it.specification.title.toLocaleLowerCase().includes(filter.toLocaleLowerCase()))
+        , [projects, filter]);
 
     return (
         <Flex key={activeContext} pr="12px" alignItems={"center"} data-component={"project-switcher"}>
@@ -108,14 +108,15 @@ export function ContextSwitcher(): JSX.Element | null {
                     </Flex>
                 }
                 colorOnHover={false}
+                useMousePositioning
                 onTriggerClick={checkIfShouldInvalidate}
                 left="0px"
                 width="500px"
             >
-                <div style={{maxHeight: "385px", zIndex: 999999999999999}}>
+                <div style={{maxHeight: "385px"}}>
                     <TextH3 bold mt="0" mb="8px">Select workspace</TextH3>
                     <Flex>
-                        <Input onKeyUp={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")} type="text" />
+                        <Input placeholder="Search..." onKeyUp={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")} type="text" />
                         <Relative right="34px" top="6px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
                     <div style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px"}}>
                         {projectId !== undefined ? (

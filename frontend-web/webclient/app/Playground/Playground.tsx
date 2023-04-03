@@ -2,8 +2,8 @@ import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
 import Icon, {EveryIcon} from "@/ui-components/Icon";
-import {Grid, Box, Button, Flex, Relative} from "@/ui-components";
-import theme, {ThemeColor} from "@/ui-components/theme";
+import {Grid, Box, Button, Flex} from "@/ui-components";
+import {ThemeColor} from "@/ui-components/theme";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {api as ProjectApi, Project, useProjectId} from "@/Project/Api";
@@ -15,12 +15,13 @@ import {ProductSelectorPlayground} from "@/Products/Selector";
 import {useSelector} from "react-redux";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {Toggle} from "@/ui-components/Toggle";
+import {Operation} from "@/ui-components/Operation";
 
 export const Playground: React.FunctionComponent = () => {
     const [checked, setChecked] = React.useState(false);
     const main = (
         <>
-            <UtilityBar searchEnabled />
+            <UtilityBar searchEnabled operations={[]} callbacks={{}} />
             <Toggle checked={checked} onChange={() => setChecked(e => !e)} />
 
             <ProductSelectorPlayground />
@@ -143,12 +144,12 @@ const colors: ThemeColor[] = [
     "wayfGreen",
 ];
 
-export function UtilityBar(props: {searchEnabled: boolean}): JSX.Element {
+export function UtilityBar<T>(props: {searchEnabled: boolean; operations: any[]; callbacks: any}): JSX.Element {
     return (<Flex>
         <Box width="32px"><SearchThing enabled={props.searchEnabled} /></Box>
         <Box width="32px"><RefreshThing /></Box>
-        <Box width="200px"><ContextSwitcher /></Box>
-    </Flex>)
+        <Box width="150px"><ContextSwitcher /></Box>
+    </Flex>);
 }
 
 function SearchThing({enabled}): JSX.Element | null {
@@ -157,12 +158,10 @@ function SearchThing({enabled}): JSX.Element | null {
 }
 
 function RefreshThing(): JSX.Element | null {
-    const reduxProps = useSelector((it: ReduxObject) => ({
-        refresh: it.header.refresh,
-        spin: it.loading,
-        statusLoading: it.status.loading,
-    }));
-    return <Icon cursor="pointer" size={20} onClick={reduxProps.refresh} spin={reduxProps.spin || reduxProps.statusLoading} color="var(--blue)" name="refresh" />
+    const refresh = useSelector((it: ReduxObject) => it.header.refresh);
+    const spin = useSelector((it: ReduxObject) => it.loading);
+    const loading = useSelector((it: ReduxObject) =>  it.status.loading);
+    return <Icon cursor="pointer" size={20} onClick={refresh} spin={spin || loading} color="var(--blue)" name="refresh" />
 }
 
 export default Playground;

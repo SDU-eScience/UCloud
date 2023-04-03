@@ -15,11 +15,15 @@ import {useLocation, useNavigate} from "react-router";
 import wayfLogo from "@/Assets/Images/WAYFLogo.svg";
 import ucloudBlue from "@/Assets/Images/ucloud-blue.svg";
 import deicBackground from "@/Assets/Images/deic-cloud.svg";
-import {injectStyleSimple} from "@/Unstyled";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {InputProps} from "@/ui-components/Input";
+import {injectFonts} from "@/ui-components/GlobalStyle";
+import {ButtonProps} from "@/ui-components/Button";
 
 const BackgroundImage = styled.div<{image: string}>`
     background: url(${({image}) => image}) no-repeat center;
     background-size: calc(3000px + 80vw);
+    color: black;
     overflow: hidden;
 `;
 
@@ -348,13 +352,13 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                     <DropdownLike>
                         <form onSubmit={preventDefault}>
                             <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
-                            <Button
+                            <LoginButton
                                 fullWidth
                                 disabled={loading}
                                 onClick={() => challengeId ? submit2FA() : attemptLogin()}
                             >
                                 Submit
-                            </Button>
+                            </LoginButton>
                         </form>
                     </DropdownLike>
                 )}
@@ -427,29 +431,34 @@ const DropdownLike = styled.div`
     padding: 16px 16px;
 `;
 
-const LoginInput = styled(Input)`
-    margin-bottom: 0.5em;
-    border-color: gray;
-    background-color: white;
-    color: black;
+function LoginInput(props: InputProps): JSX.Element {
+    return <Input {...props} className={LoginInputClass} />
+}
 
-    &:focus {
+const LoginInputClass = injectStyle("login-input", k => `
+    ${k} {
+        margin-bottom: 0.5em;
+        border-color: gray;
+        background-color: white;
+        color: black;
+    }
+
+    ${k}:focus {
         background-color: white;
     }
-`;
+`);
 
 const LoginIcon = styled(Icon)`
     color: black;
 `;
 
-const LoginButton = styled(Button)`
-    background-color: white;
-    color: black;
-`;
+function LoginButton(props: ButtonProps): JSX.Element {
+    return <Button {...props} textColor="fixedBlack" color="fixedWhite" />
+}
 
 const BlackLoginText = styled(Text)`
     color: black;
-    font-size: 20px;
+    font-size: var(--interactiveElementsSize);
 `;
 
 function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JSX.Element {

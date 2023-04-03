@@ -1,13 +1,12 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud"
-import {Box, Button, Flex} from "@/ui-components";
+import {Box, Button, Card, Flex} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import Link from "@/ui-components/Link";
 import BaseLink from "@/ui-components/BaseLink";
 import {Widget} from "@/Applications/Jobs/Widgets";
 import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
-import {GrayBox} from "../Create";
 import Warning from "@/ui-components/Warning";
 import {anyFolderDuplicates} from "../Widgets/GenericFiles";
 
@@ -33,7 +32,7 @@ export const FolderResource: React.FunctionComponent<{
     onRemove: (id: string) => void;
 }> = ({application, params, errors, onAdd, onRemove, warning, setWarning, setErrors}) => {
     return !folderResourceAllowed(application) ? null : (
-        <GrayBox>
+        <Card>
             <Box>
                 <Flex alignItems="center">
                     <Box flexGrow={1}>
@@ -95,6 +94,6 @@ export const FolderResource: React.FunctionComponent<{
                     </Box>
                 ))}
             </Box>
-        </GrayBox>
+        </Card>
     );
 };

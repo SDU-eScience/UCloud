@@ -1,12 +1,11 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud"
-import {Box, Button, Flex} from "@/ui-components";
+import {Box, Button, Card, Flex} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import BaseLink from "@/ui-components/BaseLink";
 import {Widget} from "@/Applications/Jobs/Widgets";
 import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
-import {GrayBox} from "../Create";
 
 export function peerResourceAllowed(app: UCloud.compute.Application) {
     const invocation = app.invocation;
@@ -24,7 +23,7 @@ export const PeerResource: React.FunctionComponent<{
     onRemove: (id: string) => void;
 }> = ({application, params, errors, onAdd, onRemove, setErrors}) => {
     return !peerResourceAllowed(application) ? null : (
-        <GrayBox>
+        <Card>
             <Box>
                 <Flex alignItems={"center"}>
                     <Box flexGrow={1}>
@@ -74,5 +73,5 @@ export const PeerResource: React.FunctionComponent<{
                     ))
                 }
             </Box>
-        </GrayBox>);
+        </Card>);
 };

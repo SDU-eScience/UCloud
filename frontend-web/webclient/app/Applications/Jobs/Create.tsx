@@ -5,7 +5,7 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {AppHeader, Information} from "@/Applications/View";
-import {Box, Button, ContainerForText, ExternalLink, Grid, Icon, Link, Markdown, Tooltip, VerticalButtonGroup} from "@/ui-components";
+import {Box, Button, Card, ContainerForText, ExternalLink, Grid, Icon, Link, Markdown, Tooltip, VerticalButtonGroup} from "@/ui-components";
 import {findElement, OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget, widgetId} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
@@ -422,7 +422,7 @@ export const Create: React.FunctionComponent = () => {
                             </Box>
                         )}
                         {inactiveParameters.length === 0 ? null : (
-                            <GrayBox>
+                            <Card>
                                 <OptionalWidgetSearch pool={inactiveParameters} mapper={param => (
                                     <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                         setErrors={setErrors}
@@ -432,7 +432,7 @@ export const Create: React.FunctionComponent = () => {
                                         }}
                                     />
                                 )} />
-                            </GrayBox>
+                            </Card>
                         )}
 
                         {/* SSH */}
@@ -467,17 +467,6 @@ export const Create: React.FunctionComponent = () => {
             </>}
     />;
 }
-
-export const GrayBox = styled.div`
-    padding: 12px 12px 12px 12px;
-    background-color: var(--lightGray);
-    border-radius: 15px;
-
-    & > div > div > button {
-        margin-top: auto;
-        margin-bottom: auto;
-    }
-`;
 
 function getParameterName(param: Pick<UCloud.compute.ApplicationParameter, "type" | "name">): string {
     switch (param.type) {

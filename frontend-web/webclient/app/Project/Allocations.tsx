@@ -20,8 +20,9 @@ import {VisualizationSection} from "./Resources";
 import formatDistance from "date-fns/formatDistance";
 import {Spacer} from "@/ui-components/Spacer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
-import {isAdminOrPI, useProjectFromParams} from "./Api";
+import {isAdminOrPI, useProjectFromParams, useProjectId} from "./Api";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {useProject} from "./cache";
 
 export interface SubAllocation {
     id: string;
@@ -54,9 +55,11 @@ export function searchSubAllocations(request: {query: string} & PaginationReques
 const FORMAT = "dd/MM/yyyy";
 
 function Allocations(): JSX.Element {
-    const {project, projectId, loading, isPersonalWorkspace, breadcrumbs} = useProjectFromParams("Allocations");
-
     useTitle("Allocations");
+
+    const projectId = useProjectId();
+    const project = useProject();
+    const isPersonalWorkspace = !projectId;
 
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true", includeMaxUsableBalance: "true"});
     const [allocations, fetchAllocations] = useCloudAPI<PageV2<SubAllocation>>({noop: true}, emptyPageV2);
@@ -102,14 +105,14 @@ function Allocations(): JSX.Element {
     return <MainContainer
         header={<Spacer
             width={"calc(100% - var(--sidebarWidth))"}
-            left={<ProjectBreadcrumbs omitActiveProject crumbs={breadcrumbs} />}
+            left={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Allocations"}]} />}
             right={<Box ml="12px" width="512px"></Box>}
         />}
         main={<>
             <Grid gridGap="0px">
                 <Wallets wallets={wallets.data.items} />
             </Grid>
-            {!loading && isAdminOrPI(project?.status.myRole) ?
+            {!project.loading && isAdminOrPI(project.fetch().status.myRole) ?
                 <SubAllocationViewer
                     key={projectId}
                     allocations={allocations}

@@ -6,8 +6,7 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
 import {emptyPageV2} from "@/DefaultObjects";
-import {GrayBox} from "@/Applications/Jobs/Create";
-import {Checkbox, Label, Link} from "@/ui-components";
+import {Card, Checkbox, Label, Link} from "@/ui-components";
 import Warning from "@/ui-components/Warning";
 import {Feature, hasFeature} from "@/Features";
 
@@ -43,7 +42,7 @@ export const SshWidget: React.FunctionComponent<{
     }, []);
 
     if (sshMode === "DISABLED") return null;
-    return <GrayBox>
+    return <Card>
         <Heading.h4 mb={10}>Configure SSH access</Heading.h4>
 
         {sshMode !== "MANDATORY" ? null : <>
@@ -77,5 +76,5 @@ export const SshWidget: React.FunctionComponent<{
                 </Warning>
             </>}
         </>}
-    </GrayBox>;
+    </Card>;
 };

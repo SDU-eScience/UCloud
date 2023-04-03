@@ -3,6 +3,7 @@ import * as UCloud from "@/UCloud"
 import {
     Box,
     Button,
+    Card,
     Flex,
 } from "@/ui-components";
 import Warning from "@/ui-components/Warning";
@@ -11,7 +12,6 @@ import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
 import * as Heading from "@/ui-components/Heading";
 import BaseLink from "@/ui-components/BaseLink";
-import {GrayBox} from "../Create";
 
 export function ingressResourceAllowed(app: UCloud.compute.Application): boolean {
     return !(app.invocation.allowPublicLink === false || app.invocation.applicationType !== "WEB")
@@ -28,7 +28,7 @@ export const IngressResource: React.FunctionComponent<{
 }> = ({application, params, errors, onAdd, onRemove, provider, setErrors}) => {
     if (!ingressResourceAllowed(application)) return null;
 
-    return <GrayBox>
+    return <Card>
         <Box>
             <Flex alignItems="center">
                 <Box flexGrow={1}>
@@ -76,5 +76,5 @@ export const IngressResource: React.FunctionComponent<{
                 </Box>
             ))}
         </Box>
-    </GrayBox>;
+    </Card>;
 }

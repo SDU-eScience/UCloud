@@ -3,16 +3,15 @@ import * as UCloud from "@/UCloud"
 import {
     Box,
     Button,
+    Card,
     Flex,
 } from "@/ui-components";
 import Warning from "@/ui-components/Warning";
-import {validateMachineReservation} from "../Widgets/Machines";
 import {Widget} from "@/Applications/Jobs/Widgets";
 import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
 import * as Heading from "@/ui-components/Heading";
 import BaseLink from "@/ui-components/BaseLink";
-import {GrayBox} from "../Create";
 
 export function networkIPResourceAllowed(app: UCloud.compute.Application): boolean {
     return app.invocation.allowPublicIp;
@@ -29,7 +28,7 @@ export const NetworkIPResource: React.FunctionComponent<{
 }> = ({application, params, errors, onAdd, onRemove, provider, setErrors}) => {
     if (!networkIPResourceAllowed(application)) return null;
 
-    return <GrayBox>
+    return <Card>
         <Box>
             <Flex alignItems="center">
                 <Box flexGrow={1}>
@@ -78,5 +77,5 @@ export const NetworkIPResource: React.FunctionComponent<{
                 </Box>
             ))}
         </Box>
-    </GrayBox>;
+    </Card>;
 }

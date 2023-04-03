@@ -28,12 +28,12 @@ const resources = {
 }
 
 const project = {
-    members: (projectId: string) => `/projects/${projectId}/members`,
-    usage: (projectId: string) => `/project/resources/${projectId}`,
-    allocations: (projectId: string) => `/project/allocations/${projectId}`,
-    grants: (projectId: string) => `/project/grants/ingoing/${projectId}`,
-    settings: (projectId: string) => `/project/settings/${projectId}`,
-    subprojects: (projectId: string) => `/subprojects/${projectId}`,
+    members: () => `/projects/members`,
+    usage: () => `/project/resources/`,
+    allocations: () => `/project/allocations/`,
+    grants: () => `/project/grants/ingoing/`,
+    settings: (page: string) => `/project/settings/${page}`,
+    subprojects: () => `/subprojects/`,
 }
 
 const syncthing = {

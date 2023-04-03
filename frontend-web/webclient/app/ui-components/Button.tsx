@@ -9,6 +9,7 @@ export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, 
     fullWidth?: boolean;
     textColor?: ThemeColor;
     color?: string | ThemeColor;
+    backgroundColor?: string | ThemeColor;
     lineHeight?: number | string;
     title?: string;
     attached?: boolean;
@@ -54,10 +55,6 @@ export const ButtonClass = injectStyle("button", k => `
         outline: none;
     }
 
-    ${k}:hover {
-        transform: translateY(-2px);
-    }
-    
     ${k}[data-attached=true] {
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;   
@@ -100,11 +97,11 @@ export const ButtonClass = injectStyle("button", k => `
     }
 `);
 
-const standardButtonSizes: { height: number; name: string; }[] = [
-    { height: 55, name: "large" },
-    { height: 45, name: "standard" },
-    { height: 35, name: "small" },
-    { height: 25, name: "extra-small" },
+const standardButtonSizes: {height: number; name: string;}[] = [
+    {height: 55, name: "large"},
+    {height: 45, name: "standard"},
+    {height: 35, name: "small"},
+    {height: 25, name: "extra-small"},
 ];
 
 export const Button: React.FunctionComponent<ButtonProps> = props => {

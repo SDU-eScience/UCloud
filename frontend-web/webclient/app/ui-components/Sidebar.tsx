@@ -229,7 +229,7 @@ export const sideBarMenuElements: {
     general: {
         items: [
             {icon: "files", label: "Files", to: "/drives/"},
-            {icon: "projects", label: "Projects", to: "/projects/"},
+            {icon: "projects", label: "Projects"},
             {icon: "dashboard", label: "Resources"},
             {icon: "appStore", label: "Apps", to: AppRoutes.apps.overview()},
             {icon: "results", label: "Runs", to: "/jobs/"}

@@ -97,8 +97,6 @@ const Resources: React.FunctionComponent = () => {
     const [breakdowns, fetchBreakdowns] = useCloudAPI<{charts: BreakdownChart[]}>({noop: true}, {charts: []});
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
 
-    const {projectId, isPersonalWorkspace, breadcrumbs} = useProjectFromParams("Resource Usage");
-
     const [maximizedUsage, setMaximizedUsage] = useState<number | null>(null);
 
     const onUsageMaximize = useCallback((idx: number) => {
@@ -107,10 +105,9 @@ const Resources: React.FunctionComponent = () => {
     }, [maximizedUsage]);
 
     const reloadPage = useCallback(() => {
-        const projectOverride = isPersonalWorkspace ? undefined : projectId;
-        fetchUsage({...retrieveUsage({...filters}), projectOverride});
-        fetchBreakdowns({...retrieveBreakdown({...filters}), projectOverride});
-        fetchWallets({...browseWallets({itemsPerPage: 50, ...filters}), projectOverride});
+        fetchUsage({...retrieveUsage({...filters})});
+        fetchBreakdowns({...retrieveBreakdown({...filters})});
+        fetchWallets({...browseWallets({itemsPerPage: 50, ...filters})});
         setMaximizedUsage(null);
     }, [filters]);
 
@@ -143,7 +140,7 @@ const Resources: React.FunctionComponent = () => {
         <MainContainer
             header={<Spacer
                 width={"calc(100% - var(--sidebarWidth))"}
-                left={<ProjectBreadcrumbs omitActiveProject crumbs={breadcrumbs} />}
+                left={<ProjectBreadcrumbs crumbs={[{title: "Resource Usage"}]} />}
                 right={<Box ml="12px" width="512px">Viewing usage from {filterStart} to {filterEnd}</Box>}
             />}
             sidebar={<ResourceFilter

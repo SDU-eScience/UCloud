@@ -34,10 +34,10 @@ export const ProjectBreadcrumbs: React.FunctionComponent<ProjectBreadcrumbsProps
     }
 
     return <ProjectBreadcrumbsWrapper embedded={false}>
-        <span><Link to="/projects">My Projects</Link></span>
+        <span>My Projects</span>
         {projectId && !props.omitActiveProject ? (
-            <span><Link to={`/projects/${projectId}`}>{projectNameComponent}</Link></span>
-        ) : props.allowPersonalProject ? <span><Link to="/project/dashboard">My Workspace</Link></span> : null}
+            <span>{projectNameComponent}</span>
+        ) : props.allowPersonalProject ? <span>My Workspace</span> : null}
         {props.crumbs.map((crumb, idx) => {
             if (crumb.link) {
                 return <span key={idx}><Link to={crumb.link}>{crumb.title}</Link></span>;

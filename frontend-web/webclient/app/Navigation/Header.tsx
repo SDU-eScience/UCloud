@@ -1,11 +1,8 @@
-import {defaultSearch, defaultSearchPlaceholder} from "@/DefaultObjects";
 import * as React from "react";
-import {useNavigate} from "react-router";
 import styled from "styled-components";
 import * as ui from "@/ui-components";
 import Link from "@/ui-components/Link";
 import CONF from "../../site.config.json";
-import {useGlobal} from "@/Utilities/ReduxHooks";
 
 // Note(Jonas): We need something similar NOT in the header. Or maybe keep this? Nah.
 export function NonAuthenticatedHeader(): JSX.Element {

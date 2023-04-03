@@ -170,6 +170,7 @@ html {
     --appStoreFavBg: #e8f1fc
     --invertedThemeColor: #fff;
     --fixedBlack: #000;
+    --fixedWhite: #fff;
     --activeSpreadsheet: #dcebf6;
     --lightOrange: #ffc107;    
     font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;

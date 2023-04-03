@@ -257,7 +257,9 @@ const colors = {
     appCard,
     projectHighlight: "#dfffee",
     yellow,
-    lightOrange: "#ffc107"
+    lightOrange: "#ffc107",
+    fixedBlack: "#000",
+    fixedWhite: "#FFF"
 };
 
 export const invertedColors = {

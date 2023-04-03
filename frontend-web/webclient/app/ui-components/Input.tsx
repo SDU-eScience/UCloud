@@ -24,11 +24,10 @@ export const InputClass = injectStyle("input", k => `
         display: block;
         font-family: inherit;
         color: var(--black);
-        background: transparent;
+        /* TODO(Jonas): use var */
+        background: #E9E9E9;
         margin: 0;
-        border-color: var(--borderGray);
-        border-style: solid;
-        border-width: 2px;
+        border-width: 0px;
         
         width: 100%;
         border-radius: 5px;
@@ -42,7 +41,6 @@ export const InputClass = injectStyle("input", k => `
     ${k}:focus {
         outline: 0;
         border-color: var(--inputBorder);
-        background: transparent;
     }
     
     ${k}[data-error="true"], ${k}:invalid:not(:placeholder-shown) {
@@ -50,7 +48,7 @@ export const InputClass = injectStyle("input", k => `
     }
     
     ${k}::placeholder {
-        color: var(--gray, #f00);
+        color: var(--black, #f00);
     }
     
     ${k}:disabled {
@@ -132,13 +130,13 @@ export interface InputLabelProps extends WidthProps, TextAlignProps {
 
 const InputLabelClass = injectStyle("input-label", k => `
     ${k} {
-        border: 2px solid var(--borderGray);
         padding-left: 1em;
         padding-right: 1em;
         padding-top: 6px;
         height: 42px;
         border-radius: 5px;
     }
+
     
     ${k}[data-left-label="true"] {
         border-top-left-radius: 5px;

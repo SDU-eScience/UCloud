@@ -33,13 +33,14 @@ import {
     ToggleSubProjectsRenamingRequest
 } from "@/Project/Grant";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import ProjectAPI, {OldProjectRole, Project, ProjectSpecification, useProjectFromParams} from "@/Project/Api";
+import ProjectAPI, {OldProjectRole, Project, ProjectSpecification, useProjectFromParams, useProjectId} from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProject} from "./cache";
 import {ButtonClass} from "@/ui-components/Button";
 import {BoxClass} from "@/ui-components/Box";
 import {FlexClass} from "@/ui-components/Flex";
+import {UtilityBar} from "@/Playground/Playground";
 
 const ActionContainer = styled.div`
     & > * {
@@ -77,17 +78,19 @@ const PageTab: React.FunctionComponent<{
     page: SettingsPage,
     title: string,
     activePage: SettingsPage;
-    projectId: string;
-}> = ({page, title, activePage, projectId}) => {
+}> = ({page, title, activePage}) => {
     return <SelectableText mr={"1em"} selected={activePage === page}>
-        <Link to={`/project/settings/${projectId}/${page}?`}>
+        <Link to={`/project/settings/${page}?`}>
             {title}
         </Link>
     </SelectableText>;
 };
 
 export const ProjectSettings: React.FunctionComponent = () => {
-    const {project, projectId, reload, breadcrumbs} = useProjectFromParams("Settings");
+
+    const projectOps = useProject();
+    const project = projectOps.fetch();
+    const projectId = useProjectId();
 
     const params = useParams<{page?: SettingsPage;}>();
     const page = params.page ?? SettingsPage.AVAILABILITY;
@@ -112,15 +115,19 @@ export const ProjectSettings: React.FunctionComponent = () => {
 
     return (
         <MainContainer
-            header={<ProjectBreadcrumbs omitActiveProject crumbs={breadcrumbs} />}
+            header={<Flex>
+                <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Settings"}]} />
+                <UtilityBar searchEnabled={false} callbacks={{}} operations={[]} />
+            </Flex>}
+            headerSize={64}
             main={
                 <ActionContainer>
                     <SelectableTextWrapper>
-                        <PageTab activePage={page} projectId={projectId} page={SettingsPage.AVAILABILITY} title={"Project Availability"} />
-                        <PageTab activePage={page} projectId={projectId} page={SettingsPage.INFO} title={"Project Information"} />
-                        <PageTab activePage={page} projectId={projectId} page={SettingsPage.SUBPROJECTS} title={"Subprojects"} />
+                        <PageTab activePage={page} page={SettingsPage.AVAILABILITY} title={"Project Availability"} />
+                        <PageTab activePage={page} page={SettingsPage.INFO} title={"Project Information"} />
+                        <PageTab activePage={page} page={SettingsPage.SUBPROJECTS} title={"Subprojects"} />
                         {!enabled.data.enabled ? null :
-                            <PageTab activePage={page} projectId={projectId} page={SettingsPage.GRANT_SETTINGS} title={"Grant Settings"} />
+                            <PageTab activePage={page} page={SettingsPage.GRANT_SETTINGS} title={"Grant Settings"} />
                         }
                     </SelectableTextWrapper>
 
@@ -131,7 +138,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                                 projectId={projectId}
                                 projectRole={status.myRole!}
                                 title={project.specification.title}
-                                onSuccess={() => reload()}
+                                onSuccess={() => projectOps.reload()}
                             />
                             <Divider />
                             <LeaveProject
@@ -147,7 +154,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             <ChangeProjectTitle
                                 projectId={projectId}
                                 projectSpecification={project.specification}
-                                onSuccess={() => reload()}
+                                onSuccess={() => projectOps.reload()}
                             />
                             {enabled.data.enabled ? <Divider /> : null}
                             <LogoAndDescriptionSettings />
@@ -248,7 +255,7 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
                         />
                     </Box>
                     <Button
-                        attached
+                        height="42px"
                         disabled={saveDisabled}
                     >
                         Save
@@ -348,7 +355,7 @@ interface ArchiveSingleProjectProps {
     onSuccess: () => void;
 }
 
-export const ArchiveSingleProject: React.FC<ArchiveSingleProjectProps> = props => {
+export function ArchiveSingleProject(props: ArchiveSingleProjectProps): JSX.Element {
     return <>
         {props.projectRole === OldProjectRole.USER ? null : (
             <ActionBox>
@@ -385,7 +392,6 @@ export const ArchiveSingleProject: React.FC<ArchiveSingleProjectProps> = props =
                 </Box>
                 <Flex>
                     <Button
-                        color={"orange"}
                         onClick={() => {
                             addStandardDialog({
                                 title: "Are you sure?",
@@ -468,7 +474,6 @@ export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
                 </Box>
                 <Flex>
                     <Button
-                        color={"orange"}
                         onClick={() => {
                             const operation = archived ? ProjectAPI.unarchive : ProjectAPI.archive;
 
@@ -539,7 +544,6 @@ export const LeaveProject: React.FC<LeaveProjectProps> = props => {
             </Box>
             <Flex>
                 <Button
-                    color="red"
                     disabled={props.projectRole === OldProjectRole.PI}
                     onClick={() => {
                         addStandardDialog({

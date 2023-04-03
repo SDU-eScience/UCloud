@@ -5,7 +5,6 @@ import {Box} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useEffect} from "react";
-import {UtilityBar} from "@/Playground/Playground";
 
 export interface MainContainerProps {
     sidebar?: React.ReactNode;
@@ -19,7 +18,7 @@ export const MainContainer = ({
     main,
     additional,
     header,
-    headerSize = 92
+    headerSize = 64
 }: MainContainerProps): JSX.Element => {
     const [, setHeaderSize] = useGlobal("mainContainerHeaderSize", headerSize);
     const pad = 16; // padding unit
@@ -38,7 +37,6 @@ export const MainContainer = ({
                     height={headerSize}
                     bg="white"
                 >
-                    <UtilityBar searchEnabled />
                     {header}
                 </HeaderContainer>
             )}
@@ -82,7 +80,8 @@ export const LoadingMainContainer: React.FunctionComponent<LoadingMainContainerP
 
 const HeaderContainer = styled(Box)`
     position: sticky;
-    top: 8px;
+    padding-top: 8px;
+    top: 0;
 `;
 
 export default MainContainer;

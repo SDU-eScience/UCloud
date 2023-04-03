@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useRef, useCallback, useEffect, useMemo, useReducer, useState} from "react";
-import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole, ProjectInviteLink} from "./Api";
+import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole, ProjectInviteLink, useProjectId} from "./Api";
 import styled from "styled-components";
 import {NavigateFunction, useLocation, useNavigate, useParams} from "react-router";
 import MainContainer from "@/MainContainer/MainContainer";
@@ -50,6 +50,8 @@ import Spinner from "@/LoadingIcon/LoadingIcon";
 import {dialogStore} from "@/Dialog/DialogStore";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {UtilityBar} from "@/Playground/Playground";
+import {injectStyle} from "@/Unstyled";
 
 // UI state management
 // ================================================================================
@@ -406,9 +408,8 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     // Input "parameters"
     const navigate = useNavigate();
     const location = useLocation();
-    const params = useParams<{project: string}>();
     const inspectingGroupId = getQueryParam(location.search, "group");
-    const projectId = params.project!;
+    const projectId = useProjectId() ?? "";
 
     // Remote data
     const [invitesFromApi, fetchInvites] = useCloudAPI<PageV2<ProjectInvite>>({noop: true}, emptyPageV2);
@@ -572,47 +573,45 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     if (!project) return null;
 
     return <MainContainer
-        sidebar={null}
+        header={<Flex px="32px" mt="32px">
+            <ProjectBreadcrumbsWrapper embedded={false}>
+                <span>My Projects</span>
+                <span>{shorten(20, project.specification.title)}</span>
+                <span>Members</span>
+            </ProjectBreadcrumbsWrapper>
+            <UtilityBar searchEnabled={false} operations={[]} callbacks={{}} />
+        </Flex>}
+        headerSize={50}
         main={
             <TwoColumnLayout>
                 <div className="members">
-                    <ProjectBreadcrumbsWrapper embedded={false}>
-                        <span><Link to="/projects">My Projects</Link></span>
-                        <span>
-                            <Link to={`/projects/${projectId}`}>
-                                {shorten(20, project.specification.title)}
-                            </Link>
-                        </span>
-                        <span>Members</span>
-                    </ProjectBreadcrumbsWrapper>
-
                     <SearchContainer>
                         {!isAdmin ? null : (
                             <>
                                 <form onSubmit={onAddMember}>
                                     <Input
+                                        height={"48px"}
                                         id="new-project-member"
                                         placeholder="Username"
                                         autoComplete="off"
                                         inputRef={newMemberRef}
-                                        rightLabel
                                     />
-                                    <Button attached type={"submit"}>Add</Button>
-                                    <Relative left="-135px" top="8px">
-                                        <Absolute>
-                                            <Tooltip tooltipContentWidth={160} trigger={<HelpCircle />}>
-                                                <Text color="black" fontSize={12}>
-                                                    Your username can be found at the bottom of the sidebar next to
-                                                    {" "}<Icon name="id" />.
-                                                </Text>
-                                            </Tooltip>
-                                        </Absolute>
+                                    <Button my="auto" height="36px" type={"submit"}>
+                                        <Text fontSize={"20px"}>Add</Text>
+                                    </Button>
+                                    <Relative width={"0px"} height={"0px"} left="-115px" top="8px">
+                                        <Tooltip tooltipContentWidth={160} trigger={<div className={HelpCircleClass} />}>
+                                            <Text color="black" fontSize={12}>
+                                                Your username can be found at the bottom of the sidebar next to {" "}<Icon name="id" />.
+                                            </Text>
+                                        </Tooltip>
                                     </Relative>
                                 </form>
                                 <Button
-                                    mb={10}
+                                    mt={"6px"}
                                     mr={10}
-                                    width={110}
+                                    height="36px"
+                                    color="green"
                                     type="button"
                                     title="Invite with link"
                                     onClick={async () => {
@@ -626,16 +625,16 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                         );
                                     }}
                                 >
-                                    Invite link
+                                    <Text fontSize="20px">+</Text>
                                 </Button>
                             </>
-
                         )}
                         <form onSubmit={preventDefault}>
                             <Input
                                 id="project-member-search"
                                 placeholder="Search existing project members..."
                                 pr="30px"
+                                height={"48px"}
                                 autoComplete="off"
                                 value={memberQuery}
                                 onChange={updateMemberQueryFromEvent}
@@ -1041,7 +1040,7 @@ const groupMemberOperations: Operation<string, Callbacks>[] = [
 ];
 
 function daysLeftToTimestamp(timestamp: number): number {
-    return Math.floor((timestamp - timestampUnixMs())/1000 / 3600 / 24);
+    return Math.floor((timestamp - timestampUnixMs()) / 1000 / 3600 / 24);
 }
 
 function inviteLinkFromToken(token: string): string {
@@ -1051,7 +1050,7 @@ function inviteLinkFromToken(token: string): string {
 
 const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (ProjectGroup | undefined)[]}> = ({project, groups}) => {
     const [inviteLinksFromApi, fetchInviteLinks] = useCloudAPI<PageV2<ProjectInviteLink>>({noop: true}, emptyPageV2);
-    const [editingLink, setEditingLink] = useState<string|undefined>(undefined);
+    const [editingLink, setEditingLink] = useState<string | undefined>(undefined);
     const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
     const [selectedRole, setSelectedRole] = useState<string>("USER");
     const linkToggleSet = useToggleSet([]);
@@ -1063,8 +1062,8 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
 
     const groupItems = groups.map(g =>
         g ?
-        {text: g.specification.title, value: g.id}
-        : null
+            {text: g.specification.title, value: g.id}
+            : null
     ).filter(g => g?.text != "All users");
 
     useEffect(() => {
@@ -1152,7 +1151,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                         >
                             {groupItems.length < 1 ?
                                 <>No selectable groups</>
-                            :
+                                :
                                 groupItems.map(item =>
                                     item ?
                                         <Box
@@ -1160,7 +1159,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                             onClick={async _ => {
                                                 const newSelection = selectedGroups.length < 1 ? [item.value] :
                                                     selectedGroups.includes(item.value) ?
-                                                    selectedGroups.filter(it => it != item.value) : selectedGroups.concat([item.value]);
+                                                        selectedGroups.filter(it => it != item.value) : selectedGroups.concat([item.value]);
 
                                                 await callAPIWithErrorHandler({
                                                     ...Api.updateInviteLink({token: editingLink, role: selectedRole, groups: newSelection}),
@@ -1176,39 +1175,39 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                             <Checkbox checked={selectedGroups.includes(item.value)} readOnly />
                                             {item.text}
                                         </Box>
-                                    : <></>
+                                        : <></>
                                 )
                             }
                         </ClickableDropdown>
                     </SelectBox>
                 </Flex>
             </Box> : <>
-            <Flex justifyContent="space-between">
-                <Heading.h3>Invite with link</Heading.h3>
-                <Box textAlign="right">
-                    <Button
-                        onClick={async () => {
-                            await callAPIWithErrorHandler({
-                                ...Api.createInviteLink(),
-                                projectOverride: project.id
-                            });
+                <Flex justifyContent="space-between">
+                    <Heading.h3>Invite with link</Heading.h3>
+                    <Box textAlign="right">
+                        <Button
+                            onClick={async () => {
+                                await callAPIWithErrorHandler({
+                                    ...Api.createInviteLink(),
+                                    projectOverride: project.id
+                                });
 
-                            fetchInviteLinks({
-                                ...Api.browseInviteLinks({itemsPerPage: 10}),
-                                projectOverride: project.id
-                            });
-                        }}
-                    >Create link</Button>
-                </Box>
-            </Flex>
-            <Box mt={20}>
-                {inviteLinksFromApi.data.items.map(link => (
-                    <Box key={link.token} mb="10px">
-                        <Flex justifyContent="space-between">
+                                fetchInviteLinks({
+                                    ...Api.browseInviteLinks({itemsPerPage: 10}),
+                                    projectOverride: project.id
+                                });
+                            }}
+                        >Create link</Button>
+                    </Box>
+                </Flex>
+                <Box mt={20}>
+                    {inviteLinksFromApi.data.items.map(link => (
+                        <Box key={link.token} mb="10px">
+                            <Flex justifyContent="space-between">
 
-                            <Flex flexDirection={"column"}>
-                                <Tooltip
-                                    trigger={(
+                                <Flex flexDirection={"column"}>
+                                    <Tooltip
+                                        trigger={(
                                             <Input
                                                 readOnly
                                                 style={{"cursor": "pointer"}}
@@ -1219,45 +1218,45 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                                 value={inviteLinkFromToken(link.token)}
                                                 width="500px"
                                             />
-                                    )}
-                                >
-                                    Click to copy link to clipboard
-                                </Tooltip>
-                                <Text fontSize={12}>This link will automatically expire in {daysLeftToTimestamp(link.expires)} days</Text>
-                            </Flex>
-                            <Flex>
-                                <Button
-                                    mr="5px"
-                                    height={40}
-                                    onClick={() =>
-                                        setEditingLink(link.token)
-                                    }
-                                >
-                                    <Icon name="edit" size={20} />
-                                </Button>
+                                        )}
+                                    >
+                                        Click to copy link to clipboard
+                                    </Tooltip>
+                                    <Text fontSize={12}>This link will automatically expire in {daysLeftToTimestamp(link.expires)} days</Text>
+                                </Flex>
+                                <Flex>
+                                    <Button
+                                        mr="5px"
+                                        height={40}
+                                        onClick={() =>
+                                            setEditingLink(link.token)
+                                        }
+                                    >
+                                        <Icon name="edit" size={20} />
+                                    </Button>
 
-                                <ConfirmationButton
-                                    color="red"
-                                    height={40}
-                                    onAction={async () => {
-                                        await callAPIWithErrorHandler({
-                                            ...Api.deleteInviteLink({token: link.token}),
-                                            projectOverride: project.id
-                                        });
+                                    <ConfirmationButton
+                                        color="red"
+                                        height={40}
+                                        onAction={async () => {
+                                            await callAPIWithErrorHandler({
+                                                ...Api.deleteInviteLink({token: link.token}),
+                                                projectOverride: project.id
+                                            });
 
-                                        fetchInviteLinks({
-                                            ...Api.browseInviteLinks({itemsPerPage: 10}),
-                                            projectOverride: project.id
-                                        });
-                                    }}
-                                    icon="trash"
-                                />
+                                            fetchInviteLinks({
+                                                ...Api.browseInviteLinks({itemsPerPage: 10}),
+                                                projectOverride: project.id
+                                            });
+                                        }}
+                                        icon="trash"
+                                    />
+                                </Flex>
                             </Flex>
-                        </Flex>
-                    </Box>
-                ))}
-            </Box>
-        </>}
+                        </Box>
+                    ))}
+                </Box>
+            </>}
     </>
 };
 
@@ -1355,7 +1354,7 @@ const TwoColumnLayout = styled.div`
 
   @media screen and (min-width: 1200px) {
     & {
-      height: calc(100vh - 100px);
+      height: calc(100vh - 32px);
       overflow: hidden;
     }
 
@@ -1389,20 +1388,22 @@ const SearchContainer = styled(Flex)`
   }
 `;
 
-const HelpCircle = styled.div`
-  border-radius: 500px;
-  width: 20px;
-  height: 20px;
-  border: 1px solid ${getCssVar("black")};
-  margin: 4px 4px 4px 2px;
-  cursor: pointer;
+const HelpCircleClass = injectStyle("help-circle", k => `
+    ${k} {
+        border-radius: 500px;
+        width: 26px;
+        height: 26px;
+        border: 2px solid ${getCssVar("black")};
+        margin: 4px 4px 4px 2px;
+        cursor: pointer;
+    }
 
-  ::after {
-    content: "?";
-    display: block;
-    margin-top: -3px;
-    margin-left: 5px;
-  }
-`;
+    ${k}::after {
+        content: "?";
+        margin-left: 7px;
+        margin-top: -1px;
+        display: block;
+    }
+`);
 
 export default ProjectMembers2;
