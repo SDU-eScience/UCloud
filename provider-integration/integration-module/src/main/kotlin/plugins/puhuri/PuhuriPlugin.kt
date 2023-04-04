@@ -332,7 +332,7 @@ class PuhuriPlugin : ProjectPlugin {
             (commandLineInterface ?: return).addHandler(CliHandler("puhuri") { args ->
                 if (args.isEmpty()) printUsage()
 
-                when(args[0]) {
+                when (args[0]) {
                     "connect" -> {
                         if (args.size != 3) printUsage()
                         try {
@@ -466,10 +466,10 @@ class PuhuriPlugin : ProjectPlugin {
                 puhuri.createOrder(
                     puhuriProjectId,
                     PuhuriAllocation(
-                        // TODO(Brian): These calculations might be wrong
-                        cpuKHours = ceil((cpuAllocation?.balance ?: 0) / 1000.0).toInt(),
-                        gpuHours = (gpuAllocation?.balance ?: 0).toInt(),
-                        gbKHours = ceil((storageAllocation?.balance ?: 0) / 1000.0).toInt(),
+                        // TODO(Brian): Check these calculations
+                        cpuKHours = ceil((cpuAllocation?.balance ?: 0) / 1000.0 / 1000.0 / 1000.0).toInt(),
+                        gpuHours = ceil((gpuAllocation?.balance ?: 0) / 1000.0).toInt(),
+                        gbKHours = ceil((storageAllocation?.balance ?: 0) / 1000.0 / 1000.0).toInt(),
                     )
                 )
 
