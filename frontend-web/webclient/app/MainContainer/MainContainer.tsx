@@ -31,11 +31,11 @@ export const MainContainer = ({
     }, [mainYpad]);
 
     return (
-        <Box data-component={"main"} backgroundColor="white" pb={pad} pl={pad} pr="0">
+        <Box data-component={"main"} backgroundColor="var(--white)" pb={pad} pl={pad} pr="0">
             {header && (
                 <HeaderContainer
                     height={headerSize}
-                    bg="white"
+                    bg="var(--white)"
                 >
                     {header}
                 </HeaderContainer>

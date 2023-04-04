@@ -14,6 +14,10 @@ const style = injectStyle("highlightedCard", k => `
         gap: 8px;
     }
     
+    ${k} {
+        background-color: var(--white);
+    }
+    
     ${k} .subtitle {
         color: var(--gray);
         flex-grow: 1;

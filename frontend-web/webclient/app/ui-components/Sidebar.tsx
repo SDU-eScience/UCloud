@@ -198,7 +198,7 @@ interface SidebarElement {
 }
 
 function SidebarElement({icon}: SidebarElement): JSX.Element {
-    return <Icon name={icon} color="white" color2="white" size={"20"} />
+    return <Icon name={icon} color="var(--fixedWhite)" color2="var(--fixedWhite)" size={"20"} />
 }
 
 interface MenuElement {
@@ -269,6 +269,26 @@ const SidebarItemsClass = injectStyle("sidebar-items", k => `
     }
 `);
 
+function UserMenuLink(props: {icon: IconName; text: string; to: string;}): JSX.Element {
+    return <Link color="black" hoverColor="black" to={props.to}>
+        <Flex>
+            <Icon name={props.icon} color="var(--black)" color2="var(--black)" mr="0.5em" my="0.2em"
+                size="1.3em" />
+            <TextSpan color="var(--black)">{props.text}</TextSpan>
+        </Flex>
+    </Link>
+}
+
+function UserMenuExternalLink(props: {icon: IconName; href: string; text: string}): JSX.Element | null {
+    if (!props.text) return null;
+    return <div>
+        <ExternalLink hoverColor="text" href={props.href}>
+            <Icon name={props.icon} color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
+            <TextSpan color="black">{props.text}</TextSpan>
+        </ExternalLink>
+    </div>
+}
+
 const UserMenu: React.FunctionComponent<{
     avatar: AvatarType;
     onToggleTheme: (e: React.SyntheticEvent<HTMLDivElement, Event>) => void;
@@ -285,52 +305,23 @@ const UserMenu: React.FunctionComponent<{
             <>
                 <Box>
                     <ExternalLink href={CONF.STATUS_PAGE}>
-                        <Flex color="black">
+                        <Flex>
                             <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="var(--black)" />
-                            <TextSpan color="var(--black)">Site status</TextSpan>
+                            <TextSpan color="black">Site status</TextSpan>
                         </Flex>
                     </ExternalLink>
                 </Box>
                 <Divider />
             </>
         )}
-        <Box>
-            <Link color="black" to={AppRoutes.users.settings()}>
-                <Flex color="black">
-                    <Icon name="properties" color="var(--black)" color2="var(--black)" mr="0.5em" my="0.2em"
-                        size="1.3em" />
-                    <TextSpan color="var(--black)">Settings</TextSpan>
-                </Flex>
-            </Link>
-        </Box>
-        <Flex>
-            <Link to={"/users/avatar"}>
-                <Flex color="black">
-                    <Icon name="user" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                    <TextSpan color="var(--black)">Edit Avatar</TextSpan>
-                </Flex>
-            </Link>
-        </Flex>
+        <UserMenuLink icon="properties" text="Settings" to={AppRoutes.users.settings()} />
+        <UserMenuLink icon="user" text="Edit avatar" to={AppRoutes.users.avatar()} />
         <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
             <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
             Logout
         </Flex>
-        {!CONF.SITE_DOCUMENTATION_URL ? null : (
-            <div>
-                <ExternalLink hoverColor="text" href={CONF.SITE_DOCUMENTATION_URL}>
-                    <Icon name="docs" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                    <TextSpan color="var(--black)">{CONF.PRODUCT_NAME} Docs</TextSpan>
-                </ExternalLink>
-            </div>
-        )}
-        {!CONF.DATA_PROTECTION_LINK ? null : (
-            <div>
-                <ExternalLink hoverColor="text" href={CONF.DATA_PROTECTION_LINK}>
-                    <Icon name="verified" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-                    <TextSpan color="var(--black)">{CONF.DATA_PROTECTION_TEXT}</TextSpan>
-                </ExternalLink>
-            </div>
-        )}
+        <UserMenuExternalLink href={CONF.SITE_DOCUMENTATION_URL} icon="docs" text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""} />
+        <UserMenuExternalLink href={CONF.DATA_PROTECTION_LINK} icon="verified" text={CONF.DATA_PROTECTION_TEXT} />
         <Divider />
         <Username />
         <ProjectID />
@@ -520,9 +511,9 @@ function SecondarySidebar({
                             {drives.data.items.map(it =>
                                 <li key={it.id}>
                                     <Flex ml="4px">
-                                        <Link hoverColor="white" to={`/files?path=${it.id}`}>
-                                            <Truncate color="var(--white)">
-                                                <Icon size={12} mr="4px" name="hdd" color="white" color2="white" />
+                                        <Link hoverColor="var(--fixedWhite)" to={`/files?path=${it.id}`}>
+                                            <Truncate color="var(--fixedWhite)">
+                                                <Icon size={12} mr="4px" name="hdd" color="var(--fixedWhite)" color2="var(--fixedWhite)" />
                                                 {it.specification.title}
                                             </Truncate>
                                         </Link>

@@ -9,6 +9,15 @@ export function extractSize(size: ResponsiveValue<any>): string {
     return `${size}px`;
 }
 
+export function classConcat(baseClass: string, extra: string | undefined): string {
+    return baseClass + (extra ? " " + extra : "");
+}
+
+export function classConcatMult(baseClass: string, ...extra: (string | undefined)[]): string {
+    const extras = extra.filter(it => it);
+    return baseClass + extra.filter(it => it).join(" ");
+}
+
 export function unbox(props: BoxProps | SpaceProps): CSSProperties {
     let result: CSSProperties = {};
 

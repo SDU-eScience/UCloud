@@ -64,7 +64,7 @@ function Modification(props: AvataaarModificationOperations): JSX.Element {
             )}
 
             main={
-                loading ? (<Spinner />) : (
+                loading ? <Spinner /> : (
                     <>
                         <AvatarSelect
                             defaultValue={avatar.top}

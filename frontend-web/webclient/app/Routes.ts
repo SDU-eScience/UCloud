@@ -1,5 +1,6 @@
 const users = {
-    settings: () => "/users/settings"
+    settings: () => "/users/settings",
+    avatar: () => "/users/avatar",
 };
 
 const news = {
@@ -61,7 +62,7 @@ const login = {
 const dashboard = {
     dashboardA: () => "/",
     dashboardB: () => "/dashboard",
-}
+};
 
 const AppRoutes = {
     apps,

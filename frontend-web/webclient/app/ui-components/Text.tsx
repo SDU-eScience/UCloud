@@ -1,5 +1,5 @@
 import * as React from "react";
-import {extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
+import {classConcat, extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
 import {BoxProps} from "@/ui-components/Box";
 
@@ -28,49 +28,49 @@ function extractCss(props: TextProps): CSSProperties {
     return style;
 }
 
-const Text: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <div className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
-                title={props.title} children={props.children}/>;
+const Text: React.FunctionComponent<TextProps & {children?: React.ReactNode}> = props => {
+    return <div className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
+        title={props.title} children={props.children} />;
 };
 
 export const TextDiv = Text;
-export const TextSpan: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <span className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
-                 title={props.title} children={props.children}/>;
+export const TextSpan: React.FunctionComponent<TextProps & {children?: React.ReactNode}> = props => {
+    return <span className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
+        title={props.title} children={props.children} />;
 }
-export const TextP: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <p className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
-              title={props.title} children={props.children}/>;
-}
-
-export const TextH1: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <h1 className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
-              title={props.title} children={props.children}/>;
+export const TextP: React.FunctionComponent<TextProps & {children?: React.ReactNode}> = props => {
+    return <p className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
+        title={props.title} children={props.children} />;
 }
 
-export const TextH2: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <h2 className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
-              title={props.title} children={props.children}/>;
+export const TextH1: React.FunctionComponent<TextProps & {children?: React.ReactNode}> = props => {
+    return <h1 className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
+        title={props.title} children={props.children} />;
 }
 
-export const TextH3: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <h3 className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
-              title={props.title} children={props.children}/>;
+export const TextH2: React.FunctionComponent<TextProps & {children?: React.ReactNode}> = props => {
+    return <h2 className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
+        title={props.title} children={props.children} />;
 }
 
-export const TextH4: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <h4 className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
-              title={props.title} children={props.children}/>;
+export const TextH3: React.FunctionComponent<TextProps & {children?: React.ReactNode}> = props => {
+    return <h3 className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
+        title={props.title} children={props.children} />;
 }
 
-export const TextH5: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <h5 className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
-              title={props.title} children={props.children}/>;
+export const TextH4: React.FunctionComponent<TextProps & {children?: React.ReactNode}> = props => {
+    return <h4 className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
+        title={props.title} children={props.children} />;
 }
 
-export const TextH6: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <h6 className={TextClass + " " + (props.className ?? "")} style={extractCss(props)} {...extractEventHandlers(props)}
-              title={props.title} children={props.children}/>;
+export const TextH5: React.FunctionComponent<TextProps & {children?: React.ReactNode}> = props => {
+    return <h5 className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
+        title={props.title} children={props.children} />;
+}
+
+export const TextH6: React.FunctionComponent<TextProps & {children?: React.ReactNode}> = props => {
+    return <h6 className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
+        title={props.title} children={props.children} />;
 }
 
 const EllipsedTextClass = injectStyle("ellipsed-text", k => `
@@ -83,10 +83,10 @@ const EllipsedTextClass = injectStyle("ellipsed-text", k => `
     }
 `);
 
-export const EllipsedText: React.FunctionComponent<TextProps & { children?: React.ReactNode }> = props => {
-    return <div className={TextClass + " " + EllipsedTextClass}
-                style={extractCss(props)} {...extractEventHandlers(props)}
-                title={props.title} children={props.children}/>;
+export const EllipsedText: React.FunctionComponent<TextProps & {children?: React.ReactNode}> = props => {
+    return <div className={classConcat(TextClass, EllipsedTextClass)}
+        style={extractCss(props)} {...extractEventHandlers(props)}
+        title={props.title} children={props.children} />;
 }
 
 EllipsedText.displayName = "EllipsedText";
