@@ -192,8 +192,8 @@ const Core = (): JSX.Element => (
                             path="/project/grants/view/:appId"
                             element={React.createElement(requireAuth(GrantApplicationEditor), {key: RequestTarget.VIEW_APPLICATION, target: RequestTarget.VIEW_APPLICATION})}
                         />
-                        <Route path="/project/grants/ingoing/:project" element={React.createElement(requireAuth(IngoingApplications))} />
-                        <Route path="/project/grants/outgoing/:project" element={React.createElement(requireAuth(OutgoingApplications))} />
+                        <Route path="/project/grants/ingoing/" element={React.createElement(requireAuth(IngoingApplications))} />
+                        <Route path="/project/grants/outgoing/" element={React.createElement(requireAuth(OutgoingApplications))} />
                         <Route
                             path="/sla"
                             element={React.createElement(requireAuth(ServiceLicenseAgreement, {

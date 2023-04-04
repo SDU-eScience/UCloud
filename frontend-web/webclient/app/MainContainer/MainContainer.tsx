@@ -40,7 +40,7 @@ export const MainContainer = ({
                     {header}
                 </HeaderContainer>
             )}
-            <Box pt={mainYpad} pr={mainXpad}>
+            <Box pr={mainXpad}>
                 {main}
             </Box>
             {additional}
