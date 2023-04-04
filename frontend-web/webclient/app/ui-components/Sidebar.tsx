@@ -198,7 +198,7 @@ interface SidebarElement {
 }
 
 function SidebarElement({icon}: SidebarElement): JSX.Element {
-    return <Icon name={icon} color="var(--fixedWhite)" color2="var(--fixedWhite)" size={"20"} />
+    return <Icon name={icon} hoverColor="fixedWhite" color="fixedWhite" color2="fixedWhite" size={"20"} />
 }
 
 interface MenuElement {
@@ -377,7 +377,7 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
                 >
                     {sidebar.map(({label, icon, to}) =>
                         to ? (
-                            <Link key={label} to={typeof to === "function" ? to() : to}>
+                            <Link hoverColor="fixedWhite" key={label} to={typeof to === "function" ? to() : to}>
                                 <div
                                     data-active={label === selectedPage}
                                     onClick={() => setSelectedPage(label)}
@@ -558,7 +558,7 @@ function SecondarySidebar({
 
         {active !== "Runs" ? null : (
             <Flex flexDirection="column" mr="4px">
-                <TextSpan bold color="white">Running jobs</TextSpan>
+                <TextSpan bold color="fixedWhite">Running jobs</TextSpan>
                 {recentRuns.data.items.map(it => {
                     const [icon, color] = jobStateToIconAndColor(it.status.state);
                     return <Flex key={it.id}>
