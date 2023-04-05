@@ -482,9 +482,9 @@ const DashboardGrantApplications: React.FunctionComponent<{
     const both = outgoingApps.data.items.length > 0 && ingoingApps.data.items.length > 0;
     const anyOutgoing = outgoingApps.data.items.length > 0;
 
-    const title = (none ? <Link to={`/project/grants/outgoing/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Grant applications</Heading.h3></Link>
+    const title = (none ? <Link to={`/project/grants/outgoing/`}><Heading.h3>Grant applications</Heading.h3></Link>
         : both ? <Heading.h3>Grant Applications</Heading.h3>
-            : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}/${Client.projectId ?? MY_WORKSPACE}`}>
+            : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}/`}>
                 <Heading.h3>Grant Applications</Heading.h3>
             </Link>
     );

@@ -34,6 +34,8 @@ import {setLoading} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
 import ProjectAPI, {Project} from "@/Project/Api";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {UtilityBar} from "@/Playground/Playground";
+import {classConcat, injectStyle} from "@/Unstyled";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -473,7 +475,7 @@ export const FilesBrowse: React.FunctionComponent<{
         isSearch={props.isSearch}
         additionalFilters={additionalFilters}
         header={headerComponent}
-        headerSize={props.isSearch ? 48 : 75}
+        headerSize={props.isSearch ? 48 : undefined}
         navigateToChildren={navigateToFile}
         extraCallbacks={callbacks}
         viewPropertiesInline={viewPropertiesInline}
@@ -505,6 +507,7 @@ const DriveDropdown: React.FunctionComponent<{iconName: "hdd" | "projects"; chil
     return (
         <ClickableDropdown
             colorOnHover={false}
+            useMousePositioning
             paddingControlledByContent={true}
             width={"450px"}
             trigger={<div style={{display: "flex"}}>
@@ -522,15 +525,24 @@ const DriveDropdown: React.FunctionComponent<{iconName: "hdd" | "projects"; chil
     );
 }
 
-const DriveInDropdown = styled.div`
-    display: flex;
-    padding: 0 17px;
-    width: 450px;
-    overflow-x: hidden;
+function DriveInDropdown(props: React.PropsWithChildren<{className: string; onClick(): void;}>): JSX.Element {
+    return <div onClick={props.onClick} className={classConcat(DriveInDropdownClass, props.className)}>
+        {props.children}
+    </div>
 
-    &:hover {
+}
+
+const DriveInDropdownClass = injectStyle("drive-in-dropdown", k => `
+    ${k} {
+        display: flex;
+        padding: 0 17px;
+        width: 450px;
+        overflow-x: hidden;
+    }
+
+    ${k}:hover {
         background-color: var(--lightBlue);
     }
-`;
+`);
 
 export default Router;

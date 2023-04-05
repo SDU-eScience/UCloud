@@ -197,7 +197,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
         const productWithSupport = productsWithSupport.data.productsByProvider[pRef.provider]?.find(it =>
             it.product.name === pRef.id && it.product.category.name === pRef.category);
         const productMaintenance = productWithSupport?.support?.maintenance;
-        if (productMaintenance != null)  {
+        if (productMaintenance != null) {
             return productMaintenance;
         }
 
@@ -307,7 +307,11 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
         if (isEmbedded && (props.viewPropertiesInline === undefined || props.viewPropertiesInline(res))) {
             setInlineInspecting(res);
         } else {
-            navigate(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
+            dispatch({
+                type: "SET_POP_IN_CHILD",
+                payload: <api.Properties embedded api={api} resource={res} reload={reloadRef.current}
+                    closeProperties={closeProperties} {...props.propsForInlineResources} />
+            });
         }
     }, [setInlineInspecting, isEmbedded, navigate, api, props.viewPropertiesInline]);
 

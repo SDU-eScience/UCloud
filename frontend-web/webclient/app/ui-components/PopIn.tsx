@@ -8,9 +8,10 @@ function PopIn({hasContent, children}: React.PropsWithChildren<{hasContent: bool
     return <div style={{
         transition: "right 0.4s",
         height: "100vh",
+        overflowY: "scroll",
         position: "absolute",
         padding: "4px 4px 4px p4x",
-        width: hasContent ? "0" : "calc(0px - var(--popInWidth))",
+        width: !hasContent ? "0" : "var(--popInWidth)",
         top: 0,
         zIndex: 120,
         boxShadow: theme.shadows.sm,
@@ -27,7 +28,7 @@ export function RightPopIn(): JSX.Element {
     const content = useSelector<ReduxObject, JSX.Element | null>(it => it.popinChild);
     /* Alternatively, use React.portal */
     return <PopIn hasContent={content != null} >
-        <Icon name="close" onClick={() => dispatch(setPopInChild(null))} color="var(--white)" />
+        <Icon color="var(--black)" pt="4px" pl="4px" hoverColor="black" name="close" onClick={() => dispatch(setPopInChild(null))} />
         <Flex flexDirection="column" mx="4px" my="4px">{content}</Flex>
     </PopIn>
 }
