@@ -319,7 +319,7 @@ data class WalletsRetrieveRecipientResponse(
     val numberOfMembers: Int,
 )
 
-typealias TestResetCaches = Unit
+typealias ResetState = Unit
 
 @Serializable
 @UCloudApiInternal(InternalLevel.BETA)
@@ -434,8 +434,8 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val testResetCaches = call("resetCache", TestResetCaches.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        httpRetrieve("resetCache")
+    val resetState = call("resetState", ResetState.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve("resetState")
 
         auth {
             roles = Roles.SERVICE

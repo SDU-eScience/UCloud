@@ -98,7 +98,7 @@ class AccountingStressTest : IntegrationTest() {
                     results.add(midAllocations)
                     results.add(leafAllocations)
 
-                    Wallets.testResetCaches.call(
+                    Wallets.resetState.call(
                         Unit,
                         serviceClient
                     )
@@ -300,7 +300,7 @@ class AccountingStressTest : IntegrationTest() {
                     results.add(midAllocations)
                     results.add(leafAllocations)
 
-                    Wallets.testResetCaches.call(
+                    Wallets.resetState.call(
                         Unit,
                         serviceClient
                     )

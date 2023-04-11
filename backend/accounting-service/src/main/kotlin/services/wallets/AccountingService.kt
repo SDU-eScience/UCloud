@@ -65,8 +65,8 @@ class AccountingService(
         ).providers
     }
 
-    suspend fun resetCache() {
-        processor.clearCache()
+    suspend fun resetState() {
+        processor.resetState()
     }
 
     suspend fun retrieveWalletsInternal(actorAndProject: ActorAndProject, walletOwner: WalletOwner): List<Wallet> {

@@ -490,6 +490,10 @@ class AccountingProcessor(
     private suspend fun becomeMasterAndListen(lock: DistributedLock) {
         val didAcquire = disableMasterElection || lock.acquire()
         if (!didAcquire) return
+
+        //resetting state, so we do not attempt to load into already existing in-mem DB resulting i conflicts
+        resetState()
+
         log.info("This service has become the master responsible for handling Accounting proccessor events!")
         activeProcessor.set(ActiveProcessor(addressToSelf))
         isActiveProcessor = true
@@ -574,15 +578,17 @@ class AccountingProcessor(
         }
     }
 
-    /**
-     * Only for testing
-     */
-    suspend fun clearCache() {
+    suspend fun resetState() {
         dirtyTransactions.clear()
         wallets.clear()
         allocations.clear()
         walletsIdGenerator = 0
         allocationIdGenerator = 0
+        requestsHandled = 0
+        slowestRequest = 0L
+        slowestRequestName = "?"
+        requestTimeSum = 0L
+        lastSync = Time.now()
     }
 
     private suspend fun handleRequest(request: AccountingRequest): AccountingResponse {
