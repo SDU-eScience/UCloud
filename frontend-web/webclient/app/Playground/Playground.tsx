@@ -4,7 +4,6 @@ import {useEffect} from "react";
 import Icon, {EveryIcon} from "@/ui-components/Icon";
 import {Grid, Box, Button, Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {api as ProjectApi, Project, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
@@ -15,7 +14,7 @@ import {ProductSelectorPlayground} from "@/Products/Selector";
 import {useSelector} from "react-redux";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {Toggle} from "@/ui-components/Toggle";
-import {Operation} from "@/ui-components/Operation";
+import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 
 export const Playground: React.FunctionComponent = () => {
     const [checked, setChecked] = React.useState(false);
@@ -72,11 +71,11 @@ export const Playground: React.FunctionComponent = () => {
             >
                 {colors.map((c: ThemeColor) => (
                     <div
-                        title={`${c}, ${getCssVar(c)}`}
+                        title={`${c}, var(${c})`}
                         key={c}
-                        style={{color: "black", backgroundColor: getCssVar(c), height: "100%", width: "100%"}}
+                        style={{color: "black", backgroundColor: `var(--${c})`, height: "100%", width: "100%"}}
                     >
-                        {c} {getCssVar(c)}
+                        {c} {getCssColorVar(c)}
                     </div>
                 ))}
             </Grid>

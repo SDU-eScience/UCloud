@@ -3,28 +3,30 @@ import * as React from "react";
 import {useRef} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
-import {Button, Flex, Icon, Input, Absolute, Label, Relative, Text, Tooltip, Box} from "@/ui-components";
+import {Button, Icon, Input, Absolute, Label, Relative, Text, Tooltip} from "@/ui-components";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {MembersList} from "@/Project/MembersList";
 import * as Pagination from "@/Pagination";
-import styled from "styled-components";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import ProjectAPI, {isAdminOrPI, OldProjectRole, ProjectInvite, useGroupIdAndMemberId} from "@/Project/Api";
 import {useProject} from "./cache";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {PageV2} from "@/UCloud";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
-const SearchContainer = styled(Flex)`
-    flex-wrap: wrap;
+const SearchContainerClass = injectStyle("search-container", k => `
+    ${k} {
+        display: flex;
+        flex-wrap: wrap;
+    }
     
-    form {
+    ${k} > form {
         flex-grow: 1;
         flex-basis: 350px;
         display: flex;
         margin-right: 10px;
         margin-bottom: 10px;
     }
-`;
+`);
 
 const MembersPanel: React.FunctionComponent = () => {
     const project = useProject();
@@ -67,15 +69,15 @@ const MembersPanel: React.FunctionComponent = () => {
     const [showId, setShowId] = React.useState(true);
 
     return <>
-        <SearchContainer>
+        <div className={SearchContainerClass}>
             {!allowManagement ? null : (
                 <form onSubmit={onSubmit}>
                     <Relative left="120px" top="8px">
                         {showId && allowManagement ?
                             <Tooltip tooltipContentWidth={160} trigger={
-                                <Circle>
+                                <div className={CircleClass}>
                                     <Text mt="-3px" ml="5px">?</Text>
-                                </Circle>
+                                </div>
                             }>
                                 <Text color="black" fontSize={12}>Your username can be found at the bottom of the sidebar next to <Icon name="id" />.</Text>
                             </Tooltip> : null}
@@ -142,7 +144,7 @@ const MembersPanel: React.FunctionComponent = () => {
                     </Absolute>
                 </Relative>
             </form>
-        </SearchContainer>
+        </div>
 
         <MembersList
             members={fetchedProject.status.members?.filter(it => it.username.includes(memberSearchQuery)) ?? []}
@@ -195,13 +197,13 @@ const MembersPanel: React.FunctionComponent = () => {
     </>;
 };
 
-const Circle = styled(Box)`
+const CircleClass = injectStyleSimple("circle", `
   border-radius: 500px;
   width: 20px;
   height: 20px;
-  border: 1px solid ${getCssVar("black")};
+  border: 1px solid var(--black);
   margin: 4px 4px 4px 2px;
   cursor: pointer;
-`;
+`);
 
 export default MembersPanel;

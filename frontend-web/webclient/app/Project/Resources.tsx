@@ -10,7 +10,6 @@ import {DateRangeFilter, EnumFilter, FilterWidgetProps, PillProps, ResourceFilte
 import {capitalized, doNothing, prettierString, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
 import {Box, Flex, Grid, Heading, Icon, Text} from "@/ui-components";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import styled from "styled-components";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
@@ -34,8 +33,8 @@ import HighlightedCard from "@/ui-components/HighlightedCard";
 import {BrowseType} from "@/Resource/BrowseType";
 import {format} from "date-fns/esm";
 import {Spacer} from "@/ui-components/Spacer";
-import {useProjectFromParams} from "./Api";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 
 
 const ANIMATION_DURATION = 1000;
@@ -310,8 +309,8 @@ const UsageChartViewer: React.FunctionComponent<{
                         dataKey={it}
                         animationDuration={ANIMATION_DURATION}
                         strokeWidth={"2px"}
-                        stroke={getCssVar(("dark" + capitalized(COLORS[index % COLORS.length]) as ThemeColor))}
-                        fill={getCssVar(COLORS[index % COLORS.length])}
+                        stroke={getCssColorVar(("dark" + capitalized(COLORS[index % COLORS.length]) as ThemeColor))}
+                        fill={getCssColorVar(COLORS[index % COLORS.length])}
                     />
                 )}
             </AreaChart>
@@ -350,7 +349,7 @@ const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
                             animationDuration={ANIMATION_DURATION}
                         >
                             {props.chart.chart.points.map((_, index) => (
-                                <Cell key={`cell-${index}`} fill={getCssVar(COLORS[index % COLORS.length])} />
+                                <Cell key={`cell-${index}`} fill={`var(--${COLORS[index % COLORS.length]})`} />
                             ))}
                         </Pie>
                     </PieChart>
@@ -360,7 +359,7 @@ const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
                     {props.chart.chart.points.map((it, index) =>
                         <Box mb="4px" width="100%" style={{whiteSpace: "nowrap"}} key={it.name}>
                             <ChartPointName name={it.name} />
-                            <Text textAlign="center" color={getCssVar(COLORS[index % COLORS.length])}>
+                            <Text textAlign="center" color={`var(--${COLORS[index % COLORS.length]})`}>
                                 {toPercentageString(it.value / totalUsage)}
                             </Text>
                         </Box>

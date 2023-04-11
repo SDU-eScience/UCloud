@@ -3,7 +3,7 @@ import {formatDistance} from "date-fns/esm";
 import * as React from "react";
 import {Snack} from "@/Snackbar/Snackbars";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import styled, {ThemeProvider} from "styled-components";
+import {ThemeProvider} from "styled-components";
 import {Link, Button, Absolute, Flex, Icon, Relative} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {TextSpan} from "@/ui-components/Text";
@@ -23,6 +23,7 @@ import HighlightedCard from "@/ui-components/HighlightedCard";
 import * as Heading from "@/ui-components/Heading";
 import {WebSocketConnection} from "@/Authentication/ws";
 import AppRoutes from "@/Routes";
+import {classConcatArray, injectStyle} from "@/Unstyled";
 
 // NOTE(Dan): If you are in here, then chances are you want to attach logic to one of the notifications coming from
 // the backend. You can do this by editing the following two functions: `resolveNotification()` and
@@ -378,7 +379,7 @@ export const Notifications: React.FunctionComponent = () => {
         </Flex>
 
         {!notificationsVisible ? null :
-            <ContentWrapper onClick={UF.stopPropagation}>
+            <div className={ContentWrapper} onClick={UF.stopPropagation}>
                 <div className="header">
                     <h3>Notifications</h3>
                     <Icon name="checkDouble" className="read-all" color="iconColor" color2="iconColor2"
@@ -390,59 +391,61 @@ export const Notifications: React.FunctionComponent = () => {
                 <div className="container-wrapper">
                     <div className="container">{entries}</div>
                 </div>
-            </ContentWrapper>
+            </div>
         }
     </>;
 }
 
-const ContentWrapper = styled.div`
-    position: fixed;
-    bottom: 8px;
-    left: calc(8px + var(--sidebarWidth));
-    width: 450px;
-    height: 600px;
-    max-height: 100vh;
-    z-index: 10000;
-    background: var(--white);
-    color: var(--black);
-    padding: 16px;
-    border-radius: 6px;
-    border: 1px solid rgba(0, 0, 0, 20%);
+const ContentWrapper = injectStyle("content-wrapper", k => `
+    ${k} {
+        position: fixed;
+        bottom: 8px;
+        left: calc(8px + var(--sidebarWidth));
+        width: 450px;
+        height: 600px;
+        max-height: 100vh;
+        z-index: 10000;
+        background: var(--white);
+        color: var(--black);
+        padding: 16px;
+        border-radius: 6px;
+        border: 1px solid rgba(0, 0, 0, 20%);
 
-    display: flex;
-    flex-direction: column;
+        display: flex;
+        flex-direction: column;
 
-    box-shadow: ${theme.shadows.sm};
+        box-shadow: ${theme.shadows.sm};
+    }
 
-    .container-wrapper {
+    ${k} > .container-wrapper {
         flex-grow: 1;
         overflow-y: auto;
     }
 
-    .container {
+    ${k} > .container {
         display: flex;
         gap: 8px;
         margin-bottom: 16px;
         flex-direction: column;
     }
 
-    .header {
+    ${k} > .header {
         display: flex;
         align-items: center;
         margin-bottom: 20px;
-
-        h3 {
-            flex-grow: 1;
-            margin: 0;
-            font-size: 22px;
-            font-weight: normal;
-        }
-
-        .read-all {
-            cursor: pointer;
-        }
     }
-`;
+
+    ${k} > .header > h3 {
+        flex-grow: 1;
+        margin: 0;
+        font-size: 22px;
+        font-weight: normal;
+    }
+
+    ${k} > .header > .read-all {
+        cursor: pointer;
+    }
+`);
 
 const NoNotifications = (): JSX.Element => <TextSpan>No notifications</TextSpan>;
 
@@ -525,7 +528,7 @@ function NotificationEntry(props: NotificationEntryProps): JSX.Element {
     }, [props.notification]);
 
     return (
-        <NotificationWrapper onClick={onAction} className={classes.join(" ")}>
+        <div className={classConcatArray(NotificationWrapper, classes)} onClick={onAction}>
             <Icon name={notification.icon} size="24px" color={notification.iconColor ?? "iconColor"}
                 color2={notification.iconColor2 ?? "iconColor2"} />
             <div className="notification-content">
@@ -538,42 +541,44 @@ function NotificationEntry(props: NotificationEntryProps): JSX.Element {
 
                 <div className="notification-body">{notification.body}</div>
             </div>
-        </NotificationWrapper>
+        </div>
     );
 }
 
-const NotificationWrapper = styled.div`
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    background: var(--white);
-    border-radius: 6px;
-    padding: 10px;
-    width: 100%;
-    user-select: none;
-    cursor: pointer;
+const NotificationWrapper = injectStyle("notification-wrapper", k => `
+    ${k} {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        background: var(--white);
+        border-radius: 6px;
+        padding: 10px;
+        width: 100%;
+        user-select: none;
+        cursor: pointer;
+    }
 
-    &.pinned {
+    ${k}.pinned {
         background: rgba(255, 100, 0, 20%);
     }
 
-    &.unread.unpinned {
+    ${k}.unread.unpinned {
         background: rgba(204, 221, 255, 20%);
     }
 
-    &:hover {
+    ${k}:hover {
         background: rgba(240, 246, 255, 50%);
     }
 
-    &.unread.unpinned:hover {
+    ${k}.unread.unpinned:hover {
         background: rgba(204, 221, 255, 50%);
     }
 
-    &.pinned:hover {
+    ${k}.pinned:hover {
         background: rgba(255, 100, 0, 30%);
     }
 
-    b {
+    ${k} > b {
         margin: 0;
         font-size: 14px;
         flex-grow: 1;
@@ -583,11 +588,11 @@ const NotificationWrapper = styled.div`
         overflow: hidden;
     }
 
-    .notification-content {
+    ${k} > .notification-content {
         width: calc(100% - 34px);
     }
 
-    .notification-body {
+    ${k} > .notification-body {
         font-size: 12px;
         margin-bottom: 5px;
         text-overflow: ellipsis;
@@ -596,20 +601,17 @@ const NotificationWrapper = styled.div`
         margin-top: -3px;
     }
 
-    .time {
-        font-size: 12px;
-        flex-shrink: 0;
-    }
-
-    a {
+    ${k} > a {
         color: var(--blue);
         cursor: pointer;
     }
 
-    .time {
+    ${k} > .time {
+        font-size: 12px;
+        flex-shrink: 0;
         color: var(--midGray);
     }
-`;
+`);
 
 export const NotificationDashboardCard: React.FunctionComponent = () => {
     const rerender = useForcedRender();

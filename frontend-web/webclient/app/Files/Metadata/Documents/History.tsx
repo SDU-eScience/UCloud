@@ -19,8 +19,8 @@ import {deviceBreakpoint} from "@/ui-components/Hide";
 import {UFile} from "@/UCloud/FilesApi";
 import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
 import {Operation} from "@/ui-components/Operation";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {SvgFt} from "@/ui-components/FtIcon";
+import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 
 export const History: React.FunctionComponent<{
     file: UFile;
@@ -228,7 +228,7 @@ const entryRenderer: ItemRenderer<DocumentRow> = {
         else if (status.type === "pending") return <Icon name={"warning"} color={"orange"} size={props.size}/>;
         else if (status.type === "rejected") return <Icon name={"trash"} color={"red"} size={props.size}/>;
         return <SvgFt width={props.size} height={props.size} type={"text"} ext={"meta"}
-                      color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
+                      color={getCssColorVar("FtIconColor")} color2={getCssColorVar("FtIconColor2")}
                       hasExt={true}/>
     },
     MainTitle: props => {

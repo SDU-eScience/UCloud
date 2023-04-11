@@ -13,9 +13,13 @@ export function classConcat(baseClass: string, extra: string | undefined): strin
     return baseClass + (extra ? " " + extra : "");
 }
 
+
 export function classConcatMult(baseClass: string, ...extra: (string | undefined)[]): string {
-    const extras = extra.filter(it => it);
-    return baseClass + extra.filter(it => it).join(" ");
+    return baseClass + " " + extra.filter(it => it).join(" ");
+}
+
+export function classConcatArray(baseClass: string, extra: string[]): string {
+    return baseClass + " " + extra.join(" ");
 }
 
 export function unbox(props: BoxProps | SpaceProps): CSSProperties {

@@ -1,8 +1,7 @@
 import * as React from "react";
-import styled, {keyframes} from "styled-components";
-import {Box} from "@/ui-components";
+import {Box, theme} from "@/ui-components";
 import {addStandardDialog} from "@/UtilityComponents";
-import {inDevEnvironment} from "@/UtilityFunctions";
+import {injectStyle} from "@/Unstyled";
 
 const TIMEOUT_DURATION = 180_000;
 
@@ -28,28 +27,30 @@ export function VersionManager(): JSX.Element {
     if (newVersion === "" || initialVersion === newVersion) {
         return <Box />;
     } else {
-        return <NotifyBox onClick={notifyModal}>!</NotifyBox>;
+        return <div className={NotifyBox} onClick={notifyModal}>!</div>;
     }
 }
 
-const animation = keyframes`
-    from { 
-        padding-left: 13px;
-        font-size: 20px; 
+const NotifyBox = injectStyle("notify-box", k => `
+    ${k} {
+        background-color: ${theme.colors.red};
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        animation: pulsate 0.7s infinite alternate;
     }
-    to { 
-        padding-left: 12px;
-        font-size: 24px;
-    }
-`;
 
-const NotifyBox = styled.div`
-    background-color: ${p => p.theme.colors.red};
-    width: 32px;
-    height: 32px;
-    border-radius: 999px;
-    animation: ${animation} 0.7s infinite alternate;
-`;
+    @keyframes pulsate {
+        from { 
+            padding-left: 13px;
+            font-size: 20px; 
+        }
+        to { 
+            padding-left: 12px;
+            font-size: 24px;
+        }
+    }
+`);
 
 const APP_VERSION_RESOURCE = "/AppVersion.txt";
 

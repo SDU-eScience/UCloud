@@ -536,7 +536,7 @@ export function AppCard(props: AppCardProps): JSX.Element {
         const {metadata} = app;
         const favoriteDiv =
             <div className={FavIcon} onClick={favorite}>
-                <Icon color="var(--blue)" hoverColor="var(--blue)" size={FAV_ICON_SIZE} name={"starEmpty"} />
+                <Icon color="var(--blue)" hoverColor="blue" size={FAV_ICON_SIZE} name={"starEmpty"} />
             </div>
         const titleAndDescription =
             <div className={TitleAndDescriptionClass}>

@@ -6,7 +6,6 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {DropdownContent, Dropdown, DropdownClass, DropdownContentClass} from "@/ui-components/Dropdown";
 import {TextSpan} from "@/ui-components/Text";
 import {getQueryParamOrElse, getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
@@ -17,7 +16,6 @@ import ucloudBlue from "@/Assets/Images/ucloud-blue.svg";
 import deicBackground from "@/Assets/Images/deic-cloud.svg";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {InputProps} from "@/ui-components/Input";
-import {injectFonts} from "@/ui-components/GlobalStyle";
 import {ButtonProps} from "@/ui-components/Button";
 
 const BackgroundImage = styled.div<{image: string}>`
@@ -245,7 +243,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
 
     return (
         <LoginWrapper>
-            <LoginIcon mx="auto" name={"deiCLogo"} size="180px" />
+            <Icon className={LoginIconClass} mx="auto" hoverColor={"fixedBlack"} name={"deiCLogo"} size="180px" />
             <Text mx="auto" py="30px" color="#000" fontSize={32}>Integration Portal</Text>
             <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset && showingWayf ? (<>
@@ -448,9 +446,15 @@ const LoginInputClass = injectStyle("login-input", k => `
     }
 `);
 
-const LoginIcon = styled(Icon)`
-    color: black;
-`;
+const LoginIconClass = injectStyle("login-icon", k => `
+    ${k} {
+        color: black;
+    }
+
+    ${k}:hover {
+        color: black;
+    }
+`);
 
 function LoginButton(props: ButtonProps): JSX.Element {
     return <Button {...props} textColor="fixedBlack" color="fixedWhite" />
@@ -471,7 +475,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
                         top="36px"
                         right="5px"
                         colorOnHover={false}
-                        trigger={<LoginIcon mr={"1em"} name="suggestion" />}
+                        trigger={<Icon color="#000" color2="#000" mr={"1em"} name="suggestion" />}
                     >
                         <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>
                             Need help?
@@ -481,7 +485,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
                 )}
                 {!SITE_DOCUMENTATION_URL ? null : (
                     <LoginExternalLink href={SITE_DOCUMENTATION_URL}>
-                        <LoginIcon name="docs" /> <TextSpan color="#000">Docs</TextSpan>
+                        <Icon color="#000" color2="#000" name="docs" /> <TextSpan color="#000">Docs</TextSpan>
                     </LoginExternalLink>
                 )}
             </div> : null}

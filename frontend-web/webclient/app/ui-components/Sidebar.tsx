@@ -529,8 +529,8 @@ function SecondarySidebar({
 
                     <li>
                         <span>Favorite files</span>
-
                         <ul>
+                            {favorites.data.items.length === 0 ? <TextSpan fontSize={"var(--secondaryText)"}>No favorite files</TextSpan> : null}
                             {favorites.data.items.map(it =>
                                 <li key={it.path}>
                                     <Flex

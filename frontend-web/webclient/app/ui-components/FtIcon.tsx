@@ -2,7 +2,7 @@ import * as React from "react";
 import {extensionType} from "@/UtilityFunctions";
 import Icon from "./Icon";
 import theme from "./theme";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 import {FileIconHint} from "@/Files";
 import {injectStyle} from "@/Unstyled";
 
@@ -255,8 +255,8 @@ const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size, .
         <SvgFt
             width={size}
             height={size}
-            color={getCssVar("FtIconColor")}
-            color2={getCssVar("FtIconColor2")}
+            color={getCssColorVar("FtIconColor")}
+            color2={getCssColorVar("FtIconColor2")}
             hasExt={hasExt}
             ext={ext4}
             type={type}

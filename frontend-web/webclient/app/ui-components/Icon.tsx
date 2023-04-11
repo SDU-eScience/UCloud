@@ -3,7 +3,7 @@ import * as React from "react";
 import {ResponsiveValue, SpaceProps} from "styled-system";
 import Bug from "./Bug";
 import * as icons from "./icons";
-import theme from "./theme";
+import theme, {ThemeColor} from "./theme";
 import {Cursor} from "./Types";
 import {injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
@@ -38,7 +38,7 @@ export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivEl
     size?: string | number;
     squared?: boolean;
     spin?: boolean;
-    hoverColor?: ResponsiveValue<CSS.Property.Color>;
+    hoverColor?: ThemeColor;
     title?: string;
     className?: string;
     style?: CSSProperties;

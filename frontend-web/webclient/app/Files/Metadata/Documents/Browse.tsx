@@ -11,10 +11,10 @@ import {FileMetadataTemplate} from "@/UCloud/MetadataNamespaceApi";
 import {MetadataNamespacesBrowse} from "@/Files/Metadata/Templates/Namespaces";
 import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
 import {SvgFt} from "@/ui-components/FtIcon";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {noopCall} from "@/Authentication/DataHook";
 import {UFile} from "@/UCloud/FilesApi";
 import {BrowseType} from "@/Resource/BrowseType";
+import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 
 export const entityName = "Metadata (BETA)";
 
@@ -96,7 +96,7 @@ interface MetadataRow {
 const fileMetadataRenderer: ItemRenderer<MetadataRow> = {
     Icon({size}) {
         return <SvgFt width={size} height={size} type={"text"} ext={"meta"}
-            color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
+            color={getCssColorVar("FtIconColor")} color2={getCssColorVar("FtIconColor2")}
             hasExt />
     },
     MainTitle({resource}) {return !resource ? null : <>{resource.template.title}</>},

@@ -29,7 +29,7 @@ export function Accordion(props: React.PropsWithChildren<{
     if (props.borderColor) style["--separatorColor"] = `var(--${props.borderColor})`;
     return (
         <>
-            <div className={AccordionStyleClass} data-active={isOpen} data-no-order={props.noBorder ?? false} onClick={() => setOpen(!open)}>
+            <div className={AccordionStyleClass} style={style} data-active={isOpen} data-no-order={props.noBorder ?? false} onClick={() => setOpen(!open)}>
                 <ListRow
                     stopPropagation={false}
                     left={props.title}

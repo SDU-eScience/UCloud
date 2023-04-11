@@ -125,7 +125,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
     }
 
     const main = (<Box mx="auto" maxWidth={"1200px"}>
-        <Flex><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
+        <Flex><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} operations={[]} callbacks={{}} /></Flex>
         <div>
             <DashboardNews news={news} />
 
@@ -134,7 +134,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
                 <DashboardRuns runs={recentRuns} />
             </div>
             <div style={{marginBottom: "24px"}}>
-            <NotificationDashboardCard />
+                <NotificationDashboardCard />
             </div>
             <UsageAndResources charts={usage} products={products} />
             <div className={GridClass}>
@@ -162,8 +162,6 @@ const GridClass = injectStyleSimple("grid", `
     display: grid;
     margin-top: 24px;
     margin-bottom: 24px;
-    grid-template-columns: repeat(auto-fill, minmax(490px, auto));
-    grid-auto-rows: minmax(450px, auto);
     gap: 20px;
 `);
 

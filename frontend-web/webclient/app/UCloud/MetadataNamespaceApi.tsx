@@ -18,7 +18,6 @@ import {ListRowStat} from "@/ui-components/List";
 import {ResourceProperties} from "@/Resource/Properties";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {SvgFt} from "@/ui-components/FtIcon";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {useCallback, useMemo, useState} from "react";
 import {Section} from "@/ui-components/Section";
@@ -27,6 +26,7 @@ import {JsonSchemaForm} from "@/Files/Metadata/JsonSchemaForm";
 import {prettierString} from "@/UtilityFunctions";
 import {Product} from "@/Accounting";
 import {apiBrowse, apiCreate, apiRetrieve} from "@/Authentication/DataHook";
+import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 
 export type FileMetadataTemplateNamespaceType = "COLLABORATORS" | "PER_USER";
 
@@ -98,7 +98,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
     templateRenderer: ItemRenderer<FileMetadataTemplate, TemplateCallbacks> = {
         Icon({resource, size}) {
             return <SvgFt width={size} height={size} type={"text"} ext={""}
-                color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
+                color={getCssColorVar("FtIconColor")} color2={getCssColorVar("FtIconColor2")}
                 hasExt={false} />
         },
         MainTitle({resource}) {return !resource ? null : <>{resource.title}</>},

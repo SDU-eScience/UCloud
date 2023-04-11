@@ -21,9 +21,7 @@ import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {Box, Button, Flex, Icon, Link, List, Text} from "@/ui-components";
 import {PageV2, compute} from "@/UCloud";
 import {ListV2} from "@/Pagination";
-import styled from "styled-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {SyncthingConfig} from "@/Syncthing/api";
@@ -361,7 +359,7 @@ export const FilesBrowse: React.FunctionComponent<{
             breadcrumbs = components;
         }
 
-        return <Box backgroundColor={getCssVar("white")}>
+        return <Box backgroundColor={"var(--white)"}>
             {browseType !== BrowseType.Embedded ? null : <Flex>
                 <DriveDropdown iconName="projects">
                     <ListV2
@@ -446,6 +444,8 @@ export const FilesBrowse: React.FunctionComponent<{
                         <Flex my="auto" ml="12px"><ProviderLogo size={32} providerId={activeProviderId} /></Flex>
                     </BreadCrumbsBase>
                 </> : null}
+                <Flex flexGrow={1} />
+                <UtilityBar operations={[]} callbacks={callbacks} searchEnabled />
             </Flex>
         </Box>;
     }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject, props.isSearch, activeProviderId]);

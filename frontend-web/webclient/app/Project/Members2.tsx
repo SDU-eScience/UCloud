@@ -2,7 +2,7 @@ import * as React from "react";
 import {useRef, useCallback, useEffect, useMemo, useReducer, useState} from "react";
 import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole, ProjectInviteLink, useProjectId} from "./Api";
 import styled from "styled-components";
-import {NavigateFunction, useLocation, useNavigate, useParams} from "react-router";
+import {NavigateFunction, useLocation, useNavigate} from "react-router";
 import MainContainer from "@/MainContainer/MainContainer";
 import {callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
@@ -16,7 +16,7 @@ import {
     Icon,
     Input,
     Label,
-    Link, List,
+    List,
     RadioTile,
     RadioTilesContainer,
     Relative,
@@ -24,7 +24,6 @@ import {
     Tooltip, Truncate
 } from "@/ui-components";
 import {shorten} from "@/Utilities/TextUtilities";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {addStandardDialog, NamingField} from "@/UtilityComponents";
 import {copyToClipboard, doNothing, preventDefault} from "@/UtilityFunctions";
 import {useAvatars} from "@/AvataaarLib/hook";
@@ -573,7 +572,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     if (!project) return null;
 
     return <MainContainer
-        header={<Flex px="32px" mt="32px">
+        header={<Flex px="32px" mt="12px">
             <ProjectBreadcrumbsWrapper embedded={false}>
                 <span>My Projects</span>
                 <span>{shorten(20, project.specification.title)}</span>
@@ -581,7 +580,6 @@ export const ProjectMembers2: React.FunctionComponent = () => {
             </ProjectBreadcrumbsWrapper>
             <UtilityBar searchEnabled={false} operations={[]} callbacks={{}} />
         </Flex>}
-        headerSize={50}
         main={
             <TwoColumnLayout>
                 <div className="members">
@@ -1393,7 +1391,7 @@ const HelpCircleClass = injectStyle("help-circle", k => `
         border-radius: 500px;
         width: 26px;
         height: 26px;
-        border: 2px solid ${getCssVar("black")};
+        border: 2px solid var(--black);
         margin: 4px 4px 4px 2px;
         cursor: pointer;
     }

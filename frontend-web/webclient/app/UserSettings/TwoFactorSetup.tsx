@@ -6,7 +6,7 @@ import {Button, Divider, ExternalLink, Flex, Input} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import * as Heading from "@/ui-components/Heading";
 import {TwoFactorSetupState} from ".";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 
 import googlePlay from "@/Assets/Images/google-play-badge.png";
 import appStore from "@/Assets/Images/app-store-badge.png";
@@ -28,7 +28,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
             <>
                 <Heading.h2>Two Factor Authentication</Heading.h2>
                 {this.props.mustActivate2fa ? (
-                    <Heading.h3 color={getCssVar("red")}>
+                    <Heading.h3 color={getCssColorVar("red")}>
                         You must activate 2FA for your account before you can continue
                     </Heading.h3>
                 ) : null}

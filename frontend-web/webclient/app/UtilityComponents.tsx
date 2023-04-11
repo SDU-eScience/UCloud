@@ -15,9 +15,9 @@ import {Spacer} from "@/ui-components/Spacer";
 import {ErrorWrapper} from "@/ui-components/Error";
 import {ThemeColor} from "@/ui-components/theme";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
-import {injectStyleSimple} from "./Unstyled";
+import {injectStyle, injectStyleSimple} from "./Unstyled";
 
 interface StandardDialog {
     title?: string;
@@ -433,7 +433,7 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
 export function Sensitivity({sensitivity}: {sensitivity: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE"}): JSX.Element {
     switch (sensitivity) {
         case "CONFIDENTIAL":
-            return <SensitivityBadge bg={getCssVar("purple")}>
+            return <SensitivityBadge bg={"var(--purple)"}>
                 C
             </SensitivityBadge>
         case "SENSITIVE":
@@ -442,20 +442,31 @@ export function Sensitivity({sensitivity}: {sensitivity: "PRIVATE" | "CONFIDENTI
             </SensitivityBadge>
         case "PRIVATE":
         default:
-            return <SensitivityBadge bg={getCssVar("midGray")}>
+            return <SensitivityBadge bg={"var(--midGray)"}>
                 P
             </SensitivityBadge>;
     }
 }
 
-const SensitivityBadge = styled.div<{bg: string}>`
-    content: '';
-    height: 2em;
-    width: 2em;
-    display: flex;
-    margin-right: 5px;
-    align-items: center;
-    justify-content: center;
-    border: 0.2em solid ${({bg}) => bg};
-    border-radius: 100%;
-`;
+function SensitivityBadge({bg, children}: React.PropsWithChildren<{bg: string}>): JSX.Element {
+    const style: React.CSSProperties = {};
+    style["--bgColor"] = bg ?? "teal";
+    return <div className={SensitivityBadgeClass} style={style}>
+        {children}
+    </div> 
+}
+
+
+const SensitivityBadgeClass = injectStyle("sensitivity-badge", k => `
+    ${k} {
+        content: '';
+        height: 2em;
+        width: 2em;
+        display: flex;
+        margin-right: 5px;
+        align-items: center;
+        justify-content: center;
+        border: 0.2em solid var(--bgColor);
+        border-radius: 100%;
+    }
+`);

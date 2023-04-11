@@ -21,7 +21,7 @@ export function SidebarLinkColumn({links}: {links: LinkInfo[]}): JSX.Element {
             </Box> :
             <Link key={it.text} mb="8px" to={it.to}>
                 <Icon size="18px" name={it.icon} color="var(--fixedWhite)" color2="var(--fixedWhite)" />
-                <TextSpan fontSize="var(--breadText)" ml="8px" color="var(--fixedWhite)">{it.text}</TextSpan>
+                <TextSpan verticalAlign="middle" fontSize="var(--breadText)" ml="8px" color="var(--fixedWhite)">{it.text}</TextSpan>
             </Link>
         )}
     </Flex>
