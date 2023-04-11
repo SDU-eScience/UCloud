@@ -1186,9 +1186,7 @@ class GrantApplicationService(
                         HttpStatusCode.InternalServerError,
                         "Error in creating project and PI"
                     )
-
-                projectNotifications.notifyChange(listOf(createdProject), session)
-
+                
                 Pair(createdProject, GrantApplication.Recipient.NewProject)
 
             }
@@ -1222,6 +1220,10 @@ class GrantApplicationService(
         }
 
         accounting.deposit(actorAndProject, bulkRequestOf(requestItems))
+
+        if (application.currentRevision.document.recipient is GrantApplication.Recipient.NewProject) {
+            projectNotifications.notifyChange(listOf(workspaceId), session)
+        }
 
         val providerIds = session.sendPreparedStatement(
             { setParameter("id", applicationId) },
