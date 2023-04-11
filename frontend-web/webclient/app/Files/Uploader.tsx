@@ -1,7 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useGlobal} from "@/Utilities/ReduxHooks";
-import styled from "styled-components";
 import {default as ReactModal} from "react-modal";
 import {Box, Divider, Flex, FtIcon, Icon, List, Truncate, Text} from "@/ui-components";
 import {TextSpan} from "@/ui-components/Text";
@@ -29,6 +28,7 @@ import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 const MAX_CONCURRENT_UPLOADS = 5;
 const entityName = "Upload";
@@ -152,7 +152,7 @@ function createResumeable(
 
 const Uploader: React.FunctionComponent = () => {
     const [uploadPath] = useGlobal("uploadPath", "/");
-    const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", false);
+    const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", true);
     const [uploads, setUploads] = useGlobal("uploads", []);
     const [lookForNewUploads, setLookForNewUploads] = useState(false);
 
@@ -372,8 +372,8 @@ const Uploader: React.FunctionComponent = () => {
                 <Divider />
 
                 <label htmlFor={"fileUploadBrowse"}>
-                    <DropZoneBox onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
-                        onDragOver={preventDefault} slim={uploads.length > 0}>
+                    <div className={DropZoneBox} onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
+                        onDragOver={preventDefault} data-slim={uploads.length > 0}>
                         <Flex width={320} alignItems={"center"} flexDirection={"column"}>
                             {uploads.length > 0 ? null : <UploaderArt />}
                             <Box ml={"-1.5em"}>
@@ -388,7 +388,7 @@ const Uploader: React.FunctionComponent = () => {
                                 />
                             </Box>
                         </Flex>
-                    </DropZoneBox>
+                    </div>
                 </label>
 
                 <List childPadding={"8px"} bordered={false}>
@@ -462,7 +462,7 @@ const renderer: ItemRenderer<Upload> = {
                 </ListRowStat>
             }
             {!resource.error ? null : <ListRowStat icon={"close"} color={"red"}>
-                <ErrorSpan>{resource.error}</ErrorSpan>
+                <span className={ErrorSpan}>{resource.error}</span>
             </ListRowStat>}
         </>
     },
@@ -518,23 +518,23 @@ const operations: Operation<Upload, UploadCallback>[] = [
     }
 ];
 
-const ErrorSpan = styled.span`
+const ErrorSpan = injectStyleSimple("error-span", `
     color: var(--white);
     border: 1px solid red;
     background-color: red;
     padding-left: 4px;
     padding-right: 4px;
     border-radius: 2px;
-`
+`);
 
 const UploaderArt: React.FunctionComponent = () => {
-    return <UploadArtWrapper>
+    return <div className={UploadArtWrapper}>
         <FtIcon fileIcon={{type: "FILE", ext: "png"}} size={"64px"} />
         <FtIcon fileIcon={{type: "FILE", ext: "pdf"}} size={"64px"} />
         <FtIcon fileIcon={{type: "DIRECTORY"}} size={"128px"} />
         <FtIcon fileIcon={{type: "FILE", ext: "mp3"}} size={"64px"} />
         <FtIcon fileIcon={{type: "FILE", ext: "mp4"}} size={"64px"} />
-    </UploadArtWrapper>;
+    </div>;
 };
 
 // Styles
@@ -559,38 +559,44 @@ const modalStyle = {
     }
 };
 
-const DropZoneBox = styled.div<{slim?: boolean}>`
-    width: 100%;
-    ${p => p.slim ? {height: "80px"} : {height: "280px"}}
-    border-width: 2px;
-    border-color: rgb(102, 102, 102);
-    border-style: dashed;
-    border-radius: 5px;
-    margin: 16px 0 16px 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+const DropZoneBox = injectStyle("dropzone-box", k => `
+    ${k} {
+        width: 100%;
+        height: 280px;
+        border-width: 2px;
+        border-color: rgb(102, 102, 102);
+        border-style: dashed;
+        border-radius: 5px;
+        margin: 16px 0 16px 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 
-    & > p {
+    ${k}[data-slim="true"] {
+        height: 80px;
+    }
+
+    ${k} > p {
         margin: 25px;
     }
-`;
+`);
 
-const UploadArtWrapper = styled.div`
-  svg:nth-child(1) {
-    margin-top: -32px;
-  }
+const UploadArtWrapper = injectStyle("upload-art", k => `   
+    ${k} > svg:nth-child(1) {
+        margin-top: -32px;
+    }
 
-  svg:nth-child(2) {
-    margin-left: -32px;
-  }
+    ${k} > svg:nth-child(2) {
+        margin-left: -32px;
+    }
 
-  svg:nth-child(5) {
-    margin-top: -32px;
-    margin-left: -32px;
-    position: relative;
-    z-index: -100;
-  }
-`;
+    ${k} > svg:nth-child(5) {
+        margin-top: -32px;
+        margin-left: -32px;
+        position: relative;
+        z-index: -100;
+    }
+`);
 
 export default Uploader;

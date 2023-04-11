@@ -3,7 +3,6 @@ import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "./index";
 import {Input} from "@/ui-components";
 import {useCallback, useLayoutEffect} from "react";
-import styled from "styled-components";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
