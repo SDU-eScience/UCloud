@@ -67,6 +67,16 @@ export type ExtensionType =
     | "markdown"
     | "application";
 
+export const commonFileExtensions = [
+    "app", "application", "md", "markdown", "markdown", "zig", "swift", "kt", "kts", "js", "jsx", "ts", "tsx",
+    "java", "py", "python", "tex", "r", "c", "h", "cc", "hh", "c++", "h++", "hpp", "cpp", "cxx", "jai", "hxx",
+    "html", "htm", "lhs", "hs", "sql", "sh", "iol", "ol", "col", "bib", "toc", "jar", "exe", "xml", "json",
+    "yml", "ini", "sbatch", "code", "png", "gif", "tiff", "eps", "ppm", "svg", "jpg", "jpeg", "image", "txt",
+    "doc", "docx", "log", "csv", "tsv", "plist", "out", "err", "text", "pdf", "pdf", "wav", "mp3", "ogg", "aac",
+    "pcm", "audio", "mpg", "mp4", "avi", "mov", "wmv", "video", "gz", "zip", "tar", "tgz", "tbz", "bz2", "archive",
+    "dat", "binary"
+];
+
 export const extensionType = (ext: string): ExtensionType => {
     switch (ext.toLowerCase()) {
         case "app":

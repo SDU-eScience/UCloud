@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useLocation, useNavigate} from "react-router";
-import {useLayoutEffect, useMemo, useRef} from "react";
-import {doNothing, extensionFromPath, extensionType, timestampUnixMs} from "@/UtilityFunctions";
+import {useLayoutEffect, useRef} from "react";
+import {commonFileExtensions, doNothing, extensionFromPath, extensionType, timestampUnixMs} from "@/UtilityFunctions";
 import MainContainer from "@/MainContainer/MainContainer";
 import FilesApi, {UFile} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
@@ -12,6 +12,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {createRoot} from "react-dom/client";
 import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {FileIconHint} from "@/Files/index";
 
 const ExperimentalBrowse: React.FunctionComponent = props => {
     const navigate = useNavigate();
@@ -270,6 +271,23 @@ class FileBrowser {
 
         this.scrolling.append(...rows);
 
+        {
+            // Immediately start preloading directory icons
+            this.renderFileIconFromProperties("", true).then(doNothing);
+            this.renderFileIconFromProperties("", true, "DIRECTORY_JOBS").then(doNothing);
+            this.renderFileIconFromProperties("", true, "DIRECTORY_STAR").then(doNothing);
+            this.renderFileIconFromProperties("", true, "DIRECTORY_TRASH").then(doNothing);
+            this.renderFileIconFromProperties("", true, "DIRECTORY_SHARES").then(doNothing);
+        }
+
+        window.setTimeout(() => {
+            // Then a bit later, start preloading common file formats
+            this.renderFileIconFromProperties("File", false).then(doNothing);
+            for (const fileFormat of commonFileExtensions) {
+                this.renderFileIconFromProperties(fileFormat, false).then(doNothing);
+            }
+        }, 500);
+
         this.open(this.currentPath);
     }
 
@@ -304,14 +322,12 @@ class FileBrowser {
             // the time between pointerdown and pointerup was sufficient to fetch the data before the UI could even be
             // updated. As a result, we do not need to call renderPage() again with new data, since we didn't have any.
             if (wasCached) return;
-            console.log("fetch complete")
             if (this.currentPath !== path) return;
             this.renderPage();
         });
     }
 
     private renderPage() {
-        console.log("render")
         const page = this.cachedData[this.currentPath] ?? [];
 
         // Determine the total size of the page and figure out where we are
@@ -330,8 +346,6 @@ class FileBrowser {
             if (rowNumber >= maxRows) return null;
             return this.rows[rowNumber];
         }
-
-        console.log(this.scrolling.scrollTop)
 
         // Reset rows and place them accordingly
         for (let i = 0; i < maxRows; i++) {
@@ -353,13 +367,8 @@ class FileBrowser {
             row.container.setAttribute("data-file", file.id);
             row.container.classList.remove("hidden");
             row.title.innerText = fileName(file.id);
-            if (file.status.type === "DIRECTORY") {
-                row.title.innerText += "/";
-            }
 
-            let resolved = false;
             this.renderFileIcon(file).then(url => {
-                resolved = true;
                 if (row.container.getAttribute("data-file") !== file.id) return;
                 row.title.prepend(image(url, {width: 20, height: 20, alt: "File icon"}));
             });
@@ -368,18 +377,26 @@ class FileBrowser {
 
     private async renderFileIcon(file: UFile): Promise<string> {
         const ext = file.id.indexOf(".") !== -1 ? extensionFromPath(file.id) : undefined;
-        const hasExt = !!ext;
         const ext4 = ext?.substring(0, 4) ?? "File";
-        const type = ext ? extensionType(ext.toLocaleLowerCase()) : "binary";
+        return this.renderFileIconFromProperties(ext4, file.status.type === "DIRECTORY", file.status.icon);
+    }
+
+    private async renderFileIconFromProperties(
+        extension: string,
+        isDirectory: boolean,
+        hint?: FileIconHint
+    ): Promise<string> {
+        const hasExt = !!extension;
+        const type = extension ? extensionType(extension.toLocaleLowerCase()) : "binary";
 
         const width = 64;
         const height = 64;
 
-        if (file.status.icon || file.status.type === "DIRECTORY") {
+        if (hint || isDirectory) {
             let name: IconName;
             let color: ThemeColor = "FtFolderColor";
             let color2: ThemeColor = "FtFolderColor2";
-            switch (file.status.icon) {
+            switch (hint) {
                 case "DIRECTORY_JOBS":
                     name = "ftResultsFolder";
                     break;
@@ -403,9 +420,9 @@ class FileBrowser {
         }
 
         return this.icons.renderSvg(
-            "file-" + ext,
+            "file-" + extension,
             () => <SvgFt color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")} hasExt={hasExt}
-                         ext={ext4} type={type} width={width} height={height}/>,
+                         ext={extension} type={type} width={width} height={height}/>,
             width,
             height
         );
@@ -435,9 +452,7 @@ class FileBrowser {
         const scrollingContainer = this.scrolling.parentElement!;
         const scrollingPos = scrollingContainer.scrollTop;
         const scrollingHeight = scrollingContainer.scrollHeight;
-        console.log(scrollingPos, scrollingHeight);
         if (scrollingPos < scrollingHeight * 0.8) return;
-        console.log(this.isFetchingNext, this.cachedNext);
 
         this.isFetchingNext = true;
         try {
@@ -464,7 +479,7 @@ class FileBrowser {
         const row = this.rows[index];
         const filePath = row.container.getAttribute("data-file");
         if (!filePath) return;
-        this.prefetch(filePath).then(() => console.log("prefetch complete"));
+        this.prefetch(filePath);
     }
 
     private onRowClicked(index: number) {
@@ -503,6 +518,9 @@ class FileBrowser {
             .file-browser header {
                 height: 64px;
                 width: 100%;
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
             }
 
             .file-browser > div {
@@ -525,15 +543,20 @@ class FileBrowser {
                 align-items: center;
                 border-bottom: 1px solid #96B3F8;
                 gap: 8px;
+                user-select: none;
+            }
+            
+            .file-browser .row .title img {
+                margin-right: 8px;
             }
 
             .file-browser .row.hidden {
-                opacity: 0;
+                display: none;
             }
 
             .file-browser .row input[type=checkbox] {
-                height: 25px;
-                width: 25px;
+                height: 20px;
+                width: 20px;
             }
 
             .file-browser .row .title {
