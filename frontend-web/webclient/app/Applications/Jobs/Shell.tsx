@@ -108,7 +108,7 @@ export const Shell: React.FunctionComponent = () => {
         };
     }, [termRef.current, sessionIdentifier, reconnect]);
 
-    return <TermAndShellWrapper className={isLightThemeStored() ? "light" : "dark"} addPadding={true}>
+    return <TermAndShellWrapper addPadding>
         {!closed ? null : (
             // NOTE(Dan): Theme cannot change in practice, as a result we can safely use the stored value
             <div className={`warn`}>

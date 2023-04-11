@@ -50,7 +50,7 @@ export const AppHeader: React.FunctionComponent<{
                                         navigate(Pages.runApplication(newest.metadata));
                                     }}>
                                         New version available.
-                                    </TriggerDiv>
+                                       </TriggerDiv>
                                 }>
                                     <div onClick={e => e.stopPropagation()}>
                                         You are not using the newest version of the app.<br />
@@ -113,13 +113,15 @@ function InfoAttribute(props: {
     );
 }
 
-export const pad = (value: string | number, length: number): string | number =>
-    (value.toString().length < length) ? pad("0" + value, length) : value;
+export function pad(value: string | number, length: number): string | number {
+    return (value.toString().length < length) ? pad("0" + value, length) : value;
+}
 
-const InfoAttributes = styled.div`
-    display: flex;
-    flex-direction: row;
-`;
+function InfoAttributes({children}: React.PropsWithChildren): JSX.Element {
+    return <Flex flexDirection="row">
+        {children}
+    </Flex>;
+}
 
 export const Information: React.FunctionComponent<{application: Application; simple?: boolean;}> = ({application, simple}) => {
     const tool = application?.invocation?.tool?.tool;

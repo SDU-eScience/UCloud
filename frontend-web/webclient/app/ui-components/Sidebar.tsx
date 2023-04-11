@@ -506,7 +506,7 @@ function SecondarySidebar({
             <>
                 <ul>
                     <li>
-                        <Link to={"/files"}>Drives</Link>
+                        <Link to={"/drives/"}>Drives</Link>
                         <ul>
                             {drives.data.items.map(it =>
                                 <li key={it.id}>

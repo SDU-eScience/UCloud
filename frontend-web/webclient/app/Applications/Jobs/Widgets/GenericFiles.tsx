@@ -14,6 +14,7 @@ import {prettyFilePath} from "@/Files/FilePath";
 import {BrowseType} from "@/Resource/BrowseType";
 import {FolderResourceNS} from "../Resources";
 import {getProviderField, providerMismatchError} from "../Create";
+import {injectStyleSimple} from "@/Unstyled";
 
 type GenericFileParam =
     UCloud.compute.ApplicationParameterNS.InputFile |
@@ -92,8 +93,9 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     const error = props.errors[props.parameter.name] != null;
     return <>
         <input type={"hidden"} id={widgetId(props.parameter)} />
-        <FileSelectorInput
+        <Input
             id={widgetId(props.parameter) + "visual"}
+            className={FileInputClass}
             placeholder={`No ${isDirectoryInput ? "directory" : "file"} selected`}
             onClick={onActivate}
             error={error}
@@ -101,9 +103,9 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     </>;
 };
 
-const FileSelectorInput = styled(Input)`
+const FileInputClass = injectStyleSimple("file-input", `
     cursor: pointer;
-`;
+`);
 
 export const FilesValidator: WidgetValidator = (param) => {
     if (param.type === "input_directory" || param.type === "input_file") {

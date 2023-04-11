@@ -3,24 +3,33 @@ import {useDispatch, useSelector} from "react-redux";
 import Flex from "./Flex";
 import Icon from "./Icon";
 import theme from "./theme";
+import {injectStyle} from "@/Unstyled";
 
 function PopIn({hasContent, children}: React.PropsWithChildren<{hasContent: boolean}>): JSX.Element {
-    return <div style={{
-        transition: "right 0.4s",
-        height: "100vh",
-        overflowY: "scroll",
-        position: "absolute",
-        padding: "4px 4px 4px p4x",
-        width: !hasContent ? "0" : "var(--popInWidth)",
-        top: 0,
-        zIndex: 120,
-        boxShadow: theme.shadows.sm,
-        right: 0,
-        backgroundColor: "var(--white)",
-    }}>
+    return <div className={PopInClass} data-has-content={hasContent}>
         {hasContent ? children : null}
     </div >
 }
+
+const PopInClass = injectStyle("popin-class", k => `
+    ${k} {
+        transition: width 0.2s;
+        height: 100vh;
+        overflow-y: scroll;
+        position: absolute;
+        padding: 4px 4px 4px 4px;
+        top: 0;
+        z-index: 120;
+        box-shadow: ${theme.shadows.sm};
+        right: 0;
+        background-color: var(--white);
+        width: 0;
+    }
+
+    ${k}[data-has-content="true"] {
+        width: var(--popInWidth);
+    }
+`);
 
 export function RightPopIn(): JSX.Element {
     const dispatch = useDispatch();
@@ -28,7 +37,7 @@ export function RightPopIn(): JSX.Element {
     const content = useSelector<ReduxObject, JSX.Element | null>(it => it.popinChild);
     /* Alternatively, use React.portal */
     return <PopIn hasContent={content != null} >
-        <Icon color="var(--black)" pt="4px" pl="4px" hoverColor="black" name="close" onClick={() => dispatch(setPopInChild(null))} />
+        <Icon color="var(--black)" cursor="pointer" pt="4px" pl="4px" hoverColor="black" name="close" onClick={() => dispatch(setPopInChild(null))} />
         <Flex flexDirection="column" mx="4px" my="4px">{content}</Flex>
     </PopIn>
 }

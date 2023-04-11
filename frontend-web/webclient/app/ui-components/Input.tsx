@@ -7,6 +7,7 @@ import {
 import {ThemeColor} from "./theme";
 import {extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
 import * as React from "react";
+import {Cursor} from "./Types";
 
 export interface InputProps extends SpaceProps, FontSizeProps, BorderRadiusProps, React.InputHTMLAttributes<HTMLInputElement> {
     leftLabel?: boolean;
@@ -74,7 +75,7 @@ export const InputClass = injectStyle("input", k => `
     }
 `);
 
-const Input: React.FunctionComponent<InputProps & { as?: "input" | "textarea" }> = props => {
+const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cursor?: Cursor}> = props => {
     const style = unbox(props);
     if (props.overrideDisabledColor) style["--inputDisabledColor"] = `var(--${props.overrideDisabledColor})`;
     const evHandlers = extractEventHandlers(props);
@@ -117,7 +118,7 @@ const Input: React.FunctionComponent<InputProps & { as?: "input" | "textarea" }>
 Input.displayName = "Input";
 
 export const HiddenInputField: React.FunctionComponent<InputProps> = props => {
-    return <Input {...props} hidden={true}/>;
+    return <Input {...props} hidden={true} />;
 };
 
 export default Input;
@@ -153,6 +154,6 @@ const InputLabelClass = injectStyle("input-label", k => `
     }
 `);
 
-export const InputLabel: React.FunctionComponent<InputLabelProps & { children?: React.ReactNode }> = props => {
+export const InputLabel: React.FunctionComponent<InputLabelProps & {children?: React.ReactNode}> = props => {
     return <div style={unbox(props)} className={InputLabelClass}>{props.children}</div>;
 }

@@ -1,7 +1,6 @@
-import {AbsoluteNoPointerEvents} from "@/Applications/Card";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {Box, Link, theme} from "@/ui-components";
+import {Absolute, Box, Link, theme} from "@/ui-components";
 import {GridCardGroup} from "@/ui-components/Grid";
 import * as React from "react";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
@@ -27,10 +26,11 @@ export function ProviderEntry(props: {provider: ProviderType}): React.ReactEleme
     return (
         <Link to={`/providers/detailed/${props.provider.id}`}>
             <div className={ProviderCard}>
-                <AbsoluteNoPointerEvents left={0} top={0}
+                <Absolute left={0} top={0}
                     cursor="inherit"
                     height="10px"
                     width="100%"
+                    style={{pointerEvents: "none"}}
                     background={theme.colors.headerBg} />
 
                 <div className={ProviderLogoClass}>

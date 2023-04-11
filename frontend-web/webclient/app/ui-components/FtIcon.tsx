@@ -219,12 +219,12 @@ interface FtIconBaseProps {
     iconHint?: FileIconHint;
     className?: string;
 }
-const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size, ...props}) => {
+const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size, iconHint, ...props}) => {
     const hasExt = fileIcon.ext ? true : false;
     const ext4 = fileIcon?.ext?.substring(0, 4);
     const type = fileIcon.ext ? extensionType(fileIcon.ext.toLocaleLowerCase()) : undefined;
 
-    switch (props.iconHint) {
+    switch (iconHint) {
         case "DIRECTORY_JOBS":
             return (<Icon name="ftResultsFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
         case "DIRECTORY_SHARES":
