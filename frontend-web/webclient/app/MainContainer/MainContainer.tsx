@@ -1,10 +1,10 @@
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
-import styled from "styled-components";
 import {Box} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useEffect} from "react";
+import {injectStyleSimple} from "@/Unstyled";
 
 export interface MainContainerProps {
     sidebar?: React.ReactNode;
@@ -33,12 +33,14 @@ export const MainContainer = ({
     return (
         <Box data-component={"main"} backgroundColor="var(--white)" pb={pad} pl={pad} pr="0">
             {header && (
-                <HeaderContainer
+                <Box
+                    className={HeaderContainer}
+                    pt="8px"
                     height={headerSize}
                     bg="var(--white)"
                 >
                     {header}
-                </HeaderContainer>
+                </Box>
             )}
             <Box pr={mainXpad}>
                 {main}
@@ -78,10 +80,9 @@ export const LoadingMainContainer: React.FunctionComponent<LoadingMainContainerP
     );
 };
 
-const HeaderContainer = styled(Box)`
+const HeaderContainer = injectStyleSimple("header-container", `
     position: sticky;
-    padding-top: 8px;
     top: 0;
-`;
+`);
 
 export default MainContainer;

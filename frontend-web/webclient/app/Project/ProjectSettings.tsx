@@ -33,7 +33,7 @@ import {
     ToggleSubProjectsRenamingRequest
 } from "@/Project/Grant";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import ProjectAPI, {OldProjectRole, Project, ProjectSpecification, useProjectFromParams, useProjectId} from "@/Project/Api";
+import ProjectAPI, {OldProjectRole, Project, ProjectSpecification, useProjectId} from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProject} from "./cache";

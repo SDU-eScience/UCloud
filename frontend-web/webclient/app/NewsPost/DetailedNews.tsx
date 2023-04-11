@@ -204,7 +204,7 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
                         <SelectableText ml="1em" onClick={() => setPreview(true)} selected={preview}> Preview</SelectableText>
                     </SelectableTextWrapper>
                     {preview ? <Markdown unwrapDisallowed>{body}</Markdown> :
-                        <TextArea style={{marginTop: "6px", marginBottom: "6px",  resize: "vertical"}} width={1} rows={5} value={body} onChange={e => setBody(e.target.value)} />}
+                        <TextArea my="6px" resize="vertical" width={1} rows={5} value={body} onChange={e => setBody(e.target.value)} />}
                     <Box mt="auto" />
                     <Button fullWidth>Update post</Button>
                 </Box>

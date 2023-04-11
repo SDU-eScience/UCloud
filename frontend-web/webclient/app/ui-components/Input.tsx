@@ -18,6 +18,7 @@ export interface InputProps extends SpaceProps, FontSizeProps, BorderRadiusProps
     overrideDisabledColor?: ThemeColor;
     rows?: number;
     inputRef?: React.RefObject<HTMLInputElement>;
+    resize?: "vertical" | "horizontal";
 }
 
 export const InputClass = injectStyle("input", k => `
@@ -111,6 +112,7 @@ const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cu
         return <input {...inputProps} />;
     } else {
         style.height = "unset";
+        style.resize = props.resize;
         return <textarea {...inputProps} />;
     }
 }

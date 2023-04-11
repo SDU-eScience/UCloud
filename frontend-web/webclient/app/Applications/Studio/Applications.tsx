@@ -16,7 +16,7 @@ import Box from "@/ui-components/Box";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import * as Heading from "@/ui-components/Heading";
 import Input, {HiddenInputField, InputLabel} from "@/ui-components/Input";
-import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
+import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {addStandardDialog} from "@/UtilityComponents";
 import {PropType, stopPropagation} from "@/UtilityFunctions";
 import {compute} from "@/UCloud";
@@ -28,6 +28,7 @@ import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
+import {injectStyleSimple} from "@/Unstyled";
 
 interface AppVersion {
     version: string;
@@ -67,15 +68,21 @@ function prettifyEntityType(entityType: AccessEntityType): string {
     }
 }
 
-const LeftAlignedTableHeader = styled(TableHeader)`
+function LeftAlignedTableHeader(props: React.PropsWithChildren): JSX.Element {
+    return <thead className={LeftAlignedTableHeaderClass}>
+        {props.children}
+    </thead>
+}
+
+const LeftAlignedTableHeaderClass = injectStyleSimple("table-header", `
     text-align: left;
-`;
+`);
 
 export const App: React.FunctionComponent = () => {
     const name = useParams<{name: string}>().name!;
 
     const [commandLoading, invokeCommand] = useCloudCommand();
-    const [logoCacheBust, setLogoCacheBust] = useState("" + Date.now());
+    const [, setLogoCacheBust] = useState("" + Date.now());
     const [access, setAccess] = React.useState<ApplicationAccessRight>("LAUNCH");
     const [allTags, fetchAllTags] = useCloudAPI<string[]>(
         {noop: true},

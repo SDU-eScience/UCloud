@@ -20,7 +20,7 @@ import {VisualizationSection} from "./Resources";
 import formatDistance from "date-fns/formatDistance";
 import {Spacer} from "@/ui-components/Spacer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
-import {isAdminOrPI, useProjectFromParams, useProjectId} from "./Api";
+import {isAdminOrPI, useProjectId} from "./Api";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {useProject} from "./cache";
 

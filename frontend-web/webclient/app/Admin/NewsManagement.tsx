@@ -7,7 +7,6 @@ import * as Pagination from "@/Pagination";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import styled from "styled-components";
 import {
     Box, Button, Flex, Input, List, TextArea, Link, Text, Card, Markdown, SelectableText, Checkbox, Label
 } from "@/ui-components";
@@ -122,8 +121,9 @@ function NewsManagement(): JSX.Element | null {
                                     onClick={() => setPreview(true)}
                                 >Preview</SelectableText>
                             </Flex>
-                            <TextAreaWithResize
+                            <TextArea
                                 width={1}
+                                resize="vertical"
                                 placeholder="Post body... (supports markdown)"
                                 inputRef={bodyRef}
                                 rows={5}
@@ -253,10 +253,6 @@ function NewsManagement(): JSX.Element | null {
         }
     }
 }
-
-const TextAreaWithResize = styled(TextArea)`
-    resize: vertical;
-`;
 
 interface NewsListProps {
     news: NewsPost[];
