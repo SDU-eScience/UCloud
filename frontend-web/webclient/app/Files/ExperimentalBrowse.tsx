@@ -13,12 +13,15 @@ import {createRoot} from "react-dom/client";
 import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {FileIconHint} from "@/Files/index";
+import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 
 const ExperimentalBrowse: React.FunctionComponent = props => {
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browser = useRef<FileBrowser | null>(null);
+    const openTriggeredByPath = useRef<string | null>(null);
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -26,16 +29,34 @@ const ExperimentalBrowse: React.FunctionComponent = props => {
             const fileBrowser = new FileBrowser(mount);
             browser.current = fileBrowser;
             fileBrowser.mount();
-            fileBrowser.navigate = navigate;
+            fileBrowser.onOpen = (path: string) => {
+                if (openTriggeredByPath.current === path) {
+                    openTriggeredByPath.current = null;
+                    return;
+                }
+
+                navigate("?path=" + encodeURIComponent(path));
+            };
         }
     }, []);
 
-    return <MainContainer
-        main={
-            <>
-                <div ref={mountRef}/>
-            </>
+    useLayoutEffect(() => {
+        const b = browser.current;
+        if (!b) return;
+
+        const path = getQueryParamOrElse(location.search, "path", "");
+        if (path) {
+            openTriggeredByPath.current = path;
+            b.open(path);
         }
+    }, [location.search]);
+
+    useRefreshFunction(() => {
+        browser.current?.refresh();
+    });
+
+    return <MainContainer
+        main={<div ref={mountRef}/>}
     />;
 };
 
@@ -209,7 +230,7 @@ class FileBrowser {
     private cachedData: Record<string, UFile[]> = {};
     private currentPath: string = "/4";
 
-    navigate: (to: string) => void = doNothing;
+    public onOpen: (path: string) => void = doNothing;
 
     constructor(root: HTMLDivElement) {
         this.root = root;
@@ -288,7 +309,7 @@ class FileBrowser {
             }
         }, 500);
 
-        this.open(this.currentPath);
+        this.refresh();
     }
 
     private setBreadcrumbs(path: string[]) {
@@ -311,9 +332,17 @@ class FileBrowser {
         this.breadcrumbs.append(fragment);
     }
 
-    open(path: string) {
+    refresh() {
+        this.open(this.currentPath, true);
+    }
+
+    open(path: string, force?: boolean) {
+        if (this.currentPath === path && force !== true) return;
+
         this.currentPath = path;
         this.isFetchingNext = false;
+
+        this.onOpen(path);
 
         this.setBreadcrumbs(path.split("/"));
         this.renderPage();
@@ -545,7 +574,7 @@ class FileBrowser {
                 gap: 8px;
                 user-select: none;
             }
-            
+
             .file-browser .row .title img {
                 margin-right: 8px;
             }
