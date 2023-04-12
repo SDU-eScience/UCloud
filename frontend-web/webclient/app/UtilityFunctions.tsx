@@ -74,7 +74,7 @@ export const commonFileExtensions = [
     "yml", "ini", "sbatch", "code", "png", "gif", "tiff", "eps", "ppm", "svg", "jpg", "jpeg", "image", "txt",
     "doc", "docx", "log", "csv", "tsv", "plist", "out", "err", "text", "pdf", "pdf", "wav", "mp3", "ogg", "aac",
     "pcm", "audio", "mpg", "mp4", "avi", "mov", "wmv", "video", "gz", "zip", "tar", "tgz", "tbz", "bz2", "archive",
-    "dat", "binary"
+    "dat", "binary", "rs",
 ];
 
 export const extensionType = (ext: string): ExtensionType => {
@@ -84,6 +84,7 @@ export const extensionType = (ext: string): ExtensionType => {
         case "md":
         case "markdown":
             return "markdown";
+        case "rs":
         case "zig":
         case "swift":
         case "kt":

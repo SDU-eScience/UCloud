@@ -5,7 +5,7 @@ import {commonFileExtensions, doNothing, extensionFromPath, extensionType, times
 import MainContainer from "@/MainContainer/MainContainer";
 import FilesApi, {UFile} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
-import {fileName} from "@/Utilities/FileUtilities";
+import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {Icon} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
@@ -203,10 +203,16 @@ class SvgCache {
     }
 }
 
+enum SelectionMode {
+    SINGLE,
+    TOGGLE_SINGLE,
+    ADDITIVE_SINGLE,
+    ADDITIVE_LIST,
+}
+
 interface FileRow {
     container: HTMLElement;
-
-    checkbox: HTMLElement;
+    selected: HTMLInputElement;
     favorite: HTMLElement;
     title: HTMLElement;
     stat1: HTMLElement;
@@ -214,13 +220,16 @@ interface FileRow {
     stat3: HTMLElement;
 }
 
-const maxRows = 60;
 
 class FileBrowser {
     private root: HTMLDivElement;
     private breadcrumbs: HTMLUListElement;
     private scrolling: HTMLDivElement;
+    private dragIndicator: HTMLDivElement;
     private rows: FileRow[] = [];
+    private isSelected = new Uint8Array(0);
+    private lastSingleSelection = -1;
+    private lastListSelectionEnd = -1;
     private lastFetch: Record<string, number> = {};
     private inflightRequests: Record<string, Promise<boolean>> = {};
     private isFetchingNext: boolean = false;
@@ -228,7 +237,11 @@ class FileBrowser {
 
     private cachedNext: Record<string, string | null> = {};
     private cachedData: Record<string, UFile[]> = {};
+    private scrollPosition: Record<string, number> = {};
     private currentPath: string = "/4";
+
+    private searchQueryTimeout = -1;
+    private searchQuery = "";
 
     public onOpen: (path: string) => void = doNothing;
 
@@ -249,8 +262,11 @@ class FileBrowser {
                 <div class="scrolling">
                 </div>
             </div>
+            
+            <div class="drag-indicator"></div>
         `;
 
+        this.dragIndicator = this.root.querySelector<HTMLDivElement>(".drag-indicator")!;
         this.scrolling = this.root.querySelector<HTMLDivElement>(".scrolling")!;
         this.scrolling.parentElement!.addEventListener("scroll", () => {
             this.renderPage();
@@ -258,9 +274,18 @@ class FileBrowser {
         });
 
         this.breadcrumbs = this.root.querySelector<HTMLUListElement>("header ul")!;
+        const keyDownListener = (ev: KeyboardEvent) => {
+            if (!this.root.isConnected) {
+                document.removeEventListener("keydown", keyDownListener);
+                return;
+            }
+
+            this.onKeyPress(ev);
+        };
+        document.addEventListener("keydown", keyDownListener);
 
         const rows: HTMLDivElement[] = [];
-        for (let i = 0; i < maxRows; i++) {
+        for (let i = 0; i < FileBrowser.maxRows; i++) {
             const row = div(`
                 <input type="checkbox">
                 <div class="favorite"></div>
@@ -271,17 +296,20 @@ class FileBrowser {
             `);
             row.classList.add("row");
             const myIndex = i;
-            row.addEventListener("pointerdown", () => {
-                this.onRowPointerDown(myIndex);
+            row.addEventListener("pointerdown", e => {
+                this.onRowPointerDown(myIndex, e);
             });
             row.addEventListener("click", () => {
                 this.onRowClicked(myIndex);
-            })
+            });
+            row.addEventListener("dblclick", () => {
+                this.onRowDoubleClicked(myIndex);
+            });
             rows.push(row);
 
             this.rows.push({
                 container: row,
-                checkbox: row.querySelector<HTMLElement>("input")!,
+                selected: row.querySelector<HTMLInputElement>("input")!,
                 favorite: row.querySelector<HTMLElement>(".favorite")!,
                 title: row.querySelector<HTMLElement>(".title")!,
                 stat1: row.querySelector<HTMLElement>(".stat1")!,
@@ -338,11 +366,18 @@ class FileBrowser {
 
     open(path: string, force?: boolean) {
         if (this.currentPath === path && force !== true) return;
+        const oldPath = this.currentPath;
 
         this.currentPath = path;
         this.isFetchingNext = false;
 
         this.onOpen(path);
+        this.isSelected = new Uint8Array(0);
+        this.lastSingleSelection = -1;
+        this.lastListSelectionEnd = -1;
+
+        // NOTE(Dan): Need to get this now before we call renderPage(), since it will reset the scroll position.
+        const scrollPositionElement = this.scrollPosition[path];
 
         this.setBreadcrumbs(path.split("/"));
         this.renderPage();
@@ -354,17 +389,90 @@ class FileBrowser {
             if (this.currentPath !== path) return;
             this.renderPage();
         });
+
+        // NOTE(Dan): We need to scroll to the position _after_ we have rendered the page.
+        this.scrolling.parentElement!.scrollTo({top: scrollPositionElement ?? 0});
+
+        {
+            const toSelect = oldPath;
+            let idx = 0;
+            for (const file of this.cachedData[this.currentPath] ?? []) {
+                if (file.id === toSelect) {
+                    this.select(idx, SelectionMode.SINGLE);
+                    break;
+                }
+
+                idx++;
+            }
+        }
+    }
+
+    select(rowIdx: number, selectionMode: SelectionMode) {
+        const selection = this.isSelected;
+        if (rowIdx < 0 || rowIdx >= selection.length) return;
+
+        switch (selectionMode) {
+            case SelectionMode.SINGLE: {
+                for (let i = 0; i < selection.length; i++) {
+                    if (i === rowIdx) selection[i] = 1;
+                    else selection[i] = 0;
+                }
+                this.lastSingleSelection = rowIdx;
+                this.lastListSelectionEnd = -1;
+                break;
+            }
+
+            case SelectionMode.TOGGLE_SINGLE: {
+                selection[rowIdx] = selection[rowIdx] !== 0 ? 0 : 1;
+                this.lastSingleSelection = rowIdx;
+                this.lastListSelectionEnd = -1;
+                break;
+            }
+
+            case SelectionMode.ADDITIVE_SINGLE: {
+                selection[rowIdx] = 1;
+                this.lastSingleSelection = rowIdx;
+                this.lastListSelectionEnd = -1;
+                break;
+            }
+
+            case SelectionMode.ADDITIVE_LIST: {
+                if (this.lastListSelectionEnd !== -1) {
+                    // Clear old list
+                    const start = Math.min(this.lastSingleSelection, this.lastListSelectionEnd);
+                    const end = Math.max(this.lastSingleSelection, this.lastListSelectionEnd);
+                    for (let i = start; i <= end; i++) {
+                        selection[i] = 0;
+                    }
+                }
+
+                const firstEntry = Math.min(rowIdx, this.lastSingleSelection);
+                const lastEntry = Math.max(rowIdx, this.lastSingleSelection);
+                for (let i = firstEntry; i <= lastEntry; i++) {
+                    selection[i] = 1;
+                }
+                this.lastListSelectionEnd = rowIdx;
+                break;
+            }
+        }
+
+        this.renderPage();
     }
 
     private renderPage() {
         const page = this.cachedData[this.currentPath] ?? [];
+        if (this.isSelected.length < page.length) {
+            const newSelected = new Uint8Array(page.length);
+            newSelected.set(this.isSelected, 0);
+            this.isSelected = newSelected;
+        }
 
         // Determine the total size of the page and figure out where we are
-        const rowSize = 55;
-        const totalSize = rowSize * page.length;
+        const totalSize = FileBrowser.rowSize * page.length;
         const firstVisiblePixel = this.scrolling.parentElement!.scrollTop;
+        this.scrollPosition[this.currentPath] = firstVisiblePixel;
 
-        const firstRowInsideRegion = Math.ceil(firstVisiblePixel / rowSize);
+        const firstRowInsideRegion = Math.ceil(firstVisiblePixel / FileBrowser.rowSize);
         const firstRowToRender = Math.max(0, firstRowInsideRegion - 6);
 
         this.scrolling.style.height = `${totalSize}px`;
@@ -372,17 +480,19 @@ class FileBrowser {
         const findRow = (idx: number): FileRow | null => {
             const rowNumber = idx - firstRowToRender;
             if (rowNumber < 0) return null;
-            if (rowNumber >= maxRows) return null;
+            if (rowNumber >= FileBrowser.maxRows) return null;
             return this.rows[rowNumber];
         }
 
         // Reset rows and place them accordingly
-        for (let i = 0; i < maxRows; i++) {
+        for (let i = 0; i < FileBrowser.maxRows; i++) {
             const row = this.rows[i];
             row.container.classList.add("hidden");
             row.container.removeAttribute("data-file");
+            row.container.removeAttribute("data-selected");
+            row.container.removeAttribute("data-file-idx");
             row.container.style.position = "absolute";
-            const top = Math.min(totalSize - rowSize, (firstRowToRender + i) * rowSize);
+            const top = Math.min(totalSize - FileBrowser.rowSize, (firstRowToRender + i) * FileBrowser.rowSize);
             row.container.style.top = `${top}px`;
             row.title.innerHTML = "";
         }
@@ -393,13 +503,18 @@ class FileBrowser {
             const row = findRow(i);
             if (!row) continue;
 
+            row.container.setAttribute("data-file-idx", i.toString());
             row.container.setAttribute("data-file", file.id);
+            row.container.setAttribute("data-selected", (this.isSelected[i] !== 0).toString());
+            row.selected.checked = (this.isSelected[i] !== 0);
             row.container.classList.remove("hidden");
             row.title.innerText = fileName(file.id);
 
             this.renderFileIcon(file).then(url => {
                 if (row.container.getAttribute("data-file") !== file.id) return;
-                row.title.prepend(image(url, {width: 20, height: 20, alt: "File icon"}));
+                row.title.innerHTML = "";
+                row.title.append(image(url, {width: 20, height: 20, alt: "File icon"}));
+                row.title.append(fileName(file.id));
             });
         }
     }
@@ -504,14 +619,56 @@ class FileBrowser {
         }
     }
 
-    private onRowPointerDown(index: number) {
+    private onRowPointerDown(index: number, event: MouseEvent) {
+        const row = this.rows[index];
+        const filePath = row.container.getAttribute("data-file");
+        const fileIdxS = row.container.getAttribute("data-file-idx");
+        const fileIdx = fileIdxS ? parseInt(fileIdxS) : undefined;
+        if (!filePath || fileIdx == null || isNaN(fileIdx)) return;
+        this.prefetch(filePath);
+
+        {
+            let mode = SelectionMode.SINGLE;
+            if (event.ctrlKey || event.metaKey) mode = SelectionMode.TOGGLE_SINGLE;
+            if (event.shiftKey) mode = SelectionMode.ADDITIVE_LIST;
+            this.select(fileIdx, mode);
+        }
+
+        const startX = event.clientX;
+        const startY = event.clientY;
+
+        this.dragMoveHandler = (e) => {
+            const s = this.dragIndicator.style;
+            s.display = "block";
+            s.left = Math.min(e.clientX, startX) + "px";
+            s.top = Math.min(e.clientY, startY) + "px";
+
+            s.width = Math.abs(e.clientX - startX) + "px";
+            s.height = Math.abs(e.clientY - startY) + "px";
+        };
+
+        this.dragReleaseHandler = () => {
+            this.dragIndicator.style.display = "none";
+            document.removeEventListener("mousemove", this.dragMoveHandler);
+            document.removeEventListener("pointerup", this.dragReleaseHandler);
+        };
+
+        document.addEventListener("mousemove", this.dragMoveHandler);
+        document.addEventListener("pointerup", this.dragReleaseHandler);
+    }
+
+    private dragMoveHandler = (e: MouseEvent) => {
+    };
+    private dragReleaseHandler = () => {
+    };
+
+    private onRowClicked(index: number) {
         const row = this.rows[index];
         const filePath = row.container.getAttribute("data-file");
         if (!filePath) return;
-        this.prefetch(filePath);
     }
 
-    private onRowClicked(index: number) {
+    private onRowDoubleClicked(index: number) {
         const row = this.rows[index];
         const filePath = row.container.getAttribute("data-file");
         if (!filePath) return;
@@ -519,8 +676,133 @@ class FileBrowser {
         this.open(filePath);
     }
 
-    static styleInjected = false;
+    private onKeyPress(ev: KeyboardEvent) {
+        const relativeSelect = (delta: number) => {
+            ev.preventDefault();
+            if (!ev.shiftKey) {
+                const rowIdx = Math.max(0, Math.min(this.isSelected.length - 1, this.lastSingleSelection + delta));
+                this.select(rowIdx, SelectionMode.SINGLE);
+                this.ensureRowIsVisible(rowIdx, delta <= 0);
+            } else {
+                let baseIndex = this.lastListSelectionEnd;
+                if (baseIndex === -1) {
+                    this.select(this.lastSingleSelection, SelectionMode.ADDITIVE_SINGLE);
+                    baseIndex = this.lastSingleSelection;
+                }
+                const rowIdx = Math.max(0, Math.min(this.isSelected.length - 1, baseIndex + delta));
+                this.select(rowIdx, SelectionMode.ADDITIVE_LIST);
+                this.ensureRowIsVisible(rowIdx, delta <= 0);
+            }
+        };
 
+        switch (ev.code) {
+            case "Escape": {
+                const selected = this.isSelected;
+                for (let i = 0; selected.length; i++) {
+                    selected[i] = 0;
+                }
+                this.renderPage();
+                break;
+            }
+
+            case "ArrowUp": {
+                relativeSelect(-1);
+                break;
+            }
+
+            case "ArrowDown": {
+                relativeSelect(1);
+                break;
+            }
+
+            case "Home": {
+                relativeSelect(-1000000000);
+                break;
+            }
+
+            case "End": {
+                relativeSelect(1000000000);
+                break;
+            }
+
+            case "PageUp": {
+                relativeSelect(-50);
+                break;
+            }
+
+            case "PageDown": {
+                relativeSelect(50);
+                break;
+            }
+
+            case "Backspace": {
+                this.open(getParentPath(this.currentPath));
+                break;
+            }
+
+            case "Enter": {
+                const selected = this.isSelected;
+                for (let i = 0; i < selected.length; i++) {
+                    if (selected[i] !== 0) {
+                        const file = this.cachedData[this.currentPath][i];
+                        if (file.status.type === "DIRECTORY") this.open(file.id);
+                        break;
+                    }
+                }
+                break;
+            }
+
+            default: {
+                // NOTE(Dan): Initiate search if the input is printable
+                const printableChar = ev.key;
+                if (printableChar && printableChar.length === 1) {
+                    this.searchQuery += printableChar.toLowerCase();
+                    window.clearTimeout(this.searchQueryTimeout);
+                    this.searchQueryTimeout = window.setTimeout(() => {
+                        this.searchQuery = "";
+                    }, 1000);
+
+                    const files = this.cachedData[this.currentPath] ?? [];
+                    for (let i = 0; i < files.length; i++) {
+                        const name = fileName(files[i].id).toLowerCase();
+                        if (name.indexOf(this.searchQuery) === 0) {
+                            this.select(i, SelectionMode.SINGLE);
+                            this.ensureRowIsVisible(i, true);
+                            break;
+                        }
+                    }
+                }
+
+                console.log(ev.code, ev.key);
+                break;
+            }
+        }
+    }
+
+    private ensureRowIsVisible(rowIdx: number, topAligned: boolean) {
+        const scrollingContainer = this.scrolling.parentElement!;
+        const height = scrollingContainer.getBoundingClientRect().height;
+
+        const firstRowPixel = rowIdx * FileBrowser.rowSize;
+        const lastRowPixel = firstRowPixel + FileBrowser.rowSize;
+
+        const firstVisiblePixel = scrollingContainer.scrollTop;
+        const lastVisiblePixel = firstVisiblePixel + height;
+
+        if (firstRowPixel < firstVisiblePixel || firstRowPixel > lastVisiblePixel ||
+            lastRowPixel < firstVisiblePixel || lastRowPixel > lastVisiblePixel) {
+            if (topAligned) {
+                scrollingContainer.scrollTo({top: firstRowPixel});
+            } else {
+                scrollingContainer.scrollTo({top: lastRowPixel - height});
+            }
+        }
+    }
+
+    static rowSize = 55;
+    static maxRows = Math.max(1080, window.screen.height) / FileBrowser.rowSize;
+
+    static styleInjected = false;
     static injectStyle() {
         if (FileBrowser.styleInjected) return;
         FileBrowser.styleInjected = true;
@@ -528,6 +810,16 @@ class FileBrowser {
         const styleElem = document.createElement("style");
         //language=css
         styleElem.innerText = `
+            .file-browser .drag-indicator {
+                position: fixed;
+                z-index: 10000;
+                background-color: rgba(0, 0, 255, 30%);
+                border: 2px solid blue;
+                display: none;
+                top: 0;
+                left: 0;
+            }
+
             .file-browser {
                 width: 100%;
                 height: calc(100vh - var(--headerHeight) - 32px);
@@ -556,6 +848,12 @@ class FileBrowser {
                 flex-grow: 1;
             }
 
+            .file-browser header ul li::before {
+                display: inline-block;
+                content: '/';
+                margin-right: 8px;
+            }
+
             .file-browser header ul li {
                 list-style: none;
                 margin: 0;
@@ -567,7 +865,7 @@ class FileBrowser {
             .file-browser .row {
                 display: flex;
                 flex-direction: row;
-                height: 55px;
+                height: ${FileBrowser.rowSize}px;
                 width: 100%;
                 align-items: center;
                 border-bottom: 1px solid #96B3F8;
@@ -586,6 +884,10 @@ class FileBrowser {
             .file-browser .row input[type=checkbox] {
                 height: 20px;
                 width: 20px;
+            }
+
+            .file-browser .row[data-selected="true"] {
+                background: #DAE4FD;
             }
 
             .file-browser .row .title {
