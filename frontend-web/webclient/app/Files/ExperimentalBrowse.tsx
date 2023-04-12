@@ -1,11 +1,16 @@
 import * as React from "react";
-import {useLocation, useNavigate} from "react-router";
 import {useLayoutEffect, useRef} from "react";
+import {useLocation, useNavigate} from "react-router";
 import {commonFileExtensions, doNothing, extensionFromPath, extensionType, timestampUnixMs} from "@/UtilityFunctions";
 import MainContainer from "@/MainContainer/MainContainer";
-import FilesApi, {UFile} from "@/UCloud/FilesApi";
+import FilesApi, {
+    FileSensitivityNamespace,
+    FileSensitivityVersion,
+    isSensitivitySupported,
+    UFile, UFileIncludeFlags
+} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
-import {fileName, getParentPath} from "@/Utilities/FileUtilities";
+import {fileName, getParentPath, sizeToString} from "@/Utilities/FileUtilities";
 import {Icon} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
@@ -15,6 +20,16 @@ import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {FileIconHint} from "@/Files/index";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {file, PageV2} from "@/UCloud";
+import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
+import {bulkRequestOf, SensitivityLevel} from "@/DefaultObjects";
+import metadataDocumentApi, {
+    FileMetadataDocumentOrDeleted,
+    FileMetadataDocument,
+    FileMetadataHistory,
+    FileMetadataDocumentStatus
+} from "@/UCloud/MetadataDocumentApi";
 
 const ExperimentalBrowse: React.FunctionComponent = props => {
     const navigate = useNavigate();
@@ -161,7 +176,7 @@ class SvgCache {
         // NOTE(Dan): CSS is not inherited, compute the real color.
         data.setAttribute("color", colorHint ?? window.getComputedStyle(data).color);
 
-        // NOTE(Dan): The font-family is not (along with all other CSS) not inherited into the image below. As a result,
+        // NOTE(Dan): The font-family is not (along with all other CSS) inherited into the image below. As a result,
         // we must embed all of these resources directly into the svg. For the font, we simply choose to use a simple
         // font similar to what we use. Note that it is complicated, although possible, to load the actual font. But
         // we would need to actually embed it in the style sheet (as in the font data, not just font reference).
@@ -220,7 +235,6 @@ interface FileRow {
     stat3: HTMLElement;
 }
 
-
 class FileBrowser {
     private root: HTMLDivElement;
     private breadcrumbs: HTMLUListElement;
@@ -242,6 +256,10 @@ class FileBrowser {
 
     private searchQueryTimeout = -1;
     private searchQuery = "";
+
+    private ignoreScrollEvent = false;
+    private scrollingContainerWidth;
+    private scrollingContainerHeight;
 
     public onOpen: (path: string) => void = doNothing;
 
@@ -269,6 +287,11 @@ class FileBrowser {
         this.dragIndicator = this.root.querySelector<HTMLDivElement>(".drag-indicator")!;
         this.scrolling = this.root.querySelector<HTMLDivElement>(".scrolling")!;
         this.scrolling.parentElement!.addEventListener("scroll", () => {
+            if (this.ignoreScrollEvent) {
+                this.ignoreScrollEvent = false;
+                return;
+            }
+
             this.renderPage();
             this.fetchNext();
         });
@@ -307,7 +330,7 @@ class FileBrowser {
             });
             rows.push(row);
 
-            this.rows.push({
+            const r = {
                 container: row,
                 selected: row.querySelector<HTMLInputElement>("input")!,
                 favorite: row.querySelector<HTMLElement>(".favorite")!,
@@ -315,7 +338,30 @@ class FileBrowser {
                 stat1: row.querySelector<HTMLElement>(".stat1")!,
                 stat2: row.querySelector<HTMLElement>(".stat2")!,
                 stat3: row.querySelector<HTMLElement>(".stat3")!,
+            };
+
+            r.selected.addEventListener("pointerdown", e => {
+                e.preventDefault();
+                e.stopPropagation();
             });
+
+            r.selected.addEventListener("click", e => {
+                e.stopPropagation();
+                this.select(myIndex, SelectionMode.TOGGLE_SINGLE);
+            });
+
+            r.favorite.addEventListener("pointerdown", e => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            r.favorite.addEventListener("click", e => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.onFavoriteClicked(myIndex);
+            });
+
+            this.rows.push(r);
         }
 
         this.scrolling.append(...rows);
@@ -336,6 +382,22 @@ class FileBrowser {
                 this.renderFileIconFromProperties(fileFormat, false).then(doNothing);
             }
         }, 500);
+
+        {
+            const sizeListener = () => {
+                if (!this.root.isConnected) {
+                    window.removeEventListener("resize", sizeListener);
+                    return;
+                }
+
+                const parent = this.scrolling.parentElement!;
+                const rect = parent.getBoundingClientRect();
+                this.scrollingContainerWidth = rect.width;
+                this.scrollingContainerHeight = rect.height;
+            };
+            window.addEventListener("resize", sizeListener);
+            sizeListener();
+        }
 
         this.refresh();
     }
@@ -375,6 +437,9 @@ class FileBrowser {
         this.isSelected = new Uint8Array(0);
         this.lastSingleSelection = -1;
         this.lastListSelectionEnd = -1;
+        window.clearTimeout(this.searchQueryTimeout);
+        this.searchQueryTimeout = -1;
+        this.searchQuery = "";
 
         // NOTE(Dan): Need to get this now before we call renderPage(), since it will reset the scroll position.
         const scrollPositionElement = this.scrollPosition[path];
@@ -407,7 +472,7 @@ class FileBrowser {
         }
     }
 
-    select(rowIdx: number, selectionMode: SelectionMode) {
+    select(rowIdx: number, selectionMode: SelectionMode, render: boolean = true) {
         const selection = this.isSelected;
         if (rowIdx < 0 || rowIdx >= selection.length) return;
 
@@ -456,7 +521,7 @@ class FileBrowser {
             }
         }
 
-        this.renderPage();
+        if (render) this.renderPage();
     }
 
     private renderPage() {
@@ -473,7 +538,7 @@ class FileBrowser {
         this.scrollPosition[this.currentPath] = firstVisiblePixel;
 
         const firstRowInsideRegion = Math.ceil(firstVisiblePixel / FileBrowser.rowSize);
-        const firstRowToRender = Math.max(0, firstRowInsideRegion - 6);
+        const firstRowToRender = Math.max(0, firstRowInsideRegion - FileBrowser.extraRowsToPreRender);
 
         this.scrolling.style.height = `${totalSize}px`;
 
@@ -484,6 +549,16 @@ class FileBrowser {
             return this.rows[rowNumber];
         }
 
+        // Check if any item has been selected
+        let hasAnySelected = false;
+        const selection = this.isSelected;
+        for (let i = 0; i < selection.length; i++) {
+            if (selection[i] !== 0) {
+                hasAnySelected = true;
+                break;
+            }
+        }
+
         // Reset rows and place them accordingly
         for (let i = 0; i < FileBrowser.maxRows; i++) {
             const row = this.rows[i];
@@ -492,6 +567,8 @@ class FileBrowser {
             row.container.removeAttribute("data-selected");
             row.container.removeAttribute("data-file-idx");
             row.container.style.position = "absolute";
+            row.selected.style.display = hasAnySelected ? "block" : "none";
+            row.favorite.style.display = hasAnySelected ? "none" : "block";
             const top = Math.min(totalSize - FileBrowser.rowSize, (firstRowToRender + i) * FileBrowser.rowSize);
             row.container.style.top = `${top}px`;
             row.title.innerHTML = "";
@@ -509,6 +586,39 @@ class FileBrowser {
             row.selected.checked = (this.isSelected[i] !== 0);
             row.container.classList.remove("hidden");
             row.title.innerText = fileName(file.id);
+            row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
+            row.stat3.innerText = sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null);
+
+            if (!hasAnySelected) {
+                FileBrowser.findFavoriteStatus(file).then(async (isFavorite) => {
+                    const icon = await this.icons.renderIcon({
+                        name: (isFavorite ? "starFilled" : "starEmpty"),
+                        color: (isFavorite ? "blue" : "midGray"),
+                        color2: "midGray",
+                        height: 64,
+                        width: 64
+                    });
+
+                    if (row.container.getAttribute("data-file") !== file.id) return;
+
+                    row.favorite.innerHTML = "";
+                    row.favorite.append(image(icon, {width: 20, height: 20, alt: "Star"}))
+                    row.favorite.style.cursor = "pointer";
+                });
+            }
+
+            FileBrowser.findSensitivity(file).then(sensitivity => {
+                if (row.container.getAttribute("data-file") !== file.id) return;
+                row.stat1.innerHTML = "";
+                if (!sensitivity) return;
+
+                const badge = div("");
+                badge.classList.add("sensitivity-badge");
+                badge.classList.add(sensitivity.toString());
+                badge.innerText = sensitivity.toString()[0];
+
+                row.stat1.append(badge);
+            });
 
             this.renderFileIcon(file).then(url => {
                 if (row.container.getAttribute("data-file") !== file.id) return;
@@ -572,12 +682,20 @@ class FileBrowser {
         );
     }
 
+    private static defaultRetrieveFlags: Partial<UFileIncludeFlags> = {
+        includeMetadata: true,
+        includeSizes: true,
+        includeTimestamps: true,
+        includeUnixInfo: true,
+        allowUnsupportedInclude: true,
+    };
+
     private prefetch(path: string): Promise<boolean> {
         const now = timestampUnixMs();
         if (now - (this.lastFetch[path] ?? 0) < 500) return this.inflightRequests[path] ?? Promise.resolve(true);
         this.lastFetch[path] = now;
 
-        const promise = callAPI(FilesApi.browse({path, itemsPerPage: 250, includeMetadata: true}))
+        const promise = callAPI(FilesApi.browse({path, itemsPerPage: 250, ...FileBrowser.defaultRetrieveFlags}))
             .then(result => {
                 this.cachedData[path] = result.items;
                 this.cachedNext[path] = result.next ?? null;
@@ -604,8 +722,8 @@ class FileBrowser {
                 FilesApi.browse({
                     path: this.currentPath,
                     itemsPerPage: 250,
-                    includeMetadata: true,
-                    next: this.cachedNext[initialPath] ?? undefined
+                    next: this.cachedNext[initialPath] ?? undefined,
+                    ...FileBrowser.defaultRetrieveFlags,
                 })
             );
 
@@ -676,29 +794,42 @@ class FileBrowser {
         this.open(filePath);
     }
 
+    private onFavoriteClicked(index: number) {
+        const row = this.rows[index];
+        const fileIdx = parseInt(row.container.getAttribute("data-file-idx") ?? "a");
+        if (isNaN(fileIdx)) return;
+
+        const page = this.cachedData[this.currentPath] ?? [];
+        if (fileIdx < 0 || fileIdx >= page.length) return;
+        (async () => {
+            const currentStatus = await FileBrowser.findFavoriteStatus(page[fileIdx]);
+            await this.setFavoriteStatus(page[fileIdx], !currentStatus);
+        })();
+    }
+
     private onKeyPress(ev: KeyboardEvent) {
         const relativeSelect = (delta: number) => {
             ev.preventDefault();
             if (!ev.shiftKey) {
                 const rowIdx = Math.max(0, Math.min(this.isSelected.length - 1, this.lastSingleSelection + delta));
+                this.ensureRowIsVisible(rowIdx, delta <= 0, true);
                 this.select(rowIdx, SelectionMode.SINGLE);
-                this.ensureRowIsVisible(rowIdx, delta <= 0);
             } else {
                 let baseIndex = this.lastListSelectionEnd;
                 if (baseIndex === -1) {
-                    this.select(this.lastSingleSelection, SelectionMode.ADDITIVE_SINGLE);
+                    this.select(this.lastSingleSelection, SelectionMode.ADDITIVE_SINGLE, false);
                     baseIndex = this.lastSingleSelection;
                 }
                 const rowIdx = Math.max(0, Math.min(this.isSelected.length - 1, baseIndex + delta));
+                this.ensureRowIsVisible(rowIdx, delta <= 0, true);
                 this.select(rowIdx, SelectionMode.ADDITIVE_LIST);
-                this.ensureRowIsVisible(rowIdx, delta <= 0);
             }
         };
 
         switch (ev.code) {
             case "Escape": {
                 const selected = this.isSelected;
-                for (let i = 0; selected.length; i++) {
+                for (let i = 0; i < selected.length; i++) {
                     selected[i] = 0;
                 }
                 this.renderPage();
@@ -766,22 +897,20 @@ class FileBrowser {
                     for (let i = 0; i < files.length; i++) {
                         const name = fileName(files[i].id).toLowerCase();
                         if (name.indexOf(this.searchQuery) === 0) {
+                            this.ensureRowIsVisible(i, true, true);
                             this.select(i, SelectionMode.SINGLE);
-                            this.ensureRowIsVisible(i, true);
                             break;
                         }
                     }
                 }
-
-                console.log(ev.code, ev.key);
                 break;
             }
         }
     }
 
-    private ensureRowIsVisible(rowIdx: number, topAligned: boolean) {
+    private ensureRowIsVisible(rowIdx: number, topAligned: boolean, ignoreEvent: boolean = false) {
         const scrollingContainer = this.scrolling.parentElement!;
-        const height = scrollingContainer.getBoundingClientRect().height;
+        const height = this.scrollingContainerHeight;
 
         const firstRowPixel = rowIdx * FileBrowser.rowSize;
         const lastRowPixel = firstRowPixel + FileBrowser.rowSize;
@@ -791,18 +920,125 @@ class FileBrowser {
 
         if (firstRowPixel < firstVisiblePixel || firstRowPixel > lastVisiblePixel ||
             lastRowPixel < firstVisiblePixel || lastRowPixel > lastVisiblePixel) {
+            if (ignoreEvent) this.ignoreScrollEvent = true;
+
             if (topAligned) {
                 scrollingContainer.scrollTo({top: firstRowPixel});
             } else {
                 scrollingContainer.scrollTo({top: lastRowPixel - height});
             }
+
+            if (ignoreEvent) this.fetchNext();
         }
     }
 
+    private static metadataTemplateCache = new AsyncCache<string>();
+
+    private static async findTemplateId(file: UFile, namespace: string, version: string): Promise<string> {
+        const template = Object.values(file.status.metadata?.templates ?? {}).find(it =>
+            it.namespaceName === namespace && it.version == version
+        );
+
+        if (!template) {
+            return FileBrowser.metadataTemplateCache.retrieve(namespace, async () => {
+                const page = await callAPI<PageV2<FileMetadataTemplateNamespace>>(
+                    MetadataNamespaceApi.browse({filterName: namespace, itemsPerPage: 250})
+                );
+                if (page.items.length === 0) return "";
+                return page.items[0].id;
+            });
+        }
+
+        return template.namespaceId;
+    }
+
+    private static async findSensitivity(file: UFile): Promise<SensitivityLevel> {
+        if (!isSensitivitySupported(file)) return SensitivityLevel.PRIVATE;
+
+        const sensitivityTemplateId = await FileBrowser.findTemplateId(file, FileSensitivityNamespace,
+            FileSensitivityVersion);
+        if (!sensitivityTemplateId) return SensitivityLevel.PRIVATE;
+
+        const entry = file.status.metadata?.metadata[sensitivityTemplateId]?.[0];
+        if (!entry || entry.type === "deleted") return SensitivityLevel.PRIVATE;
+        return entry.specification.document.sensitivity;
+    }
+
+    private async setFavoriteStatus(file: UFile, isFavorite: boolean, render: boolean = true) {
+        const templateId = await FileBrowser.findTemplateId(file, "favorite", "1.0.0");
+        if (!templateId) return;
+        const currentMetadata: FileMetadataHistory = file.status.metadata ?? {metadata: {}, templates: {}}
+        const favorites: FileMetadataDocumentOrDeleted[] = currentMetadata.metadata[templateId] ?? [];
+        let mostRecentStatusId = "";
+        for (let i = 0; i < favorites.length; i++) {
+            if (favorites[i].id === "fake_entry") continue;
+            if (favorites[i].type !== "metadata") continue;
+
+            mostRecentStatusId = favorites[i].id;
+            break;
+        }
+
+        favorites.unshift({
+            type: "metadata",
+            status: {
+                approval: { type: "not_required" },
+            },
+            createdAt: 0,
+            createdBy: "",
+            specification: {
+                templateId: templateId!,
+                changeLog: "",
+                document: { favorite: isFavorite } as Record<string, any>,
+                version: "1.0.0",
+            },
+            id: "fake_entry",
+        })
+
+        currentMetadata.metadata[templateId] = favorites;
+        file.status.metadata = currentMetadata;
+
+        if (!isFavorite) {
+            callAPI(
+                metadataDocumentApi.delete(
+                    bulkRequestOf({
+                        changeLog: "Remove favorite",
+                        id: mostRecentStatusId
+                    })
+                )
+            ).then(doNothing);
+        } else {
+            callAPI(
+                metadataDocumentApi.create(bulkRequestOf({
+                        fileId: file.id,
+                        metadata: {
+                            document: {favorite: isFavorite},
+                            version: "1.0.0",
+                            changeLog: "New favorite status",
+                            templateId: templateId
+                        }
+                    })
+                )
+            ).then(doNothing);
+        }
+
+        if (render) this.renderPage();
+    }
+
+    private static async findFavoriteStatus(file: UFile): Promise<boolean> {
+        const templateId = await FileBrowser.findTemplateId(file, "favorite", "1.0.0");
+        if (!templateId) return false;
+
+        const entry = file.status.metadata?.metadata[templateId]?.[0];
+        if (!entry || entry.type === "deleted") return false;
+        return entry.specification.document.favorite;
+    }
+
     static rowSize = 55;
-    static maxRows = Math.max(1080, window.screen.height) / FileBrowser.rowSize;
+    static extraRowsToPreRender = 6;
+    static maxRows = (Math.max(1080, window.screen.height) / FileBrowser.rowSize) + FileBrowser.extraRowsToPreRender;
 
     static styleInjected = false;
+
     static injectStyle() {
         if (FileBrowser.styleInjected) return;
         FileBrowser.styleInjected = true;
@@ -871,6 +1107,7 @@ class FileBrowser {
                 border-bottom: 1px solid #96B3F8;
                 gap: 8px;
                 user-select: none;
+                padding: 0 8px;
             }
 
             .file-browser .row .title img {
@@ -891,7 +1128,39 @@ class FileBrowser {
             }
 
             .file-browser .row .title {
-                flex-grow: 1;
+                width: 56%;
+            }
+
+            .file-browser .row .stat1,
+            .file-browser .row .stat2,
+            .file-browser .row .stat3 {
+                display: flex;
+                justify-content: end;
+                text-align: end;
+                width: 13%;
+            }
+
+            .file-browser .sensitivity-badge {
+                height: 2em;
+                width: 2em;
+                display: flex;
+                margin-right: 5px;
+                align-items: center;
+                justify-content: center;
+                border: 0.2em solid var(--badgeColor, var(--midGray));
+                border-radius: 100%;
+            }
+
+            .file-browser .sensitivity-badge.PRIVATE {
+                --badgeColor: var(--midGray);
+            }
+
+            .file-browser .sensitivity-badge.CONFIDENTIAL {
+                --badgeColor: var(--purple);
+            }
+
+            .file-browser .sensitivity-badge.SENSITIVE {
+                --badgeColor: #ff0004;
             }
         `;
         document.head.append(styleElem);

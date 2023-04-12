@@ -20,7 +20,7 @@ import {
     sizeToString
 } from "@/Utilities/FileUtilities";
 import {
-    displayErrorMessageOrDefault, doNothing, extensionFromPath, inDevEnvironment, 
+    displayErrorMessageOrDefault, doNothing, extensionFromPath, inDevEnvironment,
     onDevSite,
     prettierString, removeTrailingSlash
 } from "@/UtilityFunctions";
@@ -152,7 +152,7 @@ interface ExtraCallbacks {
     setSynchronization?: (file: UFile, shouldAdd: boolean) => void;
 }
 
-function isSensitivitySupported(resource: UFile): boolean {
+export function isSensitivitySupported(resource: UFile): boolean {
     // NOTE(Dan): This is a temporary frontend workaround. A proper backend solution will be implemented at a later
     // point in time. For the time being we will simply use a list of supported providers on the frontend. This list
     // contains the known production providers which support sensitive data. This list will also contain some "fake"
@@ -177,8 +177,8 @@ function isSensitivitySupported(resource: UFile): boolean {
     }
 }
 
-const FileSensitivityVersion = "1.0.0";
-const FileSensitivityNamespace = "sensitivity";
+export const FileSensitivityVersion = "1.0.0";
+export const FileSensitivityNamespace = "sensitivity";
 type SensitivityLevel = | "PRIVATE" | "SENSITIVE" | "CONFIDENTIAL";
 let sensitivityTemplateId = "";
 async function findSensitivityWithFallback(file: UFile): Promise<SensitivityLevel> {
