@@ -112,8 +112,8 @@ class AccountingController(
             )
         }
 
-        implementOrDispatch(Wallets.testResetCaches) {
-            ok(accounting.resetCache())
+        implementOrDispatch(Wallets.resetState) {
+            ok(accounting.resetState())
         }
 
         implement(Wallets.searchSubAllocations) {

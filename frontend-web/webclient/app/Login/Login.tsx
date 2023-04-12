@@ -253,7 +253,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                             <LoginTextSpan fontSize={2} ml="2.5em">Login</LoginTextSpan>
                         </Button>
                     </a>
-                    <Text onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other login options →</Text>
+                    <Text color="#000" onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other login options →</Text>
                 </>) : null}
                 {(!challengeId) ? (
                     !isPasswordReset ? (!showingWayf ? (
@@ -280,7 +280,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                     </Link>
                                 </Box>
                             </DropdownLike>
-                            <Text mt="8px" cursor="pointer" onClick={() => setShowingWayf(true)} textAlign="center">← Wayf login</Text>
+                            <Text mt="8px" color="#000" cursor="pointer" onClick={() => setShowingWayf(true)} textAlign="center">← Wayf login</Text>
                         </>
                     ) : null) : (
                         resetToken == null ? (
