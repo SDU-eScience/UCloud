@@ -149,8 +149,6 @@ class AsyncDBSessionFactory(
 
     override suspend fun commit(session: AsyncDBConnection) {
         session.sendQuery("commit")
-        println("-".repeat(10))
-        println("commit")
         debug.system.databaseTransaction(
             MessageImportance.THIS_IS_NORMAL,
             DBTransactionEvent.COMMIT
@@ -172,8 +170,6 @@ class AsyncDBSessionFactory(
     override suspend fun rollback(session: AsyncDBConnection) {
         session.sendQuery("rollback")
 
-        println("-".repeat(10))
-        println("rollback")
         debug.system.databaseTransaction(
             MessageImportance.THIS_IS_NORMAL,
             DBTransactionEvent.ROLLBACK

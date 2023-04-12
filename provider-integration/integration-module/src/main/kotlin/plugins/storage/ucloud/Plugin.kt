@@ -101,7 +101,7 @@ class UCloudFilePlugin : FilePlugin {
         directoryStats = FastDirectoryStats(driveLocator, fs)
         queries = FileQueries(pathConverter, NonDistributedStateFactory(), fs, trash, directoryStats)
         downloads = DownloadService(pathConverter, fs)
-        limitChecker = LimitChecker(dbConnection, rpcClient)
+        limitChecker = LimitChecker(dbConnection, rpcClient, pathConverter)
         memberFiles = MemberFiles(fs, pathConverter)
         tasks = TaskSystem(dbConnection, pathConverter, fs, Dispatchers.IO, rpcClient, debugSystem)
         uploads = ChunkedUploadService(pathConverter, fs)

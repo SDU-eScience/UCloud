@@ -1,4 +1,4 @@
-FROM dreg.cloud.sdu.dk/ucloud/base:2021.3.0
+FROM dreg.cloud.sdu.dk/ucloud/base:2023.1.0
 EXPOSE 25
 USER 0
 RUN apt-get update

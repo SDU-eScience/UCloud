@@ -218,7 +218,7 @@ private object DriveAndSystemStore {
                 .mapNotNull { drive ->
                     runCatching {
                         UCloudDrive.parse(drive.id.toLong(), drive.providerGeneratedId).also {
-                            it.project = drive.owner.project
+                            if (drive.providerGeneratedId != null) it.project = drive.owner.project
                         }
                     }.getOrNull()
                 }
