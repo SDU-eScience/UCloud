@@ -490,6 +490,10 @@ class AccountingProcessor(
     private suspend fun becomeMasterAndListen(lock: DistributedLock) {
         val didAcquire = disableMasterElection || lock.acquire()
         if (!didAcquire) return
+
+        //resetting state, so we do not attempt to load into already existing in-mem DB resulting i conflicts
+        resetState()
+
         log.info("This service has become the master responsible for handling Accounting proccessor events!")
         activeProcessor.set(ActiveProcessor(addressToSelf))
         isActiveProcessor = true
@@ -574,15 +578,17 @@ class AccountingProcessor(
         }
     }
 
-    /**
-     * Only for testing
-     */
-    suspend fun clearCache() {
+    suspend fun resetState() {
         dirtyTransactions.clear()
         wallets.clear()
         allocations.clear()
         walletsIdGenerator = 0
         allocationIdGenerator = 0
+        requestsHandled = 0
+        slowestRequest = 0L
+        slowestRequestName = "?"
+        requestTimeSum = 0L
+        lastSync = Time.now()
     }
 
     private suspend fun handleRequest(request: AccountingRequest): AccountingResponse {
@@ -1307,14 +1313,14 @@ class AccountingProcessor(
     // Deposits
     // =================================================================================================================
     private suspend fun rootDeposit(request: AccountingRequest.RootDeposit): AccountingResponse {
-        if (request.amount < 0) return AccountingResponse.Error("Cannot deposit with a negative balance")
+        if (request.amount < 0) return AccountingResponse.Error("Cannot deposit with a negative balance", 400)
         if (request.actor != Actor.System) {
-            return AccountingResponse.Error("Only UCloud administrators can perform a root deposit")
+            return AccountingResponse.Error("Only UCloud administrators can perform a root deposit", 403)
         }
 
         val existingWallet = findWallet(request.owner, request.productCategory)
             ?: createWallet(request.owner, request.productCategory)
-            ?: return AccountingResponse.Error("Unknown product category.")
+            ?: return AccountingResponse.Error("Unknown product category.", 400)
 
         val start = getTime(atStartOfDay = true)
         val created = createAllocation(
@@ -1358,10 +1364,10 @@ class AccountingProcessor(
     }
 
     private suspend fun deposit(request: AccountingRequest.Deposit): AccountingResponse {
-        if (request.amount < 0) return AccountingResponse.Error("Cannot deposit with a negative balance")
+        if (request.amount < 0) return AccountingResponse.Error("Cannot deposit with a negative balance", 400)
 
         val parent = allocations.getOrNull(request.parentAllocation)
-            ?: return AccountingResponse.Error("Bad parent allocation")
+            ?: return AccountingResponse.Error("Bad parent allocation", 400)
 
         if (request.actor != Actor.System) {
             val wallet = wallets[parent.associatedWallet]!!
@@ -1424,8 +1430,8 @@ class AccountingProcessor(
     // =================================================================================================================
     private suspend fun charge(request: AccountingRequest.Charge): AccountingResponse {
         val charge = describeCharge(request.actor, request)
-            ?: return AccountingResponse.Error("Could not find product information in charge request.")
-        if (charge.amount < 0) return AccountingResponse.Error("Cannot charge a negative amount")
+            ?: return AccountingResponse.Error("Could not find product information in charge request.", 400)
+        if (charge.amount < 0) return AccountingResponse.Error("Cannot charge a negative amount", 400)
         if (charge.isFree) return AccountingResponse.Charge(true)
 
         val wallet = findWallet(request.owner, request.productCategory)
@@ -1725,12 +1731,12 @@ class AccountingProcessor(
     // Update
     // =================================================================================================================
     private suspend fun update(request: AccountingRequest.Update): AccountingResponse {
-        if (request.amount < 0) return AccountingResponse.Error("Cannot update to a negative balance")
+        if (request.amount < 0) return AccountingResponse.Error("Cannot update to a negative balance", 400)
         val allocation = allocations.getOrNull(request.allocationId)
-            ?: return AccountingResponse.Error("Invalid allocation id supplied")
+            ?: return AccountingResponse.Error("Invalid allocation id supplied", 400)
 
         val wallet = wallets[allocation.associatedWallet]
-            ?: return AccountingResponse.Error("Invalid allocation id supplied")
+            ?: return AccountingResponse.Error("Invalid allocation id supplied", 400)
 
         if (request.actor != Actor.System) {
             val parentAllocation =
@@ -1738,7 +1744,7 @@ class AccountingProcessor(
                 else allocations[allocation.parentAllocation]
 
             if (parentAllocation == null) {
-                return AccountingResponse.Error("You are not allowed to manage this allocation.")
+                return AccountingResponse.Error("You are not allowed to manage this allocation.", 403)
             }
 
             val role = projects.retrieveProjectRole(
@@ -1747,7 +1753,7 @@ class AccountingProcessor(
             )
 
             if (role?.isAdmin() != true) {
-                return AccountingResponse.Error("You are not allowed to manage this allocation.")
+                return AccountingResponse.Error("You are not allowed to manage this allocation.", 403)
             }
         }
 
@@ -1976,7 +1982,8 @@ class AccountingProcessor(
                     workspaceIsProject = wall.owner.matches(UUID_REGEX),
                     projectPI = projectInfo.second,
                     remaining = allocation.currentBalance,
-                    initialBalance = allocation.initialBalance
+                    initialBalance = allocation.initialBalance,
+                    grantedIn = allocation.grantedIn
                 )
             } else null
         }

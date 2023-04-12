@@ -128,7 +128,8 @@ class Server(override val micro: Micro) : CommonServer {
             fileCollections,
             ingressService,
             networkService,
-            licenseService
+            licenseService,
+            serviceClient
         )
 
         runBlocking { jobMonitoring.initialize(!micro.developmentModeEnabled) }
