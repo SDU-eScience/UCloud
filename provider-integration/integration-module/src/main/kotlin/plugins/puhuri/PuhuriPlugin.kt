@@ -9,8 +9,8 @@ import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.controllers.ResourceOwnerWithId
 import dk.sdu.cloud.dbConnection
-import dk.sdu.cloud.debug.MessageImportance
-import dk.sdu.cloud.debug.enterContext
+import dk.sdu.cloud.debug.DebugContextType
+import dk.sdu.cloud.debug.normal
 import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.ipc.IpcContainer
@@ -561,7 +561,7 @@ class PuhuriClient(
     }
 
     suspend fun lookupProject(ucloudProjectId: String): PuhuriProject? {
-        return debugSystem.enterContext("lookupProject $ucloudProjectId") {
+        return debugSystem.useContext(DebugContextType.BACKGROUND_TASK, "lookupProject $ucloudProjectId") {
             val resp = httpClient.get(
                 apiPath("projects") + "?backend_id=$ucloudProjectId",
                 apiRequest()
@@ -570,10 +570,9 @@ class PuhuriClient(
             val results = defaultMapper.decodeFromString(ListSerializer(PuhuriProject.serializer()), resp.bodyAsText())
 
             if (results.isNotEmpty()) {
-                logExit(
+                debugSystem.normal(
                     "Response",
                     defaultMapper.encodeToJsonElement(PuhuriProject.serializer().nullable, results.getOrNull(0)) as JsonObject,
-                    MessageImportance.IMPLEMENTATION_DETAIL
                 )
 
                 results[0]

@@ -63,6 +63,7 @@ class AccountingCorrectnessTest : IntegrationTest() {
                                             initialRootWallets.first().allocations.first().id,
                                             10000,
                                             "another deposit",
+                                            grantedIn = null
                                         )
                                     ),
                                     adminClient

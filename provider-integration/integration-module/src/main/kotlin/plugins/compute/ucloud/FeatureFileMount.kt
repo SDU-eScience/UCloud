@@ -12,13 +12,17 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.InternalFile
-import dk.sdu.cloud.plugins.RelativeInternalFile
+import dk.sdu.cloud.plugins.PathLike
 import dk.sdu.cloud.plugins.UCloudFile
+import dk.sdu.cloud.plugins.child
 import dk.sdu.cloud.plugins.normalize
 import dk.sdu.cloud.plugins.storage.ucloud.*
 import dk.sdu.cloud.prettyMapper
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.utils.writeString
+import io.ktor.utils.io.pool.*
+import java.nio.CharBuffer
 
 /**
  * A plugin which mounts user-input into the containers
@@ -34,35 +38,17 @@ class FeatureFileMount(
         val project = job.owner.project
 
         val jobResources = resources.findResources(job)
-        memberFiles.initializeMemberFiles(username, project)
-
-        val file = if (project != null) {
-            pathConverter.relativeToInternal(
-                RelativeInternalFile(
-                    joinPath(
-                        PathConverter.PROJECT_DIRECTORY,
-                        project,
-                        PERSONAL_REPOSITORY,
-                        username,
-                        JOBS_FOLDER,
-                        jobResources.application.metadata.title,
-                        if (job.specification.name != null) "${job.specification.name} (${job.id})" else job.id
-                    ).removeSuffix("/")
-                )
+        val internalHome = memberFiles.initializeMemberFiles(username, project)
+        val file = internalHome
+            .child(JOBS_FOLDER)
+            .child(jobResources.application.metadata.title)
+            .child(
+                if (job.specification.name != null) {
+                    "${job.specification.name} (${job.id})"
+                } else {
+                    job.id
+                }
             )
-        } else {
-            pathConverter.relativeToInternal(
-                RelativeInternalFile(
-                    joinPath(
-                        PathConverter.HOME_DIRECTORY,
-                        username,
-                        JOBS_FOLDER,
-                        jobResources.application.metadata.title,
-                        if (job.specification.name != null) "${job.specification.name} (${job.id})" else job.id
-                    )
-                )
-            )
-        }
 
         if (initializeFolder) {
             try {
@@ -83,9 +69,9 @@ class FeatureFileMount(
                     ).removeSuffix("/")
                 )
                 try {
-                    fs.openForWriting(jobParamsFile, WriteConflictPolicy.RENAME).second.bufferedWriter().use {
-                        @Suppress("BlockingMethodInNonBlockingContext")
-                        it.write(prettyMapper.encodeToString(ExportedParameters.serializer(), jobParameterJson))
+                    fs.openForWriting(jobParamsFile, WriteConflictPolicy.RENAME).second.use {
+                        val jsonString = prettyMapper.encodeToString(ExportedParameters.serializer(), jobParameterJson)
+                        it.writeString(jsonString)
                     }
                 } catch (ex: Throwable) {
                     log.warn("Unable to create JobParameters.json for job: ${job.id} ${jobParamsFile}. ${ex.stackTraceToString()}")
@@ -97,7 +83,7 @@ class FeatureFileMount(
     }
 
     override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
-        data class FileMount(val path: String, val readOnly: Boolean) {
+        data class FileMount(val system: FsSystem, val path: String, val readOnly: Boolean) {
             val fileName = path.normalize().fileName()
         }
 
@@ -111,15 +97,15 @@ class FeatureFileMount(
 
         val fileMounts = run {
             val allMounts = job.files.map {
-                val internalFile = pathConverter.ucloudToRelative(UCloudFile.create(it.path))
-                FileMount(internalFile.path, it.readOnly)
+                val internalFile = ucloudToRelative(UCloudFile.create(it.path))
+                FileMount(internalFile.system, internalFile.relativePath, it.readOnly)
             }
 
             allMounts.associateBy { it.path }.values
         }
 
         val jobFolder = findJobFolder(job, initializeFolder = true)
-        val relativeJobFolder = pathConverter.internalToRelative(jobFolder)
+        val relativeJobFolder = internalToRelative(jobFolder)
         val ucloudJobFolder = pathConverter.internalToUCloud(jobFolder)
 
         val jobFolderCollection = ucloudJobFolder.path.components().getOrNull(0)
@@ -130,15 +116,14 @@ class FeatureFileMount(
             bulkRequestOf(
                 ResourceUpdateAndId(
                     job.id,
-                    JobUpdate(
-                        outputFolder = ucloudJobFolder.path
-                    )
+                    JobUpdate(outputFolder = ucloudJobFolder.path)
                 )
             ),
             k8.serviceClient
         ).orRethrowAs { throw RPCException("Internal error - Could not add output folder", HttpStatusCode.BadGateway) }
 
         builder.mountUCloudFileSystem(
+            relativeJobFolder.system,
             relativeJobFolder.normalize().path.removePrefix("/"),
             "/work",
             readOnly = false
@@ -146,6 +131,7 @@ class FeatureFileMount(
 
         fileMounts.forEach { mount ->
             builder.mountUCloudFileSystem(
+                mount.system,
                 mount.path.normalize().removePrefix("/"),
                 joinPath("/work", mount.fileName),
                 readOnly = mount.readOnly,
@@ -159,7 +145,7 @@ class FeatureFileMount(
         if (subFolders.isEmpty()) return
 
         for (folder in subFolders) {
-            val file = pathConverter.relativeToInternal(RelativeInternalFile(joinPath(workMount.path, folder)))
+            val file = relativeToInternal(workMount.child(folder))
 
             try {
                 val internalStat = fs.stat(file)
@@ -179,9 +165,9 @@ class FeatureFileMount(
         }
     }
 
-    suspend fun JobManagement.findWorkMount(jobFromServer: Container): RelativeInternalFile? {
+    suspend fun JobManagement.findWorkMount(jobFromServer: Container): SystemRelativeFile? {
         val cachedJob = k8.jobCache.findJob(jobFromServer.jobId) ?: return null
-        return pathConverter.internalToRelative(findJobFolder(cachedJob, initializeFolder = false))
+        return internalToRelative(findJobFolder(cachedJob, initializeFolder = false))
     }
 
     private suspend fun JobManagement.findSubMountNames(rootJob: Container): List<String> {
@@ -191,9 +177,46 @@ class FeatureFileMount(
         }
     }
 
+    suspend fun internalToRelative(file: InternalFile): SystemRelativeFile {
+        val (_, system, maintenance) = pathConverter.locator.resolveDriveByInternalFile(file)
+        if (maintenance) {
+            throw RPCException(
+                "One of your requested drives is currently in maintenance. Try again later.",
+                HttpStatusCode.BadRequest,
+                "MAINTENANCE"
+            )
+        }
+
+        val relativePath = file.path.removePrefix(system.mountPath.removeSuffix("/") + "/")
+        return SystemRelativeFile(
+            system,
+            relativePath
+        )
+    }
+
+    suspend fun ucloudToRelative(file: UCloudFile): SystemRelativeFile {
+        return internalToRelative(pathConverter.ucloudToInternal(file))
+    }
+
+    fun relativeToInternal(relativeFile: SystemRelativeFile): InternalFile {
+        // NOTE(Dan): It becomes very apparent here that we absolutely most not run jobs while we are changing which
+        // system a drive belongs to. The functions feeding into this will simply return the current location of
+        // the drive, not the location of the drive when the job started. This is why we must always shut down all
+        // jobs when entering maintenance mode, and keep all jobs off while we are in maintenance mode.
+        return InternalFile(relativeFile.system.mountPath.removeSuffix("/") + "/" + relativeFile.relativePath)
+    }
+
     companion object : Loggable {
         const val JOBS_FOLDER = "Jobs"
 
         override val log = logger()
     }
+}
+
+data class SystemRelativeFile(
+    val system: FsSystem,
+    val relativePath: String,
+) : PathLike<SystemRelativeFile> {
+    override val path: String = relativePath
+    override fun withNewPath(path: String): SystemRelativeFile = copy(relativePath = path)
 }

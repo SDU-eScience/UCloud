@@ -493,12 +493,64 @@ data class ConfigSchema(
 
             @Serializable
             @SerialName("UCloud")
-            class UCloud(
+            data class UCloud(
                 override val matches: String,
-                val mountLocation: String,
+                val systemUsedForLegacyDrives: String? = null,
+                val defaultSystem: String? = null,
+                val systems: Map<String, System> = emptyMap(),
+                val skipUCloudSynchronization: Boolean = false,
+
+                @Deprecated("Use systems instead")
+                val mountLocation: String? = null,
+                @Deprecated("Use systems instead")
                 val useCephStats: Boolean = false,
-                val accountingEnabled: Boolean = false,
-            ) : Files()
+            ) : Files() {
+                @Serializable
+                data class System(
+                    var mountPath: String,
+                    val volumeClaim: String? = null,
+                    val hostPath: String? = null,
+                    val type: FsType? = null,
+
+                    // NOTE(Dan): This is always changed to match the location in the `systems` dict, do not set in
+                    // the configuration. See normalize() for details.
+                    var name: String = "systemplaceholder"
+                )
+
+                enum class FsType {
+                    CephFS,
+                }
+
+                @Suppress("DEPRECATION")
+                fun normalize(): UCloud {
+                    for ((name, system) in systems) {
+                        system.name = name
+                        system.mountPath = File(system.mountPath).normalize().path.removeSuffix("/") + "/"
+
+                        require(system.volumeClaim != null || system.hostPath != null) {
+                            "System '$name' must have either volumeClaim or hostPath set"
+                        }
+
+                        require(!system.name.equals("shm", ignoreCase = true)) {
+                            "System name cannot be shm (case insensitive)"
+                        }
+                    }
+
+                    if (mountLocation != null) {
+                        return copy(
+                            systems = systems +
+                                    ("CephFS" to System(
+                                        mountPath = File(mountLocation).normalize().path.removeSuffix("/") + "/",
+                                        volumeClaim = "cephfs",
+                                        type = if (useCephStats) FsType.CephFS else null,
+                                        name = "CephFS"
+                                    )),
+                            defaultSystem = "CephFS"
+                        )
+                    }
+                    return this
+                }
+            }
         }
 
         @Serializable

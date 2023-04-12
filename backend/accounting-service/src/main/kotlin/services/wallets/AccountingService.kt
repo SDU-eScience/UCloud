@@ -65,8 +65,8 @@ class AccountingService(
         ).providers
     }
 
-    suspend fun resetCache() {
-        processor.clearCache()
+    suspend fun resetState() {
+        processor.resetState()
     }
 
     suspend fun retrieveWalletsInternal(actorAndProject: ActorAndProject, walletOwner: WalletOwner): List<Wallet> {
@@ -149,7 +149,8 @@ class AccountingService(
                     deposit.amount,
                     deposit.startDate ?: Time.now(),
                     deposit.endDate,
-                    isProject = deposit.recipient is WalletOwner.Project
+                    isProject = deposit.recipient is WalletOwner.Project,
+                    grantedIn = deposit.grantedIn
                 )
             )
         }

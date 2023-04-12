@@ -10,6 +10,7 @@ import dk.sdu.cloud.app.orchestrator.rpc.*
 import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
 import dk.sdu.cloud.file.orchestrator.api.FilesProvider
 import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
@@ -118,6 +119,7 @@ class Server(override val micro: Micro) : CommonServer {
         val sshService = SshKeyService(db, jobOrchestrator, altProviders)
 
         val jobMonitoring = JobMonitoringService(
+            micro.feature(DebugSystemFeature).system,
             micro.backgroundScope,
             distributedLocks,
             db,
@@ -126,7 +128,8 @@ class Server(override val micro: Micro) : CommonServer {
             fileCollections,
             ingressService,
             networkService,
-            licenseService
+            licenseService,
+            serviceClient
         )
 
         runBlocking { jobMonitoring.initialize(!micro.developmentModeEnabled) }

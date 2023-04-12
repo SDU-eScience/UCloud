@@ -1,8 +1,10 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.app.orchestrator.api.IPProtocol
-import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.utils.LinuxOutputStream
+import dk.sdu.cloud.utils.copyTo
+import dk.sdu.cloud.plugins.storage.ucloud.FsSystem
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.*
@@ -96,7 +98,7 @@ abstract class PodBasedContainer : Container {
         })
     }
 
-    override suspend fun downloadLogs(out: OutputStream) {
+    override suspend fun downloadLogs(out: LinuxOutputStream) {
         val podMeta = pod.metadata!!
         val podName = podMeta.name!!
         val namespace = podMeta.namespace!!
@@ -201,6 +203,17 @@ abstract class PodBasedContainer : Container {
             ContentType("application", "json-patch+json")
         )
     }
+
+    override suspend fun mountedDirectories(): List<UCloudMount> {
+        val container = pod.spec?.containers?.first() ?: return emptyList()
+        val volumeMounts = container.volumeMounts ?: emptyList()
+        return volumeMounts.mapNotNull { mount ->
+            val systemName = mount.name ?: return@mapNotNull null
+            val pathName = mount.subPath ?: return@mapNotNull null
+            if (systemName == "shm") return@mapNotNull null
+            UCloudMount(systemName, pathName)
+        }
+    }
 }
 
 abstract class PodBasedBuilder : ContainerBuilder {
@@ -209,7 +222,6 @@ abstract class PodBasedBuilder : ContainerBuilder {
     protected val container: Pod.Container get() = podSpec.containers!![0]
     protected val volumeMounts: ArrayList<Pod.Container.VolumeMount> get() = container.volumeMounts as ArrayList
     protected val volumes: ArrayList<Volume> get() = podSpec.volumes as ArrayList
-    protected val ucloudVolume: Volume get() = volumes[0]
 
     protected abstract val fakeIpMount: Boolean
 
@@ -226,12 +238,7 @@ abstract class PodBasedBuilder : ContainerBuilder {
         spec.restartPolicy = "Never"
         spec.automountServiceAccountToken = false
 
-        spec.volumes = arrayListOf(
-            Volume(
-                "ucloud",
-                persistentVolumeClaim = Volume.PersistentVolumeClaimSource("cephfs", false)
-            )
-        )
+        spec.volumes = arrayListOf()
     }
 
     override fun image(image: String) {
@@ -249,15 +256,43 @@ abstract class PodBasedBuilder : ContainerBuilder {
         envVars.add(Pod.EnvVar(name, value))
     }
 
-    override fun mountUCloudFileSystem(subPath: String, containerPath: String, readOnly: Boolean) {
+    override fun mountUCloudFileSystem(system: FsSystem, subPath: String, containerPath: String, readOnly: Boolean) {
         volumeMounts.add(
             Pod.Container.VolumeMount(
-                name = ucloudVolume.name,
+                name = mountFsSystemIfNeeded(system),
                 mountPath = containerPath,
                 subPath = subPath,
                 readOnly = readOnly
             )
         )
+    }
+
+    private val mountedSystems = HashSet<String>()
+    private fun mountFsSystemIfNeeded(system: FsSystem): String {
+        val normalizedName = system.name.lowercase()
+        if (normalizedName in mountedSystems) return normalizedName
+        mountedSystems.add(normalizedName)
+
+        val volume = when {
+            system.volumeClaim != null -> {
+                Volume(
+                    normalizedName,
+                    persistentVolumeClaim = Volume.PersistentVolumeClaimSource(system.volumeClaim, false)
+                )
+            }
+
+            system.hostPath != null -> {
+                Volume(
+                    normalizedName,
+                    hostPath = Volume.HostPathSource(system.hostPath, "Directory")
+                )
+            }
+
+            else -> error("Bad configuration supplied. Unable to mount system: $system")
+        }
+
+        volumes.add(volume)
+        return normalizedName
     }
 
     override fun mountSharedMemory(sharedMemorySizeMegabytes: Long) {

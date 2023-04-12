@@ -17,10 +17,12 @@ import dk.sdu.cloud.app.store.api.WordInvocationParameter
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.storage.PathConverter
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlin.random.Random
 
 private fun escapeBash(value: String): String {
@@ -55,10 +57,59 @@ suspend fun createSbatchFile(
     // remove whitespaces
     val app = job.status.resolvedApplication!!.invocation
     val tool = job.status.resolvedApplication!!.invocation.tool.tool!!
+
+    val defaultParameters: Map<ApplicationParameter, AppParameterValue> = buildMap {
+        for (it in app.parameters) {
+            if (it.defaultValue == null) continue
+            // NOTE: We might have old data which is not AppParameterValues, those we ignore and just continue
+            // without a default value
+            val value = runCatching {
+                when (it) {
+                    is ApplicationParameter.InputDirectory,
+                    is ApplicationParameter.InputFile ->
+                        defaultMapper.decodeFromJsonElement<AppParameterValue.File>(it.defaultValue!!)
+
+                    is ApplicationParameter.Bool ->
+                        defaultMapper.decodeFromJsonElement<AppParameterValue.Bool>(it.defaultValue!!)
+
+                    is ApplicationParameter.FloatingPoint ->
+                        defaultMapper.decodeFromJsonElement<AppParameterValue.FloatingPoint>(it.defaultValue!!)
+
+                    is ApplicationParameter.Ingress ->
+                        defaultMapper.decodeFromJsonElement<AppParameterValue.Ingress>(it.defaultValue!!)
+
+                    is ApplicationParameter.Integer ->
+                        defaultMapper.decodeFromJsonElement<AppParameterValue.Integer>(it.defaultValue!!)
+
+                    is ApplicationParameter.LicenseServer ->
+                        defaultMapper.decodeFromJsonElement<AppParameterValue.License>(it.defaultValue!!)
+
+                    is ApplicationParameter.NetworkIP ->
+                        defaultMapper.decodeFromJsonElement<AppParameterValue.Network>(it.defaultValue!!)
+
+                    is ApplicationParameter.Peer ->
+                        defaultMapper.decodeFromJsonElement<AppParameterValue.Peer>(it.defaultValue!!)
+
+                    is ApplicationParameter.Text,
+                    is ApplicationParameter.Enumeration ->
+                        defaultMapper.decodeFromJsonElement<AppParameterValue.Text>(it.defaultValue!!)
+
+                    is ApplicationParameter.TextArea ->
+                        defaultMapper.decodeFromJsonElement<AppParameterValue.TextArea>(it.defaultValue!!)
+                }
+            }.getOrNull() ?: continue
+
+            put(it, value)
+        }
+    }
+
     val givenParameters =
         job.specification.parameters!!.mapNotNull { (paramName, value) ->
             app.parameters.find { it.name == paramName }!! to value
         }.toMap()
+
+    val allParameters = defaultParameters + givenParameters
+
     val argBuilder = OurArgBuilder(PathConverter(ctx))
     var cliInvocation = app.invocation.flatMap { parameter ->
         when (parameter) {
@@ -66,7 +117,7 @@ suspend fun createSbatchFile(
                 listOf("$" + parameter.variable)
             }
             else -> {
-                parameter.buildInvocationList(givenParameters, builder = argBuilder).map { "'" + escapeBash(it) + "'" }
+                parameter.buildInvocationList(allParameters, builder = argBuilder).map { "'" + escapeBash(it) + "'" }
             }
         }
 
@@ -158,7 +209,7 @@ suspend fun createSbatchFile(
         }
 
         for ((key, param) in (app.environment ?: emptyMap())) {
-            val value = param.buildInvocationList(givenParameters, InvocationParameterContext.ENVIRONMENT, argBuilder)
+            val value = param.buildInvocationList(allParameters, InvocationParameterContext.ENVIRONMENT, argBuilder)
                 .joinToString(separator = " ") { "'" + escapeBash(it) + "'" }
 
             appendLine("export $key=$value")

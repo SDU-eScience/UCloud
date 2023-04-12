@@ -47,7 +47,7 @@ class Server(
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
         val accountingProcessor = AccountingProcessor(
             db,
-            micro.featureOrNull(DebugSystemFeature),
+            micro.feature(DebugSystemFeature).system,
             simpleProviders,
             distributedLocks,
             distributedState = DistributedStateFactory(micro),
@@ -65,7 +65,7 @@ class Server(
         val projectsV2 = dk.sdu.cloud.accounting.services.projects.v2.ProjectService(db, client, projectCache,
             micro.developmentModeEnabled, micro.backgroundScope)
         val projectNotifications = dk.sdu.cloud.accounting.services.projects.v2
-            .ProviderNotificationService(projectsV2, db, simpleProviders, micro.backgroundScope)
+            .ProviderNotificationService(projectsV2, db, simpleProviders, micro.backgroundScope, client)
         val projectService = ProjectService(client, projectCache, projectsV2)
         val projectGroups = ProjectGroupService(projectCache, projectsV2)
         val projectQueryService = ProjectQueryService(projectService)

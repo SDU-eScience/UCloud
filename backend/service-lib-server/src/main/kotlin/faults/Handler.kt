@@ -33,7 +33,7 @@ class FaultController(private val micro: Micro) : Controller {
                 val currentDb = db
                 if (currentDb != null) currentDb
                 else {
-                    val result = AsyncDBSessionFactory(micro.databaseConfig)
+                    val result = AsyncDBSessionFactory(micro)
                     db = result
                     result
                 }

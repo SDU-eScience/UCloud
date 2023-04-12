@@ -1,423 +1,728 @@
 package dk.sdu.cloud.debug
 
-import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
-import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.client.IngoingCallResponse
+import dk.sdu.cloud.calls.client.OutgoingCall
+import dk.sdu.cloud.calls.client.OutgoingCallFilter
+import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.service.Time
+import io.ktor.http.*
+import io.ktor.util.*
+import io.ktor.util.date.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.MapSerializer
-import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
+import java.io.File
+import java.lang.ref.WeakReference
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.file.StandardOpenOption
+import java.util.*
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.collections.ArrayList
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
-import kotlin.random.Random
-import kotlin.random.nextULong
+import kotlin.math.max
 
-private val uniquePrefix = "${Random.nextULong().toString(16)}-${Random.nextULong().toString(16)}"
-private val logIdGenerator = atomicInt(0)
+class BinaryFrameAllocator(
+    directory: File,
+    generation: Long,
+    val fileIndex: Int
+) {
+    private val channel = FileChannel.open(
+        File(directory, "$generation-$fileIndex.log").toPath(),
+        StandardOpenOption.CREATE,
+        StandardOpenOption.READ,
+        StandardOpenOption.WRITE,
+        StandardOpenOption.SPARSE
+    )
 
-@Serializable
-class DebugContext private constructor(val id: String, val parent: String?) {
-    val type: String = "job"
+    @PublishedApi
+    internal val buf = channel.map(FileChannel.MapMode.READ_WRITE, 0, LOG_FILE_SIZE)
 
-    companion object {
-        suspend fun create(): DebugContext {
-            return DebugContext(uniquePrefix + "-" + logIdGenerator.getAndIncrement(), parentContextId())
+    @PublishedApi
+    internal var ptr = 0
+
+    private var lastFlushPtr = 0
+
+    val frameIndex: Int
+        get() = ptr / FRAME_SIZE
+
+    fun <T : BinaryDebugMessage<T>> allocateOrNull(stub: T): T? {
+        if (ptr + FRAME_SIZE >= buf.capacity()) {
+            return null
         }
 
-        fun createWithParent(parent: String): DebugContext {
-            return DebugContext(uniquePrefix + "-" + logIdGenerator.getAndIncrement(), parent)
+        val result = stub.create(buf, ptr) as T
+        ptr += FRAME_SIZE
+        return result
+    }
+
+    fun flush() {
+        if (lastFlushPtr != ptr) buf.force(lastFlushPtr, ptr - lastFlushPtr)
+        lastFlushPtr = ptr
+    }
+
+    fun isFull(): Boolean {
+        return ptr + FRAME_SIZE >= LOG_FILE_SIZE
+    }
+
+    fun close() {
+        runCatching { channel.close() }
+    }
+
+    val clientRequest = BinaryDebugMessage.ClientRequest(ByteBuffer.allocate(0))
+    val clientResponse = BinaryDebugMessage.ClientResponse(ByteBuffer.allocate(0))
+    val serverRequest = BinaryDebugMessage.ServerRequest(ByteBuffer.allocate(0))
+    val serverResponse = BinaryDebugMessage.ServerResponse(ByteBuffer.allocate(0))
+    val databaseTransaction = BinaryDebugMessage.DatabaseTransaction(ByteBuffer.allocate(0))
+    val databaseQuery = BinaryDebugMessage.DatabaseQuery(ByteBuffer.allocate(0))
+    val databaseResponse = BinaryDebugMessage.DatabaseResponse(ByteBuffer.allocate(0))
+    val log = BinaryDebugMessage.Log(ByteBuffer.allocate(0))
+
+    init {
+        listOf(
+            clientRequest,
+            clientResponse,
+            serverRequest,
+            serverResponse,
+            databaseTransaction,
+            databaseQuery,
+            databaseResponse,
+            log
+        ).forEach {
+            check(it.schema.size <= FRAME_SIZE) { "${it::class} size exceeds frame (${it.schema.size})" }
         }
     }
 }
 
-@Serializable
-sealed class DebugMessage {
-    abstract val context: DebugContext
-    abstract val timestamp: Long
-    abstract val principal: SecurityPrincipal?
-    abstract val importance: MessageImportance
-    abstract val messageType: MessageType
-    abstract val id: Int
+fun buildContextFilePath(generation: Long, fileIdx: Int): String {
+    return "$generation-$fileIdx.ctx"
+}
 
-    @SerialName("client_request")
-    @Serializable
-    data class ClientRequest(
-        override val context: DebugContext,
-        override val timestamp: Long,
-        override val principal: SecurityPrincipal?,
-        override val importance: MessageImportance,
-        val call: String?,
-        val payload: JsonElement?,
-        val resolvedHost: String,
-    ) : DebugMessage() {
-        override val messageType = MessageType.CLIENT
-        override val id = idGenerator.getAndIncrement()
+class ContextDescriptorFile(
+    directory: File,
+    generation: Long,
+    fileIdx: Int,
+) {
+    private val trackedDescriptors = ArrayList<WeakReference<DebugContextDescriptor>>()
+
+    private val channel = FileChannel.open(
+        File(directory, buildContextFilePath(generation, fileIdx)).toPath(),
+        StandardOpenOption.CREATE,
+        StandardOpenOption.READ,
+        StandardOpenOption.WRITE,
+        StandardOpenOption.SPARSE
+    )
+
+    @PublishedApi
+    internal val buf = channel.map(FileChannel.MapMode.READ_WRITE, 0, 1024 * 1024 * 16)
+
+    private var ptr: Int = 4096
+
+    fun findTrackedContext(context: Int): DebugContextDescriptor? {
+        for (ref in trackedDescriptors) {
+            val descriptor = ref.get()
+            if (descriptor?.id == context) return descriptor
+        }
+        return null
     }
 
-    @SerialName("client_response")
-    @Serializable
-    data class ClientResponse(
-        override val context: DebugContext,
-        override val timestamp: Long,
-        override val principal: SecurityPrincipal?,
-        override val importance: MessageImportance,
-        val call: String?,
-        val payload: JsonElement?,
-        val response: JsonElement?,
-        val responseCode: Int,
-        val responseTime: Long,
-    ) : DebugMessage() {
-        override val messageType = MessageType.CLIENT
-        override val id = idGenerator.getAndIncrement()
+    fun next(descriptor: DebugContextDescriptor? = null): DebugContextDescriptor? {
+        if (descriptor == null) return DebugContextDescriptor(buf, 4096)
+        if (descriptor.offset + DebugContextDescriptor.size >= buf.capacity()) return null
+        descriptor.offset += DebugContextDescriptor.size
+        if (descriptor.id == 0) return null
+        return descriptor
     }
 
-    @SerialName("server_request")
-    @Serializable
-    data class ServerRequest(
-        override val context: DebugContext,
-        override val timestamp: Long,
-        override val principal: SecurityPrincipal?,
-        override val importance: MessageImportance,
-        val call: String?,
-        val payload: JsonElement?,
-    ) : DebugMessage() {
-        override val messageType = MessageType.SERVER
-        override val id = idGenerator.getAndIncrement()
+    fun findContext(context: Int, after: DebugContextDescriptor? = null): DebugContextDescriptor? {
+        var aligned = (max(4096, after?.offset ?: 0) + 1) / DebugContextDescriptor.size
+        if (aligned <= (after?.offset ?: 0)) aligned += DebugContextDescriptor.size
+
+        val descriptor = DebugContextDescriptor(buf, aligned)
+        while (descriptor.offset + DebugContextDescriptor.size < buf.capacity()) {
+            if (descriptor.id == context) return descriptor
+            descriptor.offset += DebugContextDescriptor.size
+        }
+        return null
     }
 
-    @SerialName("server_response")
-    @Serializable
-    data class ServerResponse(
-        override val context: DebugContext,
-        override val timestamp: Long,
-        override val principal: SecurityPrincipal?,
-        override val importance: MessageImportance,
-        val call: String?,
-        val response: JsonElement?,
-        val responseCode: Int,
-        val responseTime: Long,
-    ) : DebugMessage() {
-        override val messageType = MessageType.SERVER
-        override val id = idGenerator.getAndIncrement()
+    fun allocate(): DebugContextDescriptor? {
+        if (ptr + DebugContextDescriptor.size >= buf.capacity()) return null
+        val descriptor = DebugContextDescriptor(buf, ptr)
+        trackedDescriptors.add(WeakReference(descriptor))
+        ptr += DebugContextDescriptor.size
+        return descriptor
     }
 
-    @SerialName("database_connection")
-    @Serializable
-    data class DatabaseConnection(
-        override val context: DebugContext,
-        val isOpen: Boolean,
-        override val timestamp: Long = Time.now(),
-        override val principal: SecurityPrincipal? = null,
-        override val importance: MessageImportance = MessageImportance.TELL_ME_EVERYTHING,
-    ) : DebugMessage() {
-        override val messageType = MessageType.DATABASE
-        override val id = idGenerator.getAndIncrement()
+    fun flush() {
+        buf.force(0, ptr)
     }
 
-    enum class DBTransactionEvent {
-        OPEN,
-        COMMIT,
-        ROLLBACK
+    fun attemptClose(): Boolean {
+        for (descriptor in trackedDescriptors) {
+            if (descriptor.get()?.isOpen == true) return false
+        }
+        channel.close()
+        return true
+    }
+}
+
+typealias DebugSystem = BinaryDebugSystem
+
+class BinaryDebugSystem(
+    private val directory: String,
+    private val serviceName: String,
+    val enabled: Boolean,
+) {
+    private val lock = Mutex()
+
+    private var buffer = BinaryFrameAllocator(File(directory), generation, if (!enabled) 0 else fileIdAcc.getAndIncrement())
+    private var blobs = BlobSystem(File(directory), generation, buffer.fileIndex)
+
+    private val closeSignal = Channel<Unit>(Channel.CONFLATED)
+
+    private val oldContextFiles = ArrayList<ContextDescriptorFile>()
+    private val contextFileIdAcc = AtomicInteger(1)
+    private val contextIdAcc = AtomicInteger(2)
+    private var contextFile = createContextDescriptorFile()
+
+    private fun createContextDescriptorFile(): ContextDescriptorFile =
+        ContextDescriptorFile(File(directory), generation, contextFileIdAcc.getAndIncrement())
+
+    fun text(text: String, field: BinaryFrameField.Text): LargeText {
+        val encoded = text.encodeToByteArray()
+        return if (encoded.size >= field.maxSize) {
+            val id = blobs.storeBlob(encoded)
+            val prefix =
+                LargeText.OVERFLOW_PREFIX + id + LargeText.OVERFLOW_SEP + buffer.fileIndex + LargeText.OVERFLOW_SEP
+            val previewSize = field.maxSize - prefix.length
+            val arr = ByteArray(field.maxSize)
+            prefix.encodeToByteArray().copyInto(arr)
+            encoded.copyInto(arr, prefix.length, endIndex = previewSize)
+            LargeText(arr)
+        } else {
+            return LargeText(encoded)
+        }
     }
 
-    @SerialName("database_transaction")
-    @Serializable
-    data class DatabaseTransaction(
-        override val context: DebugContext,
-        val event: DBTransactionEvent,
-        override val timestamp: Long = Time.now(),
-        override val principal: SecurityPrincipal? = null,
-        override val importance: MessageImportance = MessageImportance.TELL_ME_EVERYTHING,
-    ) : DebugMessage() {
-        override val messageType = MessageType.DATABASE
-        override val id = idGenerator.getAndIncrement()
+    suspend fun emit(fn: suspend BinaryFrameAllocator.() -> BinaryDebugMessage<*>?) {
+        if (!enabled) return
+
+        var success = false
+        while (coroutineContext.isActive && !success) {
+            var requestFlush: Boolean
+            lock.withLock {
+                val result = fn(buffer)
+                success = result != null
+                requestFlush = buffer.isFull()
+            }
+            if (requestFlush) closeSignal.send(Unit)
+        }
     }
 
-    @SerialName("database_query")
-    @Serializable
-    data class DatabaseQuery(
-        override val context: DebugContext,
-        val query: String,
-        val parameters: JsonObject,
-        override val importance: MessageImportance = MessageImportance.IMPLEMENTATION_DETAIL,
-        override val timestamp: Long = Time.now(),
-        override val principal: SecurityPrincipal? = null,
-    ) : DebugMessage() {
-        override val messageType = MessageType.DATABASE
-        override val id = idGenerator.getAndIncrement()
+    private suspend fun allocateContext(): DebugContextDescriptor {
+        val currentContext = debugContextOrNull()
+
+        lock.withLock {
+            val result = contextFile.allocate()
+            if (result != null) {
+                val parent = currentContext?.id ?: 1
+                val id = contextIdAcc.getAndIncrement()
+                result.parent = parent
+                result.id = id
+                if (parent != 1) {
+                    var ctx = contextFile.findTrackedContext(parent)
+                    if (ctx == null) {
+                        ctx = oldContextFiles.firstNotNullOfOrNull { it.findTrackedContext(parent) }
+                    }
+
+                    ctx?.appendChild(id)
+                }
+                return result
+            }
+
+            if (!contextFile.attemptClose()) {
+                oldContextFiles.add(contextFile)
+            }
+
+            contextFile = createContextDescriptorFile()
+        }
+        return allocateContext()
     }
 
-    @SerialName("database_response")
-    @Serializable
-    data class DatabaseResponse(
-        override val context: DebugContext,
-        val responseTime: Long,
-        val query: String,
-        val parameters: JsonObject,
-        override val importance: MessageImportance = MessageImportance.IMPLEMENTATION_DETAIL,
-        override val timestamp: Long = Time.now(),
-        override val principal: SecurityPrincipal? = null,
-    ) : DebugMessage() {
-        override val messageType = MessageType.DATABASE
-        override val id = idGenerator.getAndIncrement()
+    suspend fun <T> useContext(
+        type: DebugContextType,
+        initialName: String? = null,
+        initialImportance: MessageImportance = MessageImportance.THIS_IS_NORMAL,
+        block: suspend () -> T
+    ): T {
+        val descriptor = allocateContext()
+
+        return withContext(BinaryDebugCoroutineContext(descriptor)) {
+            try {
+                descriptor.type = type
+                descriptor.importance = initialImportance
+                descriptor.timestamp = getTimeMillis()
+                descriptor.name = when {
+                    initialName != null -> initialName
+                    type == DebugContextType.BACKGROUND_TASK -> "Task"
+                    type == DebugContextType.CLIENT_REQUEST -> "Client request"
+                    type == DebugContextType.SERVER_REQUEST -> "Server request"
+                    type == DebugContextType.DATABASE_TRANSACTION -> "Database transaction"
+                    type == DebugContextType.OTHER -> "Other task"
+                    else -> "Other task"
+                }
+                block()
+            } finally {
+                descriptor.isOpen = false
+            }
+        }
     }
 
-    @SerialName("log")
-    @Serializable
-    data class Log(
-        override val context: DebugContext,
-        val message: String,
-        val extras: JsonObject? = null,
-        override val importance: MessageImportance = MessageImportance.IMPLEMENTATION_DETAIL,
-        override val timestamp: Long = Time.now(),
-        override val principal: SecurityPrincipal? = null,
-    ) : DebugMessage() {
-        override val messageType = MessageType.LOG
-        override val id = idGenerator.getAndIncrement()
+    fun start(scope: CoroutineScope): Job {
+        if (!enabled) return scope.launch {  }
+
+        File(directory, "$generation.service").writeText(buildString {
+            appendLine(serviceName)
+            appendLine(generation)
+        })
+
+        return scope.launch(Dispatchers.IO) {
+            try {
+                while (isActive) {
+                    select {
+                        closeSignal.onReceive {
+                            lock.withLock {
+                                if (!buffer.isFull()) return@withLock
+                                blobs.close()
+                                buffer.close()
+
+                                buffer = BinaryFrameAllocator(File(directory), generation, fileIdAcc.getAndIncrement())
+                                blobs = BlobSystem(File(directory), generation, buffer.fileIndex)
+                            }
+                        }
+
+                        onTimeout(500) {
+                            lock.withLock {
+                                buffer.flush()
+                                contextFile.flush()
+
+                                val iterator = oldContextFiles.iterator()
+                                while (iterator.hasNext()) {
+                                    val n = iterator.next()
+                                    if (n.attemptClose()) {
+                                        iterator.remove()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                lock.withLock {
+                    buffer.close()
+                }
+            } finally {
+                runCatching { buffer.close() }
+                runCatching { blobs.close() }
+            }
+        }
     }
 
     companion object {
-        val idGenerator = atomicInt(0)
+        private val fileIdAcc = AtomicInteger(0)
+
+        val generation = System.currentTimeMillis()
+        private val idAcc = AtomicInteger(0)
+        fun id(): Int {
+            return idAcc.getAndIncrement()
+        }
     }
 }
 
-enum class MessageType {
-    SERVER,
-    DATABASE,
-    CLIENT,
-    LOG
+class BinaryDebugCoroutineContext(
+    val descriptorOrNull: DebugContextDescriptor?,
+) : AbstractCoroutineContextElement(BinaryDebugCoroutineContext) {
+    companion object : CoroutineContext.Key<BinaryDebugCoroutineContext>, BinaryFrameSchema() {
+        val root = BinaryDebugCoroutineContext(null)
+    }
 }
 
-enum class MessageImportance {
-    /**
-     * You (the developer/operator) only want to see this message if something is badly misbehaving, and you are
-     * desperate for clues. It should primarily contain the insignificant details.
-     */
-    TELL_ME_EVERYTHING,
+val BinaryDebugCoroutineContext.descriptor: DebugContextDescriptor get() = descriptorOrNull!!
+val BinaryDebugCoroutineContext.parent: Int get() = descriptorOrNull?.parent ?: 1
+val BinaryDebugCoroutineContext.id: Int get() = descriptorOrNull?.id ?: 1
 
-    /**
-     * You (the developer/operator) want to see this message if something is mildly misbehaving. It should contain the
-     * most important implementation details.
-     */
-    IMPLEMENTATION_DETAIL,
-
-    /**
-     * Indicates that an ordinary event has occurred. Most RPCs, which aren't chatty, fall into this category.
-     */
-    THIS_IS_NORMAL,
-
-    /**
-     * Indicates that something might be wrong, but not for certain. A developer/operator might want to see this, but
-     * it is not critical.
-     */
-    THIS_IS_ODD,
-
-    /**
-     * A clear message that something is wrong. A developer/operator want to see this as soon as possible, but it can
-     * probably wait until the next morning.
-     */
-    THIS_IS_WRONG,
-
-    /**
-     * This should never happen. This event needs to be investigated immediately.
-     *
-     * Only pick this category if you feel comfortable waking up your co-workers in the middle of the night to tell
-     * them about this.
-     */
-    THIS_IS_DANGEROUS
+suspend fun debugContextOrNull(): DebugContextDescriptor? {
+    return coroutineContext[BinaryDebugCoroutineContext]?.descriptorOrNull
 }
 
-class DebugCoroutineContext(
-    val context: DebugContext,
-) : AbstractCoroutineContextElement(DebugCoroutineContext) {
-    companion object Key : CoroutineContext.Key<DebugCoroutineContext>
+suspend fun debugContext(): DebugContextDescriptor = debugContextOrNull() ?: error("No valid debug context")
+
+enum class DebugContextType {
+    CLIENT_REQUEST,
+    SERVER_REQUEST,
+    DATABASE_TRANSACTION,
+    BACKGROUND_TASK,
+    OTHER,
 }
 
-suspend inline fun parentContextId(): String? {
-    val ctx = coroutineContext
-    return ctx[DebugCoroutineContext]?.context?.id
+class DebugContextDescriptor(buf: ByteBuffer, ptr: Int) : BinaryFrame(buf, ptr) {
+    var isOpen: Boolean = true
+
+    var parent by Schema.parent
+    var id by Schema.id
+    var importance by Schema.importance
+    var type by Schema.type
+
+    var timestamp by Schema.timestamp
+
+    var name: String
+        get() = Schema.name.getValue(this, this::name).decodeToString()
+        set(value) {
+            val shortName = value.take(100)
+            Schema.name.setValue(this, this::name, shortName.encodeToByteArray())
+        }
+
+    private fun setChild(idx: Int, childContext: Int) {
+        require(idx in 0..255) { "index out of bounds $idx not in 0..255" }
+        val relativeContext = childContext - id
+        if (relativeContext >= Short.MAX_VALUE || relativeContext <= 0) return
+        buf.putShort(children.offset + idx * 2, relativeContext.toShort())
+    }
+
+    private fun getChild(idx: Int): Int {
+        require(idx in 0..255) { "index out of bounds $idx not in 0..255" }
+        return id + buf.getShort(children.offset + idx * 2)
+    }
+
+    fun appendChild(child: Int) {
+        for (i in 0..255) {
+            if (getChild(i) == 0) {
+                setChild(i, child)
+                break
+            }
+        }
+    }
+
+    override val schema = Schema
+
+    companion object Schema : BinaryFrameSchema() {
+        val parent = int4()                        // 4
+        val id = int4()                            // 4 + 4
+
+        val importance = enum<MessageImportance>() // 4 + 4 + 1
+        val type = enum<DebugContextType>()        // 4 + 4 + 1 + 1
+        val timestamp = int8()                     // 4 + 4 + 1 + 1 + 8
+        val rsv1 = int1()                          // 4 + 4 + 1 + 1 + 8 + 1
+        val rsv2 = int1()                          // 4 + 4 + 1 + 1 + 8 + 1 + 1
+
+        val name = bytes(108)                // 4 + 4 + 1 + 1 + 8 + 1 + 1 + (108 + 2)
+        val children = bytes(256)            // 4 + 4 + 1 + 1 + 8 + 1 + 1 + (108 + 2) + (256 + 2) = 388
+    }
 }
 
-suspend inline fun currentContext(): DebugContext? {
-    val ctx = coroutineContext
-    return ctx[DebugCoroutineContext]?.context
-}
+suspend fun BinaryDebugSystem.clientRequest(
+    importance: MessageImportance,
 
-suspend fun DebugSystem.log(message: String, structured: JsonObject?, level: MessageImportance) {
-    sendMessage(
-        DebugMessage.Log(
-            DebugContext.create(),
-            message,
-            structured,
-            level
-        )
-    )
-}
-
-suspend fun DebugSystem.everything(message: String, structured: JsonObject? = null) {
-    log(message, structured, MessageImportance.TELL_ME_EVERYTHING)
-}
-
-suspend fun DebugSystem.detail(message: String, structured: JsonObject? = null) {
-    log(message, structured, MessageImportance.IMPLEMENTATION_DETAIL)
-}
-
-suspend fun DebugSystem.normal(message: String, structured: JsonObject? = null) {
-    log(message, structured, MessageImportance.THIS_IS_NORMAL)
-}
-
-suspend fun DebugSystem.odd(message: String, structured: JsonObject? = null) {
-    log(message, structured, MessageImportance.THIS_IS_ODD)
-}
-
-suspend fun DebugSystem.wrong(message: String, structured: JsonObject? = null) {
-    log(message, structured, MessageImportance.THIS_IS_WRONG)
-}
-
-suspend fun DebugSystem.dangerous(message: String, structured: JsonObject? = null) {
-    log(message, structured, MessageImportance.THIS_IS_DANGEROUS)
-}
-
-suspend fun <R> DebugSystem?.logD(
-    message: String,
-    serializer: KSerializer<R>,
-    structured: R,
-    level: MessageImportance,
-    context: DebugContext? = null
+    call: String?,
+    payload: JsonElement?,
 ) {
-    if (this == null) return
+    val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
+    val payloadEncoded = if (payload == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), payload)
 
-    val encoded = defaultMapper.encodeToJsonElement(serializer, structured)
-    val wrapped = if (encoded !is JsonObject) {
-        JsonObject(mapOf("wrapper" to encoded))
-    } else {
-        encoded
+    emit {
+        val message = allocateOrNull(clientRequest) ?: return@emit null
+        message.ctxGeneration = BinaryDebugSystem.generation
+        message.ctxParent = ctx.parent
+        message.ctxId = ctx.id
+        message.timestamp = System.currentTimeMillis()
+        message.importance = importance
+        message.id = BinaryDebugSystem.id()
+
+        message.call = text(call ?: "", BinaryDebugMessage.ClientRequest.call)
+        message.payload = text(payloadEncoded, BinaryDebugMessage.ClientRequest.payload)
+        message
     }
-
-    sendMessage(
-        DebugMessage.Log(
-            context ?: DebugContext.create(),
-            message,
-            wrapped,
-            level
-        )
-    )
 }
 
-suspend fun <R> DebugSystem?.everythingD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
-    logD(message, serializer, structured, MessageImportance.TELL_ME_EVERYTHING, context)
-}
+suspend fun BinaryDebugSystem.clientResponse(
+    importance: MessageImportance,
 
-suspend fun <R> DebugSystem?.detailD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
-    logD(message, serializer, structured, MessageImportance.IMPLEMENTATION_DETAIL, context)
-}
+    call: String?,
+    response: JsonElement?,
 
-suspend fun <R> DebugSystem?.normalD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
-    logD(message, serializer, structured, MessageImportance.THIS_IS_NORMAL, context)
-}
-
-suspend fun <R> DebugSystem?.oddD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
-    logD(message, serializer, structured, MessageImportance.THIS_IS_ODD, context)
-}
-
-suspend fun <R> DebugSystem?.dangerousD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
-    logD(message, serializer, structured, MessageImportance.THIS_IS_DANGEROUS, context)
-}
-
-suspend fun <R> DebugSystem?.wrongD(message: String, serializer: KSerializer<R>, structured: R) {
-    logD(message, serializer, structured, MessageImportance.THIS_IS_WRONG)
-}
-
-class DebugSystemLogContext(
-    val name: String,
-    val debug: DebugSystem?,
-    val debugContext: DebugContext,
+    responseCode: HttpStatusCode,
+    responseTime: Long,
 ) {
-    suspend fun logExit(
-        message: String,
-        data: JsonObject? = null,
-        level: MessageImportance = MessageImportance.THIS_IS_NORMAL
-    ) {
-        if (debug == null) return
-        debug.sendMessage(
-            DebugMessage.Log(
-                DebugContext.createWithParent(debugContext.id),
-                if (message.isBlank()) name else "$name: $message",
-                data,
-                level
-            )
-        )
+    val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
+    val responseEncoded = if (response == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), response)
+
+    emit {
+        val message = allocateOrNull(clientResponse) ?: return@emit null
+        message.ctxGeneration = BinaryDebugSystem.generation
+        message.ctxParent = ctx.parent
+        message.ctxId = ctx.id
+        message.timestamp = System.currentTimeMillis()
+        message.importance = importance
+        message.id = BinaryDebugSystem.id()
+
+        message.call = text(call ?: "", BinaryDebugMessage.ClientResponse.call)
+        message.response = text(responseEncoded, BinaryDebugMessage.ClientResponse.response)
+        message.responseCode = responseCode.value.toShort()
+        message.responseTime = responseTime.toInt()
+        message
     }
 }
 
-suspend fun <R> DebugSystem?.enterContext(
-    name: String,
-    block: suspend DebugSystemLogContext.() -> R
-): R {
-    val debug = this
+suspend fun BinaryDebugSystem.serverRequest(
+    importance: MessageImportance,
 
-    val debugContext = DebugContext.create()
-    val logContext = DebugSystemLogContext(name, debug, debugContext)
-    if (debug == null) return block(logContext)
+    call: String?,
+    payload: JsonElement?,
+) {
+    val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
+    val payloadEncoded = if (payload == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), payload)
 
-    return withContext(DebugCoroutineContext(debugContext)) {
-        debug.sendMessage(
-            DebugMessage.Log(
-                debugContext,
-                "$name: Start",
-                null,
-                MessageImportance.IMPLEMENTATION_DETAIL
-            )
-        )
-        block(logContext)
+    emit {
+        val message = allocateOrNull(serverRequest) ?: return@emit null
+        message.ctxGeneration = BinaryDebugSystem.generation
+        message.ctxParent = ctx.parent
+        message.ctxId = ctx.id
+        message.timestamp = System.currentTimeMillis()
+        message.importance = importance
+        message.id = BinaryDebugSystem.id()
+
+        message.call = text(call ?: "", BinaryDebugMessage.ServerRequest.call)
+        message.payload = text(payloadEncoded, BinaryDebugMessage.ServerRequest.payload)
+        message
     }
 }
 
-// TODO(Dan): Remove the indirection, there is no need for this to be an interface. CommonDebugSystem is going to be
-//  the only implementation we have.
-interface DebugSystem {
-    suspend fun <T> transformPayload(serializer: KSerializer<T>, payload: T?): JsonElement {
-        return if (payload == null) JsonNull
-        else defaultMapper.encodeToJsonElement(serializer, payload)
+suspend fun BinaryDebugSystem.serverResponse(
+    importance: MessageImportance,
+
+    call: String?,
+    response: JsonElement?,
+
+    responseCode: HttpStatusCode,
+    responseTime: Long,
+) {
+    val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
+    val responseEncoded = if (response == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), response)
+
+    emit {
+        val message = allocateOrNull(serverResponse) ?: return@emit null
+        message.ctxGeneration = BinaryDebugSystem.generation
+        message.ctxParent = ctx.parent
+        message.ctxId = ctx.id
+        message.timestamp = System.currentTimeMillis()
+        message.importance = importance
+        message.id = BinaryDebugSystem.id()
+
+        message.call = text(call ?: "", BinaryDebugMessage.ServerResponse.call)
+        message.response = text(responseEncoded, BinaryDebugMessage.ServerResponse.response)
+        message.responseCode = responseCode.value.toShort()
+        message.responseTime = responseTime.toInt()
+        message
+    }
+}
+
+suspend fun BinaryDebugSystem.databaseTransaction(
+    importance: MessageImportance,
+
+    event: DBTransactionEvent
+) {
+    val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
+
+    emit {
+        val message = allocateOrNull(databaseTransaction) ?: return@emit null
+        message.ctxGeneration = BinaryDebugSystem.generation
+        message.ctxParent = ctx.parent
+        message.ctxId = ctx.id
+        message.timestamp = System.currentTimeMillis()
+        message.importance = importance
+        message.id = BinaryDebugSystem.id()
+        message.event = event
+        message
+    }
+}
+
+suspend fun BinaryDebugSystem.databaseQuery(
+    importance: MessageImportance,
+
+    parameters: JsonElement?,
+    query: String,
+) {
+    val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
+    val parametersEncoded =
+        if (parameters == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), parameters)
+
+    emit {
+        val message = allocateOrNull(databaseQuery) ?: return@emit null
+        message.ctxGeneration = BinaryDebugSystem.generation
+        message.ctxParent = ctx.parent
+        message.ctxId = ctx.id
+        message.timestamp = System.currentTimeMillis()
+        message.importance = importance
+        message.id = BinaryDebugSystem.id()
+        message.parameters = text(parametersEncoded, BinaryDebugMessage.DatabaseQuery.parameters)
+        message.query = text(query, BinaryDebugMessage.DatabaseQuery.query)
+        message
+    }
+}
+
+suspend fun BinaryDebugSystem.databaseResponse(
+    importance: MessageImportance,
+
+    responseTime: Long
+) {
+    val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
+
+    emit {
+        val message = allocateOrNull(databaseResponse) ?: return@emit null
+        message.ctxGeneration = BinaryDebugSystem.generation
+        message.ctxParent = ctx.parent
+        message.ctxId = ctx.id
+        message.timestamp = System.currentTimeMillis()
+        message.importance = importance
+        message.id = BinaryDebugSystem.id()
+
+        message.responseTime = responseTime.toInt()
+        message
+    }
+}
+
+suspend fun BinaryDebugSystem.log(
+    importance: MessageImportance,
+
+    log: String,
+    extra: JsonElement? = null,
+) {
+    val ctx = coroutineContext[BinaryDebugCoroutineContext] ?: BinaryDebugCoroutineContext.root
+    val extraEncoded = if (extra == null) "" else defaultMapper.encodeToString(JsonElement.serializer(), extra)
+
+    emit {
+        val message = allocateOrNull(this.log) ?: return@emit null
+        message.ctxGeneration = BinaryDebugSystem.generation
+        message.ctxParent = ctx.parent
+        message.ctxId = ctx.id
+        message.timestamp = System.currentTimeMillis()
+        message.importance = importance
+        message.id = BinaryDebugSystem.id()
+
+        message.message = text(log, BinaryDebugMessage.Log.message)
+        message.extra = text(extraEncoded, BinaryDebugMessage.Log.extra)
+        message
+    }
+}
+
+suspend fun BinaryDebugSystem.everything(
+    log: String,
+    extra: JsonElement? = null,
+) {
+    log(MessageImportance.TELL_ME_EVERYTHING, log, extra)
+}
+
+suspend fun BinaryDebugSystem.detail(
+    log: String,
+    extra: JsonElement? = null,
+) {
+    log(MessageImportance.IMPLEMENTATION_DETAIL, log, extra)
+}
+
+suspend fun BinaryDebugSystem.normal(
+    log: String,
+    extra: JsonElement? = null,
+) {
+    log(MessageImportance.THIS_IS_NORMAL, log, extra)
+}
+
+suspend fun BinaryDebugSystem.odd(
+    log: String,
+    extra: JsonElement? = null,
+) {
+    log(MessageImportance.THIS_IS_ODD, log, extra)
+}
+
+suspend fun BinaryDebugSystem.wrong(
+    log: String,
+    extra: JsonElement? = null,
+) {
+    log(MessageImportance.THIS_IS_WRONG, log, extra)
+}
+
+suspend fun BinaryDebugSystem.dangerous(
+    log: String,
+    extra: JsonElement? = null,
+) {
+    log(MessageImportance.THIS_IS_DANGEROUS, log, extra)
+}
+
+fun buildBlobFilePath(generation: Long, fileIdx: Int): String {
+    return "$generation-$fileIdx.blob"
+}
+
+class BlobSystem(
+    directory: File,
+    generation: Long,
+    fileIndex: Int
+) {
+    private val channel = FileChannel.open(
+        File(directory, buildBlobFilePath(generation, fileIndex)).toPath(),
+        StandardOpenOption.READ,
+        StandardOpenOption.WRITE,
+        StandardOpenOption.CREATE,
+        StandardOpenOption.SPARSE,
+    )
+    private val buf = channel.map(FileChannel.MapMode.READ_WRITE, 0, 1024 * 1024 * 512)
+
+    fun storeBlob(blob: ByteArray): String {
+        if (buf.position() + blob.size + 4 > buf.capacity()) return "invalid"
+
+        val pos = buf.position()
+        buf.putInt(blob.size)
+        buf.put(blob)
+        return pos.toString()
     }
 
-    suspend fun sendMessage(message: DebugMessage)
+    fun close() {
+        channel.truncate(buf.position().toLong())
+        channel.close()
+    }
+
+    companion object {
+        fun exists(directory: File, generation: Long, idx: Int): Boolean {
+            return File(directory, buildBlobFilePath(generation, idx)).exists()
+        }
+    }
 }
 
 fun DebugSystem.installCommon(client: RpcClient) {
-    val key = AttributeKey<String>("debug-id")
-    val payloadKey = AttributeKey<JsonElement>("debug-payload")
+    val debugSystem = this
+
     client.attachFilter(object : OutgoingCallFilter.BeforeCall() {
         override fun canUseContext(ctx: OutgoingCall): Boolean = true
 
         override suspend fun run(context: OutgoingCall, callDescription: CallDescription<*, *, *>, request: Any?) {
             @Suppress("UNCHECKED_CAST") val call = callDescription as CallDescription<Any, Any, Any>
-            val debugContext = DebugContext.create()
-            val id = debugContext.id
-            val debugPayload = transformPayload(call.requestType, request)
+            val debugPayload = if (request == null) JsonNull else defaultMapper.encodeToJsonElement(call.requestType, request)
 
-            context.attributes[key] = id
-            context.attributes[payloadKey] = debugPayload
-
-            sendMessage(
-                DebugMessage.ClientRequest(
-                    debugContext,
-                    Time.now(),
-                    null,
-                    MessageImportance.IMPLEMENTATION_DETAIL,
-                    callDescription.fullName,
-                    debugPayload,
-                    context.attributes.outgoingTargetHostOrNull.toString(),
-                )
+            debugSystem.clientRequest(
+                MessageImportance.THIS_IS_NORMAL,
+                callDescription.fullName,
+                debugPayload
             )
         }
     })
@@ -431,40 +736,30 @@ fun DebugSystem.installCommon(client: RpcClient) {
             response: IngoingCallResponse<*, *>,
             responseTimeMs: Long
         ) {
-            val id = context.attributes[key]
+            // val id = context.attributes[key]
             @Suppress("UNCHECKED_CAST") val call = callDescription as CallDescription<Any, Any, Any>
-            sendMessage(
-                DebugMessage.ClientResponse(
-                    DebugContext.createWithParent(id),
-                    Time.now(),
-                    null,
-                    when {
-                        responseTimeMs >= 300 || response.statusCode.value in 500..599 ->
-                            MessageImportance.THIS_IS_WRONG
 
-                        responseTimeMs >= 150 || response.statusCode.value in 400..499 ->
-                            MessageImportance.THIS_IS_ODD
-
-                        else ->
-                            MessageImportance.THIS_IS_NORMAL
-                    },
-                    callDescription.fullName,
-                    when (response) {
-                        is IngoingCallResponse.Error -> {
-                            if (response.error == null) {
-                                JsonNull
-                            } else {
-                                defaultMapper.encodeToJsonElement(call.errorType, response.error)
-                            }
+            debugSystem.clientResponse(
+                when {
+                    responseTimeMs >= 300 || response.statusCode.value in 500..599 -> MessageImportance.THIS_IS_WRONG
+                    responseTimeMs >= 150 || response.statusCode.value in 400..499 -> MessageImportance.THIS_IS_ODD
+                    else -> MessageImportance.THIS_IS_NORMAL
+                },
+                call.fullName,
+                when (response) {
+                    is IngoingCallResponse.Error -> {
+                        if (response.error == null) {
+                            JsonNull
+                        } else {
+                            defaultMapper.encodeToJsonElement(call.errorType, response.error)
                         }
-                        is IngoingCallResponse.Ok -> {
-                            defaultMapper.encodeToJsonElement(call.successType, response.result)
-                        }
-                    },
-                    context.attributes.getOrNull(payloadKey) ?: JsonNull,
-                    response.statusCode.value,
-                    responseTimeMs,
-                )
+                    }
+                    is IngoingCallResponse.Ok -> {
+                        defaultMapper.encodeToJsonElement(call.successType, response.result)
+                    }
+                },
+                io.ktor.http.HttpStatusCode.fromValue(response.statusCode.value),
+                responseTimeMs,
             )
         }
     })

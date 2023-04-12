@@ -1,0 +1,106 @@
+.main-content {
+    padding: 14px 24px 0px 24px;
+    width: calc(100% - var(--sidebarWidth));
+    max-width: calc(100% - var(--sidebarWidth) - 24px - 24px);
+    margin-top: 36px;
+    margin-left: var(--sidebarWidth);
+    height: calc(100vh - 62px);
+}
+
+div.card {
+    width: 100%;
+    border: 1px solid #e2dddd;
+    border-radius: 12px;
+    background: #fafbfc;
+    box-shadow: 0 3px 6px rgba(1, 1, 1, 16%);
+}
+
+.full-width {
+    width: 100%;
+}
+
+div.details {
+    height: calc(200px - 16px);
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+div.card.query {
+    width: 100%;
+    overflow-y: auto;
+    overflow-x: scroll;
+    padding: 16px;
+}
+
+div.card.query-details {
+    width: 40%;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+div.request-list-row {
+    --border: 1px solid #5c89f4;
+    padding: 3px;
+    height: 25px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    border-top: var(--border);
+    color: black;
+    cursor: pointer;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+div.request-list-row:first-child {
+    border-top: none;
+}
+
+div.request-list-row[data-has-error="true"] {
+    color: var(--white);
+    background-color: var(--red);
+}
+
+div.request-list-row[data-is-odd="true"] {
+    color: var(--black);
+    background-color: var(--yellow, pink);
+}
+
+div.request-list-row[data-selected="true"] {
+    color: var(--black) !important;
+    background-color: var(--lightBlue, pink) !important;
+}
+
+div.request-list-row:last-child {
+    border-bottom: var(--border);
+}
+
+div[data-haschildren="true"] {
+    border-bottom: var(--border);
+}
+
+.leaf {
+    width: auto;
+    cursor: pointer;
+}
+
+.breadcrumb::after {
+    content: '/';
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.left-border-black {
+    border-left: var(--border);
+}
+
+div.managed-list {
+    height: calc(100vh - var(--headerHeight) - 10px - 10px - 200px - 20px);
+    overflow-y: scroll;
+    overflow-x: hidden;
+}
+
+div.managed-list > div:first-child {
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+}

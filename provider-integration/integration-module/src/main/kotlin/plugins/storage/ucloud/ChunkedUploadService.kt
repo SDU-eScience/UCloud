@@ -3,8 +3,8 @@ package dk.sdu.cloud.plugins.storage.ucloud
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.utils.copyTo
 import io.ktor.utils.io.*
-import io.ktor.utils.io.jvm.javaio.*
 
 class ChunkedUploadService(
     private val pathConverter: PathConverter,

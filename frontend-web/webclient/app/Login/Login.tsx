@@ -6,7 +6,6 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {DropdownContent, Dropdown} from "@/ui-components/Dropdown";
 import {TextSpan} from "@/ui-components/Text";
 import {getQueryParamOrElse, getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
@@ -250,7 +249,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                             <LoginTextSpan fontSize={2} ml="2.5em">Login</LoginTextSpan>
                         </Button>
                     </a>
-                    <Text onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other login options →</Text>
+                    <Text color="#000" onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other login options →</Text>
                 </>) : null}
                 {(!challengeId) ? (
                     !isPasswordReset ? (!showingWayf ? (
@@ -277,7 +276,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                     </Link>
                                 </Box>
                             </DropdownLike>
-                            <Text mt="8px" cursor="pointer" onClick={() => setShowingWayf(true)} textAlign="center">← Wayf login</Text>
+                            <Text mt="8px" color="#000" cursor="pointer" onClick={() => setShowingWayf(true)} textAlign="center">← Wayf login</Text>
                         </>
                     ) : null) : (
                         resetToken == null ? (
@@ -347,13 +346,13 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                     <DropdownLike>
                         <form onSubmit={preventDefault}>
                             <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
-                            <Button
+                            <LoginButton
                                 fullWidth
                                 disabled={loading}
                                 onClick={() => challengeId ? submit2FA() : attemptLogin()}
                             >
                                 Submit
-                            </Button>
+                            </LoginButton>
                         </form>
                     </DropdownLike>
                 )}

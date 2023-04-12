@@ -2,6 +2,8 @@ package dk.sdu.cloud.sql
 
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.debug.DebugContextType
+import dk.sdu.cloud.debugSystem
 import kotlinx.coroutines.delay
 import org.postgresql.util.PSQLException
 
@@ -17,8 +19,11 @@ sealed class DBContext {
         abstract suspend fun commit()
         abstract suspend fun isReady(): Boolean
         open suspend fun rollback() {}
+
         @Suppress("EmptyFunctionBlock")
-        open fun flush() {}
+        open fun flush() {
+        }
+
         abstract fun prepareStatement(statement: String): PreparedStatement
     }
 
@@ -31,11 +36,19 @@ interface PreparedStatement {
     suspend fun bindString(param: String, value: String)
     suspend fun bindBoolean(param: String, value: Boolean)
     suspend fun bindDouble(param: String, value: Double)
-    suspend fun bindList(param: String, value: List<Any?>)
+    suspend fun bindList(param: String, value: List<Any?>, typeHint: Any? = null)
     suspend fun execute(isUpdateHint: Boolean? = null): ResultCursor
     suspend fun reset()
     suspend fun close()
 }
+
+const val SQL_TYPE_HINT_BOOL = true
+const val SQL_TYPE_HINT_TEXT = ""
+const val SQL_TYPE_HINT_INT2 = 0.toShort()
+const val SQL_TYPE_HINT_INT4 = 0
+const val SQL_TYPE_HINT_INT8 = 0L
+const val SQL_TYPE_HINT_FLOAT4 = 0.0f
+const val SQL_TYPE_HINT_FLOAT8 = 0.0
 
 suspend fun PreparedStatement.bindIntNullable(param: String, value: Int?) {
     if (value == null) bindNull(param)
@@ -90,7 +103,7 @@ suspend inline fun PreparedStatement.useAndInvoke(
 suspend inline fun PreparedStatement.invokeAndDiscard(
     prepare: PreparedStatement.() -> Unit = {},
 ) {
-    invoke(prepare) {  }
+    invoke(prepare) { }
 }
 
 suspend inline fun PreparedStatement.invoke(
@@ -158,14 +171,16 @@ suspend fun <R> DBContext.Connection.withTransaction(
     autoFlush: Boolean = false,
     closure: suspend (DBContext.Connection) -> R
 ): R {
-    openTransaction()
-    try {
-        val result = closure(this)
-        if (autoFlush) flush()
-        if (autoCommit) commit()
-        return result
-    } catch (ex: Throwable) {
-        rollback()
-        throw ex
+    return debugSystem.useContext(DebugContextType.DATABASE_TRANSACTION) {
+        openTransaction()
+        try {
+            val result = closure(this)
+            if (autoFlush) flush()
+            if (autoCommit) commit()
+            result
+        } catch (ex: Throwable) {
+            rollback()
+            throw ex
+        }
     }
 }

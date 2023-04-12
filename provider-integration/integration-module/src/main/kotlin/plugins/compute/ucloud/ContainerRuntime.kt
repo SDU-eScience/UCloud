@@ -3,6 +3,9 @@ package dk.sdu.cloud.plugins.compute.ucloud
 import dk.sdu.cloud.app.orchestrator.api.CpuAndMemory
 import dk.sdu.cloud.app.orchestrator.api.IPProtocol
 import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.plugins.InternalFile
+import dk.sdu.cloud.plugins.storage.ucloud.FsSystem
+import dk.sdu.cloud.utils.LinuxOutputStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import java.io.OutputStream
@@ -17,7 +20,7 @@ interface Container {
 
     suspend fun cancel(force: Boolean = false)
 
-    suspend fun downloadLogs(out: OutputStream)
+    suspend fun downloadLogs(out: LinuxOutputStream)
     suspend fun watchLogs(scope: CoroutineScope): ReceiveChannel<String>
 
     suspend fun openShell(
@@ -34,11 +37,17 @@ interface Container {
 
     fun stateAndMessage(): Pair<JobState, String>
     suspend fun productCategory(): String?
+    suspend fun mountedDirectories(): List<UCloudMount>
 
     val vCpuMillis: Int
     val memoryMegabytes: Int
     val gpus: Int
 }
+
+data class UCloudMount(
+    val systemName: String,
+    val subpath: String,
+)
 
 interface ComputeNode {
     suspend fun productCategory(): String?
@@ -82,7 +91,7 @@ interface ContainerBuilder {
     fun environment(name: String, value: String)
     fun command(command: List<String>)
 
-    fun mountUCloudFileSystem(subPath: String, containerPath: String, readOnly: Boolean)
+    fun mountUCloudFileSystem(system: FsSystem, subPath: String, containerPath: String, readOnly: Boolean)
     fun mountSharedMemory(sharedMemorySizeMegabytes: Long)
     fun mountSharedVolume(volumeName: String, containerPath: String)
 

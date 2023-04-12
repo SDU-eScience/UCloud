@@ -7,7 +7,7 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.plugins.RelativeInternalFile
+import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.bindStringNullable
 import dk.sdu.cloud.sql.useAndInvoke
@@ -17,13 +17,10 @@ import java.time.*
 import java.time.format.*
 import java.util.concurrent.atomic.AtomicBoolean
 
-// NOTE(Dan): This code is currently not invoked due to potential bugs in the code.
-
 class UsageScan(
     private val pluginName: String,
     private val pathConverter: PathConverter,
-    private val fs: NativeFS,
-    private val fastDirectoryStats: CephFsFastDirectoryStats,
+    private val fastDirectoryStats: FastDirectoryStats,
     private val serviceClient: AuthenticatedClient,
     private val db: DBContext,
 ) {
@@ -80,96 +77,34 @@ class UsageScan(
             val scanId = Time.now().toString()
 
             val chunkSize = 50
+
+            var next: String? = null
+            while (true) {
+                val page = pathConverter.locator.enumerateDrives(next = next)
+
+                page.items.asSequence().filter { !it.inMaintenanceMode }.chunked(chunkSize).forEach { chunk ->
+                    val resolvedCollections = retrieveCollections(false, chunk.map { it.drive.ucloudId.toString() })
+                        ?: return@forEach
+
+                    val paths = chunk.map {
+                        pathConverter.ucloudToInternal(
+                            UCloudFile.createFromPreNormalizedString("/${it.drive.ucloudId}")
+                        )
+                    }
+
+                    // NOTE(Dan): We assume that if the recursive size comes back as null then this means that the
+                    // collection has been deleted and thus shouldn't count.
+                    val sizes = paths.map { thisCollection ->
+                        fastDirectoryStats.getRecursiveSize(thisCollection, allowSlowPath = true) ?: 0L
+                    }
+
+                    processChunk(chunk.map { it.drive.ucloudId }, sizes, resolvedCollections, chunk.map { it.toString() })
+                }
+
+                next = page.next ?: break
+            }
+
             db.withSession { session ->
-                run {
-                    val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/collections"))
-                    val collections = fs.listFiles(collectionRoot).mapNotNull { it.toLongOrNull() }
-                    collections.chunked(chunkSize).forEach { chunk ->
-                        val resolvedCollections =
-                            retrieveCollections(providerGenerated = false, chunk.map { it.toString() })
-                                ?: return@forEach
-
-                        val paths = chunk.map {
-                            pathConverter.relativeToInternal(RelativeInternalFile("/collections/${it}"))
-                        }
-
-                        // NOTE(Dan): We assume that if the recursive size comes back as null then this means that the
-                        // collection has been deleted and thus shouldn't count.
-                        val sizes = paths.map { thisCollection ->
-                            fastDirectoryStats.getRecursiveSize(thisCollection) ?: 0L
-                        }
-
-                        processChunk(chunk, sizes, resolvedCollections, chunk.map { it.toString() })
-                    }
-                }
-
-                run {
-                    val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/home"))
-                    val collections = fs.listFiles(collectionRoot)
-                    collections.chunked(chunkSize).forEach { chunk ->
-                        val resolvedCollections = retrieveCollections(
-                            providerGenerated = true,
-                            chunk.map { PathConverter.COLLECTION_HOME_PREFIX + it }
-                        ) ?: return@forEach
-
-                        val paths = chunk.map { filename ->
-                            pathConverter.relativeToInternal(RelativeInternalFile("/home/${filename}"))
-                        }
-
-                        val sizes = paths.map { thisCollection ->
-                            fastDirectoryStats.getRecursiveSize(thisCollection) ?: 0L
-                        }
-
-                        val mappedChunk = chunk.map { filename ->
-                            resolvedCollections
-                                .find { it.providerGeneratedId == PathConverter.COLLECTION_HOME_PREFIX + filename }
-                                ?.id
-                                ?.toLongOrNull()
-                        }
-
-                        processChunk(mappedChunk, sizes, resolvedCollections, chunk)
-                    }
-                }
-
-                run {
-                    // TODO(Dan): If files are only stored in member files then we won't find them with this code
-                    val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/projects"))
-                    val collections = fs.listFiles(collectionRoot)
-                    collections.chunked(chunkSize).forEach { chunk ->
-                        val paths = chunk.map { filename ->
-                            pathConverter.relativeToInternal(RelativeInternalFile("/projects/${filename}"))
-                        }
-
-                        val reposForAccounting = paths.map { projectRoot ->
-                            runCatching { fs.listFiles(projectRoot) }.getOrNull()?.firstOrNull() ?: "0"
-                        }
-
-                        val chunkAndRepos = chunk.zip(reposForAccounting)
-                        val resolvedCollections = retrieveCollections(
-                            providerGenerated = true,
-                            chunkAndRepos.map { (projectName, firstRepo) ->
-                                PathConverter.COLLECTION_PROJECT_PREFIX + projectName + "/" + firstRepo
-                            }
-                        ) ?: return@forEach
-
-                        val sizes = paths.map { thisCollection ->
-                            fastDirectoryStats.getRecursiveSize(thisCollection) ?: 0L
-                        }
-
-                        val mappedChunk = chunkAndRepos.map { (projectName, firstRepo) ->
-                            resolvedCollections
-                                .find {
-                                    it.providerGeneratedId == (PathConverter.COLLECTION_PROJECT_PREFIX + projectName +
-                                            "/" + firstRepo)
-                                }
-                                ?.id
-                                ?.toLongOrNull()
-                        }
-
-                        processChunk(mappedChunk, sizes, resolvedCollections, chunk)
-                    }
-                }
-
                 for (chunk in dataPoints.values.chunked(100)) {
                     val allRequests = chunk.mapNotNull { dataPoint ->
                         val chargeId = when (val owner = dataPoint.key.owner) {

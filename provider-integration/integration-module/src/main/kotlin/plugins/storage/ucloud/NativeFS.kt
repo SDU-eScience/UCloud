@@ -2,8 +2,6 @@ package dk.sdu.cloud.plugins.storage.ucloud
 
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.debug.DebugSystem
-import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.file.orchestrator.api.joinPath
@@ -15,13 +13,12 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.utils.LinuxFileHandle
 import dk.sdu.cloud.utils.LinuxInputStream
 import dk.sdu.cloud.utils.LinuxOutputStream
+import dk.sdu.cloud.utils.copyTo
 import io.ktor.util.*
 import io.ktor.utils.io.pool.*
 import libc.NativeStat
 import libc.S_ISREG
 import libc.clib
-import java.io.InputStream
-import java.io.OutputStream
 import java.nio.file.attribute.PosixFilePermission
 import kotlin.collections.ArrayList
 
@@ -47,10 +44,7 @@ class NativeFS(
             val fileDescriptors = Array<LinuxFileHandle?>(components.size) { null }
             try {
                 fileDescriptors[0] = LinuxFileHandle.createOrThrow(open("/${components[0]}", O_NOFOLLOW, 0)) {
-                    throw FSException.NotFound(
-                        // NOTE(Dan): This might crash if the internal collection doesn't exist (yet)
-                        runCatching { pathConverter.internalToUCloud(file).path }.getOrNull()
-                    )
+                    throw FSException.NotFound(file.fileName())
                 }
 
                 for (i in 1 until fileDescriptors.size) {
@@ -61,10 +55,7 @@ class NativeFS(
                         else O_NOFOLLOW
                     fileDescriptors[i] =
                         LinuxFileHandle.createOrThrow(openat(previousFd.fd, components[i], opts, DEFAULT_FILE_MODE)) {
-                            throw FSException.NotFound(
-                                // NOTE(Dan): This might crash if the internal collection doesn't exist (yet)
-                                runCatching { pathConverter.internalToUCloud(file).path }.getOrNull()
-                            )
+                            throw FSException.NotFound(file.fileName())
                         }
                     previousFd.close()
                     fileDescriptors[i - 1] = null
@@ -84,7 +75,7 @@ class NativeFS(
         }
     }
 
-    fun copy(
+    suspend fun copy(
         source: InternalFile,
         destination: InternalFile,
         conflictPolicy: WriteConflictPolicy,
@@ -108,8 +99,10 @@ class NativeFS(
 
                     val ins = LinuxInputStream(sourceFd) // Closed later
                     LinuxOutputStream(destFd).use { outs ->
-                        ins.copyTo(outs)
                         fchmod(destFd.fd, sourceStat.mode)
+                        fchown(destFd.fd, sourceStat.ownerUid, sourceStat.ownerGid)
+
+                        ins.copyTo(outs)
                     }
                     return CopyResult.CreatedFile
                 } else if (sourceStat.fileType == FileType.DIRECTORY) {
@@ -171,7 +164,7 @@ class NativeFS(
         return result
     }
 
-    private fun createAccordingToPolicy(
+    private suspend fun createAccordingToPolicy(
         parentFd: LinuxFileHandle,
         desiredFileName: String,
         conflictPolicy: WriteConflictPolicy,
@@ -184,31 +177,10 @@ class NativeFS(
             if (conflictPolicy != WriteConflictPolicy.RENAME) {
                 conflictPolicy
             } else {
-                val relativeFile = pathConverter.internalToRelative(internalDestination)
-                val components = relativeFile.components()
-                if (isPersonalWorkspace(relativeFile)) {
-                    // /home/$USERNAME should never be renamed
-                    if (relativeFile.components().size == 2) {
-                        WriteConflictPolicy.REJECT
-                    } else {
-                        conflictPolicy
-                    }
-                } else if (isProjectWorkspace(relativeFile)) {
-                    // /projects/$PROJECT/$REPO
-                    // /projects/$PROJECT
-                    // Neither should be renamed
-
-                    val components = relativeFile.components()
-                    if (components.size == 2 || components.size == 3) {
-                        WriteConflictPolicy.REJECT
-                    } else {
-                        conflictPolicy
-                    }
-                } else if (components[0] == PathConverter.COLLECTION_DIRECTORY) {
-                    if (components.size == 1) WriteConflictPolicy.REJECT
-                    else conflictPolicy
+                if (pathConverter.internalToUCloud(internalDestination).components().size == 1) {
+                    WriteConflictPolicy.REJECT
                 } else {
-                    throw RPCException("Unexpected file", HttpStatusCode.InternalServerError)
+                    conflictPolicy
                 }
             }
         }
@@ -306,14 +278,14 @@ class NativeFS(
         if (permissions != null) clib.fchmod(handle.fd, permissions)
     }
 
-    fun openForWriting(
+    suspend fun openForWriting(
         file: InternalFile,
         conflictPolicy: WriteConflictPolicy,
         owner: Int? = LINUX_FS_USER_UID,
         permissions: Int? = DEFAULT_FILE_MODE,
         truncate: Boolean = true,
         offset: Long? = null,
-    ): Pair<String, OutputStream> {
+    ): Pair<String, LinuxOutputStream> {
         val parentFd = openFile(file.parent())
         try {
             val (targetName, targetFd) = createAccordingToPolicy(
@@ -344,8 +316,8 @@ class NativeFS(
         }
     }
 
-    fun openForReading(file: InternalFile): InputStream {
-        return LinuxInputStream(openFile(file, O_RDONLY)).buffered()
+    fun openForReading(file: InternalFile): LinuxInputStream {
+        return LinuxInputStream(openFile(file, O_RDONLY))
     }
 
     fun delete(file: InternalFile, allowRecursion: Boolean = true) {
@@ -372,7 +344,7 @@ class NativeFS(
         }
     }
 
-    fun getExtendedAttribute(file: InternalFile, attribute: String): String {
+    fun getExtendedAttribute(file: InternalFile, attribute: String): String? {
         val handle = openFile(file)
         return try {
             getExtendedAttribute(handle.fd, attribute)
@@ -381,11 +353,12 @@ class NativeFS(
         }
     }
 
-    private fun getExtendedAttribute(fd: Int, attribute: String): String {
-        return DefaultByteArrayPool.useInstance { buf ->
-            val xattrSize = clib.fgetxattr(fd, attribute, buf, buf.size)
-            if (xattrSize < 0) throw NativeException(clib.getErrno())
-            String(buf, 0, xattrSize, Charsets.UTF_8)
+    private fun getExtendedAttribute(fd: Int, attribute: String): String? {
+        return DefaultDirectBufferPool.useInstance { buf ->
+            val xattrSize = clib.fgetxattr(fd, attribute, buf)
+            if (xattrSize < 0) return@useInstance null
+            buf.limit(xattrSize)
+            String(buf.moveToByteArray(), 0, xattrSize, Charsets.UTF_8)
         }
     }
 
@@ -394,6 +367,20 @@ class NativeFS(
         return nativeStat(fd, autoClose = true)
     }
 
+    class StatAndXattr(val stat: NativeStat, val attributes: Array<String?>)
+    fun statAndFetchAttributes(file: InternalFile, vararg attributes: String): StatAndXattr {
+        val handle = openFile(file)
+        try {
+            val stat = nativeStat(handle, autoClose = false)
+            val fetchedAttributes = arrayOfNulls<String>(attributes.size)
+            for ((index, attr) in attributes.withIndex()) {
+                fetchedAttributes[index] = getExtendedAttribute(handle.fd, attr)
+            }
+            return StatAndXattr(stat, fetchedAttributes)
+        } finally {
+            handle.close()
+        }
+    }
 
     fun chmod(file: InternalFile, mode: Int) {
         val handle = openFile(file)
@@ -488,7 +475,7 @@ class NativeFS(
 
     data class MoveShouldContinue(val needsToRecurse: Boolean)
 
-    fun move(source: InternalFile, destination: InternalFile, conflictPolicy: WriteConflictPolicy): MoveShouldContinue {
+    suspend fun move(source: InternalFile, destination: InternalFile, conflictPolicy: WriteConflictPolicy): MoveShouldContinue {
         val sourceParent = openFile(source.parent())
         val destinationParent = openFile(destination.parent())
 
@@ -570,20 +557,3 @@ class NativeFS(
 }
 
 class NativeException(val statusCode: Int) : RuntimeException("Native exception, code: $statusCode")
-
-val DEFAULT_POSIX_FILE_MODE = setOf(
-    PosixFilePermission.OWNER_READ,
-    PosixFilePermission.OWNER_WRITE,
-    PosixFilePermission.GROUP_READ,
-    PosixFilePermission.GROUP_WRITE
-)
-
-val DEFAULT_POSIX_DIRECTORY_MODE = setOf(
-    PosixFilePermission.OWNER_READ,
-    PosixFilePermission.OWNER_WRITE,
-    PosixFilePermission.OWNER_EXECUTE,
-    PosixFilePermission.GROUP_READ,
-    PosixFilePermission.GROUP_WRITE,
-    PosixFilePermission.GROUP_EXECUTE,
-    PosixFilePermission.OTHERS_EXECUTE
-)

@@ -3,11 +3,17 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.debug.DebugContextType
+import dk.sdu.cloud.debug.DebugSystem
+import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
 import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
 import dk.sdu.cloud.micro.BackgroundScope
@@ -28,6 +34,7 @@ import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 class JobMonitoringService(
+    private val debug: DebugSystem,
     private val scope: BackgroundScope,
     private val distributedLocks: DistributedLockFactory,
     private val db: AsyncDBSessionFactory,
@@ -36,7 +43,8 @@ class JobMonitoringService(
     private val fileCollectionService: FileCollectionService,
     private val ingressService: IngressService,
     private val networkIPService: NetworkIPService,
-    private val licenseService: LicenseService
+    private val licenseService: LicenseService,
+    private val serviceClient: AuthenticatedClient
 ) {
     suspend fun initialize(useDistributedLocks: Boolean) {
         scope.launch {
@@ -66,16 +74,17 @@ class JobMonitoringService(
         while (isActive) {
             val now = Time.now()
             if (now >= nextScan) {
-                db.withSession { session ->
-                    val jobs = session
-                        .sendPreparedStatement(
-                            {
-                                setParameter(
-                                    "nonFinalStates",
-                                    JobState.values().filter { !it.isFinal() }.map { it.name }
-                                )
-                            },
-                            """
+                debug.useContext(DebugContextType.BACKGROUND_TASK, "Job monitoring", MessageImportance.TELL_ME_EVERYTHING) {
+                    db.withSession { session ->
+                        val jobs = session
+                            .sendPreparedStatement(
+                                {
+                                    setParameter(
+                                        "nonFinalStates",
+                                        JobState.values().filter { !it.isFinal() }.map { it.name }
+                                    )
+                                },
+                                """
                                 update app_orchestrator.jobs
                                 set last_scan = now()
                                 where
@@ -92,61 +101,86 @@ class JobMonitoringService(
                                     )
                                 returning resource;
                             """,
-                            "job monitoring loop"
-                        )
-                        .rows
-                        .map { it.getLong(0)!! }
-                        .toSet()
-                        .let { set ->
-                            jobOrchestrator.retrieveBulk(
-                                actorAndProject = ActorAndProject(Actor.System, null),
-                                set.map { id -> id.toString() },
-                                permissionOneOf = listOf(Permission.READ)
+                                "job monitoring loop"
                             )
-                        }
-
-                    val jobsByProvider = jobs.map { it }.groupBy { it.specification.product.provider }
-                    scope.launch {
-                        jobsByProvider.forEach { (provider, jobs) ->
-                            val comm = providers.prepareCommunication(provider)
-                            val resp = comm.api.verify.call(
-                                bulkRequestOf(jobs),
-                                comm.client
-                            )
-
-                            if (!resp.statusCode.isSuccess()) {
-                                log.info("Failed to verify block in $provider. Jobs: ${jobs.map { it.id }}")
+                            .rows
+                            .map { it.getLong(0)!! }
+                            .toSet()
+                            .let { set ->
+                                jobOrchestrator.retrieveBulk(
+                                    actorAndProject = ActorAndProject(Actor.System, null),
+                                    set.map { id -> id.toString() },
+                                    permissionOneOf = listOf(Permission.READ)
+                                )
                             }
 
-                            val requiresRestart = jobs.filter { 
-                                it.status.state == JobState.SUSPENDED && it.status.allowRestart == true
-                            }
-                            if (requiresRestart.isNotEmpty()) {
-                                for (job in requiresRestart) {
-                                    try {
-                                        jobOrchestrator.performUnsuspension(listOf(job))
-                                    } catch (ex: Throwable) {
-                                        log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
+                        val jobsByProvider = jobs.map { it }.groupBy { it.specification.product.provider }
+                        scope.launch {
+                            jobsByProvider.forEach { (provider, jobs) ->
+                                val comm = providers.prepareCommunication(provider)
+                                val resp = comm.api.verify.call(
+                                    bulkRequestOf(jobs),
+                                    comm.client
+                                )
+
+                                if (!resp.statusCode.isSuccess()) {
+                                    log.info("Failed to verify block in $provider. Jobs: ${jobs.map { it.id }}")
+                                }
+
+                                val requiresRestart = jobs.filter {
+                                    it.status.state == JobState.SUSPENDED && it.status.allowRestart == true
+                                }
+                                if (requiresRestart.isNotEmpty()) {
+                                    for (job in requiresRestart) {
+                                        try {
+                                            jobOrchestrator.performUnsuspension(listOf(job))
+                                        } catch (ex: Throwable) {
+                                            log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    for (job in jobs) {
-                        // NOTE(Dan): Suspended jobs are re-verified when they are unsuspended. We don't verify them
-                        // right now.
-                        if (job.status.state == JobState.SUSPENDED) continue
+                        for (job in jobs) {
+                            // NOTE(Dan): Suspended jobs are re-verified when they are unsuspended. We don't verify them
+                            // right now.
+                            if (job.status.state == JobState.SUSPENDED) continue
 
-                        log.trace("Checking permissions of ${job.id}")
-                        val (hasPermissions, files) = hasPermissionsForExistingMounts(job, session)
-                        if (!hasPermissions) {
-                            terminateAndUpdateJob(job, files)
-                        }
+                            log.trace("Checking permissions of ${job.id}")
+                            val (hasPermissions, files) = hasPermissionsForExistingMounts(job, session)
+                            if (!hasPermissions) {
+                                terminateAndUpdateJob(job, files)
+                            }
 
-                        val (resourceAvailable, resource) = hasResources(job, session)
-                        if (!resourceAvailable) {
-                            terminateAndUpdateJob(job, resource)
+                            val (resourceAvailable, resource) = hasResources(job, session)
+                            if (!resourceAvailable) {
+                                terminateAndUpdateJob(job, resource)
+                            }
+
+                            val quotaOK = hasStorageQuotaLeft(job, session)
+                            if (!quotaOK) {
+                                //TODO Will not kill at the moment just print the intent to do it
+                                log.info("Want to kill job: ${job.id} due to lacking storage")
+                                /*jobOrchestrator.terminate(
+                                    ActorAndProject(Actor.System, null),
+                                    bulkRequestOf(FindByStringId(job.id))
+                                )
+
+                                jobOrchestrator.addUpdate(
+                                    ActorAndProject(Actor.System, null),
+                                    bulkRequestOf(
+                                        ResourceUpdateAndId(
+                                            job.id,
+                                            JobUpdate(
+                                                status = "System initiated cancel: " +
+                                                    "You storage quota for has been used up."
+                                            )
+                                        )
+                                    )
+                                )*/
+                            }
+
                         }
                     }
                 }
@@ -185,6 +219,101 @@ class JobMonitoringService(
             )
         )
     }
+
+    private suspend fun hasStorageQuotaLeft(
+        job: Job,
+        context: DBContext
+    ) : Boolean {
+        val outputFolder = run {
+            val path = job.output?.outputFolder
+            if (path != null) {
+                listOf(AppParameterValue.File(path, false))
+            } else {
+                emptyList()
+            }
+        }
+        val parameters = job.specification.parameters ?: emptyMap()
+        val resources = job.specification.resources ?:  emptyList()
+        val allFiles =
+            parameters.values.filterIsInstance<AppParameterValue.File>() +
+                resources.filterIsInstance<AppParameterValue.File>() +
+                outputFolder
+
+        val files = allFiles.filter{ !it.readOnly }.map { extractPathMetadata(it.path).collection }.toSet()
+        //Does not require quota
+        if (files.isEmpty()) return true
+
+        val collections = fileCollectionService.retrieveBulk(
+            ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
+            files,
+            listOf(Permission.EDIT),
+            requireAll = false,
+            ctx = context
+        )
+
+        data class ProductCategoryAndOwner(
+            val productCategoryId: ProductCategoryId,
+            val owner: WalletOwner
+        )
+
+        val productCategoriesAndOwners = context.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    collections.split {
+                        into("collection_ids") {it.id}
+                    }
+                },
+                """
+                    select  pc.category, pc.provider, r.project, r.created_by
+                    from provider.resource r join
+                        accounting.products p on r.product = p.id join
+                        accounting.product_categories pc on p.category = pc.id
+                    where r.id in (select unnest(:collection_ids::bigint[]))
+                    group by pc.category, pc.provider, r.project, r.created_by
+                """.trimIndent()
+            ).rows
+                .mapNotNull {
+                    ProductCategoryAndOwner(
+                        ProductCategoryId(
+                            it.getString(0)!!,
+                            it.getString(1)!!
+                        ),
+                        if (it.getString(2) != null) {
+                            WalletOwner.Project(it.getString(2)!!)
+                        } else {
+                            WalletOwner.User(it.getString(3)!!)
+                        }
+                    )
+                }
+        }
+
+        productCategoriesAndOwners.forEach { catAndOwn ->
+            val activeBalanceForProductCategory = Wallets.retrieveAllocationsInternal.call(
+                WalletAllocationsInternalRetrieveRequest(
+                    catAndOwn.owner,
+                    catAndOwn.productCategoryId
+                ),
+                serviceClient
+            ).orThrow()
+                .allocations
+                .filter { allocationIsActive(it) }
+                .sumOf { it.balance }
+
+            if (activeBalanceForProductCategory <= 0) {
+                //TODO REMOVE LOG WHEN IT HAS BEEN TESTED ON REAL DATA
+                log.info("job: ${job.id} is low on storage resource. Sum of balance: $activeBalanceForProductCategory")
+                return false
+            }
+        }
+
+        return true
+    }
+
+    private suspend fun allocationIsActive(walletAllocation: WalletAllocation): Boolean {
+        val now = System.currentTimeMillis()
+        return (walletAllocation.startDate <= now && (walletAllocation.endDate ?: Long.MAX_VALUE) >= now)
+    }
+
 
     data class HasResource(val availability: Boolean, val resourceToMessage: List<String>?)
 

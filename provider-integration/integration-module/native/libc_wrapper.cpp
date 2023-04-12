@@ -45,21 +45,20 @@ JNIEXPORT jint JNICALL Java_libc_LibC_renameat(JNIEnv *env, jobject thisRef, jin
     return result;
 }
 
-JNIEXPORT jint JNICALL Java_libc_LibC_write(JNIEnv *env, jobject thisRef, jint fd, jbyteArray buffer, jlong bufferSize) {
-    jbyte *nativeBuffer = (jbyte*) malloc(bufferSize);
-    env->GetByteArrayRegion(buffer, 0, (jsize) bufferSize, nativeBuffer);
-    int res = write(fd, nativeBuffer, bufferSize);
-    free(nativeBuffer);
+JNIEXPORT jint JNICALL Java_libc_LibC_write(JNIEnv *env, jobject thisRef, jint fd, jobject buffer, jint offset, jint size) {
+    auto *buf = (char *) env->GetDirectBufferAddress(buffer);
+    if (buf == NULL) return -1;
+    buf += offset;
+    int res = write(fd, buf, size);
     return res;
 }
 
-JNIEXPORT jint JNICALL Java_libc_LibC_read(JNIEnv *env, jobject thisRef, jint fd, jbyteArray buffer, jlong bufferSize) {
-    jbyte *nativeBuffer = (jbyte*) malloc(bufferSize);
-    int res = read(fd, nativeBuffer, bufferSize);
-    if (res > 0) {
-        env->SetByteArrayRegion(buffer, 0, res, nativeBuffer);
-    }
-    free(nativeBuffer);
+JNIEXPORT jint JNICALL Java_libc_LibC_read(JNIEnv *env, jobject thisRef, jint fd, jobject buffer, jint offset, jint size) {
+    auto *buf = (char *) env->GetDirectBufferAddress(buffer);
+    if (buf == NULL) return -1;
+    buf += offset;
+
+    int res = read(fd, buf, size);
     return res;
 }
 
@@ -82,14 +81,13 @@ JNIEXPORT jint JNICALL Java_libc_LibC_fchmod(JNIEnv *env, jobject thisRef, jint 
     return fchmod(fd, mode);
 }
 
-JNIEXPORT jint JNICALL Java_libc_LibC_fgetxattr(JNIEnv *env, jobject thisRef, jint fd, jstring name, jbyteArray buffer, jint bufferSize) {
-    jbyte *nativeBuffer = (jbyte*) malloc(bufferSize);
+JNIEXPORT jint JNICALL Java_libc_LibC_fgetxattr(JNIEnv *env, jobject thisRef, jint fd, jstring name, jobject buffer) {
+    auto *buf = (char *) env->GetDirectBufferAddress(buffer);
+    if (buf == NULL) return -1;
+
+    auto maxSize = env->GetDirectBufferCapacity(buffer);
     const char *path = env->GetStringUTFChars(name, 0);
-    int res = fgetxattr(fd, path, nativeBuffer, bufferSize);
-    if (res > 0) {
-        env->SetByteArrayRegion(buffer, 0, res, nativeBuffer);
-    }
-    free(nativeBuffer);
+    int res = fgetxattr(fd, path, buf, maxSize);
     env->ReleaseStringUTFChars(name, path);
     return res;
 }

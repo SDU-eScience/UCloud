@@ -136,7 +136,8 @@ suspend fun initializeNormalProject(
                         WalletOwner.Project(projectId),
                         alloc.id,
                         amount,
-                        "wallet init"
+                        "wallet init",
+                        grantedIn = null
                     )
                 }
             ),

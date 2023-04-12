@@ -14,6 +14,7 @@ import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.service.Loggable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 class JobException {
     class VerificationError(message: String) : RPCException(message, HttpStatusCode.BadRequest)
@@ -180,7 +181,8 @@ class JobVerificationService(
                     is ApplicationParameter.NetworkIP,
                     -> null // Not supported and application should not have been validated. Silently fail.
 
-                    is ApplicationParameter.Text -> {
+                    is ApplicationParameter.Text,
+                    is ApplicationParameter.TextArea -> {
                         ((param.defaultValue as? JsonObject)?.get("value") as? JsonPrimitive)?.let {
                             AppParameterValue.Text(it.content)
                         } ?: (param.defaultValue as? JsonPrimitive)?.let { AppParameterValue.Text(it.content) }
@@ -196,8 +198,8 @@ class JobVerificationService(
                     is ApplicationParameter.FloatingPoint -> {
                         ((param.defaultValue as? JsonObject)?.get("value") as? JsonPrimitive)
                             ?.content
-                            ?.toLongOrNull()
-                            ?.let { AppParameterValue.FloatingPoint(it.toDouble()) }
+                            ?.toDoubleOrNull()
+                            ?.let { AppParameterValue.FloatingPoint(it) }
                             ?: (param.defaultValue as? JsonPrimitive)?.content?.toDoubleOrNull()?.let {
                                 AppParameterValue.FloatingPoint(it)
                             }
@@ -222,7 +224,7 @@ class JobVerificationService(
                         }
                     }
 
-                    else -> error("unknown application parameter")
+                    else -> error("unknown application parameter: ${param}")
                 }
 
                 if (providedValue == null) {

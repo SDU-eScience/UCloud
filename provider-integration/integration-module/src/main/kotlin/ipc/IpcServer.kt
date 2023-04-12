@@ -8,10 +8,10 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.config.VerifiedConfig
-import dk.sdu.cloud.debug.DebugContext
-import dk.sdu.cloud.debug.DebugCoroutineContext
-import dk.sdu.cloud.debug.DebugMessage
+import dk.sdu.cloud.debug.DebugContextType
 import dk.sdu.cloud.debug.MessageImportance
+import dk.sdu.cloud.debug.serverRequest
+import dk.sdu.cloud.debug.serverResponse
 import dk.sdu.cloud.plugins.storage.posix.toInt
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -137,38 +137,23 @@ data class IpcHandler(
     }
 
     suspend fun invokeHandler(user: IpcUser, request: JsonRpcRequest): JsonObject {
-        val context = DebugContext.create()
-        return withContext(DebugCoroutineContext(context)) {
+        return debugSystem.useContext(DebugContextType.SERVER_REQUEST, request.method) {
             val shouldDebug = request.method != "ping.ping"
             val start = Time.now()
             if (shouldDebug) {
-                debugSystem?.sendMessage(
-                    DebugMessage.ServerRequest(
-                        context,
-                        start,
-                        null,
-                        MessageImportance.IMPLEMENTATION_DETAIL,
-                        request.method,
-                        request.params
-                    )
-                )
+                debugSystem.serverRequest(MessageImportance.THIS_IS_NORMAL, request.method, request.params)
             }
 
             try {
                 val result = handler(user, request)
                 val end = Time.now()
                 if (shouldDebug) {
-                    debugSystem?.sendMessage(
-                        DebugMessage.ServerResponse(
-                            DebugContext.createWithParent(context.id),
-                            end,
-                            null,
-                            MessageImportance.THIS_IS_NORMAL,
-                            request.method,
-                            result,
-                            200,
-                            end - start
-                        )
+                    debugSystem.serverResponse(
+                        MessageImportance.THIS_IS_NORMAL,
+                        request.method,
+                        result,
+                        io.ktor.http.HttpStatusCode.OK,
+                        end - start
                     )
                 }
 
@@ -178,17 +163,12 @@ data class IpcHandler(
                 val stack =
                     defaultMapper.encodeToJsonElement(ReadableStackTrace.serializer(), ex.toReadableStacktrace())
                 if (!shouldDebug) {
-                    debugSystem?.sendMessage(
-                        DebugMessage.ServerResponse(
-                            DebugContext.createWithParent(context.id),
-                            end,
-                            null,
-                            MessageImportance.THIS_IS_WRONG,
-                            request.method,
-                            stack,
-                            500,
-                            end - start
-                        )
+                    debugSystem.serverResponse(
+                        MessageImportance.THIS_IS_WRONG,
+                        request.method,
+                        stack,
+                        io.ktor.http.HttpStatusCode.InternalServerError,
+                        end - start
                     )
                 }
 
