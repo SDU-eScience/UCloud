@@ -171,7 +171,8 @@ class ProductService(
                     setParameter("accountId", actorAndProject.project ?: actorAndProject.actor.safeUsername())
                     setParameter("account_is_project", actorAndProject.project != null)
 
-                    val nextParts = request.next?.split("-")?.takeIf { it.size == 3 }
+                    //Cannot use "-" since product names include these, resulting in split.size != 3 -> null
+                    val nextParts = request.next?.split("@")?.takeIf { it.size == 3 }
                     setParameter("next_provider", nextParts?.get(0))
                     setParameter("next_category", nextParts?.get(1))
                     setParameter("next_name", nextParts?.get(2))
@@ -230,9 +231,9 @@ class ProductService(
             } else buildString {
                 val last = result.last()
                 append(last.category.provider)
-                append('-')
+                append('@')
                 append(last.category.name)
-                append('-')
+                append('@')
                 append(last.name)
             }
 
