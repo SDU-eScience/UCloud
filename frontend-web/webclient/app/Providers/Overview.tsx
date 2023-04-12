@@ -26,12 +26,7 @@ export function ProviderEntry(props: {provider: ProviderType}): React.ReactEleme
     return (
         <Link to={`/providers/detailed/${props.provider.id}`}>
             <div className={ProviderCard}>
-                <Absolute left={0} top={0}
-                    cursor="inherit"
-                    height="10px"
-                    width="100%"
-                    style={{pointerEvents: "none"}}
-                    background={theme.colors.headerBg} />
+                <Absolute left={0} top={0} />
 
                 <div className={ProviderLogoClass}>
                     <ProviderLogo providerId={props.provider.id} size={150} />
@@ -54,11 +49,13 @@ export default function ProviderOverview() {
 
     useTitle("Provider Overview");
 
-    const main = <GridCardGroup minmax={250}>
-        {Providers.providers.map(provider =>
-            <ProviderEntry key={provider.title} provider={provider} />
-        )}
-    </GridCardGroup>
+    const main = <Box m="12px 24px">
+        <GridCardGroup minmax={250}>
+            {Providers.providers.map(provider =>
+                <ProviderEntry key={provider.title} provider={provider} />
+            )}
+        </GridCardGroup>
+    </Box>
 
     if (!Client.isLoggedIn) return (<>
         <NonAuthenticatedHeader />
@@ -73,7 +70,6 @@ export default function ProviderOverview() {
 
 const ProviderCard = injectStyle("provider-card", k => `
     ${k} {
-        padding: 10px 10px 10px 10px;
         width: 250px;
         height: 412px;
         display: flex;
@@ -97,7 +93,7 @@ const ProviderCard = injectStyle("provider-card", k => `
     transform: translateY(-2px);
   }
 
-  ${k}::before {
+  ${k}:before {
     pointer-events: none;
     content: "";
     position: absolute;
@@ -135,5 +131,18 @@ const ProviderCard = injectStyle("provider-card", k => `
     font-weight: 400;
     width: 100%;
     margin: 0 0 0 0;
+  }
+
+  ${k} > div {
+    padding: 10px;
+  }
+
+  ${k} > div:first-child {
+    padding: 0px;
+    cursor: inherit;
+    height: 10px;
+    width: 100%;
+    pointer-events: none;
+    background: ${theme.colors.headerBg};
   }
 `);

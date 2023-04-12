@@ -1,10 +1,9 @@
 import * as React from "react";
-import {Flex} from "@/ui-components";
+import {Flex, Input} from "@/ui-components";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
-import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -78,9 +77,10 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
     }), []);
 
     return (<Flex>
-        <PointerInput
+        <Input
             id={widgetId(props.parameter) + "visual"}
             placeholder={"No public link selected"}
+            cursor="pointer"
             error={error}
             onClick={doOpen}
         />

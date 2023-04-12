@@ -460,10 +460,14 @@ function LoginButton(props: ButtonProps): JSX.Element {
     return <Button {...props} textColor="fixedBlack" color="fixedWhite" />
 }
 
-const BlackLoginText = styled(Text)`
+function BlackLoginText(props): JSX.Element {
+    return <Text className={BlackLoginTextClass}  />
+}
+
+const BlackLoginTextClass = injectStyleSimple("black-login-text", `
     color: black;
     font-size: var(--interactiveElementsSize);
-`;
+`);
 
 function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JSX.Element {
     return (<Box backgroundColor="#fff" height="100vh">

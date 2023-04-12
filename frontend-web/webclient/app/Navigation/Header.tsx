@@ -1,19 +1,20 @@
 import * as React from "react";
-import styled from "styled-components";
 import * as ui from "@/ui-components";
 import Link from "@/ui-components/Link";
+import Text from "@/ui-components/Text";
 import CONF from "../../site.config.json";
+import {injectStyleSimple} from "@/Unstyled";
 
 // Note(Jonas): We need something similar NOT in the header. Or maybe keep this? Nah.
 export function NonAuthenticatedHeader(): JSX.Element {
     return (
-        <HeaderContainer color="headerText" bg="headerBg">
+        <ui.Flex background={"var(--headerBg)"} className={HeaderContainerClass}>
             <Logo />
             <ui.Box ml="auto" />
             <ui.Link to="/login">
-                <ui.Button color="green" textColor="headerIconColor" mr="12px">Log in</ui.Button>
+                <ui.Button color="green" textColor="fixedWhite" mr="12px">Log in</ui.Button>
             </ui.Link>
-        </HeaderContainer>
+        </ui.Flex>
     );
 }
 
@@ -22,33 +23,25 @@ export const Refresh = ({
     spin,
     headerLoading
 }: {onClick?: () => void; spin: boolean; headerLoading?: boolean}): JSX.Element => !!onClick || headerLoading ? (
-    <RefreshIcon
+    <ui.Icon
         data-component="refresh"
         data-loading={spin}
+        cursor="pointer"
         name="refresh"
         spin={spin || headerLoading}
         onClick={onClick}
     />
 ) : <ui.Box width="24px" />;
 
-const RefreshIcon = styled(ui.Icon)`
-  cursor: pointer;
-`;
-
-const HeaderContainer = styled(ui.Flex)`
-  height: 48px;
-  align-items: center;
-  position: fixed;
-  top: 0;
-  width: 100%;
-  z-index: 100;
-  box-shadow: ${ui.theme.shadows.sm};
-`;
-
-const LogoText = styled(ui.Text)`
-  vertical-align: top;
-  font-weight: 700;
-`;
+const HeaderContainerClass = injectStyleSimple("header-container", `
+    height: 48px;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 100;
+    box-shadow: ${ui.theme.shadows.sm};
+`);
 
 const Logo = (): JSX.Element => (
     <Link
@@ -58,16 +51,17 @@ const Logo = (): JSX.Element => (
     >
         <ui.Flex alignItems="center" ml="15px">
             <ui.Icon name="logoEsc" size="38px" />
-            <ui.Text color="headerText" ml="8px">{CONF.PRODUCT_NAME}</ui.Text>
+            <ui.Text color="var(--headerText)" ml="8px">{CONF.PRODUCT_NAME}</ui.Text>
             {!CONF.VERSION_TEXT ? null : (
-                <LogoText
+                <Text
                     ml="4px"
+                    verticalAlign="top"
                     mt={-7}
                     color="red"
                     fontSize={17}
                 >
                     {CONF.VERSION_TEXT}
-                </LogoText>
+                </Text>
             )}
         </ui.Flex>
     </Link>

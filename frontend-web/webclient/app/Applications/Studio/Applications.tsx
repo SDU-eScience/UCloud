@@ -10,7 +10,6 @@ import {useCallback, useEffect} from "react";
 import * as React from "react";
 import {useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import styled from "styled-components";
 import {Button, Checkbox, DataList, Flex, Icon, Label, Text, VerticalButtonGroup} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
@@ -28,7 +27,7 @@ import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
-import {injectStyleSimple} from "@/Unstyled";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 interface AppVersion {
     version: string;
@@ -451,9 +450,9 @@ export const App: React.FunctionComponent = () => {
                                     {versions.map(version => (
                                         <TableRow key={version.version}>
                                             <TableCell>
-                                                <WordBreakBox>
+                                                <div className={WordBreakDivClass}>
                                                     {version.version}
-                                                </WordBreakBox>
+                                                </div>
                                             </TableCell>
                                             <TableCell>
                                                 <Box mb={26} mt={16}>
@@ -502,9 +501,9 @@ export const App: React.FunctionComponent = () => {
     );
 };
 
-const WordBreakBox = styled(Box)`
+const WordBreakDivClass = injectStyle("work-break", k => `
     word-break: break-word;
     width: 100%;
-`;
+`);
 
 export default App;

@@ -1,5 +1,5 @@
 import {
-    listByProductArea, priceExplainer,
+    priceExplainer,
     Product,
     ProductArea,
     ProductCompute,
@@ -8,21 +8,21 @@ import {
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPage} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
-import {List, ListV2} from "@/Pagination";
+import {ListV2} from "@/Pagination";
 import {Card, Box, Flex, Icon, Text, ContainerForText} from "@/ui-components";
 import * as React from "react";
 import {capitalized} from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {NonAuthenticatedHeader} from "@/Navigation/Header";
-import styled from "styled-components";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {Spacer} from "@/ui-components/Spacer";
 import * as UCloud from "@/UCloud";
 import CONF from "../../site.config.json";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {NonAuthenticatedHeader} from "@/Navigation/Header";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 function Products(): JSX.Element {
     useTitle("SKUs");
@@ -58,16 +58,16 @@ function Products(): JSX.Element {
     return (<MainContainer main={main} />);
 }
 
-const DetailedView = styled(Table)`
-    th {
+const DetailedView = injectStyle("detailed-view", k => `
+    ${k} > th {
         text-align: left;
         border-top: 1px solid rgba(34, 36, 38, .1);
     }
 
-    th, td {
+    ${k} th, td {
         padding: 16px 0;
     }
-`;
+`);
 
 export const MachineView: React.FunctionComponent<{area: ProductArea, provider: string; color?: string}> = ({area, provider, color = "var(--blue, #f00)"}) => {
     const [machines, refetch] = useCloudAPI<UCloud.PageV2<Product>>(
@@ -90,14 +90,16 @@ export const MachineView: React.FunctionComponent<{area: ProductArea, provider: 
     return (<>
         <Card
             my="8px"
+            backgroundColor={"var(--white)"}
             width={1}
+            padding={"0 0 0 0"}
             overflow="hidden"
             boxShadow="sm"
             borderWidth={0}
             borderRadius={6}
         >
             <Box style={{borderTop: `5px solid ${color}`}} />
-            <Box px={3} py={3} height={"100%"}>
+            <Box p="0 25px 25px" height={"100%"}>
                 <Heading.h3 mb={"16px"}>{capitalized(area === "INGRESS" ? "public links" : area)}</Heading.h3>
 
                 <Flex alignItems="center">
@@ -108,7 +110,7 @@ export const MachineView: React.FunctionComponent<{area: ProductArea, provider: 
                             filterArea: area, filterProvider: provider, filterUsable: true, next: machines.data.next
                         }))}
                         pageRenderer={items => (
-                            <MachineTypesWrapper>
+                            <div className={MachineTypesWrapper}>
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -136,12 +138,12 @@ export const MachineView: React.FunctionComponent<{area: ProductArea, provider: 
                                                     <TableCell>{computeProduct.memoryInGigs ?? "Unspecified"}</TableCell>}
                                                 {!computeProduct ? null : <TableCell>{computeProduct.gpu ?? 0}</TableCell>}
                                                 {!hasPrice ? null : <TableCell>{showPrice ? priceExplainer(machine) : ""}</TableCell>}
-                                                <TruncatedTableCell>{machine.description}</TruncatedTableCell>
+                                                <td className={TruncatedTableCell}>{machine.description}</td>
                                             </TableRow>;
                                         })}
                                     </tbody>
                                 </Table>
-                            </MachineTypesWrapper>
+                            </div>
                         )}
                     />
                 </Flex>
@@ -161,7 +163,7 @@ export const MachineView: React.FunctionComponent<{area: ProductArea, provider: 
             />
             <Box maxWidth="650px">
                 {activeMachine === undefined ? null :
-                    <DetailedView>
+                    <table className={DetailedView}>
                         <tbody>
                             <TableRow>
                                 <TableHeaderCell>Name</TableHeaderCell>
@@ -198,7 +200,7 @@ export const MachineView: React.FunctionComponent<{area: ProductArea, provider: 
                                 <TableCell><Text>{activeMachine.description}</Text></TableCell>
                             </TableRow>
                         </tbody>
-                    </DetailedView>
+                    </table>
                 }
             </Box>
         </ReactModal>
@@ -214,26 +216,26 @@ function Description(): JSX.Element {
     </>);
 }
 
-const TruncatedTableCell = styled(TableCell)`
+const TruncatedTableCell = injectStyleSimple("truncated-table-cell", `
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-`;
+`);
 
-const MachineTypesWrapper = styled.div`
-  th {
-    text-align: left;
-  }
+const MachineTypesWrapper = injectStyle("machine-types-wrapper", k => `
+    ${k} th {
+        text-align: left;
+    }
 
-  tr {
-    padding: 8px;
-  }
+    ${k} tr {
+        padding: 8px;
+    }
 
-  tbody > tr:hover {
-    cursor: pointer;
-    background-color: var(--lightGray, #f00);
-    color: var(--black, #f00);
-  }
-`;
+    ${k} > tbody > tr:hover {
+        cursor: pointer;
+        background-color: var(--lightGray, #f00);
+        color: var(--black, #f00);
+    }
+`);
 
 export default Products;

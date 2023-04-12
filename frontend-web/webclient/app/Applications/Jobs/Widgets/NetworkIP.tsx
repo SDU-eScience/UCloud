@@ -1,12 +1,11 @@
 import * as React from "react";
 import {default as ReactModal} from "react-modal";
-import {Flex} from "@/ui-components";
+import {Flex, Input} from "@/ui-components";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {NetworkIPBrowse} from "@/Applications/NetworkIP/Browse";
 import {default as NetworkIPApi, NetworkIPFlags} from "@/UCloud/NetworkIPApi";
 import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
-import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -39,12 +38,8 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
         setOpen(false);
     }, [props.parameter, setOpen, props.errors]);
 
-    const valueInput = () => {
-        return document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
-    }
-    const visualInput = () => {
-        return document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null
-    };
+    const valueInput = () => document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
+    const visualInput = () => document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null;
 
     useLayoutEffect(() => {
         const listener = async () => {
@@ -71,9 +66,10 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
     }), []);
 
     return (<Flex>
-        <PointerInput
+        <Input
             id={widgetId(props.parameter) + "visual"}
             placeholder={"No public IP selected"}
+            cursor="pointer"
             error={error}
             onClick={doOpen}
         />

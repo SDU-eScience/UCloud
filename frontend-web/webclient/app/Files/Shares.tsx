@@ -16,14 +16,13 @@ import {BulkResponse, PageV2} from "@/UCloud";
 import {callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
 import {UFile} from "@/UCloud/FilesApi";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {copyToClipboard, preventDefault, timestampUnixMs} from "@/UtilityFunctions";
+import {copyToClipboard, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import styled from "styled-components";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {dialogStore} from "@/Dialog/DialogStore";
-
 import AppRoutes from "@/Routes";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},
@@ -196,7 +195,7 @@ export const ShareModal: React.FunctionComponent<{
 
             <Flex justifyContent="space-between" mt={20} mb={10}>
                 <Text pt="10px">Anyone with the link can</Text>
-                <SelectBox>
+                <div className={SelectBoxClass}>
                     <ClickableDropdown
                         useMousePositioning
                         width="100px"
@@ -215,7 +214,7 @@ export const ShareModal: React.FunctionComponent<{
                             );
                         }}
                     />
-                </SelectBox>
+                </div>
             </Flex>
         </Box>
     </>;
@@ -288,10 +287,10 @@ const Router: React.FunctionComponent = () => {
     return <ResourceRouter api={SharesApi} Browser={ShareBrowse} />;
 };
 
-const SelectBox = styled.div`
+const SelectBoxClass = injectStyleSimple("select-box", `
     border: 2px solid var(--midGray);
     border-radius: 5px;
     padding: 10px;
-`;
+`);
 
 export default Router;

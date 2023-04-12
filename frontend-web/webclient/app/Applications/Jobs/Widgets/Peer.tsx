@@ -6,7 +6,6 @@ import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "@/ui-components/Flex";
 import {useCallback, useMemo, useState} from "react";
 import Box from "@/ui-components/Box";
-import styled from "styled-components";
 import Input from "@/ui-components/Input";
 import Label from "@/ui-components/Label";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -111,10 +110,11 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
     const filters = useMemo(() => ({filterState: "RUNNING"}), []);
 
     return (<Flex>
-        <PointerInput
+        <Input
             id={widgetId(props.parameter) + "job"}
             placeholder={"No selected run"}
             onClick={doOpen}
+            cursor="pointer"
             style={{height: "39px"}}
             readOnly
         />
@@ -151,7 +151,3 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
         </ReactModal>
     </Flex>);
 };
-
-export const PointerInput = styled(Input)`
-    cursor: pointer;
-`;

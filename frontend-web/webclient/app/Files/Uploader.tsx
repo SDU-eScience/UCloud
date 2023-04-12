@@ -152,7 +152,7 @@ function createResumeable(
 
 const Uploader: React.FunctionComponent = () => {
     const [uploadPath] = useGlobal("uploadPath", "/");
-    const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", true);
+    const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", false);
     const [uploads, setUploads] = useGlobal("uploads", []);
     const [lookForNewUploads, setLookForNewUploads] = useState(false);
 
