@@ -147,6 +147,22 @@ class GrantApplicationService(
         return defaultMapper.decodeFromString(application)
     }
 
+    private suspend fun willResultInDuplicateProjectTitle(projectTitle: String, parentId: String): Boolean {
+        val titles = db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("parent_id", parentId)
+                },
+                """
+                    select title
+                    from project.projects
+                    where parent = :parent_id
+                """.trimIndent()
+            ).rows.mapNotNull { it.getString(0)?.lowercase() }
+        }
+        return titles.contains(projectTitle.lowercase())
+    }
+
     suspend fun submit(
         actorAndProject: ActorAndProject,
         request: BulkRequest<CreateApplication>
@@ -158,6 +174,11 @@ class GrantApplicationService(
             }
             if (recipient is GrantApplication.Recipient.NewProject && createRequest.document.parentProjectId == null) {
                 throw RPCException("Missing parent ID when creating new project", HttpStatusCode.BadRequest)
+            }
+            if (recipient is GrantApplication.Recipient.NewProject) {
+                if (willResultInDuplicateProjectTitle(recipient.title, createRequest.document.parentProjectId!!)) {
+                    throw RPCException("Primary affiliation already has a subproject with this title.", HttpStatusCode.BadRequest)
+                }
             }
         }
         val results = mutableListOf<Pair<Long, GrantNotification>>()
@@ -1165,9 +1186,7 @@ class GrantApplicationService(
                         HttpStatusCode.InternalServerError,
                         "Error in creating project and PI"
                     )
-
-                projectNotifications.notifyChange(listOf(createdProject), session)
-
+                
                 Pair(createdProject, GrantApplication.Recipient.NewProject)
 
             }
@@ -1196,10 +1215,15 @@ class GrantApplicationService(
                 description = "Granted In $applicationId",
                 startDate = it.period.start,
                 endDate = it.period.end,
+                grantedIn = applicationId
             )
         }
 
         accounting.deposit(actorAndProject, bulkRequestOf(requestItems))
+
+        if (application.currentRevision.document.recipient is GrantApplication.Recipient.NewProject) {
+            projectNotifications.notifyChange(listOf(workspaceId), session)
+        }
 
         val providerIds = session.sendPreparedStatement(
             { setParameter("id", applicationId) },

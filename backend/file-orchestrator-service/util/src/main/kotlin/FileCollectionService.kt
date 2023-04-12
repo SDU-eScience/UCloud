@@ -2,7 +2,7 @@ package dk.sdu.cloud.file.orchestrator.service
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductArea
+import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.ProviderSupport
 import dk.sdu.cloud.accounting.util.Providers
@@ -35,7 +35,7 @@ class FileCollectionService(
     private val deleteHandlers = ArrayList<DeleteHandler>()
     override val serializer = FileCollection.serializer()
     override val updateSerializer = FileCollection.Update.serializer()
-    override val productArea = ProductArea.STORAGE
+    override val productArea = ProductType.STORAGE
     override val requireAdminForCreate: Boolean = true
 
     override fun userApi() = FileCollections

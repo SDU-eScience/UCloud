@@ -1,6 +1,10 @@
 package dk.sdu.cloud.accounting.services.projects.v2
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.Wallet
+import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.accounting.api.Wallets
+import dk.sdu.cloud.accounting.api.WalletsInternalRetrieveRequest
 import dk.sdu.cloud.accounting.util.PartialQuery
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.auth.api.AuthProviders
@@ -10,8 +14,10 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.project.api.v2.*
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
@@ -22,6 +28,7 @@ class ProviderNotificationService(
     private val db: DBContext,
     private val providers: Providers<*>,
     private val backgroundScope: BackgroundScope,
+    private val serviceClient: AuthenticatedClient
 ) {
     init {
         projectService.addUpdateHandler { projects ->
@@ -41,24 +48,31 @@ class ProviderNotificationService(
         // 1. Collect all relevant providers per project (see ProjectService for more details)
         // 2. Write an entry into the database about the notification (ignoring duplicates)
         // 3. Notify every provider that a notification is waiting for them
+        val relevantWallets = projectIds.flatMap { id ->
+            Wallets.retrieveWalletsInternal.call(
+                WalletsInternalRetrieveRequest(
+                    WalletOwner.Project(id)
+                ),
+                serviceClient
+            ).orThrow().wallets
+        }.toSet()
+            .map {
+                val walletOwner = it.owner as WalletOwner.Project
+                Pair(walletOwner.projectId, it.paysFor.provider)
+            }.toSet()
+
         val notifiedProviders = ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
-                    setParameter("ids", projectIds.toSet().toList())
+                    setParameter("projectIds", relevantWallets.map { it.first })
+                    setParameter("providerIds", relevantWallets.map { it.second })
                 },
                 """
-                    with
-                        project_and_providers as (
-                            select distinct p.id as project_id, pc.provider as provider_id
-                            from
-                                accounting.wallet_owner wo join
-                                project.projects p on wo.project_id = p.id join
-                                accounting.wallets w on wo.id = w.owned_by join
-                                accounting.product_categories pc on w.category = pc.id join
-                                accounting.wallet_allocations wa on w.id = wa.associated_wallet
-                            where
-                                p.id = some(:ids::text[])
-                        )
+                    with project_and_providers as (
+                        select 
+                            unnest(:projectIds::text[]) project_id,
+                            unnest(:providerIds::text[]) provider_id
+                    )
                     insert into project.provider_notifications (provider_id, project_id) 
                     select provider_id, project_id
                     from project_and_providers
@@ -171,5 +185,8 @@ class ProviderNotificationService(
                 )
             }
         }
+    }
+    companion object : Loggable {
+        override val log = logger()
     }
 }
