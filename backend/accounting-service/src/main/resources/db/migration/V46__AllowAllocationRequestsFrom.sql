@@ -1,7 +1,7 @@
-create type accounting.allow_accounting_requests_from as enum (
+create type accounting.allocation_requests_group as enum (
     'ALL', 'PROJECTS', 'PERSONAL'
 );
 
 alter table accounting.product_categories
-    add column allow_accounting_requests_from accounting.allow_accounting_requests_from not null default 'ALL'
+    add column allow_allocation_requests_from accounting.allocation_requests_group not null default 'ALL'
 ;
