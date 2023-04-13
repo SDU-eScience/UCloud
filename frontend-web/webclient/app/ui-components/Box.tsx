@@ -1,7 +1,7 @@
 import {
     AlignItemsProps, ColorProps, HeightProps, MaxHeightProps, MaxWidthProps, MinHeightProps, MinWidthProps,
-    OverflowProps, SpaceProps, TextAlignProps, WidthProps, ZIndexProps, BackgroundProps, JustifyContentProps,
-    BorderRadiusProps, VerticalAlignProps, FontSizeProps
+    OverflowProps, TextAlignProps, WidthProps, ZIndexProps, BackgroundProps, JustifyContentProps,
+    BorderRadiusProps, VerticalAlignProps, FontSizeProps, SpaceProps
 } from "styled-system";
 import {Cursor} from "./Types";
 import {extractEventHandlers, injectStyleSimple, unbox, WithEventHandlers} from "@/Unstyled";

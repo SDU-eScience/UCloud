@@ -22,6 +22,23 @@ export function classConcatArray(baseClass: string, extra: string[]): string {
     return baseClass + " " + extra.join(" ");
 }
 
+// Note(Jonas): Graveyard of attempting to have typesafe sizes.
+// type Percentage = `${number}%`;
+// type Fraction = `${number}fr`;
+// type ElementFontSize = `${number}em`;
+// type RootElementFontSize = `${number}rem`;
+// type Pixels = `${number}px`;
+// type ViewHeight = `${number}vh`;
+// type ViewWidth = `${number}vw`;
+// type Zero = 0;
+// type AnySize = Percentage | Fraction | ElementFontSize | RootElementFontSize | Pixels | ViewHeight | ViewWidth | Zero;
+// type AllPaddingValue = AnySize | `${AnySize} ${AnySize}` | `${AnySize} ${AnySize} ${AnySize}` | `${AnySize} ${AnySize} ${AnySize} ${AnySize}`;
+// export type AllMarginValue = AllPaddingValue;
+// export type MarginValue = AnySize;
+// export type PaddingValue = AnySize;
+// export type WidthValue = AnySize;
+// export type HeightValue = AnySize;
+
 export function unbox(props: BoxProps | SpaceProps): CSSProperties {
     let result: CSSProperties = {};
 

@@ -1,10 +1,10 @@
 import {Avatar} from "@/AvataaarLib";
 import * as React from "react";
-import {SpaceProps} from "styled-system";
 import Flex from "@/ui-components/Flex";
 import {AvatarType} from "@/UserSettings/Avataaar";
 
-interface UserAvatar extends SpaceProps {
+interface UserAvatar {
+    mr?: string;
     avatar: AvatarType;
     width?: string;
     height?: string;

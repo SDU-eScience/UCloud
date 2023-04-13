@@ -1,24 +1,23 @@
 import {priceExplainer, Product, productCategoryEquals, ProductCompute, ProductType} from "@/Accounting";
-import { Client } from "@/Authentication/HttpClientInstance";
-import { NoResultsCardBody } from "@/Dashboard/Dashboard";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {NoResultsCardBody} from "@/Dashboard/Dashboard";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
-import { connectionState } from "@/Providers/ConnectionState";
-import { ProviderLogo } from "@/Providers/ProviderLogo";
-import { getProviderTitle } from "@/Providers/ProviderTitle";
+import {connectionState} from "@/Providers/ConnectionState";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {Box, Button, Icon, Input, Link, theme, Tooltip} from "@/ui-components";
-import Table, { TableCell, TableRow } from "@/ui-components/Table";
-import { useUState } from "@/Utilities/UState";
-import { grantsLink, stopPropagation } from "@/UtilityFunctions";
+import Table, {TableCell, TableRow} from "@/ui-components/Table";
+import {useUState} from "@/Utilities/UState";
+import {grantsLink, stopPropagation} from "@/UtilityFunctions";
 import * as React from "react";
 import ReactDOM from "react-dom";
 import styled from "styled-components";
-import { boxShadow, BoxShadowProps } from "styled-system";
+import {boxShadow, BoxShadowProps} from "styled-system";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
 import {IconClass} from "@/ui-components/Icon";
 
 const NEED_CONNECT = "need-connection";
-
 
 const dropdownPortal = "product-selector-portal";
 
@@ -30,7 +29,7 @@ export const ProductSelector: React.FunctionComponent<{
     slim?: boolean;
     loading?: boolean;
     onSelect: (product: Product) => void;
-}> = ({ selected, ...props }) => {
+}> = ({selected, ...props}) => {
     let portal = document.getElementById(dropdownPortal);
     if (!portal) {
         const elem = document.createElement("div");
@@ -122,7 +121,7 @@ export const ProductSelector: React.FunctionComponent<{
 
 
     const boxRef = React.useRef<HTMLDivElement>(null);
-    const boxRect = boxRef?.current?.getBoundingClientRect() ?? { x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0 };
+    const boxRect = boxRef?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
     let dialogX = boxRect.x;
     let dialogY = boxRect.y + boxRect.height;
     let dialogHeight = 500;
@@ -230,7 +229,7 @@ export const ProductSelector: React.FunctionComponent<{
                     <thead>
                         <tr>
                             {headers.map(it =>
-                                <th key={it} style={{ width: `${(1 / (headers.length + 1)) * 100}%` }}>
+                                <th key={it} style={{width: `${(1 / (headers.length + 1)) * 100}%`}}>
                                     {it}
                                 </th>
                             )}
@@ -257,7 +256,7 @@ export const ProductSelector: React.FunctionComponent<{
 
         {!isOpen ? null :
             ReactDOM.createPortal(
-                <SelectorDialog style={{ left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight }} onClick={stopPropagation}>
+                <SelectorDialog style={{left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} onClick={stopPropagation}>
                     {props.loading && props.products.length === 0 ? <>
                         <HexSpin />
                     </> : props.products.length === 0 ?
@@ -287,7 +286,7 @@ export const ProductSelector: React.FunctionComponent<{
                             <Table>
                                 <thead>
                                     <TableRow>
-                                        <th style={{ width: "32px" }} />
+                                        <th style={{width: "32px"}} />
                                         <th>Name</th>
                                         {headers.map(it => <th key={it}>{it}</th>)}
                                         <th>Price</th>
@@ -320,7 +319,7 @@ export const ProductSelector: React.FunctionComponent<{
                                         } else {
                                             const maintenance = (props.support ?? []).find(s =>
                                                 s.product.name === p.name &&
-                                                    productCategoryEquals(s.product.category, p.category)
+                                                productCategoryEquals(s.product.category, p.category)
                                             )?.support?.maintenance;
 
                                             const isDisabled =
@@ -367,7 +366,7 @@ export const ProductSelector: React.FunctionComponent<{
     </>;
 };
 
-const ProductName: React.FunctionComponent<{ product: Product }> = ({ product }) => {
+const ProductName: React.FunctionComponent<{product: Product}> = ({product}) => {
     return <>{product.name}</>;
 }
 
@@ -444,7 +443,7 @@ SelectorDialog.defaultProps = {
     boxShadow: "md"
 };
 
-const ProductStats: React.FunctionComponent<{ product: Product }> = ({ product }) => {
+const ProductStats: React.FunctionComponent<{product: Product}> = ({product}) => {
     switch (product.productType) {
         case "COMPUTE":
             return <>
@@ -452,7 +451,7 @@ const ProductStats: React.FunctionComponent<{ product: Product }> = ({ product }
                 <TableCell>{product.memoryInGigs} <HardwareModel model={product.memoryModel} /></TableCell>
                 <TableCell>
                     {product.gpu === 0 || product.gpu == null ?
-                        <span style={{ color: "#a9b0b9" }}>None</span> :
+                        <span style={{color: "#a9b0b9"}}>None</span> :
                         <>{product.gpu} <HardwareModel model={product.gpuModel} /></>
                     }
                 </TableCell>
@@ -462,9 +461,9 @@ const ProductStats: React.FunctionComponent<{ product: Product }> = ({ product }
     }
 }
 
-const HardwareModel: React.FunctionComponent<{ model?: string | null }> = props => {
+const HardwareModel: React.FunctionComponent<{model?: string | null}> = props => {
     if (!props.model) return null;
-    return <span style={{ color: "#a9b0b9" }}>{" "}({props.model})</span>
+    return <span style={{color: "#a9b0b9"}}>{" "}({props.model})</span>
 }
 
 const SelectorBox = styled.div`
@@ -651,7 +650,7 @@ const products: ProductCompute[] = (() => {
     }));
 
     return res
-        .map(value => ({ value, sort: Math.random() }))
+        .map(value => ({value, sort: Math.random()}))
         .sort((a, b) => a.sort - b.sort)
         .map(it => it.value);
 })();

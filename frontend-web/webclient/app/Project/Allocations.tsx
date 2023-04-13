@@ -15,7 +15,6 @@ import format from "date-fns/format";
 import {Accordion} from "@/ui-components/Accordion";
 import {prettierString, timestampUnixMs} from "@/UtilityFunctions";
 import {ResourceProgress} from "@/ui-components/ResourcesProgress";
-import styled from "styled-components";
 import {VisualizationSection} from "./Resources";
 import formatDistance from "date-fns/formatDistance";
 import {Spacer} from "@/ui-components/Spacer";
@@ -23,6 +22,7 @@ import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {isAdminOrPI, useProjectId} from "./Api";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {useProject} from "./cache";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 export interface SubAllocation {
     id: string;
@@ -168,9 +168,9 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
                     <ProductTypeProgressBars walletsByProductTypes={walletsList} />
                 </>}
             >
-                <Border>
+                <div className={Border}>
                     <SimpleWalletView wallets={walletsList} />
-                </Border>
+                </div>
             </Accordion>
         })}
     </>;
@@ -239,27 +239,30 @@ function ResourceBarsByChargeType(props: {chargeType: ChargeType; wallets: Recor
         const total = totalUsageFromMultipleWallets(wallets[it]);
         const {unit, productType} = wallets[it][0];
         const mapped = mapToBalancesWithExplanation({initialBalance: total.initialBalance, remaining: Math.min(total.initialBalance, total.balance)}, productType, unit)
-        return <ResourceProgressWrapper key={unit + productType}>
+        return <div className={ResourceProgressWrapper} key={unit + productType}>
             <ResourceProgress width={mapped.resourceText.length * 7.3 + "px"} value={mapped.asPercent} text={mapped.resourceText} />
-        </ResourceProgressWrapper>
+        </div>
     })}</>
 }
 
-const ResourceProgressWrapper = styled.div`
-    &:not(:last-child) {
+const ResourceProgressWrapper = injectStyle("resource-progress-wrapper", k => `
+    ${k}:not(:last-child) {
         margin-right: 4px;
     }
-`;
+`);
 
-const Border = styled.div`
-    &:not(:last-child) {
+const Border = injectStyle("border", k => `
+    ${k}:not(:last-child) {
         border-bottom: 1px solid lightGrey;
     }
-    padding: 12px;
-`;
+
+    ${k} {
+        padding: 12px;
+    }
+`);
 
 function SimpleWalletView(props: {wallets: Wallet[];}): JSX.Element {
-    return <SimpleWalletRowWrapper>
+    return <div className={SimpleWalletRowWrapper}>
         {props.wallets.map(wallet => {
             const total = totalUsageFromWallet(wallet);
             const mapped = mapToBalancesWithExplanation({initialBalance: total.initialBalance, remaining: Math.min(total.initialBalance, total.balance)}, wallet.productType, wallet.unit)
@@ -280,22 +283,22 @@ function SimpleWalletView(props: {wallets: Wallet[];}): JSX.Element {
                 </Accordion>
             );
         })}
-    </SimpleWalletRowWrapper>;
+    </div>;
 }
 
-const SimpleAllocationRowWrapper = styled.div``;
-const SimpleWalletRowWrapper = styled.div`
-    & > ${SimpleAllocationRowWrapper}:not(&:last-child) {
+const SimpleAllocationRowWrapper = injectStyleSimple("row-allocation-wrapper", "");
+const SimpleWalletRowWrapper = injectStyle("simple-wallet-row", k => `
+    ${k} > ${SimpleAllocationRowWrapper}:not(${k}:last-child) {
         vertical-align: center;
         border-bottom: 1px solid #d3d3d3;
     }
 
-    & > ${SimpleAllocationRowWrapper} {
+    ${k} > ${SimpleAllocationRowWrapper} {
         margin-top: 12px;
         padding-bottom: 10px;
         border-bottom: 0px solid black;
     }
-`;
+`);
 
 interface UsageFromWallet {
     balance: number;

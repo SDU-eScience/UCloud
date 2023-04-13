@@ -2,14 +2,14 @@ import {useCloudCommand} from "@/Authentication/DataHook";
 import * as React from "react";
 import {extensionFromPath, extensionTypeFromPath, isExtPreviewSupported} from "@/UtilityFunctions";
 import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
-import {Markdown} from "@/ui-components";
+import {Box, Markdown} from "@/ui-components";
 import {api as FilesApi, FilesCreateDownloadResponseItem, normalizeDownloadEndpoint, UFile} from "@/UCloud/FilesApi";
 import {useEffect, useState} from "react";
 import {fileName} from "@/Utilities/FileUtilities";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {BulkResponse} from "@/UCloud";
 import SyntaxHighlighter from "react-syntax-highlighter";
-import styled from "styled-components";
+import {injectStyle} from "@/Unstyled";
 
 export const MAX_PREVIEW_SIZE_IN_BYTES = 50_000_000;
 
@@ -82,9 +82,9 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
         case "code":
             /* Even 100_000 tanks performance. Anything above stalls or kills the sandbox process. */
             if (file.status.sizeInBytes == null || file.status.sizeInBytes > 100_000) {
-                node = <FullWidth><pre className="fullscreen text-preview">{data}</pre></FullWidth>
+                node = <Box width="100%"><pre className="fullscreen text-preview">{data}</pre></Box>
             } else {
-                node = <FullWidth><SyntaxHighlighter className="fullscreen text-preview">{data}</SyntaxHighlighter></FullWidth>;
+                node = <Box width="100%"><SyntaxHighlighter className="fullscreen text-preview">{data}</SyntaxHighlighter></Box>;
             }
             break;
         case "image":
@@ -111,21 +111,19 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
         node = <div>{error}</div>;
     }
 
-    return <ItemWrapper>{node}</ItemWrapper>;
+    return <div className={ItemWrapperClass}>{node}</div>;
 }
 
-const FullWidth = styled.div`
-    width: 100%;
-`;
+const ItemWrapperClass = injectStyle("item-wrapper", k => `
+    ${k} {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 15px;
+    }
 
-const ItemWrapper = styled.div`
-    display: flex;
-    justify-content: center;
-    margin-bottom: 15px;
-
-    & > * {
+    ${k} > * {
       max-width: 100%;
       max-height: calc(100vh - 300px);
       overflow-y: scroll;
     }
-`;
+`);
