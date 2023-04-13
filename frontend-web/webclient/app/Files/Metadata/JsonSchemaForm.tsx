@@ -1,7 +1,7 @@
 import * as React from "react";
 import Form, {FormProps} from "@rjsf/core";
 import styled from "styled-components";
-import {Input, theme} from "@/ui-components";
+import {theme} from "@/ui-components";
 
 export const JsonSchemaForm: React.FunctionComponent<FormProps<any>> = (props) => {
     return <FormWrapper><Form {...props}/></FormWrapper>;

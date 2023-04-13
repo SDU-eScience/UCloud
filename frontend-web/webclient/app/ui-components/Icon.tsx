@@ -1,6 +1,5 @@
-import * as CSS from "csstype";
 import * as React from "react";
-import {ResponsiveValue, SpaceProps} from "styled-system";
+import {SpaceProps} from "styled-system";
 import Bug from "./Bug";
 import * as icons from "./icons";
 import theme, {ThemeColor} from "./theme";

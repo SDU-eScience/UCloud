@@ -1,6 +1,6 @@
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {HttpClient} from "../Authentication/lib";
+import {HttpClient} from "@/Authentication/lib";
 import {emptyPage} from "@/DefaultObjects";
 import * as Pagination from "@/Pagination";
 import * as React from "react";

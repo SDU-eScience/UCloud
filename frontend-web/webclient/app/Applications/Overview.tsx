@@ -326,7 +326,7 @@ function TagGrid({tag, rows, tagBanList = [], favoriteStatus, onFavorite, refres
             </div>
         </>
     );
-};
+}
 
 const ToolGroup: React.FunctionComponent<{tag: string, refreshId: number}> = ({tag, refreshId}) => {
     const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(

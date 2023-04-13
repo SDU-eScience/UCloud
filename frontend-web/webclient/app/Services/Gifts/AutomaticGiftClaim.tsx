@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useAsyncCommand, useCloudAPI} from "@/Authentication/DataHook";
+import {useCloudCommand, useCloudAPI} from "@/Authentication/DataHook";
 import {availableGifts, AvailableGiftsResponse, claimGift} from "@/Services/Gifts/index";
 import {useEffect} from "react";
 
@@ -9,7 +9,7 @@ export const AutomaticGiftClaim: React.FunctionComponent = () => {
         {gifts: []}
     );
 
-    const [, runWork] = useAsyncCommand();
+    const [, runWork] = useCloudCommand();
 
     useEffect(() => {
         for (const gift of gifts.data.gifts) {

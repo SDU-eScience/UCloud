@@ -520,5 +520,4 @@ export function selectHoverColor(inputColor: string | ThemeColor): string | Them
 }
 
 export type Theme = typeof theme;
-
 export default theme;

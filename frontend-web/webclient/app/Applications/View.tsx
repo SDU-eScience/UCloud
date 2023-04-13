@@ -1,6 +1,5 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
-import styled from "styled-components";
 import {Box, Flex, Link, Tooltip} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {EllipsedText, TextSpan} from "@/ui-components/Text";
@@ -14,6 +13,7 @@ import {FavoriteToggle} from "@/Applications/FavoriteToggle";
 import {compute} from "@/UCloud";
 import Application = compute.Application;
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {injectStyleSimple} from "@/Unstyled";
 
 export const AppHeader: React.FunctionComponent<{
     application: UCloud.compute.ApplicationWithFavoriteAndTags;
@@ -45,12 +45,12 @@ export const AppHeader: React.FunctionComponent<{
                             </ClickableDropdown>
                             {newest && newest.metadata.version !== props.application.metadata.version ?
                                 <Tooltip trigger={
-                                    <TriggerDiv onClick={e => {
+                                    <div className={TriggerDiv} onClick={e => {
                                         e.preventDefault();
                                         navigate(Pages.runApplication(newest.metadata));
                                     }}>
                                         New version available.
-                                       </TriggerDiv>
+                                    </div>
                                 }>
                                     <div onClick={e => e.stopPropagation()}>
                                         You are not using the newest version of the app.<br />
@@ -72,7 +72,7 @@ export const AppHeader: React.FunctionComponent<{
     );
 };
 
-const TriggerDiv = styled.div`
+const TriggerDiv = injectStyleSimple("trigger-div", `
     margin-left: 4px;
     padding-left: 12px;
     padding-right: 12px;
@@ -81,7 +81,7 @@ const TriggerDiv = styled.div`
     background-color: var(--blue);
     border-radius: 20px;
     cursor: pointer;
-`;
+`);
 
 function Tags({tags}: {tags: string[]}): JSX.Element | null {
     if (!tags) return null;

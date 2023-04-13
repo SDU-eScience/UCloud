@@ -1,7 +1,7 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
-import styled, {css} from "styled-components";
-import {Absolute, Flex, Icon, Relative, Truncate} from "@/ui-components";
+import styled from "styled-components";
+import {Flex, Icon, Relative} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import Link from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
@@ -12,7 +12,6 @@ import {compute} from "@/UCloud";
 import ApplicationWithFavoriteAndTags = compute.ApplicationWithFavoriteAndTags;
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
-import BaseLink, {BaseLinkClass} from "@/ui-components/BaseLink";
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void;

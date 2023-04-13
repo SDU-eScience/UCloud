@@ -1,7 +1,5 @@
-import {Client} from "@/Authentication/HttpClientInstance";
-import {KeyCode} from "@/DefaultObjects";
 import * as React from "react";
-import {useEffect, useRef, useState} from "react";
+import {useRef, useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import * as Heading from "@/ui-components/Heading";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
@@ -11,7 +9,7 @@ import Button from "./Button";
 import ClickableDropdown from "./ClickableDropdown";
 import ExternalLink from "./ExternalLink";
 import Flex from "./Flex";
-import Icon, {IconName} from "./Icon";
+import Icon from "./Icon";
 import Label from "./Label";
 import Radio from "./Radio";
 import Text from "./Text";

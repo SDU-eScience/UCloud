@@ -32,7 +32,7 @@ export function uploadTrackProgress(upload: Upload): void {
     const now = timestampUnixMs();
     upload.uploadEvents = upload.uploadEvents.filter(evt => now - evt.timestamp < 10_000);
     upload.uploadEvents.push({timestamp: now, progressInBytes: upload.progressInBytes});
-};
+}
 
 export function uploadCalculateSpeed(upload: Upload): number {
     if (upload.uploadEvents.length === 0) return 0;

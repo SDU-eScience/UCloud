@@ -1,6 +1,5 @@
 import * as React from "react";
-import styled from "styled-components";
-import {Box, Button, ButtonGroup, Flex, Grid, Icon, Input, Label, Relative, Text, TextArea, Tooltip, Truncate} from "@/ui-components";
+import {Box, Button, ButtonGroup, Flex, Grid, Icon, Input, Label, Relative, Text, TextArea, Tooltip} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {
     ChargeType,
@@ -42,6 +41,7 @@ import ProjectAPI, {useProjectIdFromParams} from "@/Project/Api";
 import {isAllocationSuitableForSubAllocation} from "@/Project/Grant";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {FlexClass} from "@/ui-components/Flex";
+import {injectStyle} from "@/Unstyled";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider) + ` [${getParentAllocationFromSuballocation(alloc)}]`;
@@ -457,14 +457,13 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                                             startDate={new Date(row.startDate)}
                                             isClearable={row.endDate != null}
                                             endDate={row.endDate != null ? new Date(row.endDate) : undefined}
-                                            onChange={dates => {
-                                                dates as [Date | null, Date | null];
+                                            onChange={dates =>
                                                 setRecipients(recipients => {
                                                     if (dates[0]) recipients[recipientId].suballocations[suballocationId].startDate = dates[0].getTime();
                                                     recipients[recipientId].suballocations[suballocationId].endDate = dates[1]?.getTime();
                                                     return [...recipients];
-                                                });
-                                            }}
+                                                })
+                                            }
                                         />
                                     </Flex>
                                 </Flex>}
@@ -489,8 +488,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
 }
 
 function flexRequiresMoreSpace(type: ProductType): boolean {
-    if (["NETWORK_IP", "INGRESS", "LICENSE"].includes(type)) return true;
-    return false;
+    return ["NETWORK_IP", "INGRESS", "LICENSE"].includes(type);
 }
 
 function labelSpace(wallet?: {productType: ProductType, unit: ProductPriceUnit}): string {
@@ -852,10 +850,10 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             forceOpen={editing || creationRows.length > 0}
             noBorder={props.isLast}
             titleContent={<>
-                <UsageRowsWithMargin>
+                <Flex className={UsageRowsWithMargin}>
                     <ResourceBarByProductType rows={props.rows} productType="STORAGE" />
                     <ResourceBarByProductType rows={props.rows} productType="COMPUTE" />
-                </UsageRowsWithMargin>
+                </Flex>
             </>}
             titleContentOnOpened={<>
                 {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" width="100px" onClick={addNewRow}>New row</Button> :
@@ -913,14 +911,13 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                         startDate={new Date(row.startDate)}
                                         isClearable={creationRows[index].endDate != null}
                                         endDate={row.endDate != null ? new Date(row.endDate) : undefined}
-                                        onChange={dates => {
-                                            dates as [Date | null, Date | null];
+                                        onChange={dates =>
                                             setCreationRows(rows => {
                                                 if (dates[0]) rows[index].startDate = dates[0].getTime();
                                                 rows[index].endDate = dates[1]?.getTime();
                                                 return [...rows];
-                                            });
-                                        }}
+                                            })
+                                        }
                                     />
                                 </Flex>
                             </Flex>}
@@ -943,11 +940,11 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         </Accordion>, [creationRows, props.rows, props.wallets, loading, allocationsByProductTypes, editing, editEntries.current]);
 }
 
-const UsageRowsWithMargin = styled(Flex)`
-    & > .${FlexClass}:not(:last-child) {
+const UsageRowsWithMargin = injectStyle("usage-rows-with-margin", k => `
+    ${k} > .${FlexClass}:not(:last-child) {
         margin-right: 12px;
     }
-`;
+`);
 
 function findValidAllocations(wallets: Wallet[], productType: ProductType): {wallet: Wallet, allocations: WalletAllocation[]}[] {
     const now = new Date().getTime();
@@ -988,16 +985,15 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
                                 isClearable={dates[1] != null}
                                 startDate={new Date(dates[0])}
                                 endDate={dates[1] != null ? new Date(dates[1]) : undefined}
-                                onChange={dates => {
-                                    dates as [Date, Date | null];
+                                onChange={dates =>
                                     setDates(oldDates => {
                                         const firstDate = dates[0] ? dates[0].getTime() : oldDates[0];
                                         const secondDate = dates[1]?.getTime();
                                         props.editEntries.current[entry.id].startDate = firstDate;
                                         props.editEntries.current[entry.id].endDate = secondDate;
                                         return [firstDate, secondDate];
-                                    });
-                                }}
+                                    })
+                                }
                             />
                         </Text>
                     </Flex>

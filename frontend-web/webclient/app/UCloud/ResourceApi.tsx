@@ -240,8 +240,8 @@ export abstract class ResourceApi<Res extends Resource,
                 primary: true,
                 canAppearInLocation: loc => loc !== "IN_ROW",
                 enabled: (selected, cb) => {
-                    if (selected.length !== 0 || cb.startCreation == null || cb.isCreating) return false;
-                    return true;
+                    return !(selected.length !== 0 || cb.startCreation == null || cb.isCreating);
+
                 },
                 onClick: (selected, cb) => cb.startCreation!(),
                 tag: CREATE_TAG

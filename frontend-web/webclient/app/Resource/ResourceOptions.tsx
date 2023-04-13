@@ -1,9 +1,6 @@
 // TODO: RENAME ME
 import * as React from "react";
 
-import {SelectableText, SelectableTextWrapper} from "@/ui-components";
-import {useNavigate} from "react-router";
-import {Feature, hasFeature} from "@/Features";
 import {LinkInfo, SidebarLinkColumn} from "@/ui-components/SidebarLink";
 import AppRoutes from "@/Routes";
 

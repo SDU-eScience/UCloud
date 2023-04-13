@@ -2,9 +2,10 @@ import {BoxProps} from "@/ui-components/Box";
 import * as React from "react";
 import {extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
+import {ThemeColor} from "./theme";
 
 export interface BaseLinkProps extends BoxProps {
-    hoverColor?: string;
+    hoverColor?: ThemeColor;
     href?: string;
     target?: string;
     children?: React.ReactNode;

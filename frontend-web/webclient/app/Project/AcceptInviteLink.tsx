@@ -3,7 +3,7 @@ import React, {useEffect} from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate, useParams} from "react-router";
 import styled from "styled-components";
-import api, {AcceptInviteLinkResponse, Project, RetrieveInviteLinkInfoResponse} from "./Api";
+import api, {AcceptInviteLinkResponse, RetrieveInviteLinkInfoResponse} from "./Api";
 import * as Heading from "@/ui-components/Heading";
 import {dispatchSetProjectAction} from "./Redux";
 import {Box, Button} from "@/ui-components";

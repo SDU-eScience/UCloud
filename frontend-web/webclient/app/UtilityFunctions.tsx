@@ -516,9 +516,6 @@ export function removeExpiredFileUploads(): void {
     });
 }
 
-/* As user agent is being deprecated, this might be the better approach. Not tested for handhelds. */
-export const isLikelySafari: boolean = navigator.vendor === "Apple Computer, Inc.";
-
 // NOTE(Dan): Generates a random unique identifier. This identifier is suitable for creating something which is
 // extremely likely to be unique. The backend should never trust these for security purposes. This function is also
 // not guaranteed to be cryptographically secure, but given its implementation it might be.

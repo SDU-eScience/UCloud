@@ -47,6 +47,8 @@ const Logo = (): JSX.Element => (
     <Link
         data-component={"logo"}
         to="/"
+        color="fixedWhite"
+        hoverColor="fixedWhite"
         width={[null, null, null, null, null, "190px"]}
     >
         <ui.Flex alignItems="center" ml="15px">

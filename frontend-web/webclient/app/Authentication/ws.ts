@@ -1,6 +1,6 @@
 import {HttpClient} from "./lib";
 import {inDevEnvironment} from "@/UtilityFunctions";
-import {signIntentToCall, clearSigningKey} from "@/Authentication/MessageSigning";
+import {signIntentToCall} from "@/Authentication/MessageSigning";
 
 export interface WebSocketOpenSettings {
     /**

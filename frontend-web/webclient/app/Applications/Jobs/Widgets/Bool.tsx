@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {findElement, widgetId, WidgetProps, WidgetSetter, WidgetValidationAnswer} from "./index";
+import {findElement, widgetId, WidgetProps, WidgetValidationAnswer} from "./index";
 import {Select} from "@/ui-components";
 import {compute} from "@/UCloud";
 import Flex from "@/ui-components/Flex";

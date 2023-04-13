@@ -26,6 +26,7 @@ const iconNameAndColorFromSnack = (type: Exclude<SnackType, SnackType.Custom>): 
 
 interface SnackProps<SnackType> {
     snack: SnackType;
+
     onCancel(): void;
 }
 
@@ -52,7 +53,10 @@ const SnackBody: React.FC<SnackProps<Exclude<Snack, "icon">> & {children: React.
         {children}
         <div>
             <div>{snack.message}</div>
-            <Text cursor="pointer" onClick={() => (copyToClipboard({value: snack.message, message: ""}), setDidCopy(true))} fontSize="8px" color="var(--gray)">{didCopy ? "Copied!" : "Click to copy"}</Text>
+            <Text cursor="pointer" onClick={() => {
+                copyToClipboard({value: snack.message, message: ""});
+                setDidCopy(true)
+            }} fontSize="8px" color="var(--gray)">{didCopy ? "Copied!" : "Click to copy"}</Text>
         </div>
         <Box ml="auto" />
         <Icon mt="-8px" ml="8px" mr="-8px" size="12px" cursor="pointer" name="close" onClick={onCancel} />

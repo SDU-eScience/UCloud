@@ -26,7 +26,6 @@ import {useCallback, useState} from "react";
 import ProductReference = accounting.ProductReference;
 import {ValuePill} from "@/Resource/Filter";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {api as FilesApi} from "@/UCloud/FilesApi";
 
 export interface ShareSpecification extends ResourceSpecification {
     sharedWith: string;

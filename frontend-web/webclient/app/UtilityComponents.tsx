@@ -8,14 +8,12 @@ import {
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import Input from "@/ui-components/Input";
-import {height, HeightProps, padding, PaddingProps, width, WidthProps} from "styled-system";
 import {useEffect, useRef} from "react";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Spacer} from "@/ui-components/Spacer";
 import {ErrorWrapper} from "@/ui-components/Error";
 import {ThemeColor} from "@/ui-components/theme";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
-import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {injectStyle, injectStyleSimple} from "./Unstyled";
 
@@ -287,15 +285,6 @@ export const Lorem: React.FunctionComponent<{maxLength?: number}> = ({maxLength 
     return <>{builder}</>;
 };
 
-export const ImagePlaceholder = styled.div<WidthProps & HeightProps & PaddingProps>`
-  ${width} ${height} ${padding}
-  background-color: var(--purple, #f00);
-`;
-
-export const Center = styled(Box)`
-  text-align: center;
-`;
-
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function useTraceUpdate(props: any, msg?: string): void {
     const prev = useRef(props);
@@ -344,8 +333,6 @@ export const shakeAnimation = css<{shaking?: boolean}>`
     animation: ${shakeKeyframes} 0.82s cubic-bezier(.36, .07, .19, .97) both;
   }` : null}
 `;
-
-export const shakingClassName = "shaking";
 
 export const ShakingBox = styled(Box) <{shaking?: boolean}>`
   ${shakeAnimation}

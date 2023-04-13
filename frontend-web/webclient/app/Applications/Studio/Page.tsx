@@ -1,5 +1,4 @@
 import {uploadDocument} from "@/Applications/api";
-import {SmallAppToolCard} from "@/Applications/Studio/SmallAppToolCard";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {emptyPage} from "@/DefaultObjects";
@@ -11,7 +10,7 @@ import * as React from "react";
 import {useCallback} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import Box from "@/ui-components/Box";
-import Button, {ButtonClass} from "@/ui-components/Button";
+import {ButtonClass} from "@/ui-components/Button";
 import Flex from "@/ui-components/Flex";
 import * as Heading from "@/ui-components/Heading";
 import {HiddenInputField} from "@/ui-components/Input";

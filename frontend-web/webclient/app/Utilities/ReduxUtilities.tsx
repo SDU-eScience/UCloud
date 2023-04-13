@@ -14,7 +14,7 @@ export function confStore(
     initialObject: ReduxObject,
     reducers,
     enhancers?
-): Store<ReduxObject, AnyAction> {
+): Store<ReduxObject> {
     const combinedReducers = combineReducers<ReduxObject, AnyAction>(reducers);
     const rootReducer = (state: ReduxObject, action: Action): ReduxObject => {
         if ([USER_LOGIN, USER_LOGOUT, CONTEXT_SWITCH].some(it => it === action.type)) {

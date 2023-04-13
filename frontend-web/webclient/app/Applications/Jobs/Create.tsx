@@ -481,7 +481,7 @@ function findProviderMismatches(
     ...parameterResources: Pick<ResourceHook, "params" | "errors" | "setErrors">[]
 ): void {
     for (const group of parameterResources) {
-        var anyErrors = false;
+        let anyErrors = false;
         for (const param of group.params) {
             const el = findElement({name: getParameterName(param)});
             if (el) {
@@ -548,7 +548,7 @@ function countErrors(...objects: Record<string, string>[]): number {
 }
 
 function countMandatoryAndOptionalErrors(params: string[], errors: Record<string, string>): number {
-    var count = 0;
+    let count = 0;
     for (const param of params) {
         if (errors[param]) count++;
     }

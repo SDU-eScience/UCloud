@@ -220,8 +220,8 @@ interface FtIconBaseProps {
     className?: string;
 }
 const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size, iconHint, ...props}) => {
-    const hasExt = fileIcon.ext ? true : false;
-    const ext4 = fileIcon?.ext?.substring(0, 4);
+    const hasExt = !!fileIcon.ext;
+    const ext4 = fileIcon.ext?.substring(0, 4);
     const type = fileIcon.ext ? extensionType(fileIcon.ext.toLocaleLowerCase()) : undefined;
 
     switch (iconHint) {

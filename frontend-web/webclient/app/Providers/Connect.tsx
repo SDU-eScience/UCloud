@@ -6,7 +6,6 @@ import {ListRow} from "@/ui-components/List";
 import {apiUpdate, useCloudCommand} from "@/Authentication/DataHook";
 import {EventHandler, MouseEvent, useCallback, useEffect} from "react";
 import {doNothing} from "@/UtilityFunctions";
-import {useNavigate} from "react-router";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {Feature, hasFeature} from "@/Features";

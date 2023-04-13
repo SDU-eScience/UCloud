@@ -623,11 +623,11 @@ function addThousandSeparators(numberOrString: string | number): string {
         if (i === 0) {
             let firstChunkSize = numberAsString.length % 3;
             if (firstChunkSize === 0) firstChunkSize = 3;
-            result += numberAsString.substr(0, firstChunkSize);
+            result += numberAsString.substring(0, firstChunkSize);
             offset += firstChunkSize;
         } else {
             result += '.';
-            result += numberAsString.substr(offset, 3);
+            result += numberAsString.substring(offset, 3);
             offset += 3;
         }
     }

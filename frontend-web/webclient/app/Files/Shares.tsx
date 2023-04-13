@@ -22,7 +22,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {dialogStore} from "@/Dialog/DialogStore";
 import AppRoutes from "@/Routes";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {injectStyleSimple} from "@/Unstyled";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},

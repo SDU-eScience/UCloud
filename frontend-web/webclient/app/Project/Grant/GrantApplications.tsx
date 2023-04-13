@@ -24,7 +24,6 @@ import {EnumFilter, ResourceFilter} from "@/Resource/Filter";
 import {BrowseType} from "@/Resource/BrowseType";
 import {browseGrantApplications, GrantApplication, State} from "@/Project/Grant/GrantApplicationTypes";
 import {PageV2} from "@/UCloud";
-import {useProjectId} from "../Api";
 
 export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (props) => {
     const [scrollGeneration, setScrollGeneration] = useState(0);

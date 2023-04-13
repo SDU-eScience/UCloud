@@ -2,7 +2,7 @@ import {emptyPage} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {Box, Flex, Link} from "@/ui-components";
+import {Flex, Link} from "@/ui-components";
 import Grid from "@/ui-components/Grid";
 import * as Heading from "@/ui-components/Heading";
 import {Spacer} from "@/ui-components/Spacer";

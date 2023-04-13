@@ -5,9 +5,7 @@ import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useCallback, useEffect, useState} from "react";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import ProjectAPI, {Project, useProjectId} from "./Api";
-import {Client} from "@/Authentication/HttpClientInstance";
 import {dispatchSetProjectAction, getStoredProject, setStoredProject} from "./Redux";
-import {displayErrorMessageOrDefault, errorMessageOrDefault} from "@/UtilityFunctions";
 import { useDispatch } from "react-redux";
 
 // This needs to be global

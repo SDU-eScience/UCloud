@@ -246,9 +246,9 @@ interface SidebarStateProps {
 }
 
 function hasOrParentHasClass(t: EventTarget | null, classname: string): boolean {
-    var target = t;
+    let target = t;
     while (target && "classList" in target) {
-        var classList = target.classList as DOMTokenList;
+        let classList = target.classList as DOMTokenList;
         if (classList.contains(classname)) return true;
         if ("parentNode" in target) {
             target = target.parentNode as EventTarget | null;
@@ -511,7 +511,7 @@ function SecondarySidebar({
                             {drives.data.items.map(it =>
                                 <li key={it.id}>
                                     <Flex ml="4px">
-                                        <Link hoverColor="var(--fixedWhite)" to={`/files?path=${it.id}`}>
+                                        <Link hoverColor="fixedWhite" to={`/files?path=${it.id}`}>
                                             <Truncate color="var(--fixedWhite)">
                                                 <Icon size={12} mr="4px" name="hdd" color="var(--fixedWhite)" color2="var(--fixedWhite)" />
                                                 {it.specification.title}

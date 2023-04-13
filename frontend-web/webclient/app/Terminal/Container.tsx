@@ -1,10 +1,10 @@
 import * as React from "react";
-import { useTerminalDispatcher, useTerminalState } from "@/Terminal/State";
+import {useTerminalDispatcher, useTerminalState} from "@/Terminal/State";
 import styled from "styled-components";
-import { useCallback, useEffect, useRef, useMemo } from "react";
-import { Icon } from "@/ui-components";
-import { appendToXterm, useXTerm } from "@/Applications/Jobs/xterm";
-import { Feature, hasFeature } from "@/Features";
+import {useCallback, useEffect, useRef, useMemo} from "react";
+import {Icon} from "@/ui-components";
+import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
+import {Feature, hasFeature} from "@/Features";
 
 const Wrapper = styled.div`
   --tc-pad: 16px;
@@ -168,23 +168,23 @@ export const TerminalContainer: React.FunctionComponent = () => {
     ), [state.tabs, state.activeTab, state.open]);
 
     return <Wrapper>
-        <div className={"resizer"} onMouseDown={onDragStart}/>
+        <div className={"resizer"} onMouseDown={onDragStart} />
         <div className="controls">
             {tabComponents}
 
-            <div style={{flexGrow: 1}}/>
+            <div style={{flexGrow: 1}} />
 
             {state.open && state.activeTab >= 0 ?
                 <div className="control" title={"Close terminal"} onClick={closeTerminal}>
-                    <Icon name={"trash"} size={16}/>
+                    <Icon name={"trash"} size={16} />
                 </div> :
                 null
             }
             <div className="control" onClick={toggle}>
-                <Icon name={state.open ? "anglesDownSolid" : "anglesUpSolid"} size={16}/>
+                <Icon name={state.open ? "anglesDownSolid" : "anglesUpSolid"} size={16} />
             </div>
         </div>
 
-        <div className={"contents"} ref={termRef}/>
+        <div className={"contents"} ref={termRef} />
     </Wrapper>;
 };

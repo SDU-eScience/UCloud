@@ -22,10 +22,7 @@ export const FileCollectionBrowse: React.FunctionComponent<{
 
     const productFilterForCreate = useCallback((product: ResolvedSupport) => {
         const support = product.support as FileCollectionSupport;
-        if (support.collection.usersCanCreate !== true) {
-            return false;
-        }
-        return true;
+        return support.collection.usersCanCreate === true;
     }, []);
     return <ResourceBrowse
         api={FileCollectionsApi}

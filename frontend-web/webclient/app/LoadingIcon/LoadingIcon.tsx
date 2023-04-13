@@ -1,13 +1,10 @@
 import * as React from "react";
-import styled, {css, keyframes} from "styled-components";
-import {height, HeightProps, width, WidthProps} from "styled-system";
+import styled from "styled-components";
 
 
 interface HexSpinProps {
     size?: number;
 }
-
-type SpinnerProps = WidthProps & HeightProps;
 
 const hexColors = ["#0057B8", "#82A", "#266D7F", "#F8A527", "#F11E4A"];
 const nColors = hexColors.length;
@@ -20,38 +17,39 @@ function createKF() {
         kf += `${i * 100 / nColors}% { fill: ${hexColors[i]}; }`;
     }
     kf += `100% { fill: ${hexColors[0]}; }`;
-    return css`${kf}`;
+    return `${kf}`;
 }
 
-const spinColor = keyframes`
-    ${createKF()}
-`;
-
-export const HexSpinWrapper = styled.div<SpinnerProps>`
-    ${width} ${height}
-    margin: 20px auto;
-    & > svg {
-        ${createCSS()};
+const SPINNER_ANIMATION_NAME = "spinner";
+export const HexSpinWrapper = styled.div`
+    & {
+        margin: 20px auto;
+        animation-name: spinner;
     }
-    animation-name: ${spinColor};
+
+    ${createCSS(`& > svg `)};
+
+    @keyframes ${SPINNER_ANIMATION_NAME} {
+        ${createKF()}
+    }
 `;
 
 
-function createCSS() {
+function createCSS(parentPath: string) {
     let style = ``;
     for (let i = 1; i <= pathN; i += 1) {
         style += `
-            path:nth-child(${i}) {
-                animation: ${spinColor.getName()} ${delay * pathN}s linear infinite;
+            ${parentPath} path:nth-child(${i}) {
+                animation: ${SPINNER_ANIMATION_NAME} ${delay * pathN}s linear infinite;
                 animation-delay: -${i * delay}s;
             }
         `;
     }
-    return css`${style}`;
+    return style;
 }
 
 const HexSpin = ({size = 32}: HexSpinProps): JSX.Element => (
-    <HexSpinWrapper data-tag="loading-spinner" width={size} height={size} >
+    <HexSpinWrapper data-tag="loading-spinner" style={{width: size, height: size}}>
         <svg
             xmlns="http://www.w3.org/2000/svg"
             xmlnsXlink="http://www.w3.org/1999/xlink"

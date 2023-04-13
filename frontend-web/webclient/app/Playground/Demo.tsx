@@ -1,10 +1,8 @@
 import * as React from "react";
-import * as Heading from "@/ui-components/Heading";
 import {useState} from "react";
 import MainContainer from "@/MainContainer/MainContainer";
 import {ListRow} from "@/ui-components/List";
 import List from "@/ui-components/List";
-import {ImagePlaceholder} from "@/UtilityComponents";
 import {Button, ExternalLink} from "@/ui-components";
 
 const Demo: React.FunctionComponent = () => {

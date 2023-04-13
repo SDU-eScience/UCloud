@@ -1,5 +1,3 @@
-import * as UF from "@/UtilityFunctions";
-
 /**
  * Used for resolving paths, which contain either "." or "..", and returning the resolved path.
  * @param path The current input path, which can include relative paths

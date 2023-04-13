@@ -31,7 +31,7 @@ import {api as FilesApi, findSensitivity} from "@/UCloud/FilesApi";
 import {randomUUID, doNothing, removeTrailingSlash, useEffectSkipMount, copyToClipboard} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
-import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 
 import syncthingScreen1 from "@/Assets/Images/syncthing/syncthing-1.png";
@@ -39,7 +39,6 @@ import syncthingScreen2 from "@/Assets/Images/syncthing/syncthing-2.png";
 import syncthingScreen3 from "@/Assets/Images/syncthing/syncthing-3.png";
 import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import Products from "@/Products/Products";
 
 // UI state management
 // ================================================================================

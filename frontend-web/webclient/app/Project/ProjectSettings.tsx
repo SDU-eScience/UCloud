@@ -418,7 +418,7 @@ export function ArchiveSingleProject(props: ArchiveSingleProjectProps): JSX.Elem
             </ActionBox>
         )}
     </>;
-};
+}
 
 interface ArchiveProjectProps {
     projects: Project[];
@@ -433,7 +433,7 @@ export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
         projectTitles += project.specification.title + ","
     );
     const anyUserRoles = props.projects.some(it => it.status.myRole === OldProjectRole.USER);
-    projectTitles = projectTitles.substr(0, projectTitles.length - 1);
+    projectTitles = projectTitles.substring(0, projectTitles.length - 1);
     return <>
         {anyUserRoles ? null : (
             <ActionBox>

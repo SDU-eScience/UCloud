@@ -20,10 +20,3 @@ export const setAllLoading = (loading: boolean): SetLoadingAction<typeof SET_ALL
     type: SET_ALL_LOADING,
     payload: {loading}
 });
-
-export const setErrorMessage = (type: DashboardError, error?: string): DashboardErrorAction => ({
-    type,
-    payload: {
-        error
-    }
-});

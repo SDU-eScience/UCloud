@@ -1,13 +1,4 @@
 import * as React from "react";
-import {
-    AlignItemsProps,
-    FlexDirectionProps,
-    FlexWrapProps,
-    HeightProps,
-    JustifyContentProps,
-    SpaceProps,
-    WidthProps
-} from "styled-system";
 import Box, {BoxProps} from "./Box";
 import Flex from "./Flex";
 

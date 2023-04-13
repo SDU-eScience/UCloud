@@ -665,10 +665,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if (!(selected.length === 0 && cb.onSelect === undefined)) {
                         return false;
                     }
-                    if (cb.directory?.status.icon == "DIRECTORY_TRASH") {
-                        return true;
-                    }
-                    return false;
+                    return cb.directory?.status.icon == "DIRECTORY_TRASH";
                 },
                 onClick: async (_, cb) => {
                     addStandardDialog({
@@ -754,10 +751,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
-                    if (selected.length == 1 && selected[0].status.icon == "DIRECTORY_TRASH") {
-                        return true;
-                    }
-                    return false
+                    return selected.length == 1 && selected[0].status.icon == "DIRECTORY_TRASH";
                 },
                 onClick: async (selected, cb) => {
                     await cb.invokeCommand(

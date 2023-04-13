@@ -294,7 +294,7 @@ const GenericRequestCard: React.FunctionComponent<{
         return null;
     } else {
         const defaultValue = allocationRequest?.balanceRequested;
-        var normalizedValue = defaultValue != null ?
+        let normalizedValue = defaultValue != null ?
             normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.unitOfPrice, 2, true) :
             undefined;
         return <RequestForSingleResourceWrapper>
@@ -558,7 +558,7 @@ type UpdateDocument = PayloadAction<typeof UPDATE_DOCUMENT, Document>;
 const UPDATE_GRANT_STATE = "UPDATE_GRANT_STATE";
 type UpdateGrantState = PayloadAction<typeof UPDATE_GRANT_STATE, {projectId: string, state: State}>;
 const SET_STATE_WITHDRAWN = "SET_STATE_WITHDRAWN";
-interface SetStateWithdrawn {type: typeof SET_STATE_WITHDRAWN};
+interface SetStateWithdrawn {type: typeof SET_STATE_WITHDRAWN}
 const UPDATE_REVISIONS = "UPDATE_REVISIONS";
 type UpdateRevisions = PayloadAction<typeof UPDATE_REVISIONS, Revision[]>;
 
@@ -690,7 +690,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                     type: FETCHED_GRANT_APPLICATION, payload: g
                 })
             );
-        };
+        }
     }, [appId]);
 
     const project = useProject();
@@ -964,7 +964,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
 
     const reload = useCallback(() => {
         fetchGrantGivers(browseAffiliations({itemsPerPage: 250}));
-        if (appId) {fetchGrantApplication({id: appId}).then(g => dispatch({type: FETCHED_GRANT_APPLICATION, payload: g}));};
+        if (appId) {fetchGrantApplication({id: appId}).then(g => dispatch({type: FETCHED_GRANT_APPLICATION, payload: g}));}
     }, [appId]);
 
 
@@ -1446,7 +1446,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                 />}
         />
     );
-};
+}
 
 function infoTextFromContext(recipient: Recipient): string {
     switch (recipient.type) {

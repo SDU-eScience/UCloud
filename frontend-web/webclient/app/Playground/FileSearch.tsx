@@ -1,5 +1,4 @@
 import * as React from "react";
-import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {useCallback, useEffect, useState} from "react";
 import {Box} from "@/ui-components";
 

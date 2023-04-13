@@ -68,9 +68,7 @@ import JobRouter from "@/Applications/Jobs/Browse";
 import {CONTEXT_SWITCH, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
 import {Provider} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
-import {ThemeProvider} from "styled-components";
-import {Flex, theme, UIGlobalStyle} from "@/ui-components";
-import {invertedColors} from "@/ui-components/theme";
+import {Flex, UIGlobalStyle} from "@/ui-components";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
 import {store} from "@/Utilities/ReduxUtilities";
 import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
@@ -98,28 +96,38 @@ const Core = (): JSX.Element => (
                         <Route path={AppRoutes.login.login()} element={<LoginPage />} />
                         <Route path={AppRoutes.login.loginSuccess()} element={<LoginSuccess />} />
                         <Route path={AppRoutes.login.loginWayf()} element={<Wayf />} />
-                        <Route path={AppRoutes.dashboard.dashboardA()} element={React.createElement(requireAuth(Dashboard))} />
-                        <Route path={AppRoutes.dashboard.dashboardB()} element={React.createElement(requireAuth(Dashboard))} />
+                        <Route path={AppRoutes.dashboard.dashboardA()}
+                            element={React.createElement(requireAuth(Dashboard))} />
+                        <Route path={AppRoutes.dashboard.dashboardB()}
+                            element={React.createElement(requireAuth(Dashboard))} />
                         <Route path={"/drives/*"} element={React.createElement(requireAuth(FileCollectionsRouter))} />
                         <Route path={"/files/*"} element={React.createElement(requireAuth(FilesRouter))} />
-                        <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
+                        <Route path={"/metadata/*"}
+                            element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
                         <Route path={"/shares/outgoing"} element={React.createElement(requireAuth(SharesOutgoing))} />
-                        <Route path={"/shares/invite/:id"} element={React.createElement(requireAuth(SharesAcceptLink))} />
+                        <Route path={"/shares/invite/:id"}
+                            element={React.createElement(requireAuth(SharesAcceptLink))} />
                         <Route path={"/shares/*"} element={React.createElement(requireAuth(ShareRouter))} />
 
-                        <Route path={AppRoutes.syncthing.syncthing()} element={React.createElement(requireAuth(SyncthingOverview))} />
+                        <Route path={AppRoutes.syncthing.syncthing()}
+                            element={React.createElement(requireAuth(SyncthingOverview))} />
 
-                        <Route path={AppRoutes.apps.applications()} element={React.createElement(requireAuth(Applications))} />
-                        <Route path={AppRoutes.apps.overview()} element={React.createElement(requireAuth(ApplicationsOverview2))} />
+                        <Route path={AppRoutes.apps.applications()}
+                            element={React.createElement(requireAuth(Applications))} />
+                        <Route path={AppRoutes.apps.overview()}
+                            element={React.createElement(requireAuth(ApplicationsOverview2))} />
                         <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(Search))} />
 
                         {!inDevEnvironment() ? null :
                             <Route path="/MANUAL-TESTING-OVERVIEW" element={<ManualTestingOverview />} />
                         }
 
-                        <Route path={AppRoutes.apps.shell(":jobId", ":rank")} element={React.createElement(requireAuth(JobShell))} />
-                        <Route path={AppRoutes.apps.web(":jobId", ":rank")} element={React.createElement(requireAuth(JobWeb))} />
-                        <Route path={AppRoutes.apps.vnc(":jobId", ":rank")} element={React.createElement(requireAuth(JobVnc))} />
+                        <Route path={AppRoutes.apps.shell(":jobId", ":rank")}
+                            element={React.createElement(requireAuth(JobShell))} />
+                        <Route path={AppRoutes.apps.web(":jobId", ":rank")}
+                            element={React.createElement(requireAuth(JobWeb))} />
+                        <Route path={AppRoutes.apps.vnc(":jobId", ":rank")}
+                            element={React.createElement(requireAuth(JobVnc))} />
                         <Route path="/public-links/*" element={React.createElement(requireAuth(IngressRouter))} />
                         <Route path="/jobs/*" element={React.createElement(requireAuth(JobRouter))} />
                         <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
@@ -128,23 +136,31 @@ const Core = (): JSX.Element => (
                         <Route path={"/ssh-keys/create"} element={React.createElement(requireAuth(SshKeyCreate))} />
 
                         <Route path={AppRoutes.apps.studio()} element={React.createElement(requireAuth(Studio))} />
-                        <Route path={AppRoutes.apps.studioTool(":name")} element={React.createElement(requireAuth(Tool))} />
-                        <Route path={AppRoutes.apps.studioApp(":name")} element={React.createElement(requireAuth(App))} />
+                        <Route path={AppRoutes.apps.studioTool(":name")}
+                            element={React.createElement(requireAuth(Tool))} />
+                        <Route path={AppRoutes.apps.studioApp(":name")}
+                            element={React.createElement(requireAuth(App))} />
 
                         {!inDevEnvironment() ? null : <Route path={"/playground"} element={<Playground />} />}
                         {!inDevEnvironment() ? null : <Route path={"/playground/demo"} element={<Demo />} />}
                         {!inDevEnvironment() ? null : <Route path={"/playground/lag"} element={<LagTest />} />}
 
-                        <Route path={AppRoutes.admin.userCreation()} element={React.createElement(requireAuth(UserCreation))} />
-                        <Route path={AppRoutes.admin.news()} element={React.createElement(requireAuth(NewsManagement))} />
+                        <Route path={AppRoutes.admin.userCreation()}
+                            element={React.createElement(requireAuth(UserCreation))} />
+                        <Route path={AppRoutes.admin.news()}
+                            element={React.createElement(requireAuth(NewsManagement))} />
                         <Route path={AppRoutes.admin.scripts()} element={React.createElement(requireAuth(Scripts))} />
 
                         <Route path="/admin/providers" element={React.createElement(requireAuth(Providers))} />
-                        <Route path="/admin/providers/create" element={React.createElement(requireAuth(CreateProvider))} />
-                        <Route path="/admin/providers/edit/:id" element={React.createElement(requireAuth(EditProvider))} />
-                        <Route path="/admin/providers/register" element={React.createElement(requireAuth(RegisterProvider))} />
+                        <Route path="/admin/providers/create"
+                            element={React.createElement(requireAuth(CreateProvider))} />
+                        <Route path="/admin/providers/edit/:id"
+                            element={React.createElement(requireAuth(EditProvider))} />
+                        <Route path="/admin/providers/register"
+                            element={React.createElement(requireAuth(RegisterProvider))} />
 
-                        <Route path="/providers/connect" element={React.createElement(requireAuth(ProviderConnection))} />
+                        <Route path="/providers/connect"
+                            element={React.createElement(requireAuth(ProviderConnection))} />
                         <Route path="/providers/create" element={React.createElement(requireAuth(CreateProvider))} />
                         <Route path="/providers/edit/:id" element={React.createElement(requireAuth(EditProvider))} />
                         <Route path="/providers/register" element={React.createElement(requireAuth(RegisterProvider))} />
@@ -166,34 +182,54 @@ const Core = (): JSX.Element => (
 
                         <Route path="/skus" element={<Products />} />
 
-                        <Route path={AppRoutes.project.members()} element={React.createElement(requireAuth(ProjectMembers))} />
-                        <Route path={"/projects/invite/:id"} element={React.createElement(requireAuth(ProjectAcceptInviteLink))} />
+                        <Route path={AppRoutes.project.members()}
+                            element={React.createElement(requireAuth(ProjectMembers))} />
+                        <Route path={"/projects/invite/:id"}
+                            element={React.createElement(requireAuth(ProjectAcceptInviteLink))} />
 
                         <Route path="/subprojects/" element={React.createElement(requireAuth(SubprojectList))} />
 
                         {/* Nullable paths args aren't supported (yet?) so we duplicate. */}
-                        <Route path={AppRoutes.project.settings("")} element={React.createElement(requireAuth(ProjectSettings))} />
-                        <Route path={AppRoutes.project.settings(":page")} element={React.createElement(requireAuth(ProjectSettings))} />
-                        <Route path={AppRoutes.project.usage()} element={React.createElement(requireAuth(ProjectResources))} />
-                        <Route path={AppRoutes.project.allocations()} element={React.createElement(requireAuth(ProjectAllocations))} />
+                        <Route path={AppRoutes.project.settings("")}
+                            element={React.createElement(requireAuth(ProjectSettings))} />
+                        <Route path={AppRoutes.project.settings(":page")}
+                            element={React.createElement(requireAuth(ProjectSettings))} />
+                        <Route path={AppRoutes.project.usage()}
+                            element={React.createElement(requireAuth(ProjectResources))} />
+                        <Route path={AppRoutes.project.allocations()}
+                            element={React.createElement(requireAuth(ProjectAllocations))} />
                         <Route
                             path="/project/grants/existing"
-                            element={React.createElement(requireAuth(GrantApplicationEditor), {key: RequestTarget.EXISTING_PROJECT, target: RequestTarget.EXISTING_PROJECT})}
+                            element={React.createElement(requireAuth(GrantApplicationEditor), {
+                                key: RequestTarget.EXISTING_PROJECT,
+                                target: RequestTarget.EXISTING_PROJECT
+                            })}
                         />
                         <Route
                             path="/project/grants/personal"
-                            element={React.createElement(requireAuth(GrantApplicationEditor), {key: RequestTarget.PERSONAL_PROJECT, target: RequestTarget.PERSONAL_PROJECT})}
+                            element={React.createElement(requireAuth(GrantApplicationEditor), {
+                                key: RequestTarget.PERSONAL_PROJECT,
+                                target: RequestTarget.PERSONAL_PROJECT
+                            })}
                         />
                         <Route
                             path="/project/grants/new"
-                            element={React.createElement(requireAuth(GrantApplicationEditor), {key: RequestTarget.NEW_PROJECT, target: RequestTarget.NEW_PROJECT})}
+                            element={React.createElement(requireAuth(GrantApplicationEditor), {
+                                key: RequestTarget.NEW_PROJECT,
+                                target: RequestTarget.NEW_PROJECT
+                            })}
                         />
                         <Route
                             path="/project/grants/view/:appId"
-                            element={React.createElement(requireAuth(GrantApplicationEditor), {key: RequestTarget.VIEW_APPLICATION, target: RequestTarget.VIEW_APPLICATION})}
+                            element={React.createElement(requireAuth(GrantApplicationEditor), {
+                                key: RequestTarget.VIEW_APPLICATION,
+                                target: RequestTarget.VIEW_APPLICATION
+                            })}
                         />
-                        <Route path="/project/grants/ingoing/" element={React.createElement(requireAuth(IngoingApplications))} />
-                        <Route path="/project/grants/outgoing/" element={React.createElement(requireAuth(OutgoingApplications))} />
+                        <Route path="/project/grants/ingoing/"
+                            element={React.createElement(requireAuth(IngoingApplications))} />
+                        <Route path="/project/grants/outgoing/"
+                            element={React.createElement(requireAuth(OutgoingApplications))} />
                         <Route
                             path="/sla"
                             element={React.createElement(requireAuth(ServiceLicenseAgreement, {
@@ -284,7 +320,10 @@ function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
         toggleCssColors(isLight);
         return isLight;
     });
-    const setAndStoreTheme = (isLight: boolean): void => (setSiteTheme(isLight), setTheme(isLight));
+    const setAndStoreTheme = (isLight: boolean): void => {
+        setSiteTheme(isLight);
+        setTheme(isLight)
+    }
 
     function toggle(): void {
         toggleCssColors(isLightTheme);
@@ -292,14 +331,12 @@ function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
     }
 
     return (
-        <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
-            <BrowserRouter basename="app">
-                <Flex>
-                    <Sidebar toggleTheme={toggle} />
-                    {children}
-                </Flex>
-            </BrowserRouter>
-        </ThemeProvider>
+        <BrowserRouter basename="app">
+            <Flex>
+                <Sidebar toggleTheme={toggle} />
+                {children}
+            </Flex>
+        </BrowserRouter>
     );
 }
 

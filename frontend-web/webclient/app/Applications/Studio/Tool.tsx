@@ -1,5 +1,4 @@
 import {clearLogo, uploadLogo} from "@/Applications/api";
-import {SmallAppToolCard} from "@/Applications/Studio/SmallAppToolCard";
 import {useCloudCommand, useCloudAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {emptyPage} from "@/DefaultObjects";

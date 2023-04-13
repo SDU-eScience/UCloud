@@ -1,4 +1,4 @@
-import {HttpClient} from "../Authentication/lib";
+import {HttpClient} from "@/Authentication/lib";
 import {emptyPage} from "@/DefaultObjects";
 import {Action} from "redux";
 import {IconName} from "@/ui-components/Icon";
@@ -10,9 +10,6 @@ declare global {
 
 export interface SidebarOption {
     name: string;
-    icon: string;
-    href: string;
-    children?: SidebarOption;
 }
 
 

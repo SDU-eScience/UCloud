@@ -17,11 +17,6 @@ export const setRefreshFunction = (refresh?: () => void): SetRefreshFunction => 
     payload: {refresh}
 });
 
-interface UserLogOut {type: typeof USER_LOGOUT}
-export const logout = (): UserLogOut => ({
-    type: USER_LOGOUT
-});
-
 interface UserLogIn {type: typeof USER_LOGIN}
 export const login = (): UserLogIn => ({
     type: USER_LOGIN

@@ -1,4 +1,4 @@
-import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
 import {displayErrorMessageOrDefault, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
@@ -87,7 +87,7 @@ export function ContextSwitcher(): JSX.Element | null {
             remainingFetches.current = PAGES_TO_REQUEST;
             nextInvalidation.current = new Date().getTime() + 1000 * 60 * 15
             setProjects([]);
-        };
+        }
     }, []);
 
     const navigate = useNavigate();

@@ -1,7 +1,7 @@
 import {useNavigate} from "react-router";
 import {useSearch, useSearchPlaceholder} from "@/DefaultObjects";
 import {useCallback} from "react";
-import {buildQueryString, getQueryParam, getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 
 export interface ReducedApiInterface {
     routingNamespace: string;

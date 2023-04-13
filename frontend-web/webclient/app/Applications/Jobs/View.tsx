@@ -1201,7 +1201,7 @@ const RunningJobRank: React.FunctionComponent<{
                 fitAddon.fit();
                 if (autoScroll) {
                     window.scrollTo({
-                        top: targetView.getBoundingClientRect().top - 100 + window.pageYOffset,
+                        top: targetView.getBoundingClientRect().top - 100 + window.scrollY,
                     });
                 }
             }, 0);

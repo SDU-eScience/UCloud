@@ -204,13 +204,6 @@ export function useGlobalCloudAPI<T, Parameters = any>(
     return [state.call, doFetch, state.parameters];
 }
 
-/**
- * @deprecated
- */
-export function useAsyncCommand(): [boolean, InvokeCommand, React.RefObject<boolean>] {
-    return useCloudCommand();
-}
-
 export type InvokeCommand = <T = any>(
     call: APICallParameters,
     opts?: {defaultErrorHandler: boolean}

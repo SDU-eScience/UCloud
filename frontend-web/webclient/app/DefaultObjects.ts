@@ -1,7 +1,6 @@
 import {DashboardStateProps} from "@/Dashboard";
 import * as ProjectRedux from "@/Project/Redux";
 import {SidebarOption} from "@/Types";
-import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {Upload} from "@/Files/Upload";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {ProjectCache} from "@/Project/cache";

@@ -3,9 +3,8 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {RetrieveLinkResponse, Share, shareLinksApi} from "@/UCloud/SharesApi";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as Heading from "@/ui-components/Heading";
-import React, {useEffect} from "react";
+import React, {PropsWithChildren, useEffect} from "react";
 import {useNavigate, useParams} from "react-router";
-import styled from "styled-components";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {Box, Button} from "@/ui-components";
 
@@ -72,9 +71,10 @@ export const SharesAcceptLink: React.FunctionComponent = () => {
     />;
 }
 
-const AcceptProjectLinkContainer = styled.div`
-    text-align: center;
-    margin-top: 50px;
-`;
+function AcceptProjectLinkContainer(props: PropsWithChildren): JSX.Element {
+    return <Box  textAlign="center" mt="50px">
+        {props.children}
+    </Box>
+}
 
 export default SharesAcceptLink;

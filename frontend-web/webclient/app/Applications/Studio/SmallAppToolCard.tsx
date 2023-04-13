@@ -1,7 +1,6 @@
 import * as React from "react";
 import {AppCard, AppCardProps} from "@/Applications/Card";
 import {injectStyleSimple} from "@/Unstyled";
-import {LinkProps} from "@/ui-components/Link";
 
 const SmallAppToolCardClass = injectStyleSimple("SmallAppToolCard", `
     max-width: 400px;

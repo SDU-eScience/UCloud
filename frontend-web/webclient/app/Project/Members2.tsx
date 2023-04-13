@@ -1,7 +1,6 @@
 import * as React from "react";
 import {useRef, useCallback, useEffect, useMemo, useReducer, useState} from "react";
 import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole, ProjectInviteLink, useProjectId} from "./Api";
-import styled from "styled-components";
 import {NavigateFunction, useLocation, useNavigate} from "react-router";
 import MainContainer from "@/MainContainer/MainContainer";
 import {callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
@@ -50,7 +49,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {UtilityBar} from "@/Playground/Playground";
-import {injectStyle} from "@/Unstyled";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 // UI state management
 // ================================================================================
@@ -573,17 +572,17 @@ export const ProjectMembers2: React.FunctionComponent = () => {
 
     return <MainContainer
         header={<Flex px="32px" mt="12px">
-            <ProjectBreadcrumbsWrapper embedded={false}>
+            <BreadCrumbsBase className={ProjectBreadcrumbsWrapper} embedded={false}>
                 <span>My Projects</span>
                 <span>{shorten(20, project.specification.title)}</span>
                 <span>Members</span>
-            </ProjectBreadcrumbsWrapper>
+            </BreadCrumbsBase>
             <UtilityBar searchEnabled={false} operations={[]} callbacks={{}} />
         </Flex>}
         main={
-            <TwoColumnLayout>
+            <div className={TwoColumnLayout}>
                 <div className="members">
-                    <SearchContainer>
+                    <Flex className={SearchContainer} flexWrap="wrap">
                         {!isAdmin ? null : (
                             <>
                                 <form onSubmit={onAddMember}>
@@ -645,7 +644,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                 </Absolute>
                             </Relative>
                         </form>
-                    </SearchContainer>
+                    </Flex>
                     <List mt="16px">
                         {invites.items.map(i =>
                             <ItemRow
@@ -750,7 +749,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                         </List>
                     </>}
                 </div>
-            </TwoColumnLayout>
+            </div>
         }
     />;
 };
@@ -828,7 +827,7 @@ const MemberRenderer: ItemRenderer<ProjectMember, Callbacks> = {
             callbacks.dispatch({type: "AddToGroup", member: resource.username, group: inspectingGroup.id});
         }, [callbacks.dispatch, resource, inspectingGroup]);
 
-        return <MemberRowWrapper>
+        return <div className={MemberRowWrapper}>
             <RadioTilesContainer height={"48px"}>
                 {options.map(it => (
                     <RadioTile
@@ -857,7 +856,7 @@ const MemberRenderer: ItemRenderer<ProjectMember, Callbacks> = {
                     />
                 </Button>
             </>}
-        </MemberRowWrapper>;
+        </div>;
     },
 
     Stats: ({resource, callbacks}) => {
@@ -1114,7 +1113,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
 
                 <Flex justifyContent="space-between" mt={20} mb={10}>
                     <Text pt="10px">Assign members to role</Text>
-                    <SelectBox>
+                    <div className={SelectBox}>
                         <ClickableDropdown
                             useMousePositioning
                             width="100px"
@@ -1133,12 +1132,12 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                 });
                             }}
                         />
-                    </SelectBox>
+                    </div>
                 </Flex>
                 <Flex justifyContent="space-between">
                     <Text pt="10px">Assign members to groups</Text>
 
-                    <SelectBox>
+                    <div className={SelectBox}>
                         <ClickableDropdown
                             useMousePositioning
                             width="300px"
@@ -1177,7 +1176,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                 )
                             }
                         </ClickableDropdown>
-                    </SelectBox>
+                    </div>
                 </Flex>
             </Box> : <>
                 <Flex justifyContent="space-between">
@@ -1258,11 +1257,11 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
     </>
 };
 
-const SelectBox = styled.div`
+const SelectBox = injectStyleSimple("select-box", `
     border: 2px solid var(--midGray);
     border-radius: 5px;
     padding: 10px;
-`;
+`);
 
 // Utilities
 // ================================================================================
@@ -1323,68 +1322,73 @@ function addNamingToRenderer<T, CB extends CreationCallbacks>(renderer: ItemRend
 
 // Styling
 // ================================================================================
-const MemberRowWrapper = styled.div`
+// div
+const MemberRowWrapper = injectStyleSimple("member-row-wrapper", `
   display: flex;
   align-items: center;
   gap: 10px;
-`;
+`);
 
-const ProjectBreadcrumbsWrapper = styled(BreadCrumbsBase)`
-  width: 100%;
-  max-width: unset;
-  flex-grow: 1;
-
-  ${HexSpinWrapper} {
-    margin: 0;
-    display: inline;
-  }
-`;
-
-const TwoColumnLayout = styled.div`
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  width: 100%;
-
-  & > * {
-    flex-basis: 100%;
-  }
-
-  @media screen and (min-width: 1200px) {
-    & {
-      height: calc(100vh - 32px);
-      overflow: hidden;
+// BreadCrumbsBase
+const ProjectBreadcrumbsWrapper = injectStyle("project-breadcrumbs", k => `
+    ${k} {
+        width: 100%;
+        max-width: unset;
+        flex-grow: 1;
     }
 
-    & > .members {
-      border-right: 2px solid var(--gray, #f00);
-      height: 100%;
-      flex: 1;
-      overflow-y: auto;
-      margin-right: 16px;
-      padding-right: 16px;
+    ${k} ${HexSpinWrapper} {
+        margin: 0;
+        display: inline;
+    }
+`);
+
+// div
+const TwoColumnLayout = injectStyle("two-column-layout", k => `
+    ${k} {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        width: 100%;
     }
 
-    & > .groups {
-      flex: 1;
-      height: 100%;
-      overflow-y: auto;
-      overflow-x: hidden;
+    ${k} > * {
+        flex-basis: 100%;
     }
-  }
-`;
 
-const SearchContainer = styled(Flex)`
-  flex-wrap: wrap;
-  
-  form {
-    display: flex;
-    margin-right: 10px;
-    margin-bottom: 10px;
-    flex-grow: 1;
-    flex-basis: 350px;
-  }
-`;
+    @media screen and (min-width: 1200px) {
+        ${k} {
+            height: calc(100vh - 32px);
+            overflow: hidden;
+        }
+
+        ${k} > .members {
+            border-right: 2px solid var(--gray, #f00);
+            height: 100%;
+            flex: 1;
+            overflow-y: auto;
+            margin-right: 16px;
+            padding-right: 16px;
+        }
+
+        ${k} > .groups {
+            flex: 1;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+    }
+`);
+
+const SearchContainer = injectStyle("search-container", k => `
+    ${k} > form {
+        display: flex;
+        margin-right: 10px;
+        margin-bottom: 10px;
+        flex-grow: 1;
+        flex-basis: 350px;
+    }
+`);
 
 const HelpCircleClass = injectStyle("help-circle", k => `
     ${k} {

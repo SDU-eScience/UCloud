@@ -1,5 +1,3 @@
-import {Notification} from "@/Notifications";
-
 export type DashboardProps = DashboardOperations & DashboardStateProps;
 
 export interface DashboardStateProps {

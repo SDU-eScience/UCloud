@@ -56,8 +56,8 @@ export function useUState<State extends UState<State>>(state: State): State {
 }
 
 class QueuedAsyncDispatcher {
-    private maxQueueSize: number;
-    private rejectOnQueueFull: boolean;
+    private readonly maxQueueSize: number;
+    private readonly rejectOnQueueFull: boolean;
     private headOfQueue: Promise<unknown> | null = null;
     private queue: (() => Promise<unknown>)[] = [];
 

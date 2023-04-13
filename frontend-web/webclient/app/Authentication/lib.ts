@@ -98,10 +98,6 @@ export class HttpClient {
      *
      * The body argument is assumed to be JSON.
      *
-     * @param {string} method - the HTTP method
-     * @param {string} path - the path, should not contain context or /api/
-     * @param {object} body - the request body, assumed to be a JS object to be encoded as JSON.
-     * @param {string} context - the base of the request (e.g. "/api")
      * @return {Promise} promise
      */
     public async call(params: CallParameters): Promise<any> {

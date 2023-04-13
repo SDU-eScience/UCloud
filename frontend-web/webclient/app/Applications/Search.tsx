@@ -1,5 +1,4 @@
 import * as React from "react";
-import {Box, Stamp} from "@/ui-components";
 import {emptyPage} from "@/DefaultObjects";
 import {joinToString} from "@/UtilityFunctions";
 import {useLocation, useNavigate} from "react-router";

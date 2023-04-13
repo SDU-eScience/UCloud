@@ -110,8 +110,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                 primary: true,
                 canAppearInLocation: loc => loc !== "IN_ROW",
                 enabled: (selected, cb) => {
-                    if (Client.userIsAdmin && (selected.length !== 0 || cb.startCreation == null || cb.isCreating)) return false;
-                    return true;
+                    return !(Client.userIsAdmin && (selected.length !== 0 || cb.startCreation == null || cb.isCreating));
                 },
                 onClick: (selected, cb) => cb.startCreation!(),
                 tag: CREATE_TAG
@@ -270,7 +269,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
 
     update(
         request: BulkRequest<ProviderSpecification>
-    ): APICallParameters<BulkRequest<ProviderSpecification>, any /* unknown */> {
+    ): APICallParameters<BulkRequest<ProviderSpecification>> {
         return apiUpdate(request, "/api/providers", "update");
     }
 

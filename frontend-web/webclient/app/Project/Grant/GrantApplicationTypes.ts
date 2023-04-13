@@ -1,9 +1,9 @@
-import {Product, ProductMetadata, ProductType, Wallet} from "@/Accounting";
+import {Product, ProductMetadata} from "@/Accounting";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2, PaginationRequestV2} from "@/UCloud";
 import * as UCloud from "@/UCloud";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
-import {apiBrowse, apiCreate, apiDelete, apiRetrieve, apiSearch, apiUpdate, callAPI} from "@/Authentication/DataHook";
+import {apiBrowse, apiCreate, apiDelete, apiRetrieve, apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {GrantApplicationFilter} from ".";
 
@@ -223,7 +223,7 @@ export function retrieveGrantApplication(request: RetrieveGrantApplicationReques
         payload: request,
         reloadId: Math.random()
     };
-};
+}
 
 export interface RejectGrantApplicationRequest {
     requestId: string;

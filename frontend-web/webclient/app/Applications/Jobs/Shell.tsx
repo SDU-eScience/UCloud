@@ -5,13 +5,13 @@ import {useEffect, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {useParams} from "react-router";
 import {Box, Button} from "@/ui-components";
-import {isLightThemeStored, shortUUID, useNoFrame} from "@/UtilityFunctions";
+import {shortUUID, useNoFrame} from "@/UtilityFunctions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
 import {bulkRequestOf, bulkResponseOf} from "@/DefaultObjects";
 import {default as JobsApi, InteractiveSession} from "@/UCloud/JobsApi";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
-import {BulkResponse} from "@/UCloud/index";
+import {BulkResponse} from "@/UCloud";
 
 export const Shell: React.FunctionComponent = () => {
     const {termRef, terminal, fitAddon} = useXTerm();
