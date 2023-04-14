@@ -45,6 +45,7 @@ enum class ProductType {
 @Serializable
 @UCloudApiOwnedBy(Products::class)
 @UCloudApiStable
+@Deprecated("Calculated from AccountingUnit and AccountingFrequency")
 enum class ChargeType {
     ABSOLUTE,
     DIFFERENTIAL_QUOTA
@@ -52,6 +53,7 @@ enum class ChargeType {
 
 @UCloudApiOwnedBy(Products::class)
 @UCloudApiStable
+@Deprecated("Use AccountingFrequency instead")
 enum class ProductPriceUnit {
     CREDITS_PER_UNIT,
     PER_UNIT,
@@ -68,6 +70,7 @@ enum class ProductPriceUnit {
 @Serializable
 @UCloudApiOwnedBy(Products::class)
 @UCloudApiStable
+@Deprecated("Use ProductCategoryIdV2")
 data class ProductCategoryId(
     val name: String,
     val provider: String
@@ -85,6 +88,7 @@ data class ProductCategoryId(
 @UCloudApiOwnedBy(Products::class)
 @UCloudApiDoc("Contains a unique reference to a Product")
 @UCloudApiStable
+@Deprecated("Use ProductReferenceV2")
 data class ProductReference(
     @UCloudApiDoc("The `Product` ID")
     val id: String,
@@ -106,6 +110,7 @@ data class ProductReference(
     """
 )
 @UCloudApiStable
+@Deprecated("Use ProductV2 instead")
 sealed class Product : DocVisualizable {
     @UCloudApiDoc("The category groups similar products together, it also defines which provider owns the product")
     abstract val category: ProductCategoryId
@@ -526,6 +531,7 @@ data class ProductsRetrieveRequest(
 ) : ProductFlags
 
 @UCloudApiStable
+@Deprecated("Use ProductV2")
 object Products : CallDescriptionContainer("products") {
     const val baseContext = "/api/products"
 

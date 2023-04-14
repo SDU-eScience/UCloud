@@ -17,7 +17,7 @@ import kotlinx.serialization.builtins.serializer
 data class DepositNotification(
     val id: String,
     val owner: WalletOwner,
-    val category: ProductCategoryId,
+    val category: ProductCategoryIdV2,
     val balance: Long,
 )
 
