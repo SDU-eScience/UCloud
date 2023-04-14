@@ -95,12 +95,19 @@ class GrantApplicationService(
                     it.paysFor
                 }
 
+                val allocationRequestsGroup = if (actorAndProject.project == null) {
+                    AllocationRequestsGroup.PERSONAL
+                } else {
+                    AllocationRequestsGroup.PROJECT
+                }
+
                 val results = session.sendPreparedStatement(
                     {
                         products.split {
                             into("providers") {it.provider}
                             into("category_names") { it.name}
                         }
+                        setParameter("allocation_request_group", allocationRequestsGroup.name)
                     },
                     """
                         with names_and_providers as (
@@ -113,6 +120,9 @@ class GrantApplicationService(
                             accounting.products p join
                             accounting.product_categories pc on p.category = pc.id join 
                             names_and_providers nap on pc.provider = nap.provider and pc.category = nap.category_name                        
+                        where
+                            pc.allow_allocation_requests_from = 'ALL'::accounting.allocation_requests_group or 
+                            pc.allow_allocation_requests_from = :allocation_request_group::accounting.allocation_requests_group
                         order by pc.provider, pc.category
                     """.trimIndent()
                 ).rows.map { defaultMapper.decodeFromString<Product>(it.getString(0)!!) }

@@ -1,5 +1,5 @@
 create type accounting.allocation_requests_group as enum (
-    'ALL', 'PROJECTS', 'PERSONAL'
+    'ALL', 'PROJECT', 'PERSONAL'
 );
 
 alter table accounting.product_categories
