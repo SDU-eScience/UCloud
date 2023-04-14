@@ -13,7 +13,6 @@ import {
     Checkbox
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import styled from "styled-components";
 import {addStandardDialog} from "@/UtilityComponents";
 import {callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useNavigate, useParams} from "react-router";
@@ -41,31 +40,40 @@ import {ButtonClass} from "@/ui-components/Button";
 import {BoxClass} from "@/ui-components/Box";
 import {FlexClass} from "@/ui-components/Flex";
 import {UtilityBar} from "@/Playground/Playground";
+import {injectStyle} from "@/Unstyled";
 
-const ActionContainer = styled.div`
-    & > * {
+const ActionContainer = injectStyle("action-container", k => `
+    ${k} > * {
         margin-bottom: 16px;
     }
-`;
+`);
 
-const ActionBox = styled.div`
-    display: flex;
-    margin-bottom: 16px;
+function ActionBox({children}: React.PropsWithChildren): JSX.Element {
+    return <div className={ActionBoxClass}>
+        {children}
+    </div>
+}
+
+const ActionBoxClass = injectStyle("action-box", k => `
+    ${k} {
+        display: flex;
+        margin-bottom: 16px;
+    }
     
-    & > .${BoxClass} {
+    ${k} > .${BoxClass} {
         flex-grow: 1;
     }
     
-    & > .${FlexClass} {
+    ${k} > .${FlexClass} {
         margin-left: 8px;
         flex-direction: column;
         justify-content: center;
     }
     
-    & > .${FlexClass} > .${ButtonClass} {
+    ${k} > .${FlexClass} > .${ButtonClass} {
         min-width: 100px;
     }
-`;
+`);
 
 enum SettingsPage {
     AVAILABILITY = "availability",
@@ -121,7 +129,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
             </Flex>}
             headerSize={64}
             main={
-                <ActionContainer>
+                <div className={ActionContainer}>
                     <SelectableTextWrapper>
                         <PageTab activePage={page} page={SettingsPage.AVAILABILITY} title={"Project Availability"} />
                         <PageTab activePage={page} page={SettingsPage.INFO} title={"Project Information"} />
@@ -172,7 +180,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             />
                         </>
                     )}
-                </ActionContainer>
+                </div>
             }
             sidebar={null}
         />

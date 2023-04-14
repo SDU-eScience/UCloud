@@ -35,6 +35,7 @@ import {format} from "date-fns/esm";
 import {Spacer} from "@/ui-components/Spacer";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
+import {injectStyleSimple} from "@/Unstyled";
 
 
 const ANIMATION_DURATION = 1000;
@@ -376,13 +377,13 @@ function ChartPointName({name}: {name: string}): JSX.Element {
     return (
         <div>
             <Text fontSize="14px">{productName ?? category}</Text>
-            <SubText>
+            <div className={SubText}>
                 {productName ? <>
                     {category} / {provider}
                 </> : <>
                     {provider}
                 </>}
-            </SubText>
+            </div>
         </div>
     );
 }
@@ -421,10 +422,10 @@ function normalizeNameToString(name: string): string {
     return builder;
 }
 
-const SubText = styled.div`
+const SubText = injectStyleSimple("sub-text", `
     color: var(--gray);
     text-decoration: none;
     font-size: 10px;
-`;
+`);
 
 export default Resources;

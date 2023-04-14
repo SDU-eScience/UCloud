@@ -18,12 +18,13 @@ import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {InputProps} from "@/ui-components/Input";
 import {ButtonProps} from "@/ui-components/Button";
 
-const BackgroundImage = styled.div<{image: string}>`
-    background: url(${({image}) => image}) no-repeat center;
+
+const BackgroundImage = injectStyleSimple("background-image", `
+    background: url(${deicBackground}) no-repeat center;
     background-size: calc(3000px + 80vw);
     color: black;
     overflow: hidden;
-`;
+`);
 
 export const LOGIN_REDIRECT_KEY = "redirect_on_login";
 
@@ -250,7 +251,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                     <a href={`/auth/saml/login?service=${service}`}>
                         <Button mb="8px" className={BorderRadiusButton} height={"92px"} disabled={loading} fullWidth color="wayfGreen">
                             <Image color="#fff" width="100px" src={wayfLogo} />
-                            <LoginTextSpan fontSize={2} ml="2.5em">Login</LoginTextSpan>
+                            <TextSpan className={LoginTextSpanClass} fontSize={2} ml="2.5em">Login</TextSpan>
                         </Button>
                     </a>
                     <Text color="#000" onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other login options →</Text>
@@ -413,21 +414,30 @@ const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): JSX.Element 
     </>
 ) : null;
 
-const LoginExternalLink = styled(ExternalLink)`
+//ExternalLink
+const LoginExternalLinkClass = injectStyleSimple("login-external-link", `
     color: white;
-`;
+`);
 
-const LoginTextSpan = styled(TextSpan)`
+
+//TextSpan
+const LoginTextSpanClass = injectStyleSimple("login-text", `
     color: white;
-`;
+`);
 
-const DropdownLike = styled.div`
+function DropdownLike({children}): JSX.Element {
+    return <div className={DropdownLikeClass}>
+        {children}
+    </div>
+}
+
+const DropdownLikeClass = injectStyleSimple("dropdown-like", `
     border-radius: 16px;
     background-color: #c8dd51;
     color: black;
     width: 315px;
     padding: 16px 16px;
-`;
+`);
 
 function LoginInput(props: InputProps): JSX.Element {
     return <Input {...props} className={LoginInputClass} />
@@ -461,7 +471,7 @@ function LoginButton(props: ButtonProps): JSX.Element {
 }
 
 function BlackLoginText(props): JSX.Element {
-    return <Text className={BlackLoginTextClass}  />
+    return <Text className={BlackLoginTextClass} />
 }
 
 const BlackLoginTextClass = injectStyleSimple("black-login-text", `
@@ -488,17 +498,17 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
                     </ClickableDropdown>
                 )}
                 {!SITE_DOCUMENTATION_URL ? null : (
-                    <LoginExternalLink href={SITE_DOCUMENTATION_URL}>
+                    <ExternalLink className={LoginExternalLinkClass} href={SITE_DOCUMENTATION_URL}>
                         <Icon color="#000" color2="#000" name="docs" /> <TextSpan color="#000">Docs</TextSpan>
-                    </LoginExternalLink>
+                    </ExternalLink>
                 )}
             </div> : null}
         </Absolute>
-        <BackgroundImage image={deicBackground}>
+        <div className={BackgroundImage}>
             <Flex mx="auto" flexDirection={"column"} height="100vh" minHeight={"650px"}>
                 {props.children}
             </Flex>
-        </BackgroundImage>
+        </div>
     </Box >);
 }
 

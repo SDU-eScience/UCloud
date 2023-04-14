@@ -9,6 +9,7 @@ import * as Heading from "@/ui-components/Heading";
 import IndeterminateProgressBar from "@/ui-components/IndeterminateProgress";
 import ProgressBar from "@/ui-components/Progress";
 import {groupBy, takeLast} from "@/Utilities/CollectionUtilities";
+import {injectStyleSimple} from "@/Unstyled";
 
 const DetailedTask: React.FunctionComponent<{ task: TaskUpdate }> = ({task}) => {
     if (task === undefined) {
@@ -91,9 +92,9 @@ const DetailedTask: React.FunctionComponent<{ task: TaskUpdate }> = ({task}) => 
                 {!task.messageToAppend ? null : (
                     <>
                         <Heading.h3>Output</Heading.h3>
-                        <StatusBox ref={ref} onScroll={checkScroll}>
+                        <div className={StatusBox} ref={ref} onScroll={checkScroll}>
                             <pre><code>{task.messageToAppend}</code></pre>
-                        </StatusBox>
+                        </div>
                     </>
                 )}
             </Flex>
@@ -107,10 +108,10 @@ const Container = styled(ResponsiveContainer)`
   }
 `;
 
-const StatusBox = styled.div`
+const StatusBox = injectStyleSimple("status-box", `
   margin-top: 16px;
   flex: 1 1 auto;
   overflow-y: auto;
-`;
+`);
 
 export default DetailedTask;

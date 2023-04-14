@@ -2,7 +2,6 @@ import {useCloudCommand} from "@/Authentication/DataHook";
 import {useAvatars} from "@/AvataaarLib/hook";
 import * as React from "react";
 import {useEffect} from "react";
-import styled from "styled-components";
 import {Flex, Icon, Text, Box, Button, RadioTile, RadioTilesContainer} from "@/ui-components";
 import {IconClass, IconName} from "@/ui-components/Icon";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -13,6 +12,7 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {Client} from "@/Authentication/HttpClientInstance";
 import ProjectAPI, {isAdminOrPI, OldProjectRole, ProjectGroup, ProjectMember, projectStringToRole} from "./Api";
 import {bulkRequestOf} from "@/DefaultObjects";
+import {injectStyle} from "@/Unstyled";
 
 export function MembersList(props: Readonly<{
     members: ProjectMember[];
@@ -136,13 +136,13 @@ export function MembersList(props: Readonly<{
 
                     <Flex alignItems={"center"}>
                         {!props.onAddToGroup ? !allowManagement || member.role === OldProjectRole.PI ? null :
-                            <ConfirmationButtonStyling>
+                            <div className={ConfirmationButtonStyling}>
                                 {member.username == Client.username ? null : <ConfirmationButton
                                     icon={"close"}
                                     actionText="Remove"
                                     onAction={() => props.onRemoveMember(member.username)}
                                 />}
-                            </ConfirmationButtonStyling> :
+                            </div> :
                             <Button ml="8px" color="green" height="35px" width="35px" onClick={() => props.onAddToGroup!(member.username)}>
                                 <Icon
                                     color="white"
@@ -170,19 +170,21 @@ function roleToIcon(role: OldProjectRole): "user" | "userAdmin" | "userPi" {
             return "user";
     }
 }
-const ConfirmationButtonStyling = styled(Box)`
-    margin-left: 3px;
+const ConfirmationButtonStyling = injectStyle("confirmation-button", k => `
+    ${k} {
+        margin-left: 3px;
+    }
  
-    & > button {
+    ${k} > button {
         min-width: 175px;
         font-size: 12px;
     }
 
-    & .${IconClass} {
+    ${k} .${IconClass} {
         height: 12px;
         width: 12px;
     }
-`;
+`);
 
 function memberOfAnyGroup(username: string, groups: ProjectGroup[]): boolean {
     return groups.some(it => it.status.members?.includes(username));

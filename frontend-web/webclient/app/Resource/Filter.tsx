@@ -16,6 +16,7 @@ import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {SortEntry} from "@/UCloud/ResourceApi";
 import {BrowseType} from "./BrowseType";
+import {injectStyle} from "@/Unstyled";
 
 export interface FilterWidgetProps {
     properties: Record<string, string>;
@@ -370,9 +371,9 @@ export const DateRangeFilterWidget: React.FunctionComponent<{
     const yesterdayEnd = todayMs - 1;
     const yesterdayStart = getStartOfDay(new Date(todayMs - 1)).getTime();
     const pastWeekEnd = new Date(timestampUnixMs()).getTime();
-    const pastWeekStart = getStartOfDay(new Date(pastWeekEnd - (7*1000*60*60*24))).getTime();
+    const pastWeekStart = getStartOfDay(new Date(pastWeekEnd - (7 * 1000 * 60 * 60 * 24))).getTime();
     const pastMonthEnd = new Date(timestampUnixMs()).getTime();
-    const pastMonthStart = getStartOfDay(new Date(pastMonthEnd - (30*1000*60*60*24))).getTime();
+    const pastMonthStart = getStartOfDay(new Date(pastMonthEnd - (30 * 1000 * 60 * 60 * 24))).getTime();
 
     return <ExpandableDropdownFilterWidget
         expanded={props.expanded}
@@ -510,9 +511,11 @@ export const EnumPill: React.FunctionComponent<{
     </FilterPill>;
 };
 
-const EmbeddedOffset = styled.div<{embedded: boolean}>`
-    ${p => p.embedded ? "margin-left: -15px;" : null}
-`;
+const EmbeddedOffset = injectStyle("embedded-offset", k => `
+    ${k}[data-embedded="true"] {
+        margin-left: -15px;
+    }
+`);
 
 export const EnumFilterWidget: React.FunctionComponent<{
     propertyName: string;
@@ -534,7 +537,7 @@ export const EnumFilterWidget: React.FunctionComponent<{
         facedownChevron={props.facedownChevron}
         contentWidth={"300px"}
         dropdownContent={
-            <EmbeddedOffset embedded={props.browseType === BrowseType.Embedded}>
+            <div className={EmbeddedOffset} data-embedded={props.browseType === BrowseType.Embedded}>
                 {props.options.map(opt =>
                     <ListRow
                         key={opt.value}
@@ -549,7 +552,7 @@ export const EnumFilterWidget: React.FunctionComponent<{
                         stopPropagation={false}
                     />
                 )}
-            </EmbeddedOffset>
+            </div>
         }
     />
 };

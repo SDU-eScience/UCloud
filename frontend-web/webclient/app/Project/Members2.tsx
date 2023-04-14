@@ -369,7 +369,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
         }
 
         case "InspectGroup": {
-            cb.navigate(buildQueryString(`/projects/${project.id}/members`, {group: action.group ?? undefined}));
+            cb.navigate(buildQueryString(`/projects/members`, {group: action.group ?? undefined}));
             break;
         }
 
@@ -386,10 +386,9 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
         }
 
         case "RemoveInvite": {
-            await callAPIWithErrorHandler({
-                ...Api.deleteInvite(bulkRequestOf(...action.members.map(it => ({username: it, project: project.id})))),
-                projectOverride: project.id
-            });
+            await callAPIWithErrorHandler(
+                Api.deleteInvite(bulkRequestOf(...action.members.map(it => ({username: it, project: project.id}))))
+            );
         }
     }
 }
@@ -1329,7 +1328,6 @@ const MemberRowWrapper = injectStyleSimple("member-row-wrapper", `
   gap: 10px;
 `);
 
-// BreadCrumbsBase
 const ProjectBreadcrumbsWrapper = injectStyle("project-breadcrumbs", k => `
     ${k} {
         width: 100%;
@@ -1343,7 +1341,6 @@ const ProjectBreadcrumbsWrapper = injectStyle("project-breadcrumbs", k => `
     }
 `);
 
-// div
 const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
         display: flex;

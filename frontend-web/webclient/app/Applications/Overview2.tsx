@@ -2,7 +2,7 @@ import {emptyPage} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {Flex, Link} from "@/ui-components";
+import {Box, Divider, Flex, Link} from "@/ui-components";
 import Grid from "@/ui-components/Grid";
 import * as Heading from "@/ui-components/Heading";
 import {Spacer} from "@/ui-components/Spacer";
@@ -93,6 +93,7 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
 
     const main = (
         <>
+            <Box mt="12px"/>
             <TagGrid
                 tag={SPECIAL_FAVORITE_TAG}
                 items={favorites.data.items}
@@ -103,6 +104,7 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
                 onFavorite={onFavorite}
                 refreshId={refreshId}
             />
+            <Divider mt="18px" />
             {sections.data.sections.map(section =>
                 section.type === AppStoreSectionType.TAG ?
                     <TagGrid
@@ -243,12 +245,13 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
 
     if (filteredItems.length === 0) return null;
 
-
     if (showFavorites) {
-        return <Flex>
-            {filteredItems.map(app =>
-                <FavoriteApp key={app.metadata.name + app.metadata.version} name={app.metadata.name} version={app.metadata.version} onFavorite={() => onFavorite(app)} />
-            )}
+        return <Flex width="100%">
+            <Flex mx="auto">
+                {filteredItems.map(app =>
+                    <FavoriteApp key={app.metadata.name + app.metadata.version} name={app.metadata.name} version={app.metadata.version} onFavorite={() => onFavorite(app)} />
+                )}
+            </Flex>
         </Flex>
     }
 

@@ -11,8 +11,8 @@ export const DividerClass = injectStyleSimple("divider", `
     margin-right: 0;
 `);
 
-const Divider: React.FunctionComponent<BoxProps & { borderColor?: string }> = props => {
-    return <hr className={DividerClass} style={{borderColor: props.borderColor, ...unbox(props)}}/>
+const Divider: React.FunctionComponent<BoxProps & {borderColor?: string}> = props => {
+    return <hr className={DividerClass} style={{borderColor: props.borderColor, ...unbox(props)}} />
 };
 
 Divider.displayName = "Divider";

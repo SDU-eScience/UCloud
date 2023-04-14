@@ -425,7 +425,7 @@ const FavoriteAppClass = injectStyle("favorite-app", k => `
 `);
 
 export function FavoriteApp(props: {name: string, version: string, onFavorite(name: string, version: string): void;}): JSX.Element {
-    return <>
+    return <Flex mx="12px">
         <Link to={Pages.run(props.name, props.version)}>
             <div className={FavoriteAppClass}>
                 <AppToolLogo size="48px" name={props.name} type="APPLICATION" />
@@ -434,7 +434,7 @@ export function FavoriteApp(props: {name: string, version: string, onFavorite(na
         <Relative top="50px" right="24px" width="0px" height="0px">
             <Icon cursor="pointer" name="starFilled" color="blue" hoverColor="blue" size={FAV_ICON_SIZE} onClick={() => props.onFavorite(props.name, props.version)} />
         </Relative>
-    </>
+    </Flex>
 }
 
 export function AppCard(props: AppCardProps): JSX.Element {

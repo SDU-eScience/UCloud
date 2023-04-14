@@ -9,6 +9,7 @@ import styled from "styled-components";
 import {addStandardDialog} from "@/UtilityComponents";
 import {initializeResources} from "@/Services/ResourceInit";
 import {useNavigate} from "react-router";
+import {injectStyleSimple} from "@/Unstyled";
 
 function fetchSla(): APICallParameters {
     return {
@@ -32,11 +33,11 @@ interface ServiceAgreementText {
     text: string;
 }
 
-const Container = styled.div`
+const Container = injectStyleSimple("container", `
     margin: 0 auto;
     min-width: 300px;
     max-width: 1000px;
-`;
+`);
 
 const ServiceLicenseAgreement: React.FunctionComponent = () => {
     const [sla] = useCloudAPI<ServiceAgreementText>(fetchSla(), {version: 0, text: ""});
@@ -62,7 +63,7 @@ const ServiceLicenseAgreement: React.FunctionComponent = () => {
             header={null}
             main={
                 (
-                    <Container>
+                    <div className={Container}>
                         <Markdown>{sla.data.text}</Markdown>
 
                         <Button color={"green"} onClick={() => addStandardDialog({
@@ -73,7 +74,7 @@ const ServiceLicenseAgreement: React.FunctionComponent = () => {
                         })} fullWidth>
                             I have read and accept the terms of service
                         </Button>
-                    </Container>
+                    </div>
                 )
             }
         />
