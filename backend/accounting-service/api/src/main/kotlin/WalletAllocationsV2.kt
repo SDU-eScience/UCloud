@@ -154,7 +154,7 @@ data class ProviderWalletSummaryV2(
 )
 
 @UCloudApiInternal(InternalLevel.BETA)
-object WalletsAllocationsV2 : CallDescriptionContainer("accounting.walletallocations") {
+object WalletAllocationsV2 : CallDescriptionContainer("accounting.walletallocations") {
     const val baseContext = "/api/accounting/walletallocations"
 
     @UCloudApiExperimental(ExperimentalLevel.BETA)

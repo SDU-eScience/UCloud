@@ -55,8 +55,20 @@ class AccountingController(
             ok(BulkResponse(responses))
         }
 
+        implementOrDispatch(AccountingV2.findRelevantProviders) {
+            //TODO(HENRIK)
+        }
+
         implementOrDispatch(Accounting.charge) {
             ok(accounting.charge(actorAndProject, request))
+        }
+
+        implementOrDispatch(AccountingV2.reportTotalUsage){
+            //TODO(HENRIK)
+        }
+
+        implementOrDispatch(AccountingV2.reportDelta){
+            //TODO(HENRIK)
         }
 
         implementOrDispatch(Accounting.deposit) {
@@ -66,6 +78,10 @@ class AccountingController(
                 req.startDate = req.startDate ?: Time.now()
             }
             ok(accounting.deposit(actorAndProject, request))
+        }
+
+        implementOrDispatch(AccountingV2.subAllocate){
+            //TODO(HENRIK)
         }
 
         implementOrDispatch(Accounting.check) {
@@ -80,6 +96,10 @@ class AccountingController(
             ok(accounting.updateAllocation(actorAndProject, request))
         }
 
+        implementOrDispatch(AccountingV2.updateAllocation){
+            //TODO(HENRIK)
+        }
+
         implementOrDispatch(Accounting.rootDeposit) {
             val user = ctx.securityPrincipal.username
             request.items.forEach { req ->
@@ -89,14 +109,26 @@ class AccountingController(
             ok(accounting.rootDeposit(actorAndProject, request))
         }
 
+        implementOrDispatch(AccountingV2.rootAllocate){
+            //TODO(HENRIK)
+        }
+
         implement(Wallets.browse) {
             ok(accounting.browseWallets(actorAndProject, request))
+        }
+
+        implement(WalletsV2.browse) {
+            //TODO(HENRIK)
         }
 
         implementOrDispatch(Wallets.retrieveWalletsInternal) {
             val walletOwner = request.owner
 
             ok(WalletsInternalRetrieveResponse(accounting.retrieveWalletsInternal(ActorAndProject(Actor.System, null), walletOwner)))
+        }
+        
+        implementOrDispatch(WalletsV2.retrieveWalletsInternal) {
+            //TODO(HENRIK)
         }
 
         implementOrDispatch(Wallets.retrieveAllocationsInternal) {
@@ -112,6 +144,10 @@ class AccountingController(
             )
         }
 
+        implementOrDispatch(WalletAllocationsV2.retrieveAllocationsInternal) {
+            //TODO(HENRIK)
+        }
+
         implementOrDispatch(Wallets.resetState) {
             ok(accounting.resetState())
         }
@@ -120,20 +156,40 @@ class AccountingController(
             ok(accounting.browseSubAllocations(actorAndProject, request, request.query))
         }
 
+        implement(WalletAllocationsV2.searchSubAllocations) {
+            //TODO(HENRIK)
+        }
+
         implement(Wallets.browseSubAllocations) {
             ok(accounting.browseSubAllocations(actorAndProject, request))
+        }
+
+        implement(WalletAllocationsV2.browseSubAllocations) {
+            //TODO(HENRIK)
         }
 
         implement(Wallets.retrieveRecipient) {
             ok(accounting.retrieveRecipient(actorAndProject, request))
         }
 
+        implement(WalletAllocationsV2.retrieveRecipient) {
+            //TODO(HENRIK)
+        }
+
         implement(Wallets.register) {
             ok(accounting.register(actorAndProject, request))
         }
 
+        implement(WalletAllocationsV2.register) {
+            //TODO(HENRIK)
+        }
+
         implementOrDispatch(Wallets.retrieveProviderSummary) {
             ok(accounting.retrieveProviderSummary(actorAndProject, request))
+        }
+
+        implementOrDispatch(WalletAllocationsV2.retrieveProviderSummary) {
+            //TODO(HENRIK)
         }
 
         implement(Visualization.retrieveUsage) {

@@ -43,7 +43,7 @@ data class WalletsInternalRetrieveRequest(
     val owner: WalletOwner
 )
 @Serializable
-data class WalletsInternalRetrieveResponse(
+data class WalletsInternalV2RetrieveResponse(
     val wallets: List<WalletV2>
 )
 

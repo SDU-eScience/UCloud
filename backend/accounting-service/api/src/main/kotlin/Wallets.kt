@@ -151,7 +151,10 @@ enum class AllocationSelectorPolicy {
     EXPIRE_FIRST,
     // ORDERED (Planned not yet implemented)
 }
-
+@Serializable
+data class WalletsInternalRetrieveResponse(
+    val wallets: List<Wallet>
+)
 @Serializable
 @UCloudApiDoc(
     """
