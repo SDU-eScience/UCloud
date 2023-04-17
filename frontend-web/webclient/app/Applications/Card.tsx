@@ -1,7 +1,7 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
 import styled from "styled-components";
-import {Flex, Icon, Relative} from "@/ui-components";
+import {Button, Flex, Icon, Relative} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import Link from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
@@ -275,7 +275,7 @@ const TallApplicationCard = injectStyle("tall-application-card", k => `
 
     ${k} > div.image {
         width: 75px;
-        height: 75px;
+        height: 62px;
         margin-top: 30px;
         margin-bottom: 8px;
     }
@@ -287,6 +287,10 @@ const TallApplicationCard = injectStyle("tall-application-card", k => `
 
     ${k}:hover {
         /* TODO(Jonas): Missing inset box-shadow on hover. */
+    }
+
+    ${k}[data-xl="true"] {
+        height: 290px;
     }
 `);
 
@@ -403,7 +407,7 @@ function lineCountFromType(t: ApplicationCardType): number {
         case ApplicationCardType.TALL:
             return 5;
         case ApplicationCardType.EXTRA_TALL:
-            return 6;
+            return 4;
         case ApplicationCardType.WIDE:
             return 5;
         case ApplicationCardType.EXTRA_WIDE:
@@ -419,7 +423,7 @@ const FavoriteAppClass = injectStyle("favorite-app", k => `
         box-shadow: rgba(0, 0, 0, 0.2) 0px 3px 5px -1px inset, rgba(0, 0, 0, 0.14) 0px 6px 10px 0px;
         display: flex;
         /* TODO(Jonas): This should be calculated much better. */
-        padding-left: 14px;
+        padding-left: 13px;
         align-items: center;
     }
 `);
@@ -461,14 +465,18 @@ export function AppCard(props: AppCardProps): JSX.Element {
         switch (props.type) {
             case ApplicationCardType.EXTRA_TALL:
             case ApplicationCardType.TALL:
-                if (props.type === ApplicationCardType.EXTRA_TALL) console.log("TODO BY EXTRA_TALL");
-                return <div className={ApplicationCardClass + " " + TallApplicationCard}>
+                const isExtraTall = props.type === ApplicationCardType.EXTRA_TALL;
+                return <Flex flexDirection="column" className={ApplicationCardClass + " " + TallApplicationCard} data-xl={isExtraTall}>
                     {favoriteDiv}
                     <div className="image">
                         <AppToolLogo size={"52px"} name={app.metadata.name} type="APPLICATION" />
                     </div>
                     {titleAndDescription}
-                </div>
+                    {isExtraTall ?
+                        <Flex mb="4px" mx="4px" mt={"auto"}>
+                            <Button height="26px" width="100%">Try</Button>
+                        </Flex> : null}
+                </Flex>
             case ApplicationCardType.WIDE:
             case ApplicationCardType.EXTRA_WIDE:
                 const isExtraWide = props.type === ApplicationCardType.EXTRA_WIDE;

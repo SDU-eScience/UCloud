@@ -61,23 +61,22 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
     useRefreshFunction(refresh);
 
     const [loadingCommand, invokeCommand] = useCloudCommand();
-    const [favoriteStatus, setFavoriteStatus] = useState<FavoriteStatus>({});
+    const favoriteStatus = React.useRef<FavoriteStatus>({});
 
     const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
         if (!loadingCommand) {
             const key = favoriteStatusKey(app);
-            const isFavorite = favoriteStatus[key]?.override ?? app.favorite;
-            const newFavorite: FavoriteStatus = deepCopy(favoriteStatus);
-            newFavorite[key] = {override: !isFavorite, app};
-            setFavoriteStatus({...newFavorite});
-
+            const isFavorite = favoriteStatus.current[key]?.override ?? app.favorite;
+            favoriteStatus.current[key] = {override: !isFavorite, app};
+            favoriteStatus.current = {...favoriteStatus.current};
             try {
                 await invokeCommand(UCloud.compute.apps.toggleFavorite({
                     appName: app.metadata.name,
                     appVersion: app.metadata.version
                 }));
             } catch (e) {
-                setFavoriteStatus({...favoriteStatus});
+                favoriteStatus.current[key].override = !favoriteStatus.current[key].override;
+                favoriteStatus.current = {...favoriteStatus.current};
             }
         }
     }, [loadingCommand, favoriteStatus]);
@@ -93,7 +92,7 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
 
     const main = (
         <>
-            <Box mt="12px"/>
+            <Box mt="12px" />
             <TagGrid
                 tag={SPECIAL_FAVORITE_TAG}
                 items={favorites.data.items}
@@ -204,7 +203,7 @@ interface TagGridProps {
     tagBanList?: string[];
     columns: number;
     rows: number;
-    favoriteStatus: FavoriteStatus;
+    favoriteStatus: React.MutableRefObject<FavoriteStatus>;
     onFavorite: (app: ApplicationSummaryWithFavorite) => void;
     refreshId: number;
 }
@@ -214,40 +213,40 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
 ) => {
     const showFavorites = tag == SPECIAL_FAVORITE_TAG;
 
-    let _filteredItems = items
-        .filter(it => !it.tags.some(_tag => tagBanList.includes(_tag)))
-        .filter(item => {
-            const isFavorite = favoriteStatus[favoriteStatusKey(item)]?.override ?? item.favorite;
-            return isFavorite === showFavorites;
-        });
+    const filteredItems = React.useMemo(() => {
+        let _filteredItems = items
+            .filter(it => !it.tags.some(_tag => tagBanList.includes(_tag)))
+            .filter(item => {
+                const isFavorite = favoriteStatus.current[favoriteStatusKey(item)]?.override ?? item.favorite;
+                return isFavorite === showFavorites;
+            });
 
-    if (showFavorites) {
-        _filteredItems = _filteredItems.concat(Object.values(favoriteStatus).filter(it => it.override).map(it => it.app));
-        _filteredItems = _filteredItems.filter(it => favoriteStatus[favoriteStatusKey(it)]?.override !== false);
-    }
-
-    // Remove duplicates (This can happen due to favorite cache)
-    {
-        const observed = new Set<string>();
-        const newList: ApplicationSummaryWithFavorite[] = [];
-        for (const item of _filteredItems) {
-            const key = favoriteStatusKey(item);
-            if (!observed.has(key)) {
-                observed.add(key);
-                newList.push(item);
-            }
+        if (showFavorites) {
+            _filteredItems = _filteredItems.concat(Object.values(favoriteStatus.current).filter(it => it.override).map(it => it.app));
+            _filteredItems = _filteredItems.filter(it => favoriteStatus.current[favoriteStatusKey(it)]?.override !== false);
         }
 
-        _filteredItems = newList;
-    }
+        // Remove duplicates (This can happen due to favorite cache)
+        {
+            const observed = new Set<string>();
+            const newList: ApplicationSummaryWithFavorite[] = [];
+            for (const item of _filteredItems) {
+                const key = favoriteStatusKey(item);
+                if (!observed.has(key)) {
+                    observed.add(key);
+                    newList.push(item);
+                }
+            }
 
-    const filteredItems = _filteredItems;
+            return newList;
+        }
+    }, [items, favoriteStatus.current]);
 
     if (filteredItems.length === 0) return null;
 
     if (showFavorites) {
-        return <Flex width="100%">
-            <Flex mx="auto">
+        return <Flex overflowX="scroll" width="100%">
+            <Flex mx="auto" mb="16px">
                 {filteredItems.map(app =>
                     <FavoriteApp key={app.metadata.name + app.metadata.version} name={app.metadata.name} version={app.metadata.version} onFavorite={() => onFavorite(app)} />
                 )}
@@ -275,13 +274,13 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                     pt="20px"
                     gridGap="10px"
                     gridTemplateRows={showFavorites ? undefined : `repeat(${rows} , 1fr)`}
-                    gridTemplateColumns={showFavorites ? "repeat(auto-fill, minmax(322px, 1fr))" : "repeat(auto-fill, 322px)"}
+                    gridTemplateColumns={showFavorites ? "repeat(auto-fill, minmax(156px, 1fr))" : "repeat(auto-fill, 156px)"}
                     style={{gridAutoFlow: showFavorites ? "row" : "column"}}
                 >
                     {filteredItems.map(app =>
                         <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
                             <AppCard
-                                type={ApplicationCardType.WIDE}
+                                type={ApplicationCardType.EXTRA_TALL}
                                 onFavorite={() => onFavorite(app)}
                                 app={app}
                                 isFavorite={app.favorite}
