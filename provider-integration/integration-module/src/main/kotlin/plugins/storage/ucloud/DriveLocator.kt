@@ -364,7 +364,6 @@ private object DriveAndSystemStore {
                     val entry = entries[idx]
                     if (entry.drive.ucloudId in systemIds) {
                         entries[idx] = entry.copy(
-                            inMaintenanceMode = false,
                             system = newSystem
                         )
                     }
@@ -374,8 +373,7 @@ private object DriveAndSystemStore {
                     """
                         update ucloud_storage_drives
                         set
-                            system = :new_system,
-                            in_maintenance_mode = false
+                            system = :new_system
                         where
                             collection_id = some(:system_ids::bigint[])
                     """
@@ -452,7 +450,7 @@ class DriveLocator(
             drive.project = ownedByProject
         }
 
-        val (system, isAllowed) = when (drive) {
+        var (system, isAllowed) = when (drive) {
             is UCloudDrive.ProjectMemberFiles,
             is UCloudDrive.ProjectRepository -> {
                 val systemName: String?
@@ -534,8 +532,18 @@ class DriveLocator(
             }
         }
 
-        return DriveAndSystem(drive.withUCloudId(id), system, false, driveToInternalFile(system, drive))
-            .also { result -> DriveAndSystemStore.insert(listOf(result), allowUpsert = true) }
+        // NOTE(Dan): At this point we should know everything. We try to see if the drive already exists, because in
+        // that case we want to just re-use the data. This function is not trying to create something new if it already
+        // exists.
+        val existingDrive = DriveAndSystemStore.retrieve(id)
+        if (existingDrive != null) return existingDrive.normalize()
+
+        DriveAndSystemStore.insert(
+            listOf(DriveAndSystem(drive.withUCloudId(id), system, false, driveToInternalFile(system, drive))),
+            allowUpsert = false
+        )
+
+        return DriveAndSystemStore.retrieve(id) ?: error("internal error - could not find drive after insertion")
     }
 
     suspend fun resolveDriveByProviderId(drive: UCloudDrive): DriveAndSystem {
@@ -736,6 +744,8 @@ class DriveLocator(
             affectedDrives.map { it.drive.ucloudId },
             newSystem
         )
+
+        setMaintenanceMode(driveId, null, false)
     }
 
 
