@@ -720,8 +720,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
                             itemData={items}
                             itemCount={items.length}
                             itemSize={56}
-                            width={width}
-                            height={height}
+                            width={width!}
+                            height={height!}
                             children={listItem}
                             overscanCount={32}
                         />

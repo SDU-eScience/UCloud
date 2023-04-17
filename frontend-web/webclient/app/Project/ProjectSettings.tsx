@@ -130,56 +130,39 @@ export const ProjectSettings: React.FunctionComponent = () => {
             headerSize={64}
             main={
                 <div className={ActionContainer}>
-                    <SelectableTextWrapper>
-                        <PageTab activePage={page} page={SettingsPage.AVAILABILITY} title={"Project Availability"} />
-                        <PageTab activePage={page} page={SettingsPage.INFO} title={"Project Information"} />
-                        <PageTab activePage={page} page={SettingsPage.SUBPROJECTS} title={"Subprojects"} />
-                        {!enabled.data.enabled ? null :
-                            <PageTab activePage={page} page={SettingsPage.GRANT_SETTINGS} title={"Grant Settings"} />
-                        }
-                    </SelectableTextWrapper>
+                    {!enabled.data.enabled ? null :
+                        <PageTab activePage={page} page={SettingsPage.GRANT_SETTINGS} title={"Grant Settings"} />
+                    }
 
-                    {page !== SettingsPage.AVAILABILITY ? null : (
-                        <>
-                            <ArchiveSingleProject
-                                isArchived={status.archived}
-                                projectId={projectId}
-                                projectRole={status.myRole!}
-                                title={project.specification.title}
-                                onSuccess={() => projectOps.reload()}
-                            />
-                            <Divider />
-                            <LeaveProject
-                                onSuccess={() => navigate("/")}
-                                projectTitle={project.specification.title}
-                                projectId={projectId}
-                                projectRole={status.myRole!}
-                            />
-                        </>
-                    )}
-                    {page !== SettingsPage.INFO ? null : (
-                        <>
-                            <ChangeProjectTitle
-                                projectId={projectId}
-                                projectSpecification={project.specification}
-                                onSuccess={() => projectOps.reload()}
-                            />
-                            {enabled.data.enabled ? <Divider /> : null}
-                            <LogoAndDescriptionSettings />
-                        </>
-                    )}
-                    {page !== SettingsPage.GRANT_SETTINGS ? null : (
+                    <ArchiveSingleProject
+                        isArchived={status.archived}
+                        projectId={projectId}
+                        projectRole={status.myRole!}
+                        title={project.specification.title}
+                        onSuccess={() => projectOps.reload()}
+                    />
+                    <Divider />
+                    <LeaveProject
+                        onSuccess={() => navigate("/")}
+                        projectTitle={project.specification.title}
+                        projectId={projectId}
+                        projectRole={status.myRole!}
+                    />
+                    <ChangeProjectTitle
+                        projectId={projectId}
+                        projectSpecification={project.specification}
+                        onSuccess={() => projectOps.reload()}
+                    />
+                    {enabled.data.enabled ? <>
+                        <Divider />
+                        <LogoAndDescriptionSettings />
                         <GrantProjectSettings />
-                    )}
-                    {page !== SettingsPage.SUBPROJECTS ? null : (
-                        <>
-                            <SubprojectSettings
-                                projectId={projectId}
-                                projectRole={status.myRole!}
-                                setLoading={() => false}
-                            />
-                        </>
-                    )}
+                    </> : null}
+                    <SubprojectSettings
+                        projectId={projectId}
+                        projectRole={status.myRole!}
+                        setLoading={() => false}
+                    />
                 </div>
             }
             sidebar={null}
@@ -242,7 +225,7 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
                     snackbarStore.addFailure("Renaming of project failed", true);
                 }
             }}>
-                <Heading.h4>Project Title</Heading.h4>
+                <Heading.h3>Project Title</Heading.h3>
                 <Flex flexGrow={1}>
                     <Box minWidth={500}>
                         <Input
@@ -368,7 +351,7 @@ export function ArchiveSingleProject(props: ArchiveSingleProjectProps): JSX.Elem
         {props.projectRole === OldProjectRole.USER ? null : (
             <ActionBox>
                 <Box flexGrow={1}>
-                    <Heading.h4>Project Archival</Heading.h4>
+                    <Heading.h3>Project Archival</Heading.h3>
                     <Text>
                         {!props.isArchived ? null : (
                             <>
@@ -446,7 +429,7 @@ export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
         {anyUserRoles ? null : (
             <ActionBox>
                 <Box flexGrow={1}>
-                    <Heading.h4>Project Archival</Heading.h4>
+                    <Heading.h3>Project Archival</Heading.h3>
                     <Text>
                         {!archived ? null : (
                             <>
@@ -522,7 +505,7 @@ export const LeaveProject: React.FC<LeaveProjectProps> = props => {
     return (
         <ActionBox>
             <Box flexGrow={1}>
-                <Heading.h4>Leave Project</Heading.h4>
+                <Heading.h3>Leave Project</Heading.h3>
                 <Text>
                     If you leave the project the following will happen:
 
