@@ -327,6 +327,7 @@ class FileBrowser {
 
     private folderCache = new AsyncCache<UFile>({globalTtl: 15_000});
     private collectionCache = new AsyncCache<FileCollection>({globalTtl: 15_000});
+    private collectionCacheForCompletion = new AsyncCache<FileCollection[]>({globalTtl: 60_000});
 
     private clipboard: UFile[] = [];
     private clipboardIsCut: boolean = false;
@@ -391,9 +392,9 @@ class FileBrowser {
         {
             // Render edit button for the location bar
             const headerFirstRow = this.header.querySelector(".header-first-row")!;
-            const img = image(placeholderImage, { width: 24, height: 24 });
+            const img = image(placeholderImage, {width: 24, height: 24});
             headerFirstRow.append(img);
-            this.icons.renderIcon({ name: "edit", color: "iconColor", color2: "iconColor2", width: 64, height: 64 })
+            this.icons.renderIcon({name: "edit", color: "iconColor", color2: "iconColor2", width: 64, height: 64})
                 .then(url => img.src = url);
             img.addEventListener("click", () => {
                 this.toggleLocationBar();
@@ -1055,7 +1056,7 @@ class FileBrowser {
             }
 
             FileBrowser.findSensitivity(file).then(sensitivity => {
-                if(isOutOfDate()) return;
+                if (isOutOfDate()) return;
                 row.stat1.innerHTML = ""; // NOTE(Dan): Clear the container regardless
                 if (!sensitivity) return;
 
@@ -1585,9 +1586,22 @@ class FileBrowser {
                 }
             }
 
-            if (collectionId === null) return null; // TODO(Dan): Do something else?
+            if (collectionId === null) {
+                this.locationBar.setAttribute(attrRealPath, path);
+                return path;
+            }
 
-            const collection = this.collectionCache.retrieveFromCacheOnly(collectionId);
+            let collection = this.collectionCache.retrieveFromCacheOnly(collectionId);
+            if (collection === undefined) {
+                const entries = this.collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
+                for (const entry of entries) {
+                    console.log("cc", entry.id, collectionId);
+                    if (entry.id === collectionId) {
+                        collection = entry;
+                        break;
+                    }
+                }
+            }
             const collectionName = collection ? `${collection.specification.title} (${collectionId})` : collectionId;
             const remainingPath = path.substring(endOfFirstComponent);
 
@@ -1599,9 +1613,7 @@ class FileBrowser {
         };
 
         const readValue = (): string | null => {
-            if (!this.locationBar.hasAttribute(attrRealPath)) {
-                return setValue(this.locationBar.value);
-            }
+            if (!this.locationBar.hasAttribute(attrRealPath)) return setValue(this.locationBar.value);
             return this.locationBar.getAttribute(attrRealPath);
         };
 
@@ -1612,17 +1624,48 @@ class FileBrowser {
             if (this.locationBarTabIndex === -1) this.locationBarTabIndex = path.length;
 
             const pathPrefix = path.substring(0, this.locationBarTabIndex);
-            const parentPath = pathPrefix.endsWith("/") ?
-                pathPrefix :
-                resolvePath(getParentPath(pathPrefix));
+            const parentPath =
+                pathPrefix === "/" ?
+                    "/" :
+                    pathPrefix.endsWith("/") ?
+                        pathPrefix :
+                        resolvePath(getParentPath(pathPrefix));
 
-            const page = this.cachedData[parentPath];
-            if (page == null) {
+            let autoCompletionEntries: string[] | null;
+            let page: UFile[] | FileCollection[] | null;
+            if (parentPath === "/") {
+                // Auto-complete drives
+                const collections = this.collectionCacheForCompletion.retrieveFromCacheOnly("") ?? null;
+                page = collections;
+                autoCompletionEntries = collections?.map(it => it.specification.title.toLowerCase()) ?? null;
+            } else {
+                // Auto-complete folders
+                const cached = this.cachedData[parentPath]?.filter(it => it.status.type === "DIRECTORY");
+                page = cached ?? null;
+                autoCompletionEntries = cached?.map(it => fileName(it.id).toLowerCase()) ?? null;
+            }
+
+            if (page == null || autoCompletionEntries == null) {
                 if (!allowFetch) return;
-                this.prefetch(parentPath).then(() => {
-                    if (readValue() !== path) return;
-                    doTabComplete(false);
-                });
+
+                if (parentPath === "/") {
+                    this.collectionCacheForCompletion.retrieve("", () => {
+                        return callAPI(
+                            FileCollectionsApi.browse({
+                                itemsPerPage: 250,
+                                filterMemberFiles: "DONT_FILTER_COLLECTIONS"
+                            })
+                        ).then(res => res.items);
+                    }).then(() => {
+                        if (readValue() !== path) return;
+                        doTabComplete(false);
+                    });
+                } else {
+                    this.prefetch(parentPath).then(() => {
+                        if (readValue() !== path) return;
+                        doTabComplete(false);
+                    });
+                }
                 return;
             }
 
@@ -1630,36 +1673,44 @@ class FileBrowser {
                 "" :
                 fileName(pathPrefix).toLowerCase();
 
-            let firstMatch: UFile | null = null;
-            let acceptedMatch: UFile | null = null;
+            console.log(page, autoCompletionEntries, parentPath, pathPrefix, fileNamePrefix);
+
+            let firstMatch: number | null = null;
+            let acceptedMatch: number | null = null;
             let matchCount = 0;
             let tabCount = this.locationBarTabCount;
-            for (const file of page) {
-                if (file.status.type !== "DIRECTORY") continue;
-                let s = fileName(file.id).toLowerCase();
-                if (s.startsWith(fileNamePrefix)) {
-                    matchCount++;
-                    if (!firstMatch) firstMatch = file;
 
-                    if (tabCount === 0 && !acceptedMatch) {
-                        acceptedMatch = file;
+            let idx = 0;
+            for (const entry of autoCompletionEntries) {
+                console.log("cmp", entry, fileNamePrefix);
+                if (entry.startsWith(fileNamePrefix)) {
+                    console.log("match", entry);
+                    matchCount++;
+                    if (firstMatch === null) firstMatch = idx;
+
+                    if (tabCount === 0 && acceptedMatch === null) {
+                        acceptedMatch = idx;
                     } else {
                         tabCount--;
                     }
                 }
+
+                idx++;
             }
 
             if (acceptedMatch !== null || firstMatch !== null) {
-                const match = (acceptedMatch ?? firstMatch)!;
-                this.locationBarTabCount = acceptedMatch ? this.locationBarTabCount + 1 : 1;
+                const match = page[(acceptedMatch ?? firstMatch)!];
+                this.locationBarTabCount = acceptedMatch !== null ? this.locationBarTabCount + 1 : 1;
 
-                let newValue = match.id;
-                if (match.status.type === "DIRECTORY") newValue += "/";
+                console.log("The match", match);
+
+                let newValue: string = match["id"];
+                if (!newValue.startsWith("/")) newValue = "/" + newValue;
+                newValue += "/";
                 setValue(newValue);
 
                 if (matchCount === 1) {
-                    let readValue1 = readValue();
-                    this.locationBarTabIndex = readValue1?.length ?? 0;
+                    this.locationBarTabIndex = readValue()?.length ?? 0;
                     this.locationBarTabCount = 0;
                 }
             }
@@ -1743,13 +1794,13 @@ class FileBrowser {
         const existing = page.find(it => fileName(it.id) === name);
         let actualName: string = name;
 
-        let likelyProduct: ProductReference = { id: "", provider: "", category: "" };
+        let likelyProduct: ProductReference = {id: "", provider: "", category: ""};
         if (page.length > 0) likelyProduct = page[0].specification.product;
 
-        let likelyOwner: ResourceOwner = { createdBy: Client.username ?? "", project: Client.projectId };
+        let likelyOwner: ResourceOwner = {createdBy: Client.username ?? "", project: Client.projectId};
         if (page.length > 0) likelyOwner = page[0].owner;
 
-        let likelyPermissions: ResourcePermissions = { myself: ["ADMIN", "READ", "EDIT"] };
+        let likelyPermissions: ResourcePermissions = {myself: ["ADMIN", "READ", "EDIT"]};
         if (page.length > 0) likelyPermissions = page[0].permissions;
 
         if (existing != null) {
@@ -1861,13 +1912,14 @@ class FileBrowser {
     }
 
     private shouldRemoveFakeDirectory: boolean = true;
+
     private showCreateDirectory() {
         const fakePath = resolvePath(this.currentPath) + "/$NEW_DIR";
         if (this.findRowIndexByPath(fakePath) != null) {
             this.removeEntry(fakePath);
         }
         this.shouldRemoveFakeDirectory = false;
-        this.insertFakeEntry("$NEW_DIR", { type: "DIRECTORY" });
+        this.insertFakeEntry("$NEW_DIR", {type: "DIRECTORY"});
 
         this.showRenameField(
             fakePath,
@@ -1876,13 +1928,13 @@ class FileBrowser {
                 if (!this.renameValue) return;
 
                 const realPath = resolvePath(this.currentPath) + "/" + this.renameValue;
-                this.insertFakeEntry(this.renameValue, { type: "DIRECTORY" });
+                this.insertFakeEntry(this.renameValue, {type: "DIRECTORY"});
                 const idx = this.findRowIndexByPath(realPath);
                 if (idx !== null) {
                     this.ensureRowIsVisible(idx, true, true);
                     this.select(idx, SelectionMode.SINGLE);
                 }
-                callAPI(FilesApi.createFolder(bulkRequestOf({ id: realPath, conflictPolicy: "RENAME" })))
+                callAPI(FilesApi.createFolder(bulkRequestOf({id: realPath, conflictPolicy: "RENAME"})))
                     .catch(err => {
                         snackbarStore.addFailure(extractErrorMessage(err), false);
                         this.refresh();
@@ -2060,18 +2112,18 @@ class FileBrowser {
                 flex-direction: column;
                 font-size: 16px;
             }
-            
+
             .file-browser header .header-first-row {
                 display: flex;
             }
-            
+
             .file-browser header .header-first-row img {
                 cursor: pointer;
                 flex-shrink: 0;
                 margin-left: 16px;
                 margin-top: 5px;
             }
-            
+
             .file-browser header .header-first-row ul,
             .file-browser header .header-first-row .location-bar {
                 flex-grow: 1;
@@ -2089,14 +2141,14 @@ class FileBrowser {
             .file-browser > div {
                 flex-grow: 1;
             }
-            
+
             .file-browser header {
                 width: 100%;
                 height: 100px;
                 flex-shrink: 0;
                 overflow: hidden;
             }
-            
+
             .file-browser header .location-bar,
             .file-browser header.show-location-bar ul {
                 display: none;
@@ -2106,7 +2158,7 @@ class FileBrowser {
             .file-browser header ul {
                 display: flex;
             }
-            
+
             .file-browser .location-bar {
                 width: 100%;
                 font-size: 120%;
@@ -2114,7 +2166,7 @@ class FileBrowser {
                 margin-bottom: 8px;
             }
 
-           .file-browser header ul li::before {
+            .file-browser header ul li::before {
                 display: inline-block;
                 content: '/';
                 margin-right: 8px;
@@ -2225,14 +2277,14 @@ class FileBrowser {
                 width: 400px;
                 display: none;
             }
-            
+
             .file-browser .context-menu ul {
                 padding: 0;
                 margin: 0;
                 display: flex;
                 flex-direction: column;
             }
-            
+
             .file-browser .context-menu li {
                 margin: 0;
                 padding: 8px 8px;
@@ -2241,16 +2293,16 @@ class FileBrowser {
                 align-items: center;
                 gap: 8px;
             }
-            
+
             .file-browser .context-menu li kbd {
                 flex-grow: 1;
                 text-align: end;
             }
-            
+
             .file-browser .context-menu li[data-selected=true] {
                 background: #DAE4FD;
             }
-            
+
             .file-browser .rename-field {
                 display: none;
                 position: absolute;
