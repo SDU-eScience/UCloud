@@ -303,6 +303,7 @@ class FileBrowser {
     private header: HTMLElement;
     private breadcrumbs: HTMLUListElement;
     private scrolling: HTMLDivElement;
+    private fileDragIndicator: HTMLDivElement;
     private dragIndicator: HTMLDivElement;
     private rows: FileRow[] = [];
     private isSelected = new Uint8Array(0);
@@ -376,12 +377,14 @@ class FileBrowser {
                 </div>
             </div>
             
+            <div class="file-drag-indicator"></div>
             <div class="drag-indicator"></div>
             <div class="context-menu"></div>
         `;
 
         this.operations = this.root.querySelector<HTMLElement>(".operations")!;
         this.dragIndicator = this.root.querySelector<HTMLDivElement>(".drag-indicator")!;
+        this.fileDragIndicator = this.root.querySelector<HTMLDivElement>(".file-drag-indicator")!;
         this.contextMenu = this.root.querySelector<HTMLDivElement>(".context-menu")!;
         this.scrolling = this.root.querySelector<HTMLDivElement>(".scrolling")!;
         this.renameField = this.root.querySelector<HTMLInputElement>(".rename-field")!;
@@ -499,8 +502,8 @@ class FileBrowser {
             row.addEventListener("pointerdown", e => {
                 this.onRowPointerDown(myIndex, e);
             });
-            row.addEventListener("click", () => {
-                this.onRowClicked(myIndex);
+            row.addEventListener("click", e => {
+                this.onRowClicked(myIndex, e);
             });
             row.addEventListener("dblclick", () => {
                 this.onRowDoubleClicked(myIndex);
@@ -1072,7 +1075,18 @@ class FileBrowser {
                 if (isOutOfDate()) return;
 
                 row.title.innerHTML = "";
-                row.title.append(image(url, {width: 20, height: 20, alt: "File icon"}));
+
+                // NOTE(Dan): We have to use a div with a background image, otherwise users will be able to drag the
+                // image itself, which breaks the drag-and-drop functionality.
+                const img = div("");
+                img.style.width = "20px";
+                img.style.height = "20px";
+                img.style.backgroundImage = `url("${url}")`;
+                img.style.backgroundSize = "contain";
+                img.style.marginRight = "8px";
+                img.style.display = "inline-block";
+                row.title.append(img);
+
                 row.title.append(fileName(file.id));
             });
         }
@@ -1194,45 +1208,133 @@ class FileBrowser {
         if (!filePath || fileIdx == null || isNaN(fileIdx)) return;
         this.prefetch(filePath);
 
-        {
-            let mode = SelectionMode.SINGLE;
-            if (event.ctrlKey || event.metaKey) mode = SelectionMode.TOGGLE_SINGLE;
-            if (event.shiftKey) mode = SelectionMode.ADDITIVE_LIST;
-            this.select(fileIdx, mode);
-        }
-
         const startX = event.clientX;
         const startY = event.clientY;
 
-        this.dragMoveHandler = (e) => {
-            const s = this.dragIndicator.style;
-            s.display = "block";
-            s.left = Math.min(e.clientX, startX) + "px";
-            s.top = Math.min(e.clientY, startY) + "px";
+        const range = document.createRange();
+        if (row.title.lastChild) range.selectNode(row.title.lastChild);
+        const textRect = range.getBoundingClientRect();
+        range.detach();
 
-            s.width = Math.abs(e.clientX - startX) + "px";
-            s.height = Math.abs(e.clientY - startY) + "px";
-        };
+        // NOTE(Dan): We are purposefully only checking if x <= end of text.
+        if (event.clientX <= textRect.x + textRect.width) {
+            // Drag-and-drop functionality
+            const startX = event.clientX;
+            const startY = event.clientY;
+            let didMount = false;
 
-        this.dragReleaseHandler = () => {
-            this.dragIndicator.style.display = "none";
-            document.removeEventListener("mousemove", this.dragMoveHandler);
-            document.removeEventListener("pointerup", this.dragReleaseHandler);
-        };
+            // NOTE(Dan): Next we render the fileDragIndicator and display it. This will move around with the cursor.
+            const moveHandler = (e: MouseEvent) => {
+                if (!this.root.isConnected) return;
 
-        document.addEventListener("mousemove", this.dragMoveHandler);
-        document.addEventListener("pointerup", this.dragReleaseHandler);
+                if (!didMount)  {
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    const distanceTravelled = Math.sqrt((dx * dx) + (dy * dy));
+                    if (distanceTravelled > 50) {
+                        didMount = true;
+
+                        const indicator = this.fileDragIndicator;
+                        indicator.style.display = "block";
+                        indicator.innerHTML = "";
+                        const img = image(placeholderImage, { width: 16, height: 16 });
+                        indicator.append(img);
+
+                        const page = this.cachedData[this.currentPath] ?? [];
+                        let selectedFiles: UFile[] = [];
+                        let startFile: UFile | null = null;
+                        let startFileIsSelected: boolean = false;
+                        for (let i = 0; i < this.isSelected.length && i < page.length; i++) {
+                            if (this.isSelected[i] !== 0) selectedFiles.push(page[i]);
+                            if (page[i].id === filePath) {
+                                startFile = page[i];
+                                startFileIsSelected = this.isSelected[i] !== 0;
+                            }
+                        }
+
+                        if (!startFileIsSelected && startFile != null) {
+                            selectedFiles = [startFile];
+                            this.select(fileIdx, SelectionMode.SINGLE);
+                        }
+
+                        if (selectedFiles.length > 0) {
+                            this.renderFileIcon(selectedFiles[0]).then(url => img.src = url);
+                        }
+
+                        if (selectedFiles.length === 1) {
+                            indicator.append(fileName(selectedFiles[0].id));
+                        } else {
+                            indicator.append(`${selectedFiles.length} files`);
+                        }
+                    }
+                }
+
+                const s = this.fileDragIndicator.style;
+                s.left = (e.clientX + 10) + "px";
+                s.top = (e.clientY + 10) + "px";
+            };
+
+            const releaseHandler = (e: Event) => {
+                document.removeEventListener("mousemove", moveHandler);
+                document.removeEventListener("pointerup", releaseHandler);
+                if (!this.root.isConnected) return;
+
+                const s = this.fileDragIndicator.style;
+                s.display = "none";
+            };
+
+            document.addEventListener("mousemove", moveHandler);
+            document.addEventListener("pointerup", releaseHandler);
+        } else {
+            // Drag-to-select functionality
+            this.dragMoveHandler = (e) => {
+                const s = this.dragIndicator.style;
+                s.display = "block";
+                s.left = Math.min(e.clientX, startX) + "px";
+                s.top = Math.min(e.clientY, startY) + "px";
+
+                s.width = Math.abs(e.clientX - startX) + "px";
+                s.height = Math.abs(e.clientY - startY) + "px";
+            };
+
+            this.dragReleaseHandler = ev => {
+                this.dragIndicator.style.display = "none";
+                document.removeEventListener("mousemove", this.dragMoveHandler);
+                document.removeEventListener("pointerup", this.dragReleaseHandler);
+                if (!ev.target) return;
+
+                if (ev.target === this.dragIndicator) {
+                    // NOTE(Dan): If the mouse haven't moved much, then we should just treat it as a selection. We have to
+                    // this here since the normal click handler won't be invoked since it goes to the drag indicator
+                    // instead.
+                    const dx = ev.clientX - startX;
+                    const dy = ev.clientY - startY;
+                    const distanceTravelled = Math.sqrt((dx * dx) + (dy * dy));
+                    if (distanceTravelled < 50) this.onRowClicked(index, ev);
+                }
+            };
+
+            document.addEventListener("mousemove", this.dragMoveHandler);
+            document.addEventListener("pointerup", this.dragReleaseHandler);
+        }
     }
 
     private dragMoveHandler = (e: MouseEvent) => {
     };
-    private dragReleaseHandler = () => {
+    private dragReleaseHandler = (e: MouseEvent) => {
     };
 
-    private onRowClicked(index: number) {
+    private onRowClicked(index: number, event: MouseEvent) {
         const row = this.rows[index];
         const filePath = row.container.getAttribute("data-file");
-        if (!filePath) return;
+        const fileIdxS = row.container.getAttribute("data-file-idx");
+        const fileIdx = fileIdxS ? parseInt(fileIdxS) : undefined;
+        if (!filePath || fileIdx == null || isNaN(fileIdx)) return;
+
+        let mode = SelectionMode.SINGLE;
+        if (event.ctrlKey || event.metaKey) mode = SelectionMode.TOGGLE_SINGLE;
+        if (event.shiftKey) mode = SelectionMode.ADDITIVE_LIST;
+        this.select(fileIdx, mode);
     }
 
     private onRowDoubleClicked(index: number) {
@@ -1595,7 +1697,6 @@ class FileBrowser {
             if (collection === undefined) {
                 const entries = this.collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
                 for (const entry of entries) {
-                    console.log("cc", entry.id, collectionId);
                     if (entry.id === collectionId) {
                         collection = entry;
                         break;
@@ -1673,8 +1774,6 @@ class FileBrowser {
                 "" :
                 fileName(pathPrefix).toLowerCase();
 
-            console.log(page, autoCompletionEntries, parentPath, pathPrefix, fileNamePrefix);
-
             let firstMatch: number | null = null;
             let acceptedMatch: number | null = null;
             let matchCount = 0;
@@ -1682,9 +1781,7 @@ class FileBrowser {
 
             let idx = 0;
             for (const entry of autoCompletionEntries) {
-                console.log("cmp", entry, fileNamePrefix);
                 if (entry.startsWith(fileNamePrefix)) {
-                    console.log("match", entry);
                     matchCount++;
                     if (firstMatch === null) firstMatch = idx;
 
@@ -1701,8 +1798,6 @@ class FileBrowser {
             if (acceptedMatch !== null || firstMatch !== null) {
                 const match = page[(acceptedMatch ?? firstMatch)!];
                 this.locationBarTabCount = acceptedMatch !== null ? this.locationBarTabCount + 1 : 1;
-
-                console.log("The match", match);
 
                 let newValue: string = match["id"];
                 if (!newValue.startsWith("/")) newValue = "/" + newValue;
@@ -2105,6 +2200,19 @@ class FileBrowser {
                 left: 0;
             }
 
+            .file-browser .file-drag-indicator {
+                position: fixed;
+                z-index: 10000;
+                display: none;
+                top: 0;
+                left: 0;
+                opacity: 70%;
+            }
+            
+            .file-browser .file-drag-indicator img {
+                margin-right: 8px;
+            }
+
             .file-browser {
                 width: 100%;
                 height: calc(100vh - var(--headerHeight) - 32px);
@@ -2192,10 +2300,6 @@ class FileBrowser {
                 padding: 0 8px;
             }
 
-            .file-browser .row .title img {
-                margin-right: 8px;
-            }
-
             .file-browser .row.hidden {
                 display: none;
             }
@@ -2210,6 +2314,8 @@ class FileBrowser {
             }
 
             .file-browser .row .title {
+                display: flex;
+                align-items: center;
                 width: 56%;
             }
 
