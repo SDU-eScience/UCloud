@@ -13,11 +13,13 @@ import MainContainer from "@/MainContainer/MainContainer";
 import FilesApi, {
     ExtraFileCallbacks,
     FileSensitivityNamespace,
-    FileSensitivityVersion, FilesMoveRequestItem,
+    FileSensitivityVersion,
+    FilesMoveRequestItem,
     isSensitivitySupported,
-    UFile, UFileIncludeFlags
+    UFile,
+    UFileIncludeFlags
 } from "@/UCloud/FilesApi";
-import {api as FileCollectionsApi, FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
+import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {callAPI} from "@/Authentication/DataHook";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {Icon} from "@/ui-components";
@@ -33,18 +35,14 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {accounting, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {bulkRequestOf, SensitivityLevel} from "@/DefaultObjects";
-import metadataDocumentApi, {
-    FileMetadataDocumentOrDeleted,
-    FileMetadataHistory,
-} from "@/UCloud/MetadataDocumentApi";
+import metadataDocumentApi, {FileMetadataDocumentOrDeleted, FileMetadataHistory,} from "@/UCloud/MetadataDocumentApi";
 import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Dispatch} from "redux";
 import {useDispatch} from "react-redux";
-import ReactMarkdown from "react-markdown";
 import {Operation} from "@/ui-components/Operation";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import ProductReference = accounting.ProductReference;
 import {Client} from "@/Authentication/HttpClientInstance";
+import ProductReference = accounting.ProductReference;
 
 const ExperimentalBrowse: React.FunctionComponent = () => {
     const navigate = useNavigate();
@@ -302,6 +300,7 @@ interface FileRow {
 class FileBrowser {
     private root: HTMLDivElement;
     private operations: HTMLElement;
+    private header: HTMLElement;
     private breadcrumbs: HTMLUListElement;
     private scrolling: HTMLDivElement;
     private dragIndicator: HTMLDivElement;
@@ -344,6 +343,10 @@ class FileBrowser {
     private renameOnSubmit: () => void = doNothing;
     private renameOnCancel: () => void = doNothing;
 
+    private locationBar: HTMLInputElement;
+    private locationBarTabIndex: number = -1;
+    private locationBarTabCount: number = 0;
+
     private processingShortcut: boolean = false;
 
     public onOpen: (path: string) => void = doNothing;
@@ -359,7 +362,10 @@ class FileBrowser {
         this.root.classList.add("file-browser");
         this.root.innerHTML = `
             <header>
-                <ul></ul>
+                <div class="header-first-row">
+                    <ul></ul>
+                    <input class="location-bar">
+                </div>
                 <div class="operations"></div>
             </header>
             
@@ -378,6 +384,21 @@ class FileBrowser {
         this.contextMenu = this.root.querySelector<HTMLDivElement>(".context-menu")!;
         this.scrolling = this.root.querySelector<HTMLDivElement>(".scrolling")!;
         this.renameField = this.root.querySelector<HTMLInputElement>(".rename-field")!;
+        this.locationBar = this.root.querySelector<HTMLInputElement>(".location-bar")!;
+        this.header = this.root.querySelector("header")!;
+        this.breadcrumbs = this.root.querySelector<HTMLUListElement>("header ul")!;
+
+        {
+            // Render edit button for the location bar
+            const headerFirstRow = this.header.querySelector(".header-first-row")!;
+            const img = image(placeholderImage, { width: 24, height: 24 });
+            headerFirstRow.append(img);
+            this.icons.renderIcon({ name: "edit", color: "iconColor", color2: "iconColor2", width: 64, height: 64 })
+                .then(url => img.src = url);
+            img.addEventListener("click", () => {
+                this.toggleLocationBar();
+            });
+        }
 
         this.renameField.addEventListener("keydown", ev => {
             ev.stopPropagation();
@@ -412,7 +433,6 @@ class FileBrowser {
             }
         });
         this.renameField.addEventListener("input", ev => {
-            console.log("input", this.processingShortcut, (ev.target as HTMLInputElement).value);
             ev.preventDefault();
             ev.stopPropagation();
             if (this.processingShortcut) return;
@@ -429,7 +449,14 @@ class FileBrowser {
             this.fetchNext();
         });
 
-        this.breadcrumbs = this.root.querySelector<HTMLUListElement>("header ul")!;
+        this.locationBar.addEventListener("keydown", ev => {
+            this.onLocationBarKeyDown(ev);
+        });
+
+        this.locationBar.addEventListener("input", ev => {
+            this.onLocationBarKeyDown("input");
+        });
+
         const keyDownListener = (ev: KeyboardEvent) => {
             if (!this.root.isConnected) {
                 document.removeEventListener("keydown", keyDownListener);
@@ -806,6 +833,9 @@ class FileBrowser {
         // NOTE(Dan): In this case we are _not_ running the onCancel function, maybe we should?
         this.renameFieldIndex = -1;
         this.renameValue = "";
+        this.locationBarTabIndex = -1;
+        this.locationBar.value = path + "/";
+        this.locationBar.dispatchEvent(new Event("input"));
 
         // NOTE(Dan): Need to get this now before we call renderPage(), since it will reset the scroll position.
         const scrollPositionElement = this.scrollPosition[path];
@@ -831,6 +861,7 @@ class FileBrowser {
             .then(() => {
                 this.renderBreadcrumbs();
                 this.renderOperations();
+                this.locationBar.dispatchEvent(new Event("input"));
             });
 
         this.prefetch(path).then(wasCached => {
@@ -1296,7 +1327,7 @@ class FileBrowser {
                 case "KeyC": {
                     if (this.contextMenuHandlers.length) return;
 
-                    const newClipboard = [];
+                    const newClipboard: UFile[] = [];
                     const page = this.cachedData[this.currentPath];
                     const selected = this.isSelected;
                     for (let i = 0; i < selected.length && i < page.length; i++) {
@@ -1367,6 +1398,11 @@ class FileBrowser {
                     break;
                 }
 
+                case "KeyG": {
+                    this.toggleLocationBar();
+                    break;
+                }
+
                 default: {
                     didHandle = false;
                     break;
@@ -1386,6 +1422,8 @@ class FileBrowser {
                 this.altShortcuts[altCodeIndex]();
             }
         } else {
+            // NOTE(Dan): Don't add printable keys to the switch statement here, as it will break the search
+            // functionality. Instead, add it to the default case.
             switch (ev.code) {
                 case "Escape": {
                     if (this.contextMenuHandlers.length) {
@@ -1512,6 +1550,160 @@ class FileBrowser {
                 }
             }
         }
+    }
+
+    private onLocationBarKeyDown(ev: "input" | KeyboardEvent) {
+        if (ev !== "input") ev.stopPropagation();
+
+        const attrRealPath = "data-real-path";
+
+        const setValue = (path: string): string | null => {
+            if (path.length === 0) return null;
+            if (path.startsWith("/")) path = path.substring(1);
+            let endOfFirstComponent = path.indexOf("/");
+            if (endOfFirstComponent === -1) endOfFirstComponent = path.length;
+
+            let collectionId: string | null = null;
+
+            const firstComponent = path.substring(0, endOfFirstComponent);
+            if (firstComponent === "~") {
+                const currentComponents = pathComponents(this.currentPath);
+                if (currentComponents.length > 0) collectionId = currentComponents[0];
+            } else {
+                let parenthesisStart = firstComponent.indexOf("(");
+                let parenthesisEnd = firstComponent.indexOf(")");
+                if (parenthesisStart !== -1 && parenthesisEnd !== -1 && parenthesisStart < parenthesisEnd) {
+                    const parsedNumber = parseInt(firstComponent.substring(parenthesisStart + 1, parenthesisEnd));
+                    if (!isNaN(parsedNumber) && parsedNumber > 0) {
+                        collectionId = parsedNumber.toString();
+                    }
+                } else {
+                    const parsedNumber = parseInt(firstComponent);
+                    if (!isNaN(parsedNumber) && parsedNumber > 0) {
+                        collectionId = parsedNumber.toString();
+                    }
+                }
+            }
+
+            if (collectionId === null) return null; // TODO(Dan): Do something else?
+
+            const collection = this.collectionCache.retrieveFromCacheOnly(collectionId);
+            const collectionName = collection ? `${collection.specification.title} (${collectionId})` : collectionId;
+            const remainingPath = path.substring(endOfFirstComponent);
+
+            this.locationBar.value = `/${collectionName}${remainingPath}`;
+
+            const realPath = `/${collectionId}${remainingPath}`;
+            this.locationBar.setAttribute(attrRealPath, realPath);
+            return realPath;
+        };
+
+        const readValue = (): string | null => {
+            if (!this.locationBar.hasAttribute(attrRealPath)) {
+                return setValue(this.locationBar.value);
+            }
+            return this.locationBar.getAttribute(attrRealPath);
+        };
+
+        const doTabComplete = (allowFetch: boolean = true) => {
+            const path = readValue();
+            if (path === null) return;
+
+            if (this.locationBarTabIndex === -1) this.locationBarTabIndex = path.length;
+
+            const pathPrefix = path.substring(0, this.locationBarTabIndex);
+            const parentPath = pathPrefix.endsWith("/") ?
+                pathPrefix :
+                resolvePath(getParentPath(pathPrefix));
+
+            const page = this.cachedData[parentPath];
+            if (page == null) {
+                if (!allowFetch) return;
+                this.prefetch(parentPath).then(() => {
+                    if (readValue() !== path) return;
+                    doTabComplete(false);
+                });
+                return;
+            }
+
+            const fileNamePrefix = pathPrefix.endsWith("/") ?
+                "" :
+                fileName(pathPrefix).toLowerCase();
+
+            let firstMatch: UFile | null = null;
+            let acceptedMatch: UFile | null = null;
+            let matchCount = 0;
+            let tabCount = this.locationBarTabCount;
+            for (const file of page) {
+                if (file.status.type !== "DIRECTORY") continue;
+                let s = fileName(file.id).toLowerCase();
+                if (s.startsWith(fileNamePrefix)) {
+                    matchCount++;
+                    if (!firstMatch) firstMatch = file;
+
+                    if (tabCount === 0 && !acceptedMatch) {
+                        acceptedMatch = file;
+                    } else {
+                        tabCount--;
+                    }
+                }
+            }
+
+            if (acceptedMatch !== null || firstMatch !== null) {
+                const match = (acceptedMatch ?? firstMatch)!;
+                this.locationBarTabCount = acceptedMatch ? this.locationBarTabCount + 1 : 1;
+
+                let newValue = match.id;
+                if (match.status.type === "DIRECTORY") newValue += "/";
+                setValue(newValue);
+
+                if (matchCount === 1) {
+                    let readValue1 = readValue();
+                    this.locationBarTabIndex = readValue1?.length ?? 0;
+                    this.locationBarTabCount = 0;
+                }
+            }
+        };
+
+        if (ev === "input") {
+            this.locationBarTabIndex = -1;
+            this.locationBarTabCount = 0;
+
+            setValue(this.locationBar.value);
+        } else {
+            switch (ev.code) {
+                case "Tab": {
+                    ev.preventDefault();
+                    doTabComplete();
+                    break;
+                }
+
+                case "Enter": {
+                    const newPath = readValue();
+                    if (newPath) {
+                        this.closeLocationBar();
+                        this.open(newPath);
+                    }
+                    break;
+                }
+
+                case "Escape": {
+                    this.closeLocationBar();
+                    setValue(this.currentPath);
+                    break;
+                }
+            }
+        }
+    }
+
+    private toggleLocationBar() {
+        this.header.classList.toggle("show-location-bar");
+        this.locationBar.focus();
+        this.locationBar.setSelectionRange(0, this.locationBar.value.length);
+    }
+
+    private closeLocationBar() {
+        this.header.classList.remove("show-location-bar");
     }
 
     private ensureRowIsVisible(rowIdx: number, topAligned: boolean, ignoreEvent: boolean = false) {
@@ -1644,7 +1836,6 @@ class FileBrowser {
                 const parentPath = resolvePath(getParentPath(path));
                 const page = this.cachedData[parentPath] ?? [];
                 const actualFile = page.find(it => fileName(it.id) === fileName(path));
-                console.log(parentPath, page, actualFile);
                 if (actualFile) {
                     const oldId = actualFile.id;
                     actualFile.id = parentPath + "/" + this.renameValue;
@@ -1698,7 +1889,6 @@ class FileBrowser {
                     });
             },
             () => {
-                console.log("removing ", fakePath);
                 if (this.shouldRemoveFakeDirectory) this.removeEntry(fakePath);
             },
             ""
@@ -1728,7 +1918,7 @@ class FileBrowser {
     }
 
     private closeRenameField(why: "submit" | "cancel", render: boolean = true) {
-        if (this.renameField !== -1) {
+        if (this.renameFieldIndex !== -1) {
             if (why === "submit") this.renameOnSubmit();
             else this.renameOnCancel();
         }
@@ -1870,6 +2060,22 @@ class FileBrowser {
                 flex-direction: column;
                 font-size: 16px;
             }
+            
+            .file-browser header .header-first-row {
+                display: flex;
+            }
+            
+            .file-browser header .header-first-row img {
+                cursor: pointer;
+                flex-shrink: 0;
+                margin-left: 16px;
+                margin-top: 5px;
+            }
+            
+            .file-browser header .header-first-row ul,
+            .file-browser header .header-first-row .location-bar {
+                flex-grow: 1;
+            }
 
             .file-browser header ul {
                 padding: 0;
@@ -1877,20 +2083,38 @@ class FileBrowser {
                 display: flex;
                 flex-direction: row;
                 gap: 8px;
+                height: 35px;
             }
 
+            .file-browser > div {
+                flex-grow: 1;
+            }
+            
             .file-browser header {
                 width: 100%;
                 height: 100px;
                 flex-shrink: 0;
                 overflow: hidden;
             }
-
-            .file-browser > div {
-                flex-grow: 1;
+            
+            .file-browser header .location-bar,
+            .file-browser header.show-location-bar ul {
+                display: none;
             }
 
-            .file-browser header ul li::before {
+            .file-browser header.show-location-bar .location-bar,
+            .file-browser header ul {
+                display: flex;
+            }
+            
+            .file-browser .location-bar {
+                width: 100%;
+                font-size: 120%;
+                height: 35px;
+                margin-bottom: 8px;
+            }
+
+           .file-browser header ul li::before {
                 display: inline-block;
                 content: '/';
                 margin-right: 8px;
@@ -2034,6 +2258,7 @@ class FileBrowser {
                 top: 0;
                 left: 60px;
             }
+
         `;
         document.head.append(styleElem);
     }
