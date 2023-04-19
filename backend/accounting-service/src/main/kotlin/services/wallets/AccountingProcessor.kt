@@ -1815,7 +1815,7 @@ class AccountingProcessor(
         if (request.actor != Actor.System) return AccountingResponse.Error("Forbidden", 403)
         val now = System.currentTimeMillis()
         val wallet = findWallet(request.owner, request.category)
-            ?: return AccountingResponse.Error("Unknown wallet requested")
+            ?: return AccountingResponse.Error("Unknown wallet requested", 404)
 
         return AccountingResponse.RetrieveAllocationsInternal(
             allocations
