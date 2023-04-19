@@ -2,7 +2,7 @@ import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {default as ReactModal} from "react-modal";
-import {Box, Divider, Flex, FtIcon, Icon, List, Truncate, Text} from "@/ui-components";
+import {Box, Flex, FtIcon, Icon, Truncate, Text, Relative} from "@/ui-components";
 import {TextSpan} from "@/ui-components/Text";
 import {
     errorMessageOrDefault,
@@ -12,26 +12,25 @@ import {
 } from "@/UtilityFunctions";
 import {fetcherFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
 import {supportedProtocols, Upload, uploadCalculateSpeed, UploadState, uploadTrackProgress} from "@/Files/Upload";
-import {ListRowStat} from "@/ui-components/List";
 import {useToggleSet} from "@/Utilities/ToggleSet";
-import {Operation, Operations} from "@/ui-components/Operation";
+import {Operation} from "@/ui-components/Operation";
 import {api as FilesApi, FilesCreateUploadResponseItem} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {BulkResponse} from "@/UCloud";
-import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 import {fileName, sizeToString} from "@/Utilities/FileUtilities";
+import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 import {FilesCreateUploadRequestItem} from "@/UCloud/FilesApi";
 import {useSelector} from "react-redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
-import {BrowseType} from "@/Resource/BrowseType";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
+import {FlexClass} from "@/ui-components/Flex";
+import {TextClass} from "@/ui-components/Text";
+import {formatDistance} from "date-fns";
 
 const MAX_CONCURRENT_UPLOADS = 5;
-const entityName = "Upload";
 const maxChunkSize = 16 * 1000 * 1000;
 const UPLOAD_EXPIRATION_MILLIS = 2 * 24 * 3600 * 1000;
 
@@ -271,6 +270,7 @@ const Uploader: React.FunctionComponent = () => {
 
     const clearUploads = useCallback((batch: Upload[]) => {
         /* Note(Jonas): This is intended as pointer equality. Does this make sense in a Javascript context? */
+        /* Note(Jonas): Yes. */
         setUploads(uploads.filter(u => !batch.some(b => b === u)));
         toggleSet.uncheckAll();
     }, [uploads]);
@@ -353,6 +353,18 @@ const Uploader: React.FunctionComponent = () => {
         setPausedFilesInFolder(matches);
     }, [uploadPath, lookForNewUploads]);
 
+
+    const hasUploads = uploads.length > 0;
+    const uploadsInProgress = uploads.filter(it => it.state === UploadState.UPLOADING)
+    const uploadTimings = getUploadTimings(uploadsInProgress);
+    let uploadingText = uploadsInProgress.length === 0 ? null : (
+        `Uploading at ${sizeToString(uploadTimings.uploadSpeed)}/s`
+    );
+
+    if (uploadTimings.timeRemaining !== 0) {
+        uploadingText += ` - Approximately ${formatDistance(uploadTimings.timeRemaining, 0)}`;
+    }
+
     return <>
         <ReactModal
             isOpen={uploaderVisible}
@@ -361,50 +373,42 @@ const Uploader: React.FunctionComponent = () => {
             ariaHideApp={false}
             onRequestClose={closeModal}
         >
-            <div data-tag="uploadModal">
-                <Operations
-                    location="TOPBAR"
-                    operations={operations}
-                    selected={toggleSet.checked.items}
-                    extra={callbacks}
-                    entityNameSingular={entityName}
-                />
-                <Divider />
-
+            <div className={DropZoneWrapper + " " + FlexClass} data-has-uploads={hasUploads} data-tag="uploadModal">
+                <Relative overflowX="hidden" onClick={closeModal} right="calc(100% - 32px)" top="18px">
+                    <Icon color="var(--white)" size="16px" name="close" />
+                </Relative>
+                <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads} />
+                <Text color="white">{uploadingText}</Text>
+                <Box overflowY={"scroll"} width="100%">
+                    {uploads.map((upload, idx) => (
+                        <UploadRow
+                            key={`${"upload.row.rootEntry.name"}-${idx}`}
+                            upload={upload}
+                            callbacks={callbacks}
+                        />
+                    ))}
+                </Box>
                 <label htmlFor={"fileUploadBrowse"}>
                     <div className={DropZoneBox} onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
-                        onDragOver={preventDefault} data-slim={uploads.length > 0}>
-                        <Flex width={320} alignItems={"center"} flexDirection={"column"}>
-                            {uploads.length > 0 ? null : <UploaderArt />}
-                            <Box ml={"-1.5em"}>
-                                <TextSpan mr="0.5em"><Icon name="upload" /></TextSpan>
+                        onDragOver={preventDefault} data-slim={hasUploads}>
+                        <div data-has-uploads={hasUploads} className={UploadMoreClass}>
+                            {hasUploads ? null :
+                                <UploaderArt />
+                            }
+                            <div className="upload-more-text" color="white">
+                                <TextSpan mr="0.5em"><Icon hoverColor="white" name="upload" /></TextSpan>
                                 <TextSpan mr="0.3em">Drop files here or</TextSpan>
-                                <i>browse</i>
+                                <i style={{cursor: "pointer"}}>browse</i>
                                 <input
                                     id={"fileUploadBrowse"}
                                     type={"file"}
                                     style={{display: "none"}}
                                     onChange={onSelectedFile}
                                 />
-                            </Box>
-                        </Flex>
+                            </div>
+                        </div>
                     </div>
                 </label>
-
-                <List childPadding={"8px"} bordered={false}>
-                    {uploads.map((upload, idx) => (
-                        <ItemRow
-                            key={`${upload.row.rootEntry.name}-${idx}`}
-                            browseType={BrowseType.Embedded}
-                            renderer={renderer}
-                            toggleSet={toggleSet}
-                            operations={operations}
-                            callbacks={callbacks}
-                            itemTitle={entityName}
-                            item={upload}
-                        />
-                    ))}
-                </List>
 
                 {pausedFilesInFolder.length === 0 ? null :
                     <div>
@@ -417,74 +421,153 @@ const Uploader: React.FunctionComponent = () => {
     </>;
 };
 
-interface UploadCallback {
-    startUploads: (batch: Upload[]) => void;
-    stopUploads: (batch: Upload[]) => void;
-    pauseUploads: (batch: Upload[]) => void;
-    resumeUploads: (batch: Upload[]) => void;
-    clearUploads: (batch: Upload[]) => void;
+function getUploadTimings(uploads: Upload[]): {
+    uploadSpeed: number;
+    timeRemaining: number;
+} {
+    let uploadSpeed = 0;
+    let timeRemaining = 0;
+
+    for (const upload of uploads) {
+        let speed = uploadCalculateSpeed(upload);
+        if (speed === 0) continue;
+        timeRemaining += (upload.fileSizeInBytes ?? 0 - upload.progressInBytes) / speed;
+        uploadSpeed += speed;
+    }
+
+    return {uploadSpeed, timeRemaining};
 }
 
-const renderer: ItemRenderer<Upload> = {
-    Icon: (props) => {
-        const upload = props.resource;
-        if (!upload) return null;
-        return <FtIcon
-            fileIcon={{
-                type: upload.row.rootEntry.isDirectory ? "DIRECTORY" : "FILE",
-                ext: extensionFromPath(upload.row.rootEntry.name)
-            }}
-            size={props.size}
-        />
-    },
+type HandleUploadsFunction = (batch: Upload[]) => void;
 
-    MainTitle: ({resource}) => {
-        if (!resource) return null;
-        return <Truncate
-            title={resource.row.rootEntry.name}
-            width={["320px", "320px", "320px", "320px", "440px", "560px"]}
-            fontSize={20}
-        >
-            {resource.row.rootEntry.name}
-        </Truncate>
-    },
+interface UploadCallback {
+    startUploads: HandleUploadsFunction;
+    stopUploads: HandleUploadsFunction;
+    pauseUploads: HandleUploadsFunction;
+    resumeUploads: HandleUploadsFunction;
+    clearUploads: HandleUploadsFunction;
+}
 
-    Stats: ({resource}) => {
-        if (!resource) return null;
-        return <>
-            {!resource.fileSizeInBytes ? null :
-                <ListRowStat icon={"upload"} color={"iconColor"} color2={"iconColor2"}>
-                    {sizeToString(resource.progressInBytes + resource.initialProgress)}
-                    {" / "}
-                    {sizeToString(resource.fileSizeInBytes)}
-                    {" "}
-                    ({sizeToString(uploadCalculateSpeed(resource))}/s)
-                </ListRowStat>
-            }
-            {!resource.error ? null : <ListRowStat icon={"close"} color={"red"}>
-                <span className={ErrorSpan}>{resource.error}</span>
-            </ListRowStat>}
-        </>
-    },
-
-    ImportantStats: ({resource}) => {
-        const upload = resource;
-        if (!upload) return null;
-        const {terminationRequested, paused, state, error} = upload;
-        const iconName = terminationRequested || error ? "close" : "check";
-        const iconColor = terminationRequested || error ? "red" : "green";
-        return <>
-            {state !== UploadState.DONE ? null : (
-                paused ? null : <Box>
-                    <Icon
-                        name={iconName}
-                        color={iconColor}
-                    />
-                </Box>
-            )}
-        </>;
+const UploaderText = injectStyle("uploader-text", k => `
+    ${k}::after {
+        content: "Upload files";
+        margin-left: 28px;
+        color: var(--white);
+        font-size: 25px;
     }
-};
+
+    ${k}[data-has-uploads="true"]::after {
+        content: "File uploads";
+        margin-left: auto;
+        margin-right: auto;
+    }
+`);
+
+const UploadMoreClass = injectStyle("upload-more", k => `
+    ${k} {
+        align-items: center;
+        text-align: center;
+        flex-direction: column;
+        margin-top: 32px;
+    }
+    
+    ${k} > div.upload-more-text {
+        color: var(--white);
+        margin-top: auto;
+        margin-bottom: auto;
+    }
+
+    ${k}[data-has-uploads="true"] {
+        display: flex;
+        background-color: transparent; 
+        color: var(--white);
+        height: 70px;
+        width: 100%;
+        align-items: center;
+        border-width: 2px;
+        border-color: var(--white);
+        border-style: dashed;
+        border-radius: 24px;
+    }
+`);
+
+const UploaderRowClass = injectStyle("uploader-row", k => `
+    ${k} {
+        border-radius: 24px;
+        background-color: var(--white); 
+        height: 70px;
+        width: 100%;
+        margin-top: 12px;
+        margin-bottom: 12px;
+    }
+
+    ${k} > div:first-child {
+        display: flex;
+        align-items: center;
+        padding-top: 12px;
+    }
+    
+    ${k}[data-has-error="true"] {
+        height: 90px;
+    }
+
+    ${k} > div.error-box {
+        width: 100%;
+        border-radius: 16px;
+    }
+
+    ${k} > div > div:first-child {
+        margin-left: 16px;
+    }
+
+    ${k} > div > div:nth-child(2) {
+        vertical-align: center;
+        margin-left: 8px;
+    }
+    
+    ${k} > div > div:nth-child(3) {
+        display: flex;
+        flex-grow: 1;
+    }
+`);
+
+
+function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): JSX.Element {
+    const [hoverPause, setHoverPause] = React.useState(false);
+    const inProgress = !upload.terminationRequested && !upload.paused && !upload.error && upload.state !== UploadState.DONE;
+    const paused = upload.paused;
+    const showPause = hoverPause && !paused;
+    const showCircle = !hoverPause && !paused;
+    const stopped = upload.terminationRequested || upload.error;
+
+    return <div className={UploaderRowClass} data-has-error={upload.error != null}>
+        <div>
+            <div><FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(upload.row.rootEntry.name)}} size="32px" /></div>
+            <div>
+                <Truncate maxWidth="270px" fontSize="18px">{upload.row.rootEntry.name}</Truncate>
+                <Text fontSize="12px">{sizeToString(upload.fileSizeInBytes ?? 0)}</Text>
+            </div>
+            <div />
+            {inProgress ? <Flex mr="16px">
+                <Text style={{fontSize: "var(--secondaryText)"}}>
+                    {sizeToString(upload.progressInBytes + upload.initialProgress)}
+                    {" / "}
+                    {sizeToString(upload.fileSizeInBytes ?? 0)}
+                    {" "}
+                    ({sizeToString(uploadCalculateSpeed(upload))}/s)
+                </Text>
+                <Box mr="8px" />
+                {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)} onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid" color="blue" /> : null}
+                {paused ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)} name="play" onClick={() => callbacks.resumeUploads([upload])} color="blue" /> : null}
+                {showCircle ? <Icon color="blue" name="notchedCircle" spin onMouseEnter={() => setHoverPause(true)} /> : null}
+                <Icon name="close" cursor="pointer" ml="8px" color="red" onClick={() => callbacks.stopUploads([upload])} />
+            </Flex> : <Icon mr="16px" name={stopped ? "close" : "check"} color={stopped ? "red" : "blue"} />}
+        </div>
+        <div className="error-box">
+            {upload.error ? <div className={ErrorSpan}>{upload.error}</div> : null}
+        </div>
+    </div>
+}
 
 const operations: Operation<Upload, UploadCallback>[] = [
     {
@@ -524,7 +607,8 @@ const ErrorSpan = injectStyleSimple("error-span", `
     background-color: red;
     padding-left: 4px;
     padding-right: 4px;
-    border-radius: 2px;
+    border-radius: 12px;
+    margin-right: 16px;
 `);
 
 const UploaderArt: React.FunctionComponent = () => {
@@ -542,31 +626,37 @@ const UploaderArt: React.FunctionComponent = () => {
 const modalStyle = {
     // https://github.com/reactjs/react-modal/issues/62
     content: {
-        borderRadius: "4px",
+        borderRadius: "16px",
         bottom: "auto",
-        minHeight: "10rem",
-        left: "50%",
+        minHeight: "450px",
         maxHeight: "80vh",
+        left: "50%",
         padding: "2rem",
         position: "fixed" as const,
         right: "auto",
         top: "50%",
         transform: "translate(-50%,-50%)",
-        minWidth: "730px",
-        width: "80vw",
-        maxWidth: "60rem",
+        backgroundColor: "#4D8BFC",
+        minWidth: "250px",
+        width: "600px",
+        maxWidth: "600px",
         background: ""
     }
 };
+
+const DropZoneWrapper = injectStyle("dropzone-wrapper", k => `
+    ${k}[data-has-uploads="false"] {
+        border-width: 2px;
+        border-color: var(--white);
+        border-style: dashed;
+        border-radius: 5px;
+    }
+`);
 
 const DropZoneBox = injectStyle("dropzone-box", k => `
     ${k} {
         width: 100%;
         height: 280px;
-        border-width: 2px;
-        border-color: rgb(102, 102, 102);
-        border-style: dashed;
-        border-radius: 5px;
         margin: 16px 0 16px 0;
         display: flex;
         align-items: center;
@@ -574,7 +664,7 @@ const DropZoneBox = injectStyle("dropzone-box", k => `
     }
 
     ${k}[data-slim="true"] {
-        height: 80px;
+        height: 0px;
     }
 
     ${k} > p {
