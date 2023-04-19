@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.app.orchestrator.api.ExportedParameters
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.orchestrator.api.JobUpdate
@@ -10,16 +11,18 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.plugins.InternalFile
-import dk.sdu.cloud.plugins.PathLike
-import dk.sdu.cloud.plugins.UCloudFile
-import dk.sdu.cloud.plugins.child
-import dk.sdu.cloud.plugins.normalize
+import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.ucloud.*
 import dk.sdu.cloud.prettyMapper
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.sql.bindStringNullable
+import dk.sdu.cloud.sql.useAndInvoke
+import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.writeString
 import io.ktor.utils.io.pool.*
 import java.nio.CharBuffer
@@ -33,6 +36,8 @@ class FeatureFileMount(
     private val pathConverter: PathConverter,
     private val limitChecker: LimitChecker,
 ) : JobFeature {
+    private var lastRun = 0L
+
     private suspend fun JobManagement.findJobFolder(job: Job, initializeFolder: Boolean): InternalFile {
         val username = job.owner.createdBy
         val project = job.owner.project
@@ -137,6 +142,71 @@ class FeatureFileMount(
                 readOnly = mount.readOnly,
             )
         }
+    }
+
+    override suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<Container>) {
+        if ((Time.now() - lastRun )  < (1000*60*15)) return
+        val drives = mutableSetOf<String>()
+        jobBatch.forEach { job ->
+            job.mountedDirectories().forEach { dir ->
+                val system = pathConverter.locator.systemByName(dir.systemName) ?: return@forEach
+                val path = InternalFile(system.mountPath.removeSuffix("/") + "/" + dir.subpath)
+                val drive = pathConverter.internalToUCloud(path).components().first()
+                drives.add(drive)
+            }
+        }
+        if (drives.isEmpty()) return
+        val alldrives = HashMap<String, FileCollection>()
+        drives.chunked(250).forEach { chunk ->
+            val page = FileCollectionsControl.browse.call(
+                ResourceBrowseRequest(
+                    FileCollectionIncludeFlags(
+                        filterIds = chunk.joinToString(",")
+                    ),
+                    itemsPerPage = 250
+                ),
+                k8.serviceClient
+            ).orThrow()
+            page.items.forEach {
+                alldrives[it.id] = it
+            }
+        }
+
+        jobBatch.forEach { job ->
+            job.mountedDirectories().forEach { dir ->
+                val system = pathConverter.locator.systemByName(dir.systemName) ?: return@forEach
+                val path = InternalFile(system.mountPath.removeSuffix("/") + "/" + dir.subpath)
+                val drive = pathConverter.internalToUCloud(path).components().first()
+                val resolved = alldrives[drive] ?: return@forEach
+                val owner = resolved.owner
+                dbConnection.withSession { session ->
+                    var islocked = false
+                    session.prepareStatement(
+                        """
+                            select true
+                            from ucloud_storage_quota_locked
+                            where
+                            username is not distinct from :username::text and
+                            project_id is not distinct from :project_id::text and
+                            category is not distinct from :category
+                        """
+                    ).useAndInvoke(
+                        prepare = {
+                            bindStringNullable("username", if (owner.project != null ) null else owner.createdBy)
+                            bindStringNullable("project_id", owner.project)
+                            bindStringNullable("category", resolved.specification.product.category)
+                        },
+                        readRow = {
+                            islocked = true
+                        }
+                    )
+                    if (islocked) {
+                        job.cancel()
+                    }
+                }
+            }
+        }
+        lastRun = Time.now()
     }
 
     override suspend fun JobManagement.onJobComplete(rootJob: Container, children: List<Container>) {
