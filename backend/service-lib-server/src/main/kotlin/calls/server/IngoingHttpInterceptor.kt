@@ -94,7 +94,7 @@ class IngoingHttpInterceptor(
                     return (
                         if (receiveOrNull != null) defaultMapper.decodeFromString(call.requestType, receiveOrNull)
                         else null
-                        ) ?: throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
+                    ) ?: throw RPCException("Invalid request received (no body?)", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
                 }
 
                 http.params != null -> {
@@ -121,7 +121,7 @@ class IngoingHttpInterceptor(
                 else -> {
                     log.debug(ex.stackTraceToString())
                     debug.system.logThrowable("Failed to parse request", ex, MessageImportance.IMPLEMENTATION_DETAIL)
-                    throw RPCException("Bad request", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
+                    throw RPCException("Invalid request received (wrong type)", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
                 }
             }
         }

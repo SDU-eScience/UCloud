@@ -535,6 +535,7 @@ class UCloudFilePlugin : FilePlugin {
                 driveLocator.enumerateDrives().items
                     .filter { it.system.name.equals(request.system, ignoreCase = true) }
                     .map { driveInfo(it) }
+                    .take(50)
             )
         })
 
