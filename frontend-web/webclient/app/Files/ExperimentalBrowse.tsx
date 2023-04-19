@@ -1,6 +1,6 @@
 import * as React from "react";
-import {useLayoutEffect, useRef} from "react";
-import {useLocation, useNavigate} from "react-router";
+import { useLayoutEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router";
 import {
     commonFileExtensions,
     doNothing,
@@ -19,29 +19,29 @@ import FilesApi, {
     UFile,
     UFileIncludeFlags
 } from "@/UCloud/FilesApi";
-import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {callAPI} from "@/Authentication/DataHook";
-import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
-import {Icon} from "@/ui-components";
-import {IconName} from "@/ui-components/Icon";
-import {ThemeColor} from "@/ui-components/theme";
-import {createRoot} from "react-dom/client";
-import {SvgFt} from "@/ui-components/FtIcon";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
-import {FileIconHint, FileType} from "@/Files/index";
-import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {dateToString} from "@/Utilities/DateUtilities";
-import {accounting, PageV2} from "@/UCloud";
-import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
-import {bulkRequestOf, SensitivityLevel} from "@/DefaultObjects";
-import metadataDocumentApi, {FileMetadataDocumentOrDeleted, FileMetadataHistory,} from "@/UCloud/MetadataDocumentApi";
-import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
-import {Dispatch} from "redux";
-import {useDispatch} from "react-redux";
-import {Operation} from "@/ui-components/Operation";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Client} from "@/Authentication/HttpClientInstance";
+import { api as FileCollectionsApi, FileCollection } from "@/UCloud/FileCollectionsApi";
+import { callAPI } from "@/Authentication/DataHook";
+import { fileName, getParentPath, pathComponents, resolvePath, sizeToString } from "@/Utilities/FileUtilities";
+import { Icon } from "@/ui-components";
+import { IconName } from "@/ui-components/Icon";
+import { ThemeColor } from "@/ui-components/theme";
+import { createRoot } from "react-dom/client";
+import { SvgFt } from "@/ui-components/FtIcon";
+import { getCssVar } from "@/Utilities/StyledComponentsUtilities";
+import { FileIconHint, FileType } from "@/Files/index";
+import { getQueryParamOrElse } from "@/Utilities/URIUtilities";
+import { useRefreshFunction } from "@/Navigation/Redux/HeaderActions";
+import { dateToString } from "@/Utilities/DateUtilities";
+import { accounting, PageV2 } from "@/UCloud";
+import MetadataNamespaceApi, { FileMetadataTemplateNamespace } from "@/UCloud/MetadataNamespaceApi";
+import { bulkRequestOf, SensitivityLevel } from "@/DefaultObjects";
+import metadataDocumentApi, { FileMetadataDocumentOrDeleted, FileMetadataHistory, } from "@/UCloud/MetadataDocumentApi";
+import { ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider } from "@/UCloud/ResourceApi";
+import { Dispatch } from "redux";
+import { useDispatch } from "react-redux";
+import { Operation } from "@/ui-components/Operation";
+import { snackbarStore } from "@/Snackbar/SnackbarStore";
+import { Client } from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
 
 const ExperimentalBrowse: React.FunctionComponent = () => {
@@ -304,6 +304,7 @@ class FileBrowser {
     private breadcrumbs: HTMLUListElement;
     private scrolling: HTMLDivElement;
     private fileDragIndicator: HTMLDivElement;
+    private fileDragIndicatorContent: HTMLDivElement;
     private dragIndicator: HTMLDivElement;
     private rows: FileRow[] = [];
     private isSelected = new Uint8Array(0);
@@ -351,6 +352,10 @@ class FileBrowser {
 
     private processingShortcut: boolean = false;
 
+    private fileBelowCursorTemporary: UFile | null = null;
+    private fileBelowCursor: UFile | null = null;
+    private ignoreRowClicksUntil: number = 0;
+
     public onOpen: (path: string) => void = doNothing;
     public dispatch: Dispatch = doNothing as Dispatch;
 
@@ -377,6 +382,7 @@ class FileBrowser {
                 </div>
             </div>
             
+            <div class="file-drag-indicator-content"></div>
             <div class="file-drag-indicator"></div>
             <div class="drag-indicator"></div>
             <div class="context-menu"></div>
@@ -385,6 +391,7 @@ class FileBrowser {
         this.operations = this.root.querySelector<HTMLElement>(".operations")!;
         this.dragIndicator = this.root.querySelector<HTMLDivElement>(".drag-indicator")!;
         this.fileDragIndicator = this.root.querySelector<HTMLDivElement>(".file-drag-indicator")!;
+        this.fileDragIndicatorContent = this.root.querySelector<HTMLDivElement>(".file-drag-indicator-content")!;
         this.contextMenu = this.root.querySelector<HTMLDivElement>(".context-menu")!;
         this.scrolling = this.root.querySelector<HTMLDivElement>(".scrolling")!;
         this.renameField = this.root.querySelector<HTMLInputElement>(".rename-field")!;
@@ -487,6 +494,10 @@ class FileBrowser {
         };
         document.addEventListener("click", clickHandler);
 
+        this.scrolling.parentElement!.addEventListener("pointerdown", e => {
+            this.onRowPointerDown(-1, e);
+        });
+
         const rows: HTMLDivElement[] = [];
         for (let i = 0; i < FileBrowser.maxRows; i++) {
             const row = div(`
@@ -500,6 +511,7 @@ class FileBrowser {
             row.classList.add("row");
             const myIndex = i;
             row.addEventListener("pointerdown", e => {
+                e.stopPropagation();
                 this.onRowPointerDown(myIndex, e);
             });
             row.addEventListener("click", e => {
@@ -507,6 +519,9 @@ class FileBrowser {
             });
             row.addEventListener("dblclick", () => {
                 this.onRowDoubleClicked(myIndex);
+            });
+            row.addEventListener("mousemove", e => {
+                this.onRowMouseMove(myIndex);
             });
             rows.push(row);
 
@@ -555,14 +570,6 @@ class FileBrowser {
             this.renderFileIconFromProperties("", true, "DIRECTORY_SHARES").then(doNothing);
         }
 
-        window.setTimeout(() => {
-            // Then a bit later, start preloading common file formats
-            this.renderFileIconFromProperties("File", false).then(doNothing);
-            for (const fileFormat of commonFileExtensions) {
-                this.renderFileIconFromProperties(fileFormat, false).then(doNothing);
-            }
-        }, 500);
-
         {
             const sizeListener = () => {
                 if (!this.root.isConnected) {
@@ -600,6 +607,9 @@ class FileBrowser {
             listItem.addEventListener("click", () => {
                 this.open(myPath);
             });
+            listItem.addEventListener("mousemove", () => {
+                this.fileBelowCursorTemporary = this.fakeFile(myPath, {type: "DIRECTORY"});
+            })
 
             fragment.append(listItem);
             idx++;
@@ -840,6 +850,7 @@ class FileBrowser {
         this.locationBarTabIndex = -1;
         this.locationBar.value = path + "/";
         this.locationBar.dispatchEvent(new Event("input"));
+        this.fileBelowCursor = null;
 
         // NOTE(Dan): Need to get this now before we call renderPage(), since it will reset the scroll position.
         const scrollPositionElement = this.scrollPosition[path];
@@ -1201,47 +1212,65 @@ class FileBrowser {
     }
 
     private onRowPointerDown(index: number, event: MouseEvent) {
-        const row = this.rows[index];
-        const filePath = row.container.getAttribute("data-file");
-        const fileIdxS = row.container.getAttribute("data-file-idx");
-        const fileIdx = fileIdxS ? parseInt(fileIdxS) : undefined;
-        if (!filePath || fileIdx == null || isNaN(fileIdx)) return;
-        this.prefetch(filePath);
+        let shouldDragAndDrop = true;
+
+        let rowRect: DOMRect;
+        let fileIdx: number = NaN;
+        let filePath: string = "";
 
         const startX = event.clientX;
         const startY = event.clientY;
 
-        const range = document.createRange();
-        if (row.title.lastChild) range.selectNode(row.title.lastChild);
-        const textRect = range.getBoundingClientRect();
-        range.detach();
+        const isBeyondDeadZone = (ev: MouseEvent) => {
+            const dx = ev.clientX - startX;
+            const dy = ev.clientY - startY;
+            const distanceTravelled = Math.sqrt((dx * dx) + (dy * dy));
+            return distanceTravelled >= 15;
+        };
 
-        // NOTE(Dan): We are purposefully only checking if x <= end of text.
-        if (event.clientX <= textRect.x + textRect.width) {
-            // Drag-and-drop functionality
+        if (index < 0) {
+            shouldDragAndDrop = false;
+        } else {
+            const row = this.rows[index];
+            filePath = row.container.getAttribute("data-file") ?? "";
+            const fileIdxS = row.container.getAttribute("data-file-idx");
+            fileIdx = fileIdxS ? parseInt(fileIdxS) : NaN
+            if (!filePath || isNaN(fileIdx)) return;
+            // this.prefetch(filePath);
+
             const startX = event.clientX;
             const startY = event.clientY;
+
+            const range = document.createRange();
+            if (row.title.lastChild) range.selectNode(row.title.lastChild);
+            const textRect = range.getBoundingClientRect();
+            rowRect = row.container.getBoundingClientRect();
+            range.detach();
+
+            // NOTE(Dan): We are purposefully only checking if x <= end of text.
+            // NOTE(Dan): We are adding 30px to increase the hit-box slightly
+            shouldDragAndDrop = event.clientX <= textRect.x + textRect.width + 30;
+        }
+
+        if (shouldDragAndDrop) {
+            // Drag-and-drop functionality
             let didMount = false;
+            let selectedFiles: UFile[] = [];
 
             // NOTE(Dan): Next we render the fileDragIndicator and display it. This will move around with the cursor.
             const moveHandler = (e: MouseEvent) => {
                 if (!this.root.isConnected) return;
 
-                if (!didMount)  {
-                    const dx = e.clientX - startX;
-                    const dy = e.clientY - startY;
-                    const distanceTravelled = Math.sqrt((dx * dx) + (dy * dy));
-                    if (distanceTravelled > 50) {
+                if (!didMount) {
+                    if (isBeyondDeadZone(e)) {
                         didMount = true;
 
                         const indicator = this.fileDragIndicator;
-                        indicator.style.display = "block";
                         indicator.innerHTML = "";
-                        const img = image(placeholderImage, { width: 16, height: 16 });
-                        indicator.append(img);
+                        indicator.style.transform = `translate(${rowRect.left + (rowRect.width / 2)}px, ${rowRect.top}px) scale3d(${rowRect.width}, 100%, 100%)`;
+                        indicator.style.display = "block";
 
                         const page = this.cachedData[this.currentPath] ?? [];
-                        let selectedFiles: UFile[] = [];
                         let startFile: UFile | null = null;
                         let startFileIsSelected: boolean = false;
                         for (let i = 0; i < this.isSelected.length && i < page.length; i++) {
@@ -1257,37 +1286,128 @@ class FileBrowser {
                             this.select(fileIdx, SelectionMode.SINGLE);
                         }
 
+                        const content = this.fileDragIndicatorContent;
+                        content.innerHTML = "";
+                        const img = image(placeholderImage, {width: 16, height: 16});
+                        content.style.display = "block";
+                        content.append(img);
+
                         if (selectedFiles.length > 0) {
                             this.renderFileIcon(selectedFiles[0]).then(url => img.src = url);
+
+                            for (const selected of selectedFiles) {
+                                for (let i = 0; i < this.rows.length; i++) {
+                                    const container = this.rows[i].container;
+                                    if (container.getAttribute("data-file") === selected.id) {
+                                        container.style.opacity = "50%";
+                                        break;
+                                    }
+                                }
+                            }
                         }
 
+                        let text: string;
                         if (selectedFiles.length === 1) {
-                            indicator.append(fileName(selectedFiles[0].id));
+                            text = fileName(selectedFiles[0].id);
                         } else {
-                            indicator.append(`${selectedFiles.length} files`);
+                            text = `${selectedFiles.length} files`;
+                        }
+                        content.append(text);
+                        content.setAttribute("data-initial-text", text);
+
+                        indicator.ontransitionend = () => {
+                            indicator.style.transition = "none";
+                        };
+
+                        window.setTimeout(() => {
+                            indicator.classList.add("animate");
+                            indicator.style.transform = `translate(200px) scale3d(400, 100%, 100%)`;
+                            indicator.style.transform = `translate(${rowRect.left + 200}px, ${rowRect.top}px) scale3d(400, 100%, 100%)`;
+                        }, 0);
+                    }
+                } else {
+                    // NOTE(Dan): We use a data-attribute on the body such that we can set the cursor property to
+                    // count for all elements. It is not enough to simply use !important on the body since that will
+                    // still be overridden by most links.
+                    if (!this.fileBelowCursor || this.fileBelowCursor.status.type !== "DIRECTORY") {
+                        document.body.setAttribute("data-cursor", "not-allowed");
+                    } else {
+                        document.body.setAttribute("data-cursor", "grabbing");
+                    }
+
+                    const s = this.fileDragIndicator.style;
+                    s.transform = `translate(${e.clientX + 200 + 10}px, ${e.clientY + 10}px) scale3d(400, 100%, 100%)`;
+
+                    const s2 = this.fileDragIndicatorContent.style;
+                    s2.left = (e.clientX + 10) + "px";
+                    s2.top = (e.clientY + 10) + "px";
+
+                    this.fileBelowCursor = this.fileBelowCursorTemporary;
+                    this.fileBelowCursorTemporary = null;
+
+                    {
+                        const text = this.fileDragIndicatorContent.getAttribute("data-initial-text")!;
+                        this.fileDragIndicatorContent.lastChild!.remove();
+
+                        const draggingToSelf = selectedFiles.some(it => it.id === this.fileBelowCursor?.id);
+                        if (this.fileBelowCursor && this.fileBelowCursor.status.type === "DIRECTORY" && !draggingToSelf) {
+                            this.fileDragIndicatorContent.append(`${text} into ${fileName(this.fileBelowCursor.id)}`);
+                        } else {
+                            this.fileDragIndicatorContent.append(text);
                         }
                     }
                 }
-
-                const s = this.fileDragIndicator.style;
-                s.left = (e.clientX + 10) + "px";
-                s.top = (e.clientY + 10) + "px";
             };
 
             const releaseHandler = (e: Event) => {
                 document.removeEventListener("mousemove", moveHandler);
                 document.removeEventListener("pointerup", releaseHandler);
                 if (!this.root.isConnected) return;
+                if (!didMount) return;
+                this.fileDragIndicator.classList.remove("animate");
+                this.fileDragIndicator.style.removeProperty("transition");
+                for (let i = 0; i < this.rows.length; i++) {
+                    this.rows[i].container.style.removeProperty("opacity");
+                }
 
-                const s = this.fileDragIndicator.style;
-                s.display = "none";
+                this.fileDragIndicator.style.display = "none";
+                this.fileDragIndicatorContent.style.display = "none";
+
+                document.body.removeAttribute("data-cursor");
+
+                if (this.fileBelowCursor && this.fileBelowCursor.status.type === "DIRECTORY") {
+                    const draggingToSelf = selectedFiles.some(it => it.id === this.fileBelowCursor!.id);
+                    if (!draggingToSelf) {
+                        if (selectedFiles.length > 0) this.performMoveOrCopy(selectedFiles, this.fileBelowCursor.id, true);
+                    }
+                }
+
+                this.ignoreRowClicksUntil = timestampUnixMs() + 15;
             };
 
             document.addEventListener("mousemove", moveHandler);
             document.addEventListener("pointerup", releaseHandler);
         } else {
             // Drag-to-select functionality
+            const scrollingContainer = this.scrolling.parentElement!;
+            const scrollingRectangle = scrollingContainer.getBoundingClientRect();
+            let initialScrollTop = scrollingContainer.scrollTop;
+
+            let didMount = false;
+            document.body.setAttribute("data-no-select", "true");
+
             this.dragMoveHandler = (e) => {
+                if (!didMount && isBeyondDeadZone(e)) {
+                    if (filePath) {
+                        this.selectByPath(filePath, SelectionMode.SINGLE);
+                    } else {
+                        for (let i = 0; i < this.isSelected.length; i++) this.isSelected[i] = 0;
+                        this.renderPage();
+                    }
+
+                    didMount = true;
+                }
+                if (!didMount) return;
                 const s = this.dragIndicator.style;
                 s.display = "block";
                 s.left = Math.min(e.clientX, startX) + "px";
@@ -1295,9 +1415,44 @@ class FileBrowser {
 
                 s.width = Math.abs(e.clientX - startX) + "px";
                 s.height = Math.abs(e.clientY - startY) + "px";
+
+                // NOTE(Dan): Figure out where the mouse is relative to rows.
+                // TODO(Dan): Should we extract this to a function?
+                let scrollOffset = 0;
+                let rowOffset = 0;
+                const scrollStart = scrollingContainer.scrollTop;
+                for (let i = 0; i < this.rows.length; i++) {
+                    const row = this.rows[i];
+                    const top = parseInt(row.container.style.top.replace("px", ""));
+                    if (top >= scrollStart) {
+                        scrollOffset = top - scrollStart;
+                        rowOffset = i;
+                        break;
+                    }
+                }
+
+                const lowerY = Math.min(e.clientY, startY);
+                const upperY = Math.max(e.clientY, startY);
+
+                const lowerOffset = Math.floor((lowerY - scrollingRectangle.top - scrollOffset) / FileBrowser.rowSize) + rowOffset;
+                const upperOffset = Math.floor((upperY - scrollingRectangle.top - scrollOffset) / FileBrowser.rowSize) + rowOffset;
+                if (lowerOffset < 0 || upperOffset >= this.rows.length) return;
+                const baseFileIdx = parseInt(this.rows[0].container.getAttribute("data-file-idx")!);
+
+                for (let i = 0; i < this.rows.length; i++) {
+                    if (i >= lowerOffset && i <= upperOffset) {
+                        this.isSelected[i + baseFileIdx] = 1;
+                    } else {
+                        // NOTE(Dan): When scrolling, then we should never turn anything off if scrolling has begun
+                        // TODO(Dan): Maybe we should just move the scrolling region along with the scrolling?
+                        if (initialScrollTop === scrollStart) this.isSelected[i + baseFileIdx] = 0;
+                    }
+                }
+                this.renderPage();
             };
 
             this.dragReleaseHandler = ev => {
+                document.body.removeAttribute("data-no-select");
                 this.dragIndicator.style.display = "none";
                 document.removeEventListener("mousemove", this.dragMoveHandler);
                 document.removeEventListener("pointerup", this.dragReleaseHandler);
@@ -1307,10 +1462,7 @@ class FileBrowser {
                     // NOTE(Dan): If the mouse haven't moved much, then we should just treat it as a selection. We have to
                     // this here since the normal click handler won't be invoked since it goes to the drag indicator
                     // instead.
-                    const dx = ev.clientX - startX;
-                    const dy = ev.clientY - startY;
-                    const distanceTravelled = Math.sqrt((dx * dx) + (dy * dy));
-                    if (distanceTravelled < 50) this.onRowClicked(index, ev);
+                    if (!isBeyondDeadZone(ev)) this.onRowClicked(index, ev);
                 }
             };
 
@@ -1325,6 +1477,8 @@ class FileBrowser {
     };
 
     private onRowClicked(index: number, event: MouseEvent) {
+        if (timestampUnixMs() < this.ignoreRowClicksUntil) return;
+        if (index < 0 || index >= this.rows.length) return;
         const row = this.rows[index];
         const filePath = row.container.getAttribute("data-file");
         const fileIdxS = row.container.getAttribute("data-file-idx");
@@ -1343,6 +1497,17 @@ class FileBrowser {
         if (!filePath) return;
 
         this.open(filePath);
+    }
+
+    private onRowMouseMove(index: number) {
+        const row = this.rows[index];
+        const filePath = row.container.getAttribute("data-file");
+        const fileIdxS = row.container.getAttribute("data-file-idx");
+        const fileIdx = fileIdxS ? parseInt(fileIdxS) : undefined;
+        if (!filePath || fileIdx == null || isNaN(fileIdx)) return;
+
+        const page = this.cachedData[this.currentPath] ?? [];
+        this.fileBelowCursorTemporary = page.find(it => it.id === filePath) ?? null;
     }
 
     private onFavoriteClicked(index: number) {
@@ -1451,51 +1616,7 @@ class FileBrowser {
                 case "KeyV": {
                     if (this.contextMenuHandlers.length) return;
                     if (this.clipboard.length) {
-                        // Optimistically update the user-interface to contain the new state
-                        let lastEntry: string | null = null;
-                        for (const entry of this.clipboard) {
-                            lastEntry = this.insertFakeEntry(
-                                fileName(entry.id),
-                                {
-                                    type: entry.status.type,
-                                    modifiedAt: timestampUnixMs(),
-                                    size: 0
-                                }
-                            );
-
-                            // NOTE(Dan): Putting this after the insertion is consistent with the most common
-                            // backends, even though it produces surprising results.
-                            if (this.clipboardIsCut) this.removeEntry(entry.id);
-                        }
-
-                        this.renderPage();
-                        if (lastEntry) {
-                            const idx = this.findRowIndexByPath(lastEntry);
-                            if (idx !== null) {
-                                this.ensureRowIsVisible(idx, true, true);
-                                this.select(idx, SelectionMode.SINGLE);
-                            }
-                        }
-
-                        // Perform the requested action
-                        const requestPayload = bulkRequestOf(
-                            ...this.clipboard.map<FilesMoveRequestItem>(file => ({
-                                oldId: file.id,
-                                newId: this.currentPath + "/" + fileName(file.id),
-                                conflictPolicy: "RENAME",
-                            }))
-                        );
-
-                        const call = this.clipboardIsCut ?
-                            FilesApi.move(requestPayload) :
-                            FilesApi.copy(requestPayload);
-
-                        callAPI(call).catch(err => {
-                            snackbarStore.addFailure(extractErrorMessage(err), false);
-                            this.refresh();
-                        });
-
-                        // Cleanup the clipboard if needed
+                        this.performMoveOrCopy(this.clipboard, this.currentPath, this.clipboardIsCut);
                         if (this.clipboardIsCut) this.clipboard = [];
                     }
                     break;
@@ -1889,15 +2010,6 @@ class FileBrowser {
         const existing = page.find(it => fileName(it.id) === name);
         let actualName: string = name;
 
-        let likelyProduct: ProductReference = {id: "", provider: "", category: ""};
-        if (page.length > 0) likelyProduct = page[0].specification.product;
-
-        let likelyOwner: ResourceOwner = {createdBy: Client.username ?? "", project: Client.projectId};
-        if (page.length > 0) likelyOwner = page[0].owner;
-
-        let likelyPermissions: ResourcePermissions = {myself: ["ADMIN", "READ", "EDIT"]};
-        if (page.length > 0) likelyPermissions = page[0].permissions;
-
         if (existing != null) {
             const hasExtension = name.includes(".");
             const baseName = name.substring(0, hasExtension ? name.lastIndexOf(".") : undefined);
@@ -1913,7 +2025,39 @@ class FileBrowser {
         }
 
         const path = resolvePath(this.currentPath) + "/" + actualName;
-        page.push({
+        page.push(this.fakeFile(path, opts));
+        page.sort((a, b) => a.id.localeCompare(b.id));
+
+        return path;
+    }
+
+    private removeEntry(path: string) {
+        const page = this.cachedData[resolvePath(getParentPath(path))];
+        if (!page) return;
+        const entryIdx = page.findIndex(it => it.id === path);
+        if (entryIdx !== -1) page.splice(entryIdx, 1);
+    }
+
+    private fakeFile(
+        path: string,
+        opts?: {
+            type?: FileType,
+            hint?: FileIconHint,
+            modifiedAt?: number,
+            size?: number
+        }
+    ): UFile {
+        const page = this.cachedData[this.currentPath] ?? [];
+        let likelyProduct: ProductReference = {id: "", provider: "", category: ""};
+        if (page.length > 0) likelyProduct = page[0].specification.product;
+
+        let likelyOwner: ResourceOwner = {createdBy: Client.username ?? "", project: Client.projectId};
+        if (page.length > 0) likelyOwner = page[0].owner;
+
+        let likelyPermissions: ResourcePermissions = {myself: ["ADMIN", "READ", "EDIT"]};
+        if (page.length > 0) likelyPermissions = page[0].permissions;
+
+        return {
             createdAt: opts?.modifiedAt ?? 0,
             owner: likelyOwner,
             permissions: likelyPermissions,
@@ -1928,17 +2072,7 @@ class FileBrowser {
                 modifiedAt: opts?.modifiedAt,
                 sizeInBytes: opts?.size
             }
-        });
-
-        page.sort((a, b) => a.id.localeCompare(b.id));
-        return path;
-    }
-
-    private removeEntry(path: string) {
-        const page = this.cachedData[resolvePath(getParentPath(path))];
-        if (!page) return;
-        const entryIdx = page.findIndex(it => it.id === path);
-        if (entryIdx !== -1) page.splice(entryIdx, 1);
+        }
     }
 
     private closeContextMenu() {
@@ -2076,6 +2210,62 @@ class FileBrowser {
         if (render) this.renderPage();
     }
 
+    private performMoveOrCopy(files: UFile[], target: string, shouldMove: boolean) {
+        // Prepare the payload and verify that we can in fact do this
+        const requests: FilesMoveRequestItem[] = [];
+        for (const file of files) {
+            const oldId = file.id;
+            const newId = target + "/" + fileName(file.id);
+            if (oldId === newId || oldId === target) {
+                // Invalid. TODO(Dan): Should we write that you cannot do this?
+                return;
+            } else {
+                requests.push({ oldId, newId, conflictPolicy: "RENAME" })
+            }
+        }
+
+        const requestPayload = bulkRequestOf(...requests);
+
+        // Optimistically update the user-interface to contain the new state
+        let lastEntry: string | null = null;
+        for (const entry of files) {
+            if (target === this.currentPath) {
+                lastEntry = this.insertFakeEntry(
+                    fileName(entry.id),
+                    {
+                        type: entry.status.type,
+                        modifiedAt: timestampUnixMs(),
+                        size: 0
+                    }
+                );
+            }
+
+            // NOTE(Dan): Putting this after the insertion is consistent with the most common
+            // backends, even though it produces surprising results.
+            if (shouldMove) this.removeEntry(entry.id);
+        }
+
+        this.renderPage();
+        if (lastEntry) {
+            const idx = this.findRowIndexByPath(lastEntry);
+            if (idx !== null) {
+                this.ensureRowIsVisible(idx, true, true);
+                this.select(idx, SelectionMode.SINGLE);
+            }
+        }
+
+        // Perform the requested action
+
+        const call = shouldMove ?
+            FilesApi.move(requestPayload) :
+            FilesApi.copy(requestPayload);
+
+        callAPI(call).catch(err => {
+            snackbarStore.addFailure(extractErrorMessage(err), false);
+            this.refresh();
+        });
+    }
+
     private static metadataTemplateCache = new AsyncCache<string>();
 
     private static async findTemplateId(file: UFile, namespace: string, version: string): Promise<string> {
@@ -2190,6 +2380,18 @@ class FileBrowser {
         const styleElem = document.createElement("style");
         //language=css
         styleElem.innerText = `
+            body[data-cursor=not-allowed] * {
+                cursor: not-allowed !important;
+            }
+
+            body[data-cursor=grabbing] * {
+                cursor: grabbing !important;
+            }
+            
+            body[data-no-select=true] * {
+                user-select: none;
+            }
+
             .file-browser .drag-indicator {
                 position: fixed;
                 z-index: 10000;
@@ -2200,17 +2402,35 @@ class FileBrowser {
                 left: 0;
             }
 
+            .file-browser .file-drag-indicator-content,
             .file-browser .file-drag-indicator {
                 position: fixed;
                 z-index: 10000;
                 display: none;
                 top: 0;
                 left: 0;
-                opacity: 70%;
+                height: ${this.rowSize}px;
+                user-select: none;
             }
             
-            .file-browser .file-drag-indicator img {
+            .file-browser .file-drag-indicator-content {
+                z-index: 10001;
+                width: 400px;
+                margin: 16px;
+            }
+
+            .file-browser .file-drag-indicator-content img {
                 margin-right: 8px;
+            }
+
+            .file-browser .file-drag-indicator {
+                transition: transform 0.06s;
+                background: #DAE4FD;
+                width: 1px;
+                overflow: hidden;
+            }
+         
+            .file-browser .file-drag-indicator.animate {
             }
 
             .file-browser {
@@ -2298,6 +2518,11 @@ class FileBrowser {
                 gap: 8px;
                 user-select: none;
                 padding: 0 8px;
+                transition: filter 0.3s;
+            }
+            
+            body[data-cursor=grabbing] .file-browser .row:hover {
+                filter: hue-rotate(10deg) saturate(500%);
             }
 
             .file-browser .row.hidden {
