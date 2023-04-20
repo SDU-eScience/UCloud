@@ -163,6 +163,7 @@ const ContentWrapper = styled.div`
 interface PropertiesProps<Res extends Resource> {
     api: ResourceApi<Res, never>;
     embedded?: boolean;
+    inPopIn?: boolean;
 
     resource?: Res | string;
     reload?: () => void;

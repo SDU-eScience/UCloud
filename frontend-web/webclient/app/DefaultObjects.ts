@@ -14,6 +14,7 @@ import {UCLOUD_CORE} from "@/UCloud/ResourceApi";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {NavigateFunction} from "react-router";
 import {initTerminalState, TerminalState} from "@/Terminal/State";
+import {PopInArgs} from "./ui-components/PopIn";
 
 export enum KeyCode {
     ENTER = 13,
@@ -122,7 +123,7 @@ interface LegacyReduxObject {
     avatar: AvatarReduxObject;
     project: ProjectRedux.State;
     terminal: TerminalState;
-    popinChild: JSX.Element | null;
+    popinChild: PopInArgs | null;
     loading?: boolean;
 }
 

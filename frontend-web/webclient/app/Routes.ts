@@ -68,12 +68,17 @@ const dashboard = {
     dashboardB: () => "/dashboard",
 };
 
+const resource = {
+    properties: (namespace: string, id: string) => `/${namespace}/properties/${encodeURIComponent(id)}`
+}
+
 const AppRoutes = {
     apps,
     news,
     dashboard,
     users,
     admin,
+    resource,
     shares,
     project,
     resources,

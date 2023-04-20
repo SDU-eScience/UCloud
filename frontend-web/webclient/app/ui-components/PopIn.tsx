@@ -4,6 +4,7 @@ import Flex from "./Flex";
 import Icon from "./Icon";
 import theme from "./theme";
 import {injectStyle} from "@/Unstyled";
+import {Spacer} from "./Spacer";
 
 function PopIn({hasContent, children}: React.PropsWithChildren<{hasContent: boolean}>): JSX.Element {
     return <div className={PopInClass} data-has-content={hasContent}>
@@ -34,23 +35,36 @@ const PopInClass = injectStyle("popin-class", k => `
 export function RightPopIn(): JSX.Element {
     const dispatch = useDispatch();
 
-    const content = useSelector<ReduxObject, JSX.Element | null>(it => it.popinChild);
+    const content = useSelector<ReduxObject, PopInArgs | null>(it => it.popinChild);
     /* Alternatively, use React.portal */
     return <PopIn hasContent={content != null} >
-        <Icon color="var(--black)" cursor="pointer" pt="4px" pl="4px" hoverColor="black" name="close" onClick={() => dispatch(setPopInChild(null))} />
-        <Flex flexDirection="column" mx="4px" my="4px">{content}</Flex>
+        <Spacer
+            left={<Icon color="var(--black)" cursor="pointer" pt="4px" pl="4px" hoverColor="black" name="close" onClick={() => dispatch(setPopInChild(null))} />}
+
+            right={<Icon color="var(--black)" cursor="pointer" pt="4px" pr="4px" hoverColor="black" name="fullscreen" onClick={() => {
+                content?.onFullScreen?.();
+                dispatch(setPopInChild(null));
+            }} />}
+
+        />
+        <Flex flexDirection="column" mx="4px" my="4px">{content?.el}</Flex>
     </PopIn>
 }
 
-type SetPopInChildAction = PayloadAction<"SET_POP_IN_CHILD", JSX.Element | null>;
-export function setPopInChild(el: JSX.Element | null): SetPopInChildAction {
+export interface PopInArgs {
+    el: JSX.Element;
+    onFullScreen?: () => void;
+}
+
+type SetPopInChildAction = PayloadAction<"SET_POP_IN_CHILD", PopInArgs | null>;
+export function setPopInChild(args: PopInArgs | null): SetPopInChildAction {
     return {
         type: "SET_POP_IN_CHILD",
-        payload: el
+        payload: args
     };
 }
 
-export const popInReducer = (state: JSX.Element | null = null, action: SetPopInChildAction): JSX.Element | null => {
+export const popInReducer = (state: PopInArgs | null = null, action: SetPopInChildAction): PopInArgs | null => {
     switch (action.type) {
         case "SET_POP_IN_CHILD":
             return action.payload;

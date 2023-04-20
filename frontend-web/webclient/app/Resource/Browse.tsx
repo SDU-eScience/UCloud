@@ -55,6 +55,7 @@ import {accounting} from "@/UCloud";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
 import ProductReference = accounting.ProductReference;
 import {setPopInChild} from "@/ui-components/PopIn";
+import AppRoutes from "@/Routes";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -310,11 +311,13 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
             setInlineInspecting(res);
         } else {
             if (props.usePopIn) {
-                dispatch(setPopInChild(<api.Properties embedded api={api} resource={res} reload={reloadRef.current}
-                    closeProperties={closeProperties} {...props.propsForInlineResources} />
-                ));
+                dispatch(setPopInChild({
+                    el: <api.Properties embedded api={api} resource={res} reload={reloadRef.current}
+                        closeProperties={closeProperties} {...props.propsForInlineResources} />,
+                    onFullScreen: () => navigate(AppRoutes.resource.properties(api.routingNamespace, res.id))
+                }));
             } else {
-                navigate(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
+                navigate(AppRoutes.resource.properties(api.routingNamespace, res.id));
             }
         }
     }, [setInlineInspecting, isEmbedded, navigate, api, props.viewPropertiesInline]);
