@@ -38,7 +38,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import java.util.concurrent.atomic.AtomicLong
@@ -634,7 +633,7 @@ class EventController(
                 log.info("Could not find UID/GID for ${summary.owner}")
                 return null
             },
-            summary.id,
+            summary.allocationId,
             summary.categoryId.name,
             summary.productType
         )

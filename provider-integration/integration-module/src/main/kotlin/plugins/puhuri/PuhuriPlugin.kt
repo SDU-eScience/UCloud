@@ -591,6 +591,10 @@ class PuhuriClient(
     }
 
     suspend fun createOrder(projectId: String, allocation: PuhuriAllocation) {
+        if (allocation.cpuKHours == 0 && allocation.gbKHours == 0 && allocation.gpuHours == 0) {
+            throw RPCException("Unable to create empty allocation", HttpStatusCode.BadRequest)
+        }
+
         httpClient.post(
             apiPath("marketplace-orders"),
             apiRequestWithBody(
