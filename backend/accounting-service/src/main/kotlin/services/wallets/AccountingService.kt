@@ -40,8 +40,8 @@ class AccountingService(
     suspend fun retrieveAllocationsInternal(
         actorAndProject: ActorAndProject,
         owner: WalletOwner,
-        categoryId: ProductCategoryId
-    ): List<WalletAllocation> {
+        categoryId: ProductCategoryIdV2
+    ): List<WalletAllocationV2> {
         return processor.retrieveAllocationsInternal(AccountingRequest.RetrieveAllocationsInternal(
             actorAndProject.actor,
             owner.toProcessorOwner(),
@@ -124,10 +124,10 @@ class AccountingService(
         }
     }
 
-    suspend fun deposit(
+    suspend fun subAllocate(
         actorAndProject: ActorAndProject,
-        request: BulkRequest<DepositToWalletRequestItem>,
-    ) {
+        request: BulkRequest<SubAllocationRequestItem>,
+    ):List<FindByStringId> {
         var isDry: Boolean? = null
         for (item in request.items) {
             if (isDry != null && item.dry != isDry) {
@@ -139,35 +139,40 @@ class AccountingService(
 
             isDry = item.dry
         }
-        request.items.map { deposit ->
-            checkIfSubAllocationIsAllowed(listOf(deposit.sourceAllocation), db)
-            processor.deposit(
+        val response = request.items.map { deposit ->
+            checkIfSubAllocationIsAllowed(listOf(deposit.parentAllocation), db)
+            val created = processor.deposit(
                 AccountingRequest.Deposit(
                     actorAndProject.actor,
-                    deposit.recipient.toProcessorOwner(),
-                    deposit.sourceAllocation.toIntOrNull() ?: return@map,
-                    deposit.amount,
-                    deposit.startDate ?: Time.now(),
-                    deposit.endDate,
-                    isProject = deposit.recipient is WalletOwner.Project,
+                    deposit.owner.toProcessorOwner(),
+                    deposit.parentAllocation.toIntOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Root deposits should be made with rootAllocate call."),
+                    deposit.quota,
+                    deposit.start,
+                    deposit.end,
+                    isProject = deposit.owner is WalletOwner.Project,
                     grantedIn = deposit.grantedIn
                 )
-            )
+            ).createdAllocation
+            FindByStringId(created.toString())
         }
+
+        return response
     }
 
-    suspend fun rootDeposit(
+    suspend fun rootAllocate(
         actorAndProject: ActorAndProject,
-        request: BulkRequest<RootDepositRequestItem>
-    ) {
-        request.items.map { deposit ->
-            processor.rootDeposit(AccountingRequest.RootDeposit(
-                Actor.System,
-                deposit.recipient.toProcessorOwner(),
-                deposit.categoryId,
-                deposit.amount,
-                forcedSync = deposit.forcedSync
-            ))
+        request: BulkRequest<RootAllocationRequestItem>
+    ): List<FindByStringId> {
+        return request.items.map { deposit ->
+            FindByStringId(
+                processor.rootDeposit(AccountingRequest.RootDeposit(
+                    Actor.System,
+                    deposit.owner.toProcessorOwner(),
+                    deposit.,
+                    deposit.quota,
+                    forcedSync = deposit.forcedSync
+                )).createdAllocation.toString()
+            )
         }
     }
 
@@ -210,15 +215,16 @@ class AccountingService(
 
     suspend fun updateAllocation(
         actorAndProject: ActorAndProject,
-        request: BulkRequest<UpdateAllocationRequestItem>,
+        request: BulkRequest<UpdateAllocationV2RequestItem>,
     ) {
-        request.items.map { update ->
+        request.items.forEach { update ->
             processor.update(AccountingRequest.Update(
+                //TODO(HENRIK) ADD TRANSACTIUO AND REASON
                 actorAndProject.actor,
-                update.id.toIntOrNull() ?: return@map,
-                update.balance,
-                update.startDate,
-                update.endDate,
+                update.allocationId.toIntOrNull() ?: return@forEach,
+                update.newQuota,
+                update.newStart,
+                update.newEnd,
             ))
         }
     }
@@ -344,7 +350,7 @@ class AccountingService(
         actorAndProject: ActorAndProject,
         request: SubAllocationQuery,
         query: String? = null,
-    ): PageV2<SubAllocation> {
+    ): PageV2<SubAllocationV2> {
         val owner = if (actorAndProject.project == null) actorAndProject.actor.safeUsername() else actorAndProject.project!!
 
         val hits = processor.browseSubAllocations(AccountingRequest.BrowseSubAllocations(actorAndProject.actor, owner, request.filterType, query))

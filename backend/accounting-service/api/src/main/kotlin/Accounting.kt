@@ -47,6 +47,10 @@ data class SubAllocationRequestItem(
     val quota: Long,    //inital balance
     val start: Long,
     val end: Long,
+
+    val dry: Boolean = false,
+
+    val grantedIn: Long? = null,
     val deicAllocationId: String? = null
 )
 
@@ -59,7 +63,9 @@ data class RootAllocationRequestItem(
     val start: Long,
     val end: Long,
 
-    val deicAllocationId: String? = null
+    val deicAllocationId: String? = null,
+
+    val forcedSync:Boolean = false
 )
 
 typealias RootAllocationResponse = FindByStringId?
@@ -105,7 +111,7 @@ object AccountingV2 : CallDescriptionContainer("accountingv2") {
         httpUpdate(baseContext, "reportTotalUsage")
     }
 
-    val subAllocate = call("subAllocate", BulkRequest.serializer(SubAllocationRequestItem.serializer()), SubAllocationResponse.serializer(), CommonErrorMessage.serializer()) {
+    val subAllocate = call("subAllocate", BulkRequest.serializer(SubAllocationRequestItem.serializer()), BulkResponse.serializer(SubAllocationResponse.serializer()), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "subAllocate")
     }
 

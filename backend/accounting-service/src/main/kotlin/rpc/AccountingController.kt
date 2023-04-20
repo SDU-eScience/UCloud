@@ -2,12 +2,11 @@ package dk.sdu.cloud.accounting.rpc
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.CallDescription
-import dk.sdu.cloud.calls.bulkResponseOf
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
@@ -16,6 +15,7 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.actorAndProject
+import dk.sdu.cloud.service.db.async.mapItems
 
 
 class AccountingController(
@@ -56,7 +56,16 @@ class AccountingController(
         }
 
         implementOrDispatch(AccountingV2.findRelevantProviders) {
-            //TODO(HENRIK)
+            val responses = request.items.map {
+                val providers = accounting.findRelevantProviders(
+                    actorAndProject,
+                    it.username,
+                    it.project,
+                    it.useProject
+                )
+                FindRelevantProvidersResponse(providers)
+            }
+            ok(BulkResponse(responses))
         }
 
         implementOrDispatch(Accounting.charge) {
@@ -72,16 +81,26 @@ class AccountingController(
         }
 
         implementOrDispatch(Accounting.deposit) {
-            val user = ctx.securityPrincipal.username
-            request.items.forEach { req ->
-                req.transactionId = "${user}-${req.transactionId}"
-                req.startDate = req.startDate ?: Time.now()
-            }
-            ok(accounting.deposit(actorAndProject, request))
+            val newRequestType = bulkRequestOf(
+                request.items.mapNotNull { oldRequest ->
+                    SubAllocationRequestItem(
+                        oldRequest.sourceAllocation,
+                        oldRequest.recipient,
+                        oldRequest.amount,
+                        oldRequest.startDate ?: Time.now(),
+                        oldRequest.endDate ?: Long.MAX_VALUE,
+                        oldRequest.dry,
+                        oldRequest.grantedIn
+                    )
+                }
+            )
+            accounting.subAllocate(actorAndProject, newRequestType)
+            ok(Unit)
         }
 
         implementOrDispatch(AccountingV2.subAllocate){
-            //TODO(HENRIK)
+            val response = accounting.subAllocate(actorAndProject, request)
+            ok(BulkResponse<FindByStringId>(response))
         }
 
         implementOrDispatch(Accounting.check) {
@@ -90,27 +109,40 @@ class AccountingController(
 
         implementOrDispatch(Accounting.updateAllocation) {
             val user = ctx.securityPrincipal.username
-            request.items.forEach { req ->
-                req.transactionId = "${user}-${req.transactionId}"
+            val newTypeRequests = request.items.map { req ->
+                UpdateAllocationV2RequestItem(
+                    req.id,
+                    req.balance,
+                    req.startDate,
+                    req.endDate,
+                    req.reason
+                )
             }
-            ok(accounting.updateAllocation(actorAndProject, request))
+            ok(accounting.updateAllocation(actorAndProject, BulkRequest(newTypeRequests)))
         }
 
         implementOrDispatch(AccountingV2.updateAllocation){
-            //TODO(HENRIK)
+            ok(accounting.updateAllocation(actorAndProject, request))
         }
 
         implementOrDispatch(Accounting.rootDeposit) {
-            val user = ctx.securityPrincipal.username
-            request.items.forEach { req ->
-                req.transactionId = "${user}-${req.transactionId}"
-                req.startDate = req.startDate ?: Time.now()
+            val newTypeRequest = request.items.map {
+                RootAllocationRequestItem(
+                    it.recipient,
+                    it.amount,
+                    it.startDate ?: Time.now(),
+                    it.endDate ?: Long.MAX_VALUE,
+                    deicAllocationId = null,
+                    forcedSync = it.forcedSync
+                )
             }
-            ok(accounting.rootDeposit(actorAndProject, request))
+            accounting.rootAllocate(actorAndProject, BulkRequest(newTypeRequest))
+            ok(Unit)
         }
 
         implementOrDispatch(AccountingV2.rootAllocate){
-            //TODO(HENRIK)
+            val response = accounting.rootAllocate(actorAndProject, request)
+            ok(BulkResponse(response))
         }
 
         implement(Wallets.browse) {
@@ -118,34 +150,56 @@ class AccountingController(
         }
 
         implement(WalletsV2.browse) {
-            //TODO(HENRIK)
+            ok(accounting.browseWallets(actorAndProject, request))
         }
 
         implementOrDispatch(Wallets.retrieveWalletsInternal) {
             val walletOwner = request.owner
-
             ok(WalletsInternalRetrieveResponse(accounting.retrieveWalletsInternal(ActorAndProject(Actor.System, null), walletOwner)))
         }
-        
+
         implementOrDispatch(WalletsV2.retrieveWalletsInternal) {
-            //TODO(HENRIK)
+            ok(WalletsInternalRetrieveResponse(accounting.retrieveWalletsInternal(ActorAndProject(Actor.System, null), request.owner)))
         }
 
         implementOrDispatch(Wallets.retrieveAllocationsInternal) {
             val walletOwner = request.owner
+            val category = ProductCategoryIdV2(request.categoryId.name, request.categoryId.provider)
             ok(
                 WalletAllocationsInternalRetrieveResponse(
                     accounting.retrieveAllocationsInternal(
                         ActorAndProject(Actor.System, null),
                         walletOwner,
-                        request.categoryId
-                    )
+                        category
+                    ).map {
+                        WalletAllocation(
+                            id = it.id,
+                            allocationPath = it.allocationPath,
+                            balance = it.quota - (it.treeUsage ?: it.localUsage ),
+                            initialBalance = it.quota,
+                            localBalance = it.quota - it.localUsage,
+                            startDate = it.startDate,
+                            endDate = it.endDate,
+                            grantedIn = it.grantedIn,
+                            maxUsableBalance = it.treeUsage,
+                            canAllocate = it.canAllocate,
+                            allowSubAllocationsToAllocate = it.allowSubAllocationsToAllocate
+                        )
+                    }
                 )
             )
         }
 
         implementOrDispatch(WalletAllocationsV2.retrieveAllocationsInternal) {
-            //TODO(HENRIK)
+            ok(
+                WalletAllocationsV2InternalRetrieveResponse(
+                    accounting.retrieveAllocationsInternal(
+                        ActorAndProject(Actor.System, null),
+                        request.owner,
+                        request.categoryId
+                    )
+                )
+            )
         }
 
         implementOrDispatch(Wallets.resetState) {
@@ -153,19 +207,69 @@ class AccountingController(
         }
 
         implement(Wallets.searchSubAllocations) {
-            ok(accounting.browseSubAllocations(actorAndProject, request, request.query))
+            val newResponseType = accounting.browseSubAllocations(actorAndProject, request, request.query)
+            val oldResponseType = WalletsBrowseSubAllocationsResponse(
+                items = newResponseType.items.map {
+                    SubAllocation(
+                        id = it.id,
+                        path = it.path,
+                        startDate = it.startDate,
+                        endDate = it.endDate,
+                        productCategoryId = ProductCategoryId(it.productCategoryId.name, it.productCategoryId.provider),
+                        productType = it.productCategoryId.productType,
+                        chargeType = if (it.productCategoryId.accountingFrequency == AccountingFrequency.ONCE) ChargeType.DIFFERENTIAL_QUOTA else ChargeType.ABSOLUTE,
+                        //TODO(HENRIK) MOST LIKELY NOT CORRECT
+                        unit = if (it.productCategoryId.accountingFrequency == AccountingFrequency.ONCE) ProductPriceUnit.PER_UNIT else ProductPriceUnit.CREDITS_PER_MINUTE,
+                        workspaceId = it.workspaceId,
+                        workspaceTitle = it.workspaceTitle,
+                        workspaceIsProject = it.workspaceIsProject,
+                        projectPI = it.projectPI,
+                        remaining = it.remaining,
+                        initialBalance = it.initialBalance,
+                        grantedIn = it.grantedIn
+                    )
+                },
+                itemsPerPage = newResponseType.itemsPerPage,
+                next = newResponseType.next
+            )
+            ok(oldResponseType)
         }
 
         implement(WalletAllocationsV2.searchSubAllocations) {
-            //TODO(HENRIK)
+            ok(accounting.browseSubAllocations(actorAndProject, request, request.query))
         }
 
         implement(Wallets.browseSubAllocations) {
-            ok(accounting.browseSubAllocations(actorAndProject, request))
+            val newResponseType = accounting.browseSubAllocations(actorAndProject, request)
+            val oldResponseType = WalletsBrowseSubAllocationsResponse(
+                items = newResponseType.items.map {
+                    SubAllocation(
+                        id = it.id,
+                        path = it.path,
+                        startDate = it.startDate,
+                        endDate = it.endDate,
+                        productCategoryId = ProductCategoryId(it.productCategoryId.name, it.productCategoryId.provider),
+                        productType = it.productCategoryId.productType,
+                        chargeType = if (it.productCategoryId.accountingFrequency == AccountingFrequency.ONCE) ChargeType.DIFFERENTIAL_QUOTA else ChargeType.ABSOLUTE,
+                        //TODO(HENRIK) MOST LIKELY NOT CORRECT
+                        unit = if (it.productCategoryId.accountingFrequency == AccountingFrequency.ONCE) ProductPriceUnit.PER_UNIT else ProductPriceUnit.CREDITS_PER_MINUTE,
+                        workspaceId = it.workspaceId,
+                        workspaceTitle = it.workspaceTitle,
+                        workspaceIsProject = it.workspaceIsProject,
+                        projectPI = it.projectPI,
+                        remaining = it.remaining,
+                        initialBalance = it.initialBalance,
+                        grantedIn = it.grantedIn
+                    )
+                },
+                itemsPerPage = newResponseType.itemsPerPage,
+                next = newResponseType.next
+            )
+            ok(oldResponseType)
         }
 
         implement(WalletAllocationsV2.browseSubAllocations) {
-            //TODO(HENRIK)
+            ok(accounting.browseSubAllocations(actorAndProject, request))
         }
 
         implement(Wallets.retrieveRecipient) {
@@ -173,7 +277,7 @@ class AccountingController(
         }
 
         implement(WalletAllocationsV2.retrieveRecipient) {
-            //TODO(HENRIK)
+            ok(accounting.retrieveRecipient(actorAndProject, request))
         }
 
         implement(Wallets.register) {
@@ -181,7 +285,7 @@ class AccountingController(
         }
 
         implement(WalletAllocationsV2.register) {
-            //TODO(HENRIK)
+            ok(accounting.register(actorAndProject, request))
         }
 
         implementOrDispatch(Wallets.retrieveProviderSummary) {
@@ -189,7 +293,7 @@ class AccountingController(
         }
 
         implementOrDispatch(WalletAllocationsV2.retrieveProviderSummary) {
-            //TODO(HENRIK)
+            ok(accounting.retrieveProviderSummary(actorAndProject, request))
         }
 
         implement(Visualization.retrieveUsage) {
