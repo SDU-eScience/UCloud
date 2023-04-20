@@ -364,7 +364,7 @@ const Uploader: React.FunctionComponent = () => {
     if (uploadTimings.timeRemaining !== 0) {
         uploadingText += ` - Approximately ${formatDistance(uploadTimings.timeRemaining, 0)}`;
     }
-
+    
     return <>
         <ReactModal
             isOpen={uploaderVisible}

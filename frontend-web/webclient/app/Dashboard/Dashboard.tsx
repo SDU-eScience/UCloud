@@ -368,7 +368,7 @@ function DashboardRuns({runs}: {
                         key={job.id}
                         item={job}
                         browseType={BrowseType.Card}
-                        navigate={() => navigate(`/jobs/properties/${job.id}`)}
+                        navigate={() => navigate(AppRoutes.jobs.view(job.id))}
                         renderer={JobsApi.renderer}
                         toggleSet={toggle}
                         operations={[] as ReturnType<typeof JobsApi.retrieveOperations>}

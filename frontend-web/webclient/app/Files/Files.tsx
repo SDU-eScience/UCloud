@@ -478,6 +478,7 @@ export const FilesBrowse: React.FunctionComponent<{
         headerSize={props.isSearch ? 48 : undefined}
         navigateToChildren={navigateToFile}
         extraCallbacks={callbacks}
+        usePopIn
         viewPropertiesInline={viewPropertiesInline}
         showCreatedBy={false}
         showProduct={false}

@@ -561,11 +561,13 @@ function SecondarySidebar({
                 <TextSpan bold color="fixedWhite">Running jobs</TextSpan>
                 {recentRuns.data.items.map(it => {
                     const [icon, color] = jobStateToIconAndColor(it.status.state);
-                    return <Flex key={it.id}>
-                        <Icon name={icon} color={color} mr={"6px"} size={16} my="auto" />
-                        <Truncate key={it.id}
-                            color="white">{it.specification.name ?? it.id} ({it.specification.application.name})</Truncate>
-                    </Flex>
+                    return <Link key={it.id} to={AppRoutes.jobs.view(it.id)}>
+                        <Flex>
+                            <Icon name={icon} color={color} mr={"6px"} size={16} my="auto" />
+                            <Truncate key={it.id}
+                                color="white">{it.specification.name ?? it.id} ({it.specification.application.name})</Truncate>
+                        </Flex>
+                    </Link>
                 })}
                 {recentRuns.data.items.length !== 0 ? null : <Text fontSize="var(--secondaryText)">No jobs running.</Text>}
             </Flex>

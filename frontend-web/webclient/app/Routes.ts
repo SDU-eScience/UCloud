@@ -50,7 +50,11 @@ const apps = {
     studioApp: (app: string) => `/applications/studio/a/${app}`,
     shell: (jobId: string, rank: string) => `/applications/shell/${jobId}/${rank}`,
     web: (jobId: string, rank: string) => `/applications/web/${jobId}/${rank}`,
-    vnc: (jobId: string, rank: string) => `/applications/vnc/${jobId}/${rank}`
+    vnc: (jobId: string, rank: string) => `/applications/vnc/${jobId}/${rank}`,
+};
+
+const jobs = {
+    view: (jobId: string) => `/jobs/properties/${jobId}`
 };
 
 const login = {
@@ -74,6 +78,7 @@ const AppRoutes = {
     project,
     resources,
     login,
+    jobs,
     syncthing
 };
 

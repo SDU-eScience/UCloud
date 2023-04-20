@@ -54,6 +54,7 @@ import {sendNotification} from "@/Notifications";
 import {accounting} from "@/UCloud";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
 import ProductReference = accounting.ProductReference;
+import {setPopInChild} from "@/ui-components/PopIn";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -77,6 +78,7 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     navigateToChildren?: (navigate: NavigateFunction, resource: Res) => "properties" | void;
     propsForInlineResources?: Record<string, any>;
     viewPropertiesInline?: (res: Res) => boolean;
+    usePopIn?: boolean;
 
     // Empty page
     emptyPage?: JSX.Element;
@@ -307,11 +309,13 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
         if (isEmbedded && (props.viewPropertiesInline === undefined || props.viewPropertiesInline(res))) {
             setInlineInspecting(res);
         } else {
-            dispatch({
-                type: "SET_POP_IN_CHILD",
-                payload: <api.Properties embedded api={api} resource={res} reload={reloadRef.current}
+            if (props.usePopIn) {
+                dispatch(setPopInChild(<api.Properties embedded api={api} resource={res} reload={reloadRef.current}
                     closeProperties={closeProperties} {...props.propsForInlineResources} />
-            });
+                ));
+            } else {
+                navigate(`/${api.routingNamespace}/properties/${encodeURIComponent(res.id)}`);
+            }
         }
     }, [setInlineInspecting, isEmbedded, navigate, api, props.viewPropertiesInline]);
 
