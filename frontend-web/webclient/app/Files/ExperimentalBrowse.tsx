@@ -43,6 +43,7 @@ import { Operation } from "@/ui-components/Operation";
 import { snackbarStore } from "@/Snackbar/SnackbarStore";
 import { Client } from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
+import {combineEventHandlers} from "recharts/types/util/ChartUtils";
 
 const ExperimentalBrowse: React.FunctionComponent = () => {
     const navigate = useNavigate();
@@ -330,6 +331,7 @@ class FileBrowser {
     private folderCache = new AsyncCache<UFile>({globalTtl: 15_000});
     private collectionCache = new AsyncCache<FileCollection>({globalTtl: 15_000});
     private collectionCacheForCompletion = new AsyncCache<FileCollection[]>({globalTtl: 60_000});
+    private trashCache = new AsyncCache<UFile>();
 
     private clipboard: UFile[] = [];
     private clipboardIsCut: boolean = false;
@@ -355,6 +357,9 @@ class FileBrowser {
     private fileBelowCursorTemporary: UFile | null = null;
     private fileBelowCursor: UFile | null = null;
     private ignoreRowClicksUntil: number = 0;
+
+    private undoStack: (() => void)[] = [];
+    private redoStack: (() => void)[] = [];
 
     public onOpen: (path: string) => void = doNothing;
     public dispatch: Dispatch = doNothing as Dispatch;
@@ -594,6 +599,47 @@ class FileBrowser {
         const collection = this.collectionCache.retrieveFromCacheOnly(path[0]);
         const collectionName = collection ? `${collection.specification.title} (${path[0]})` : path[0];
 
+        // NOTE(Dan): The next section computes which crumbs should be shown and what the content of them should be.
+        // We start out by truncating all components down to a maximum length. This truncation takes place regardless
+        // of how much screen estate we have. Following this, we determine a target size of our breadcrumbs based on
+        // the size of our current container. Along with an estimated size of the font, we determine how many characters
+        // in total we should target. In the end we will end up in one of the following states:
+        //
+        // 1. We will show all breadcrumbs
+        // 2. We show only the drive, immediate parent and current dir
+        // 3. We only show the drive and current dir
+        //
+        // We select this by choosing the first from the list which can stay within the target.
+        const containerWidth = this.breadcrumbs.parentElement!.getBoundingClientRect().width;
+        const approximateLengthPerCharacter = 22;
+        const maxComponentLength = 30;
+        const targetPathLength = (containerWidth / approximateLengthPerCharacter) - 5;
+
+        let combinedLengthAfterTruncation = 0;
+        let combinedLengthWithParent = 0;
+        const truncatedComponents: string[] = [];
+        for (let i = 0; i < path.length; i++) {
+            if (i === 0) {
+                truncatedComponents.push(collectionName);
+                combinedLengthWithParent += collectionName.length;
+                combinedLengthAfterTruncation += collectionName.length;
+            } else {
+                const component = path[i];
+                if (component.length > maxComponentLength) {
+                    truncatedComponents.push(component.substring(0, maxComponentLength - 3) + "...");
+                    combinedLengthAfterTruncation += maxComponentLength;
+                    if (i >= path.length - 2) combinedLengthWithParent += maxComponentLength;
+                } else {
+                    truncatedComponents.push(component);
+                    combinedLengthAfterTruncation += component.length;
+                    if (i >= path.length - 2) combinedLengthWithParent += component.length;
+                }
+            }
+        }
+
+        const canKeepMiddle = combinedLengthAfterTruncation <= targetPathLength;
+        const canKeepParent = combinedLengthWithParent <= targetPathLength;
+
         this.breadcrumbs.innerHTML = "";
         const fragment = document.createDocumentFragment();
         let pathBuilder = "";
@@ -602,18 +648,33 @@ class FileBrowser {
             pathBuilder += "/" + component;
             const myPath = pathBuilder;
 
-            const listItem = document.createElement("li");
-            listItem.innerText = idx === 0 ? collectionName : component;
-            listItem.addEventListener("click", () => {
-                this.open(myPath);
-            });
-            listItem.addEventListener("mousemove", () => {
-                this.fileBelowCursorTemporary = this.fakeFile(myPath, {type: "DIRECTORY"});
-            })
+            const canKeepThis =
+                canKeepMiddle ||
+                idx === 0 ||
+                idx === path.length - 1 ||
+                (idx === path.length - 2 && canKeepParent);
 
-            fragment.append(listItem);
+            if (idx === 1 && !canKeepMiddle && idx !== path.length - 2) {
+                const listItem = document.createElement("li");
+                listItem.innerText = "...";
+                fragment.append(listItem);
+            }
+
+            if (canKeepThis) {
+                const listItem = document.createElement("li");
+                listItem.innerText = truncatedComponents[idx];
+                listItem.addEventListener("click", () => {
+                    this.open(myPath);
+                });
+                listItem.addEventListener("mousemove", () => {
+                    this.fileBelowCursorTemporary = this.fakeFile(myPath, {type: "DIRECTORY"});
+                })
+
+                fragment.append(listItem);
+            }
             idx++;
         }
+
         this.breadcrumbs.append(fragment);
     }
 
@@ -700,16 +761,8 @@ class FileBrowser {
             isCreating: false
         };
 
-        const selected: UFile[] = [];
+        const selected = this.findSelectedFiles();
         const page = this.cachedData[path] ?? [];
-        {
-            const selection = this.isSelected;
-            for (let i = 0; i < selection.length && i < page.length; i++) {
-                if (selection[i] !== 0) {
-                    selected.push(page[i]);
-                }
-            }
-        }
 
         const renderOpIconAndText = (
             op: OperationOrGroup<unknown, unknown>,
@@ -982,6 +1035,10 @@ class FileBrowser {
             this.isSelected = new Uint8Array(page.length);
         }
 
+        const scrollingContainerSize = this.scrolling.parentElement!.getBoundingClientRect();
+        const approximateSizeForTitle = scrollingContainerSize.width * 0.56;
+        const approximateSizePerCharacter = 7.1;
+
         // Determine the total size of the page and figure out where we are
         const totalSize = FileBrowser.rowSize * page.length;
         const firstVisiblePixel = this.scrolling.parentElement!.scrollTop;
@@ -1036,6 +1093,7 @@ class FileBrowser {
                 this.renameField.style.display = "block";
                 const top = parseInt(row.container.style.top.replace("px", ""));
                 this.renameField.style.top = `${top + ((FileBrowser.rowSize - 30) / 2)}px`;
+                this.renameField.style.width = approximateSizeForTitle + "px";
                 this.renameField.value = this.renameValue;
                 this.renameField.focus();
             }
@@ -1045,13 +1103,39 @@ class FileBrowser {
             row.container.setAttribute("data-selected", (this.isSelected[i] !== 0).toString());
             row.selected.checked = (this.isSelected[i] !== 0);
             row.container.classList.remove("hidden");
-            row.title.innerText = fileName(file.id);
+
+            const fileIcon = div("");
+            {
+                // NOTE(Dan): We have to use a div with a background image, otherwise users will be able to drag the
+                // image itself, which breaks the drag-and-drop functionality.
+                fileIcon.style.width = "20px";
+                fileIcon.style.height = "20px";
+                fileIcon.style.backgroundSize = "contain";
+                fileIcon.style.marginRight = "8px";
+                fileIcon.style.display = "inline-block";
+            }
+            row.title.append(fileIcon);
+
+            {
+                let name = fileName(file.id);
+                if (name.length * approximateSizePerCharacter > approximateSizeForTitle) {
+                    name = name.substring(0, (approximateSizeForTitle / approximateSizePerCharacter) - 3) + "...";
+                }
+                row.title.append(name);
+            }
             row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
             row.stat3.innerText = sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null);
 
             const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
 
             if (!hasAnySelected) {
+                const favoriteIcon = image(placeholderImage, { width: 20, height: 20, alt: "Star" });
+                {
+                    row.favorite.innerHTML = "";
+                    row.favorite.append(favoriteIcon);
+                    row.favorite.style.cursor = "pointer";
+                }
+
                 FileBrowser.findFavoriteStatus(file).then(async (isFavorite) => {
                     const icon = await this.icons.renderIcon({
                         name: (isFavorite ? "starFilled" : "starEmpty"),
@@ -1063,9 +1147,7 @@ class FileBrowser {
 
                     if (isOutOfDate()) return;
 
-                    row.favorite.innerHTML = "";
-                    row.favorite.append(image(icon, {width: 20, height: 20, alt: "Star"}))
-                    row.favorite.style.cursor = "pointer";
+                    favoriteIcon.src = icon;
                 });
             }
 
@@ -1084,21 +1166,7 @@ class FileBrowser {
 
             this.renderFileIcon(file).then(url => {
                 if (isOutOfDate()) return;
-
-                row.title.innerHTML = "";
-
-                // NOTE(Dan): We have to use a div with a background image, otherwise users will be able to drag the
-                // image itself, which breaks the drag-and-drop functionality.
-                const img = div("");
-                img.style.width = "20px";
-                img.style.height = "20px";
-                img.style.backgroundImage = `url("${url}")`;
-                img.style.backgroundSize = "contain";
-                img.style.marginRight = "8px";
-                img.style.display = "inline-block";
-                row.title.append(img);
-
-                row.title.append(fileName(file.id));
+                fileIcon.style.backgroundImage = `url("${url}")`;
             });
         }
     }
@@ -1236,10 +1304,6 @@ class FileBrowser {
             const fileIdxS = row.container.getAttribute("data-file-idx");
             fileIdx = fileIdxS ? parseInt(fileIdxS) : NaN
             if (!filePath || isNaN(fileIdx)) return;
-            // this.prefetch(filePath);
-
-            const startX = event.clientX;
-            const startY = event.clientY;
 
             const range = document.createRange();
             if (row.title.lastChild) range.selectNode(row.title.lastChild);
@@ -1326,10 +1390,15 @@ class FileBrowser {
                         }, 0);
                     }
                 } else {
+                    const draggingToSelf = selectedFiles.some(it => it.id === this.fileBelowCursor?.id);
+                    const draggingAllowed =
+                        this.fileBelowCursor && this.fileBelowCursor.status.type === "DIRECTORY" &&
+                        !draggingToSelf
+
                     // NOTE(Dan): We use a data-attribute on the body such that we can set the cursor property to
                     // count for all elements. It is not enough to simply use !important on the body since that will
                     // still be overridden by most links.
-                    if (!this.fileBelowCursor || this.fileBelowCursor.status.type !== "DIRECTORY") {
+                    if (!draggingAllowed) {
                         document.body.setAttribute("data-cursor", "not-allowed");
                     } else {
                         document.body.setAttribute("data-cursor", "grabbing");
@@ -1349,8 +1418,7 @@ class FileBrowser {
                         const text = this.fileDragIndicatorContent.getAttribute("data-initial-text")!;
                         this.fileDragIndicatorContent.lastChild!.remove();
 
-                        const draggingToSelf = selectedFiles.some(it => it.id === this.fileBelowCursor?.id);
-                        if (this.fileBelowCursor && this.fileBelowCursor.status.type === "DIRECTORY" && !draggingToSelf) {
+                        if (draggingAllowed && this.fileBelowCursor) {
                             this.fileDragIndicatorContent.append(`${text} into ${fileName(this.fileBelowCursor.id)}`);
                         } else {
                             this.fileDragIndicatorContent.append(text);
@@ -1434,9 +1502,14 @@ class FileBrowser {
                 const lowerY = Math.min(e.clientY, startY);
                 const upperY = Math.max(e.clientY, startY);
 
-                const lowerOffset = Math.floor((lowerY - scrollingRectangle.top - scrollOffset) / FileBrowser.rowSize) + rowOffset;
-                const upperOffset = Math.floor((upperY - scrollingRectangle.top - scrollOffset) / FileBrowser.rowSize) + rowOffset;
-                if (lowerOffset < 0 || upperOffset >= this.rows.length) return;
+                const lowerOffset = Math.max(
+                    0,
+                    Math.floor((lowerY - scrollingRectangle.top - scrollOffset) / FileBrowser.rowSize) + rowOffset
+                );
+                const upperOffset = Math.min(
+                    this.rows.length,
+                    Math.floor((upperY - scrollingRectangle.top - scrollOffset) / FileBrowser.rowSize) + rowOffset
+                );
                 const baseFileIdx = parseInt(this.rows[0].container.getAttribute("data-file-idx")!);
 
                 for (let i = 0; i < this.rows.length; i++) {
@@ -1595,12 +1668,7 @@ class FileBrowser {
                 case "KeyC": {
                     if (this.contextMenuHandlers.length) return;
 
-                    const newClipboard: UFile[] = [];
-                    const page = this.cachedData[this.currentPath];
-                    const selected = this.isSelected;
-                    for (let i = 0; i < selected.length && i < page.length; i++) {
-                        if (selected[i] !== 0) newClipboard.push(page[i]);
-                    }
+                    const newClipboard: UFile[] = this.findSelectedFiles();
                     this.clipboard = newClipboard;
                     this.clipboardIsCut = ev.code === "KeyX";
                     if (newClipboard.length) {
@@ -1623,7 +1691,28 @@ class FileBrowser {
                 }
 
                 case "KeyG": {
+                    if (this.contextMenuHandlers.length) return;
                     this.toggleLocationBar();
+                    break;
+                }
+
+                case "KeyZ": {
+                    if (this.contextMenuHandlers.length) return;
+                    const fn = this.undoStack.shift();
+                    if (fn !== undefined) fn();
+                    break;
+                }
+
+                case "KeyY": {
+                    if (this.contextMenuHandlers.length) return;
+                    const fn = this.redoStack.shift();
+                    if (fn !== undefined) fn();
+                    break;
+                }
+
+                case "Backspace": {
+                    if (this.contextMenuHandlers.length) return;
+                    this.performMoveToTrash(this.findSelectedFiles());
                     break;
                 }
 
@@ -1732,6 +1821,11 @@ class FileBrowser {
                             }
                         }
                     }
+                    break;
+                }
+
+                case "Delete": {
+                    this.performMoveToTrash(this.findSelectedFiles());
                     break;
                 }
 
@@ -2134,6 +2228,17 @@ class FileBrowser {
                         snackbarStore.addFailure(extractErrorMessage(err), false);
                         this.refresh();
                     });
+
+                    this.undoStack.unshift(() => {
+                        callAPI(FilesApi.move(bulkRequestOf({
+                            oldId: actualFile.id,
+                            newId: oldId,
+                            conflictPolicy: "REJECT"
+                        })));
+
+                        actualFile.id = oldId;
+                        this.renderPage();
+                    });
                 }
             },
             doNothing
@@ -2210,17 +2315,29 @@ class FileBrowser {
         if (render) this.renderPage();
     }
 
-    private performMoveOrCopy(files: UFile[], target: string, shouldMove: boolean) {
+    private performMoveOrCopy(
+        files: UFile[],
+        target: string,
+        shouldMove: boolean,
+        opts?: { suffix?: string }
+    ) {
+        const initialPath = this.currentPath;
+        const isMovingFromCurrentDirectory = files.every(it => it.id.startsWith(initialPath + "/"));
+        console.log(files.map(it => it.id), initialPath, isMovingFromCurrentDirectory);
+        const suffix = opts?.suffix ?? "";
+
         // Prepare the payload and verify that we can in fact do this
         const requests: FilesMoveRequestItem[] = [];
+        const undoRequests: FilesMoveRequestItem[] = [];
         for (const file of files) {
             const oldId = file.id;
-            const newId = target + "/" + fileName(file.id);
-            if (oldId === newId || oldId === target) {
+            const newId = target + "/" + fileName(file.id) + suffix;
+            if (shouldMove && (oldId === newId || oldId === target)) {
                 // Invalid. TODO(Dan): Should we write that you cannot do this?
                 return;
             } else {
                 requests.push({ oldId, newId, conflictPolicy: "RENAME" })
+                undoRequests.push({ oldId: newId, newId: oldId, conflictPolicy: "RENAME" });
             }
         }
 
@@ -2264,6 +2381,52 @@ class FileBrowser {
             snackbarStore.addFailure(extractErrorMessage(err), false);
             this.refresh();
         });
+
+        if (shouldMove) {
+            this.undoStack.unshift(() => {
+                if (this.currentPath === initialPath && isMovingFromCurrentDirectory) {
+                    for (const file of files) {
+                        this.insertFakeEntry(
+                            fileName(file.id),
+                            {
+                                type: file.status.type,
+                                hint: file.status.icon,
+                                modifiedAt: file.status.modifiedAt,
+                                size: file.status.sizeInBytes
+                            }
+                        );
+                    }
+                    this.renderPage();
+                }
+
+                callAPI(FilesApi.move(bulkRequestOf(...undoRequests)));
+            });
+        }
+    }
+
+    private async performMoveToTrash(files: UFile[]) {
+        try {
+            const collectionId = pathComponents(this.currentPath)[0];
+            const trash = await this.trashCache.retrieve(collectionId, async () => {
+                const potentialFolder = await callAPI(FilesApi.retrieve({id: `/${collectionId}/Trash`}));
+                if (potentialFolder.status.icon === "DIRECTORY_TRASH") return potentialFolder;
+                throw "Could not find trash folder";
+            });
+
+            this.performMoveOrCopy(files, trash.id, true, {suffix: timestampUnixMs().toString()});
+        } catch (e) {
+            await callAPI(FilesApi.trash(bulkRequestOf(...files.map(it => ({ id: it.id })))));
+            this.refresh();
+        }
+    }
+
+    private findSelectedFiles(): UFile[] {
+        const selectedFiles: UFile[] = [];
+        const page = this.cachedData[this.currentPath];
+        for (let i = 0; i < this.isSelected.length && i < page.length; i++) {
+            if (this.isSelected[i] !== 0) selectedFiles.push(page[i]);
+        }
+        return selectedFiles;
     }
 
     private static metadataTemplateCache = new AsyncCache<string>();
