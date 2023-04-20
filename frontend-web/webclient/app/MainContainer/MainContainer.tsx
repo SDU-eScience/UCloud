@@ -14,12 +14,12 @@ export interface MainContainerProps {
     headerSize?: number;
 }
 
-export const MainContainer = ({
+export function MainContainer({
     main,
     additional,
     header,
     headerSize = 64
-}: MainContainerProps): JSX.Element => {
+}: MainContainerProps): JSX.Element {
     const [, setHeaderSize] = useGlobal("mainContainerHeaderSize", headerSize);
     const pad = 16; // padding unit
 
@@ -57,7 +57,7 @@ export interface LoadingMainContainerProps extends MainContainerProps {
     fallbackSidebar?: JSX.Element;
 }
 
-export const LoadingMainContainer: React.FunctionComponent<LoadingMainContainerProps> = props => {
+export function LoadingMainContainer(props: LoadingMainContainerProps): JSX.Element {
     let main: React.ReactNode;
     if (props.loading) {
         main = <Spinner />;

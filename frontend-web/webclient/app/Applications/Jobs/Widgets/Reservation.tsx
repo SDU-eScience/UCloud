@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {Box, Flex, Input, Label} from "@/ui-components";
+import {Box, Flex, Heading, Input, Label, theme} from "@/ui-components";
 import {TextP} from "@/ui-components/Text";
 import {
     findRelevantMachinesForApplication,
@@ -16,6 +16,7 @@ import {emptyPageV2} from "@/DefaultObjects";
 import {joinToString} from "@/UtilityFunctions";
 import {useProjectId} from "@/Project/Api";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
+import {classConcat, injectStyle} from "@/Unstyled";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";
@@ -93,8 +94,9 @@ export const ReservationParameter: React.FunctionComponent<{
     return <Box>
         <Flex>
             <Label mb={"4px"}>
-                Job name
+                <Heading>Job name</Heading>
                 <Input
+                    className={classConcat(JobOrHoursInput, "name-kind")}
                     id={reservationName}
                     placeholder={"Example: Run with parameters XYZ"}
                 />
@@ -105,9 +107,10 @@ export const ReservationParameter: React.FunctionComponent<{
                     <Box ml="4px" />
 
                     <Label>
-                        Hours <MandatoryField />
+                        <Heading>Hours<MandatoryField /></Heading>
                         <Input
                             id={reservationHours}
+                            className={classConcat(JobOrHoursInput, "hours-kind")}
                             type="number"
                             step={1}
                             min={1}
@@ -127,23 +130,45 @@ export const ReservationParameter: React.FunctionComponent<{
             <>
                 <Flex mb={"1em"}>
                     <Label>
-                        Number of nodes
-                        <Input id={reservationReplicas} onBlur={recalculateCost} defaultValue={"1"} />
+                        <Heading>Number of nodes</Heading>
+                        <Input id={reservationReplicas} className={JobOrHoursInput} onBlur={recalculateCost} defaultValue={"1"} />
                     </Label>
                 </Flex>
                 {errors["replicas"] ? <TextP color={"red"}>{errors["replicas"]}</TextP> : null}
             </>
         )}
 
-        <div>
-            <Label>Machine type <MandatoryField /></Label>
+        <Box mt="28px">
+            <Label><Heading>Machine type <MandatoryField /></Heading></Label>
             <Machines machines={allMachines} support={support} onMachineChange={setSelectedMachine} />
             {errors["product"] ? <TextP color={"red"}>{errors["product"]}</TextP> : null}
-        </div>
+        </Box>
     </Box>
 };
 
 export type ReservationValues = Pick<UCloud.compute.JobSpecification, "name" | "timeAllocation" | "replicas" | "product">;
+
+export const JobOrHoursInput = injectStyle("job-or-hours-input", k => `
+    ${k} {
+        background-color: var(--white);
+        box-shadow: ${theme.shadows.sm};
+        border-radius: 12px;
+    }
+
+    ${k}.name-kind {
+        margin-right: auto;
+        width: calc(100% - 12px);
+    }
+
+    ${k}.hours-kind {
+        margin-left: auto;
+        width: calc(100% - 12px);
+    }
+
+    ${k}::placeholder {
+        color: var(--gray);
+    }
+`);
 
 interface ValidationAnswer {
     options?: ReservationValues;

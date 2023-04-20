@@ -5,7 +5,7 @@ import {
     WidthProps
 } from "styled-system";
 import {ThemeColor} from "./theme";
-import {extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
+import {classConcat, extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
 import * as React from "react";
 import {Cursor} from "./Types";
 
@@ -103,7 +103,7 @@ const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cu
 
     inputProps["ref"] = props.inputRef;
 
-    inputProps["className"] = InputClass + " " + (props.className ?? "");
+    inputProps["className"] = classConcat(InputClass, props.className);
     inputProps["style"] = style;
 
     inputProps["rows"] = props.rows;

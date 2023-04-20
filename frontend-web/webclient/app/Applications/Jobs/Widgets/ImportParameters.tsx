@@ -2,7 +2,7 @@ import * as React from "react";
 import * as UCloud from "@/UCloud";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
-import {Box, Button, Flex, Icon, Label, Truncate} from "@/ui-components";
+import {Box, Button, Flex, Icon, Label} from "@/ui-components";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import CONF from "../../../../site.config.json";
@@ -21,7 +21,6 @@ import {FilesBrowse} from "@/Files/Files";
 import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
 import {JobBrowse} from "../Browse";
-import {format, isToday} from "date-fns/esm";
 import {ButtonClass} from "@/ui-components/Button";
 
 export const ImportParameters: React.FunctionComponent<{
@@ -120,28 +119,7 @@ export const ImportParameters: React.FunctionComponent<{
     return <Box>
         <Label>Load parameters from a previous run:</Label>
         <Flex flexDirection="row" flexWrap="wrap">
-            {previousRunsValid.length === 0 ? null :
-                <>
-                    <div>
-                        <div style={{textAlign: "center", border: "1px solid var(--gray)", borderBottom: "0px"}}>
-                            <b>Date</b>
-                        </div>
-                        <div style={{textAlign: "center", border: "1px solid var(--gray)", width: "100px"}}>
-                            <b>Job ID</b>
-                        </div>
-                    </div>
-                    {previousRunsValid.slice(0, 5).map((run, idx) => (
-                        <div key={idx}>
-                            <Box title={format(run.createdAt, "HH:mm dd/MM/yy")} width="85px" textAlign={"center"} style={{border: "1px solid var(--gray)", borderBottom: "0px"}}>
-                                {format(run.createdAt, isToday(run.createdAt) ? "HH:mm" : "dd/MM/yy")}
-                            </Box>
-                            <Box title={run.specification.name ?? run.id} px="3px" cursor="pointer" width="85px" onClick={() => readParsedJSON(run.status.jobParametersJson)} textAlign={"center"} style={{border: "1px solid var(--gray)"}}>
-                                <Truncate width={1}>{run.specification.name ?? run.id}</Truncate>
-                            </Box>
-                        </div>
-                    ))}
-                </>}
-            <Button ml="12px" mt="4px" height="45px" onClick={() => setImportDialogOpen(true)}>Import parameters</Button>
+            <Button color="gray" backgroundColor="black"  mt="4px" height="45px" onClick={() => setImportDialogOpen(true)}>Import parameters</Button>
         </Flex>
 
         {messages.length === 0 ? null : (

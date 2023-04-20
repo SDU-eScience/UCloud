@@ -28,6 +28,7 @@ export const ProductSelector: React.FunctionComponent<{
     type?: ProductType;
     slim?: boolean;
     loading?: boolean;
+    omitBorder?: boolean;
     onSelect: (product: Product) => void;
 }> = ({selected, ...props}) => {
     let portal = document.getElementById(dropdownPortal);
@@ -222,7 +223,7 @@ export const ProductSelector: React.FunctionComponent<{
     const showHeadings = filteredProducts.length >= 5 || categorizedProducts.some(it => it === NEED_CONNECT);
 
     return <>
-        <SelectorBox className={props.slim === true ? "slim" : undefined} onClick={onToggle} ref={boxRef}>
+        <SelectorBox className={props.slim === true ? "slim" : undefined} data-omit-border={props.omitBorder} onClick={onToggle} ref={boxRef}>
             <div className="selected">
                 <b>{selected ? selected.name : <>No {productName} selected</>}</b><br />
                 <table>
@@ -475,6 +476,10 @@ const SelectorBox = styled.div`
     user-select: none;
     min-width: 500px;
     font-size: initial;
+
+    &[data-omit-border="true"] {
+        border: unset;
+    }
 
     & p {
         margin: 0;

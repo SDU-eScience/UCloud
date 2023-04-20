@@ -5,7 +5,7 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {AppHeader, Information} from "@/Applications/View";
-import {Box, Button, Card, ContainerForText, ExternalLink, Grid, Icon, Link, Markdown, Tooltip, VerticalButtonGroup} from "@/ui-components";
+import {Box, Button, Card, ContainerForText, ExternalLink, Flex, Grid, Icon, Link, Markdown, Tooltip, VerticalButtonGroup} from "@/ui-components";
 import {findElement, OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
@@ -39,6 +39,7 @@ import {flushSync} from "react-dom";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {validateMachineReservation} from "./Widgets/Machines";
 import {Resource} from "@/UCloud/ResourceApi";
+import {Spacer} from "@/ui-components/Spacer";
 
 interface InsufficientFunds {
     why?: string;
@@ -298,71 +299,15 @@ export const Create: React.FunctionComponent = () => {
     ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors);
     const anyError = errorCount > 0;
 
+    const appFlavors = [];
+
     return <MainContainer
-        headerSize={92}
-        header={
-            <AppHeader slim application={application} allVersions={previousResp.data?.items ?? []} />
-        }
-        sidebar={
-            <VerticalButtonGroup>
-                {!application.metadata.website ? null : (
-                    <ExternalLink href={application.metadata.website}>
-                        <Button fullWidth color={"blue"}>Documentation</Button>
-                    </ExternalLink>
-                )}
-                {anyError ?
-                    <Tooltip trigger={
-                        <Button type="button" color="blue" disabled>
-                            Submit
-                        </Button>
-                    }>
-                        {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve before submitting.
-                    </Tooltip> : <Button
-                        type={"button"}
-                        color={"blue"}
-                        disabled={isLoading || !sshValid || isMissingConnection}
-                        onClick={() => submitJob(false)}
-                    >
-                        Submit
-                    </Button>}
-
-                {!isMissingConnection ? null :
-                    <Box mt={32}>
-                        <Link to={"/providers/connect"}>
-                            <Icon name="warning" color="orange" mx={8} />
-                            Connection required!
-                        </Link>
-                    </Box>
-                }
-
-                <Box mt={32} color={estimatedCost.balance >= estimatedCost.cost ? "black" : "red"} textAlign="center">
-                    {estimatedCost.balance === 0 || estimatedCost.product == null ? null : (
-                        <>
-                            <Icon name={"grant"} />{" "}
-                            Estimated cost: <br />
-
-                            {usageExplainer(estimatedCost.cost, estimatedCost.product.productType,
-                                estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}
-                        </>
-                    )}
-                </Box>
-                <Box mt={32} color="black" textAlign="center">
-                    {estimatedCost.balance === 0 || estimatedCost.product == null ? null : (
-                        <>
-                            <Icon name="grant" />{" "}
-                            Current balance: <br />
-
-                            {usageExplainer(estimatedCost.balance, estimatedCost.product.productType,
-                                estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}
-                        </>
-                    )}
-                </Box>
-            </VerticalButtonGroup>
-        }
         main={
             <>
+                <Box mx="50px">
+                    <AppHeader slim application={application} flavors={appFlavors} allVersions={previousResp.data?.items ?? []} />
+                </Box>
                 <ContainerForText left>
-                    <b>Description</b>
                     <Markdown
                         unwrapDisallowed
                         disallowedElements={[
@@ -377,18 +322,52 @@ export const Create: React.FunctionComponent = () => {
                 <ContainerForText>
                     <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
                         {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
-                        <ImportParameters application={application} onImport={onLoadParameters}
-                            importDialogOpen={importDialogOpen} setImportDialogOpen={setImportDialogOpen}
-                            onImportDialogClose={() => setImportDialogOpen(false)} />
-                        <ReservationParameter
-                            application={application}
-                            errors={reservationErrors}
-                            onEstimatedCostChange={(cost, balance, product) => setEstimatedCost({cost, balance, product})}
-                        />
+                        {!application.metadata.website ? null : (
+                            <ExternalLink href={application.metadata.website}>
+                                <Button color={"blue"}>Documentation</Button>
+                            </ExternalLink>
+                        )}
+                        {isMissingConnection ?
+                            <Box mt={32}>
+                                <Link to={"/providers/connect"}>
+                                    <Icon name="warning" color="orange" mx={8} />
+                                    Connection required!
+                                </Link>
+                            </Box> :
+                            <Spacer
+                                left={
+                                    <ImportParameters application={application} onImport={onLoadParameters}
+                                        importDialogOpen={importDialogOpen} setImportDialogOpen={setImportDialogOpen}
+                                        onImportDialogClose={() => setImportDialogOpen(false)} />
+                                }
+                                right={anyError ?
+                                    <Tooltip trigger={
+                                        <Button type="button" color="green" disabled>
+                                            Submit
+                                        </Button>
+                                    }>
+                                        {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve before submitting.
+                                    </Tooltip> : <Button
+                                        type={"button"}
+                                        color={"green"}
+                                        disabled={isLoading || !sshValid || isMissingConnection}
+                                        onClick={() => submitJob(false)}
+                                    >
+                                        Submit
+                                    </Button>}
+                            />
+                        }
+                        <Card>
+                            <ReservationParameter
+                                application={application}
+                                errors={reservationErrors}
+                                onEstimatedCostChange={(cost, balance, product) => setEstimatedCost({cost, balance, product})}
+                            />
+                        </Card>
 
                         {/* Parameters */}
                         {mandatoryParameters.length === 0 ? null : (
-                            <Box>
+                            <Card>
                                 <Heading.h4>Mandatory Parameters</Heading.h4>
                                 <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
                                     {mandatoryParameters.map(param => (
@@ -397,10 +376,10 @@ export const Create: React.FunctionComponent = () => {
                                             active />
                                     ))}
                                 </Grid>
-                            </Box>
+                            </Card>
                         )}
                         {activeParameters.length === 0 ? null : (
-                            <Box>
+                            <Card>
                                 <Heading.h4>Additional Parameters</Heading.h4>
                                 <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
                                     {activeParameters.map(param => (
@@ -418,7 +397,7 @@ export const Create: React.FunctionComponent = () => {
                                         />
                                     ))}
                                 </Grid>
-                            </Box>
+                            </Card>
                         )}
                         {inactiveParameters.length === 0 ? null : (
                             <Card>

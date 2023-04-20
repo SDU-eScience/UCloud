@@ -8,8 +8,8 @@ import {extractEventHandlers, extractSize, injectStyle, unbox, WithEventHandlers
 export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, SizeProps, WidthProps, WithEventHandlers {
     fullWidth?: boolean;
     textColor?: ThemeColor;
-    color?: string | ThemeColor;
-    backgroundColor?: string | ThemeColor;
+    color?: ThemeColor;
+    backgroundColor?: ThemeColor;
     lineHeight?: number | string;
     title?: string;
     attached?: boolean;
@@ -107,8 +107,8 @@ const standardButtonSizes: {height: number; name: string;}[] = [
 export const Button: React.FunctionComponent<ButtonProps> = props => {
     const inlineStyles = unbox(props);
     let sizeName: string | undefined = undefined;
-    inlineStyles.backgroundColor = `var(--${props.color})`;
-    inlineStyles.color = `var(--${props.textColor})`;
+    inlineStyles.backgroundColor = `var(--${props.color ?? "blue"})`;
+    inlineStyles.color = `var(--${props.textColor ?? "white"})`;
     if (props.disableStandardSizes !== true) {
         let bestMatch = 1;
         if (props.standardSize !== undefined || props.height === undefined) {
@@ -155,9 +155,5 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
 }
 
 Button.displayName = "Button";
-Button.defaultProps = {
-    textColor: "white",
-    color: "blue",
-};
 
 export default Button;

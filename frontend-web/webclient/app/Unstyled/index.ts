@@ -39,6 +39,15 @@ export function classConcatArray(baseClass: string, extra: string[]): string {
 // export type WidthValue = AnySize;
 // export type HeightValue = AnySize;
 
+export function extractDataTags(props: Record<string, string>): Record<string, string> {
+    const dataTags = Object.keys(props).filter(it => it.startsWith("data-"));
+    const result: Record<string, string> = {};
+    for (const t of dataTags) {
+        result[t] = dataTags[t];
+    }
+    return result;
+}
+
 export function unbox(props: BoxProps | SpaceProps): CSSProperties {
     let result: CSSProperties = {};
 

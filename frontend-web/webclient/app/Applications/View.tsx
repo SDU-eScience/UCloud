@@ -1,9 +1,8 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
-import {Box, Flex, Link, Tooltip} from "@/ui-components";
+import {Box, Flex, Icon, Link, Tooltip} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {EllipsedText, TextSpan} from "@/ui-components/Text";
-import {dateToString} from "@/Utilities/DateUtilities";
+import Text, {EllipsedText, TextSpan} from "@/ui-components/Text";
 import {capitalized} from "@/UtilityFunctions";
 import {Tag} from "./Card";
 import * as Pages from "./Pages";
@@ -19,6 +18,7 @@ export const AppHeader: React.FunctionComponent<{
     application: UCloud.compute.ApplicationWithFavoriteAndTags;
     slim?: boolean;
     allVersions: UCloud.compute.ApplicationSummaryWithFavorite[];
+    flavors: UCloud.compute.ApplicationSummaryWithFavorite[];
 }> = props => {
     const isSlim = props.slim === true;
     const size = isSlim ? "64px" : "128px";
@@ -35,10 +35,41 @@ export const AppHeader: React.FunctionComponent<{
             <Flex flexDirection={"column"} minWidth={0}>
                 {isSlim ? (
                     <>
-                        <Heading.h3>{props.application.metadata.title}<FavoriteToggle application={props.application} /></Heading.h3>
+                        <Box>
+                            <Flex>
+                                <Text verticalAlign="center" alignItems="center" fontSize={30}>
+                                    {props.application.metadata.title}
+                                </Text>
+                                <Flex style={{alignSelf: "center"}}>
+                                    {props.flavors.length === 0 ? null :
+                                        <ClickableDropdown
+                                            colorOnHover={false}
+                                            trigger={
+                                                <Flex my="auto" height="30px" ml="12px" borderRadius="16px" px="8px" fontSize={"var(--secondaryText)"} alignItems={"center"} backgroundColor="var(--blue)" color="white">
+                                                    {props.application.metadata.name} <Icon ml="8px" name="chevronDownLight" size={12} />
+                                                </Flex>
+                                            }>
+                                            <Text bold>Select flavor</Text>
+                                            {props.flavors.map(f =>
+                                                <Box
+                                                    cursor="pointer"
+                                                    width="auto"
+                                                    color="white"
+                                                    key={f.metadata.name}
+                                                    onClick={() => navigate(Pages.runApplication(f.metadata))}
+                                                >
+                                                    {f.metadata.name}
+                                                </Box>
+                                            )}
+                                        </ClickableDropdown>
+                                    }
+                                </Flex>
+                            </Flex>
+                        </Box>
                         <Flex>
+                            <FavoriteToggle application={props.application} />
                             <ClickableDropdown
-                                trigger={<TextSpan>{props.application.metadata.version}</TextSpan>}
+                                trigger={<TextSpan ml="8px">{props.application.metadata.version}</TextSpan>}
                                 chevron
                             >
                                 {props.allVersions.map(it => <div key={it.metadata.version} onClick={() => navigate(Pages.runApplication(it.metadata))}>{it.metadata.version}</div>)}
@@ -130,7 +161,8 @@ export const Information: React.FunctionComponent<{application: Application; sim
     const timeString = time ? `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}` : "";
     const backend = tool.description.backend;
     const license = tool.description.license;
-    return (
+    return null;
+    /*return (
         <>
             <InfoAttributes>
                 <InfoAttribute
@@ -161,7 +193,7 @@ export const Information: React.FunctionComponent<{application: Application; sim
                 />
             </InfoAttributes>
         </>
-    );
+    );*/
 }
 
 function backendTitle(backend: string): string {

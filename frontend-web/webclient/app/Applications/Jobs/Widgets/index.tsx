@@ -18,6 +18,7 @@ import {LicenseParameter, LicenseSetter, LicenseValidator} from "@/Applications/
 import {IngressParameter, IngressSetter, IngressValidator} from "@/Applications/Jobs/Widgets/Ingress";
 import {NetworkIPParameter, NetworkIPSetter, NetworkIPValidator} from "@/Applications/Jobs/Widgets/NetworkIP";
 import {ButtonClass} from "@/ui-components/Button";
+import {JobOrHoursInput} from "./Reservation";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
@@ -254,6 +255,7 @@ export const OptionalWidgetSearch: React.FunctionComponent<{
             <Box flexShrink={0}>
                 <Input
                     inputRef={searchRef}
+                    className={JobOrHoursInput}
                     placeholder={"Search"}
                     onChange={(e) => search(e.target.value)}
                 />

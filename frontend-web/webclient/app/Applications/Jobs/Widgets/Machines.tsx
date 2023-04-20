@@ -1,10 +1,10 @@
 import * as React from "react";
-import { useEffect, useMemo, useState } from "react";
-import { accounting } from "@/UCloud";
+import {useEffect, useMemo, useState} from "react";
+import {accounting} from "@/UCloud";
 import ComputeProductReference = accounting.ProductReference;
-import { Product, productCategoryEquals, ProductCompute } from "@/Accounting";
+import {Product, productCategoryEquals, ProductCompute} from "@/Accounting";
 import * as UCloud from "@/UCloud";
-import { ProductSelector } from "@/Products/Selector";
+import {ProductSelector} from "@/Products/Selector";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 
 export const reservationMachine = "reservation-machine";
@@ -93,6 +93,7 @@ export const Machines: React.FunctionComponent<{
                 products={filteredMachines}
                 selected={selected}
                 onSelect={setMachineReservation}
+                omitBorder
                 support={props.support}
             />
         </>

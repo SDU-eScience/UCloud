@@ -1,6 +1,6 @@
 import {BoxProps} from "@/ui-components/Box";
 import * as React from "react";
-import {extractEventHandlers, injectStyleSimple, unbox} from "@/Unstyled";
+import {extractDataTags, extractEventHandlers, injectStyleSimple, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
 
 export type FlexCProps =
@@ -15,7 +15,7 @@ export type FlexCProps =
 
 export const FlexClass = injectStyleSimple("flex", ``);
 
-const Flex: React.FunctionComponent<FlexCProps & { children?: React.ReactNode }> = props => {
+const Flex: React.FunctionComponent<FlexCProps & {children?: React.ReactNode}> = props => {
     return <div
         className={FlexClass + " " + (props.className ?? "")}
         style={{
@@ -27,6 +27,7 @@ const Flex: React.FunctionComponent<FlexCProps & { children?: React.ReactNode }>
             ...(props.style ?? {})
         }}
         {...extractEventHandlers(props)}
+        {...extractDataTags(props as Record<string, string>)}
         children={props.children}
     />
 };
