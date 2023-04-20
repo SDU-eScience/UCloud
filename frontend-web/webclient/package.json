@@ -37,14 +37,14 @@
         "react-router-dom": "6.10.0",
         "react-syntax-highlighter": "15.5.0",
         "react-transition-group": "4.4.5",
-        "react-virtualized-auto-sizer": "^1.0.14",
-        "react-window": "^1.8.8",
+        "react-virtualized-auto-sizer": "^1.0.15",
+        "react-window": "^1.8.9",
         "recharts": "2.1.13",
         "redux": "4.2.1",
         "styled-components": "5.3.9",
         "styled-system": "5.1.5",
         "svgi": "1.1.1",
-        "ua-parser-js": "1.0.34",
+        "ua-parser-js": "1.0.35",
         "vfile": "5.3.7",
         "xterm": "4.19.0",
         "xterm-addon-fit": "0.5.0"
@@ -57,7 +57,7 @@
         "@types/react-datepicker": "4.10.0",
         "@types/react-dom": "18.0.11",
         "@types/react-dropzone": "5.1.0",
-        "@types/react-modal": "3.13.1",
+        "@types/react-modal": "3.16.0",
         "@types/react-redux": "7.1.25",
         "@types/react-transition-group": "4.4.5",
         "@types/react-virtualized-auto-sizer": "^1.0.1",
@@ -69,6 +69,6 @@
         "redux-devtools-extension": "2.13.9",
         "ts-loader": "9.4.2",
         "typescript": "5.0.4",
-        "vite": "4.2.1"
+        "vite": "4.3.0"
     }
 }
