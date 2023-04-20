@@ -84,7 +84,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     
     ${k}[data-open="true"] {
         transform: translate(0, 0);
-        padding: 16px;
+        padding: 12px 16px 16px 16px;
     }
     
     ${k} header {

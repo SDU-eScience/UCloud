@@ -578,6 +578,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
             </BreadCrumbsBase>
             <UtilityBar searchEnabled={false} operations={[]} callbacks={{}} />
         </Flex>}
+        headerSize={72}
         main={
             <div className={TwoColumnLayout}>
                 <div className="members">
@@ -1347,6 +1348,7 @@ const TwoColumnLayout = injectStyle("two-column-layout", k => `
         flex-direction: row;
         flex-wrap: wrap;
         width: 100%;
+        height: calc(100vh - 96px);
     }
 
     ${k} > * {
@@ -1355,7 +1357,6 @@ const TwoColumnLayout = injectStyle("two-column-layout", k => `
 
     @media screen and (min-width: 1200px) {
         ${k} {
-            height: calc(100vh - 32px);
             overflow: hidden;
         }
 

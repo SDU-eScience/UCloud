@@ -3,10 +3,7 @@ import * as UCloud from "@/UCloud";
 import {Box, Flex, Heading, Input, Label, theme} from "@/ui-components";
 import {TextP} from "@/ui-components/Text";
 import {
-    findRelevantMachinesForApplication,
-    Machines,
-    setMachineReservationFromRef,
-    validateMachineReservation
+    findRelevantMachinesForApplication, Machines, setMachineReservationFromRef, validateMachineReservation
 } from "@/Applications/Jobs/Widgets/Machines";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
@@ -96,7 +93,7 @@ export const ReservationParameter: React.FunctionComponent<{
             <Label mb={"4px"}>
                 <Heading>Job name</Heading>
                 <Input
-                    className={classConcat(JobOrHoursInput, "name-kind")}
+                    className={classConcat(JobCreateInput, "name-kind")}
                     id={reservationName}
                     placeholder={"Example: Run with parameters XYZ"}
                 />
@@ -110,7 +107,7 @@ export const ReservationParameter: React.FunctionComponent<{
                         <Heading>Hours<MandatoryField /></Heading>
                         <Input
                             id={reservationHours}
-                            className={classConcat(JobOrHoursInput, "hours-kind")}
+                            className={classConcat(JobCreateInput, "hours-kind")}
                             type="number"
                             step={1}
                             min={1}
@@ -131,7 +128,7 @@ export const ReservationParameter: React.FunctionComponent<{
                 <Flex mb={"1em"}>
                     <Label>
                         <Heading>Number of nodes</Heading>
-                        <Input id={reservationReplicas} className={JobOrHoursInput} onBlur={recalculateCost} defaultValue={"1"} />
+                        <Input id={reservationReplicas} className={JobCreateInput} onBlur={recalculateCost} defaultValue={"1"} />
                     </Label>
                 </Flex>
                 {errors["replicas"] ? <TextP color={"red"}>{errors["replicas"]}</TextP> : null}
@@ -148,7 +145,7 @@ export const ReservationParameter: React.FunctionComponent<{
 
 export type ReservationValues = Pick<UCloud.compute.JobSpecification, "name" | "timeAllocation" | "replicas" | "product">;
 
-export const JobOrHoursInput = injectStyle("job-or-hours-input", k => `
+export const JobCreateInput = injectStyle("job-or-hours-input", k => `
     ${k} {
         background-color: var(--white);
         box-shadow: ${theme.shadows.sm};

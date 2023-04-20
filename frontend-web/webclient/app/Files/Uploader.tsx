@@ -376,6 +376,7 @@ const Uploader: React.FunctionComponent = () => {
             <div className={DropZoneWrapper + " " + FlexClass} data-has-uploads={hasUploads} data-tag="uploadModal">
                 <Relative overflowX="hidden" onClick={closeModal} right="calc(100% - 32px)" top="18px">
                     <Icon color="var(--white)" size="16px" name="close" />
+                    {DEVELOPMENT_ENV ? "!!!TODO - Add operations for multiple selected rows - TODO!!!" : null}
                 </Relative>
                 <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads} />
                 <Text color="white">{uploadingText}</Text>
