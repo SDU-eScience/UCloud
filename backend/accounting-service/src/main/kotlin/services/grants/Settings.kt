@@ -317,6 +317,7 @@ class GrantSettingsService(
         request: WithPaginationRequestV2
     ): PageV2<ProjectWithTitle> {
         val project = actorAndProject.project
+
         val extraItems: List<ProjectWithTitle> = if (request.next == null && project != null)  {
             db.withSession { session ->
                 session.sendPreparedStatement(
@@ -390,7 +391,7 @@ class GrantSettingsService(
                 )
             },
             mapper = { _, rows -> rows.map { ProjectWithTitle(it.getString(0)!!, it.getString(1)!!) }}
-        ).let { it.copy(items = extraItems + it.items) }
+        ).let { it.copy(items = (extraItems.toSet() + it.items.toSet()).toList()) }
     }
 
     suspend fun fetchLogo(projectId: String): ByteArray? {
