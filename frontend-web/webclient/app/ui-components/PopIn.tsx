@@ -18,7 +18,6 @@ const PopInClass = injectStyle("popin-class", k => `
         height: 100vh;
         overflow-y: scroll;
         position: absolute;
-        padding: 4px 4px 4px 4px;
         top: 0;
         z-index: 120;
         box-shadow: ${theme.shadows.sm};
@@ -29,6 +28,7 @@ const PopInClass = injectStyle("popin-class", k => `
 
     ${k}[data-has-content="true"] {
         width: var(--popInWidth);
+        padding: 4px 4px 4px 4px;
     }
 `);
 

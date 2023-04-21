@@ -363,7 +363,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                 )}
             </Box>
             <Box mx="auto" mt="auto" width="280px"><img src={ucloudBlue} /> </Box>
-            <Flex height="60px" backgroundColor="#cecfd1">
+            <Flex height="60px" minHeight="60px" backgroundColor="#cecfd1">
                 <Text color="#000" mx="auto" my="auto" fontSize={12}>
                     Delivered by the Danish e-Infrastrucure Consortium
                 </Text>
@@ -505,7 +505,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
             </div> : null}
         </Absolute>
         <div className={BackgroundImage}>
-            <Flex mx="auto" flexDirection={"column"} height="100vh" minHeight={"650px"}>
+            <Flex mx="auto" flexDirection={"column"} minHeight="100vh">
                 {props.children}
             </Flex>
         </div>
