@@ -134,8 +134,8 @@ export function mapCallState<T, T2>(state: APICallState<T>, mapper: (t: T) => T2
 }
 
 export async function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
-    if (window["forceApiFailure"] === true) {
-        return Promise.reject({ request: { status: 500 }, response: {} });
+    if (window["forceApiFailure"] !== undefined) {
+        return Promise.reject(window["forceApiFailure"]);
     }
 
     const method = parameters.method !== undefined ? parameters.method : "GET";

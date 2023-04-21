@@ -44,6 +44,8 @@ import { snackbarStore } from "@/Snackbar/SnackbarStore";
 import { Client } from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
 import {combineEventHandlers} from "recharts/types/util/ChartUtils";
+import container from "@/ui-components/Container";
+import HexSpin from "@/LoadingIcon/LoadingIcon";
 
 const ExperimentalBrowse: React.FunctionComponent = () => {
     const navigate = useNavigate();
@@ -58,6 +60,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
         if (mount && !browser.current) {
             const fileBrowser = new FileBrowser(mount);
             browser.current = fileBrowser;
+            fileBrowser.dispatch = dispatch;
             fileBrowser.mount();
             fileBrowser.onOpen = (path: string) => {
                 if (openTriggeredByPath.current === path) {
@@ -67,7 +70,6 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
 
                 navigate("?path=" + encodeURIComponent(path));
             };
-            fileBrowser.dispatch = dispatch;
         }
     }, []);
 
@@ -140,6 +142,37 @@ class AsyncCache<V> {
 
     retrieve(name: string, fn: () => Promise<V>, ttl?: number): Promise<V> {
         return this.retrieveWithInvalidCache(name, fn, ttl)[1];
+    }
+}
+
+class ReactStaticRenderer {
+    private fragment = document.createDocumentFragment();
+
+    constructor(node: () => React.ReactElement) {
+        const fragment = document.createDocumentFragment();
+        const root = createRoot(fragment);
+
+        const promise = new Promise<void>((resolve, reject) => {
+            const Component: React.FunctionComponent<{ children: React.ReactNode }> = props => {
+                const div = useRef<HTMLDivElement | null>(null);
+                useLayoutEffect(() => {
+                    resolve();
+                }, []);
+
+                return <div ref={div}>{props.children}</div>;
+            };
+
+            root.render(<Component>{node()}</Component>);
+        });
+
+        promise.finally(() => {
+            this.fragment.append(fragment.cloneNode(true));
+            root.unmount();
+        });
+    }
+
+    clone(): Node {
+        return this.fragment.cloneNode(true);
     }
 }
 
@@ -271,6 +304,13 @@ class SvgCache {
     }
 }
 
+function visualizeWhitespaces(value: string): string {
+    let result = value;
+    result = result.replace(/\n/g, "↵").replace(/\r/g, "↵").replace(/\t/g, "→→→→");
+    if (result.indexOf("  ") !== -1) result = result.replace(/ /g, "␣");
+    return result;
+}
+
 type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
 
 interface OperationGroup<T, R> {
@@ -286,6 +326,18 @@ enum SelectionMode {
     TOGGLE_SINGLE,
     ADDITIVE_SINGLE,
     ADDITIVE_LIST,
+}
+
+enum EmptyReasonTag {
+    LOADING,
+    EMPTY,
+    NOT_FOUND_OR_NO_PERMISSIONS,
+    UNABLE_TO_FULFILL,
+}
+
+interface EmptyReason {
+    tag: EmptyReasonTag;
+    information?: string;
 }
 
 interface FileRow {
@@ -316,6 +368,7 @@ class FileBrowser {
     private isFetchingNext: boolean = false;
     private icons: SvgCache = new SvgCache();
 
+    private emptyReasons: Record<string, EmptyReason> = {};
     private cachedNext: Record<string, string | null> = {};
     private cachedData: Record<string, UFile[]> = {};
     private scrollPosition: Record<string, number> = {};
@@ -361,6 +414,14 @@ class FileBrowser {
     private undoStack: (() => void)[] = [];
     private redoStack: (() => void)[] = [];
 
+    private spinner = new ReactStaticRenderer(() => <HexSpin size={60} />);
+    private emptyPageElement: {
+        container: HTMLElement;
+        graphic: HTMLElement;
+        reason: HTMLElement;
+        providerReason: HTMLElement;
+    };
+
     public onOpen: (path: string) => void = doNothing;
     public dispatch: Dispatch = doNothing as Dispatch;
 
@@ -391,6 +452,12 @@ class FileBrowser {
             <div class="file-drag-indicator"></div>
             <div class="drag-indicator"></div>
             <div class="context-menu"></div>
+            
+            <div class="page-empty">
+                <div class="graphic"></div>
+                <div class="reason"></div>
+                <div class="provider-reason"></div>
+            </div>
         `;
 
         this.operations = this.root.querySelector<HTMLElement>(".operations")!;
@@ -403,6 +470,12 @@ class FileBrowser {
         this.locationBar = this.root.querySelector<HTMLInputElement>(".location-bar")!;
         this.header = this.root.querySelector("header")!;
         this.breadcrumbs = this.root.querySelector<HTMLUListElement>("header ul")!;
+        this.emptyPageElement = {
+            container: this.root.querySelector(".page-empty")!,
+            graphic: this.root.querySelector(".page-empty .graphic")!,
+            reason: this.root.querySelector(".page-empty .reason")!,
+            providerReason: this.root.querySelector(".page-empty .provider-reason")!,
+        };
 
         {
             // Render edit button for the location bar
@@ -503,6 +576,12 @@ class FileBrowser {
             this.onRowPointerDown(-1, e);
         });
 
+        this.scrolling.parentElement!.addEventListener("contextmenu", e => {
+            e.stopPropagation();
+            e.preventDefault();
+            this.onRowContextMenu(-1, e);
+        });
+
         const rows: HTMLDivElement[] = [];
         for (let i = 0; i < FileBrowser.maxRows; i++) {
             const row = div(`
@@ -527,6 +606,12 @@ class FileBrowser {
             });
             row.addEventListener("mousemove", e => {
                 this.onRowMouseMove(myIndex);
+            });
+            row.addEventListener("contextmenu", e => {
+                e.stopPropagation();
+                e.preventDefault();
+
+                this.onRowContextMenu(myIndex, e);
             });
             rows.push(row);
 
@@ -662,7 +747,7 @@ class FileBrowser {
 
             if (canKeepThis) {
                 const listItem = document.createElement("li");
-                listItem.innerText = truncatedComponents[idx];
+                listItem.innerText = visualizeWhitespaces(truncatedComponents[idx]);
                 listItem.addEventListener("click", () => {
                     this.open(myPath);
                 });
@@ -679,6 +764,13 @@ class FileBrowser {
     }
 
     private renderOperations() {
+        this.renderOperationsIn(false);
+    }
+
+    private renderOperationsIn(useContextMenu: boolean, contextOpts?: {
+        x: number,
+        y: number,
+    }) {
         function groupOperations<T, R>(ops: Operation<T, R>[]): OperationOrGroup<T, R>[] {
             const uploadOp = ops.find(it => it.icon === "upload");
             const folderOp = ops.find(it => it.icon === "uploadFolder");
@@ -722,8 +814,10 @@ class FileBrowser {
         const folder = this.folderCache.retrieveFromCacheOnly(path);
         if (!collection || !folder) return;
 
-        for (let i = 0; i < this.altShortcuts.length; i++) {
-            this.altShortcuts[i] = doNothing;
+        if (!useContextMenu) {
+            for (let i = 0; i < this.altShortcuts.length; i++) {
+                this.altShortcuts[i] = doNothing;
+            }
         }
 
         const supportByProvider: SupportByProvider = {productsByProvider: {}};
@@ -802,14 +896,95 @@ class FileBrowser {
             }
         }
 
+        const renderOperationsInContextMenu = (
+            operations: OperationOrGroup<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[],
+            posX: number,
+            posY: number,
+            counter: number = 1,
+            allowCreation: boolean = true
+        ): number => {
+            const menu = this.contextMenu;
+            if (allowCreation) {
+                let actualPosX = posX;
+                let actualPosY = posY;
+                menu.innerHTML = "";
+
+                const itemSize = 40;
+                let opCount = 0;
+                for (const op of operations) {
+                    if ("operations" in op) {
+                        opCount += op.operations.length;
+                    } else {
+                        opCount++;
+                    }
+                }
+
+                const listHeight = opCount * itemSize;
+                const listWidth = 400;
+
+                const windowWidth = window.innerWidth;
+                const windowHeight = window.innerHeight;
+
+                if (posX + listWidth >= windowWidth - 32) {
+                    actualPosX -= listWidth;
+                }
+
+                if (posY + listHeight >= windowHeight - 32) {
+                    actualPosY -= listHeight;
+                }
+
+                menu.style.transform = `translate(0, -${listHeight / 2}px) scale3d(1, 0.1, 1)`;
+                window.setTimeout(() => menu.style.transform = "scale3d(1, 1, 1)", 0);
+                menu.style.display = "block";
+                menu.style.opacity = "1";
+
+                menu.style.top = actualPosY + "px";
+                menu.style.left = actualPosX + "px";
+            }
+
+            const menuList = allowCreation ? document.createElement("ul") : menu.querySelector("ul")!;
+            if (allowCreation) menu.append(menuList);
+            console.log("Rendering into ", menuList)
+            let shortcutNumber = counter;
+            for (const child of operations) {
+                if ("operations" in child) {
+                    counter = renderOperationsInContextMenu(child.operations, posX, posY, shortcutNumber, false);
+                    continue;
+                }
+
+                const item = document.createElement("li");
+                renderOpIconAndText(child, item, shortcutNumber <= 9 ? `[${shortcutNumber}]` : undefined);
+
+                const myIndex = shortcutNumber - 1;
+                const text = item.innerText;
+                this.contextMenuHandlers.push(() => {
+                    child.onClick(selected, callbacks, page);
+                });
+                item.addEventListener("mouseover", () => {
+                    this.findActiveContextMenuItem(true);
+                    this.selectContextMenuItem(myIndex);
+                });
+                item.addEventListener("click", ev => {
+                    ev.stopPropagation();
+                    this.findActiveContextMenuItem(true);
+                    this.selectContextMenuItem(myIndex);
+                    this.onContextMenuItemSelection();
+                });
+
+                menuList.append(item);
+                console.log(item, shortcutNumber);
+                shortcutNumber++;
+            }
+            return counter;
+        };
+
         let opCount = 0;
         const renderOperation = (
-            displayInHeader: boolean,
             op: OperationOrGroup<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>
         ): HTMLElement => {
             const element = document.createElement("div");
             element.classList.add("operation");
-            element.classList.add(displayInHeader ? "in-header" : "in-context-menu");
+            element.classList.add(!useContextMenu ? "in-header" : "in-context-menu");
 
             const altKey = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "Alt + ";
             renderOpIconAndText(op, element, `[${altKey}${this.altKeys[opCount].replace("Key", "")}]`);
@@ -820,45 +995,18 @@ class FileBrowser {
                     ev?.stopPropagation();
                     if ("operations" in op) {
                         const elementBounding = element.getBoundingClientRect();
-                        const menu = this.contextMenu;
-                        menu.innerHTML = "";
-                        menu.style.top = (elementBounding.top + elementBounding.height) + "px";
-                        menu.style.left = elementBounding.left + "px";
-                        menu.style.display = "block";
-
-                        const menuList = document.createElement("ul");
-                        let shortcutNumber = 1;
-                        for (const child of op.operations) {
-                            const item = document.createElement("li");
-                            renderOpIconAndText(child, item, `[${shortcutNumber}]`);
-
-                            const myIndex = shortcutNumber - 1;
-                            const text = item.innerText;
-                            this.contextMenuHandlers.push(() => {
-                                child.onClick(selected, callbacks, page);
-                            });
-                            item.addEventListener("mouseover", () => {
-                                this.findActiveContextMenuItem(true);
-                                this.selectContextMenuItem(myIndex);
-                            });
-                            item.addEventListener("click", ev => {
-                                ev.stopPropagation();
-                                this.findActiveContextMenuItem(true);
-                                this.selectContextMenuItem(myIndex);
-                                this.onContextMenuItemSelection();
-                            });
-
-                            menuList.append(item);
-                            shortcutNumber++;
-                        }
-                        menu.append(menuList);
+                        renderOperationsInContextMenu(
+                            op.operations,
+                            elementBounding.left,
+                            (elementBounding.top + elementBounding.height),
+                        );
                     } else if ("onClick" in op) {
                         op.onClick(selected, callbacks, page);
                     }
                 };
 
                 element.addEventListener("click", handler);
-                if (displayInHeader) {
+                if (!useContextMenu) {
                     this.altShortcuts[opCount] = handler;
                     opCount++;
                 }
@@ -870,9 +1018,17 @@ class FileBrowser {
         const operations = groupOperations(
             FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, page))
         );
-        this.operations.innerHTML = "";
-        for (const op of operations) {
-            this.operations.append(renderOperation(true, op));
+
+        if (!useContextMenu) {
+            const target = this.operations;
+            target.innerHTML = "";
+            for (const op of operations) {
+                target.append(renderOperation(op));
+            }
+        } else {
+            const posX = contextOpts?.x ?? 0;
+            const posY = contextOpts?.y ?? 0;
+            renderOperationsInContextMenu(operations, posX, posY);
         }
     }
 
@@ -907,6 +1063,11 @@ class FileBrowser {
 
         // NOTE(Dan): Need to get this now before we call renderPage(), since it will reset the scroll position.
         const scrollPositionElement = this.scrollPosition[path];
+
+        this.dispatch({
+            type: "GENERIC_SET", property: "uploadPath",
+            newValue: path, defaultValue: path
+        });
 
         // Perform most renders
         this.renderBreadcrumbs();
@@ -1121,6 +1282,8 @@ class FileBrowser {
                 if (name.length * approximateSizePerCharacter > approximateSizeForTitle) {
                     name = name.substring(0, (approximateSizeForTitle / approximateSizePerCharacter) - 3) + "...";
                 }
+
+                name = visualizeWhitespaces(name);
                 row.title.append(name);
             }
             row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
@@ -1168,6 +1331,77 @@ class FileBrowser {
                 if (isOutOfDate()) return;
                 fileIcon.style.backgroundImage = `url("${url}")`;
             });
+        }
+
+        if (page.length === 0) {
+            const initialPage = this.currentPath;
+            const initialReason = this.emptyReasons[this.currentPath] ?? { tag: EmptyReasonTag.LOADING };
+
+            const renderEmptyPage = async () => {
+                const fileIcon = await this.icons.renderIcon({
+                    name: "ftFolder",
+                    color: "FtFolderColor",
+                    color2: "FtFolderColor2",
+                    height: 256,
+                    width: 256
+                });
+
+                if (this.currentPath !== initialPage) return;
+                const page = this.cachedData[this.currentPath] ?? [];
+                if (page.length !== 0) return;
+
+                const reason = this.emptyReasons[this.currentPath] ?? { tag: EmptyReasonTag.LOADING };
+                const e = this.emptyPageElement;
+                e.container.style.display = "flex";
+                e.graphic.innerHTML = "";
+                e.reason.innerHTML = "";
+                e.providerReason.innerHTML = "";
+                const containerSize = 400;
+                e.container.style.width = containerSize + "px";
+                e.container.style.height = containerSize + "px";
+                e.container.style.left = (scrollingContainerSize.left + (scrollingContainerSize.width / 2) - (containerSize / 2)) + "px";
+                e.container.style.top = (scrollingContainerSize.top + (scrollingContainerSize.height / 2) - (containerSize / 2)) + "px";
+
+                if (reason.tag === EmptyReasonTag.LOADING) {
+                    e.graphic.append(this.spinner.clone());
+                } else {
+                    e.graphic.append(image(fileIcon, { height: 60, width: 60}));
+                }
+
+                switch (reason.tag) {
+                    case EmptyReasonTag.LOADING: {
+                        e.reason.append("We are fetching your files...");
+                        break;
+                    }
+
+                    case EmptyReasonTag.EMPTY: {
+                        e.reason.append("This folder is empty");
+                        break;
+                    }
+
+                    case EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS: {
+                        e.reason.append("We could not find any data related to this folder. " +
+                            "Check to see if it still exists and you have the appropriate permissions to access it.");
+                        e.providerReason.append(reason.information ?? "");
+                        break;
+                    }
+
+                    case EmptyReasonTag.UNABLE_TO_FULFILL: {
+                        e.reason.append("This folder is currently unavailable, try again later.");
+                        e.providerReason.append(reason.information ?? "");
+                        break;
+                    }
+                }
+            };
+
+            if (initialReason.tag === EmptyReasonTag.LOADING) {
+                // Delay rendering of the loading page a bit until we are sure the loading operation is actually "slow"
+                window.setTimeout(() => renderEmptyPage(), 300);
+            } else {
+                renderEmptyPage();
+            }
+        } else {
+            this.emptyPageElement.container.style.display = "none";
         }
     }
 
@@ -1236,11 +1470,34 @@ class FileBrowser {
         const now = timestampUnixMs();
         if (now - (this.lastFetch[path] ?? 0) < 500) return this.inflightRequests[path] ?? Promise.resolve(true);
         this.lastFetch[path] = now;
+        delete this.emptyReasons[path];
 
         const promise = callAPI(FilesApi.browse({path, itemsPerPage: 250, ...FileBrowser.defaultRetrieveFlags}))
             .then(result => {
                 this.cachedData[path] = result.items;
                 this.cachedNext[path] = result.next ?? null;
+                if (result.items.length === 0) this.emptyReasons[path] = { tag: EmptyReasonTag.EMPTY };
+                return false;
+            })
+            .catch(err => {
+                const statusCode = err["request"]?.["status"] ?? 500;
+                const errorCode: string | null = err["response"]?.["errorCode"]?.toString() ?? null;
+                const errorWhy: string | null = err["response"]?.["why"]?.toString() ?? null;
+
+                let tag: EmptyReasonTag;
+                if (errorCode === "MAINTENANCE") {
+                    tag = EmptyReasonTag.UNABLE_TO_FULFILL;
+                } else if (statusCode < 500) {
+                    tag = EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS;
+                } else {
+                    tag = EmptyReasonTag.UNABLE_TO_FULFILL;
+                }
+
+                this.emptyReasons[path] = {
+                    tag,
+                    information: errorWhy ?? undefined
+                };
+
                 return false;
             })
             .finally(() => delete this.inflightRequests[path]);
@@ -1415,13 +1672,17 @@ class FileBrowser {
                     this.fileBelowCursorTemporary = null;
 
                     {
-                        const text = this.fileDragIndicatorContent.getAttribute("data-initial-text")!;
+                        const text = visualizeWhitespaces(this.fileDragIndicatorContent.getAttribute("data-initial-text")!);
                         this.fileDragIndicatorContent.lastChild!.remove();
 
                         if (draggingAllowed && this.fileBelowCursor) {
-                            this.fileDragIndicatorContent.append(`${text} into ${fileName(this.fileBelowCursor.id)}`);
+                            const dest = visualizeWhitespaces(fileName(this.fileBelowCursor.id.substring(0, 30)));
+                            this.fileDragIndicatorContent.append(
+                                `${text.substring(0, 30)} into ${dest}`
+                                    .substring(0, 50)
+                            );
                         } else {
-                            this.fileDragIndicatorContent.append(text);
+                            this.fileDragIndicatorContent.append(text.substring(0, 50));
                         }
                     }
                 }
@@ -1581,6 +1842,27 @@ class FileBrowser {
 
         const page = this.cachedData[this.currentPath] ?? [];
         this.fileBelowCursorTemporary = page.find(it => it.id === filePath) ?? null;
+    }
+
+    private onRowContextMenu(index: number, event: MouseEvent) {
+        if (index >= 0) {
+            const row = this.rows[index];
+            const filePath = row.container.getAttribute("data-file");
+            const fileIdxS = row.container.getAttribute("data-file-idx");
+            const fileIdx = fileIdxS ? parseInt(fileIdxS) : undefined;
+            if (!filePath || fileIdx == null || isNaN(fileIdx)) return;
+
+            if (this.isSelected[fileIdx] === 0) {
+                // If this file isn't part of the selected set, then make it selected as the only item
+                this.select(fileIdx, SelectionMode.SINGLE);
+            }
+        } else {
+            // If we are not right-clicking on a specific file, then clear the entire selection.
+            for (let i = 0; i < this.isSelected.length; i++) this.isSelected[i] = 0;
+            this.renderPage();
+        }
+
+        this.renderOperationsIn(true, { x: event.clientX, y: event.clientY });
     }
 
     private onFavoriteClicked(index: number) {
@@ -1838,9 +2120,8 @@ class FileBrowser {
                             }, 0);
 
                             const selectedItem = parseInt(ev.code.substring("Digit".length));
-                            if (!isNaN(selectedItem)) {
-                                this.selectContextMenuItem(selectedItem - 1);
-                                this.onContextMenuItemSelection();
+                            if (!isNaN(selectedItem) && selectedItem !== 0) {
+                                this.onContextMenuItemSelection(selectedItem - 1);
                             }
                         }
                     } else {
@@ -2130,6 +2411,13 @@ class FileBrowser {
         if (!page) return;
         const entryIdx = page.findIndex(it => it.id === path);
         if (entryIdx !== -1) page.splice(entryIdx, 1);
+
+        if (page.length === 0) {
+            this.emptyReasons[path] = { tag: EmptyReasonTag.EMPTY };
+        }
+
+        this.isSelected = new Uint8Array(0);
+        this.renderOperations();
     }
 
     private fakeFile(
@@ -2171,7 +2459,16 @@ class FileBrowser {
 
     private closeContextMenu() {
         this.contextMenuHandlers = [];
-        this.contextMenu.style.display = "none";
+        this.contextMenu.style.removeProperty("transform");
+        this.contextMenu.style.opacity = "0";
+        const handler = () => {
+            this.contextMenu.style.display = "none";
+            this.contextMenu.style.opacity = "1";
+            this.contextMenu.removeEventListener("transitionend", handler);
+            this.contextMenu.removeEventListener("transitioncancel", handler);
+        };
+        this.contextMenu.addEventListener("transitioncancel", handler);
+        this.contextMenu.addEventListener("transitionend", handler);
     }
 
     private findActiveContextMenuItem(clearActive: boolean = true): number {
@@ -2195,9 +2492,9 @@ class FileBrowser {
         listItems.item(index).setAttribute("data-selected", "true");
     }
 
-    private onContextMenuItemSelection() {
+    private onContextMenuItemSelection(fixedIdx?: number) {
         if (!this.contextMenuHandlers.length) return;
-        const idx = this.findActiveContextMenuItem(false);
+        const idx = fixedIdx ?? this.findActiveContextMenuItem(false);
         if (idx < 0 || idx >= this.contextMenuHandlers.length) return;
         this.contextMenuHandlers[idx]();
         this.closeContextMenu();
@@ -2248,12 +2545,15 @@ class FileBrowser {
     private shouldRemoveFakeDirectory: boolean = true;
 
     private showCreateDirectory() {
-        const fakePath = resolvePath(this.currentPath) + "/$NEW_DIR";
+        const fakeFileName = ".00000000000000000000$NEW_DIR"
+        const fakePath = resolvePath(this.currentPath) + "/" + fakeFileName;
         if (this.findRowIndexByPath(fakePath) != null) {
             this.removeEntry(fakePath);
         }
         this.shouldRemoveFakeDirectory = false;
-        this.insertFakeEntry("$NEW_DIR", {type: "DIRECTORY"});
+        this.insertFakeEntry(fakeFileName, {type: "DIRECTORY"});
+        const idx = this.findRowIndexByPath(fakePath);
+        if (idx !== null) this.ensureRowIsVisible(idx, true);
 
         this.showRenameField(
             fakePath,
@@ -2580,6 +2880,7 @@ class FileBrowser {
                 z-index: 10001;
                 width: 400px;
                 margin: 16px;
+                white-space: pre;
             }
 
             .file-browser .file-drag-indicator-content img {
@@ -2627,6 +2928,7 @@ class FileBrowser {
                 flex-direction: row;
                 gap: 8px;
                 height: 35px;
+                white-space: pre;
             }
 
             .file-browser > div {
@@ -2705,6 +3007,7 @@ class FileBrowser {
                 display: flex;
                 align-items: center;
                 width: 56%;
+                white-space: pre;
             }
 
             .file-browser .row .stat1,
@@ -2770,6 +3073,7 @@ class FileBrowser {
                 box-shadow: 0 3px 6px rgba(0, 0, 0, 30%);
                 width: 400px;
                 display: none;
+                transition: opacity 120ms, transform 60ms;
             }
 
             .file-browser .context-menu ul {
@@ -2805,6 +3109,31 @@ class FileBrowser {
                 left: 60px;
             }
 
+            .file-browser .page-empty {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 16px;
+                text-align: center;
+            }
+            
+            .file-browser .page-empty .graphic {
+                background: var(--blue);
+                height: 100px;
+                width: 100px;
+                border-radius: 100px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .file-browser .page-empty .provider-reason {
+                font-style: italic;
+            }
         `;
         document.head.append(styleElem);
     }
