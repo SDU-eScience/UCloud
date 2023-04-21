@@ -50,6 +50,8 @@ import JobsApi, {Job, jobStateToIconAndColor} from "@/UCloud/JobsApi";
 import {ProjectLinks} from "@/Project/ProjectLinks";
 import {ResourceLinks} from "@/Resource/ResourceOptions";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import Relative from "./Relative";
+import Absolute from "./Absolute";
 
 const SidebarElementContainerClass = injectStyle("sidebar-element", k => `
     ${k} {
@@ -497,7 +499,13 @@ function SecondarySidebar({
         <header>
             <h1>{active}</h1>
             {clicked !== "" ?
-                <div onClick={clearClicked}>Unlock</div> :
+                <Relative top="16px" right="2px" height={0} width={0}>
+                    <Absolute>
+                        <Flex alignItems="center" backgroundColor="white" height="38px" borderRadius="12px 0 0 12px" onClick={clearClicked}>
+                            <Icon name="chevronDownLight" size={18} rotation={90} color="blue" />
+                        </Flex>
+                    </Absolute>
+                </Relative> :
                 null
             }
         </header>

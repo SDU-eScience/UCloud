@@ -165,8 +165,11 @@ const GridClass = injectStyleSimple("grid", `
     gap: 20px;
 `);
 
-const Gradient = injectStyleSimple("gradient", `
+export const Gradient = injectStyleSimple("gradient", `
     background: linear-gradient(var(--gradientStart), var(--gradientEnd));
+    background-size: 100%;
+	background-repeat: no-repeat;
+    min-height: 100vh;
 `);
 
 interface DashboardFavoriteFilesProps {
