@@ -106,10 +106,11 @@ div.action-buttons > button.btn, button.btn.btn-primary, button.btn.btn-secondar
 html {
 
     /* REWRITE-VARS */
-    --sidebar: #2C68F6;
     --sidebarWidth: 64px;
     --secondarySidebarWidth: 220px;
     --popInWidth: 368px;
+    --sidebarColor: #2c68f6;
+    --sidebarSecondaryColor: #5c89f4;
     /* LIGHT */
     --gradientStart: #B6D8FB;
     --gradientEnd: #fff;    
@@ -212,9 +213,10 @@ html.dark {
     --appStoreFavBg: #00204d;
     --activeSpreadsheet: #000;
     --modalShadow: rgba(0, 0, 0, 0.75);
-    
     --gradientStart: #375BB1;
     --gradientEnd: #282C33;
+    --sidebarColor: #141414;
+    --sidebarSecondaryColor: #1D1D1D;
 }
 
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */

@@ -338,21 +338,18 @@ const ToolGroup: React.FunctionComponent<{tag: string, items: ApplicationSummary
                             gridAutoFlow="column"
                         >
                             {items.map(application => {
-                                const [first, second, third] = getColorFromName(application.metadata.name);
+                                const backgroundColor = getColorFromName(application.metadata.name);
                                 const withoutTag = removeTagFromTitle(tag, application.metadata.title);
                                 return (
-                                    <div key={application.metadata.name}>
+                                    <Box key={application.metadata.name} backgroundColor={backgroundColor} padding="16px" borderRadius="16px">
                                         <SmallCard
                                             title={withoutTag}
-                                            color1={first}
-                                            color2={second}
-                                            color3={third}
                                             to={Pages.runApplication(application.metadata)}
                                             color="white"
                                         >
                                             <EllipsedText>{withoutTag}</EllipsedText>
                                         </SmallCard>
-                                    </div>
+                                    </Box>
                                 );
                             })}
                         </Grid>
@@ -382,10 +379,10 @@ function removeTagFromTitle(tag: string, title: string): string {
     }
 }
 
-function getColorFromName(name: string): [string, string, string] {
+function getColorFromName(name: string): string {
     const hash = hashF(name);
     const num = (hash >>> 22) % (theme.appColors.length - 1);
-    return theme.appColors[num] as [string, string, string];
+    return theme.appColors[num][1];
 }
 
 export default ApplicationsOverview2;

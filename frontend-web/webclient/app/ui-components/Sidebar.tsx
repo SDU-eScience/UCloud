@@ -70,7 +70,7 @@ const SidebarElementContainerClass = injectStyle("sidebar-element", k => `
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
-        background-color: #5C89F4;
+        background-color: var(--sidebarSecondaryColor);
         transition: transform 0.1s;
         width: 0;
         
@@ -141,13 +141,13 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
 
 
 const SidebarContainerClass = injectStyleSimple("sidebar-container", `
-    color: var(--sidebar);
+    color: var(--sidebarColor);
     align-items: center;
     display: flex;
     flex-direction: column;
     height: 100vh;
     width: var(--sidebarWidth);
-    background-color: var(--sidebar);
+    background-color: var(--sidebarColor);
     gap: 18px;
     z-index: 1000;
     padding-bottom: 12px;

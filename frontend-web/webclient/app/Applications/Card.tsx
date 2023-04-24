@@ -236,9 +236,9 @@ const CardToolContainerClass = injectStyleSimple("card-tool-container", `
     width: 100%;
 `);
 
-export const SmallCard = styled(Link) <{color1: string; color2: string; color3: string}>`
+export const SmallCard = styled(Link)`
     display: flex;
-    padding: 10px;
+    padding: 16px;
     width: 150px;
     height: 50px;
     border-radius: 10px;
@@ -246,7 +246,6 @@ export const SmallCard = styled(Link) <{color1: string; color2: string; color3: 
     text-align: center;
     align-items: center;
     justify-content: center;
-    background-color: ${p => p.color2};
     box-shadow: ${theme.shadows.sm};
 
     transition: transform ${theme.timingFunctions.easeIn} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
@@ -422,7 +421,7 @@ const FavoriteAppClass = injectStyle("favorite-app", k => `
         border-radius: 99999px;
         box-shadow: rgba(0, 0, 0, 0.2) 0px 3px 5px -1px inset, rgba(0, 0, 0, 0.14) 0px 6px 10px 0px;
         display: flex;
-        /* TODO(Jonas): This should be calculated much better. */
+        background-color: var(--white);
         padding-left: 13px;
         align-items: center;
     }
