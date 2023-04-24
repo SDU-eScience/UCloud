@@ -480,7 +480,7 @@ const BlackLoginTextClass = injectStyleSimple("black-login-text", `
 `);
 
 function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JSX.Element {
-    return (<Box backgroundColor="#fff" height="100vh">
+    return (<Box backgroundColor="#fff">
         <Absolute right="1em" top=".5em">
             {!props.selection ? <div>
                 {!SUPPORT_EMAIL ? null : (
