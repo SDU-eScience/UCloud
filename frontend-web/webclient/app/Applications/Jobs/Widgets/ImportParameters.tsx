@@ -119,7 +119,7 @@ export const ImportParameters: React.FunctionComponent<{
     return <Box>
         <Label>Load parameters from a previous run:</Label>
         <Flex flexDirection="row" flexWrap="wrap">
-            <Button color="gray" backgroundColor="black"  mt="4px" height="45px" onClick={() => setImportDialogOpen(true)}>Import parameters</Button>
+            <Button color="gray" backgroundColor="white" mt="4px" height="45px" onClick={() => setImportDialogOpen(true)}><Icon name="importIcon" /> Import parameters</Button>
         </Flex>
 
         {messages.length === 0 ? null : (

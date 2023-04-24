@@ -2969,3 +2969,16 @@ export const warning = (props: any) => (
     />
   </svg>
 );
+
+export const importIcon = (props: any) => (
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        viewBox="0 0 19 24"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        fill="currentcolor"
+        {...props}
+    >
+        <path id="Icon_material-import-export" data-name="Icon material-import-export" d="M12.863,4.5,7.5,9.85h4.022v9.4H14.2V9.85h4.022Zm9.386,18.785v-9.4H19.567v9.4H15.545l5.363,5.35,5.363-5.35Z" transform="translate(-7.5 -4.5)"/>
+    </svg>
+);

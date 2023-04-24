@@ -50,12 +50,13 @@ export const Tool: React.FunctionComponent = () => {
     return (
         <MainContainer
             header={(
-                <Heading.h1>
+                <Heading.h2 style={{margin: 0}}>
                     <AppToolLogo type={"TOOL"} name={name} size={"64px"} />
                     {" "}
                     {toolTitle}
-                </Heading.h1>
+                </Heading.h2>
             )}
+            headerSize={86}
 
             sidebar={(
                 <VerticalButtonGroup>
@@ -115,7 +116,7 @@ export const Tool: React.FunctionComponent = () => {
                                         key={`${metadata.name}/${metadata.version}`}
                                         to={`/applications/studio/a/${metadata.name}`}
                                     >
-                                        <Flex>
+                                        <Flex style={{borderRadius: "8px", margin: "8px", padding: "4px", border: "1px solid var(--black)"}}>
                                             <AppToolLogo name={metadata.name} type={"APPLICATION"} />
                                             <Box ml={8}>
                                                 <Truncate width={300} cursor={"pointer"}>

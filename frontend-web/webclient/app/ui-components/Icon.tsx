@@ -48,7 +48,6 @@ export const IconClass = injectStyle("icon", k => `
         flex: none;
         vertical-align: middle;
         transition: transform .2s ease-in-out; 
-        --hoverColor: var(--black);
     }
     
     ${k}:hover {
@@ -68,6 +67,7 @@ export const IconClass = injectStyle("icon", k => `
 const Icon: React.FunctionComponent<IconBaseProps> = props => {
     const style: CSSProperties = unbox(props);
     if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;
+    else style["--hoverColor"] = "inherit";
     if (props.rotation) style.transform = `rotate(${props.rotation}deg)`;
     style.cursor = props.cursor ?? "inherit";
 

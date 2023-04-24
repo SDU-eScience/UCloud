@@ -8,7 +8,7 @@ export type LinkProps = LProps & BaseLinkProps & {
     active?: boolean;
 }
 
-const Link = ({active, ...props}: LinkProps): JSX.Element => {
+function Link({active, ...props}: LinkProps): JSX.Element {
     const style: CSSProperties = unbox(props);
     if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;
 
