@@ -45,7 +45,7 @@ export const Studio: React.FunctionComponent = () => {
 
     return (
         <MainContainer
-            header={<Heading.h1>Application Studio</Heading.h1>}
+            header={<Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Application Studio</Heading.h2>}
 
             sidebar={(
                 <VerticalButtonGroup>
@@ -66,7 +66,7 @@ export const Studio: React.FunctionComponent = () => {
                                     }
                                     dialogStore.success();
                                 }
-                            }}/>
+                            }} />
                     </label>
 
                     <label className={ButtonClass}>
@@ -100,12 +100,13 @@ export const Studio: React.FunctionComponent = () => {
                         setToolParameters(UCloud.compute.tools.listAll({page}));
                     }}
                     pageRenderer={page => (
-                        <Flex flexWrap={"wrap"} justifyContent={"center"}>
+                        <Flex flexWrap="wrap" justifyContent="center">
                             {page.items.map(tool =>
-                                <Link key={tool.description.info.name}
-                                                  to={`/applications/studio/t/${tool.description.info.name}`}>
-                                    <Flex>
-                                        <AppToolLogo type={"TOOL"} name={tool.description.info.name}/>
+                                <Link
+                                    key={tool.description.info.name}
+                                    to={`/applications/studio/t/${tool.description.info.name}`}>
+                                    <Flex style={{borderRadius: "8px", margin: "8px", padding: "4px", border: "1px solid var(--black)"}}>
+                                        <AppToolLogo type={"TOOL"} name={tool.description.info.name} />
                                         <Box ml={8}>
                                             <Truncate width={300} cursor={"pointer"}>
                                                 <b>{tool.description.title}</b>
