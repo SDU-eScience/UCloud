@@ -22,8 +22,6 @@ import AppStoreSectionType = compute.AppStoreSectionType;
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
-import {deepCopy} from "@/Utilities/CollectionUtilities";
-import {Gradient} from "@/Dashboard/Dashboard";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -123,7 +121,7 @@ export const ApplicationsOverview2: React.FunctionComponent = () => {
             )}
         </>
     );
-    return (<div className={classConcat(Gradient, AppOverviewMarginPaddingHack)}><MainContainer main={main} /></div>);
+    return (<div className={AppOverviewMarginPaddingHack}><MainContainer main={main} /></div>);
 };
 
 const AppOverviewMarginPaddingHack = injectStyleSimple("HACK-HACK-HACK", `

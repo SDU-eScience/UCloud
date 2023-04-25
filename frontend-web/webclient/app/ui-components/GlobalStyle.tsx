@@ -166,7 +166,7 @@ html {
     --FtFolderColor2: var(--midGray, #f00);
     --spinnerColor: var(--blue, #f00);
     --tableRowHighlight: var(--lightBlue, #f00);
-    --appCard: #ebeff3;
+    --appCard: #fafbfc;
     --wayfGreen: #c8dd51;
     --appStoreFavBg: #e8f1fc
     --invertedThemeColor: #fff;
@@ -187,7 +187,7 @@ html.light {
     --midGray: #c9d3df;
     --paginationDisabled: var(--lightGray, #f00);
     --paginationHoverColor: var(--lightBlue, #f00);
-    --appCard: #ebeff3;
+    --appCard: #fafbfc;
     --borderGray: var(--midGray, #f00);
     --invertedThemeColor: #000;
     --projectHighlight: #dfffee;
@@ -206,7 +206,7 @@ html.dark {
     --midGray: #555;
     --paginationDisabled: #111;
     --paginationHoverColor: #444;
-    --appCard: #131616;
+    --appCard: #1d1d1d;
     --borderGray: #111;
     --invertedThemeColor: #fff;
     --projectHighlight: #00c05a;

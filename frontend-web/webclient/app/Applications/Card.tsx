@@ -284,10 +284,6 @@ const TallApplicationCard = injectStyle("tall-application-card", k => `
         height: 52px;
     }
 
-    ${k}:hover {
-        /* TODO(Jonas): Missing inset box-shadow on hover. */
-    }
-
     ${k}[data-xl="true"] {
         height: 290px;
     }

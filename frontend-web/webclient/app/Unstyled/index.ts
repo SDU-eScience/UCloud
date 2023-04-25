@@ -13,7 +13,6 @@ export function classConcat(baseClass: string, extra: string | undefined): strin
     return baseClass + (extra ? " " + extra : "");
 }
 
-
 export function classConcatMult(baseClass: string, ...extra: (string | undefined)[]): string {
     return baseClass + " " + extra.filter(it => it).join(" ");
 }

@@ -32,7 +32,6 @@ export const HighlightedCard: React.FunctionComponent<{
     error?: string;
     color: ThemeColor;
     isLoading?: boolean;
-    insetShadow?: boolean;
     icon?: IconName;
     height?: string;
     minHeight?: string;
@@ -61,7 +60,6 @@ export const HighlightedCard: React.FunctionComponent<{
     width = "100%",
     minWidth,
     maxWidth,
-    insetShadow,
     onContextMenu,
     className,
 }) => (
@@ -71,7 +69,6 @@ export const HighlightedCard: React.FunctionComponent<{
             height={height}
             width={width}
             minWidth={minWidth}
-            insetShadow={insetShadow}
             minHeight={minHeight}
             maxHeight={maxHeight}
             maxWidth={maxWidth}

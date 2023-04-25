@@ -1230,7 +1230,7 @@ const RunningJobRank: React.FunctionComponent<{
     }, [job.id, rank]);
 
     return <>
-        <HighlightedCard insetShadow color={"purple"} isLoading={false}>
+        <HighlightedCard color={"purple"} isLoading={false}>
             <RunningJobRankWrapper className={expanded ? "expanded" : undefined}>
                 <div className="rank">
                     <Heading.h2>{rank + 1}</Heading.h2>

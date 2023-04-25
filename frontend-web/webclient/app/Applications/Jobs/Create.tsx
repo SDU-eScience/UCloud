@@ -304,7 +304,7 @@ export const Create: React.FunctionComponent = () => {
     return <MainContainer
         main={
             <>
-                <Box mx="50px">
+                <Box mx="50px" mt="32px">
                     <AppHeader slim application={application} flavors={appFlavors} allVersions={previousResp.data?.items ?? []} />
                 </Box>
                 <ContainerForText left>

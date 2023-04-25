@@ -371,17 +371,12 @@ const ToolGroup: React.FunctionComponent<{tag: string, refreshId: number}> = ({t
                             gridAutoFlow="column"
                         >
                             {page.items.map(application => {
-                                const [first, second, third] = getColorFromName(application.metadata.name);
                                 const withoutTag = removeTagFromTitle(tag, application.metadata.title);
                                 return (
                                     <div key={application.metadata.name}>
                                         <SmallCard
                                             title={withoutTag}
-                                            color1={first}
-                                            color2={second}
-                                            color3={third}
                                             to={Pages.runApplication(application.metadata)}
-                                            color="white"
                                         >
                                             <EllipsedText>{withoutTag}</EllipsedText>
                                         </SmallCard>

@@ -28,7 +28,7 @@ export const AppHeader: React.FunctionComponent<{
 
     return (
         <Flex flexDirection={"row"} ml={["0px", "0px", "0px", "0px", "0px", "50px"]}  >
-            <Box mr={16}>
+            <Box mr={16} mt="auto">
                 <AppToolLogo type={"APPLICATION"} name={props.application.metadata.name} size={size} />
             </Box>
             {/* minWidth=0 is required for the ellipsed text children to work */}
