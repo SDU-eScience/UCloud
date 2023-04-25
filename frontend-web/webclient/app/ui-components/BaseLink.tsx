@@ -10,6 +10,7 @@ export interface BaseLinkProps extends BoxProps {
     target?: string;
     children?: React.ReactNode;
     rel?: string;
+    title?: string;
 }
 
 export const BaseLinkClass = injectStyle("base-link", k => `
@@ -37,6 +38,7 @@ const BaseLink: React.FunctionComponent<BaseLinkProps> = props => {
         href={props.href}
         target={props.target}
         rel={props.rel}
+        title={props.title}
         {...extractEventHandlers(props)}
     />
 };

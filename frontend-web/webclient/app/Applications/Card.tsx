@@ -274,7 +274,7 @@ const TallApplicationCard = injectStyle("tall-application-card", k => `
 
     ${k} > div.image {
         width: 75px;
-        height: 62px;
+        height: 75px;
         margin-top: 30px;
         margin-bottom: 8px;
     }

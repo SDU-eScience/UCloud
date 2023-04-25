@@ -40,6 +40,7 @@ import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {validateMachineReservation} from "./Widgets/Machines";
 import {Resource} from "@/UCloud/ResourceApi";
 import {Spacer} from "@/ui-components/Spacer";
+import {UtilityBar} from "@/Playground/Playground";
 
 interface InsufficientFunds {
     why?: string;
@@ -305,7 +306,14 @@ export const Create: React.FunctionComponent = () => {
         main={
             <>
                 <Box mx="50px" mt="32px">
-                    <AppHeader slim application={application} flavors={appFlavors} allVersions={previousResp.data?.items ?? []} />
+                    <Spacer left={<AppHeader slim application={application} flavors={appFlavors} allVersions={previousResp.data?.items ?? []} />} right={<>
+                        {!application.metadata.website ? null : (
+                            <ExternalLink title="Documentation" href={application.metadata.website}>
+                                <Icon name="documentation" color="blue" />
+                            </ExternalLink>
+                        )}
+                        <UtilityBar callbacks={[]} operations={[]} searchEnabled={false} />
+                    </>} />
                 </Box>
                 <ContainerForText left>
                     <Markdown
@@ -322,11 +330,6 @@ export const Create: React.FunctionComponent = () => {
                 <ContainerForText>
                     <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
                         {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
-                        {!application.metadata.website ? null : (
-                            <ExternalLink href={application.metadata.website}>
-                                <Button color={"blue"}>Documentation</Button>
-                            </ExternalLink>
-                        )}
                         {isMissingConnection ?
                             <Box mt={32}>
                                 <Link to={"/providers/connect"}>

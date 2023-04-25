@@ -2982,3 +2982,16 @@ export const importIcon = (props: any) => (
         <path id="Icon_material-import-export" data-name="Icon material-import-export" d="M12.863,4.5,7.5,9.85h4.022v9.4H14.2V9.85h4.022Zm9.386,18.785v-9.4H19.567v9.4H15.545l5.363,5.35,5.363-5.35Z" transform="translate(-7.5 -4.5)"/>
     </svg>
 );
+
+export const documentation = (props: any) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 23.3 24"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        fill="currentcolor"
+        {...props}
+    >
+        <path id="Icon_open-document" data-name="Icon open-document" d="M0,0V24H23.3V12H9.984V0ZM13.312,0V9H23.3ZM3.328,6H6.656V9H3.328Zm0,6H6.656v3H3.328Zm0,6H16.64v3H3.328Z" />
+    </svg>
+);
