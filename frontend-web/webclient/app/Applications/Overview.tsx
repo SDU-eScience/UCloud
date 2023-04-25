@@ -1,14 +1,14 @@
-import {emptyPage, emptyPageV2} from "@/DefaultObjects";
+import {emptyPage} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {Box, Flex, Link} from "@/ui-components";
+import {Box, Divider, Flex, Link} from "@/ui-components";
 import Grid from "@/ui-components/Grid";
 import * as Heading from "@/ui-components/Heading";
 import {Spacer} from "@/ui-components/Spacer";
 import {EllipsedText} from "@/ui-components/Text";
 import theme from "@/ui-components/theme";
-import {AppCard, ApplicationCardType, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
+import {AppCard, ApplicationCardType, CardToolContainer, FavoriteApp, hashF, SmallCard, Tag} from "./Card";
 import * as Pages from "./Pages";
 import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
@@ -17,13 +17,11 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
+import AppStoreOverview = compute.AppStoreOverview;
+import AppStoreSectionType = compute.AppStoreSectionType;
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
-import {PageV2, provider} from "@/UCloud";
-import IntegrationApi = provider.im;
-import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
-import {BoxProps} from "@/ui-components/Box";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -41,79 +39,62 @@ function favoriteStatusKey(app: ApplicationSummaryWithFavorite): string {
 type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
 
 const ApplicationsOverview: React.FunctionComponent = () => {
-    const defaultTools = [
-        "BEDTools",
-        "Cell Ranger",
-        "HOMER",
-        "Kallisto",
-        "MACS2",
-        "nf-core",
-        "Salmon",
-        "SAMtools",
-        "Seqtk",
-        "Space Ranger",
-    ].sort();
-
-    const featuredTags = [
-        "Engineering",
-        "Data Analytics",
-        "Social Science",
-        "Applied Science",
-        "Natural Science",
-        "Development",
-        "Virtual Machines",
-        "Digital Humanities",
-        "Health Science",
-        "Bioinformatics"
-    ];
-
-    const [providers, fetchProviders] = useCloudAPI<PageV2<provider.IntegrationBrowseResponseItem>>(
+    const [sections, fetchOverview] = useCloudAPI<AppStoreOverview>(
         {noop: true},
-        emptyPageV2
+        {sections: []}
     );
 
     const [refreshId, setRefreshId] = useState<number>(0);
+
+    useEffect(() => {
+        fetchOverview(UCloud.compute.apps.appStoreOverview());
+    }, [refreshId]);
 
     useResourceSearch(ApiLike);
 
     useTitle("Applications");
     useSidebarPage(SidebarPages.AppStore);
-    const refresh = React.useCallback(() => {
-        setRefreshId(id => id + 1);
-    }, []);
+    const refresh = () => {
+        setRefreshId(refreshId + 1);
+    };
     useRefreshFunction(refresh);
 
     const [loadingCommand, invokeCommand] = useCloudCommand();
-    const [favoriteStatus, setFavoriteStatus] = useState<FavoriteStatus>({});
-
-    useEffect(() => {
-        fetchProviders(IntegrationApi.browse({}));
-    }, []);
+    const favoriteStatus = React.useRef<FavoriteStatus>({});
 
     const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
         if (!loadingCommand) {
             const key = favoriteStatusKey(app);
-            const isFavorite = key in favoriteStatus ? favoriteStatus[key].override : app.favorite;
-            const newFavorite = {...favoriteStatus};
-            newFavorite[key] = {override: !isFavorite, app};
-            setFavoriteStatus(newFavorite);
-
+            const isFavorite = favoriteStatus.current[key]?.override ?? app.favorite;
+            favoriteStatus.current[key] = {override: !isFavorite, app};
+            favoriteStatus.current = {...favoriteStatus.current};
             try {
                 await invokeCommand(UCloud.compute.apps.toggleFavorite({
                     appName: app.metadata.name,
                     appVersion: app.metadata.version
                 }));
             } catch (e) {
-                newFavorite[key] = {override: isFavorite, app};
-                setFavoriteStatus({...newFavorite});
+                favoriteStatus.current[key].override = !favoriteStatus.current[key].override;
+                favoriteStatus.current = {...favoriteStatus.current};
             }
         }
     }, [loadingCommand, favoriteStatus]);
 
+    const [favorites, fetchFavorites] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
+        {noop: true},
+        emptyPage,
+    );
+
+    useEffect(() => {
+        fetchFavorites(UCloud.compute.apps.retrieveFavorites({itemsPerPage: 100, page: 0}));
+    }, [refreshId]);
+
     const main = (
         <>
+            <Box mt="12px" />
             <TagGrid
                 tag={SPECIAL_FAVORITE_TAG}
+                items={favorites.data.items}
                 tagBanList={[]}
                 columns={7}
                 rows={3}
@@ -121,53 +102,39 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                 onFavorite={onFavorite}
                 refreshId={refreshId}
             />
-
-            <TagGrid
-                tag={"Featured"}
-                columns={7}
-                rows={3}
-                favoriteStatus={favoriteStatus}
-                onFavorite={onFavorite}
-                refreshId={refreshId}
-            />
-
-            {!inDevEnvironment() && !onDevSite() ? null :
-                providers.data.items.map(provider =>
+            <Divider mt="18px" />
+            {sections.data.sections.map(section =>
+                section.type === AppStoreSectionType.TAG ?
                     <TagGrid
-                        key={provider.providerTitle}
-                        tag={provider.providerTitle}
-                        columns={7}
-                        rows={1}
+                        key={section.name + section.type}
+                        tag={section.name}
+                        items={section.applications}
+                        columns={section.columns}
+                        rows={section.rows}
                         favoriteStatus={favoriteStatus}
                         onFavorite={onFavorite}
-                        tagBanList={defaultTools}
+                        tagBanList={[]}
                         refreshId={refreshId}
                     />
-                )
-            }
-
-            {featuredTags.map(tag =>
-                <TagGrid
-                    key={tag}
-                    tag={tag}
-                    columns={7}
-                    rows={1}
-                    favoriteStatus={favoriteStatus}
-                    onFavorite={onFavorite}
-                    tagBanList={defaultTools}
-                    refreshId={refreshId}
-                />
+                    :
+                    <ToolGroup items={section.applications} key={section.name + section.type} tag={section.name} />
             )}
-
-            {defaultTools.map(tag => <ToolGroup refreshId={refreshId} key={tag} tag={tag} />)}
         </>
     );
-    return (<MainContainer main={main} />);
+    return (<div className={AppOverviewMarginPaddingHack}><MainContainer main={main} /></div>);
 };
 
-function ToolGroupWrapper(props: React.PropsWithChildren<BoxProps>): JSX.Element {
-    return <Box className={ToolGroupWrapperClass} {...props} />
-}
+const AppOverviewMarginPaddingHack = injectStyleSimple("HACK-HACK-HACK", `
+/* HACK */
+    margin-top: -12px;
+    padding-top: 12px;
+/* HACK */
+`);
+
+const ScrollBoxClass = injectStyleSimple("scroll-box", `
+    overflow-x: auto;
+`);
+
 const ToolGroupWrapperClass = injectStyleSimple("tool-group-wrapper", `
     width: 100%;
     padding-bottom: 10px;
@@ -179,10 +146,6 @@ const ToolGroupWrapperClass = injectStyleSimple("tool-group-wrapper", `
     border-radius: 5px;
     background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxwYXR0ZXJuIHZpZXdCb3g9IjAgMCBhdXRvIGF1dG8iIHg9IjAiIHk9IjAiIGlkPSJwMSIgd2lkdGg9IjU2IiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoMTUpIHNjYWxlKDAuNSAwLjUpIiBoZWlnaHQ9IjEwMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+PHBhdGggZD0iTTI4IDBMMjggMzRMMCA1MEwwIDg0TDI4IDEwMEw1NiA4NEw1NiA1MEwyOCAzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iNCI+PC9wYXRoPjwvcGF0dGVybj48L2RlZnM+PHJlY3QgZmlsbD0idXJsKCNwMSkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjwvcmVjdD48L3N2Zz4=");
 `);
-
-function ToolImageWrapper(props: React.PropsWithChildren<BoxProps>): JSX.Element {
-    return <Box className={ToolImageWrapperClass} {...props} />
-}
 
 const ToolImageWrapperClass = injectStyleSimple("tool-image-wrapper", `
     display: flex;
@@ -210,88 +173,96 @@ const ToolImageClass = injectStyle("tool-image", k => `
 // will have this tag.
 const SPECIAL_FAVORITE_TAG = "\n\nFavorites\n\n";
 
-const TagGridTopBox = injectStyle("tag-grid-top-box", k => `
+const TagGridTopBoxClass = injectStyle("tag-grid-top-box", k => `
     ${k} {
         border-top-left-radius: 10px;
         border-top-right-radius: 10px;
         background-color: var(--lightGray);
     }
+
+    ${k}[data-favorite="true"] {
+        background-color: var(--appStoreFavBg);
+    }
 `);
 
-const TagGridBottomBox = injectStyle("tag-grid-bottom-box", k => `
+const TagGridBottomBoxClass = injectStyle("tag-grid-bottom-box", k => `
     ${k} {
         padding: 0px 10px 15px 10px;
         border-bottom-left-radius: 10px;
         border-bottom-right-radius: 10px;
         background-color: var(--lightGray);
     }
+
+    ${k}[data-favorite="true"] {
+        background-color: var(--appStoreFavBg);
+    }
+
+    ${k}[data-favorite="false"] {
+        overflow-x: scroll;
+    }
 `);
 
 
 interface TagGridProps {
     tag: string;
+    items: ApplicationSummaryWithFavorite[];
     tagBanList?: string[];
     columns: number;
     rows: number;
-    favoriteStatus: FavoriteStatus;
+    favoriteStatus: React.MutableRefObject<FavoriteStatus>;
     onFavorite: (app: ApplicationSummaryWithFavorite) => void;
     refreshId: number;
 }
 
-function TagGrid({tag, rows, tagBanList = [], favoriteStatus, onFavorite, refreshId}: TagGridProps): JSX.Element | null {
+const TagGrid: React.FunctionComponent<TagGridProps> = (
+    {tag, rows, items, tagBanList = [], favoriteStatus, onFavorite}: TagGridProps
+) => {
     const showFavorites = tag == SPECIAL_FAVORITE_TAG;
-    const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
-        {noop: true},
-        emptyPage,
-    );
 
-    useEffect(() => {
+    const filteredItems = React.useMemo(() => {
+        let _filteredItems = items
+            .filter(it => !it.tags.some(_tag => tagBanList.includes(_tag)))
+            .filter(item => {
+                const isFavorite = favoriteStatus.current[favoriteStatusKey(item)]?.override ?? item.favorite;
+                return isFavorite === showFavorites;
+            });
+
         if (showFavorites) {
-            fetchApplications(UCloud.compute.apps.retrieveFavorites({itemsPerPage: 10, page: 0}));
-        } else {
-            fetchApplications(UCloud.compute.apps.searchTags({query: tag, itemsPerPage: 100, page: 0}));
+            _filteredItems = _filteredItems.concat(Object.values(favoriteStatus.current).filter(it => it.override).map(it => it.app));
+            _filteredItems = _filteredItems.filter(it => favoriteStatus.current[favoriteStatusKey(it)]?.override !== false);
         }
-    }, [tag, refreshId]);
 
-    let filteredItems = appResp.data.items
-        .filter(it => !it.tags.some(_tag => tagBanList.includes(_tag)))
-        .filter(item => {
-            const isFavorite = favoriteStatus[favoriteStatusKey(item)]?.override ?? item.favorite;
-            return isFavorite === showFavorites;
-        });
+        // Remove duplicates (This can happen due to favorite cache)
+        {
+            const observed = new Set<string>();
+            const newList: ApplicationSummaryWithFavorite[] = [];
+            for (const item of _filteredItems) {
+                const key = favoriteStatusKey(item);
+                if (!observed.has(key)) {
+                    observed.add(key);
+                    newList.push(item);
+                }
+            }
+
+            return newList;
+        }
+    }, [items, favoriteStatus.current]);
+
+    if (filteredItems.length === 0) return null;
 
     if (showFavorites) {
-        filteredItems = filteredItems.concat(
-            Object.values(favoriteStatus)
-                .filter(it => it.override)
-                .map(it => it.app)
-        );
-
-        filteredItems = filteredItems.filter(it => favoriteStatus[favoriteStatusKey(it)]?.override !== false);
+        return <Flex overflowX="scroll" width="100%">
+            <Flex mx="auto" mb="16px">
+                {filteredItems.map(app =>
+                    <FavoriteApp key={app.metadata.name + app.metadata.version} name={app.metadata.name} version={app.metadata.version} onFavorite={() => onFavorite(app)} />
+                )}
+            </Flex>
+        </Flex>
     }
-
-    // Remove duplicates (This can happen due to favorite cache)
-    {
-        const observed = new Set<string>();
-        const newList: ApplicationSummaryWithFavorite[] = [];
-        for (const item of filteredItems) {
-            const key = favoriteStatusKey(item);
-            if (!observed.has(key)) {
-                observed.add(key);
-                newList.push(item);
-            }
-        }
-
-        filteredItems = newList;
-    }
-
-
-    filteredItems = filteredItems.sort((a, b) => a.metadata.title.localeCompare(b.metadata.title));
-    if (filteredItems.length === 0) return null;
 
     return (
         <>
-            <div className={TagGridTopBox}>
+            <div className={TagGridTopBoxClass} data-favorite={showFavorites}>
                 <Spacer
                     mt="15px" px="10px" alignItems={"center"}
                     left={<Heading.h2>{showFavorites ? "Favorites" : tag}</Heading.h2>}
@@ -304,47 +275,41 @@ function TagGrid({tag, rows, tagBanList = [], favoriteStatus, onFavorite, refres
                     )}
                 />
             </div>
-            <div className={TagGridBottomBox}>
+            <div className={TagGridBottomBoxClass} data-favorite={showFavorites}>
                 <Grid
                     pt="20px"
-                    gridGap="15px"
-                    gridTemplateRows={`repeat(${rows} , 1fr)`}
-                    gridTemplateColumns={"repeat(auto-fill, 400px)"}
-                    style={{gridAutoFlow: "column"}}
+                    gridGap="10px"
+                    gridTemplateRows={showFavorites ? undefined : `repeat(${rows} , 1fr)`}
+                    gridTemplateColumns={showFavorites ? "repeat(auto-fill, minmax(156px, 1fr))" : "repeat(auto-fill, 156px)"}
+                    style={{gridAutoFlow: showFavorites ? "row" : "column"}}
                 >
-                    {filteredItems.map(app => (
-                        <AppCard
-                            key={`${app.metadata.name}-${app.metadata.version}`}
-                            type={ApplicationCardType.TALL}
-                            onFavorite={() => onFavorite(app)}
-                            app={app}
-                            isFavorite={showFavorites}
-                            tags={app.tags}
-                        />
-                    ))}
+                    {filteredItems.map(app =>
+                        <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                            <AppCard
+                                type={ApplicationCardType.EXTRA_TALL}
+                                onFavorite={() => onFavorite(app)}
+                                app={app}
+                                isFavorite={app.favorite}
+                                tags={app.tags}
+                            />
+                        </Link>
+                    )}
                 </Grid>
             </div>
         </>
     );
-}
+};
 
-const ToolGroup: React.FunctionComponent<{tag: string, refreshId: number}> = ({tag, refreshId}) => {
-    const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
-        {noop: true},
-        emptyPage
-    );
-
-    useEffect(() => {
-        fetchApplications(UCloud.compute.apps.searchTags({query: tag, itemsPerPage: 100, page: 0}));
-    }, [tag, refreshId]);
-
-    const page = appResp.data;
-    const allTags = page.items.map(it => it.tags);
-    const tags = new Set<string>();
-    allTags.forEach(list => list.forEach(tag => tags.add(tag)));
+const ToolGroup: React.FunctionComponent<{tag: string, items: ApplicationSummaryWithFavorite[]}> = ({tag, items}) => {
+    const tags = React.useMemo(() => {
+        const allTags = items.map(it => it.tags);
+        const t = new Set<string>();
+        allTags.forEach(list => list.forEach(tag => t.add(tag)));
+        return t;
+    }, [items]);
 
     return (
-        <ToolGroupWrapper>
+        <div className={ToolGroupWrapperClass}>
             <Spacer
                 alignItems="center"
                 left={<Heading.h3>{tag}</Heading.h3>}
@@ -355,13 +320,13 @@ const ToolGroup: React.FunctionComponent<{tag: string, refreshId: number}> = ({t
                 )}
             />
             <Flex>
-                <ToolImageWrapper>
+                <div className={ToolImageWrapperClass}>
                     <div className={ToolImageClass}>
                         <AppToolLogo size="148px" name={tag.toLowerCase().replace(/\s+/g, "")} type={"TOOL"} />
                     </div>
-                </ToolImageWrapper>
+                </div>
                 <CardToolContainer>
-                    <Box overflowX="scroll">
+                    <div className={ScrollBoxClass}>
                         <Grid
                             py="10px"
                             pl="10px"
@@ -370,21 +335,24 @@ const ToolGroup: React.FunctionComponent<{tag: string, refreshId: number}> = ({t
                             gridGap="8px"
                             gridAutoFlow="column"
                         >
-                            {page.items.map(application => {
+                            {items.map(application => {
+                                const backgroundColor = getColorFromName(application.metadata.name);
                                 const withoutTag = removeTagFromTitle(tag, application.metadata.title);
                                 return (
-                                    <div key={application.metadata.name}>
-                                        <SmallCard
-                                            title={withoutTag}
-                                            to={Pages.runApplication(application.metadata)}
-                                        >
+                                    <SmallCard
+                                        key={application.metadata.name}
+                                        title={withoutTag}
+                                        to={Pages.runApplication(application.metadata)}
+                                        color="white"
+                                    >
+                                        <Box backgroundColor={backgroundColor} padding="16px" borderRadius="16px">
                                             <EllipsedText>{withoutTag}</EllipsedText>
-                                        </SmallCard>
-                                    </div>
+                                        </Box>
+                                    </SmallCard>
                                 );
                             })}
                         </Grid>
-                    </Box>
+                    </div>
                     <Flex flexDirection="row" alignItems="flex-start">
                         {[...tags].filter(it => it !== tag).map(tag => (
                             <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag} /></ShowAllTagItem>
@@ -392,7 +360,7 @@ const ToolGroup: React.FunctionComponent<{tag: string, refreshId: number}> = ({t
                     </Flex>
                 </CardToolContainer>
             </Flex>
-        </ToolGroupWrapper>
+        </div>
     );
 };
 
@@ -410,8 +378,10 @@ function removeTagFromTitle(tag: string, title: string): string {
     }
 }
 
-function getColorFromName(name: string): [string, string, string] {
+function getColorFromName(name: string): string {
     const hash = hashF(name);
     const num = (hash >>> 22) % (theme.appColors.length - 1);
-    return theme.appColors[num] as [string, string, string];
+    return theme.appColors[num][1];
 }
+
+export default ApplicationsOverview;

@@ -1,7 +1,8 @@
 import * as React from "react";
 
-const Applications = React.lazy(() => import("@/Applications/Browse"));
 const App = React.lazy(() => import("@/Applications/Studio/Applications"));
+const Applications = React.lazy(() => import("@/Applications/Browse"));
+const ApplicationsOverview = React.lazy(() => import("./Applications/Overview"));
 const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("@/Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
@@ -74,7 +75,6 @@ import {store} from "@/Utilities/ReduxUtilities";
 import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
 import {injectFonts} from "@/ui-components/GlobalStyle";
 import {SharesOutgoing} from "@/Files/SharesOutgoing";
-import {ApplicationsOverview2} from "./Applications/Overview2";
 import {TerminalContainer} from "@/Terminal/Container";
 import {LOGIN_REDIRECT_KEY} from "@/Login/Login";
 import AppRoutes from "./Routes";
@@ -115,7 +115,7 @@ const Core = (): JSX.Element => (
                         <Route path={AppRoutes.apps.applications()}
                             element={React.createElement(requireAuth(Applications))} />
                         <Route path={AppRoutes.apps.overview()}
-                            element={React.createElement(requireAuth(ApplicationsOverview2))} />
+                            element={React.createElement(requireAuth(ApplicationsOverview))} />
                         <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(Search))} />
 
                         {!inDevEnvironment() ? null :

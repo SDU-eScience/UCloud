@@ -3,7 +3,7 @@ import * as React from "react";
 import styled from "styled-components";
 import {Button, Flex, Icon, Relative} from "@/ui-components";
 import Box from "@/ui-components/Box";
-import Link from "@/ui-components/Link";
+import Link, {LinkProps} from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
 import {EllipsedText, TextClass} from "@/ui-components/Text";
 import theme from "@/ui-components/theme";
@@ -63,13 +63,11 @@ export const ApplicationCardContainer = injectStyle("application-card-container"
     }
 
     ${k} > ${AppCardBase}:first-child {
-        border: 1px solid var(--borderGray, #f00);
         border-top-left-radius: 5px;
         border-top-right-radius: 5px;
     }
 
     ${k} > ${AppCardBase} {
-        border: 1px solid var(--borderGray, #f00);
         border-top: 0;
     }
 
@@ -236,26 +234,31 @@ const CardToolContainerClass = injectStyleSimple("card-tool-container", `
     width: 100%;
 `);
 
-export const SmallCard = styled(Link)`
-    display: flex;
-    padding: 16px;
-    width: 150px;
-    height: 50px;
-    border-radius: 10px;
-    font-size: ${theme.fontSizes[2]}px;
-    text-align: center;
-    align-items: center;
-    justify-content: center;
-    box-shadow: ${theme.shadows.sm};
+export function SmallCard(props: LinkProps) {
+    return <Link className={SmallCardClass} {...props} />
+}
 
-    transition: transform ${theme.timingFunctions.easeIn} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
+const SmallCardClass = injectStyle("small-card", k => `
+    ${k} {
+        display: flex;
+        padding: 16px;
+        width: 150px;
+        height: 50px;
+        border-radius: 10px;
+        font-size: ${theme.fontSizes[2]}px;
+        text-align: center;
+        align-items: center;
+        justify-content: center;
+        box-shadow: ${theme.shadows.sm};
+        transition: transform ${theme.timingFunctions.easeIn} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
+    }
 
-    &:hover {
+    ${k}:hover {
         transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
         transform: translateY(-2px);
         color: var(--white, #f00);
     }
-`;
+`);
 
 const MultiLineTruncateClass = injectStyleSimple("multiline-truncate", `
     display: -webkit-box;
@@ -275,7 +278,7 @@ const TallApplicationCard = injectStyle("tall-application-card", k => `
     ${k} > div.image {
         width: 75px;
         height: 75px;
-        margin-top: 30px;
+        margin-top: 25px;
         margin-bottom: 8px;
     }
     
@@ -420,6 +423,10 @@ const FavoriteAppClass = injectStyle("favorite-app", k => `
         background-color: var(--white);
         padding-left: 13px;
         align-items: center;
+    }
+    
+    html.dark ${k} {
+        box-shadow: rgba(255, 255, 255, 0.2) 0px 3px 5px -1px, rgba(255, 255, 255, 0.14) 0px 6px 10px 0px;
     }
 `);
 

@@ -114,6 +114,7 @@ html {
     /* LIGHT */
     --gradientStart: #B6D8FB;
     --gradientEnd: #fff;    
+    --inputColor: #E9E9E9;
 
     /* FONT-SIZES */
     --secondaryText: 12px;
@@ -217,6 +218,7 @@ html.dark {
     --gradientEnd: #282C33;
     --sidebarColor: #141414;
     --sidebarSecondaryColor: #1D1D1D;
+    --inputColor: #282c35;
 }
 
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */

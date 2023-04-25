@@ -11,8 +11,12 @@ import {searchPage} from "@/Utilities/SearchUtilities";
 import {getQueryParamOrElse, RouterLocationProps} from "@/Utilities/URIUtilities";
 import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
 import * as Applications from "@/Applications";
-import {useResourceSearch} from "@/Resource/Search";
-import {ApiLike} from "@/Applications/Overview";
+import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
+
+export const ApiLike: ReducedApiInterface = {
+    routingNamespace: "applications",
+    titlePlural: "Applications"
+};
 
 function Search(props: SearchProps): JSX.Element {
     const match = useMatch("/:priority/*");

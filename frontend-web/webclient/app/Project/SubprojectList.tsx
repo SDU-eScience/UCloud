@@ -9,14 +9,14 @@ import {errorMessageOrDefault, preventDefault, stopPropagationAndPreventDefault}
 import {Operations, Operation} from "@/ui-components/Operation";
 import {ItemRenderer, ItemRow, StandardBrowse} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
-import {useCloudCommand} from "@/Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useDispatch} from "react-redux";
 import {dispatchSetProjectAction} from "./Redux";
 import {Toggle} from "@/ui-components/Toggle";
 import {ProjectBreadcrumbs} from "./Breadcrumbs";
-import {isAdminOrPI, OldProjectRole, projectRoleToString, projectRoleToStringIcon, useProjectFromParams, useProjectId} from "./Api";
+import api, {isAdminOrPI, OldProjectRole, Project, projectRoleToString, projectRoleToStringIcon, useProjectFromParams, useProjectId} from "./Api";
 import ProjectAPI from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {PaginationRequestV2} from "@/UCloud";
@@ -118,7 +118,26 @@ const projectOperations: ProjectOperation[] = [
 export default function SubprojectList(): JSX.Element | null {
     useTitle("Subproject");
     const navigate = useNavigate();
-    const {project, projectId, breadcrumbs, isPersonalWorkspace} = useProjectFromParams("Subprojects");
+    const projectId = useProjectId();
+    const [project, fetchProject] = useCloudAPI<Project | null>({noop: true}, null);
+    const isPersonalWorkspace = projectId == undefined;
+
+    const reload = React.useCallback(() => {
+        if (!isPersonalWorkspace && projectId) {
+            fetchProject(api.retrieve({
+                id: projectId,
+                includePath: true,
+                includeMembers: true,
+                includeArchived: true,
+                includeGroups: true,
+                includeSettings: true,
+            }));
+        }
+    }, [projectId]);
+
+    React.useEffect(() => {
+        reload();
+    }, [projectId]);
 
     const dispatch = useDispatch();
     const setProject = React.useCallback((id: string, title: string) => {
@@ -219,31 +238,20 @@ export default function SubprojectList(): JSX.Element | null {
         onSetArchivedStatus,
         startRename: setRenameId,
         setActiveProject: setProject,
-        isAdminOrPIForParent: isAdminOrPI(project?.status.myRole),
+        isAdminOrPIForParent: isAdminOrPI(project.data?.status.myRole),
     };
 
     if (isPersonalWorkspace) return null;
     return <MainContainer
+        header={<ProjectBreadcrumbs omitActiveProject allowPersonalProject={false} crumbs={[{title: "Subprojects"}]} />}
         main={
             isPersonalWorkspace || !projectId ? <Text fontSize={"24px"}>Missing subproject</Text> :
-                <>
-                    <ProjectBreadcrumbs omitActiveProject allowPersonalProject={false} crumbs={breadcrumbs} />
-                    <StandardBrowse
-                        reloadRef={reloadRef}
-                        generateCall={generateCall}
-                        pageRenderer={pageRenderer}
-                        toggleSet={toggleSet}
-                    />
-                </>
-        }
-        sidebar={
-            <Operations
-                location="SIDEBAR"
-                operations={projectOperations}
-                selected={toggleSet.checked.items}
-                extra={extra}
-                entityNameSingular={"Subproject"}
-            />
+                <StandardBrowse
+                    reloadRef={reloadRef}
+                    generateCall={generateCall}
+                    pageRenderer={pageRenderer}
+                    toggleSet={toggleSet}
+                />
         }
     />;
 

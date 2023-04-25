@@ -31,6 +31,7 @@ import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";
 import {isAdminOrPI, useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
+import {injectStyleSimple} from "@/Unstyled";
 
 const enterAnimation = keyframes`
   from {
@@ -143,22 +144,22 @@ const Container = styled.div`
   }
 `;
 
-const InfoWrapper = styled.div`
-  margin-top: 32px;
-  display: grid;
-  width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  grid-gap: 16px;
-  justify-content: center;
-`;
+const InfoWrapper = injectStyleSimple("info-wrapper", `
+    margin-top: 32px;
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-gap: 16px;
+    justify-content: center;
+`);
 
-const ContentWrapper = styled.div`
-  margin-top: 16px;
-  margin-bottom: 16px;
-
-  display: grid;
-  grid-gap: 16px;
-`;
+const ContentWrapper = injectStyleSimple("content-wrapper", `
+    margin-top: 16px;
+    margin-bottom: 16px;
+    
+    display: grid;
+    grid-gap: 16px;
+`);
 
 interface PropertiesProps<Res extends Resource> {
     api: ResourceApi<Res, never>;
@@ -311,7 +312,7 @@ export function ResourceProperties<Res extends Resource>(
                     </div>
                 </Flex>
 
-                <InfoWrapper>
+                <div className={InfoWrapper}>
                     {props.showProperties === false ? null :
                         <HighlightedCard color={"purple"} isLoading={false} title={"Properties"} icon={"properties"}>
                             <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
@@ -335,9 +336,9 @@ export function ResourceProperties<Res extends Resource>(
                         </HighlightedCard>
                     }
                     {infoChildrenResolved}
-                </InfoWrapper>
+                </div>
 
-                <ContentWrapper>
+                <div className={ContentWrapper}>
                     {!editPermissionsAllowed || props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
                         <HighlightedCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
                             <ResourcePermissionEditor reload={reload} entity={resource} api={api}
@@ -346,7 +347,7 @@ export function ResourceProperties<Res extends Resource>(
                         </HighlightedCard>
                     }
                     {childrenResolved}
-                </ContentWrapper>
+                </div>
             </div>
         </Container>
     </> : null;

@@ -26,8 +26,7 @@ export const InputClass = injectStyle("input", k => `
         display: block;
         font-family: inherit;
         color: var(--black);
-        /* TODO(Jonas): use var */
-        background: #E9E9E9;
+        background: var(--inputColor);
         margin: 0;
         border-width: 0px;
         
