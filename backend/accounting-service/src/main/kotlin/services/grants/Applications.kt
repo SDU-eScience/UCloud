@@ -95,7 +95,7 @@ class GrantApplicationService(
                     it.paysFor
                 }
 
-                val allocationRequestsGroup = if (actorAndProject.project == null) {
+                val allocationRequestsGroup = if (request.recipientType == "personalWorkspace") {
                     AllocationRequestsGroup.PERSONAL
                 } else {
                     AllocationRequestsGroup.PROJECT
@@ -104,8 +104,8 @@ class GrantApplicationService(
                 val results = session.sendPreparedStatement(
                     {
                         products.split {
-                            into("providers") {it.provider}
-                            into("category_names") { it.name}
+                            into("providers") { it.provider }
+                            into("category_names") { it.name }
                         }
                         setParameter("allocation_request_group", allocationRequestsGroup.name)
                     },
@@ -187,7 +187,10 @@ class GrantApplicationService(
             }
             if (recipient is GrantApplication.Recipient.NewProject) {
                 if (willResultInDuplicateProjectTitle(recipient.title, createRequest.document.parentProjectId!!)) {
-                    throw RPCException("Primary affiliation already has a subproject with this title.", HttpStatusCode.BadRequest)
+                    throw RPCException(
+                        "Primary affiliation already has a subproject with this title.",
+                        HttpStatusCode.BadRequest
+                    )
                 }
             }
         }
@@ -472,7 +475,7 @@ class GrantApplicationService(
                 "Applications without resource requests not allowed"
             )
         }
-        val validRequests = allocationRequests.map{ req ->
+        val validRequests = allocationRequests.map { req ->
             accounting.retrieveAllocationsInternal(
                 ActorAndProject(Actor.System, null),
                 WalletOwner.Project(req.grantGiver),
@@ -1196,7 +1199,7 @@ class GrantApplicationService(
                         HttpStatusCode.InternalServerError,
                         "Error in creating project and PI"
                     )
-                
+
                 Pair(createdProject, GrantApplication.Recipient.NewProject)
 
             }
@@ -1215,7 +1218,10 @@ class GrantApplicationService(
         }
 
         val requestItems = application.currentRevision.document.allocationRequests.map {
-            if (it.sourceAllocation == null ) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Source Allocations not chosen")
+            if (it.sourceAllocation == null) throw RPCException.fromStatusCode(
+                HttpStatusCode.BadRequest,
+                "Source Allocations not chosen"
+            )
             DepositToWalletRequestItem(
                 recipient = if (type == GrantApplication.Recipient.PersonalWorkspace) WalletOwner.User(workspaceId) else WalletOwner.Project(
                     workspaceId

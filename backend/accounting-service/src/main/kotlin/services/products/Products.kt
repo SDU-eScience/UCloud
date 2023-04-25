@@ -164,12 +164,6 @@ class ProductService(
         return db.withSession { session ->
             val itemsPerPage = request.normalize().itemsPerPage
 
-            val allocationRequestsGroup = if (actorAndProject.project == null) {
-                AllocationRequestsGroup.PERSONAL
-            } else {
-                AllocationRequestsGroup.PROJECT
-            }
-
             val rows = session.sendPreparedStatement(
                 {
                     setParameter("name_filter", request.filterName)
@@ -185,7 +179,6 @@ class ProductService(
                     setParameter("next_provider", nextParts?.get(0))
                     setParameter("next_category", nextParts?.get(1))
                     setParameter("next_name", nextParts?.get(2))
-                    setParameter("allocation_request_group", allocationRequestsGroup.name )
                 },
                 """
                     select accounting.product_to_json(
@@ -219,10 +212,6 @@ class ProductService(
                         (
                             :name_filter::text is null or
                             p.name = :name_filter
-                        ) and
-                        (
-                            pc.allow_allocation_requests_from = 'ALL'::accounting.allocation_requests_group or 
-                            pc.allow_allocation_requests_from = :allocation_request_group::accounting.allocation_requests_group
                         )
                     order by pc.provider, pc.category, p.name
                     limit $itemsPerPage;

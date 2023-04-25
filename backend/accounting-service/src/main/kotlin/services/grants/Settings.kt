@@ -31,6 +31,7 @@ val UserCriteria.id: String?
 
 class GrantSettingsService(
     private val db: DBContext,
+    private val applicationService: GrantApplicationService
 ) {
     suspend fun uploadRequestSettings(
         actorAndProject: ActorAndProject,
@@ -314,7 +315,7 @@ class GrantSettingsService(
 
     suspend fun browse(
         actorAndProject: ActorAndProject,
-        request: WithPaginationRequestV2
+        request: GrantsBrowseAffiliationsRequest
     ): PageV2<ProjectWithTitle> {
         val project = actorAndProject.project
 
@@ -339,7 +340,7 @@ class GrantSettingsService(
             emptyList()
         }
 
-        return db.paginateV2(
+        val result = db.paginateV2(
             actorAndProject.actor,
             request.normalize(),
             create = { session ->
@@ -392,6 +393,24 @@ class GrantSettingsService(
             },
             mapper = { _, rows -> rows.map { ProjectWithTitle(it.getString(0)!!, it.getString(1)!!) }}
         ).let { it.copy(items = (extraItems.toSet() + it.items.toSet()).toList()) }
+
+        return if (request.recipientId != null && request.recipientType != null) {
+            result.mapItemsNotNull { projectWithTitle ->
+                val products = applicationService.retrieveProducts(
+                    actorAndProject,
+                    GrantsBrowseProductsRequest(
+                        projectWithTitle.projectId,
+                        request.recipientType ?: "",
+                        request.recipientId ?: "",
+                        false
+                    )
+                )
+
+                if (products.isNotEmpty()) { projectWithTitle } else { null }
+            }
+        } else {
+            result
+        }
     }
 
     suspend fun fetchLogo(projectId: String): ByteArray? {
