@@ -160,7 +160,7 @@ function RefreshThing(): JSX.Element | null {
     const refresh = useSelector((it: ReduxObject) => it.header.refresh);
     const spin = useSelector((it: ReduxObject) => it.loading);
     const loading = useSelector((it: ReduxObject) =>  it.status.loading);
-    return <Icon cursor="pointer" size={20} onClick={refresh} spin={spin || loading} color="var(--blue)" name="refresh" />
+    return <Icon cursor="pointer" size={20} onClick={refresh} spin={spin || loading} hoverColor="blue" color="var(--blue)" name="refresh" />
 }
 
 export default Playground;

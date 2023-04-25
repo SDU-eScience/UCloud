@@ -32,7 +32,7 @@ import {
     ToggleSubProjectsRenamingRequest
 } from "@/Project/Grant";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import ProjectAPI, {OldProjectRole, Project, ProjectSpecification, useProjectId} from "@/Project/Api";
+import ProjectAPI, {OldProjectRole, Project, isAdminOrPI, useProjectId} from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProject} from "./cache";
@@ -75,33 +75,10 @@ const ActionBoxClass = injectStyle("action-box", k => `
     }
 `);
 
-enum SettingsPage {
-    AVAILABILITY = "availability",
-    INFO = "info",
-    GRANT_SETTINGS = "grant",
-    SUBPROJECTS = "subprojects"
-}
-
-const PageTab: React.FunctionComponent<{
-    page: SettingsPage,
-    title: string,
-    activePage: SettingsPage;
-}> = ({page, title, activePage}) => {
-    return <SelectableText mr={"1em"} selected={activePage === page}>
-        <Link to={`/project/settings/${page}?`}>
-            {title}
-        </Link>
-    </SelectableText>;
-};
-
 export const ProjectSettings: React.FunctionComponent = () => {
-
+    const projectId = useProjectId();
     const projectOps = useProject();
     const project = projectOps.fetch();
-    const projectId = useProjectId();
-
-    const params = useParams<{page?: SettingsPage;}>();
-    const page = params.page ?? SettingsPage.AVAILABILITY;
 
     useTitle("Project Settings");
     useSidebarPage(SidebarPages.Projects);
@@ -119,64 +96,62 @@ export const ProjectSettings: React.FunctionComponent = () => {
 
     if (!projectId || !project) return null;
 
+    console.log(projectId, project);
+
     const {status} = project;
 
     return (
         <MainContainer
+            key={project.id}
             header={<Flex>
                 <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Settings"}]} />
                 <UtilityBar searchEnabled={false} callbacks={{}} operations={[]} />
             </Flex>}
             headerSize={64}
-            main={
-                <div className={ActionContainer}>
-                    {!enabled.data.enabled ? null :
-                        <PageTab activePage={page} page={SettingsPage.GRANT_SETTINGS} title={"Grant Settings"} />
-                    }
-
-                    <ArchiveSingleProject
-                        isArchived={status.archived}
-                        projectId={projectId}
-                        projectRole={status.myRole!}
-                        title={project.specification.title}
-                        onSuccess={() => projectOps.reload()}
-                    />
+            main={!isAdminOrPI(status.myRole) ? (
+                <Heading.h1>Only project or admin and PIs can view settings.</Heading.h1>
+            ) : <div className={ActionContainer}>
+                <ArchiveSingleProject
+                    isArchived={status.archived}
+                    projectId={projectId}
+                    projectRole={status.myRole!}
+                    title={project.specification.title}
+                    onSuccess={() => projectOps.reload()}
+                />
+                <Divider />
+                <LeaveProject
+                    onSuccess={() => navigate("/")}
+                    projectTitle={project.specification.title}
+                    projectId={projectId}
+                    projectRole={status.myRole!}
+                />
+                <ChangeProjectTitle
+                    projectId={projectId}
+                    projectTitle={project.specification.title}
+                    onSuccess={() => projectOps.reload()}
+                />
+                {enabled.data.enabled ? <>
                     <Divider />
-                    <LeaveProject
-                        onSuccess={() => navigate("/")}
-                        projectTitle={project.specification.title}
-                        projectId={projectId}
-                        projectRole={status.myRole!}
-                    />
-                    <ChangeProjectTitle
-                        projectId={projectId}
-                        projectSpecification={project.specification}
-                        onSuccess={() => projectOps.reload()}
-                    />
-                    {enabled.data.enabled ? <>
-                        <Divider />
-                        <LogoAndDescriptionSettings />
-                        <GrantProjectSettings />
-                    </> : null}
-                    <SubprojectSettings
-                        projectId={projectId}
-                        projectRole={status.myRole!}
-                        setLoading={() => false}
-                    />
-                </div>
-            }
-            sidebar={null}
+                    <LogoAndDescriptionSettings />
+                    <GrantProjectSettings />
+                </> : null}
+                <SubprojectSettings
+                    projectId={projectId}
+                    projectRole={status.myRole!}
+                    setLoading={() => false}
+                />
+            </div>}
         />
     );
 };
 
 interface ChangeProjectTitleProps {
     projectId: string;
-    projectSpecification: ProjectSpecification;
+    projectTitle: string;
     onSuccess: () => void;
 }
 
-export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
+export function ChangeProjectTitle(props: ChangeProjectTitleProps): JSX.Element {
     const newProjectTitle = React.useRef<HTMLInputElement>(null);
     const [, invokeCommand] = useCloudCommand();
     const [saveDisabled, setSaveDisabled] = React.useState<boolean>(true);
@@ -190,9 +165,9 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
 
     useEffect(() => {
         setAllowRenaming(getRenamingStatusForSubProject({projectId: props.projectId}));
-        if (newProjectTitle.current) newProjectTitle.current.value = props.projectSpecification.title;
+        if (newProjectTitle.current) newProjectTitle.current.value = props.projectTitle;
         if (props.projectId === project.fetch().id) project.reload();
-    }, [props.projectId, props.projectSpecification]);
+    }, [props.projectId, props.projectTitle]);
 
     return (
         <Box flexGrow={1}>
@@ -236,7 +211,7 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
                             placeholder="New project title"
                             autoComplete="off"
                             onChange={() => {
-                                if (newProjectTitle.current?.value !== props.projectSpecification.title) {
+                                if (newProjectTitle.current?.value !== props.projectTitle) {
                                     setSaveDisabled(false);
                                 } else {
                                     setSaveDisabled(true);
@@ -302,7 +277,7 @@ export function getRenamingStatus(
     };
 }
 
-const SubprojectSettings: React.FC<AllowRenamingProps> = props => {
+function SubprojectSettings(props: AllowRenamingProps): JSX.Element {
     const [allowRenaming, setAllowRenaming] = useCloudAPI<AllowSubProjectsRenamingResponse, AllowSubProjectsRenamingRequest>(
         {noop: true},
         {allowed: false}
@@ -313,10 +288,10 @@ const SubprojectSettings: React.FC<AllowRenamingProps> = props => {
         setAllowRenaming(getRenamingStatusForSubProject({projectId: props.projectId}));
     }, []);
 
-    const toggleAndSet = async () => {
+    const toggleAndSet = React.useCallback(async () => {
         await callAPIWithErrorHandler(toggleRenaming({projectId: props.projectId}));
         setAllowRenaming(getRenamingStatusForSubProject({projectId: props.projectId}));
-    };
+    }, [props.projectId]);
 
     return <>
         {props.projectRole === OldProjectRole.USER ? null : (
@@ -416,7 +391,7 @@ interface ArchiveProjectProps {
     onSuccess: () => void;
 }
 
-export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
+export function ArchiveProject(props: ArchiveProjectProps): JSX.Element {
     const multipleProjects = props.projects.length > 1;
     const archived = props.projects.every(it => it.status.archived);
     let projectTitles = "";
@@ -501,7 +476,7 @@ interface LeaveProjectProps {
     onSuccess: () => void;
 }
 
-export const LeaveProject: React.FC<LeaveProjectProps> = props => {
+export function LeaveProject(props: LeaveProjectProps): JSX.Element {
     return (
         <ActionBox>
             <Box flexGrow={1}>

@@ -1,13 +1,16 @@
 import * as React from "react";
 import {LinkInfo, SidebarLinkColumn} from "@/ui-components/SidebarLink";
-import {useProjectId} from "./Api";
+import {isAdminOrPI, useProjectId} from "./Api";
 import AppRoutes from "@/Routes";
+import {useProject} from "./cache";
 
 export function ProjectLinks(): JSX.Element {
     const activeProjectId = useProjectId();
+    const project = useProject();
 
     const links: LinkInfo[] = React.useMemo(() => {
         const isPersonalWorkspace = !activeProjectId;
+        const adminOrPi = isAdminOrPI(project.fetch().status.myRole);
 
         const result: LinkInfo[] = [];
         result.push({
@@ -31,12 +34,14 @@ export function ProjectLinks(): JSX.Element {
             text: "Grant Applications",
             icon: "projects",
         });
-        result.push({
-            to: AppRoutes.project.settings(""),
-            text: "Settings",
-            icon: "projects",
-            disabled: isPersonalWorkspace
-        });
+        if (adminOrPi) {
+            result.push({
+                to: AppRoutes.project.settings(""),
+                text: "Settings",
+                icon: "projects",
+                disabled: isPersonalWorkspace
+            });
+        }
         result.push({
             to: AppRoutes.project.subprojects(),
             text: "Subprojects",
@@ -44,6 +49,6 @@ export function ProjectLinks(): JSX.Element {
             disabled: isPersonalWorkspace
         });
         return result;
-    }, [activeProjectId]);
+    }, [activeProjectId, project]);
     return <SidebarLinkColumn links={links} />
 }
