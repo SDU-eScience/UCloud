@@ -679,6 +679,36 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
     }, [templates.data]);
 
     React.useEffect(() => {
+        var recipient: Recipient;
+        switch (target) {
+            case RequestTarget.EXISTING_PROJECT: {
+                recipient = {
+                    type: "existingProject",
+                    id: Client.projectId ?? ""
+                };
+            } break;
+            case RequestTarget.NEW_PROJECT: {
+                const newProjectTitle = projectTitleRef.current?.value;
+                recipient = {
+                    type: "newProject",
+                    title: newProjectTitle ?? ""
+                };
+            } break;
+            case RequestTarget.PERSONAL_PROJECT: {
+                recipient = {
+                    type: "personalWorkspace",
+                    username: Client.username ?? "",
+                };
+            } break;
+            case RequestTarget.VIEW_APPLICATION: {
+                recipient = grantApplication.currentRevision.document.recipient;
+            } break;
+        }
+
+        grantApplication.currentRevision.document.recipient = recipient;
+    }, [target]);
+
+    React.useEffect(() => {
         if (!projectId && target === RequestTarget.EXISTING_PROJECT) {
             navigate("/project/grants/personal");
         }
@@ -699,6 +729,16 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
             );
         };
     }, [appId]);
+
+    React.useEffect(() => {
+        fetchGrantGivers(
+            browseAffiliations({
+                itemsPerPage: 250,
+                recipientId: getRecipientId(grantApplication.currentRevision.document.recipient),
+                recipientType: grantApplication.currentRevision.document.recipient.type
+            })
+        );
+    }, [grantApplication.currentRevision.document.recipient])
 
     const project = useProject();
     const isRecipient = checkIsGrantRecipient(target, grantApplication, isAdminOrPI(project.fetch().status.myRole));
@@ -761,10 +801,36 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                 return;
             }
 
+            let recipient: Recipient;
+            switch (target) {
+                case RequestTarget.EXISTING_PROJECT: {
+                    recipient = {
+                        type: "existingProject",
+                        id: Client.projectId ?? ""
+                    };
+                } break;
+                case RequestTarget.NEW_PROJECT: {
+                    const newProjectTitle = projectTitleRef.current?.value;
+                    recipient = {
+                        type: "newProject",
+                        title: newProjectTitle ?? ""
+                    };
+                } break;
+                case RequestTarget.PERSONAL_PROJECT: {
+                    recipient = {
+                        type: "personalWorkspace",
+                        username: Client.username ?? "",
+                    };
+                } break;
+                case RequestTarget.VIEW_APPLICATION: {
+                    recipient = grantApplication.currentRevision.document.recipient;
+                } break;
+            }
+
             const document: Document = {
                 referenceId: grantApplication.currentRevision.document.referenceId,
                 revisionComment,
-                recipient: grantApplication.currentRevision.document.recipient,
+                recipient: recipient,
                 allocationRequests: requestedResourcesByAffiliate,
                 form: toForm(target, grantApplication, formText),
                 parentProjectId: grantApplication.currentRevision.document.parentProjectId,
