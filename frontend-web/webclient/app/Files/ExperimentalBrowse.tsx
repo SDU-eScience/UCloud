@@ -43,9 +43,11 @@ import { Operation } from "@/ui-components/Operation";
 import { snackbarStore } from "@/Snackbar/SnackbarStore";
 import { Client } from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
-import {combineEventHandlers} from "recharts/types/util/ChartUtils";
-import container from "@/ui-components/Container";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
+import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
+import {AsyncCache} from "@/Utilities/AsyncCache";
+import {SvgCache} from "@/Utilities/SvgCache";
+import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 
 const ExperimentalBrowse: React.FunctionComponent = () => {
     const navigate = useNavigate();
@@ -92,224 +94,6 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
         main={<div ref={mountRef}/>}
     />;
 };
-
-class AsyncCache<V> {
-    private expiration: Record<string, number> = {};
-    private cache: Record<string, V> = {};
-    private inflight: Record<string, Promise<V>> = {};
-    private globalTtl: number | undefined = undefined;
-
-    constructor(opts?: {
-        globalTtl?: number;
-    }) {
-        this.globalTtl = opts?.globalTtl;
-    }
-
-    retrieveFromCacheOnly(name: string): V | undefined {
-        return this.cache[name];
-    }
-
-    retrieveWithInvalidCache(name: string, fn: () => Promise<V>, ttl?: number): [V | undefined, Promise<V>] {
-        const cached = this.cache[name];
-        if (cached) {
-            const expiresAt = this.expiration[name];
-            if (expiresAt !== undefined && timestampUnixMs() > expiresAt) {
-                delete this.cache[name];
-            } else {
-                return [cached, Promise.resolve(cached)];
-            }
-        }
-
-        const inflight = this.inflight[name];
-        if (inflight) return [cached, inflight];
-
-        const promise = fn();
-        this.inflight[name] = promise;
-        return [
-            cached,
-            promise
-                .then(r => {
-                    this.cache[name] = r;
-                    const actualTtl = ttl ?? this.globalTtl;
-                    if (actualTtl !== undefined) {
-                        this.expiration[name] = timestampUnixMs() + actualTtl;
-                    }
-                    return r;
-                })
-                .finally(() => delete this.inflight[name])
-        ];
-    }
-
-    retrieve(name: string, fn: () => Promise<V>, ttl?: number): Promise<V> {
-        return this.retrieveWithInvalidCache(name, fn, ttl)[1];
-    }
-}
-
-class ReactStaticRenderer {
-    private fragment = document.createDocumentFragment();
-
-    constructor(node: () => React.ReactElement) {
-        const fragment = document.createDocumentFragment();
-        const root = createRoot(fragment);
-
-        const promise = new Promise<void>((resolve, reject) => {
-            const Component: React.FunctionComponent<{ children: React.ReactNode }> = props => {
-                const div = useRef<HTMLDivElement | null>(null);
-                useLayoutEffect(() => {
-                    resolve();
-                }, []);
-
-                return <div ref={div}>{props.children}</div>;
-            };
-
-            root.render(<Component>{node()}</Component>);
-        });
-
-        promise.finally(() => {
-            this.fragment.append(fragment.cloneNode(true));
-            root.unmount();
-        });
-    }
-
-    clone(): Node {
-        return this.fragment.cloneNode(true);
-    }
-}
-
-// NOTE(Dan): Now why are we doing all of this when we could just be using SVGs? Because they are slow. Not when we
-// show off one or two SVGs, but when we start displaying 5 SVGs per item and the user is loading in hundreds of items.
-// Then the entire thing becomes a mess really quickly. And this isn't just a matter of rendering fewer DOM elements, we
-// are simply displaying too much vector graphics and the computer is definitely suffering under this. You could say
-// that it is the job of the browser to do this operation for us, but it just seems like the browser is incapable of
-// doing this well. This is most likely because the browser cannot guarantee that we do not attempt to update the SVG.
-// However, we know for a fact that we are not modifying the SVG in any way, as a result, we know that it is perfectly
-// safe to rasterize the entire thing and simply keep it as a bitmap.
-class SvgCache {
-    private cache = new AsyncCache<string>();
-
-    renderSvg(
-        name: string,
-        node: () => React.ReactElement,
-        width: number,
-        height: number,
-        colorHint?: string,
-    ): Promise<string> {
-        return this.cache.retrieve(name, () => {
-            // NOTE(Dan): This function is capable of rendering arbitrary SVGs coming from React and rasterizing them
-            // to a canvas and then later a bitmap (image). It does this by creating a new React root, which is used
-            // only to render the SVG once. Once the SVG has been rendered we send it to our rasterizer, cache the
-            // result, and then tear down the React root along with any other associated resources.
-            const fragment = document.createDocumentFragment();
-            const root = createRoot(fragment);
-
-            const promise = new Promise<string>((resolve, reject) => {
-                const Component: React.FunctionComponent<{ children: React.ReactNode }> = props => {
-                    const div = useRef<HTMLDivElement | null>(null);
-                    useLayoutEffect(() => {
-                        const svg = div.current!.querySelector<SVGElement>("svg");
-                        if (!svg) {
-                            reject();
-                        } else {
-                            this.rasterize(fragment.querySelector<SVGElement>("svg")!, width, height, colorHint)
-                                .then(r => {
-                                    resolve(r);
-                                })
-                                .catch(r => {
-                                    reject(r);
-                                });
-                        }
-                    }, []);
-
-                    return <div ref={div}>{props.children}</div>;
-                };
-
-                root.render(<Component>{node()}</Component>);
-            });
-
-            return promise.finally(() => {
-                root.unmount();
-            });
-        });
-    }
-
-    async renderIcon(
-        {name, color, color2, width, height}: {
-            name: IconName,
-            color: ThemeColor,
-            color2: ThemeColor,
-            width: number,
-            height: number
-        }
-    ): Promise<string> {
-        return await this.renderSvg(
-            `${name}-${color}-${color2}-${width}-${height}`,
-            () => <Icon name={name} color={color} color2={color2} width={width} height={height}/>,
-            width,
-            height,
-            getCssVar(color),
-        );
-    }
-
-    private rasterize(data: SVGElement, width: number, height: number, colorHint?: string): Promise<string> {
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-
-        // NOTE(Dan): For some reason, some of our SVGs don't have this. This technically makes them invalid, not sure
-        // why the browsers allow it regardless.
-        data.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-
-        // NOTE(Dan): CSS is not inherited, compute the real color.
-        data.setAttribute("color", colorHint ?? window.getComputedStyle(data).color);
-
-        // NOTE(Dan): The font-family is not (along with all other CSS) inherited into the image below. As a result,
-        // we must embed all of these resources directly into the svg. For the font, we simply choose to use a simple
-        // font similar to what we use. Note that it is complicated, although possible, to load the actual font. But
-        // we would need to actually embed it in the style sheet (as in the font data, not just font reference).
-        const svgNamespace = "http://www.w3.org/2000/svg";
-        const svgStyle = document.createElementNS(svgNamespace, 'style');
-        svgStyle.innerHTML = `
-            text {
-                font-family: Helvetica, sans-serif
-            }
-        `;
-        data.prepend(svgStyle);
-
-        const ctx = canvas.getContext("2d")!;
-
-        const image = new Image();
-        const svgBlob = new Blob([data.outerHTML], {type: "image/svg+xml;charset=utf-8"});
-        const svgUrl = URL.createObjectURL(svgBlob);
-
-        return new Promise((resolve, reject) => {
-            image.onerror = (e) => {
-                reject(e);
-            };
-
-            image.onload = () => {
-                ctx.drawImage(image, 0, 0);
-                URL.revokeObjectURL(svgUrl);
-
-                canvas.toBlob((canvasBlob) => {
-                    if (!canvasBlob) {
-                        reject();
-                    } else {
-                        resolve(URL.createObjectURL(canvasBlob));
-                    }
-                });
-            };
-
-            image.src = svgUrl;
-        });
-    }
-}
-
-function visualizeWhitespaces(value: string): string {
-    let result = value;
-    result = result.replace(/\n/g, "↵").replace(/\r/g, "↵").replace(/\t/g, "→→→→");
-    if (result.indexOf("  ") !== -1) result = result.replace(/ /g, "␣");
-    return result;
-}
 
 type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
 
@@ -366,7 +150,7 @@ class FileBrowser {
     private lastFetch: Record<string, number> = {};
     private inflightRequests: Record<string, Promise<boolean>> = {};
     private isFetchingNext: boolean = false;
-    private icons: SvgCache = new SvgCache();
+    private icons = new SvgCache();
 
     private emptyReasons: Record<string, EmptyReason> = {};
     private cachedNext: Record<string, string | null> = {};
@@ -2461,14 +2245,12 @@ class FileBrowser {
         this.contextMenuHandlers = [];
         this.contextMenu.style.removeProperty("transform");
         this.contextMenu.style.opacity = "0";
-        const handler = () => {
-            this.contextMenu.style.display = "none";
-            this.contextMenu.style.opacity = "1";
-            this.contextMenu.removeEventListener("transitionend", handler);
-            this.contextMenu.removeEventListener("transitioncancel", handler);
-        };
-        this.contextMenu.addEventListener("transitioncancel", handler);
-        this.contextMenu.addEventListener("transitionend", handler);
+        window.setTimeout(() => {
+            if (this.contextMenu.style.opacity === "0") {
+                this.contextMenu.style.display = "none";
+                this.contextMenu.style.opacity = "1";
+            }
+        }, 240);
     }
 
     private findActiveContextMenuItem(clearActive: boolean = true): number {
@@ -2835,7 +2617,6 @@ class FileBrowser {
     static maxRows = (Math.max(1080, window.screen.height) / FileBrowser.rowSize) + FileBrowser.extraRowsToPreRender;
 
     static styleInjected = false;
-
     static injectStyle() {
         if (FileBrowser.styleInjected) return;
         FileBrowser.styleInjected = true;
