@@ -194,6 +194,71 @@ class GrantApplicationService(
                 }
             }
         }
+
+        val providersAndCategories = request.items.flatMap { createRequest ->
+            createRequest.document.allocationRequests.map { Pair(it.provider, it.category) }
+        }
+
+        data class ProviderCategoryAllocationGroup(
+            val provider: String,
+            val category: String,
+            val allocationRequestsGroup: AllocationRequestsGroup
+        )
+
+        val providerCategoryAllocationGroups = db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("providers", providersAndCategories.map { it.first })
+                    setParameter("categories", providersAndCategories.map { it.second })
+                },
+                """
+                    select provider, category, allow_allocation_requests_from
+                    from accounting.product_categories
+                    where
+                        (provider, category) in (select unnest(:providers::text[]), unnest(:categories::text[]))
+                """
+            ).rows.mapNotNull {
+                ProviderCategoryAllocationGroup(
+                    it.getString(0)!!,
+                    it.getString(1)!!,
+                    it.getString(2)?.let { group -> AllocationRequestsGroup.valueOf(group) }!!
+                )
+            }
+        }
+
+        // Note(Brian): A bit messy. We are checking if any of the allocation requests are for recipients with another
+        // type than what is allowed by the provider.
+        request.items.forEach { createRequest ->
+            val recipient = createRequest.document.recipient
+            for (allocationRequest in createRequest.document.allocationRequests) {
+                val allowedAllocationGroups = providerCategoryAllocationGroups.filter {
+                    it.provider == allocationRequest.provider && it.category == allocationRequest.category
+                }.map { it.allocationRequestsGroup }
+
+                // Skip check if provider accepts allocation requests from all
+                if (allowedAllocationGroups.contains(AllocationRequestsGroup.ALL)) {
+                    continue
+                }
+
+                when (recipient) {
+                    is GrantApplication.Recipient.PersonalWorkspace ->
+                        if (!allowedAllocationGroups.contains(AllocationRequestsGroup.PERSONAL)) {
+                            throw RPCException(
+                                "Provider ${allocationRequest.provider} does not accept ${allocationRequest.category} allocations to personal workspaces",
+                                HttpStatusCode.Forbidden
+                            )
+                        }
+                    is GrantApplication.Recipient.NewProject, is GrantApplication.Recipient.ExistingProject ->
+                        if (!allowedAllocationGroups.contains(AllocationRequestsGroup.PROJECT)) {
+                            throw RPCException(
+                                "Provider ${allocationRequest.provider} does not accept ${allocationRequest.category} allocations to projects",
+                                HttpStatusCode.Forbidden
+                            )
+                        }
+                }
+            }
+        }
+
         val results = mutableListOf<Pair<Long, GrantNotification>>()
         db.withSession(remapExceptions = true) { session ->
             request.items.forEach { createRequest ->
@@ -209,7 +274,6 @@ class GrantApplicationService(
                         setParameter("grant_recipient", recipientToSqlField(recipient))
                         setParameter("grant_recipient_type", recipientToSqlType(recipient))
                         setParameter("sources", sourceProjects)
-
                     },
                     """
                         with ids as (
