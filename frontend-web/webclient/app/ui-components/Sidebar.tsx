@@ -223,18 +223,18 @@ export const sideBarMenuElements: {
 } = {
     guest: {
         items: [
-            {icon: "files", label: "Files", to: AppRoutes.login.login()},
-            {icon: "projects", label: "Projects", to: AppRoutes.login.login()},
+            {icon: "sidebarFiles", label: "Files", to: AppRoutes.login.login()},
+            {icon: "sidebarProjects", label: "Projects", to: AppRoutes.login.login()},
             {icon: "apps", label: "Apps", to: AppRoutes.login.login()}
         ], predicate: () => !Client.isLoggedIn
     },
     general: {
         items: [
-            {icon: "files", label: "Files", to: "/drives/"},
-            {icon: "projects", label: "Projects"},
+            {icon: "sidebarFiles", label: "Files", to: "/drives/"},
+            {icon: "sidebarProjects", label: "Projects"},
             {icon: "dashboard", label: "Resources"},
-            {icon: "appStore", label: "Apps", to: AppRoutes.apps.overview()},
-            {icon: "results", label: "Runs", to: "/jobs/"}
+            {icon: "sidebarAppStore", label: "Apps", to: AppRoutes.apps.overview()},
+            {icon: "sidebarRuns", label: "Runs", to: "/jobs/"}
         ], predicate: () => Client.isLoggedIn
     },
     auditing: {items: [], predicate: () => Client.isLoggedIn},

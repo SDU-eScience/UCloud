@@ -420,7 +420,7 @@ const FavoriteAppClass = injectStyle("favorite-app", k => `
         border-radius: 99999px;
         box-shadow: rgba(0, 0, 0, 0.2) 0px 3px 5px -1px inset, rgba(0, 0, 0, 0.14) 0px 6px 10px 0px;
         display: flex;
-        background-color: var(--white);
+        background-color: var(--fixedWhite);
         padding-left: 13px;
         align-items: center;
     }

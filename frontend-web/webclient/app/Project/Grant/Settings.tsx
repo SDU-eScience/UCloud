@@ -111,7 +111,7 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
     if (!enabled.data.enabled || !projectId) return null;
     return <Box>
         <Heading.h4>Logo for Project</Heading.h4>
-        Current Logo: <Logo projectId={projectId} size={"40px"}/> <br/>
+        Current Logo: <Logo projectId={projectId} size={"40px"} /> <br />
         <label className={ButtonClass}>
             Upload Logo
             <HiddenInputField
@@ -134,9 +134,9 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
                 }}
             />
         </label>
-        <Divider/>
+        <Divider />
         <Heading.h4>Description for Project</Heading.h4>
-        <DescriptionEditor templateDescription={descriptionField} onUploadDescription={onUploadDescription}/>
+        <DescriptionEditor templateDescription={descriptionField} onUploadDescription={onUploadDescription} />
     </Box>
 }
 
@@ -237,7 +237,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
             showSubprojects={true}
         />
 
-        <Divider/>
+        <Divider />
 
         <Heading.h4>Default Template for Grant Applications</Heading.h4>
         <TemplateEditor
@@ -259,39 +259,39 @@ const ExcludeListEditor: React.FunctionComponent<{
     return <>
         <Table mb={16}>
             <thead>
-            <TableRow>
-                <TableHeaderCell textAlign={"left"}>Email Domain</TableHeaderCell>
-                <TableHeaderCell />
-            </TableRow>
+                <TableRow>
+                    <TableHeaderCell textAlign={"left"}>Email Domain</TableHeaderCell>
+                    <TableHeaderCell />
+                </TableRow>
             </thead>
             <tbody>
-            {props.criteria.length === 0 && !showRequestFromEditor ? <>
-                <TableRow>
-                    <TableCell>No exclusions yet</TableCell>
-                    <TableCell />
-                </TableRow>
-            </> : null}
+                {props.criteria.length === 0 && !showRequestFromEditor ? <>
+                    <TableRow>
+                        <TableCell>No exclusions yet</TableCell>
+                        <TableCell />
+                    </TableRow>
+                </> : null}
 
-            {props.criteria.map((it, idx) => <>
-                <TableRow>
-                    <TableCell textAlign={"left"}>
-                        {it.type === "email" ? it.domain : null}
-                    </TableCell>
-                    <TableCell textAlign={"right"}>
-                        <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
-                    </TableCell>
-                </TableRow>
-            </>)}
-            {showRequestFromEditor ?
-                <UserExclusionRowEditor
-                    onSubmit={(c) => {
-                        props.onSubmit(c);
-                        setShowRequestFromEditor(false);
-                    }}
-                    onCancel={() => setShowRequestFromEditor(false)}
-                /> :
-                null
-            }
+                {props.criteria.map((it, idx) => <>
+                    <TableRow>
+                        <TableCell textAlign={"left"}>
+                            {it.type === "email" ? it.domain : null}
+                        </TableCell>
+                        <TableCell textAlign={"right"}>
+                            <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
+                        </TableCell>
+                    </TableRow>
+                </>)}
+                {showRequestFromEditor ?
+                    <UserExclusionRowEditor
+                        onSubmit={(c) => {
+                            props.onSubmit(c);
+                            setShowRequestFromEditor(false);
+                        }}
+                        onCancel={() => setShowRequestFromEditor(false)}
+                    /> :
+                    null
+                }
             </tbody>
         </Table>
         <Flex justifyContent={"center"} mb={32}>

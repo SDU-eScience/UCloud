@@ -3,7 +3,7 @@ import {initObject} from "@/DefaultObjects";
 import header, {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
 import status from "@/Navigation/Redux/StatusReducer";
 import * as ProjectRedux from "@/Project/Redux";
-import {Action, AnyAction, combineReducers, createStore, Store} from "redux";
+import {Action, AnyAction, combineReducers, legacy_createStore, Store} from "redux";
 import {composeWithDevTools} from "redux-devtools-extension";
 import avatar from "@/UserSettings/Redux/AvataaarReducer";
 import {terminalReducer} from "@/Terminal/State";
@@ -22,7 +22,7 @@ export function confStore(
         }
         return combinedReducers(state, action);
     };
-    return createStore<ReduxObject, AnyAction, {}, {}>(rootReducer, initialObject, composeWithDevTools(enhancers));
+    return legacy_createStore<ReduxObject, AnyAction, {}, {}>(rootReducer, initialObject, composeWithDevTools(enhancers));
 }
 
 export const store = confStore(initObject(), {
@@ -30,6 +30,7 @@ export const store = confStore(initObject(), {
     header,
     status,
     hookStore,
+    //sidebar,
     avatar,
     terminal: terminalReducer,
     loading,
