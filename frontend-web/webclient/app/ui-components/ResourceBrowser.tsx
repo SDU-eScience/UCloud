@@ -41,14 +41,25 @@ export interface EmptyReason {
     information?: string;
 }
 
+export interface RenderDimensions {
+    width: number;
+    height: number;
+    x: number;
+    y: number;
+}
+
 interface ResourceBrowserListenerMap<T> {
     "mount": () => void;
+    "unmount": () => void;
 
     "rowSelectionUpdated": () => void;
 
+    "beforeShortcut": (ev: KeyboardEvent) => void;
     "unhandledShortcut": (ev: KeyboardEvent) => void;
 
-    "renderRow": (entry: T, row: ResourceBrowserRow, containerWidth: number) => void;
+    "startRenderPage": () => void;
+    "renderRow": (entry: T, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
+    "endRenderPage": () => void;
 
     "open": (oldPath: string, path: string) => void;
     "wantToFetchNextPage": (path: string) => Promise<void>;
@@ -101,6 +112,7 @@ interface ResourceBrowseFeatures {
     showProjectSelector?: boolean;
     showStar?: boolean;
     renderSpinnerWhenLoading?: boolean;
+    breadcrumbsSeperatedBySlashes?: boolean;
 }
 
 export class ResourceBrowser<T> {
@@ -129,10 +141,10 @@ export class ResourceBrowser<T> {
     currentPath: string;
 
     // Cached values and temporary state for DOM events
-    private scrollingContainerWidth;
-    private scrollingContainerHeight;
-    private scrollingContainerTop;
-    private scrollingContainerLeft;
+    scrollingContainerWidth;
+    scrollingContainerHeight;
+    scrollingContainerTop;
+    scrollingContainerLeft;
     private processingShortcut: boolean = false;
     private ignoreScrollEvent = false;
     private ignoreRowClicksUntil: number = 0;
@@ -200,7 +212,7 @@ export class ResourceBrowser<T> {
         renderSpinnerWhenLoading: true, // automatically inserts the spinner graphic before invoking "renderEmptyPage"
     };
 
-    private listeners: Partial<ResourceBrowserListenerMap<T>> = {};
+    private listeners: Record<string, any[]> = {};
 
     constructor(root: HTMLElement) {
         this.root = root;
@@ -254,6 +266,18 @@ export class ResourceBrowser<T> {
             reason: this.root.querySelector(".page-empty .reason")!,
             providerReason: this.root.querySelector(".page-empty .provider-reason")!,
         };
+
+        const unmountInterval = window.setInterval(() => {
+            if (!this.root.isConnected) {
+                this.dispatchMessage("unmount", fn => fn());
+                window.clearInterval(unmountInterval);
+            }
+        }, 1000);
+
+        this.breadcrumbs.setAttribute(
+            "data-no-slashes",
+            (this.features.breadcrumbsSeperatedBySlashes === false).toString()
+        );
 
         if (this.features.locationBar) {
             // Render edit button for the location bar
@@ -477,7 +501,7 @@ export class ResourceBrowser<T> {
         const containerLeft = this.scrollingContainerLeft;
         const containerHeight = this.scrollingContainerHeight;
         const containerWidth = this.scrollingContainerWidth;
-        const approximateSizeForTitle = containerWidth * 0.56;
+        const approximateSizeForTitle = containerWidth * (ResourceBrowser.rowTitleSizePercentage / 100);
 
         // Determine the total size of the page and figure out where we are
         const totalSize = ResourceBrowser.rowSize * page.length;
@@ -518,20 +542,26 @@ export class ResourceBrowser<T> {
             const top = Math.min(totalSize - ResourceBrowser.rowSize, (firstRowToRender + i) * ResourceBrowser.rowSize);
             row.container.style.top = `${top}px`;
             row.title.innerHTML = "";
+            row.stat1.innerHTML = "";
+            row.stat2.innerHTML = "";
+            row.stat3.innerHTML = "";
         }
 
         this.renameField.style.display = "none";
 
         // Render the visible rows by iterating over all items
+        this.dispatchMessage("startRenderPage", fn => fn());
         for (let i = 0; i < page.length; i++) {
             const entry = page[i];
             const row = findRow(i);
             if (!row) continue;
 
+            const relativeX = 60;
+            const relativeY = parseInt(row.container.style.top.replace("px", ""));
+
             if (i === this.renameFieldIndex) {
                 this.renameField.style.display = "block";
-                const top = parseInt(row.container.style.top.replace("px", ""));
-                this.renameField.style.top = `${top + ((ResourceBrowser.rowSize - 30) / 2)}px`;
+                this.renameField.style.top = `${relativeY + ((ResourceBrowser.rowSize - 30) / 2)}px`;
                 this.renameField.style.width = approximateSizeForTitle + "px";
                 this.renameField.value = this.renameValue;
                 this.renameField.focus();
@@ -542,8 +572,19 @@ export class ResourceBrowser<T> {
             row.selected.checked = (this.isSelected[i] !== 0);
             row.container.classList.remove("hidden");
 
-            this.dispatchMessage("renderRow", fn => fn(entry, row, containerWidth));
+            const x = this.scrollingContainerLeft + relativeX;
+            const y = this.scrollingContainerTop + relativeY - firstVisiblePixel;
+            this.dispatchMessage("renderRow", fn => fn(
+                entry,
+                row,
+                {
+                    width: containerWidth,
+                    height: ResourceBrowser.rowSize,
+                    x, y
+                }
+            ));
         }
+        this.dispatchMessage("endRenderPage", fn => fn());
 
         if (page.length === 0) {
             const initialPage = this.currentPath;
@@ -590,14 +631,43 @@ export class ResourceBrowser<T> {
         }
     }
 
-    defaultTitleRenderer(title: string, maxSize: number): string {
-        const approximateSizeForTitle = maxSize * 0.56;
+    defaultTitleRenderer(title: string, dimensions: RenderDimensions): string {
+        const approximateSizeForTitle = dimensions.width * (ResourceBrowser.rowTitleSizePercentage / 100);
         const approximateSizePerCharacter = 7.1;
         if (title.length * approximateSizePerCharacter > approximateSizeForTitle) {
             title = title.substring(0, (approximateSizeForTitle / approximateSizePerCharacter) - 3) + "...";
         }
 
         return visualizeWhitespaces(title);
+    }
+
+    defaultIconRenderer(): [HTMLDivElement, (url: string) => void] {
+        const icon = document.createElement("div");
+        // NOTE(Dan): We have to use a div with a background image, otherwise users will be able to drag the
+        // image itself, which breaks the drag-and-drop functionality.
+        icon.style.width = "20px";
+        icon.style.height = "20px";
+        icon.style.backgroundSize = "contain";
+        icon.style.marginRight = "8px";
+        icon.style.display = "inline-block";
+        return [icon, (url) => icon.style.backgroundImage = `url(${url})`];
+    }
+
+    resetTitleComponent(element: HTMLElement) {
+        element.style.display = "none";
+    }
+
+    placeTitleComponent(element: HTMLElement, dimensions: RenderDimensions, estimatedHeight?: number) {
+        const height = estimatedHeight ?? 40;
+        element.style.left = dimensions.x + "px";
+        const absY = dimensions.y + (ResourceBrowser.rowSize - height) / 2;
+        element.style.top = absY + "px";
+        element.style.width = (dimensions.width * (ResourceBrowser.rowTitleSizePercentage / 100)) + "px";
+
+        if (absY >= this.scrollingContainerTop &&
+            absY <= this.scrollingContainerTop + this.scrollingContainerHeight) {
+            element.style.display = "block";
+        }
     }
 
     renderBreadcrumbs() {
@@ -1383,6 +1453,7 @@ export class ResourceBrowser<T> {
                     }
                 }
                 this.renderPage();
+                this.renderOperations();
             };
 
             const dragReleaseHandler = ev => {
@@ -1556,11 +1627,15 @@ export class ResourceBrowser<T> {
             }
         };
 
+        if (!this.contextMenuHandlers.length) {
+            this.dispatchMessage("beforeShortcut", fn => fn(ev));
+            if (ev.defaultPrevented) return;
+        }
+
         if (ev.ctrlKey || ev.metaKey) {
             let didHandle = true;
             switch (ev.code) {
-                case "KeyA": {
-                    if (this.contextMenuHandlers.length) return;
+                case "KeyA": { if (this.contextMenuHandlers.length) return;
 
                     relativeSelect(-1000000000, false);
                     relativeSelect(1000000000, true);
@@ -1866,6 +1941,32 @@ export class ResourceBrowser<T> {
         this.closeContextMenu();
     }
 
+    triggerOperation(predicate: (op: Operation<T, unknown>) => boolean): boolean {
+        const callbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn());
+        console.log(callbacks);
+        if (callbacks === null) return false;
+        const ops = this.dispatchMessage("fetchOperations", fn => fn());
+        console.log(ops);
+        for (const op of ops) {
+            let toCheck: Operation<T, unknown>[] = [];
+            if ("operations" in op) {
+                toCheck = op.operations;
+            } else {
+                toCheck = [op];
+            }
+            console.log(toCheck);
+
+            for (const child of toCheck) {
+                if (predicate(child)) {
+                    child.onClick(this.findSelectedEntries(), callbacks, this.cachedData[this.currentPath] ?? []);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     // Rename field event handlers
     private onRenameFieldKeydown(ev: KeyboardEvent) {
         ev.stopPropagation();
@@ -1907,20 +2008,50 @@ export class ResourceBrowser<T> {
         this.renameValue = this.renameField.value;
     }
 
+    // Minor utilities
+    createSpinner(size: number): Node {
+        const fragment = this.spinner.clone();
+        const parent = fragment.querySelector('[data-tag="loading-spinner"]')! as HTMLElement;
+        parent.style.width = `${size}px`;
+        parent.style.height = `${size}px`;
+
+        const spinner = fragment.querySelector("svg")!;
+        spinner.setAttribute("width", size.toString());
+        spinner.setAttribute("height", size.toString());
+        return fragment;
+    }
+
+    // NOTE(Dan): selectAndShow() requires that the matching row has been rendered at least once.
+    // If it has not been rendered, then we won't be able to allocate the physical row, which we need in order to
+    // scroll to it.
+    selectAndShow(predicate: (T) => boolean) {
+        const idx = this.findVirtualRowIndex(predicate);
+        if (idx !== null) {
+            this.ensureRowIsVisible(idx, true, true);
+            this.select(idx, SelectionMode.SINGLE);
+        }
+    }
+
     // Message passing required to control the component
     on<K extends keyof ResourceBrowserListenerMap<T>>(
         type: K,
         listener: ResourceBrowserListenerMap<T>[K],
     ) {
-        this.listeners[type] = listener;
+        let arr = this.listeners[type] ?? [];
+        this.listeners[type] = arr;
+        arr.push(listener);
     }
 
     private defaultHandlers: Partial<ResourceBrowserListenerMap<T>> = {
         open: doNothing,
         rowSelectionUpdated: doNothing,
         mount: doNothing,
+        unmount: doNothing,
         locationBarVisibilityUpdated: doNothing,
         sort: doNothing,
+        startRenderPage: doNothing,
+        endRenderPage: doNothing,
+        beforeShortcut: doNothing,
 
         renderLocationBar: prompt => {
             return { rendered: prompt, normalized: prompt };
@@ -1936,14 +2067,21 @@ export class ResourceBrowser<T> {
         type: K,
         invoker: (fn: ResourceBrowserListenerMap<T>[K]) => ReturnType<ResourceBrowserListenerMap<T>[K]>
     ): ReturnType<ResourceBrowserListenerMap<T>[K]> {
-        let listener = this.listeners[type] ?? this.defaultHandlers[type];
-        if (listener === undefined) {
-            throw "Missing listener for " + type;
+        let arr = this.listeners[type];
+        if (arr === undefined) {
+            const defaultHandler = this.defaultHandlers[type];
+            if (defaultHandler === undefined) throw "Missing listener for " + type;
+            arr = [defaultHandler];
         }
 
-        return invoker(listener);
+        let result: any;
+        for (const l2 of arr) {
+            result = invoker(l2);
+        }
+        return result;
     }
 
+    static rowTitleSizePercentage = 56;
     static rowSize = 55;
     static extraRowsToPreRender = 6;
     static maxRows = (Math.max(1080, window.screen.height) / ResourceBrowser.rowSize) + ResourceBrowser.extraRowsToPreRender;
@@ -2071,6 +2209,12 @@ export class ResourceBrowser<T> {
                 height: 35px;
                 margin-bottom: 8px;
             }
+            
+            .file-browser header ul[data-no-slashes="true"] li::before {
+                display: inline-block;
+                content: unset;
+                margin: 0;
+            }
 
             .file-browser header ul li::before {
                 display: inline-block;
@@ -2119,7 +2263,7 @@ export class ResourceBrowser<T> {
             .file-browser .row .title {
                 display: flex;
                 align-items: center;
-                width: 56%;
+                width: ${ResourceBrowser.rowTitleSizePercentage}%;
                 white-space: pre;
             }
 

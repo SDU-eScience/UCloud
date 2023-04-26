@@ -28,7 +28,7 @@ export class ReactStaticRenderer {
         });
     }
 
-    clone(): Node {
-        return this.fragment.cloneNode(true);
+    clone(): DocumentFragment {
+        return this.fragment.cloneNode(true) as DocumentFragment;
     }
 }

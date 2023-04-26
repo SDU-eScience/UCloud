@@ -1,0 +1,512 @@
+import * as React from "react";
+import {useLocation, useNavigate} from "react-router";
+import {useEffect, useLayoutEffect, useRef, useState} from "react";
+import {
+    div,
+    image,
+    EmptyReasonTag,
+    ResourceBrowser,
+    SelectionMode,
+} from "@/ui-components/ResourceBrowser";
+import {useDispatch} from "react-redux";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import MainContainer from "@/MainContainer/MainContainer";
+import {callAPI} from "@/Authentication/DataHook";
+import {api as FileCollectionsApi, FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
+import {AsyncCache} from "@/Utilities/AsyncCache";
+import {FindByStringId, PageV2} from "@/UCloud";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
+import {DELETE_TAG, ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
+import {Product, ProductStorage} from "@/Accounting";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {ProductSelector} from "@/Products/Selector";
+import {createRoot} from "react-dom/client";
+import {ThemeProvider} from "styled-components";
+import {theme} from "@/ui-components";
+import ProviderInfo from "@/Assets/provider_info.json";
+
+const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({ globalTtl: 500 });
+const supportByProvider = new AsyncCache<SupportByProvider<ProductStorage, FileCollectionSupport>>({
+    globalTtl: 60_000
+});
+
+const ExperimentalBrowse: React.FunctionComponent = () => {
+    const navigate = useNavigate();
+    const mountRef = useRef<HTMLDivElement | null>(null);
+    const browserRef = useRef<ResourceBrowser<FileCollection> | null>(null);
+    const dispatch = useDispatch();
+
+    useLayoutEffect(() => {
+        const mount = mountRef.current;
+        if (mount && !browserRef.current) {
+            const browser = new ResourceBrowser<FileCollection>(mount);
+            browserRef.current = browser;
+            browser.features = {
+                dragToSelect: true,
+                supportsMove: false,
+                supportsCopy: false,
+                locationBar: false,
+                showStar: false,
+                renderSpinnerWhenLoading: true,
+                breadcrumbsSeperatedBySlashes: false,
+            };
+
+            // Load products and initialize dependencies
+            // =========================================================================================================
+            let startCreation: () => void = doNothing;
+            let cancelCreation: () => void = doNothing;
+            const collectionBeingCreated = "collectionBeingCreated$$___$$";
+            const isCreatingPrefix = "creating-";
+            const dummyEntry: FileCollection = {
+                createdAt: timestampUnixMs(),
+                status: {},
+                specification: {title: "", product: { id: "", category: "", provider: "" }},
+                id: collectionBeingCreated,
+                owner: { createdBy: "", },
+                updates: [],
+                permissions: {myself: []}
+            };
+
+            const supportPromise = supportByProvider.retrieve("", () => {
+                return callAPI(FileCollectionsApi.retrieveProducts());
+            });
+
+            supportPromise.then(res => {
+                browser.renderOperations();
+
+                const creatableProducts: Product[] = [];
+                for (const provider of Object.values(res.productsByProvider)) {
+                    for (const {product, support} of provider) {
+                        if (support.collection.usersCanCreate) {
+                            creatableProducts.push(product);
+                        }
+                    }
+                }
+
+                const resourceCreator = resourceCreationWithProductSelector(
+                    browser,
+                    creatableProducts,
+                    dummyEntry,
+                    async (product) => {
+                        const temporaryFakeId = isCreatingPrefix + browser.renameValue + "-" + timestampUnixMs();
+                        const productReference = {
+                            id: product.name,
+                            category: product.category.name,
+                            provider: product.category.provider
+                        };
+
+                        const driveBeingCreated = {
+                            ...dummyEntry,
+                            id: temporaryFakeId,
+                            specification: {
+                                title: browser.renameValue,
+                                product: productReference
+                            }
+                        };
+
+                        browser.insertEntryIntoCurrentPage(driveBeingCreated);
+                        browser.renderPage();
+                        browser.selectAndShow(it => it === driveBeingCreated);
+
+                        try {
+                            const response = (await callAPI(FileCollectionsApi.create(bulkRequestOf({
+                                product: productReference,
+                                title: browser.renameValue
+                            })))).responses[0] as unknown as FindByStringId;
+
+                            driveBeingCreated.id = response.id;
+                            browser.renderPage();
+                        } catch (e) {
+                            snackbarStore.addFailure("Failed to create new drive. " + extractErrorMessage(e), false);
+                            browser.refresh();
+                            return;
+                        }
+                    }
+                );
+
+                startCreation = resourceCreator.startCreation;
+                cancelCreation = resourceCreator.cancelCreation;
+            });
+
+            // Operations
+            // =========================================================================================================
+            const startRenaming = (resource: FileCollection) => {
+                browser.showRenameField(
+                    it => it.id === resource.id,
+                    () => {
+                        const oldTitle = resource.specification.title;
+                        const page = browser.cachedData["/"] ?? [];
+                        const drive = page.find(it => it.id === resource.id);
+                        if (drive) {
+                            drive.specification.title = browser.renameValue;
+                            browser.dispatchMessage("sort", fn => fn(page));
+                            browser.renderPage();
+                            browser.selectAndShow(it => it.id === drive.id);
+
+                            callAPI(FileCollectionsApi.rename(bulkRequestOf({
+                                id: drive.id,
+                                newTitle: drive.specification.title,
+                            }))).catch(err => {
+                                snackbarStore.addFailure(extractErrorMessage(err), false);
+                                browser.refresh();
+                            });
+
+                            browser.undoStack.unshift(() => {
+                                callAPI(FileCollectionsApi.rename(bulkRequestOf({
+                                    id: drive.id,
+                                    newTitle: oldTitle
+                                })));
+
+                                drive.specification.title = oldTitle;
+                                browser.dispatchMessage("sort", fn => fn(page));
+                                browser.renderPage();
+                                browser.selectAndShow(it => it.id === drive.id);
+                            });
+                        }
+                    },
+                    doNothing,
+                    resource.specification.title,
+                );
+            };
+
+            browser.on("fetchOperationsCallback", () => {
+                const cachedSupport = supportByProvider.retrieveFromCacheOnly("");
+                const support = cachedSupport ?? {productsByProvider: {}};
+                const callbacks: ResourceBrowseCallbacks<FileCollection> = {
+                    supportByProvider: support,
+                    dispatch: dispatch,
+                    embedded: false,
+                    isWorkspaceAdmin: false,
+                    navigate: to => { navigate(to) },
+                    reload: () => browser.refresh(),
+                    startCreation(): void {
+                        startCreation();
+                    },
+                    cancelCreation: doNothing,
+                    startRenaming(resource: FileCollection): void {
+                        startRenaming(resource);
+                    },
+                    viewProperties(res: FileCollection): void {
+                        // TODO
+                    },
+                    commandLoading: false,
+                    invokeCommand: call => callAPI(call),
+                    api: FileCollectionsApi,
+                    isCreating: false
+                };
+
+                return callbacks;
+            });
+
+            browser.on("fetchOperations", () => {
+                const selected = browser.findSelectedEntries();
+                const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
+                return FileCollectionsApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected))
+            });
+
+            browser.on("unhandledShortcut", (ev) => {
+                let didHandle = true;
+                if (ev.ctrlKey || ev.metaKey) {
+                    switch (ev.code) {
+                        case "Backspace": {
+                            browser.triggerOperation(it => it.tag === DELETE_TAG);
+                            break;
+                        }
+
+                        default: {
+                            didHandle = false;
+                            break;
+                        }
+                    }
+                } else if (ev.altKey) {
+                    switch (ev.code) {
+                        default: {
+                            didHandle = false;
+                            break;
+                        }
+                    }
+                } else {
+                    switch (ev.code) {
+                        case "F2": {
+                            const selected = browser.findSelectedEntries();
+                            if (selected.length === 1) {
+                                startRenaming(selected[0]);
+                            }
+                            break;
+                        }
+
+                        case "Delete": {
+                            browser.triggerOperation(it => it.tag === DELETE_TAG);
+                            break;
+                        }
+
+                        default: {
+                            didHandle = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (didHandle) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                }
+            })
+
+            // Rendering of breadcrumbs
+            // =========================================================================================================
+            browser.on("generateBreadcrumbs", () => {
+                return [{ title: "Drives", absolutePath: "/" }];
+            });
+
+            // Rendering of rows and empty pages
+            // =========================================================================================================
+            browser.on("renderRow", (drive, row, dims) => {
+                const [icon, setIcon] = browser.defaultIconRenderer();
+                row.title.append(icon);
+
+                row.title.append(browser.defaultTitleRenderer(drive.specification.title, dims));
+                row.stat2.innerText = dateToString(drive.createdAt ?? timestampUnixMs());
+                row.stat3.append(providerIcon(drive.specification.product.provider));
+
+                if (drive.id.startsWith(isCreatingPrefix)) {
+                    row.stat1.append(browser.createSpinner(30));
+                }
+
+                browser.icons.renderIcon({
+                    name: "ftFileSystem",
+                    color: "iconColor",
+                    color2: "iconColor",
+                    height: 64,
+                    width: 64
+                }).then(setIcon);
+            });
+
+            browser.icons.renderIcon({
+                name: "ftFileSystem",
+                color: "iconColor",
+                color2: "iconColor",
+                height: 256,
+                width: 256
+            }).then(icon => {
+                const fragment = document.createDocumentFragment();
+                fragment.append(image(icon, {height: 60, width: 60}));
+                browser.defaultEmptyGraphic = fragment;
+            });
+
+            browser.on("renderEmptyPage", reason => {
+                // NOTE(Dan): The reasons primarily come from the prefetch() function which fetches the data. If you
+                // want to recognize new error codes, then you should add the logic in prefetch() first.
+                const e = browser.emptyPageElement;
+                switch (reason.tag) {
+                    case EmptyReasonTag.LOADING: {
+                        e.reason.append("We are fetching your drives...");
+                        break;
+                    }
+
+                    case EmptyReasonTag.EMPTY: {
+                        e.reason.append("This folder is empty");
+                        break;
+                    }
+
+                    case EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS: {
+                        e.reason.append("We could not find any data related to your drives.");
+                        e.providerReason.append(reason.information ?? "");
+                        break;
+                    }
+
+                    case EmptyReasonTag.UNABLE_TO_FULFILL: {
+                        e.reason.append("We are currently unable to show your drives. Try again later.");
+                        e.providerReason.append(reason.information ?? "");
+                        break;
+                    }
+                }
+            });
+
+            // Network requests
+            // =========================================================================================================
+            const defaultRetrieveFlags: { itemsPerPage: number } = {
+                itemsPerPage: 250
+            };
+            browser.on("open", (oldPath, newPath) => {
+                if (newPath !== "/") {
+                    navigate("/files-experimental?path=" + encodeURIComponent(`/${newPath}`));
+                    return;
+                }
+
+                collectionsOnOpen.retrieve("", () => {
+                    return callAPI(FileCollectionsApi.browse({
+                        ...defaultRetrieveFlags
+                    }))
+                }).then(res => {
+                    browser.registerPage(res, newPath, true);
+                    browser.renderPage();
+                })
+            });
+
+            browser.on("wantToFetchNextPage", async (path) => {
+                const result = await callAPI(
+                    FileCollectionsApi.browse({
+                        next: browser.cachedNext[path] ?? undefined,
+                        ...defaultRetrieveFlags,
+                    })
+                );
+
+                if (path !== browser.currentPath) return;
+
+                browser.registerPage(result, path, false);
+            });
+
+            // Utilities required for the ResourceBrowser to understand the structure of the file-system
+            // =========================================================================================================
+            // This usually includes short functions which describe when certain actions should take place and what
+            // the internal structure of a file is.
+            browser.on("pathToEntry", f => f.id);
+            browser.on("nameOfEntry", f => f.specification.title);
+            browser.on("sort", page => page.sort((a, b) => a.specification.title.localeCompare(b.specification.title)));
+
+            // Mount the browser
+            // =========================================================================================================
+            // This comment is here to make you realise you should not add code below it ;)
+            browser.mount();
+            browser.open("/");
+        }
+    }, []);
+
+    useRefreshFunction(() => {
+        browserRef.current?.refresh();
+    });
+
+    return <MainContainer
+        main={
+            <>
+                <div ref={mountRef}/>
+            </>
+        }
+    />;
+};
+
+export function resourceCreationWithProductSelector<T>(
+    browser: ResourceBrowser<T>,
+    products: Product[],
+    dummyEntry: T,
+    onCreate: (product: Product) => void,
+): { startCreation: () => void, cancelCreation: () => void } {
+    const productSelector = document.createElement("div");
+    productSelector.style.display = "none";
+    productSelector.style.position = "fixed";
+    document.body.append(productSelector);
+    const Component: React.FunctionComponent = () => {
+        return <ProductSelector
+            products={products}
+            selected={null}
+            onSelect={onProductSelected}
+            slim
+            type={"STORAGE"}
+        />;
+    };
+
+    let selectedProduct: Product | null = null;
+
+    const root = createRoot(productSelector);
+    root.render(<ThemeProvider theme={theme}><Component /></ThemeProvider>);
+
+
+    browser.on("startRenderPage", () => {
+        browser.resetTitleComponent(productSelector);
+    });
+
+    browser.on("renderRow", (entry, row, dims) => {
+        if (entry !== dummyEntry) return;
+        if (selectedProduct !== null) return;
+
+        browser.placeTitleComponent(productSelector, dims);
+    });
+
+    const isSelectingProduct = () => {
+        return (browser.cachedData[browser.currentPath] ?? []).some(it => it === dummyEntry);
+    }
+
+    browser.on("beforeShortcut", ev => {
+        if (ev.code === "Escape" && isSelectingProduct()) {
+            ev.preventDefault();
+
+            browser.removeEntryFromCurrentPage(it => it === dummyEntry);
+            browser.renderPage();
+        }
+    });
+
+    const startCreation = () => {
+        if (isSelectingProduct()) return;
+        selectedProduct = null;
+        browser.insertEntryIntoCurrentPage(dummyEntry);
+        browser.renderPage();
+    };
+
+    const cancelCreation = () => {
+        browser.removeEntryFromCurrentPage(it => it === dummyEntry);
+        browser.renderPage();
+    };
+
+    const onProductSelected = (product: Product) => {
+        selectedProduct = product;
+        browser.showRenameField(
+            it => it === dummyEntry,
+            () => {
+                browser.removeEntryFromCurrentPage(it => it === dummyEntry);
+                onCreate(product);
+            },
+            () => {
+                browser.removeEntryFromCurrentPage(it => it === dummyEntry);
+            },
+            ""
+        );
+    };
+
+    const onOutsideClick = (ev: MouseEvent) => {
+        if (selectedProduct === null && isSelectingProduct()) {
+            cancelCreation();
+        }
+    };
+
+    document.body.addEventListener("click", onOutsideClick);
+
+    browser.on("unmount", () => {
+        document.body.removeEventListener("click", onOutsideClick);
+        root.unmount();
+    });
+
+
+    return {startCreation, cancelCreation};
+}
+
+export function providerIcon(providerId: string): HTMLElement {
+    const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
+    const outer = div("");
+    outer.style.background = "var(--blue)";
+    outer.style.borderRadius = "8px";
+    outer.style.padding = "5px";
+    outer.style.width = "40px";
+    outer.style.height = "40px";
+
+    const inner = div("");
+    inner.style.backgroundSize = "contain";
+    inner.style.width = "100%";
+    inner.style.height = "100%";
+    inner.style.fontSize = "30px";
+    inner.style.color = "white"
+    if (myInfo) {
+        inner.style.backgroundImage = `url('/Images/${myInfo.logo}')`;
+    } else {
+        inner.style.marginTop = "-8px";
+        inner.style.marginLeft = "-5px";
+        inner.append((providerId[0] ?? "-").toUpperCase());
+    }
+
+    outer.append(inner);
+    return outer;
+}
+
+export default ExperimentalBrowse;

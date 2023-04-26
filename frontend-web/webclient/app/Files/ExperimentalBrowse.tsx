@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useLocation, useNavigate} from "react-router";
-import {useLayoutEffect, useRef} from "react";
+import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {useDispatch} from "react-redux";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -60,6 +60,11 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     const browserRef = useRef<ResourceBrowser<UFile> | null>(null);
     const openTriggeredByPath = useRef<string | null>(null);
     const dispatch = useDispatch();
+    const isInitialMount = useRef<boolean>(true);
+    useEffect(() => {
+        isInitialMount.current = false;
+    }, []);
+
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -497,9 +502,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     dispatch: dispatch,
                     embedded: false,
                     isWorkspaceAdmin: false,
-                    navigate: () => {
-                        // TODO
-                    },
+                    navigate: to => navigate(to),
                     reload: () => browser.refresh(),
                     setSynchronization(file: UFile, shouldAdd: boolean): void {
                         // TODO
@@ -581,18 +584,8 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             browser.on("renderRow", (file, row, containerWidth) => {
                 row.container.setAttribute("data-file", file.id);
 
-                const fileIcon = document.createElement("div");
-                {
-                    // TODO(Dan): This seems like it might be useful in more places than just the file browser
-                    // NOTE(Dan): We have to use a div with a background image, otherwise users will be able to drag the
-                    // image itself, which breaks the drag-and-drop functionality.
-                    fileIcon.style.width = "20px";
-                    fileIcon.style.height = "20px";
-                    fileIcon.style.backgroundSize = "contain";
-                    fileIcon.style.marginRight = "8px";
-                    fileIcon.style.display = "inline-block";
-                }
-                row.title.append(fileIcon);
+                const [icon, setIcon] = browser.defaultIconRenderer();
+                row.title.append(icon);
 
                 row.title.append(browser.defaultTitleRenderer(fileName(file.id), containerWidth));
                 row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
@@ -637,7 +630,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
 
                 renderFileIcon(file).then(url => {
                     if (isOutOfDate()) return;
-                    fileIcon.style.backgroundImage = `url("${url}")`;
+                    setIcon(url);
                 });
             });
 
@@ -869,7 +862,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 if (openTriggeredByPath.current === newPath) {
                     openTriggeredByPath.current = null;
                 } else {
-                    navigate("?path=" + encodeURIComponent(newPath));
+                    if (!isInitialMount.current) navigate("?path=" + encodeURIComponent(newPath));
                 }
 
                 dispatch({
@@ -1008,7 +1001,6 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             // =========================================================================================================
             // This usually includes short functions which describe when certain actions should take place and what
             // the internal structure of a file is.
-
             browser.on("pathToEntry", f => f.id);
             browser.on("nameOfEntry", f => fileName(f.id));
             browser.on("sort", page => page.sort((a, b) => a.id.localeCompare(b.id)));
