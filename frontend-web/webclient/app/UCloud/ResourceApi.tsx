@@ -129,6 +129,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     navigate: NavigateFunction;
     supportByProvider: SupportByProvider;
     isWorkspaceAdmin: boolean;
+    inPopIn?: boolean;
 }
 
 export interface SortFlags {
@@ -202,6 +203,7 @@ export abstract class ResourceApi<Res extends Resource,
         closeProperties?: () => void;
         api: ResourceApi<Res, Prod, Spec, Update, Flags, Status, Support>;
         embedded?: boolean;
+        inPopIn?: boolean;
     }> = props => <ResourceProperties {...props} api={this} />
 
     protected constructor(namespace: string) {

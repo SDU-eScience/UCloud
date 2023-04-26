@@ -39,6 +39,7 @@ import syncthingScreen2 from "@/Assets/Images/syncthing/syncthing-2.png";
 import syncthingScreen3 from "@/Assets/Images/syncthing/syncthing-3.png";
 import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 // UI state management
 // ================================================================================
@@ -249,7 +250,7 @@ export const Overview: React.FunctionComponent = () => {
 
     const provider = getQueryParam(location.search, "provider");
 
-    const [selectedProduct, setSelectedProduct] = useState<UCloud.compute.ComputeProductSupportResolved|null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<UCloud.compute.ComputeProductSupportResolved | null>(null);
 
     if (!provider) {
         navigate("/drives");
@@ -362,7 +363,7 @@ export const Overview: React.FunctionComponent = () => {
                 onSelectRestriction={file => file.status.type === "DIRECTORY" && file.specification.product.id !== "share"}
                 onSelect={async (res) => {
                     if (res.specification.product.provider != provider) {
-                         snackbarStore.addFailure("Only folders hosted at the same provider as the Syncthing server can be added", false);
+                        snackbarStore.addFailure("Only folders hosted at the same provider as the Syncthing server can be added", false);
                         return;
                     }
 
@@ -561,7 +562,7 @@ const DeviceRenderer: ItemRenderer<SyncthingDevice> = {
             copyToClipboard({value: resource.deviceId, message: "Device ID copied to clipboard!"});
         }, [resource.deviceId]);
 
-        const trigger = <DeviceBox onClick={doCopyId}><code>{resource.deviceId.split("-")[0]}</code></DeviceBox>;
+        const trigger = <div className={DeviceBox} onClick={doCopyId}><code>{resource.deviceId.split("-")[0]}</code></div>;
         return <Tooltip trigger={trigger}>Copy to clipboard</Tooltip>;
     }
 };
@@ -1070,22 +1071,32 @@ const TwoPanelLayout = styled.div`
   }
 `;
 
-const TutorialList = styled.ol`
-  padding-top: 0.5em;
+function TutorialList(props: React.PropsWithChildren): JSX.Element {
+    return <ol className={TutorialListClass} {...props} />
+}
 
-  & > li {
-    padding: 0 0 1.5em 0.5em;
-  }
-`;
+const TutorialListClass = injectStyle("tutorial-list", k => `
+    ${k} {
+        padding-top: 0.5em;
+    }
 
-const Screenshot = styled(Image)`
+    ${k} > li {
+        padding: 0 0 1.5em 0.5em;
+    }
+`);
+
+function Screenshot(props: {src: string}): JSX.Element {
+    return <Image className={ScreenshotClass} src={props.src} />
+}
+
+const ScreenshotClass = injectStyleSimple("screenshot", `
     border: 3px solid var(--gray);
     max-height: 250px;
-`;
+`);
 
-const DeviceBox = styled.div`
+const DeviceBox = injectStyleSimple("device-box", `
     cursor: pointer;
     user-select: none;
-`;
+`);
 
 export default Overview;

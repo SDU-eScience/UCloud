@@ -19,7 +19,7 @@ import {
     sizeToString
 } from "@/Utilities/FileUtilities";
 import {
-    displayErrorMessageOrDefault, doNothing, extensionFromPath, inDevEnvironment, 
+    displayErrorMessageOrDefault, doNothing, extensionFromPath, inDevEnvironment,
     onDevSite,
     prettierString, removeTrailingSlash
 } from "@/UtilityFunctions";

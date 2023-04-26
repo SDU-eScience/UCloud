@@ -279,7 +279,7 @@ function SimpleWalletView(props: {wallets: Wallet[];}): JSX.Element {
                         <ResourceProgress width={mapped.resourceText.length * 7.3 + "px"} value={mapped.asPercent} text={mapped.resourceText} />
                     </>}
                 >
-                    <VisualizationSection><WalletViewer wallet={wallet} /></VisualizationSection>
+                    <div className={VisualizationSection}><WalletViewer wallet={wallet} /></div>
                 </Accordion>
             );
         })}

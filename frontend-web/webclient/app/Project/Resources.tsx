@@ -69,11 +69,11 @@ filterPills.push(props =>
 filterPills.push(props =>
     <ValuePill {...props} propertyName={"filterAllocation"} showValue={false} icon={"grant"} title={"Allocation"} />);
 
-const ResourcesGrid = styled.div`
+const ResourcesGrid = injectStyleSimple("resource-grid", `
     display: grid;
     grid-template-columns: 1fr;
     grid-gap: 16px;
-`;
+`);
 
 const Resources: React.FunctionComponent = () => {
 
@@ -153,14 +153,14 @@ const Resources: React.FunctionComponent = () => {
                 sortDirection={"ascending"}
                 onSortUpdated={doNothing}
             />}
-            main={<ResourcesGrid>
+            main={<div className={ResourcesGrid}>
                 <Grid gridGap={"16px"}>
                     {maximizedUsage == null ? null :
                         <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
                             onMaximizeToggle={() => onUsageMaximize(maximizedUsage)} dateRange={dateRange} />
                     }
                     {maximizedUsage != null ? null :
-                        <VisualizationSection>
+                        <div className={VisualizationSection}>
                             {usage.data.charts.map((it, idx) => {
                                 const count = breakdowns.data.charts.filter(bd => bd.type == it.type).length;
                                 const donuts = breakdowns.data.charts.filter(bd =>
@@ -198,20 +198,20 @@ const Resources: React.FunctionComponent = () => {
                                     </Flex>
                                 </HighlightedCard>
                             )}
-                        </VisualizationSection>
+                        </div>
                     }
                 </Grid>
-            </ResourcesGrid>}
+            </div>}
         />
     );
 };
 
-export const VisualizationSection = styled.div`
+export const VisualizationSection = injectStyleSimple("visualization-section", `
     display: grid;
     grid-gap: 16px;
     padding: 10px 0;
     grid-template-columns: repeat(auto-fill, 400px);
-`;
+`);
 
 const UsageChartStyle = styled.div`
     .usage-chart {

@@ -9,6 +9,7 @@ import {dispatchSetProjectAction} from "./Redux";
 import {Box, Button} from "@/ui-components";
 import MainContainer from "@/MainContainer/MainContainer";
 import Spinner from "@/LoadingIcon/LoadingIcon";
+import {injectStyleSimple} from "@/Unstyled";
 
 export const AcceptInviteLink: React.FunctionComponent = () => {
     const navigate = useNavigate();
@@ -17,8 +18,8 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
     const locationParams = useParams<{id: string;}>();
     let token = locationParams.id ? decodeURIComponent(locationParams.id) : undefined;
 
-    const [acceptedInvite, acceptInvite] = useCloudAPI<AcceptInviteLinkResponse|null>({noop: true}, null);
-    const [linkInfo, fetchLinkInfo] = useCloudAPI<RetrieveInviteLinkInfoResponse|null>({noop: true}, null);
+    const [acceptedInvite, acceptInvite] = useCloudAPI<AcceptInviteLinkResponse | null>({noop: true}, null);
+    const [linkInfo, fetchLinkInfo] = useCloudAPI<RetrieveInviteLinkInfoResponse | null>({noop: true}, null);
 
     useEffect(() => {
         if (token) {
@@ -34,7 +35,7 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
             }
         }
     }, [linkInfo]);
-    
+
     useEffect(() => {
         if (acceptedInvite.data) {
             dispatchSetProjectAction(dispatch, acceptedInvite.data?.project);
@@ -45,34 +46,32 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
     return <MainContainer
         main={
             linkInfo.loading ? <Spinner /> :
-            linkInfo.error ? <AcceptProjectLinkContainer>
-                <Heading.h3>Invitation link has expired</Heading.h3>
-                Contact the relevant PI or admin of the project to get a new link.
-            </AcceptProjectLinkContainer>
-            :
-            <AcceptProjectLinkContainer>
-                <Heading.h3>You have been invited to join {linkInfo.data?.project.specification.title}</Heading.h3>
-                <Box mt="15px">
-                    <Button
-                        color="green"
-                        mr="10px"
-                        onClick={() => {
-                            if (token) {
-                                acceptInvite(api.acceptInviteLink({token}))
-                            }
-                        }}
-                    >Join project</Button>
-                    <Button color="red" onClick={() => navigate("/")}>Ignore</Button>
-                </Box>
-            </AcceptProjectLinkContainer>
+                linkInfo.error ? <div className={AcceptProjectLinkContainer}>
+                    <Heading.h3>Invitation link has expired</Heading.h3>
+                    Contact the relevant PI or admin of the project to get a new link.
+                </div> : <div className={AcceptProjectLinkContainer}>
+                    <Heading.h3>You have been invited to join {linkInfo.data?.project.specification.title}</Heading.h3>
+                    <Box mt="15px">
+                        <Button
+                            color="green"
+                            mr="10px"
+                            onClick={() => {
+                                if (token) {
+                                    acceptInvite(api.acceptInviteLink({token}))
+                                }
+                            }}
+                        >Join project</Button>
+                        <Button color="red" onClick={() => navigate("/")}>Ignore</Button>
+                    </Box>
+                </div>
         }
     />;
 }
 
-const AcceptProjectLinkContainer = styled.div`
+const AcceptProjectLinkContainer = injectStyleSimple("accept-project-link", `
     text-align: center;
     margin-top: 50px;
-`;
+`);
 
 
 export default AcceptInviteLink;

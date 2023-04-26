@@ -94,6 +94,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI, OldProjectRole, useProjectId} from "../Api";
 import {useProject} from "../cache";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
+import {injectStyleSimple} from "@/Unstyled";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing_project",
@@ -1416,7 +1417,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                                         isRecipient={isRecipient}
                                     />))}
 
-                        <CommentApplicationWrapper style={{display: target === RequestTarget.VIEW_APPLICATION || grantGiversInUse.length > 0 ? undefined : "none"}}>
+                        <div className={CommentApplicationWrapper} style={{display: target === RequestTarget.VIEW_APPLICATION || grantGiversInUse.length > 0 ? undefined : "none"}}>
                             <RequestFormContainer>
                                 <Heading.h4>Application</Heading.h4>
                                 <TextArea
@@ -1433,7 +1434,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                                 grantApplication={grantApplication}
                                 reload={reload}
                             />
-                        </CommentApplicationWrapper>
+                        </div>
                     </Box>
                 </Flex>
             </>}
@@ -1867,13 +1868,13 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
     );
 }
 
-const CommentApplicationWrapper = styled.div`
+const CommentApplicationWrapper = injectStyleSimple("comment-application-wrapper", `
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
     grid-gap: 32px;
     max-width: 1400px;
     margin-top: 32px;
-`;
+`);
 
 const CommentBoxWrapper = styled.div`
     display: flex;
@@ -2016,12 +2017,12 @@ function getDocument(grantApplication: GrantApplication): Document {
 }
 
 function ProductLink(): JSX.Element {
-    return <Tooltip trigger={<ExternalLink href="/app/skus"><ProductLinkBox> ?</ProductLinkBox></ExternalLink>}>
+    return <Tooltip trigger={<ExternalLink href="/app/skus"><div className={ProductLinkBox}> ?</div></ExternalLink>}>
         <Box width="100px">Click to view details for resources</Box>
     </Tooltip>;
 }
 
-const ProductLinkBox = styled.div`
+const ProductLinkBox = injectStyleSimple("product-link-box", `
     cursor: pointer;
     border: 2px var(--black) solid;
     border-radius: 9999px;
@@ -2030,7 +2031,7 @@ const ProductLinkBox = styled.div`
     margin-left: 9px;
     padding-left: 10px;
     margin-top: -2px;
-`;
+`);
 
 export function isGrantFinalized(status: State): boolean {
     return State.IN_PROGRESS !== status;

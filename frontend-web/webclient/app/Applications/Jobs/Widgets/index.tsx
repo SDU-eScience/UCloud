@@ -19,6 +19,7 @@ import {IngressParameter, IngressSetter, IngressValidator} from "@/Applications/
 import {NetworkIPParameter, NetworkIPSetter, NetworkIPValidator} from "@/Applications/Jobs/Widgets/NetworkIP";
 import {ButtonClass} from "@/ui-components/Button";
 import {JobCreateInput} from "./Reservation";
+import {injectStyleSimple} from "@/Unstyled";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
@@ -180,7 +181,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
     }
 };
 
-const OptionalWidgetSearchWrapper = styled(Box)`
+const OptionalWidgetSearchWrapper = injectStyleSimple("optional-widget-search", `
     display: grid;
     grid-template-columns: 1fr;
     grid-gap: 10px;
@@ -189,7 +190,7 @@ const OptionalWidgetSearchWrapper = styled(Box)`
     padding-right: 8px;
     padding-bottom: 8px;
     overflow-y: auto;
-`;
+`);
 
 export function findElement<HTMLElement = HTMLInputElement>(param: {name: string}): HTMLElement | null {
     return document.getElementById(widgetId(param)) as HTMLElement | null;
@@ -261,9 +262,9 @@ export const OptionalWidgetSearch: React.FunctionComponent<{
                 />
             </Box>
         </Flex>
-        <OptionalWidgetSearchWrapper>
+        <div className={OptionalWidgetSearchWrapper}>
             {results.map(it => mapper(it))}
-        </OptionalWidgetSearchWrapper>
+        </div>
     </Box>;
 };
 

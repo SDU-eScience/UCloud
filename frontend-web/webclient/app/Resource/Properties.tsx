@@ -52,6 +52,10 @@ const Container = styled.div`
 
   margin: 50px; /* when header is not wrapped this should be equal to logoPX and logoPY */
   max-width: 2200px;
+  
+  &[data-in-pop-in="true"] {
+    margin: 0;
+  }
 
   ${device("xs")} {
     margin-left: 0;
@@ -170,8 +174,8 @@ interface PropertiesProps<Res extends Resource> {
     reload?: () => void;
     closeProperties?: () => void;
 
-    InfoChildren?: React.FunctionComponent<{resource: Res, reload: () => void}>;
-    ContentChildren?: React.FunctionComponent<{resource: Res, reload: () => void}>;
+    InfoChildren?: React.FunctionComponent<{resource: Res, reload: () => void; inPopIn?: boolean;}>;
+    ContentChildren?: React.FunctionComponent<{resource: Res, reload: () => void; inPopIn?: boolean;}>;
 
     showMessages?: boolean;
     showPermissions?: boolean;
@@ -222,7 +226,7 @@ export function ResourceProperties<Res extends Resource>(
 
     const infoChildrenResolved = useMemo(() => {
         if (props.InfoChildren && ownResource.data) {
-            return <props.InfoChildren resource={ownResource.data} reload={reload} />;
+            return <props.InfoChildren inPopIn={props.inPopIn} resource={ownResource.data} reload={reload} />;
         } else {
             return null;
         }
@@ -230,7 +234,7 @@ export function ResourceProperties<Res extends Resource>(
 
     const childrenResolved = useMemo(() => {
         if (props.ContentChildren && ownResource.data) {
-            return <props.ContentChildren resource={ownResource.data} reload={reload} />;
+            return <props.ContentChildren inPopIn={props.inPopIn} resource={ownResource.data} reload={reload} />;
         } else {
             return null;
         }
@@ -257,7 +261,8 @@ export function ResourceProperties<Res extends Resource>(
         embedded: props.embedded == true,
         closeProperties: props.closeProperties,
         dispatch,
-        supportByProvider
+        supportByProvider,
+        inPopIn: props.inPopIn
     }), [api, invokeCommand, commandLoading, navigate, reload, props.closeProperties, dispatch, supportByProvider]);
 
     const operations = useMemo(() => api.retrieveOperations(), [api]);
@@ -275,7 +280,7 @@ export function ResourceProperties<Res extends Resource>(
     const editPermissionsAllowed = canEditPermission(support, props.api.getNamespace());
 
     const main = resource ? <>
-        <Container className={"RUNNING active"}>
+        <Container data-in-pop-in={props.inPopIn} className={"RUNNING active"}>
             <div className={`logo-wrapper`}>
                 <div className="logo-scale">
                     <div className={"logo"}>
@@ -286,7 +291,7 @@ export function ResourceProperties<Res extends Resource>(
 
 
             <div className={"data"}>
-                <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"} data-in-pop-in={props.inPopIn}>
                     <div className={"fake-logo"} />
                     <div className={"header-text"}>
                         <div>
@@ -297,7 +302,7 @@ export function ResourceProperties<Res extends Resource>(
                             </Heading.h2>
                             <Heading.h3>{props.api.title}</Heading.h3>
                         </div>
-                        <div className={"operations"}>
+                        {props.inPopIn ? null : <div className={"operations"}>
                             <Operations
                                 location={"TOPBAR"}
                                 operations={operations}
@@ -308,7 +313,7 @@ export function ResourceProperties<Res extends Resource>(
                                 displayTitle={false}
                                 showSelectedCount={false}
                             />
-                        </div>
+                        </div>}
                     </div>
                 </Flex>
 

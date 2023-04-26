@@ -47,6 +47,7 @@ import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import { ProviderTitle } from "@/Providers/ProviderTitle";
 import {ButtonClass} from "@/ui-components/Button";
+import {injectStyleSimple} from "@/Unstyled";
 
 const enterAnimation = keyframes`
     from {
@@ -396,7 +397,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                             </div>
                         </Flex>
 
-                        <Content>
+                        <div className={Content}>
                             <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
                                 <HighlightedCard color={"purple"}>
                                     <Box py={"16px"}>
@@ -405,7 +406,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                                 </HighlightedCard>
                             </Box>
                             <InfoCards job={job} status={status} />
-                        </Content>
+                        </div>
                     </div>
                 </CSSTransition>
             )}
@@ -450,10 +451,10 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                             </div>
                         </Flex>
 
-                        <Content>
+                        <div className={Content}>
                             <OutputFiles job={job} />
                             <InfoCards job={job} status={status} />
-                        </Content>
+                        </div>
                     </div>
                 </CSSTransition>
             )}
@@ -468,11 +469,11 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     />;
 }
 
-const Content = styled.div`
+const Content = injectStyleSimple("content", `
     display: flex;
     align-items: center;
     flex-direction: column;
-`;
+`);
 
 function PeerEntry(props: {peer: AppParameterValueNS.Peer}): JSX.Element {
     return <Flex width={1}>
@@ -578,14 +579,14 @@ const Busy: React.FunctionComponent<{
     </BusyWrapper>;
 };
 
-const InfoCardsContainer = styled.div`
+const InfoCardsContainer = injectStyleSimple("info-card-container", `
   margin-top: 32px;
   display: grid;
   width: 100%;
   grid-template-columns: repeat(auto-fit, minmax(200px, 380px));
   grid-gap: 16px;
   justify-content: center;
-`;
+`);
 
 function isSupported(jobBackend: string | undefined, support: ComputeSupport | undefined, flag: keyof DockerSupport | keyof NativeSupport | keyof VirtualMachineSupport): boolean {
     switch (jobBackend) {
@@ -644,7 +645,7 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
         (time.hours * 60 * pricePerUnit + (time.minutes * pricePerUnit)) * job.specification.replicas :
         0;
 
-    return <InfoCardsContainer>
+    return <div className={InfoCardsContainer}>
         <InfoCard
             stat={job.specification.replicas.toString()}
             statTitle={job.specification.replicas === 1 ? "Node" : "Nodes"}
@@ -686,7 +687,7 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
         <InfoCard stat={workspaceTitle} statTitle={"Project"} icon={"projects"}>
             <b>Launched by:</b> {job.owner.createdBy}
         </InfoCard>
-    </InfoCardsContainer>;
+    </div>;
 };
 
 const InfoCardContainer = styled.div`
@@ -745,14 +746,14 @@ const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
     </>;
 };
 
-const RunningInfoWrapper = styled.div`
+const RunningInfoWrapper = injectStyleSimple("running-info-wrapper", `
   margin-top: 32px;
   display: grid;
   width: 100%;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   grid-gap: 16px;
   justify-content: center;
-`;
+`);
 
 const AltButtonGroup = styled.div<{minButtonWidth: string} & MarginProps>`
   display: grid;
@@ -965,7 +966,7 @@ const RunningContent: React.FunctionComponent<{
     const peers = job.specification.resources.filter(it => it.type === "peer") as AppParameterValueNS.Peer[];
 
     return <>
-        <RunningInfoWrapper>
+        <div className={RunningInfoWrapper}>
             <HighlightedCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                     {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
@@ -1098,26 +1099,26 @@ const RunningContent: React.FunctionComponent<{
                     </Text>
                 </HighlightedCard>
             }
-        </RunningInfoWrapper>
+        </div>
 
         {!supportsLogs ? null :
-            <RunningJobsWrapper>
+            <div className={RunningJobsWrapper}>
                 {Array(job.specification.replicas).fill(0).map((_, i) => {
                     return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners} />;
                 })}
-            </RunningJobsWrapper>
+            </div>
         }
     </>;
 };
 
-const RunningJobsWrapper = styled.div`
+const RunningJobsWrapper = injectStyleSimple("running-jobs-wrapper", `
   display: grid;
   grid-template-columns: repeat(1, 1fr);
   margin-top: 32px;
 
   margin-bottom: 32px;
   grid-gap: 32px;
-`;
+`);
 
 const RunningJobRankWrapper = styled.div`
   margin-top: 16px;
