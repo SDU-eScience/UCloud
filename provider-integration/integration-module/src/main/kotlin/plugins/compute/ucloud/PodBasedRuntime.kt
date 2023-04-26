@@ -217,7 +217,7 @@ abstract class PodBasedContainer : Container {
 }
 
 abstract class PodBasedBuilder : ContainerBuilder {
-    protected abstract val podSpec: Pod.Spec
+    abstract val podSpec: Pod.Spec
 
     protected val container: Pod.Container get() = podSpec.containers!![0]
     protected val volumeMounts: ArrayList<Pod.Container.VolumeMount> get() = container.volumeMounts as ArrayList

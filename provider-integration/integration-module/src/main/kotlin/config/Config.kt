@@ -447,6 +447,7 @@ data class ConfigSchema(
                     val useMachineSelector: Boolean = false,
                     val categoryToSelector: Map<String, String> = emptyMap(),
                     val categoryToCustomRuntime: Map<String, String> = emptyMap(),
+                    val priorityClassName: String? = null,
                 )
 
                 @Serializable
