@@ -333,7 +333,7 @@ const ApplicationCardClass = injectStyle("application-card", k => `
     ${k} {
         border-radius: 16px;
         box-shadow: ${theme.shadows.sm};
-        background-color: var(--white);
+        background-color: var(--lightGray);
         color: var(--text);
     }
 

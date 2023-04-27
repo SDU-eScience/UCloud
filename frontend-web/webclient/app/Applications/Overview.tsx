@@ -179,11 +179,6 @@ const TagGridTopBoxClass = injectStyle("tag-grid-top-box", k => `
     ${k} {
         border-top-left-radius: 10px;
         border-top-right-radius: 10px;
-        background-color: var(--lightGray);
-    }
-
-    ${k}[data-favorite="true"] {
-        background-color: var(--appStoreFavBg);
     }
 `);
 
@@ -192,11 +187,6 @@ const TagGridBottomBoxClass = injectStyle("tag-grid-bottom-box", k => `
         padding: 0px 10px 15px 10px;
         border-bottom-left-radius: 10px;
         border-bottom-right-radius: 10px;
-        background-color: var(--lightGray);
-    }
-
-    ${k}[data-favorite="true"] {
-        background-color: var(--appStoreFavBg);
     }
 
     ${k}[data-favorite="false"] {
@@ -217,7 +207,7 @@ interface TagGridProps {
 }
 
 const TagGrid: React.FunctionComponent<TagGridProps> = (
-    {tag, rows, items, tagBanList = [], favoriteStatus, onFavorite, ...props}: TagGridProps
+    {tag, rows, items, tagBanList = [], favoriteStatus, onFavorite}: TagGridProps
 ) => {
     const showFavorites = tag == SPECIAL_FAVORITE_TAG;
     const dispatch = useDispatch();
@@ -252,7 +242,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
 
     React.useEffect(() => {
         if (showFavorites) dispatch(setAppFavorites(filteredItems.map(it => it.metadata)));
-    }, [filteredItems, props])
+    }, [filteredItems]);
 
     if (filteredItems.length === 0) return null;
 
