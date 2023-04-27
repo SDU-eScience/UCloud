@@ -9,6 +9,7 @@ import avatar from "@/UserSettings/Redux/AvataaarReducer";
 import {terminalReducer} from "@/Terminal/State";
 import hookStore from "@/Utilities/ReduxHooks";
 import {popInReducer} from "@/ui-components/PopIn";
+import sidebar from "@/Applications/Redux/Reducer";
 
 export function confStore(
     initialObject: ReduxObject,
@@ -30,7 +31,7 @@ export const store = confStore(initObject(), {
     header,
     status,
     hookStore,
-    //sidebar,
+    sidebar,
     avatar,
     terminal: terminalReducer,
     loading,

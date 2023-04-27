@@ -15,6 +15,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {NavigateFunction} from "react-router";
 import {initTerminalState, TerminalState} from "@/Terminal/State";
 import {PopInArgs} from "./ui-components/PopIn";
+import {SidebarStateProps} from "./Applications/Redux/Reducer";
 
 export enum KeyCode {
     ENTER = 13,
@@ -125,6 +126,7 @@ interface LegacyReduxObject {
     terminal: TerminalState;
     popinChild: PopInArgs | null;
     loading?: boolean;
+    sidebar: SidebarStateProps;
 }
 
 declare global {
@@ -155,6 +157,7 @@ export function initObject(): ReduxObject {
         project: ProjectRedux.initialState,
         terminal: initTerminalState(),
         popinChild: null,
+        sidebar: {favorites: []}
     };
 }
 

@@ -29,6 +29,8 @@ import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import {FlexClass} from "@/ui-components/Flex";
 import {TextClass} from "@/ui-components/Text";
 import {formatDistance} from "date-fns";
+import {removeUploadFromStorage} from "@/Files/ChunkedFileReader";
+import {Spacer} from "@/ui-components/Spacer";
 
 const MAX_CONCURRENT_UPLOADS = 5;
 const maxChunkSize = 16 * 1000 * 1000;
@@ -364,7 +366,7 @@ const Uploader: React.FunctionComponent = () => {
     if (uploadTimings.timeRemaining !== 0) {
         uploadingText += ` - Approximately ${formatDistance(uploadTimings.timeRemaining, 0)}`;
     }
-    
+
     return <>
         <ReactModal
             isOpen={uploaderVisible}
@@ -376,7 +378,6 @@ const Uploader: React.FunctionComponent = () => {
             <div className={DropZoneWrapper + " " + FlexClass} data-has-uploads={hasUploads} data-tag="uploadModal">
                 <Relative overflowX="hidden" onClick={closeModal} right="calc(100% - 32px)" top="18px">
                     <Icon color="var(--white)" size="16px" name="close" />
-                    {DEVELOPMENT_ENV ? "!!!TODO - Add operations for multiple selected rows - TODO!!!" : null}
                 </Relative>
                 <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads} />
                 <Text color="white">{uploadingText}</Text>
@@ -412,9 +413,32 @@ const Uploader: React.FunctionComponent = () => {
                 </label>
 
                 {pausedFilesInFolder.length === 0 ? null :
-                    <div>
-                        <Text>Uploads that can be resumed:</Text>
-                        {pausedFilesInFolder.map(it => <Text bold key={it}>{fileName(it)}</Text>)}
+                    <div style={{
+                        borderRadius: "12px",
+                        marginTop: hasUploads ? "38px" : "-18px",
+                        marginBottom: "4px",
+                        marginLeft: "4px",
+                        marginRight: "4px"
+                    }}>
+                        <Text color="text">Drag files to resume: </Text>
+                        {pausedFilesInFolder.map(it =>
+                            <div className={UploaderRowClass} key={it}>
+                                <Spacer paddingTop="20px"
+                                    left={<>
+                                        <div>
+                                            <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(fileName(it))}} size="32px" />
+                                        </div>
+                                        <div>
+                                            <Truncate maxWidth="270px" fontSize="18px">{fileName(it)}</Truncate>
+                                        </div>
+                                    </>}
+                                    right={<Icon name="close" color="red" mr="12px" onClick={() => {
+                                        setPausedFilesInFolder(files => files.filter(file => file !== it));
+                                        removeUploadFromStorage(it);
+                                    }} />}
+                                />
+                            </div>
+                        )}
                     </div>
                 }
             </div>
@@ -559,10 +583,27 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
                 </Text>
                 <Box mr="8px" />
                 {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)} onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid" color="blue" /> : null}
-                {paused ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)} name="play" onClick={() => callbacks.resumeUploads([upload])} color="blue" /> : null}
                 {showCircle ? <Icon color="blue" name="notchedCircle" spin onMouseEnter={() => setHoverPause(true)} /> : null}
                 <Icon name="close" cursor="pointer" ml="8px" color="red" onClick={() => callbacks.stopUploads([upload])} />
-            </Flex> : <Icon mr="16px" name={stopped ? "close" : "check"} color={stopped ? "red" : "blue"} />}
+            </Flex> :
+                <>
+                    {paused ? <Icon cursor="pointer" mr="8px" name="play" onClick={() => callbacks.resumeUploads([upload])} color="blue" /> : null}
+                    <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
+                        callbacks.clearUploads([upload]);
+                        upload.row.fetcher().then(files => {
+                            if (files.length === 0) return;
+                            if (files.length > 1) {
+                                upload.error = "Folder uploads not yet supported";
+                                upload.state = UploadState.DONE;
+                                return;
+                            }
+
+                            const theFile = files[0];
+                            const fullFilePath = upload.targetPath + "/" + theFile.fullPath;
+                            removeUploadFromStorage(fullFilePath);
+                        });
+                    }} color={stopped ? "red" : "blue"} />
+                </>}
         </div>
         <div className="error-box">
             {upload.error ? <div className={ErrorSpan}>{upload.error}</div> : null}
@@ -595,7 +636,23 @@ const operations: Operation<Upload, UploadCallback>[] = [
     },
     {
         enabled: selected => selected.length > 0 && selected.every(it => it.state === UploadState.DONE),
-        onClick: (selected, cb) => cb.clearUploads(selected),
+        onClick: (selected, cb) => {
+            cb.clearUploads(selected);
+            for (const upload of selected) {
+                upload.row.fetcher().then(files => {
+                    if (files.length === 0) return;
+                    if (files.length > 1) {
+                        upload.error = "Folder uploads not yet supported";
+                        upload.state = UploadState.DONE;
+                        return;
+                    }
+
+                    const theFile = files[0];
+                    const fullFilePath = upload.targetPath + "/" + theFile.fullPath;
+                    removeUploadFromStorage(fullFilePath);
+                });
+            }
+        },
         text: "Clear",
         icon: "close",
         color: "red"
@@ -629,7 +686,7 @@ const modalStyle = {
     content: {
         borderRadius: "16px",
         bottom: "auto",
-        minHeight: "450px",
+        minHeight: "460px",
         maxHeight: "80vh",
         left: "50%",
         padding: "2rem",

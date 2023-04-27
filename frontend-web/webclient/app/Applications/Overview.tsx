@@ -22,6 +22,8 @@ import AppStoreSectionType = compute.AppStoreSectionType;
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {useDispatch} from "react-redux";
+import {setAppFavorites} from "./Redux/Actions";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -215,9 +217,10 @@ interface TagGridProps {
 }
 
 const TagGrid: React.FunctionComponent<TagGridProps> = (
-    {tag, rows, items, tagBanList = [], favoriteStatus, onFavorite}: TagGridProps
+    {tag, rows, items, tagBanList = [], favoriteStatus, onFavorite, ...props}: TagGridProps
 ) => {
     const showFavorites = tag == SPECIAL_FAVORITE_TAG;
+    const dispatch = useDispatch();
 
     const filteredItems = React.useMemo(() => {
         let _filteredItems = items
@@ -242,11 +245,14 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                     observed.add(key);
                     newList.push(item);
                 }
-            }
-
+            } 
             return newList;
         }
     }, [items, favoriteStatus.current]);
+
+    React.useEffect(() => {
+        if (showFavorites) dispatch(setAppFavorites(filteredItems.map(it => it.metadata)));
+    }, [filteredItems, props])
 
     if (filteredItems.length === 0) return null;
 

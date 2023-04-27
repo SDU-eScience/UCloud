@@ -37,7 +37,7 @@ import {ThemeToggler} from "./ThemeToggle";
 import {AvatarType} from "@/UserSettings/Avataaar";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {PageV2} from "@/UCloud";
+import {Page, PageV2, compute} from "@/UCloud";
 import AdminLinks from "@/Admin/Links";
 import {sharesLinksInfo} from "@/Files/Shares";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -52,6 +52,8 @@ import {ResourceLinks} from "@/Resource/ResourceOptions";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import Relative from "./Relative";
 import Absolute from "./Absolute";
+import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {setAppFavorites} from "@/Applications/Redux/Actions";
 
 const SidebarElementContainerClass = injectStyle("sidebar-element", k => `
     ${k} {
@@ -465,11 +467,27 @@ function SecondarySidebar({
     clearHover,
     clearClicked
 }: {hovered: string; clicked: string; clearHover(): void; clearClicked(): void}): JSX.Element {
-    const [drives, favorites] = useSidebarFilesPage();
+    const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
 
     const navigate = useNavigate();
     const [, invokeCommand] = useCloudCommand();
+
+    const [favoriteApps] = useCloudAPI<Page<compute.ApplicationSummaryWithFavorite>>(
+        compute.apps.retrieveFavorites({itemsPerPage: 100, page: 0}),
+        emptyPage,
+    );
+   
+    const dispatch = useDispatch();
+    React.useEffect(() => {
+        if (favoriteApps.loading) return;
+        dispatch(setAppFavorites(favoriteApps.data.items.map(it => it.metadata)));
+    }, [favoriteApps]);
+
+    React.useEffect(() => {
+
+    }, []);
+    const appFavorites = useSelector<ReduxObject, compute.ApplicationMetadata[]>(it => it.sidebar.favorites);
 
     const rootRef = React.useRef<HTMLDivElement>(null);
     const toggleSize = useCallback(() => {
@@ -538,8 +556,8 @@ function SecondarySidebar({
                     <li>
                         <span>Favorite files</span>
                         <ul>
-                            {favorites.data.items.length === 0 ? <TextSpan fontSize={"var(--secondaryText)"}>No favorite files</TextSpan> : null}
-                            {favorites.data.items.map(it =>
+                            {favoriteFiles.data.items.length === 0 ? <TextSpan fontSize={"var(--secondaryText)"}>No favorite files</TextSpan> : null}
+                            {favoriteFiles.data.items.map(it =>
                                 <li key={it.path}>
                                     <Flex
                                         cursor="pointer"
@@ -563,6 +581,23 @@ function SecondarySidebar({
         )}
 
         {active !== "Projects" ? null : (<ProjectLinks />)}
+
+        {active !== "Apps" ? null :
+            <Flex flexDirection="column" mr="4px">
+                <TextSpan mb="8px" bold color="fixedWhite">Favorite apps</TextSpan>
+                {appFavorites.map(it =>
+                    <Link mb="4px" key={it.name + it.version} to={AppRoutes.jobs.create(it.name, it.version)}>
+                        <Flex>
+                            <Box mr="4px" pl="4px" backgroundColor="var(--fixedWhite)" width="24px" height="24px" borderRadius="6px">
+                                <AppToolLogo size="16px" name={it.name} type="APPLICATION" />
+                            </Box>
+                            <Truncate color="var(--text)">{it.name}</Truncate>
+                        </Flex>
+                    </Link>
+                )}
+                {appFavorites.length !== 0 ? null : <Text fontSize="var(--secondaryText)">No app favorites.</Text>}
+            </Flex>
+        }
 
         {active !== "Runs" ? null : (
             <Flex flexDirection="column" mr="4px">

@@ -1,3 +1,5 @@
+import {buildQueryString} from "./Utilities/URIUtilities";
+
 const users = {
     settings: () => "/users/settings",
     avatar: () => "/users/avatar",
@@ -54,7 +56,10 @@ const apps = {
 };
 
 const jobs = {
-    view: (jobId: string) => `/jobs/properties/${jobId}`
+    create: (name: string, version: string) => `/jobs/create?app=${name}&version=${version}`,
+    view: (jobId: string) => `/jobs/properties/${jobId}`,
+    results: () => `/applications/results`,
+    run: (name: string, version: string) => buildQueryString("/jobs/create", {app: name, version}),
 };
 
 const login = {
