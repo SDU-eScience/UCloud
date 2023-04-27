@@ -1289,17 +1289,6 @@ export class ResourceBrowser<T> {
                             }
                         }
 
-                        /*
-                        let text: string;
-                        if (selectedFiles.length === 1) {
-                            text = fileName(selectedFiles[0].id);
-                        } else {
-                            text = `${selectedFiles.length} files`;
-                        }
-                        content.append(text);
-                        content.setAttribute("data-initial-text", text);
-                         */
-
                         indicator.ontransitionend = () => {
                             indicator.style.transition = "none";
                         };
@@ -1337,22 +1326,6 @@ export class ResourceBrowser<T> {
                         "renderDropIndicator",
                         fn => fn(selectedEntries, draggingAllowed ? currentPathToTarget() : null)
                     );
-                    {
-                        /*
-                        const text = visualizeWhitespaces(this.entryDragIndicatorContent.getAttribute("data-initial-text")!);
-                        this.entryDragIndicatorContent.lastChild!.remove();
-
-                        if (draggingAllowed && this.entryBelowCursor) {
-                            const dest = visualizeWhitespaces(fileName(this.fileBelowCursor.id.substring(0, 30)));
-                            this.entryDragIndicatorContent.append(
-                                `${text.substring(0, 30)} into ${dest}`
-                                    .substring(0, 50)
-                            );
-                        } else {
-                            this.entryDragIndicatorContent.append(text.substring(0, 50));
-                        }
-                         */
-                    }
                 }
             };
 
