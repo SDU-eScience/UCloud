@@ -1,4 +1,4 @@
-import {extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
+import {classConcat, extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
 import {BoxProps} from "@/ui-components/Box";
 import * as React from "react";
 
@@ -8,7 +8,6 @@ export const TableClass = injectStyle("table", k => `
         border-spacing: 0;
         table-layout: fixed;
         min-width: 15em;
-        background-color: var(--white);
         width: 100%;
     }
     
@@ -21,7 +20,6 @@ export const TableClass = injectStyle("table", k => `
     }
     
     ${k} tr {
-        background-color: var(--white);
         cursor: auto;
     }
     
@@ -35,21 +33,23 @@ export const TableClass = injectStyle("table", k => `
     }
     
     ${k} thead {
-        background-color: var(--white, #f00);
         padding-top: 11px;
         padding-bottom: 11px;
     }
 `);
 
-export const Table: React.FunctionComponent<BoxProps & { children?: React.ReactNode; }> = props => {
-    return <table className={TableClass} style={unbox(props)} {...extractEventHandlers(props)}>
+export const Table: React.FunctionComponent<BoxProps & {
+    children?: React.ReactNode;
+    className?: string;
+}> = props => {
+    return <table className={classConcat(TableClass, props.className)} style={unbox(props)} {...extractEventHandlers(props)}>
         {props.children}
     </table>;
 };
 
 Table.displayName = "Table";
 
-export const TableCell: React.FunctionComponent<BoxProps & { children?: React.ReactNode; }> = props => {
+export const TableCell: React.FunctionComponent<BoxProps & {children?: React.ReactNode;}> = props => {
     return <td style={unbox(props)} {...extractEventHandlers(props)}>{props.children}</td>;
 };
 
@@ -73,13 +73,13 @@ export const TableRow: React.FunctionComponent<BoxProps & {
 
 TableRow.displayName = "TableRow";
 
-export const TableHeader: React.FunctionComponent<{ children?: React.ReactNode; }> = props => {
+export const TableHeader: React.FunctionComponent<{children?: React.ReactNode;}> = props => {
     return <thead children={props.children} />;
 }
 
 TableHeader.displayName = "TableHeader";
 
-export const TableHeaderCell: React.FunctionComponent<BoxProps & { children?: React.ReactNode; }> = props => {
+export const TableHeaderCell: React.FunctionComponent<BoxProps & {children?: React.ReactNode;}> = props => {
     return <th style={unbox(props)} {...extractEventHandlers(props)} children={props.children} />;
 }
 

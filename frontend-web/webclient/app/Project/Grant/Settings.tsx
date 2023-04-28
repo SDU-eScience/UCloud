@@ -27,8 +27,9 @@ import {inSuccessRange} from "@/UtilityFunctions";
 import {Logo} from "@/Project/Grant/ProjectBrowser";
 import Divider from "@/ui-components/Divider";
 import {bulkRequestOf} from "@/DefaultObjects";
-import {useProjectIdFromParams} from "../Api";
 import {ButtonClass} from "@/ui-components/Button";
+import {useProjectId} from "../Api";
+import {injectStyle} from "@/Unstyled";
 
 export interface UploadLogoProps {
     file: File;
@@ -71,7 +72,7 @@ export async function uploadProjectLogo(props: UploadLogoProps): Promise<boolean
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
 export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
-    const projectId = useProjectIdFromParams();
+    const projectId = useProjectId() ?? "";
     const [, runWork] = useCloudCommand();
     const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
         {noop: true},
@@ -141,7 +142,7 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
 }
 
 export const GrantProjectSettings: React.FunctionComponent = () => {
-    const projectId = useProjectIdFromParams();
+    const projectId = useProjectId() ?? "";
     const [, runWork] = useCloudCommand();
     const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
         {noop: true},
@@ -221,6 +222,14 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
     if (!enabled.data.enabled) return null;
 
     return <Box>
+        <Heading.h4>Default Template for Grant Applications</Heading.h4>
+        <TemplateEditor
+            templatePersonal={templatePersonal}
+            templateExisting={templateExisting}
+            templateNew={templateNew}
+            onUploadTemplate={onUploadTemplate}
+        />
+        <Divider />
         <Heading.h4>Allow Grant Applications From</Heading.h4>
         <UserCriteriaEditor
             criteria={settings.data.allowRequestsFrom}
@@ -236,16 +245,6 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
             onRemove={removeExcludeFrom}
             showSubprojects={true}
         />
-
-        <Divider />
-
-        <Heading.h4>Default Template for Grant Applications</Heading.h4>
-        <TemplateEditor
-            templatePersonal={templatePersonal}
-            templateExisting={templateExisting}
-            templateNew={templateNew}
-            onUploadTemplate={onUploadTemplate}
-        />
     </Box>;
 };
 
@@ -257,7 +256,7 @@ const ExcludeListEditor: React.FunctionComponent<{
 }> = props => {
     const [showRequestFromEditor, setShowRequestFromEditor] = useState<boolean>(false);
     return <>
-        <Table mb={16}>
+        <Table className={BorderedTableRows} mb={16}>
             <thead>
                 <TableRow>
                     <TableHeaderCell textAlign={"left"}>Email Domain</TableHeaderCell>
@@ -303,6 +302,12 @@ const ExcludeListEditor: React.FunctionComponent<{
     </>;
 };
 
+const BorderedTableRows = injectStyle("bordered-table-rows", k => `
+    ${k} > tbody > tr, ${k} > thead > tr {
+        border-bottom: 2px solid var(--blue);
+    }
+`);
+
 const UserCriteriaEditor: React.FunctionComponent<{
     onSubmit: (c: UserCriteria) => any,
     onRemove: (idx: number) => any,
@@ -311,7 +316,7 @@ const UserCriteriaEditor: React.FunctionComponent<{
 }> = props => {
     const [showRequestFromEditor, setShowRequestFromEditor] = useState<boolean>(false);
     return <>
-        <Table mb={16}>
+        <Table className={BorderedTableRows} mb={16}>
             <thead>
                 <TableRow>
                     <TableHeaderCell textAlign={"left"}>Type</TableHeaderCell>
@@ -520,7 +525,7 @@ const TemplateEditor: React.FunctionComponent<{
     onUploadTemplate: () => Promise<void>
 }> = ({templatePersonal, templateExisting, templateNew, onUploadTemplate}) => {
     return <>
-        <Grid gridGap={32} gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"}>
+        <Grid gridGap={32} gridTemplateColumns={"repeat(auto-fit, minmax(350px, 1fr))"}>
             <Box>
                 <Heading.h5>Personal</Heading.h5>
                 <TextArea width={"100%"} rows={15} inputRef={templatePersonal} />

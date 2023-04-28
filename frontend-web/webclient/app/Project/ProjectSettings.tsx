@@ -1,16 +1,13 @@
 import * as React from "react";
-import Divider from "@/ui-components/Divider";
 import {
     Box,
     Button,
     Flex,
     Input,
     Label,
-    Link,
-    SelectableText,
-    SelectableTextWrapper,
     Text,
-    Checkbox
+    Checkbox,
+    Card
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {addStandardDialog} from "@/UtilityComponents";
@@ -43,6 +40,12 @@ import {UtilityBar} from "@/Playground/Playground";
 import {injectStyle} from "@/Unstyled";
 
 const ActionContainer = injectStyle("action-container", k => `
+    ${k} {
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
     ${k} > * {
         margin-bottom: 16px;
     }
@@ -96,8 +99,6 @@ export const ProjectSettings: React.FunctionComponent = () => {
 
     if (!projectId || !project) return null;
 
-    console.log(projectId, project);
-
     const {status} = project;
 
     return (
@@ -111,35 +112,45 @@ export const ProjectSettings: React.FunctionComponent = () => {
             main={!isAdminOrPI(status.myRole) ? (
                 <Heading.h1>Only project or admin and PIs can view settings.</Heading.h1>
             ) : <div className={ActionContainer}>
-                <ArchiveSingleProject
-                    isArchived={status.archived}
-                    projectId={projectId}
-                    projectRole={status.myRole!}
-                    title={project.specification.title}
-                    onSuccess={() => projectOps.reload()}
-                />
-                <Divider />
-                <LeaveProject
-                    onSuccess={() => navigate("/")}
-                    projectTitle={project.specification.title}
-                    projectId={projectId}
-                    projectRole={status.myRole!}
-                />
-                <ChangeProjectTitle
-                    projectId={projectId}
-                    projectTitle={project.specification.title}
-                    onSuccess={() => projectOps.reload()}
-                />
+                <Card>
+                    <ArchiveSingleProject
+                        isArchived={status.archived}
+                        projectId={projectId}
+                        projectRole={status.myRole!}
+                        title={project.specification.title}
+                        onSuccess={() => projectOps.reload()}
+                    />
+                </Card>
+                <Card>
+                    <LeaveProject
+                        onSuccess={() => navigate("/")}
+                        projectTitle={project.specification.title}
+                        projectId={projectId}
+                        projectRole={status.myRole!}
+                    />
+                </Card>
+                <Card>
+                    <ChangeProjectTitle
+                        projectId={projectId}
+                        projectTitle={project.specification.title}
+                        onSuccess={() => projectOps.reload()}
+                    />
+                </Card>
                 {enabled.data.enabled ? <>
-                    <Divider />
-                    <LogoAndDescriptionSettings />
-                    <GrantProjectSettings />
+                    <Card>
+                        <LogoAndDescriptionSettings />
+                    </Card>
+                    <Card>
+                        <GrantProjectSettings />
+                    </Card>
                 </> : null}
-                <SubprojectSettings
-                    projectId={projectId}
-                    projectRole={status.myRole!}
-                    setLoading={() => false}
-                />
+                <Card>
+                    <SubprojectSettings
+                        projectId={projectId}
+                        projectRole={status.myRole!}
+                        setLoading={() => false}
+                    />
+                </Card>
             </div>}
         />
     );
@@ -297,6 +308,7 @@ function SubprojectSettings(props: AllowRenamingProps): JSX.Element {
         {props.projectRole === OldProjectRole.USER ? null : (
             <ActionBox>
                 <Box flexGrow={1}>
+                    <Heading.h3>Subproject Settings</Heading.h3>
                     <Label>
                         <Checkbox
                             size={24}
