@@ -69,7 +69,7 @@ class AccountingService(
         processor.resetState()
     }
 
-    suspend fun retrieveWalletsInternal(actorAndProject: ActorAndProject, walletOwner: WalletOwner): List<Wallet> {
+    suspend fun retrieveWalletsInternal(actorAndProject: ActorAndProject, walletOwner: WalletOwner): List<WalletV2> {
         return processor.retrieveWalletsInternal((AccountingRequest.RetrieveWalletsInternal(
             actorAndProject.actor,
             walletOwner.toProcessorOwner()
@@ -79,16 +79,17 @@ class AccountingService(
     suspend fun charge(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ChargeWalletRequestItem>,
+        dryRun: Boolean = false
     ): BulkResponse<Boolean> {
         val result = request.items.map { charge ->
             processor.charge(
-                AccountingRequest.Charge.ProductUse(
+                AccountingRequest.Charge.OldCharge(
                     actorAndProject.actor,
                     charge.payer.toProcessorOwner(),
-                    dryRun = false,
+                    dryRun,
                     charge.units,
                     charge.periods,
-                    charge.product
+                    ProductReferenceV2(charge.product.id, charge.product.category, charge.product.provider)
                 )
             ).success
         }
@@ -96,23 +97,26 @@ class AccountingService(
         return BulkResponse(result)
     }
 
-    suspend fun check(
+    suspend fun chargeDelta(
         actorAndProject: ActorAndProject,
-        request: BulkRequest<ChargeWalletRequestItem>,
+        request: BulkRequest<DeltaReportItem>,
+        dryRun: Boolean
     ): BulkResponse<Boolean> {
-        val result = request.items.map { charge ->
+        val result = request.items.forEach { charge ->
             processor.charge(
-                AccountingRequest.Charge.ProductUse(
-                    actorAndProject.actor,
-                    charge.payer.toProcessorOwner(),
-                    dryRun = true,
-                    charge.units,
-                    charge.periods,
-                    charge.product
+                AccountingRequest.Charge.DeltaCharge(
+
                 )
-            ).success
+            )
         }
-        return BulkResponse(result)
+    }
+
+    suspend fun chargeTotal(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<DeltaReportItem>,
+        dryRun: Boolean
+    ): BulkResponse<Boolean> {
+        processor.
     }
 
     suspend fun checkIfSubAllocationIsAllowed(allocs: List<String>, ctx: DBContext = db) {
@@ -168,8 +172,10 @@ class AccountingService(
                 processor.rootDeposit(AccountingRequest.RootDeposit(
                     Actor.System,
                     deposit.owner.toProcessorOwner(),
-                    deposit.,
+                    deposit.productCategory,
                     deposit.quota,
+                    startDate = deposit.start,
+                    endDate = deposit.end,
                     forcedSync = deposit.forcedSync
                 )).createdAllocation.toString()
             )
@@ -197,16 +203,16 @@ class AccountingService(
             val requestsToFulfill =
                 request.items.filter { (providerId + it.uniqueAllocationId) !in duplicateTransactions }
 
-            rootDeposit(
+            rootAllocate(
                 ActorAndProject(Actor.System, null),
                 BulkRequest(requestsToFulfill.map { reqItem ->
-                    RootDepositRequestItem(
-                        ProductCategoryId(reqItem.categoryId, providerId),
+                    RootAllocationRequestItem(
                         reqItem.owner,
+                        ProductCategoryIdV2(reqItem.categoryId, providerId),
                         reqItem.balance,
-                        "Allocation registered outside of UCloud",
-                        transactionId = providerId + reqItem.uniqueAllocationId,
-                        providerGeneratedId = reqItem.providerGeneratedId
+                        Time.now(),
+                        Long.MAX_VALUE
+                        //TODO(HENRIK) NEED TO BE REQUESTED TIMES
                     )
                 })
             )
@@ -765,7 +771,7 @@ class AccountingService(
                         project_size as (
                             select p.id, p.title, count(*) number_of_members
                             from
-                                projects p join
+                                project.projects p join
                                 project.project_members pm on p.id = pm.project_id
                             group by p.id, p.title
                         ),

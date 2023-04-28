@@ -22,7 +22,7 @@ data class DeltaReportItem(
     val owner: WalletOwner,
     val categoryIdV2: ProductCategoryIdV2,
     val usage: Long,
-    val description: String
+    val description: ChargeDescription
 )
 
 typealias TotalUsageReportItem = DeltaReportItem
@@ -59,6 +59,7 @@ typealias SubAllocationResponse = FindByStringId?
 @Serializable
 data class RootAllocationRequestItem(
     val owner: WalletOwner,
+    val productCategory: ProductCategoryIdV2,
     val quota: Long,
     val start: Long,
     val end: Long,

@@ -22,6 +22,12 @@ enum class AccountingFrequency {
     PERIODIC_DAY
 }
 
+private val periodicalFrequencies = listOf<AccountingFrequency>(
+    AccountingFrequency.PERIODIC_DAY,
+    AccountingFrequency.PERIODIC_HOUR,
+    AccountingFrequency.PERIODIC_DAY
+)
+
 @Serializable
 data class AccountingUnitConversion(
     @Contextual
@@ -37,7 +43,9 @@ data class ProductCategory(
     val accountingUnit: AccountingUnit,
     val accountingFrequency: AccountingFrequency,
     val conversionTable: List<AccountingUnitConversion>
-)
+) {
+    fun isPeriodic(): Boolean = periodicalFrequencies.contains(accountingFrequency)
+}
 
 @UCloudApiOwnedBy(ProductCategories::class)
 @UCloudApiStable

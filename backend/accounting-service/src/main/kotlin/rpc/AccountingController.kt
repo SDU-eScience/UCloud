@@ -69,7 +69,7 @@ class AccountingController(
         }
 
         implementOrDispatch(Accounting.charge) {
-            ok(accounting.charge(actorAndProject, request))
+            ok(accounting.charge(actorAndProject, request, dryRun = false))
         }
 
         implementOrDispatch(AccountingV2.reportTotalUsage){
@@ -104,7 +104,7 @@ class AccountingController(
         }
 
         implementOrDispatch(Accounting.check) {
-            ok(accounting.check(actorAndProject, request))
+            ok(accounting.charge(actorAndProject, request, dryRun = true))
         }
 
         implementOrDispatch(Accounting.updateAllocation) {
@@ -129,6 +129,7 @@ class AccountingController(
             val newTypeRequest = request.items.map {
                 RootAllocationRequestItem(
                     it.recipient,
+                    ProductCategoryIdV2(it.categoryId.name, it.categoryId.provider),
                     it.amount,
                     it.startDate ?: Time.now(),
                     it.endDate ?: Long.MAX_VALUE,
@@ -155,11 +156,17 @@ class AccountingController(
 
         implementOrDispatch(Wallets.retrieveWalletsInternal) {
             val walletOwner = request.owner
-            ok(WalletsInternalRetrieveResponse(accounting.retrieveWalletsInternal(ActorAndProject(Actor.System, null), walletOwner)))
+            val response = accounting.retrieveWalletsInternal(
+                ActorAndProject(Actor.System, null),
+                walletOwner
+            ).map { wallet ->
+                wallet.toV1()
+            }
+            ok(WalletsInternalRetrieveResponse(response))
         }
 
         implementOrDispatch(WalletsV2.retrieveWalletsInternal) {
-            ok(WalletsInternalRetrieveResponse(accounting.retrieveWalletsInternal(ActorAndProject(Actor.System, null), request.owner)))
+            ok(WalletsInternalV2RetrieveResponse(accounting.retrieveWalletsInternal(ActorAndProject(Actor.System, null), request.owner)))
         }
 
         implementOrDispatch(Wallets.retrieveAllocationsInternal) {

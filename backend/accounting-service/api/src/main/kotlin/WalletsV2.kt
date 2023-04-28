@@ -2,6 +2,8 @@ package dk.sdu.cloud.accounting.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.provider.api.translateToChargeType
+import dk.sdu.cloud.provider.api.translateToProductPriceUnit
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -9,7 +11,21 @@ data class WalletV2(
     val owner: WalletOwner,
     val paysFor: ProductCategory,
     val allocations: List<WalletAllocationV2>,
-)
+) {
+    fun toV1() = Wallet(
+        owner,
+        ProductCategoryId(paysFor.name, paysFor.provider),
+        allocations.map{it.toV1()},
+        AllocationSelectorPolicy.EXPIRE_FIRST,
+        paysFor.productType,
+        chargeType = translateToChargeType(paysFor),
+        unit = translateToProductPriceUnit(paysFor)
+    )
+}
+
+
+
+
 
 @Serializable
 @UCloudApiExperimental(UCloudApiMaturity.Experimental.Level.BETA)
@@ -62,7 +78,7 @@ object WalletsV2 : CallDescriptionContainer("accounting.walletsv2") {
     val retrieveWalletsInternal = call(
         "retrieveWalletsInternal",
         WalletsInternalRetrieveRequest.serializer(),
-        WalletsInternalRetrieveResponse.serializer(),
+        WalletsInternalV2RetrieveResponse.serializer(),
         CommonErrorMessage.serializer()
     ) {
         httpUpdate(baseContext, "retrieveWalletsInternal")

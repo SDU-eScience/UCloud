@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.checkDeicReferenceFormat
+import dk.sdu.cloud.service.Time
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
@@ -23,12 +24,27 @@ data class WalletAllocationV2(
     val canAllocate: Boolean = false,
     val allowSubAllocationsToAllocate: Boolean = true
 ) {
-    //TODO(HENRIK) NOT CORRECT?
-    fun isLocked():Boolean = localUsage > quota
-
     init {
         checkDeicReferenceFormat(deicAllocationId)
     }
+
+    //TODO(HENRIK) NOT CORRECT?
+    fun isLocked():Boolean = (localUsage >= quota) || ((treeUsage ?: 0) >= quota)
+    fun isActive():Boolean = Time.now() in startDate..endDate
+    fun toV1():WalletAllocation = WalletAllocation(
+        id,
+        allocationPath,
+        quota - (treeUsage ?: localUsage),
+        quota,
+        quota - localUsage,
+        startDate,
+        endDate,
+        grantedIn,
+        quota - (treeUsage ?: localUsage),
+        canAllocate,
+        allowSubAllocationsToAllocate
+    )
+
 }
 
 @Serializable
