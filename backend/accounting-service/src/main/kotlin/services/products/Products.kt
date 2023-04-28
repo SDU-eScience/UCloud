@@ -34,7 +34,7 @@ class ProductService(
                         setParameter("charge_type", req.chargeType.name)
                         setParameter("product_type", req.productType.name)
                         setParameter("unit_of_price", req.unitOfPrice.name)
-                        setParameter("unit_of_price", req.allowAllocationRequestsFrom.name)
+                        setParameter("allow_allocation_requests_from", req.allowAllocationRequestsFrom.name)
                     },
                     """
                         insert into accounting.product_categories
@@ -51,7 +51,8 @@ class ProductService(
                         do update set
                             charge_type = excluded.charge_type,
                             product_type = excluded.product_type,
-                            unit_of_price = excluded.unit_of_price
+                            unit_of_price = excluded.unit_of_price,
+                            allow_allocation_requests_from = excluded.allow_allocation_requests_from
                     """
                 )
             }
