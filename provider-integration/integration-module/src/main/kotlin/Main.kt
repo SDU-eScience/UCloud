@@ -527,6 +527,7 @@ fun main(args: Array<String>) {
                                 }
 
                                 a.pricePerUnit == b.pricePerUnit && areInternalEqual && a.description == b.description
+                                    && a.allowAllocationRequestsFrom == b.allowAllocationRequestsFrom
                             }
 
                             if (areEqual) {

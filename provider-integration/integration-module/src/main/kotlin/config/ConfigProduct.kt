@@ -103,6 +103,7 @@ sealed class ConfigProduct<T : Product> {
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
                 freeToUse = isFree(),
+                allowAllocationRequestsFrom = allowAllocationRequestsFrom,
             )
         }
     }
@@ -124,6 +125,7 @@ sealed class ConfigProduct<T : Product> {
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
                 freeToUse = isFree(),
+                allowAllocationRequestsFrom = allowAllocationRequestsFrom
             )
         }
     }
@@ -145,6 +147,7 @@ sealed class ConfigProduct<T : Product> {
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
                 freeToUse = isFree(),
+                allowAllocationRequestsFrom = allowAllocationRequestsFrom
             )
         }
     }
@@ -167,6 +170,7 @@ sealed class ConfigProduct<T : Product> {
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
                 freeToUse = isFree(),
+                allowAllocationRequestsFrom = allowAllocationRequestsFrom,
                 tags = tags,
             )
         }
@@ -195,6 +199,7 @@ sealed class ConfigProduct<T : Product> {
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
                 freeToUse = isFree(),
+                allowAllocationRequestsFrom = allowAllocationRequestsFrom,
 
                 cpu = cpu,
                 memoryInGigs = memoryInGigs,
