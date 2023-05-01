@@ -667,18 +667,7 @@ class DriveLocator(
             throw RPCException("This drive is already in maintenance mode!", HttpStatusCode.BadRequest)
         }
 
-        val drive = driveAndSystem.drive
-
-        val affectedDrives = when (drive) {
-            is UCloudDrive.ProjectMemberFiles,
-            is UCloudDrive.ProjectRepository -> {
-                DriveAndSystemStore.retrieveSystemsByProject(drive.project!!)
-            }
-
-            else -> {
-                listOf(driveAndSystem)
-            }
-        }
+        val affectedDrives = listGroupedDrives(driveAndSystem)
 
         DriveAndSystemStore.updateMaintenanceStatus(
             affectedDrives.map { it.drive.ucloudId },
@@ -727,8 +716,20 @@ class DriveLocator(
             throw RPCException("This drive is not in maintenance mode!", HttpStatusCode.BadRequest)
         }
 
-        val drive = driveAndSystem.drive
+        val affectedDrives = listGroupedDrives(driveAndSystem)
 
+        DriveAndSystemStore.updateSystem(
+            affectedDrives.map { it.drive.ucloudId },
+            newSystem
+        )
+
+        setMaintenanceMode(driveId, null, false)
+    }
+
+    suspend fun listGroupedDrives(
+        driveAndSystem: DriveAndSystem
+    ): List<DriveAndSystem> {
+        val drive = driveAndSystem.drive
         val affectedDrives = when (drive) {
             is UCloudDrive.ProjectMemberFiles,
             is UCloudDrive.ProjectRepository -> {
@@ -739,15 +740,8 @@ class DriveLocator(
                 listOf(driveAndSystem)
             }
         }
-
-        DriveAndSystemStore.updateSystem(
-            affectedDrives.map { it.drive.ucloudId },
-            newSystem
-        )
-
-        setMaintenanceMode(driveId, null, false)
+        return affectedDrives
     }
-
 
     fun driveToProduct(drive: UCloudDrive): ProductReference {
         return when (drive) {

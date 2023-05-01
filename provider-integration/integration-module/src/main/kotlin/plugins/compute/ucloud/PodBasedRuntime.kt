@@ -208,7 +208,8 @@ abstract class PodBasedContainer : Container {
         val container = pod.spec?.containers?.first() ?: return emptyList()
         val volumeMounts = container.volumeMounts ?: emptyList()
         return volumeMounts.mapNotNull { mount ->
-            val systemName = mount.name ?: return@mapNotNull null
+            var systemName = mount.name ?: return@mapNotNull null
+            if (systemName == "ucloud") systemName = "CephFS"
             val pathName = mount.subPath ?: return@mapNotNull null
             if (systemName == "shm") return@mapNotNull null
             UCloudMount(systemName, pathName)
