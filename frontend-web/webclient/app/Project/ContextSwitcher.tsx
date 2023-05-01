@@ -123,8 +123,8 @@ export function ContextSwitcher(): JSX.Element | null {
                             <div key={"My Workspace"} style={{width: "100%"}} data-active={projectId === undefined} className={BottomBorderedRow} onClick={() => {
                                 onProjectUpdated(navigate, () => setProject(), refresh, "")
                             }}>
-                                <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="2px" size="12px" color="blue" hoverColor="blue" name={"starFilled"} />
-                                <Text fontSize="var(--secondaryText)">My Workspace</Text>
+                                <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="4px" size="16px" color="blue" hoverColor="blue" name={"starFilled"} />
+                                <Text fontSize="var(--breadText)">My Workspace</Text>
                             </div>
                         ) : null}
                         {filteredProjects.map(it =>
@@ -132,7 +132,7 @@ export function ContextSwitcher(): JSX.Element | null {
                                 onProjectUpdated(navigate, () => setProject(it.id), refresh, it.id)
                             }}>
                                 <Favorite project={it} />
-                                <Text fontSize="var(--secondaryText)">{it.specification.title}</Text>
+                                <Text fontSize="var(--breadText)">{it.specification.title}</Text>
                             </div>
                         )}
 
@@ -167,7 +167,7 @@ function Favorite({project}: {project: Project}): JSX.Element {
         }
     }, [commandLoading]);
 
-    return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="2px" size="12px" color="blue" hoverColor="blue" name={isFavorite ? "starFilled" : "starEmpty"} />
+    return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="4px" size="16px" color="blue" hoverColor="blue" name={isFavorite ? "starFilled" : "starEmpty"} />
 }
 
 function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId: string): void {

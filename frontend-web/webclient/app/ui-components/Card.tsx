@@ -9,7 +9,7 @@ import {
     PaddingProps
 } from "styled-system";
 import {BoxProps} from "./Box";
-import {classConcat, injectStyle, injectStyleSimple, unbox} from "@/Unstyled";
+import {classConcat, injectStyle, unbox} from "@/Unstyled";
 
 export interface CardProps extends HeightProps,
     BoxProps,
@@ -33,6 +33,11 @@ export const CardClass = injectStyle("card", k => `
         border: 1px solid #E2DDDD;
         padding: 0 25px 25px 25px;
         box-shadow: 0px 3px 6px rgba(0, 0, 0, 16%);
+    }
+    
+    html.dark ${k} {
+        box-shadow: 0px 3px 6px rgba(255, 255, 255, 16%);
+        border: 1px solid transparent;
     }
 `);
 
