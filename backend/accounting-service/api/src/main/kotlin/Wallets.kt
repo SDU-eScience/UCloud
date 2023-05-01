@@ -643,7 +643,7 @@ data class DepositToWalletRequestItem(
             A id for the grant that approved the deposit
         """
     )
-    val grantedIn: Long?,
+    val grantedIn: Long? = null,
     val dry: Boolean = false,
 )
 

@@ -22,5 +22,12 @@ object FeatureMiscellaneous : JobFeature {
 
         val customRuntime = pluginConfig.kubernetes.categoryToCustomRuntime[job.specification.product.category]
         if (customRuntime != null) builder.runtime = customRuntime
+
+        if (pluginConfig.kubernetes.priorityClassName != null) {
+            val podBuilder = builder as? PodBasedBuilder
+            if (podBuilder != null) {
+                podBuilder.podSpec.priorityClassName = pluginConfig.kubernetes.priorityClassName
+            }
+        }
     }
 }

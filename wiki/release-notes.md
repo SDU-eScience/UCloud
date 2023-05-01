@@ -7,6 +7,34 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 26-04-23
+
+```
+Type 1/SDU Provider @ 2023.1.25
+```
+
+## 19-04-23
+
+```
+UCloud/Core @ 2023.1.23
+```
+
+## 17-04-23
+
+```
+Type 1/SDU Provider @ 2023.1.21
+```
+
+## 12-04-23
+
+```
+UCloud/Core @ 2023.1.12
+UCloud/Frontend @ 2023.1.12
+Type 1/SDU Provider @ 2023.1.12
+```
+
+
+
 ## 28-03-23
 
 ```
@@ -195,6 +223,14 @@ Note that this was a DB migration change, as a result the service version didn't
 ```
 
 # 07-12-22
+
+```
+✅  Deployment(accounting, 2022.2.85) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2022.2.85) (UP-TO-DATE)
+✅  Deployment(file-orchestrator, 2022.2.85) (UP-TO-DATE)
+```
+
+# 06-12-22
 
 ```
 ✅  Deployment(accounting, 2022.2.85) (UP-TO-DATE)
@@ -1467,14 +1503,6 @@ We back-ported GPU support for the old versions.
 Initial entry. The table below represents the active deployments.
 
 | **Deployment** | **Image** |
-| -------------- | --------- |
-| accounting-compute | accounting-compute-service:1.2.8 |
-| accounting-storage-service-deployment | accounting-storage-service:1.2.8 |
-| activity-service-deployment | activity-service:1.4.9 |
-| alerting | alerting-service:1.1.17 |
-| app-fs | app-fs-service:0.2.6 |
-| app-fs-kubernetes | app-fs-kubernetes-service:0.1.5 |
-| app-kubernetes | app-kubernetes-service:0.12.7 |
 | app-kubernetes-watcher | app-kubernetes-watcher-service:0.1.3 |
 | app-license | app-license-service:0.1.2 |
 | app-orchestrator | app-orchestrator-service:0.8.24 |
