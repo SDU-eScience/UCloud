@@ -163,7 +163,9 @@ const TagGridTopBoxClass = injectStyle("tag-grid-top-box", k => `
 
 const TagGridBottomBoxClass = injectStyle("tag-grid-bottom-box", k => `
     ${k} {
-        padding: 0px 10px 15px 10px;
+        padding: 0px 10px 15px 0px;
+        margin-left: 10px;
+        margin-right: 10px;
         border-bottom-left-radius: 10px;
         border-bottom-right-radius: 10px;
     }
@@ -265,9 +267,8 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                 <Relative>
                     <Absolute height={0} width={0} top="152px">
                         <ScrollButton disabled={false} text={"⟨"} onClick={() => {
-                            if (scrollRef.current) {
-                                scrollRef.current.scrollBy({left: -SCROLL_SPEED, behavior: "smooth"});
-                            }
+                            if (scrollRef.current) scrollRef.current.scrollBy({left: -SCROLL_SPEED, behavior: "smooth"});
+
                         }} />
                     </Absolute>
                 </Relative>
@@ -275,7 +276,6 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                     <Absolute height={0} width={0} right="0" top="152px">
                         <ScrollButton disabled={false} text={"⟩"} onClick={() => {
                             if (scrollRef.current) scrollRef.current.scrollBy({left: SCROLL_SPEED, behavior: "smooth"});
-
                         }} />
                     </Absolute>
                 </Relative>
@@ -304,10 +304,11 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
             </div>
             <Grid
                 pt="20px"
-                gridGap="10px"
+                gridGap="6px"
                 gridTemplateRows={`repeat(1, 1fr)`}
                 gridTemplateColumns={"repeat(auto-fill, 332px)"}
                 style={{gridAutoFlow: "column"}}
+                overflowX={"scroll"}
             >
                 {firstFour.map(app =>
                     <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
