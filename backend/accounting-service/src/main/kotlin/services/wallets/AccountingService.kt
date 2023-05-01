@@ -1,9 +1,6 @@
 package dk.sdu.cloud.accounting.services.wallets
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
@@ -12,7 +9,8 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.provider.api.translateToChargeType
+import dk.sdu.cloud.provider.api.translateToProductPriceUnit
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
@@ -102,13 +100,20 @@ class AccountingService(
         request: BulkRequest<DeltaReportItem>,
         dryRun: Boolean
     ): BulkResponse<Boolean> {
-        val result = request.items.forEach { charge ->
-            processor.charge(
-                AccountingRequest.Charge.DeltaCharge(
-
-                )
-            )
-        }
+        return BulkResponse(
+            request.items.map { charge ->
+                processor.charge(
+                    AccountingRequest.Charge.DeltaCharge(
+                        actorAndProject.actor,
+                        charge.owner.toProcessorOwner(),
+                        dryRun,
+                        charge.categoryIdV2,
+                        charge.usage,
+                        charge.description
+                    )
+                ).success
+            }
+        )
     }
 
     suspend fun chargeTotal(
@@ -116,10 +121,23 @@ class AccountingService(
         request: BulkRequest<DeltaReportItem>,
         dryRun: Boolean
     ): BulkResponse<Boolean> {
-        processor.
+        return BulkResponse(
+            request.items.map { charge ->
+                processor.charge(
+                    AccountingRequest.Charge.TotalCharge(
+                        actorAndProject.actor,
+                        charge.owner.toProcessorOwner(),
+                        dryRun,
+                        charge.categoryIdV2,
+                        charge.usage,
+                        charge.description
+                    )
+                ).success
+            }
+        )
     }
 
-    suspend fun checkIfSubAllocationIsAllowed(allocs: List<String>, ctx: DBContext = db) {
+    private fun checkIfSubAllocationIsAllowed(allocs: List<String>) {
         if (!processor.checkIfSubAllocationIsAllowed(allocs)) {
             throw RPCException(
                 "One or more of your allocations do not allow sub-allocations. Try a different source allocation.",
@@ -144,7 +162,7 @@ class AccountingService(
             isDry = item.dry
         }
         val response = request.items.map { deposit ->
-            checkIfSubAllocationIsAllowed(listOf(deposit.parentAllocation), db)
+            checkIfSubAllocationIsAllowed(listOf(deposit.parentAllocation))
             val created = processor.deposit(
                 AccountingRequest.Deposit(
                     actorAndProject.actor,
@@ -841,14 +859,14 @@ class AccountingService(
 
         // NOTE(Dan): Next, we build a quick map to map an allocation ID to its current balance. This is used in
         // the next step to determine max usable balance by allocation.
-        val balanceByAllocation = HashMap<Long, Long>()
-        val initialBalanceByAllocation = HashMap<Long, Long>()
+        val usageByAllocation = HashMap<Long, Long>()
+        val quotaByAllocation = HashMap<Long, Long>()
         for (summary in summaries) {
-            balanceByAllocation[summary.allocId] = summary.allocBalance
-            initialBalanceByAllocation[summary.allocId] = summary.allocInitialBalance
-            if (summary.ancestorId != null && summary.ancestorBalance != null && summary.ancestorInitialBalance != null) {
-                balanceByAllocation[summary.ancestorId] = summary.ancestorBalance
-                initialBalanceByAllocation[summary.ancestorId] = summary.ancestorInitialBalance
+            usageByAllocation[summary.allocId] = summary.allocLocalUsage
+            quotaByAllocation[summary.allocId] = summary.allocQuota
+            if (summary.ancestorId != null && summary.ancestorUsage != null && summary.ancestorQuota != null) {
+                usageByAllocation[summary.ancestorId] = summary.ancestorUsage
+                quotaByAllocation[summary.ancestorId] = summary.ancestorQuota
             }
         }
 
@@ -859,8 +877,8 @@ class AccountingService(
         // NOTE(Dan): Obtaining the maximum usable by allocation is as simple as finding the smallest balance in an
         // allocation path. It doesn't matter which element it is, we can never use more than the smallest number.
         val unorderedSummary = summaryPerAllocation.map { alloc ->
-            val maxUsable = alloc.allocPath.mapNotNull { balanceByAllocation[it] }.min()
-            val maxPromised = alloc.allocPath.mapNotNull { initialBalanceByAllocation[it] }.min()
+            val maxUsable = alloc.allocPath.mapNotNull { usageByAllocation[it] }.min()
+            val maxPromised = alloc.allocPath.mapNotNull { quotaByAllocation[it] }.min()
             ProviderWalletSummary(
                 alloc.walletId.toString(),
                 when {
@@ -868,10 +886,10 @@ class AccountingService(
                     alloc.ownerUsername != null -> WalletOwner.User(alloc.ownerUsername)
                     else -> error("Corrupt database data for wallet: ${alloc.walletId}")
                 },
-                ProductCategoryId(alloc.category, providerId),
-                alloc.productType,
-                alloc.chargeType,
-                alloc.unitOfPrice,
+                ProductCategoryId(alloc.category.name, providerId),
+                alloc.category.productType,
+                translateToChargeType(alloc.category),
+                translateToProductPriceUnit(alloc.category),
                 maxUsable,
                 maxPromised,
                 alloc.notBefore,

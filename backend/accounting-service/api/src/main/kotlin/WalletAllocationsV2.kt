@@ -3,6 +3,8 @@ package dk.sdu.cloud.accounting.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.checkDeicReferenceFormat
+import dk.sdu.cloud.provider.api.translateToChargeType
+import dk.sdu.cloud.provider.api.translateToProductPriceUnit
 import dk.sdu.cloud.service.Time
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
@@ -67,18 +69,36 @@ data class SubAllocationV2(
     val startDate: Long,
     val endDate: Long?,
 
-    val productCategoryId: ProductCategory,
+    val productCategory: ProductCategory,
 
     val workspaceId: String,
     val workspaceTitle: String,
     val workspaceIsProject: Boolean,
     val projectPI: String?,
 
-    val remaining: Long,
-    val initialBalance: Long,
+    val usage: Long,
+    val quota: Long,
 
     val grantedIn: Long?
-)
+) {
+    fun toV1(): SubAllocation = SubAllocation(
+        id,
+        path,
+        startDate,
+        endDate,
+        ProductCategoryId(productCategory.name, productCategory.provider),
+        productCategory.productType,
+        translateToChargeType(productCategory),
+        translateToProductPriceUnit(productCategory),
+        workspaceId,
+        workspaceTitle,
+        workspaceIsProject,
+        projectPI,
+        quota - usage,
+        quota,
+        grantedIn
+    )
+}
 
 interface SubAllocationQuery : WithPaginationRequestV2 {
     val filterType: ProductType?
@@ -145,22 +165,6 @@ data class ProviderWalletSummaryV2(
     val id: String,
     val owner: WalletOwner,
     val categoryId: ProductCategory,
-
-    @UCloudApiDoc("""
-        Maximum balance usable until a charge would fail
-        
-        This balance is calculated when the data is requested and thus can immediately become invalid due to changes
-        in the tree.
-    """)
-    val maxUsableBalance: Long,
-
-    @UCloudApiDoc("""
-        Maximum balance usable as promised by a top-level grant giver 
-        
-        This balance is calculated when the data is requested and thus can immediately become invalid due to changes
-        in the tree.
-    """)
-    val maxPromisedBalance: Long,
 
     @UCloudApiDoc("The earliest timestamp which allows for the balance to be consumed")
     val notBefore: Long,

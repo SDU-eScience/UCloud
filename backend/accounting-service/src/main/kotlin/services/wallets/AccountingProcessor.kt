@@ -3,7 +3,6 @@ package dk.sdu.cloud.accounting.services.wallets
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.WalletAllocationV2
-import dk.sdu.cloud.accounting.api.WalletV2
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -49,19 +48,16 @@ data class WalletSummary(
     val walletId: Long,
     val ownerUsername: String?,
     val ownerProject: String?,
-    val category: String,
-    val productType: ProductType,
-    val chargeType: ChargeType,
-    val unitOfPrice: ProductPriceUnit,
+    val category: ProductCategory,
 
     val allocId: Long,
-    val allocBalance: Long,
-    val allocInitialBalance: Long,
+    val allocLocalUsage: Long,
+    val allocQuota: Long,
     val allocPath: List<Long>,
 
     val ancestorId: Long?,
-    val ancestorBalance: Long?,
-    val ancestorInitialBalance: Long?,
+    val ancestorUsage: Long?,
+    val ancestorQuota: Long?,
 
     val notBefore: Long,
     val notAfter: Long?,
@@ -104,8 +100,6 @@ private data class InternalWalletAllocation(
     var beginGrantedIn: Long? = null
     var lastBegin: Throwable? = null
 
-    val remainingBalance = max(quota - localUsage, (quota - (treeUsage ?: 0)) )
-
     fun begin() {
         if (inProgress) throw RuntimeException("Already in progress", lastBegin)
         if (doDebug) lastBegin = RuntimeException("Invoking begin")
@@ -136,7 +130,7 @@ private data class InternalWalletAllocation(
     fun verifyIntegrity() {
         require((notAfter ?: Long.MAX_VALUE) >= notBefore) { "notAfter >= notBefore ($notAfter >= $notBefore) $this" }
         require(quota >= 0) { "initialBalance >= 0 ($quota >= 0) $this" }
-        require(treeUsage ?: 0 <= quota) { "treeUsage <= quota ($treeUsage <= $quota) $this" }
+        require((treeUsage ?: 0) <= quota) { "treeUsage <= quota ($treeUsage <= $quota) $this" }
         //legacy allocations does not live up to this requirement. Previous checks noted that this was only a problem
         //for allocations with id below 5900
         if (id > allocationIdCutoff) {
@@ -249,8 +243,8 @@ sealed class AccountingRequest {
     data class Update(
         override val actor: Actor,
         val allocationId: Int,
-        val amount: Long,
-        val notBefore: Long,
+        val amount: Long?,
+        val notBefore: Long?,
         val notAfter: Long?,
         override var id: Long = -1,
     ) : AccountingRequest()
@@ -1076,41 +1070,6 @@ class AccountingProcessor(
         return allocations[allocation.id.toInt()]?.localUsage ?: 0L
     }
 
-    // Adds maxUsableBalance to walletAllocations in a wallet
-    // TODO(HENRIK) CREATE Tree USSAGE
-    fun calculateTreeUsage(
-        wallet: ApiWallet,
-        filterEmptyAllocations: Boolean? = true
-    ) {
-        // TRAVERSE TREE SET USAGE IN ALL ALLOCATIONS
-        // PERHAPS MAKE SKIP OF SUBTREES WITH NO CHANGES.
-    }
-
-    //Goes through entire allocation tree to find the lowest possible amount that can be charged without problems
-    private fun calculateMaxUsableBalance(
-        allocation: InternalWalletAllocation
-    ): Long {
-        //TODO(HENRIK)
-        /*
-        var current: WalletAllocation? = allocation
-        var maxUsableBalance = min(current!!.currentBalance, current.localBalance)
-        while (current != null) {
-            val parentOfCurrent = current.parentAllocation
-            current = if (parentOfCurrent == null) {
-                null
-            } else {
-                val parentAllocation = allocations[parentOfCurrent]
-                if (parentAllocation == null) {
-                    return maxUsableBalance
-                } else {
-                    maxUsableBalance = min(maxUsableBalance, parentAllocation.currentBalance)
-                }
-                parentAllocation
-            }
-        }
-        return maxUsableBalance*/
-    }
-
     private fun findWallet(owner: String, category: ProductCategoryIdV2): InternalWallet? {
         return wallets.find { it?.owner == owner && it.paysFor.name == category.name && it.paysFor.provider == category.provider }
     }
@@ -1484,14 +1443,14 @@ class AccountingProcessor(
                     it.paysFor.name == request.productCategory.name)
         }?.toApiWallet() ?: return AccountingResponse.Error("No matching wallet", 400)
 
-        if (productCategory.isPeriodic()) {
+        return if (productCategory.isPeriodic()) {
             applyPeriodCharge(request.usage, wallet.allocations, request.description)
         } else {
             var currentUsage = 0L
             for (allocation in wallet.allocations) {
                 currentUsage += allocation.localUsage
             }
-            applyNonPeriodicCharge(currentUsage + request.usage, wallet, report.description)
+            applyNonPeriodicCharge(currentUsage + request.usage, wallet.allocations, request.description)
         }
     }
 
@@ -1500,21 +1459,21 @@ class AccountingProcessor(
             ?: return AccountingResponse.Error("No matching productCategory", 400)
         val wallet = wallets.find {
             it?.owner == request.owner &&
-                (it.paysFor?.provider == request.productCategory.provider &&
+                (it.paysFor.provider == request.productCategory.provider &&
                     it.paysFor.name == request.productCategory.name)
         }?.toApiWallet() ?: return AccountingResponse.Error("No matching wallet", 400)
-        if (productCategory.isPeriodic()) {
+        return if (productCategory.isPeriodic()) {
             var currentUsage = 0L
             for (allocation in wallet.allocations) {
                 currentUsage += allocation.localUsage
             }
-            applyPeriodCharge()
+            applyPeriodCharge(request.usage - currentUsage, wallet.allocations, request.description)
         } else {
-            applyNonPeriodicCharge()
+            applyNonPeriodicCharge(request.usage, wallet.allocations, request.description)
         }
     }
 
-    //TODO(HENRIK) Might be to expencive to update with every charge and that it would be fine to update tree usage by
+    //TODO(HENRIK) Might be to expensive to update with every charge and that it would be fine to update tree usage by
     // doing a full scan of tree every 5 min using O(n*log(n)) but this update should take log(n) (n=total number of allocations)
     private fun updateParentTreeUsage(allocation: InternalWalletAllocation, delta: Long): Boolean {
         if (allocation.parentAllocation == null) { return true}
@@ -1664,11 +1623,16 @@ class AccountingProcessor(
     // Update
     // =================================================================================================================
     private suspend fun update(request: AccountingRequest.Update): AccountingResponse {
-        if (request.amount < 0) return AccountingResponse.Error("Cannot update to a negative balance", 400)
+        val amountRequested = request.amount
+        if (amountRequested != null && amountRequested < 0) return AccountingResponse.Error("Cannot update to a negative balance", 400)
         val allocation = allocations.getOrNull(request.allocationId)
             ?: return AccountingResponse.Error("Invalid allocation id supplied", 400)
 
-        val wallet = internalWallets[allocation.associatedWallet]
+        if (amountRequested != null && (allocation.localUsage > amountRequested || ((allocation.treeUsage ?: allocation.localUsage) > amountRequested ))) {
+            return AccountingResponse.Error("Cannot set value to lower than current usage", 400)
+        }
+
+        val wallet = wallets[allocation.associatedWallet]
             ?: return AccountingResponse.Error("Invalid allocation id supplied", 400)
 
         if (request.actor != Actor.System) {
@@ -1682,7 +1646,7 @@ class AccountingProcessor(
 
             val role = projects.retrieveProjectRole(
                 request.actor.safeUsername(),
-                internalWallets[parentAllocation.associatedWallet]!!.owner
+                wallets[parentAllocation.associatedWallet]!!.owner
             )
 
             if (role?.isAdmin() != true) {
@@ -1690,48 +1654,41 @@ class AccountingProcessor(
             }
         }
 
-
         val parent = if (allocation.parentAllocation == null) null else allocations[allocation.parentAllocation]
 
         val notBefore = if (parent != null) {
-            max(parent.notBefore, request.notBefore)
+            max(parent.notBefore, request.notBefore ?: 0)
         } else {
             request.notBefore
         }
 
         if (parent != null) {
-            val error = checkOverlapAncestors(parent, request.notBefore, request.notAfter)
+            val error = checkOverlapAncestors(parent, notBefore ?: 0, request.notAfter)
             if (error != null) return error
         }
 
         allocation.begin()
-        val currentUse = allocation.initialBalance - allocation.currentBalance
-        val currentLocal = allocation.initialBalance - allocation.localBalance
-        allocation.initialBalance = request.amount
-        allocation.currentBalance = request.amount
-        allocation.localBalance = request.amount
-        allocation.notBefore = notBefore
-        allocation.notAfter = request.notAfter
-
-        if (wallet.chargeType == ChargeType.DIFFERENTIAL_QUOTA) {
-            // NOTE(Dan): Without this, we will break the entire tree as it has recorded usage which otherwise
-            // won't be returned on next charge. This is not true for ABSOLUTE, which doesn't have this property
-            // and as a result it is correct not to set the localBalance in that case.
-            allocation.currentBalance -= currentUse
-            allocation.localBalance -= currentLocal
+        if (amountRequested!= null) {
+            allocation.quota = request.amount
         }
-
+        if (notBefore != null) {
+            allocation.notBefore = notBefore
+        }
+        if (request.notAfter != null) {
+            allocation.notAfter = request.notAfter
+        }
+        //TODO(HENRIK) CHANGE TRNASAXCRTION
         val transactionId = transactionId()
         dirtyTransactions.add(
             Transaction.AllocationUpdate(
                 startDate = allocation.notBefore,
                 endDate = allocation.notAfter,
-                change = allocation.currentBalance - allocation.beginCurrentBalance,
+                change = allocation.quota - allocation.beginQuota,
                 actionPerformedBy = request.actor.safeUsername(),
                 description = "Allocation update",
                 affectedAllocationId = allocation.id.toString(),
                 timestamp = System.currentTimeMillis(),
-                resolvedCategory = wallet.paysFor,
+                resolvedCategory = ProductCategoryIdV2(wallet.paysFor.name, wallet.paysFor.provider),
                 initialTransactionId = transactionId,
                 transactionId = transactionId,
             )
@@ -1744,7 +1701,7 @@ class AccountingProcessor(
 
     // Retrieve Allocations
     // =================================================================================================================
-    private suspend fun retrieveAllocationsInternal(request: AccountingRequest.RetrieveAllocationsInternal): AccountingResponse {
+    private fun retrieveAllocationsInternal(request: AccountingRequest.RetrieveAllocationsInternal): AccountingResponse {
         if (request.actor != Actor.System) return AccountingResponse.Error("Forbidden", 403)
         val now = System.currentTimeMillis()
         val wallet = findWallet(request.owner, request.category)
@@ -1760,10 +1717,10 @@ class AccountingProcessor(
         )
     }
 
-    private suspend fun retrieveWalletsInternal(request: AccountingRequest.RetrieveWalletsInternal): AccountingResponse {
+    private fun retrieveWalletsInternal(request: AccountingRequest.RetrieveWalletsInternal): AccountingResponse {
         if (request.actor != Actor.System) return AccountingResponse.Error("Forbidden", 403)
 
-        val wallets = internalWallets.filter { it?.owner == request.owner }
+        val wallets = wallets.filter { it?.owner == request.owner }
         return AccountingResponse.RetrieveWalletsInternal(
             wallets
                 .asSequence()
@@ -1790,14 +1747,14 @@ class AccountingProcessor(
     private suspend fun retrieveRelevantWalletsNotifications(request: AccountingRequest.RetrieveRelevantWalletsProviderNotifications): AccountingResponse {
         // NOTE(Henrik): We fetch all the relevant data.
         //
-        // The first we retrieve the relevant wallets, filteres them by request filters and creates pagination of
+        // First we retrieve the relevant wallets, filters them by request filters and creates pagination of
         // the wallets
         // The second part retrieves all relevant allocations along with their ancestors.
         //
         // This summary is then used to build the summary required by the provider.
 
 
-        var providerWallets = internalWallets.filter { it?.paysFor?.provider == request.providerId }.mapNotNull { it }
+        var providerWallets = wallets.filter { it?.paysFor?.provider == request.providerId }.mapNotNull { it }
 
         if (request.filterCategory != null) {
             val filtered = providerWallets.filter { it.paysFor.name == request.filterCategory }
@@ -1842,22 +1799,20 @@ class AccountingProcessor(
                         wallet.id.toLong(),
                         if (isProject) null else wallet.owner,
                         if (isProject) wallet.owner else null,
-                        wallet.paysFor.name,
-                        wallet.productType,
-                        wallet.chargeType,
-                        wallet.unit,
+                        wallet.paysFor,
+
                         alloc.id.toLong(),
-                        alloc.currentBalance,
-                        alloc.initialBalance,
+                        alloc.localUsage,
+                        alloc.quota,
                         allocationPath,
                         parent?.toLong(),
                         if (parent != null) {
-                            allocations[parent]?.currentBalance
+                            allocations[parent]?.localUsage
                         } else {
                             null
                         },
                         if (parent != null) {
-                            allocations[parent]?.initialBalance
+                            allocations[parent]?.quota
                         } else {
                             null
                         },
@@ -1873,19 +1828,12 @@ class AccountingProcessor(
         )
     }
 
-    suspend fun maxUsableBalanceForProduct(owner: String, categoryId: ProductCategoryId): Long {
-        val wallet = findWallet(owner, categoryId) ?: return 0L
-        val maxUsableBalances = allocations.mapNotNull { it }.filter { it.associatedWallet == wallet.id }
-            .map { calculateMaxUsableBalance(it) }
-        return maxUsableBalances.sum()
-    }
-
 
     //Is Autherized in AccountingService
     private suspend fun browseSubAllocations(
         request: AccountingRequest.BrowseSubAllocations
     ): AccountingResponse {
-        val currentProjectWalletsIds = internalWallets.mapNotNull { if (it?.owner == request.owner) it.id else null }.toSet()
+        val currentProjectWalletsIds = wallets.mapNotNull { if (it?.owner == request.owner) it.id else null }.toSet()
         val currentProjectAllocations = mutableListOf<Int>()
         val subAllocations = mutableListOf<InternalWalletAllocation>()
         allocations.forEach {
@@ -1898,24 +1846,21 @@ class AccountingProcessor(
         }
 
         val list = subAllocations.mapNotNull { allocation ->
-            val wall = internalWallets[allocation.associatedWallet]
+            val wall = wallets[allocation.associatedWallet]
             if (wall != null) {
                 val projectInfo = projects.retrieveProjectInfoFromId(wall.owner)
-                SubAllocation(
+                SubAllocationV2(
                     id = allocation.id.toString(),
                     path = allocation.toApiAllocation().allocationPath.joinToString(separator = "."),
                     startDate = allocation.notBefore,
                     endDate = allocation.notAfter,
-                    productCategoryId = wall.paysFor,
-                    productType = wall.productType,
-                    chargeType = wall.chargeType,
-                    unit = wall.unit,
+                    productCategory = wall.paysFor,
                     workspaceId = projectInfo.first.projectId,
                     workspaceTitle = projectInfo.first.title,
                     workspaceIsProject = wall.owner.matches(UUID_REGEX),
                     projectPI = projectInfo.second,
-                    remaining = allocation.currentBalance,
-                    initialBalance = allocation.initialBalance,
+                    usage = allocation.localUsage,
+                    quota = allocation.quota,
                     grantedIn = allocation.grantedIn
                 )
             } else null
@@ -1927,8 +1872,8 @@ class AccountingProcessor(
             val query = request.query
             list.filter {
                 it.workspaceTitle.contains(query) ||
-                        it.productCategoryId.name.contains(query) ||
-                        it.productCategoryId.provider.contains(query)
+                        it.productCategory.name.contains(query) ||
+                        it.productCategory.provider.contains(query)
             }
         }
         return AccountingResponse.BrowseSubAllocations(filteredList)
@@ -1965,7 +1910,7 @@ class AccountingProcessor(
 
             db.withSession { session ->
                 debug.detail("Dealing with wallets")
-                internalWallets.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
+                wallets.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
                     val filtered = chunk
                         .filter { it.isDirty }
                         .takeIfNotEmpty()
@@ -2053,9 +1998,10 @@ class AccountingProcessor(
                                     reversePath.reversed().joinToString(".")
                                 }
                                 into("associated_wallets") { it.associatedWallet.toLong() }
-                                into("balances") { it.currentBalance }
-                                into("initial_balances") { it.initialBalance }
-                                into("local_balances") { it.localBalance }
+                                //TODO(HENRIK NEW VERSION CHECK)
+                                into("balances") { it.quota - (it.treeUsage ?: it.localUsage) }
+                                into("initial_balances") { it.quota }
+                                into("local_balances") { it.quota - it.localUsage }
                                 into("start_dates") { it.notBefore }
                                 into("end_dates") { it.notAfter }
                                 into("granted_ins") { it.grantedIn }
@@ -2230,7 +2176,7 @@ class AccountingProcessor(
 
             val depositForProviders = dirtyTransactions.asSequence()
                 .filterIsInstance<Transaction.Deposit>()
-                .map { internalWallets[allocations[it.affectedAllocationId.toInt()]!!.associatedWallet]!!.paysFor.provider }
+                .map { wallets[allocations[it.affectedAllocationId.toInt()]!!.associatedWallet]!!.paysFor.provider }
                 .toSet()
 
             if (depositForProviders.isNotEmpty()) {
@@ -2241,7 +2187,7 @@ class AccountingProcessor(
             }
 
             //Clear dirty checks
-            internalWallets.asSequence().filterNotNull().filter { it.isDirty }.forEach { it.isDirty = false }
+            wallets.asSequence().filterNotNull().filter { it.isDirty }.forEach { it.isDirty = false }
 
             allocations.asSequence().filterNotNull().filter { it.isDirty }.forEach { it.isDirty = false }
 
@@ -2264,15 +2210,15 @@ class AccountingProcessor(
                 column("ID")
                 column("Owner", 45)
                 column("Pays For")
-                column("Type", (ChargeType.DIFFERENTIAL_QUOTA.name.length * 1.5).toInt())
+                column("Type", 20)
                 column("Dirty")
 
-                for (wallet in internalWallets) {
+                for (wallet in wallets) {
                     if (wallet == null) continue
                     cell(wallet.id)
                     cell(wallet.owner)
                     cell(wallet.paysFor.name)
-                    cell(wallet.chargeType)
+                    cell(wallet.paysFor.productType)
                     cell(wallet.isDirty)
                     nextRow()
                 }
@@ -2286,23 +2232,23 @@ class AccountingProcessor(
             column("ID")
             column("Owner", 45)
             column("Parent")
-            column("Initial", 20)
-            column("Current", 20)
-            column("Local", 20)
+            column("LocalUsage", 20)
+            column("Quota", 20)
+            column("TreeUsage", 20)
             column("Dirty")
             column("Start", 30)
             column("End", 30)
 
             for (alloc in allocations) {
                 if (alloc == null) continue
-                val owner = internalWallets[alloc.associatedWallet]?.owner ?: continue
+                val owner = wallets[alloc.associatedWallet]?.owner ?: continue
                 if (owner.startsWith("_filter")) continue
                 cell(alloc.id)
                 cell("$owner (${alloc.associatedWallet})")
                 cell(alloc.parentAllocation)
-                cell(alloc.initialBalance)
-                cell(alloc.currentBalance)
-                cell(alloc.localBalance)
+                cell(alloc.localUsage)
+                cell(alloc.quota)
+                cell(alloc.treeUsage)
                 cell(alloc.isDirty)
                 cell(dateString(alloc.notBefore))
                 cell(if (alloc.notAfter == null) "Never" else dateString(alloc.notAfter!!))
