@@ -142,7 +142,7 @@ interface FilesEmptyTrashRequestItem {
     id: string;
 }
 
-interface ExtraCallbacks {
+export interface ExtraFileCallbacks {
     collection?: FileCollection;
     directory?: UFile;
     // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in
@@ -152,7 +152,7 @@ interface ExtraCallbacks {
     setSynchronization?: (file: UFile, shouldAdd: boolean) => void;
 }
 
-function isSensitivitySupported(resource: UFile): boolean {
+export function isSensitivitySupported(resource: UFile): boolean {
     // NOTE(Dan): This is a temporary frontend workaround. A proper backend solution will be implemented at a later
     // point in time. For the time being we will simply use a list of supported providers on the frontend. This list
     // contains the known production providers which support sensitive data. This list will also contain some "fake"
@@ -177,8 +177,8 @@ function isSensitivitySupported(resource: UFile): boolean {
     }
 }
 
-const FileSensitivityVersion = "1.0.0";
-const FileSensitivityNamespace = "sensitivity";
+export const FileSensitivityVersion = "1.0.0";
+export const FileSensitivityNamespace = "sensitivity";
 type SensitivityLevel = | "PRIVATE" | "SENSITIVE" | "CONFIDENTIAL";
 let sensitivityTemplateId = "";
 async function findSensitivityWithFallback(file: UFile): Promise<SensitivityLevel> {
@@ -266,7 +266,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
     public idIsUriEncoded = true;
 
-    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks> = {
+    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks> = {
         MainTitle({resource}) {return <>{resource ? fileName(resource.id) : ""}</>},
         Icon(props: {resource?: UFile, size: string}) {
             const file = props.resource;
@@ -392,10 +392,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         />;
     };
 
-    public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks>[] {
+    public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[] {
         const base = super.retrieveOperations()
             .filter(it => it.tag !== CREATE_TAG && it.tag !== PERMISSIONS_TAG && it.tag !== DELETE_TAG);
-        const ourOps: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks>[] = [
+        const ourOps: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[] = [
             {
                 text: "Use this folder",
                 primary: true,
@@ -446,7 +446,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 text: "Create folder",
                 icon: "uploadFolder",
-                color: "blue",
                 primary: true,
                 canAppearInLocation: loc => loc === "SIDEBAR",
                 enabled: (selected, cb) => {
@@ -806,7 +805,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     fileSelectorModalStyle = largeModalStyle;
 }
 
-function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): string {
+function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): string {
     const devices: SyncthingDevice[] = callbacks.syncthingConfig?.devices ?? [];
     if (devices.length === 0) return "Sync setup (BETA)";
 
@@ -837,7 +836,7 @@ function fileSize(file: UFile, support?: FileCollectionSupport): undefined | num
     return undefined;
 }
 
-function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): boolean | string {
+function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): boolean | string {
     const support = cb.collection?.status.resolvedSupport?.support;
     if (!support) return false;
 
@@ -862,7 +861,7 @@ function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBr
     return true;
 }
 
-async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks) {
+async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks) {
     const synchronized: SyncthingFolder[] = cb.syncthingConfig?.folders ?? [];
     const resolvedFiles = files.length === 0 ? (cb.directory ? [cb.directory] : []) : files;
     const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));

@@ -1,0 +1,33 @@
+namespace ucloud;
+
+// NOTE(Dan): Payload must follow immediately after the response
+table RequestHeader {
+    call: uint16;
+    stream: uint16;
+    project: uint8;
+}
+
+table RegisterCall {
+    reference: uint16;
+    full_name: string (required);
+}
+
+table RegisterProjectRequest {
+    reference: uint8;
+    project_id: string (required);
+}
+
+table AuthenticateRequest {
+    bearer: string (required);
+}
+
+table SignIntentRequest {
+    signed_intent: string (required);
+}
+
+// NOTE(Dan): Payload must follow immediately after the response
+table ResponseHeader {
+    status: uint8;
+    stream: uint16;
+    end_of_stream: bool;
+}

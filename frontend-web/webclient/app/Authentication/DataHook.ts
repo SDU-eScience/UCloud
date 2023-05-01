@@ -134,6 +134,10 @@ export function mapCallState<T, T2>(state: APICallState<T>, mapper: (t: T) => T2
 }
 
 export async function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
+    if (window["forceApiFailure"] !== undefined) {
+        return Promise.reject(window["forceApiFailure"]);
+    }
+
     const method = parameters.method !== undefined ? parameters.method : "GET";
     if (parameters.path === undefined) throw Error("Missing path");
     return (await Client.call({

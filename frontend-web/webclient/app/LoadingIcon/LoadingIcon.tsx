@@ -48,6 +48,8 @@ function createCSS(parentPath: string) {
     return style;
 }
 
+// NOTE(Dan): Before changing the component below, please be aware that the createSpinner() function of
+// ResourceBrowser has a hardcoded assumption about the DOM that this component renders.
 const HexSpin = ({size = 32}: HexSpinProps): JSX.Element => (
     <HexSpinWrapper data-tag="loading-spinner" style={{width: size, height: size}}>
         <svg

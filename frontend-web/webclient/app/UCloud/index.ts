@@ -184,7 +184,6 @@ export interface FileMetadataDocument {
      */
     owner: provider.ResourceOwner,
     acl?: any /* unknown */,
-    billing: provider.ResourceBillingNS.Free,
     permissions?: provider.ResourcePermissions,
     providerGeneratedId?: string,
     type: ("metadata"),

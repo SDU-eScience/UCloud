@@ -133,4 +133,8 @@ working in projects.
             summary = "Request the avatars of one or more users by username."
         }
     }
+
+    val test = call("test", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate("/api", "test", Roles.PUBLIC)
+    }
 }

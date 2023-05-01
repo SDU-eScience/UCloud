@@ -238,7 +238,6 @@ export abstract class ResourceApi<Res extends Resource,
             {
                 text: "Create " + this.title.toLowerCase(),
                 icon: "upload",
-                color: "blue",
                 primary: true,
                 canAppearInLocation: loc => loc !== "IN_ROW",
                 enabled: (selected, cb) => {
