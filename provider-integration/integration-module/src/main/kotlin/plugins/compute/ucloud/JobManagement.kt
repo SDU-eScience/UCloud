@@ -174,7 +174,7 @@ class JobManagement(
             }
 
             k8.debug?.everything("Creating resource")
-            runtime.scheduleGroup(listOf(builder))
+            runtime.schedule(builder)
             k8.debug?.everything("Resource has been created!")
         } catch (ex: Throwable) {
             log.warn(ex.stackTraceToString())

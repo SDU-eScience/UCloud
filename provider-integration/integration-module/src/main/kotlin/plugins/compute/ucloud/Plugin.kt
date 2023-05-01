@@ -100,6 +100,8 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
                 pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
             ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> K8PodRuntime(k8.client, pluginConfig.kubernetes.namespace,
                 pluginConfig.kubernetes.categoryToSelector, pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods2 -> Pod2Runtime(k8.client, pluginConfig.kubernetes.namespace,
+                pluginConfig.kubernetes.categoryToSelector, pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
         }
 
         nameAllocator.runtime = runtime

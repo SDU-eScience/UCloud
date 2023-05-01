@@ -448,6 +448,7 @@ data class ConfigSchema(
                     val categoryToSelector: Map<String, String> = emptyMap(),
                     val categoryToCustomRuntime: Map<String, String> = emptyMap(),
                     val priorityClassName: String? = null,
+                    val defaultNodeType: String? = null,
                 )
 
                 @Serializable
@@ -475,7 +476,8 @@ data class ConfigSchema(
 
                 enum class Scheduler {
                     Volcano,
-                    Pods
+                    Pods,
+                    Pods2,
                 }
             }
         }

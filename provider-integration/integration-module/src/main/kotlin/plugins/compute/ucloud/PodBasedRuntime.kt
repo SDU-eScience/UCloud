@@ -169,7 +169,7 @@ abstract class PodBasedContainer : Container {
         )
     }
 
-    override val ipAddress: String get() = pod.status!!.podIP!!
+    val ipAddress: String get() = pod.status!!.podIP!!
 
     override val annotations: Map<String, String>
         get() {

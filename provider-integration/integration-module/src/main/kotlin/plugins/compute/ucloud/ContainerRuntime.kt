@@ -14,7 +14,6 @@ interface Container {
     val jobId: String
     val rank: Int
     val annotations: Map<String, String>
-    val ipAddress: String
 
     suspend fun upsertAnnotation(key: String, value: String)
 
@@ -57,7 +56,7 @@ interface ComputeNode {
 interface ContainerRuntime {
     fun builder(jobId: String, replicas: Int, block: ContainerBuilder.() -> Unit = {}): ContainerBuilder
 
-    suspend fun scheduleGroup(group: List<ContainerBuilder>)
+    suspend fun schedule(container: ContainerBuilder)
     suspend fun retrieve(jobId: String, rank: Int): Container?
     suspend fun list(): List<Container>
     suspend fun listNodes(): List<ComputeNode>

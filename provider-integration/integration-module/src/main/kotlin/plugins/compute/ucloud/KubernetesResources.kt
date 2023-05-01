@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins.compute.ucloud
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNames
 import kotlinx.serialization.json.JsonObject
 
 object KubernetesResources {
@@ -684,7 +685,16 @@ data class Node(
 ) {
     @Serializable
     data class Status(
-        var allocatable: Allocatable? = null
+        var allocatable: Allocatable? = null,
+        var capacity: Capacity? = null,
+    )
+
+    @Serializable
+    data class Capacity(
+        var cpu: String? = null,
+        var memory: String? = null,
+        @SerialName("nvidia.com/gpu")
+        var nvidiaGpu: String? = null
     )
 
     @Serializable
