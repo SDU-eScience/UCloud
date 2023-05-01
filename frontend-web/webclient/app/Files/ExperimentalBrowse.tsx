@@ -30,7 +30,7 @@ import {FileIconHint, FileType} from "@/Files/index";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {SvgFt} from "@/ui-components/FtIcon";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import {accounting, PageV2} from "@/UCloud";
@@ -568,7 +568,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
 
                 return browser.icons.renderSvg(
                     "file-" + extension,
-                    () => <SvgFt color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")} hasExt={hasExt}
+                    () => <SvgFt color={getCssColorVar("FtIconColor")} color2={getCssColorVar("FtIconColor2")} hasExt={hasExt}
                                  ext={extension} type={type} width={width} height={height}/>,
                     width,
                     height

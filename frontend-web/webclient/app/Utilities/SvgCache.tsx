@@ -2,7 +2,7 @@ import {AsyncCache} from "./AsyncCache";
 import {useLayoutEffect, useRef} from "react";
 import {createRoot} from "react-dom/client";
 import * as React from "react";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 
@@ -76,7 +76,7 @@ export class SvgCache {
             () => <Icon name={name} color={color} color2={color2} width={width} height={height}/>,
             width,
             height,
-            getCssVar(color),
+            getCssColorVar(color),
         );
     }
 

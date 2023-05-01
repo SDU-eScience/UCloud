@@ -711,7 +711,6 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
                     TODO(Dan): This height is extremely fragile!
 
                     NOTE(Dan):
-                    - 48px corresponds to the top nav-header
                     - 45px to deal with header of the browse component
                     - 48px to deal with load more button
                     - 6px from padding between header and content
@@ -719,7 +718,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
                       global value.
                 */}
                 <div style={props.browseType == BrowseType.MainContent ?
-                    {height: `calc(100vh - 48px - 45px - ${opts.hasNext ? 48 : 0}px - ${headerSize}px - var(--termsize, 0px) - 6px)`} :
+                    {height: `calc(100vh - 45px - ${opts.hasNext ? 48 : 0}px - ${headerSize}px - var(--termsize, 0px) - 6px)`} :
                     {height: `${sizeAllocationForEmbeddedAndCard}px`}}
                 >
                     <AutoSizer children={({width, height}) => (

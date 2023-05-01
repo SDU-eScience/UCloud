@@ -11,6 +11,10 @@ import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2} from "@/UCloud";
 
+/* BUGS FOUND
+    - Double click/accesssing is available for files (not directory)
+*/
+
 export type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
 
 export interface OperationGroup<T, R> {
@@ -2123,7 +2127,7 @@ export class ResourceBrowser<T> {
 
             .file-browser {
                 width: 100%;
-                height: calc(100vh - var(--headerHeight) - 32px);
+                height: calc(100vh - 32px);
                 display: flex;
                 flex-direction: column;
                 font-size: 16px;
