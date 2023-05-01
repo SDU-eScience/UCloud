@@ -28,7 +28,7 @@ const GridClass = injectStyle("grid", k => `
 `);
 
 const Grid: React.FunctionComponent<GridProps> = props => {
-    const style: CSSProperties = { ... unbox(props), ...(props.style ?? {}) };
+    const style: CSSProperties = {...unbox(props), ...(props.style ?? {})};
     if (props.gridGap) style.gap = extractSize(props.gridGap);
     if (props.gridTemplateColumns) style.gridTemplateColumns = props.gridTemplateColumns.toString();
     if (props.gridAutoFlow) style.gridAutoFlow = props.gridAutoFlow.toString();

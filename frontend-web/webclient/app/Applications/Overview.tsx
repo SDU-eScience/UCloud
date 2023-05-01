@@ -2,7 +2,7 @@ import {emptyPage} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {Box, Divider, Flex, Link} from "@/ui-components";
+import {Absolute, Box, Divider, Flex, Link, Relative} from "@/ui-components";
 import Grid from "@/ui-components/Grid";
 import * as Heading from "@/ui-components/Heading";
 import {Spacer} from "@/ui-components/Spacer";
@@ -32,6 +32,32 @@ export const ShowAllTagItem: React.FunctionComponent<{tag?: string; children: Re
 
 function favoriteStatusKey(app: ApplicationSummaryWithFavorite): string {
     return `${app.metadata.name}/${app.metadata.version}`;
+}
+
+const ScrollButtonClass = injectStyle("scroll-button", k => `
+    ${k} {
+        background-color: var(--blue);
+        color: var(--white);
+        width: 32px;
+        height: 32px;
+        border-radius: 16px;
+        cursor: pointer;
+        user-select: none;
+        font-weight: 800;
+        font-size: 18px;
+        padding-left: 12px;
+        padding-top: 1px;
+    }
+
+    ${k}[data-is-left="true"] {
+        padding-left: 10px;
+    }
+`);
+
+function ScrollButton({disabled, text, onClick}: {disabled: boolean; text: string; onClick(): void}): JSX.Element {
+    return <div onClick={onClick} data-is-left={text === "⟨"} className={ScrollButtonClass} data-disabled={disabled}>
+        {text}
+    </div>
 }
 
 type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
@@ -158,6 +184,8 @@ interface TagGridProps {
     refreshId: number;
 }
 
+const SCROLL_SPEED = 156 * 4;
+
 let isInitial = true;
 const TagGrid: React.FunctionComponent<TagGridProps> = (
     {tag, items, tagBanList = [], favoriteStatus, onFavorite}: TagGridProps
@@ -201,6 +229,8 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
         if (showFavorites) dispatch(setAppFavorites(filteredItems.map(it => it.metadata)));
     }, [filteredItems]);
 
+    const scrollRef = React.useRef<HTMLDivElement>(null);
+
     if (filteredItems.length === 0) return null;
 
     if (showFavorites) {
@@ -216,6 +246,8 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
     const firstFour = filteredItems.length > 4 ? filteredItems.slice(0, 4) : filteredItems.slice(0, 1);
     const remaining = filteredItems.length > 4 ? filteredItems.slice(4) : filteredItems.slice(1);
 
+    const hasScroll = scrollRef.current && scrollRef.current.scrollWidth > scrollRef.current.clientWidth;
+
     return (
         <>
             <div className={TagGridTopBoxClass} data-favorite={showFavorites}>
@@ -229,7 +261,26 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                     )}
                 />
             </div>
-            <div className={TagGridBottomBoxClass} data-favorite={showFavorites}>
+            {!hasScroll ? null : <>
+                <Relative>
+                    <Absolute height={0} width={0} top="152px">
+                        <ScrollButton disabled={false} text={"⟨"} onClick={() => {
+                            if (scrollRef.current) {
+                                scrollRef.current.scrollBy({left: -SCROLL_SPEED, behavior: "smooth"});
+                            }
+                        }} />
+                    </Absolute>
+                </Relative>
+                <Relative>
+                    <Absolute height={0} width={0} right="0" top="152px">
+                        <ScrollButton disabled={false} text={"⟩"} onClick={() => {
+                            if (scrollRef.current) scrollRef.current.scrollBy({left: SCROLL_SPEED, behavior: "smooth"});
+
+                        }} />
+                    </Absolute>
+                </Relative>
+            </>}
+            <div ref={scrollRef} className={TagGridBottomBoxClass} data-favorite={showFavorites}>
                 <Grid
                     pt="20px"
                     mx="auto"
