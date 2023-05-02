@@ -588,63 +588,60 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                 <form onSubmit={onAddMember}>
                                     <Input
                                         height={"48px"}
+                                        width="100%"
                                         id="new-project-member"
                                         placeholder="Username"
                                         autoComplete="off"
                                         inputRef={newMemberRef}
                                     />
-                                    <Button my="auto" height="36px" type={"submit"}>
+                                    <Button ml="10px" my="auto" height="36px" type={"submit"}>
                                         <Text fontSize={"20px"}>Add</Text>
                                     </Button>
-                                    <Relative width={"0px"} height={"0px"} left="-115px" top="8px">
-                                        <Tooltip tooltipContentWidth={160} trigger={<div className={HelpCircleClass} />}>
-                                            <Text color="black" fontSize={12}>
-                                                Your username can be found at the bottom of the sidebar next to {" "}<Icon name="id" />.
-                                            </Text>
-                                        </Tooltip>
+                                    <Relative width={"0px"} height={"0px"} left="-132px" top="8px">
+                                        {USER_ID_HELP}
                                     </Relative>
+                                    <Button
+                                        mt={"6px"}
+                                        mx={10}
+                                        height="36px"
+                                        color="green"
+                                        type="button"
+                                        title="Invite with link"
+                                        onClick={async () => {
+                                            dialogStore.addDialog(
+                                                <InviteLinkEditor
+                                                    groups={groups}
+                                                    project={project}
+                                                />,
+                                                doNothing,
+                                                true
+                                            );
+                                        }}
+                                    >
+                                        <Text fontSize="20px">+</Text>
+                                    </Button>
                                 </form>
-                                <Button
-                                    mt={"6px"}
-                                    mr={10}
-                                    height="36px"
-                                    color="green"
-                                    type="button"
-                                    title="Invite with link"
-                                    onClick={async () => {
-                                        dialogStore.addDialog(
-                                            <InviteLinkEditor
-                                                groups={groups}
-                                                project={project}
-                                            />,
-                                            doNothing,
-                                            true
-                                        );
-                                    }}
-                                >
-                                    <Text fontSize="20px">+</Text>
-                                </Button>
                             </>
                         )}
-                        <form onSubmit={preventDefault}>
-                            <Input
-                                id="project-member-search"
-                                placeholder="Search existing project members..."
-                                pr="30px"
-                                height={"48px"}
-                                autoComplete="off"
-                                value={memberQuery}
-                                onChange={updateMemberQueryFromEvent}
-                            />
-                            <Relative>
-                                <Absolute right="6px" top="10px">
-                                    <Label htmlFor="project-member-search">
-                                        <Icon name="search" size="24" />
-                                    </Label>
-                                </Absolute>
-                            </Relative>
-                        </form>
                     </Flex>
+                    <form onSubmit={preventDefault}>
+                        <Input
+                            id="project-member-search"
+                            placeholder="Search existing project members..."
+                            pr="30px"
+                            height={"48px"}
+                            autoComplete="off"
+                            value={memberQuery}
+                            onChange={updateMemberQueryFromEvent}
+                        />
+                        <Relative>
+                            <Absolute right="12px" bottom="12px">
+                                <Label htmlFor="project-member-search">
+                                    <Icon name="search" size="24" />
+                                </Label>
+                            </Absolute>
+                        </Relative>
+                    </form>
                     <List mt="16px">
                         {invites.items.map(i =>
                             <ItemRow
@@ -1408,5 +1405,13 @@ const HelpCircleClass = injectStyle("help-circle", k => `
         display: block;
     }
 `);
+
+const USER_ID_HELP = (
+    <Tooltip tooltipContentWidth={160} trigger={<div className={HelpCircleClass} />}>
+        <Text fontSize={12}>
+            Your username can be found at the bottom of the sidebar next to {" "}<Icon name="id" />.
+        </Text>
+    </Tooltip>
+);
 
 export default ProjectMembers2;

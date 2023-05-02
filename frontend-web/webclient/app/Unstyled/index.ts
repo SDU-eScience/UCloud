@@ -114,6 +114,7 @@ export function unbox(props: BoxProps | SpaceProps): CSSProperties {
     }
 
     if ("borderRadius" in props && props.borderRadius) result.borderRadius = extractSize(props.borderRadius);
+    if ("border" in props && props.border) result.border = props.border.toString();
     if ("zIndex" in props && props.zIndex) result.zIndex = props.zIndex.toString();
     if ("width" in props && props.width) result.width = extractSize(props.width);
     if ("height" in props && props.height) result.height = extractSize(props.height);

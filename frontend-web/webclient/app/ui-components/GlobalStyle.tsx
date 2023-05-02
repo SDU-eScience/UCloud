@@ -218,7 +218,7 @@ html.dark {
     --gradientEnd: #282C33;
     --sidebarColor: #141414;
     --sidebarSecondaryColor: #1D1D1D;
-    --inputColor: #282c35;
+    --inputColor: #000;
 }
 
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */

@@ -90,7 +90,7 @@ const RadioTileClass = injectStyle("radio-tile", k => `
     
     ${k}:hover > .${RadioTileIconClass} {
         color: var(--blue, #f00); 
-        border: 1px solid var(--blue, #f00);
+        /* border: 1px solid var(--blue, #f00); */
     }
     
     ${k} input {
@@ -127,7 +127,7 @@ const RadioTileClass = injectStyle("radio-tile", k => `
         width: 100%;
         height: 100%;
         border-radius: 5px;
-        border: 1px solid var(--invertedThemeColor);
+        /* border: 1px solid var(--invertedThemeColor); */
         color: var(--invertedThemeColor, #f00);
         transition: all 300ms ease;
     }

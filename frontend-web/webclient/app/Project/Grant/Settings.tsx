@@ -99,8 +99,7 @@ export function ProjectLogo(): JSX.Element | null {
 
     if (!enabled.data.enabled || !projectId) return null;
     return <Box>
-        <Heading.h3>Logo for Project</Heading.h3>
-        Current Logo:<br /> <Box mx="auto" textAlign="center"><Logo projectId={projectId} size={"256px"} /></Box> <br />
+        Change logo for project<br /> <Box mx="auto" textAlign="center"><Logo projectId={projectId} size={"256px"} /></Box> <br />
         <label className={ButtonClass}>
             Upload Logo
             <HiddenInputField
@@ -250,7 +249,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
     if (!enabled.data.enabled) return null;
 
     return <Box>
-        <Heading.h4>Default Template for Grant Applications</Heading.h4>
+        <Heading.h4>Grant settings</Heading.h4>
         <TemplateEditor
             templatePersonal={templatePersonal}
             templateExisting={templateExisting}
@@ -258,7 +257,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
             onUploadTemplate={onUploadTemplate}
         />
         <Divider />
-        <Heading.h4>Allow Grant Applications From</Heading.h4>
+        <Heading.h4>Allow grant applications from</Heading.h4>
         <UserCriteriaEditor
             criteria={settings.data.allowRequestsFrom}
             onSubmit={addAllowFrom}
@@ -266,7 +265,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
             showSubprojects={true}
         />
 
-        <Heading.h4>Exclude Grant Applications From</Heading.h4>
+        <Heading.h4>Exclude grant applications from</Heading.h4>
         <ExcludeListEditor
             criteria={settings.data.excludeRequestsFrom}
             onSubmit={addExcludeFrom}
@@ -556,15 +555,15 @@ const TemplateEditor: React.FunctionComponent<{
         <Grid gridGap={32} gridTemplateColumns={"repeat(auto-fit, minmax(350px, 1fr))"}>
             <Box>
                 <Heading.h5>Personal</Heading.h5>
-                <TextArea width={"100%"} rows={15} inputRef={templatePersonal} />
+                <TransparentBorderTextArea rows={15} inputRef={templatePersonal} />
             </Box>
             <Box>
                 <Heading.h5>Existing Project</Heading.h5>
-                <TextArea width={"100%"} rows={15} inputRef={templateExisting} />
+                <TransparentBorderTextArea rows={15} inputRef={templateExisting} />
             </Box>
             <Box>
                 <Heading.h5>New Project</Heading.h5>
-                <TextArea width={"100%"} rows={15} inputRef={templateNew} />
+                <TransparentBorderTextArea rows={15} inputRef={templateNew} />
             </Box>
         </Grid>
         <Flex justifyContent={"center"} mt={32}>
@@ -572,6 +571,10 @@ const TemplateEditor: React.FunctionComponent<{
         </Flex>
     </>;
 };
+
+function TransparentBorderTextArea(props: {inputRef: React.RefObject<HTMLInputElement>; rows: number}): JSX.Element {
+    return <TextArea borderRadius={"8px"} backgroundColor="transparent" border={"2px solid var(--blue)"} width={"100%"} rows={props.rows} inputRef={props.inputRef} />
+}
 
 const DescriptionEditor: React.FunctionComponent<{
     templateDescription: React.RefObject<HTMLInputElement>,
@@ -581,7 +584,7 @@ const DescriptionEditor: React.FunctionComponent<{
             <Grid gridGap={32} gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"}>
                 <Box>
                     <Heading.h5>Description</Heading.h5>
-                    <TextArea width={"100%"} rows={15} inputRef={templateDescription} />
+                    <TransparentBorderTextArea rows={15} inputRef={templateDescription} />
                 </Box>
             </Grid>
             <Flex justifyContent={"center"} mt={32}>

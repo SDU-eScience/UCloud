@@ -1,4 +1,6 @@
 import {
+    BackgroundColorProps,
+    BorderProps,
     BorderRadiusProps,
     FontSizeProps,
     SpaceProps, TextAlignProps,
@@ -9,7 +11,7 @@ import {classConcat, extractEventHandlers, injectStyle, unbox} from "@/Unstyled"
 import * as React from "react";
 import {Cursor} from "./Types";
 
-export interface InputProps extends SpaceProps, FontSizeProps, BorderRadiusProps, React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends BorderProps, BackgroundColorProps, SpaceProps, FontSizeProps, BorderRadiusProps, React.InputHTMLAttributes<HTMLInputElement> {
     leftLabel?: boolean;
     rightLabel?: boolean;
     id?: string;

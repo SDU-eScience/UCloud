@@ -40,6 +40,7 @@ import {UtilityBar} from "@/Playground/Playground";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {TwoColumnLayout} from "./Members2";
 import {CardClass} from "@/ui-components/Card";
+import {JobCreateInput} from "@/Applications/Jobs/Widgets/Reservation";
 
 const ActionContainer = injectStyle("action-container", k => `
     ${k} {
@@ -223,9 +224,10 @@ export function ChangeProjectTitle(props: ChangeProjectTitleProps): JSX.Element 
                 <Flex flexGrow={1}>
                     <Box width="100%">
                         <Input
-                            rightLabel
                             required
+                            ml="2px"
                             type="text"
+                            className={JobCreateInput}
                             inputRef={newProjectTitle}
                             placeholder="New project title"
                             autoComplete="off"
@@ -241,6 +243,8 @@ export function ChangeProjectTitle(props: ChangeProjectTitleProps): JSX.Element 
                     </Box>
                     <Button
                         height="42px"
+                        width="72px"
+                        ml="12px"
                         disabled={saveDisabled}
                     >
                         Save
@@ -315,8 +319,7 @@ function SubprojectSettings(props: AllowRenamingProps): JSX.Element {
     return <>
         {props.projectRole === OldProjectRole.USER ? null : (
             <ActionBox>
-                <Box flexGrow={1}>
-                    <Heading.h3>Subproject Settings</Heading.h3>
+                <Box mt="8px" flexGrow={1}>
                     <Label>
                         <Checkbox
                             size={24}
