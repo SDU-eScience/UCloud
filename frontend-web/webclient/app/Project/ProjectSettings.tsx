@@ -12,11 +12,11 @@ import {
 import * as Heading from "@/ui-components/Heading";
 import {addStandardDialog} from "@/UtilityComponents";
 import {callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {useNavigate, useParams} from "react-router";
+import {useNavigate} from "react-router";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
-import {GrantProjectSettings, LogoAndDescriptionSettings} from "@/Project/Grant/Settings";
+import {GrantProjectSettings, ProjectLogo, ProjectDescription} from "@/Project/Grant/Settings";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -37,7 +37,9 @@ import {ButtonClass} from "@/ui-components/Button";
 import {BoxClass} from "@/ui-components/Box";
 import {FlexClass} from "@/ui-components/Flex";
 import {UtilityBar} from "@/Playground/Playground";
-import {injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
+import {TwoColumnLayout} from "./Members2";
+import {CardClass} from "@/ui-components/Card";
 
 const ActionContainer = injectStyle("action-container", k => `
     ${k} {
@@ -129,28 +131,34 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         projectRole={status.myRole!}
                     />
                 </Card>
-                <Card>
-                    <ChangeProjectTitle
-                        projectId={projectId}
-                        projectTitle={project.specification.title}
-                        onSuccess={() => projectOps.reload()}
-                    />
-                </Card>
-                {enabled.data.enabled ? <>
-                    <Card>
-                        <LogoAndDescriptionSettings />
-                    </Card>
+                <div className={classConcat(CardClass, TwoColumnLayout)} data-hide-border>
+                    <div className="left">
+                        <Heading.h2>Project information</Heading.h2>
+                        <ChangeProjectTitle
+                            projectId={projectId}
+                            projectTitle={project.specification.title}
+                            onSuccess={() => projectOps.reload()}
+                        />
+                        <SubprojectSettings
+                            projectId={projectId}
+                            projectRole={status.myRole!}
+                            setLoading={() => false}
+                        />
+                        {enabled.data.enabled ?
+                            <ProjectLogo /> : null
+                        }
+                    </div>
+                    <div className="right">
+                        {enabled.data.enabled ? <>
+                            <ProjectDescription />
+                        </> : null}
+                    </div>
+                </div>
+                {enabled.data.enabled ?
                     <Card>
                         <GrantProjectSettings />
-                    </Card>
-                </> : null}
-                <Card>
-                    <SubprojectSettings
-                        projectId={projectId}
-                        projectRole={status.myRole!}
-                        setLoading={() => false}
-                    />
-                </Card>
+                    </Card> : null
+                }
             </div>}
         />
     );
@@ -213,7 +221,7 @@ export function ChangeProjectTitle(props: ChangeProjectTitleProps): JSX.Element 
             }}>
                 <Heading.h3>Project Title</Heading.h3>
                 <Flex flexGrow={1}>
-                    <Box minWidth={500}>
+                    <Box width="100%">
                         <Input
                             rightLabel
                             required

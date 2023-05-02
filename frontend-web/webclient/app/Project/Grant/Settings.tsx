@@ -71,7 +71,62 @@ export async function uploadProjectLogo(props: UploadLogoProps): Promise<boolean
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
-export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
+export function ProjectLogo(): JSX.Element | null {
+    const projectId = useProjectId() ?? "";
+    const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
+        {noop: true},
+        {enabled: false}
+    );
+    const [description, fetchDescription] = useCloudAPI<RetrieveDescriptionResponse>(
+        retrieveDescription({projectId}),
+        {description: ""}
+    );
+    const descriptionField = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!projectId) return;
+        fetchEnabled((externalApplicationsEnabled({projectId})));
+        fetchDescription(retrieveDescription({projectId}));
+    }, [projectId]);
+
+    useEffect(() => {
+        if (descriptionField.current) {
+            descriptionField.current.value = description.data.description;
+        }
+    }, [descriptionField, description]);
+
+    const [, setLogoCacheBust] = useState("" + Date.now());
+
+    if (!enabled.data.enabled || !projectId) return null;
+    return <Box>
+        <Heading.h3>Logo for Project</Heading.h3>
+        Current Logo:<br /> <Box mx="auto" textAlign="center"><Logo projectId={projectId} size={"256px"} /></Box> <br />
+        <label className={ButtonClass}>
+            Upload Logo
+            <HiddenInputField
+                type="file"
+                onChange={async e => {
+                    const target = e.target;
+                    if (target.files) {
+                        const file = target.files[0];
+                        target.value = "";
+                        if (file.size > 1024 * 512) {
+                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                        } else {
+                            if (await uploadProjectLogo({file, projectId})) {
+                                setLogoCacheBust("" + Date.now());
+                                snackbarStore.addSuccess("Logo changed, refresh to see changes", false);
+                            }
+                        }
+                        dialogStore.success();
+                    }
+                }}
+            />
+        </label>
+    </Box>
+}
+
+export const ProjectDescription: React.FunctionComponent = () => {
     const projectId = useProjectId() ?? "";
     const [, runWork] = useCloudCommand();
     const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
@@ -107,35 +162,8 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
         }));
     }, [projectId, descriptionField, description]);
 
-    const [, setLogoCacheBust] = useState("" + Date.now());
-
     if (!enabled.data.enabled || !projectId) return null;
     return <Box>
-        <Heading.h4>Logo for Project</Heading.h4>
-        Current Logo: <Logo projectId={projectId} size={"40px"} /> <br />
-        <label className={ButtonClass}>
-            Upload Logo
-            <HiddenInputField
-                type="file"
-                onChange={async e => {
-                    const target = e.target;
-                    if (target.files) {
-                        const file = target.files[0];
-                        target.value = "";
-                        if (file.size > 1024 * 512) {
-                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
-                        } else {
-                            if (await uploadProjectLogo({file, projectId})) {
-                                setLogoCacheBust("" + Date.now());
-                                snackbarStore.addSuccess("Logo changed, refresh to see changes", false);
-                            }
-                        }
-                        dialogStore.success();
-                    }
-                }}
-            />
-        </label>
-        <Divider />
         <Heading.h4>Description for Project</Heading.h4>
         <DescriptionEditor templateDescription={descriptionField} onUploadDescription={onUploadDescription} />
     </Box>

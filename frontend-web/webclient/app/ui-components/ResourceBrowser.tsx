@@ -15,6 +15,10 @@ import {PageV2} from "@/UCloud";
     - Double click/accesssing is available for files (not directory)
 */
 
+/* MISSING FEATURES
+    - Handling projects that cannot consume resources.
+*/
+
 export type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
 
 export interface OperationGroup<T, R> {

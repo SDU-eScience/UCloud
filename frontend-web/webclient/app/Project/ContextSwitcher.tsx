@@ -27,7 +27,7 @@ const DEFAULT_FETCH_ARGS = {
     sortDirection: "descending" as const
 }
 
-export function ContextSwitcher(): JSX.Element | null {
+export function ContextSwitcher(): JSX.Element {
     const activeProject = useSelector((it: ReduxObject) => it.project.project);
     const refresh = useSelector((it: ReduxObject) => it.header.refresh);
 

@@ -580,8 +580,8 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         </Flex>}
         headerSize={72}
         main={
-            <div className={TwoColumnLayout}>
-                <div className="members">
+            <Box className={TwoColumnLayout} height="height: calc(100vh - 96px)">
+                <div className="left">
                     <Flex className={SearchContainer} flexWrap="wrap">
                         {!isAdmin ? null : (
                             <>
@@ -672,7 +672,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                         ))}
                     </List>
                 </div>
-                <div className="groups">
+                <div className="right">
                     {inspectingGroup ? null : <>
                         <Flex mb={"12px"}>
                             <BreadCrumbsBase embedded={false}>
@@ -749,7 +749,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                         </List>
                     </>}
                 </div>
-            </div>
+            </Box>
         }
     />;
 };
@@ -1342,13 +1342,12 @@ const ProjectBreadcrumbsWrapper = injectStyle("project-breadcrumbs", k => `
     }
 `);
 
-const TwoColumnLayout = injectStyle("two-column-layout", k => `
+export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
         display: flex;
         flex-direction: row;
         flex-wrap: wrap;
         width: 100%;
-        height: calc(100vh - 96px);
     }
 
     ${k} > * {
@@ -1360,7 +1359,7 @@ const TwoColumnLayout = injectStyle("two-column-layout", k => `
             overflow: hidden;
         }
 
-        ${k} > .members {
+        ${k} > .left {
             border-right: 2px solid var(--gray, #f00);
             height: 100%;
             flex: 1;
@@ -1368,8 +1367,12 @@ const TwoColumnLayout = injectStyle("two-column-layout", k => `
             margin-right: 16px;
             padding-right: 16px;
         }
+        
+        ${k}[data-hide-border="true"] > .left {
+            border-right: 0px solid red;
+        }
 
-        ${k} > .groups {
+        ${k} > .right {
             flex: 1;
             height: 100%;
             overflow-y: auto;

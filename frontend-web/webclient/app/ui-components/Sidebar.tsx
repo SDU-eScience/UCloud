@@ -591,7 +591,7 @@ function SecondarySidebar({
                             <Box mr="4px" pl="4px" backgroundColor="var(--fixedWhite)" width="24px" height="24px" borderRadius="6px">
                                 <AppToolLogo size="16px" name={it.name} type="APPLICATION" />
                             </Box>
-                            <Truncate color="var(--text)">{it.name}</Truncate>
+                            <Truncate color="var(--text)">{it.title}</Truncate>
                         </Flex>
                     </Link>
                 )}

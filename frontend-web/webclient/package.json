@@ -45,7 +45,6 @@
         "styled-system": "5.1.5",
         "svgi": "1.1.1",
         "ua-parser-js": "1.0.35",
-        "vfile": "5.3.7",
         "xterm": "4.19.0",
         "xterm-addon-fit": "0.5.0"
     },
