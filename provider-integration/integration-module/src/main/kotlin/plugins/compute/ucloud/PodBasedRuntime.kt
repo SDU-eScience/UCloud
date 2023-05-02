@@ -388,17 +388,29 @@ abstract class PodBasedBuilder : ContainerBuilder {
         }
     }
 
+    private var vCpuMillisField: Int = 0
     override var vCpuMillis: Int
-        get() = error("Read not supported")
-        set(value) = addResource("cpu", "${value}m")
+        get() = vCpuMillisField
+        set(value) {
+            vCpuMillisField = value
+            addResource("cpu", "${value}m")
+        }
 
+    private var memoryMegabytesField: Int = 0
     override var memoryMegabytes: Int
-        get() = error("Read not supported")
-        set(value) = addResource("memory", "${value}M")
+        get() = memoryMegabytesField
+        set(value) {
+            memoryMegabytesField = value
+            addResource("memory", "${value}M")
+        }
 
+    private var gpusField: Int = 0
     override var gpus: Int
-        get() = error("Read not supported")
-        set(value) = addResource("nvidia.com/gpu", "$value")
+        get() = gpusField
+        set(value) {
+            gpusField = value
+            addResource("nvidia.com/gpu", "$value")
+        }
 
     private fun addResource(key: String, value: String) {
         val limits = container.resources?.limits?.toMutableMap() ?: HashMap()

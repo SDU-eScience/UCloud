@@ -101,7 +101,11 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> K8PodRuntime(k8.client, pluginConfig.kubernetes.namespace,
                 pluginConfig.kubernetes.categoryToSelector, pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
             ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods2 -> Pod2Runtime(k8.client, pluginConfig.kubernetes.namespace,
-                pluginConfig.kubernetes.categoryToSelector, pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
+                pluginConfig.kubernetes.categoryToSelector, pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding, pluginConfig.kubernetes.defaultNodeType)
+        }
+
+        when (val rt = runtime) {
+            is Pod2Runtime -> rt.start()
         }
 
         nameAllocator.runtime = runtime
@@ -172,8 +176,6 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             register(FeatureExpiry)
             register(FeatureAccounting)
             register(FeatureMiscellaneous)
-            register(FeatureNetworkLimit)
-            register(FeatureFairShare)
             register(FeatureFirewall)
             register(FeatureFileOutput(files.fs))
             register(FeatureSshKeys(pluginConfig.ssh?.subnets ?: emptyList()))

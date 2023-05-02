@@ -151,7 +151,7 @@ private data class Pod2Container(
         val pod = runBlocking { pod() }
         return when (val phase = pod.status?.phase ?: "Unknown") {
             "Pending" -> Pair(JobState.IN_QUEUE, "Job is currently in the queue")
-            "Running" -> Pair(JobState.RUNNING, "Job is now running")
+            "Running" -> Pair(JobState.RUNNING, "Job is now running on ${pod.spec?.nodeName ?: "a machine"}")
             "Succeeded" -> Pair(JobState.SUCCESS, "Job has terminated")
             "Failed" -> Pair(JobState.SUCCESS, "Job has terminated with a non-zero exit code")
             "Unknown" -> Pair(JobState.FAILURE, "Job has failed")
@@ -186,6 +186,7 @@ class Pod2Runtime(
 
     fun start() {
         ProcessingScope.launch {
+            println("STARTING Pod2Runtime")
             while (isActive) {
                 try {
                     mutex.withLock { scheduleLoop() }
@@ -226,10 +227,12 @@ class Pod2Runtime(
             }
 
             scheduler.pruneNodes()
+            scheduler.dumpState()
             nextNodeScan = now + (1000 * 60 * 15L)
         }
 
         if (now >= nextPodScan) {
+            println("pod scanning")
             val allPods = k8Client.listResources(
                 Pod.serializer(),
                 KubernetesResources.pod.withNamespace(namespace)
@@ -268,6 +271,7 @@ class Pod2Runtime(
             }
 
             scheduler.pruneJobs()
+            scheduler.dumpState()
             nextPodScan = now + (1000 * 30L)
         }
 
@@ -282,7 +286,12 @@ class Pod2Runtime(
             data.builder.podSpec.nodeName = job.node
 
             val pod = Pod(
-                metadata = ObjectMeta(name = idAndRankToPodName(job.jobId, job.rank)),
+                metadata = ObjectMeta(
+                    name = idAndRankToPodName(job.jobId, job.rank),
+                    // NOTE(Dan): This dummy value ensures that the annotation object has been initialized, which
+                    // will simplify some JSON patches we are sending later.
+                    annotations = JsonObject(mapOf("ucloud.dk/dummy" to JsonPrimitive("dummy")))
+                ),
                 spec = data.builder.podSpec
             )
 
@@ -292,6 +301,10 @@ class Pod2Runtime(
             )
 
             // TODO create network policy and service
+        }
+
+        if (scheduledJobs.isNotEmpty()) {
+            scheduler.dumpState()
         }
     }
 
@@ -423,6 +436,14 @@ class Pod2Runtime(
             ))
 
             return Tunnel("127.0.0.1", allocatedPort, close = { process.destroy() })
+        }
+    }
+
+    override suspend fun isJobKnown(jobId: String): Boolean {
+        val jobIdLong = jobId.toLongOrNull() ?: return false
+        mutex.withLock {
+            if (scheduler.findRunningReplica(jobIdLong, 0, touch = false) != null) return true
+            return scheduler.isJobInQueue(jobIdLong)
         }
     }
 

@@ -329,12 +329,15 @@ class K8PodContainerBuilder(
         )
     }
 
+    private var productCategoryField: String? = null
     override var productCategoryRequired: String?
-        get() = error("read not supported")
+        get() = productCategoryField
         set(value) {
+            val mapped = categoryToSelector.getOrDefault(value, value)
+            productCategoryField = mapped
             podSpec.nodeSelector = JsonObject(
                 mapOf(
-                    "ucloud.dk/machine" to JsonPrimitive(categoryToSelector.getOrDefault(value, value))
+                    "ucloud.dk/machine" to JsonPrimitive(mapped)
                 )
             )
         }

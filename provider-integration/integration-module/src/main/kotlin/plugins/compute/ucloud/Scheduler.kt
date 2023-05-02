@@ -146,7 +146,7 @@ class Scheduler<UserData> {
             }
 
             override fun next(): AllocatedReplica<UserData> {
-                return allocatedReplica(idx)
+                return allocatedReplica(idx++)
             }
         }
     }
@@ -271,6 +271,10 @@ class Scheduler<UserData> {
         }
 
         nextQueueIdx = (idx + 1) % MAX_JOBS_IN_QUEUE
+    }
+
+    fun isJobInQueue(id: Long): Boolean {
+        return queueJobIds.indexOf(id) != -1
     }
 
     private fun nodeSatisfiesRequest(node: Int, request: Int): Boolean {
