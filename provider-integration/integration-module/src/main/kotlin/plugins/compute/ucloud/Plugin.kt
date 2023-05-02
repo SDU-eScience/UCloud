@@ -381,7 +381,8 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             ?: throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
     }
 
-    private suspend fun killJobsEnteringMaintenanceMode() {
+    suspend fun killJobsEnteringMaintenanceMode(dryRun: Boolean = false, dryMaintenanceMode: List<Long> = emptyList()): List<String> {
+        val result = ArrayList<String>()
         for (job in runtime.list()) {
             val internalMounts = job.mountedDirectories().mapNotNull { dir ->
                 val system = files.driveLocator.systemByName(dir.systemName) ?: return@mapNotNull null
@@ -390,13 +391,24 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
 
             for (mount in internalMounts) {
                 val resolvedDrive = files.driveLocator.resolveDriveByInternalFile(mount)
-                if (resolvedDrive.inMaintenanceMode) {
-                    k8.addStatus(job.jobId, "Job is going down for maintenance")
-                    job.cancel()
+
+                val isInMaintenanceMode = if (dryRun) {
+                    resolvedDrive.drive.ucloudId in dryMaintenanceMode
+                } else {
+                    resolvedDrive.inMaintenanceMode
+                }
+
+                if (isInMaintenanceMode) {
+                    if (!dryRun) {
+                        k8.addStatus(job.jobId, "Job is going down for maintenance")
+                        job.cancel()
+                    }
+                    result.add(job.jobId)
                     break
                 }
             }
         }
+        return result
     }
 }
 

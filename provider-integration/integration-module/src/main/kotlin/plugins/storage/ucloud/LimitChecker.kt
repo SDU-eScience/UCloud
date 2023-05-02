@@ -10,6 +10,9 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.FileCollection
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionIncludeFlags
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionsControl
+import dk.sdu.cloud.plugins.UCloudFile
+import dk.sdu.cloud.plugins.components
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.bindStringNullable
@@ -19,6 +22,7 @@ import dk.sdu.cloud.sql.withSession
 class LimitChecker(
     private val db: DBContext,
     private val serviceClient: AuthenticatedClient,
+    private val pathConverter: PathConverter,
 ) {
     private data class LimitKey(val username: String?, val projectId: String?, val category: String)
 
@@ -61,7 +65,12 @@ class LimitChecker(
     }
 
     suspend fun checkLimit(collection: String) {
-        val cachedCollection = collectionCache.get(collection)
+        // NOTE(Dan): This resolves any share we might have been passed
+        val normalizedCollection = pathConverter.internalToUCloud(
+            pathConverter.ucloudToInternal(UCloudFile.createFromPreNormalizedString("/${collection}"))
+        ).components()[0]
+
+        val cachedCollection = collectionCache.get(normalizedCollection)
             ?: throw RPCException("Unknown drive, are you sure it exists?", HttpStatusCode.NotFound)
 
         val key = LimitKey(
@@ -71,12 +80,17 @@ class LimitChecker(
         )
 
         if (isCollectionLocked.get(key) == true) {
+            log.info("Collection is locked: $key")
             throw RPCException(
                 "Quota has been exceeded. Delete some files and try again later.",
                 HttpStatusCode.PaymentRequired,
                 ErrorCode.EXCEEDED_STORAGE_QUOTA.toString()
             )
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
