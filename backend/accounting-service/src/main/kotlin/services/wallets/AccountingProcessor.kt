@@ -1319,6 +1319,14 @@ class AccountingProcessor(
         return AccountingResponse.RootDeposit(created)
     }
 
+    fun checkIfAllocationIsAllowed(allocs: List<String>): Boolean {
+        val foundAllocations = allocations.mapNotNull { savedAlloc ->
+            val found = allocs.find { it.toInt() == savedAlloc?.id }
+            if (found != null) savedAlloc else null
+        }
+        return foundAllocations.all { it.canAllocate }
+    }
+
     fun checkIfSubAllocationIsAllowed(allocs: List<String>): Boolean {
         val foundAllocations = allocations.mapNotNull { savedAlloc ->
             val found = allocs.find { it.toInt() == savedAlloc?.id }

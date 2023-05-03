@@ -10,7 +10,7 @@ For details look in the `k8.kts` folders of each microservice.
 ## 03-05-23
 
 ```
-UCloud/Core @ 2023.1.29
+UCloud/Core @ 2023.1.30
 ```
 
 ## 01-05-23
