@@ -218,7 +218,7 @@ private object DriveAndSystemStore {
                 .mapNotNull { drive ->
                     runCatching {
                         UCloudDrive.parse(drive.id.toLong(), drive.providerGeneratedId).also {
-                            it.project = drive.owner.project
+                            if (drive.providerGeneratedId != null) it.project = drive.owner.project
                         }
                     }.getOrNull()
                 }
@@ -364,7 +364,6 @@ private object DriveAndSystemStore {
                     val entry = entries[idx]
                     if (entry.drive.ucloudId in systemIds) {
                         entries[idx] = entry.copy(
-                            inMaintenanceMode = false,
                             system = newSystem
                         )
                     }
@@ -374,8 +373,7 @@ private object DriveAndSystemStore {
                     """
                         update ucloud_storage_drives
                         set
-                            system = :new_system,
-                            in_maintenance_mode = false
+                            system = :new_system
                         where
                             collection_id = some(:system_ids::bigint[])
                     """
@@ -452,7 +450,7 @@ class DriveLocator(
             drive.project = ownedByProject
         }
 
-        val (system, isAllowed) = when (drive) {
+        var (system, isAllowed) = when (drive) {
             is UCloudDrive.ProjectMemberFiles,
             is UCloudDrive.ProjectRepository -> {
                 val systemName: String?
@@ -534,8 +532,18 @@ class DriveLocator(
             }
         }
 
-        return DriveAndSystem(drive.withUCloudId(id), system, false, driveToInternalFile(system, drive))
-            .also { result -> DriveAndSystemStore.insert(listOf(result), allowUpsert = true) }
+        // NOTE(Dan): At this point we should know everything. We try to see if the drive already exists, because in
+        // that case we want to just re-use the data. This function is not trying to create something new if it already
+        // exists.
+        val existingDrive = DriveAndSystemStore.retrieve(id)
+        if (existingDrive != null) return existingDrive.normalize()
+
+        DriveAndSystemStore.insert(
+            listOf(DriveAndSystem(drive.withUCloudId(id), system, false, driveToInternalFile(system, drive))),
+            allowUpsert = false
+        )
+
+        return DriveAndSystemStore.retrieve(id) ?: error("internal error - could not find drive after insertion")
     }
 
     suspend fun resolveDriveByProviderId(drive: UCloudDrive): DriveAndSystem {
@@ -659,18 +667,7 @@ class DriveLocator(
             throw RPCException("This drive is already in maintenance mode!", HttpStatusCode.BadRequest)
         }
 
-        val drive = driveAndSystem.drive
-
-        val affectedDrives = when (drive) {
-            is UCloudDrive.ProjectMemberFiles,
-            is UCloudDrive.ProjectRepository -> {
-                DriveAndSystemStore.retrieveSystemsByProject(drive.project!!)
-            }
-
-            else -> {
-                listOf(driveAndSystem)
-            }
-        }
+        val affectedDrives = listGroupedDrives(driveAndSystem)
 
         DriveAndSystemStore.updateMaintenanceStatus(
             affectedDrives.map { it.drive.ucloudId },
@@ -719,8 +716,20 @@ class DriveLocator(
             throw RPCException("This drive is not in maintenance mode!", HttpStatusCode.BadRequest)
         }
 
-        val drive = driveAndSystem.drive
+        val affectedDrives = listGroupedDrives(driveAndSystem)
 
+        DriveAndSystemStore.updateSystem(
+            affectedDrives.map { it.drive.ucloudId },
+            newSystem
+        )
+
+        setMaintenanceMode(driveId, null, false)
+    }
+
+    suspend fun listGroupedDrives(
+        driveAndSystem: DriveAndSystem
+    ): List<DriveAndSystem> {
+        val drive = driveAndSystem.drive
         val affectedDrives = when (drive) {
             is UCloudDrive.ProjectMemberFiles,
             is UCloudDrive.ProjectRepository -> {
@@ -731,13 +740,8 @@ class DriveLocator(
                 listOf(driveAndSystem)
             }
         }
-
-        DriveAndSystemStore.updateSystem(
-            affectedDrives.map { it.drive.ucloudId },
-            newSystem
-        )
+        return affectedDrives
     }
-
 
     fun driveToProduct(drive: UCloudDrive): ProductReference {
         return when (drive) {

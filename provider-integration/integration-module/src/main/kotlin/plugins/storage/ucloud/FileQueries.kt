@@ -235,15 +235,15 @@ class FileQueries(
 
             when (allowedSortBy) {
                 FilesSortBy.PATH -> {
-                    val (statAndAttributes, time) = measureTimedValue {
-                        nativeFs.statAndFetchAttributes(nextInternalFile, SENSITIVITY_XATTR)
-                    }
-
-                    val sensitivity = statAndAttributes.attributes[0]?.takeIf { it != "inherit" } ?: inheritedSensitivity
-
-                    timeInStatNanos += time.inWholeNanoseconds
-
                     try {
+                        val (statAndAttributes, time) = measureTimedValue {
+                            nativeFs.statAndFetchAttributes(nextInternalFile, SENSITIVITY_XATTR)
+                        }
+
+                        val sensitivity = statAndAttributes.attributes[0]?.takeIf { it != "inherit" } ?: inheritedSensitivity
+
+                        timeInStatNanos += time.inWholeNanoseconds
+
                         val (converted, conversionTime) = measureTimedValue {
                             convertNativeStatToUFile(
                                 nextInternalFile,
@@ -257,7 +257,6 @@ class FileQueries(
                     } catch (ex: FSException.NotFound) {
                         // NOTE(Dan): File might have gone away between these two calls
                         didSkipFiles = true
-                    } catch (ex: Throwable) {
                     }
                 }
                 else -> {
