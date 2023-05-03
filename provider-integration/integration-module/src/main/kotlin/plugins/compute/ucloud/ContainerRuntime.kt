@@ -64,6 +64,8 @@ interface ContainerRuntime {
     suspend fun isJobKnown(jobId: String): Boolean {
         return retrieve(jobId, 0) != null
     }
+
+    fun requiresReschedulingOfInQueueJobsOnStartup(): Boolean = false
 }
 
 data class Tunnel(val hostnameOrIpAddress: String, val port: Int, val close: suspend () -> Unit)

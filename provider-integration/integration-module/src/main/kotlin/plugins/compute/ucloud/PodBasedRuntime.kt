@@ -8,7 +8,6 @@ import dk.sdu.cloud.plugins.storage.ucloud.FsSystem
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.*
-import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -21,7 +20,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
-import java.io.OutputStream
 import kotlin.math.roundToInt
 
 abstract class PodBasedContainer : Container {

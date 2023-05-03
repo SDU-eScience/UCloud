@@ -5,8 +5,11 @@ import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.PaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.cli.genericCommandLineHandler
 import dk.sdu.cloud.cli.sendCommandLineUsage
@@ -184,6 +187,30 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
 
         files.driveLocator.onEnteringMaintenanceMode {
             killJobsEnteringMaintenanceMode()
+        }
+
+        if (runtime.requiresReschedulingOfInQueueJobsOnStartup()) {
+            scheduleInQueueJobs()
+        }
+    }
+
+    private suspend fun scheduleInQueueJobs() {
+        var next: String? = null
+        while (true) {
+            val page = JobsControl.browse.call(
+                ResourceBrowseRequest(
+                    JobIncludeFlags(filterState = JobState.IN_QUEUE),
+                    itemsPerPage = 250,
+                    next = next
+                ),
+                k8.serviceClient
+            ).orThrow()
+
+            for (item in page.items) {
+                jobManagement.create(item)
+            }
+
+            next = page.next ?: break
         }
     }
 

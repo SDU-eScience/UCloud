@@ -216,8 +216,7 @@ class JobManagement(
 
     private var lastScan: Map<String, List<Container>> = emptyMap()
 
-    @Serializable
-    private data class JobEvent(
+    private inner class JobEvent(
         val jobId: String,
         val oldReplicas: List<Container>,
         val newReplicas: List<Container>,
@@ -240,6 +239,15 @@ class JobManagement(
                 if (oldReplicas.size != newReplicas.size) return newReplicas.size
                 return null
             }
+
+        suspend fun isDying(): Boolean {
+            val looksLikeItIsDying = newReplicas.size < oldReplicas.size ||
+                    newReplicas.any { it.stateAndMessage().first.isFinal() }
+            if (!looksLikeItIsDying) return false
+            val job = jobCache.findJob(jobId)
+            if (oldReplicas.size != job?.specification?.replicas) return false
+            return true
+        }
     }
 
     private fun processScan(newJobs: List<Container>): List<JobEvent> {
@@ -317,13 +325,11 @@ class JobManagement(
                     events.forEachGraal { event ->
                         k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "Processing: ${event.jobId}") l@{
                             when {
-                                event.wasDeleted -> {
-                                    val oldJob = event.oldReplicas.find { it.rank == 0 } ?: return@l
-                                    val expiry = oldJob.expiry
+                                event.wasDeleted || event.isDying() -> {
+                                    val expiry = event.oldReplicas.find { it.rank == 0 }?.expiry
                                     if (expiry != null && Time.now() >= expiry) {
                                         // NOTE(Dan): Expiry feature will simply delete the object. This is why we must
                                         // check if the reason was expiration here.
-                                        markJobAsComplete(event.jobId)
                                         k8.changeState(event.jobId, JobState.EXPIRED, "Job has expired")
 
                                         debugExpirations++
@@ -337,6 +343,14 @@ class JobManagement(
                                         )
 
                                         debugTerminations++
+                                    }
+
+                                    runCatching {
+                                        markJobAsComplete(event.jobId)
+                                    }
+
+                                    runCatching {
+                                        cleanup(event.jobId)
                                     }
                                 }
 

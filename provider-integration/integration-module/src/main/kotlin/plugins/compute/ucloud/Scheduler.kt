@@ -83,18 +83,28 @@ class Scheduler<UserData> {
             this.cpu = virtualCpuMillis
             this.memory = memoryInBytes
             this.nvidiaGpu = nvidiaGpus
+            this.lastSeen = time
         }
     }
 
-    fun pruneNodes() {
+    fun pruneNodes(): List<String> {
+        val result = ArrayList<String>()
         for (idx in nodeNames.indices) {
             if (nodeNames[idx] == null) continue
-            val entry = replicaEntries[idx]
+            val entry = nodeEntries[idx]
             if (entry.lastSeen != time) {
+                result.add(nodeNames[idx] ?: "???")
                 nodeNames[idx] = null
-                // TODO Invalidate any replica which is running on this node
+
+                // NOTE(Dan): Invalidate all replicas which are on the deleted node
+                for (rIdx in replicaEntries.indices) {
+                    if (replicaJobId[rIdx] != 0L && replicaEntries[rIdx].node == idx) {
+                        replicaJobId[rIdx] = 0
+                    }
+                }
             }
         }
+        return result
     }
 
     private fun allocatedReplica(existing: Int): AllocatedReplica<UserData> {
@@ -419,17 +429,21 @@ class Scheduler<UserData> {
         return scheduledJobs
     }
 
-    fun dumpState() {
-        for (i in 0 until replicaJobId.size)  {
-            val jobId = replicaJobId[i]
-            if (jobId == 0L) continue
-            println("$jobId[${replicaEntries[i]}] ${nodeNames[replicaEntries[i].node]}")
+    fun dumpState(replicas: Boolean = true, nodes: Boolean = true) {
+        if (replicas) {
+            for (i in 0 until replicaJobId.size) {
+                val jobId = replicaJobId[i]
+                if (jobId == 0L) continue
+                println("$jobId[${replicaEntries[i]}] ${nodeNames[replicaEntries[i].node]}")
+            }
         }
 
-        for (i in 0 until nodeNames.size) {
-            val name = nodeNames[i]
-            if (name == null) continue
-            println("${name} ${nodeEntries[i]}")
+        if (nodes) {
+            for (i in 0 until nodeNames.size) {
+                val name = nodeNames[i]
+                if (name == null) continue
+                println("${name} ${nodeEntries[i]}")
+            }
         }
     }
 

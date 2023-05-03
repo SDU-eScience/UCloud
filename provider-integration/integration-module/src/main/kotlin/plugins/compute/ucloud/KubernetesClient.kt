@@ -289,7 +289,6 @@ sealed class KubernetesAuthenticationMethod {
 
         override fun configureRequest(httpRequestBuilder: HttpRequestBuilder) {
             if (!proxy.isAlive) {
-                log.warn("Warning kubectl proxy died! Is kubectl configured correctly? ${proxy.pid()}")
                 if (!proxy.waitFor(30, TimeUnit.SECONDS)) {
                     proxy.destroyForcibly()
                 }

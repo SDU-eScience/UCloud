@@ -29,6 +29,7 @@ object FeatureExpiry : JobFeature, Loggable {
     override suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<Container>) {
         val now = Time.now()
         for (job in jobBatch) {
+            if (job.rank != 0) continue
             val expiry = job.expiry ?: continue
             log.trace("expiry in ${expiry - now}")
             if (now >= expiry) {

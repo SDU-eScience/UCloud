@@ -595,7 +595,7 @@ data class Service(
 ) {
     @Serializable
     data class Spec(
-        var clueterIP: String? = null,
+        var clusterIP: String? = null,
         var externalIPs: List<String> = emptyList(),
         var externalName: String? = null,
         var externalTrafficPolicy: String? = null,

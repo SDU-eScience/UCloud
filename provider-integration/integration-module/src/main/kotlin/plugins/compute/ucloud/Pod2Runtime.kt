@@ -10,9 +10,9 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.toReadableStacktrace
 import dk.sdu.cloud.utils.LinuxOutputStream
+import io.ktor.client.statement.*
 import io.ktor.http.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.channels.ReceiveChannel
+import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -23,8 +23,10 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import java.io.ByteArrayOutputStream
+import java.lang.ref.WeakReference
+import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicReference
 
 private data class Pod2Container(
     val internalJobId: Long,
@@ -44,6 +46,9 @@ private data class Pod2Container(
     override val pod: Pod
         get() = runBlocking { pod() }
 
+    var volcanoDoesNotExist: Boolean? = null
+    var cachedVolcano: VolcanoJob? = null
+
     private suspend fun pod(): Pod {
         val cached = cachedPod
         if (cached != null) return cached
@@ -61,10 +66,49 @@ private data class Pod2Container(
         }
     }
 
+    private suspend fun volcano(): VolcanoJob? {
+        val cached = cachedVolcano
+        if (cached != null || volcanoDoesNotExist == true) return cached
+        cacheMutex.withLock {
+            val cached2 = cachedVolcano
+            if (cached2 != null || volcanoDoesNotExist == true) return cached2
+
+            try {
+                cachedVolcano = k8Client.getResource(
+                    VolcanoJob.serializer(),
+                    KubernetesResources.volcanoJob.withNameAndNamespace("j-$internalJobId", namespace)
+                )
+            } catch (ex: Throwable) {
+                volcanoDoesNotExist = true
+            }
+        }
+
+        return cachedVolcano
+    }
+
+    override val annotations: Map<String, String>
+        get() {
+            val initialAnnotations = super.annotations
+            if ("volcano.sh/queue-name" in initialAnnotations) {
+                // NOTE(Dan): For backwards compatibility, we provide fallback values from Volcano
+                return runBlocking {
+                    val volcanoAnnotations = (volcano()?.metadata?.annotations ?: JsonObject(emptyMap()))
+                        .entries.associate { it.key to it.value.toString() }
+
+                    (volcanoAnnotations + initialAnnotations).also {
+                        println("Returning all of these annotations: $it")
+                    }
+                }
+            }
+            return initialAnnotations
+        }
+
     override suspend fun cancel(force: Boolean) {
+        downloadLogBeforeCancel()
+
         try {
             k8Client.deleteResource(
-                KubernetesResourceLocator.common.pod.withNameAndNamespace(pod().metadata!!.name!!, namespace,),
+                KubernetesResourceLocator.common.pod.withNameAndNamespace(pod().metadata!!.name!!, namespace),
                 queryParameters = buildMap {
                     if (force) put("force", "true")
                 }
@@ -80,19 +124,68 @@ private data class Pod2Container(
         if (rank == 0) {
             runCatching {
                 k8Client.deleteResource(
-                    KubernetesResources.networkPolicies.withNameAndNamespace(
-                        K8_POD_NETWORK_POLICY_PREFIX + this.jobId,
-                        namespace,
-                    )
+                    KubernetesResources.networkPolicies.withNameAndNamespace(policyName(jobId), namespace)
                 )
             }
+
+            runCatching {
+                k8Client.deleteResource(
+                    KubernetesResources.services.withNameAndNamespace(serviceName(jobId), namespace)
+                )
+            }
+
+            runCatching {
+                // NOTE(Dan): Backwards compatibility, we always try to delete the matching Volcano job if it exists.
+                k8Client.deleteResource(
+                    KubernetesResources.volcanoJob.withNameAndNamespace("j-$jobId", namespace)
+                )
+            }
+        }
+    }
+
+    // TODO Cache this somewhere else since the Container instance is re-created quite a lot
+    private var logFromCancel: ByteArray? = null
+    private suspend fun downloadLogBeforeCancel() {
+        val podMeta = pod.metadata!!
+        val podName = podMeta.name!!
+        val namespace = podMeta.namespace!!
+
+        runCatching {
+            k8Client.sendRequest(
+                HttpMethod.Get,
+                KubernetesResources.pod.withNameAndNamespace(podName, namespace),
+                mapOf("container" to USER_JOB_CONTAINER),
+                "log",
+                longRunning = true,
+            ).execute { resp ->
+                // TODO(Dan): I am pretty sure this code ends up copying the data at least 3 times
+                val channel = resp.bodyAsChannel()
+                val bos = ByteArrayOutputStream(0).use { bos ->
+                    channel.copyTo(bos, 1024 * 1024 * 16L)
+                    bos
+                }
+                logFromCancel = bos.toByteArray()
+            }
+        }
+    }
+
+    override suspend fun downloadLogs(out: LinuxOutputStream) {
+        val bytes = logFromCancel
+        if (bytes == null) {
+            return super.downloadLogs(out)
+        } else {
+            val buf = ByteBuffer.allocateDirect(bytes.size)
+            buf.put(bytes)
+            buf.flip()
+
+            while (buf.hasRemaining()) out.write(buf)
         }
     }
 
     override suspend fun allowNetworkTo(jobId: String, rank: Int?) {
         k8Client.patchResource(
             KubernetesResources.networkPolicies.withNameAndNamespace(
-                K8_POD_NETWORK_POLICY_PREFIX + this.jobId,
+                policyName(this.jobId),
                 namespace
             ),
             defaultMapper.encodeToString(
@@ -121,7 +214,7 @@ private data class Pod2Container(
     override suspend fun allowNetworkFrom(jobId: String, rank: Int?) {
         k8Client.patchResource(
             KubernetesResources.networkPolicies.withNameAndNamespace(
-                K8_POD_NETWORK_POLICY_PREFIX + this.jobId,
+                policyName(this.jobId),
                 namespace
             ),
             defaultMapper.encodeToString(
@@ -166,7 +259,7 @@ private data class Pod2Container(
 }
 
 sealed class Pod2Data {
-    data class NotYetScheduled(val builder: PodBasedBuilder) : Pod2Data()
+    data class NotYetScheduled(val builder: Pod2ContainerBuilder) : Pod2Data()
     object AlreadyScheduled : Pod2Data()
 }
 
@@ -184,9 +277,10 @@ class Pod2Runtime(
     private var nextNodeScan = 0L
     private var nextPodScan = 0L
 
+    override fun requiresReschedulingOfInQueueJobsOnStartup(): Boolean = true
+
     fun start() {
         ProcessingScope.launch {
-            println("STARTING Pod2Runtime")
             while (isActive) {
                 try {
                     mutex.withLock { scheduleLoop() }
@@ -216,7 +310,6 @@ class Pod2Runtime(
 
                 // NOTE(Dan): We do not respect the "pods" capacity. The provider must ensure that we can schedule a
                 // full machine using the smallest product configuration without hitting this limit.
-                // TODO(Dan): Remove system reserved resources
                 scheduler.registerNode(
                     node.metadata!!.name!!,
                     machineType,
@@ -227,12 +320,10 @@ class Pod2Runtime(
             }
 
             scheduler.pruneNodes()
-            scheduler.dumpState()
             nextNodeScan = now + (1000 * 60 * 15L)
         }
 
         if (now >= nextPodScan) {
-            println("pod scanning")
             val allPods = k8Client.listResources(
                 Pod.serializer(),
                 KubernetesResources.pod.withNamespace(namespace)
@@ -271,7 +362,6 @@ class Pod2Runtime(
             }
 
             scheduler.pruneJobs()
-            scheduler.dumpState()
             nextPodScan = now + (1000 * 30L)
         }
 
@@ -283,44 +373,73 @@ class Pod2Runtime(
                 continue
             }
 
+            val pod = data.builder.pod
+            pod.metadata!!.name = idAndRankToPodName(job.jobId, job.rank)
+            data.builder.podSpec.hostname = idAndRankToPodName(job.jobId, job.rank)
             data.builder.podSpec.nodeName = job.node
 
-            val pod = Pod(
-                metadata = ObjectMeta(
-                    name = idAndRankToPodName(job.jobId, job.rank),
-                    // NOTE(Dan): This dummy value ensures that the annotation object has been initialized, which
-                    // will simplify some JSON patches we are sending later.
-                    annotations = JsonObject(mapOf("ucloud.dk/dummy" to JsonPrimitive("dummy")))
-                ),
-                spec = data.builder.podSpec
-            )
+            val allContainers = (data.builder.podSpec.initContainers ?: emptyList()) +
+                    (data.builder.podSpec.containers ?: emptyList())
+            val oldEnv = allContainers.map { c -> c.env?.let { ArrayList(it) } }
+            for (container in allContainers) {
+                val env = (container.env ?: emptyList()).toMutableList()
+
+                env += Pod.EnvVar(
+                    name = "UCLOUD_JOB_ID",
+                    value = job.jobId.toString()
+                )
+
+                // NOTE(Dan): Used by FeatureMultiNode to create /etc/ucloud/rank.txt
+                env += Pod.EnvVar(
+                    name = "UCLOUD_RANK",
+                    value = job.rank.toString()
+                )
+
+                env += Pod.EnvVar(
+                    name = "UCLOUD_TASK_COUNT",
+                    value = data.builder.replicas.toString()
+                )
+
+                // NOTE(Dan): The following bring backwards compatibility with Volcano
+                env += Pod.EnvVar(
+                    name = "VK_TASK_INDEX", // Ironically, this is probably backwards compatibility within Volcano
+                    value = job.rank.toString()
+                )
+
+                env += Pod.EnvVar(
+                    name = "VC_TASK_INDEX",
+                    value = job.rank.toString()
+                )
+
+                env += Pod.EnvVar(
+                    name = "VC_JOB_NUM",
+                    value = data.builder.replicas.toString()
+                )
+
+                container.env = env
+            }
 
             k8Client.createResource(
                 KubernetesResources.pod.withNamespace(namespace),
                 defaultMapper.encodeToString(Pod.serializer(), pod)
             )
 
-            // TODO create network policy and service
+            // NOTE(Dan): We must restore the environment since the pod builder itself is shared among all replicas
+            allContainers.zip(oldEnv).forEach { (c, env) -> c.env = env }
+
+            // NOTE(Dan): These resources should only be created once, as a result we only do it for rank 0
+            if (job.rank == 0) {
+                k8Client.createResource(
+                    KubernetesResources.networkPolicies.withNamespace(namespace),
+                    defaultMapper.encodeToString(NetworkPolicy.serializer(), data.builder.myPolicy)
+                )
+
+                k8Client.createResource(
+                    KubernetesResources.services.withNamespace(namespace),
+                    defaultMapper.encodeToString(Service.serializer(), data.builder.myService)
+                )
+            }
         }
-
-        if (scheduledJobs.isNotEmpty()) {
-            scheduler.dumpState()
-        }
-    }
-
-    private fun idAndRankToPodName(id: Long, rank: Int): String = "j-$id-$rank"
-    private fun podNameToIdAndRank(podName: String): Pair<Long, Int>? {
-        val prefix = "j-"
-        if (!podName.startsWith(prefix)) return null
-        val withoutPrefix = podName.substring(prefix.length)
-        val separatorIndex = withoutPrefix.indexOf('-')
-        if (separatorIndex == -1 || separatorIndex == withoutPrefix.lastIndex) return null
-        val idPart = withoutPrefix.substring(0, separatorIndex)
-        val rankPart = withoutPrefix.substring(separatorIndex + 1, withoutPrefix.length)
-
-        val id = idPart.toLongOrNull() ?: return null
-        val rank = rankPart.toIntOrNull() ?: return null
-        return Pair(id, rank)
     }
 
     private val notNumbers = Regex("[^0-9]")
@@ -360,12 +479,12 @@ class Pod2Runtime(
     }
 
     override fun builder(jobId: String, replicas: Int, block: ContainerBuilder.() -> Unit): ContainerBuilder {
-        return K8PodContainerBuilder(jobId, replicas, k8Client, namespace, categoryToSelector, fakeIpMount)
+        return Pod2ContainerBuilder(jobId, replicas, k8Client, namespace, categoryToSelector, fakeIpMount)
     }
 
     override suspend fun schedule(container: ContainerBuilder) {
         mutex.withLock {
-            val c = container as K8PodContainerBuilder
+            val c = container as Pod2ContainerBuilder
 
             scheduler.addJobToQueue(
                 c.jobId.toLong(),
@@ -382,8 +501,8 @@ class Pod2Runtime(
     override suspend fun retrieve(jobId: String, rank: Int): Container? {
         mutex.withLock {
             val jobIdLong = jobId.toLongOrNull() ?: return null
-            if (scheduler.findRunningReplica(jobIdLong, rank, touch = false) == null) return null
-            return container(jobIdLong, rank)
+            val replica = scheduler.findRunningReplica(jobIdLong, rank, touch = false) ?: return null
+            return container(replica)
         }
     }
 
@@ -391,19 +510,28 @@ class Pod2Runtime(
         val result = ArrayList<Container>()
         mutex.withLock {
             for (replica in scheduler.runningReplicas()) {
-                result.add(container(replica.jobId, replica.rank))
+                val element = container(replica)
+                try {
+                    // NOTE(Dan): Trigger pod fetch, which might throw if it was recently deleted but not yet removed
+                    // from scheduler
+                    element.pod
+
+                    result.add(element)
+                } catch (ex: Throwable) {
+                    // Do nothing
+                }
             }
         }
         return result
     }
 
-    private fun container(id: Long, rank: Int): Pod2Container {
+    private fun container(replica: AllocatedReplica<Pod2Data>): Pod2Container {
         return Pod2Container(
-            id, rank,
+            replica.jobId, replica.rank,
             k8Client,
-            idAndRankToPodName(id, rank),
+            idAndRankToPodName(replica.jobId, replica.rank),
             namespace,
-            categoryToSelector
+            categoryToSelector,
         )
     }
 
@@ -416,7 +544,7 @@ class Pod2Runtime(
             val pod = k8Client.getResource(
                 Pod.serializer(),
                 KubernetesResourceLocator.common.pod.withNameAndNamespace(
-                    K8PodRuntime.idAndRankToPodName(jobId, rank),
+                    idAndRankToPodName(jobId.toLong(), rank),
                     namespace,
                 )
             )
@@ -431,7 +559,7 @@ class Pod2Runtime(
                 "port-forward",
                 "-n",
                 namespace,
-                K8PodRuntime.idAndRankToPodName(jobId, rank),
+                idAndRankToPodName(jobId.toLong(), rank),
                 "$allocatedPort:$port"
             ))
 
@@ -455,12 +583,182 @@ class Pod2Runtime(
     }
 }
 
-private const val K8_POD_NETWORK_POLICY_PREFIX = "policy-"
-private const val K8_JOB_NAME_LABEL = "k8-job-id"
+private fun policyName(jobId: String) = "policy-$jobId"
+private fun serviceName(jobId: String) = "j-$jobId"
 private fun k8PodSelectorForJob(jobId: String): LabelSelector = LabelSelector(
     matchLabels = JsonObject(
-        mapOf(
-            K8_JOB_NAME_LABEL to JsonPrimitive(jobId)
-        )
+        mapOf(jobIdLabel(jobId))
     )
 )
+
+// NOTE(Dan): This is uses the Volcano name to remain backwards compatible
+private fun jobIdLabel(jobId: String) = "volcano.sh/job-name" to JsonPrimitive("j-$jobId")
+private fun idAndRankToPodName(id: Long, rank: Int): String = "j-$id-job-$rank"
+private fun podNameToIdAndRank(podName: String): Pair<Long, Int>? {
+    val prefix = "j-"
+    if (!podName.startsWith(prefix)) return null
+    val withoutPrefix = podName.substring(prefix.length)
+    val separatorIndex = withoutPrefix.indexOf('-')
+    if (separatorIndex == -1 || separatorIndex == withoutPrefix.lastIndex) return null
+    val idPart = withoutPrefix.substring(0, separatorIndex)
+    val rankPart = withoutPrefix.substring(separatorIndex + 1, withoutPrefix.length).removePrefix("job-")
+
+    val id = idPart.toLongOrNull() ?: return null
+    val rank = rankPart.toIntOrNull() ?: return null
+    return Pair(id, rank)
+}
+
+class Pod2ContainerBuilder(
+    override val jobId: String,
+    override val replicas: Int,
+    private val k8Client: KubernetesClient,
+    val namespace: String,
+    private val categoryToSelector: Map<String, String>,
+    override val fakeIpMount: Boolean,
+) : PodBasedBuilder() {
+    val myPolicy: NetworkPolicy
+    val myService: Service
+
+    val pod: Pod = Pod(
+        metadata = ObjectMeta(
+            labels = JsonObject(mapOf(
+                jobIdLabel(jobId)
+            )),
+            annotations = JsonObject(mapOf(
+                jobIdLabel(jobId)
+            ))
+        ),
+        spec = Pod.Spec(
+
+        )
+    )
+    override val podSpec: Pod.Spec = pod.spec!!
+
+    init {
+        initPodSpec()
+        myPolicy = NetworkPolicy(
+            metadata = ObjectMeta(name = policyName(this.jobId)),
+            spec = NetworkPolicy.Spec(
+                egress = ArrayList(),
+                ingress = ArrayList(),
+                podSelector = k8PodSelectorForJob(this.jobId)
+            )
+        )
+
+        myService = Service(
+            metadata = ObjectMeta(
+                name = serviceName(this.jobId),
+            ),
+            spec = Service.Spec(
+                type = "ClusterIP",
+                clusterIP = "None",
+                selector = JsonObject(mapOf(jobIdLabel(jobId)))
+            )
+        )
+
+        // NOTE(Dan): These used to be called by Volcano, which is why we are doing them here instead of a feature
+        allowNetworkFrom(jobId)
+        allowNetworkTo(jobId)
+
+        podSpec.subdomain = "j-$jobId"
+    }
+
+    private var productCategoryField: String? = null
+    override var productCategoryRequired: String?
+        get() = productCategoryField
+        set(value) {
+            val mapped = categoryToSelector.getOrDefault(value, value)
+            productCategoryField = mapped
+            podSpec.nodeSelector = JsonObject(
+                mapOf(
+                    "ucloud.dk/machine" to JsonPrimitive(mapped)
+                )
+            )
+        }
+
+    override var isSidecar: Boolean = false
+    override fun supportsSidecar(): Boolean = !isSidecar
+    override fun sidecar(name: String, builder: ContainerBuilder.() -> Unit) {
+        if (!supportsSidecar()) error("Cannot call sidecar {} in a sidecar container")
+        podSpec.initContainers = podSpec.initContainers ?: ArrayList()
+        val initContainers = podSpec.initContainers as ArrayList
+        val sidecarContainer = Pod2ContainerBuilder(jobId, 1, k8Client, namespace, categoryToSelector, fakeIpMount).also(builder).container
+        sidecarContainer.name = name
+        initContainers.add(sidecarContainer)
+    }
+
+    override fun allowNetworkTo(jobId: String, rank: Int?) {
+        val ingress = myPolicy.spec!!.ingress as ArrayList
+
+        ingress.add(
+            NetworkPolicy.IngressRule(
+                from = listOf(NetworkPolicy.Peer(podSelector = k8PodSelectorForJob(jobId)))
+            )
+        )
+    }
+
+    override fun allowNetworkFrom(jobId: String, rank: Int?) {
+        val egress = myPolicy.spec!!.egress as ArrayList
+        egress.add(
+            NetworkPolicy.EgressRule(
+                to = listOf(NetworkPolicy.Peer(podSelector = k8PodSelectorForJob(jobId)))
+            )
+        )
+    }
+
+    override fun allowNetworkFromSubnet(subnet: String) {
+        val ingress = myPolicy.spec!!.ingress as ArrayList
+        ingress.add(
+            NetworkPolicy.IngressRule(
+                from = listOf(
+                    NetworkPolicy.Peer(
+                        ipBlock = NetworkPolicy.IPBlock(
+                            cidr = subnet
+                        )
+                    )
+                )
+            )
+        )
+    }
+
+    override fun allowNetworkToSubnet(subnet: String) {
+        val egress = myPolicy.spec!!.egress as ArrayList
+        egress.add(
+            NetworkPolicy.EgressRule(
+                to = listOf(
+                    NetworkPolicy.Peer(
+                        ipBlock = NetworkPolicy.IPBlock(
+                            cidr = subnet
+                        )
+                    )
+                )
+            )
+        )
+    }
+
+    override fun hostAlias(jobId: String, rank: Int, alias: String) {
+        podSpec.hostAliases = podSpec.hostAliases?.toMutableList() ?: ArrayList()
+        val aliases = podSpec.hostAliases as MutableList
+        val podIp = runBlocking {
+            k8Client.getResource(
+                Pod.serializer(),
+                KubernetesResources.pod.withNameAndNamespace(
+                    idAndRankToPodName(jobId.toLong(), rank),
+                    namespace
+                )
+            ).status?.podIP
+        } ?: return
+
+        aliases.add(Pod.HostAlias(listOf(alias), podIp))
+    }
+
+    override fun upsertAnnotation(key: String, value: String) {
+        val annotationEntries = (pod.metadata?.annotations?.entries ?: emptySet())
+            .associate { it.key to it.value }
+            .toMutableMap()
+
+        annotationEntries[key] = JsonPrimitive(value)
+
+        pod.metadata!!.annotations = JsonObject(annotationEntries)
+    }
+}
