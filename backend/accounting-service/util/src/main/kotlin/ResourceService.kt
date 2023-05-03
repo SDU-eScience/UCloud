@@ -24,8 +24,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
-const val accountingPerformanceMitigations = true
-
 // TODO(Dan): This should probably be moved to `dk.sdu.cloud` since it is of general use
 data class PartialQuery(
     val arguments: EnhancedPreparedStatement.() -> Unit,
@@ -422,7 +420,7 @@ abstract class ResourceService<
                     resources: List<RequestWithRefOrResource<Spec, Res>>
                 ): BulkRequest<Res> {
                     return (ctx as? AsyncDBConnection ?: db).withSession(remapExceptions = true) { session ->
-                        if (!isCoreResource && !accountingPerformanceMitigations) {
+                        if (!isCoreResource) {
                             val project = resolvedActorAndProject.project
                             payment.creditCheck(
                                 if (project != null) {
