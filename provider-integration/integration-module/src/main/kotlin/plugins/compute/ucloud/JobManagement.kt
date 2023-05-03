@@ -17,6 +17,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.toReadableStacktrace
 import dk.sdu.cloud.utils.forEachGraal
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.currentCoroutineContext
@@ -183,6 +184,7 @@ class JobManagement(
     }
 
     private suspend fun cleanup(jobId: String) {
+        println("cleanup($jobId)")
         val resolvedJob = jobCache.findJob(jobId) ?: return
         for (i in 0 until resolvedJob.specification.replicas) {
             runtime.retrieve(jobId, i)?.cancel()
@@ -307,7 +309,27 @@ class JobManagement(
                 }
 
                 k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "K8 Job monitoring", MessageImportance.IMPLEMENTATION_DETAIL) {
-                    val resources = runtime.list()
+                    val resources = runtime.list().toMutableList()
+
+                    run {
+                        // Remove containers from jobs we no longer recognize
+                        val resourcesIterator = resources.iterator()
+                        while (resourcesIterator.hasNext()) {
+                            val resource = resourcesIterator.next()
+                            val job = jobCache.findJob(resource.jobId) ?: continue
+                            if (job.status.state.isFinal()) {
+                                resourcesIterator.remove()
+
+                                try {
+                                    log.info("Terminating unknown job: ${resource.jobId} ${resource.rank}")
+                                    resource.cancel(force = true)
+                                } catch (ex: Throwable) {
+                                    log.info("Exception while terminating unknown job: " +
+                                            "${resource.jobId} ${resource.rank}\n${ex.toReadableStacktrace()}")
+                                }
+                            }
+                        }
+                    }
 
                     val events = processScan(resources)
                     k8.debug.detail("Received ${resources.size} resources from runtime")
@@ -346,7 +368,7 @@ class JobManagement(
                                     }
 
                                     runCatching {
-                                        markJobAsComplete(event.jobId)
+                                        markJobAsComplete(event.oldReplicas)
                                     }
 
                                     runCatching {
@@ -431,8 +453,7 @@ class JobManagement(
         }
     }
 
-    private suspend fun markJobAsComplete(jobId: String): Boolean {
-        val replicas = runtime.list().filter { it.jobId == jobId }
+    private suspend fun markJobAsComplete(replicas: List<Container>): Boolean {
         val job = replicas.find { it.rank == 0 } ?: return false
         features.forEach { feature ->
             with(feature) {
@@ -441,10 +462,16 @@ class JobManagement(
         }
         features.forEach { feature ->
             with(feature) {
-                onCleanup(jobId)
+                onCleanup(job.jobId)
             }
         }
         return true
+    }
+
+    private suspend fun markJobAsComplete(jobId: String): Boolean {
+        println("markJobAsComplete($jobId)")
+        val replicas = runtime.list().filter { it.jobId == jobId }
+        return markJobAsComplete(replicas)
     }
 
     fun verifyJobs(jobs: List<Job>) {

@@ -12,7 +12,10 @@ import dk.sdu.cloud.toReadableStacktrace
 import dk.sdu.cloud.utils.LinuxOutputStream
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.utils.io.*
+import io.ktor.utils.io.core.*
 import io.ktor.utils.io.jvm.javaio.*
+import io.ktor.utils.io.jvm.javaio.copyTo
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -24,9 +27,121 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import java.io.ByteArrayOutputStream
-import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
+
+private object LogCache {
+    private val emptyBuffer = ByteBuffer.allocateDirect(0)
+    private val mutex = Mutex()
+    private val buffers = Array(128) { BufferEntry() }
+    private const val bufferSize = 1024 * 1024 * 4
+    private const val maxAge = 1000L * 60 * 5
+
+    private data class BufferEntry(
+        var jobId: Long = -1L,
+        var rank: Int = -1,
+        var lastUse: Long = 0L,
+        var buffer: ByteBuffer = emptyBuffer,
+        var copying: Boolean = false,
+    )
+
+    suspend fun insertLog(jobId: Long, rank: Int, block: suspend (buffer: ByteBuffer) -> Unit) {
+        println("insertLog($jobId, $rank)")
+        val entry = mutex.withLock {
+            findSlotForEntry(jobId, rank)?.also {
+                it.copying = true
+            }
+        } ?: return
+        println("Found entry")
+        try {
+            println("Writing to ${entry}")
+            block(entry.buffer)
+        } finally {
+            entry.copying = false
+        }
+    }
+
+    suspend fun copyLogTo(jobId: Long, rank: Int, out: LinuxOutputStream): Boolean {
+        val entry = mutex.withLock {
+            buffers.find { it.jobId == jobId && it.rank == rank && !it.copying }
+                ?.also { it.copying = true }
+        }
+
+        println("copyLogTo($jobId, $rank) Found an entry: $entry")
+
+        if (entry != null) {
+            println("Before flip ${entry.buffer}")
+            entry.buffer.flip()
+            println("After flip ${entry.buffer}")
+            try {
+                while (entry.buffer.hasRemaining()) out.write(entry.buffer)
+                return true
+            } finally {
+                // NOTE(Dan): Don't reset jobId or rank yet, as we still want insertLog() to be cached
+                entry.lastUse = 0L
+                entry.copying = false
+            }
+        }
+        return false
+    }
+
+    private fun clean() {
+        println("Cleaning...")
+        val now = Time.now()
+        for (entry in buffers) {
+            if (!entry.copying && now - entry.lastUse >= maxAge) {
+                entry.jobId = -1L
+                entry.rank = -1
+                entry.lastUse = 0L
+                entry.buffer = emptyBuffer
+            }
+        }
+    }
+
+    private fun findSlotForEntry(jobId: Long, rank: Int, canClean: Boolean = true): BufferEntry? {
+        fun resetBuffer(entry: BufferEntry) {
+            entry.jobId = jobId
+            entry.rank = rank
+            entry.lastUse = Time.now()
+            if (entry.buffer.capacity() == 0) {
+                entry.buffer = ByteBuffer.allocateDirect(bufferSize)
+            }
+            entry.buffer.clear()
+        }
+
+        println("findSlotForEntry($jobId, $rank) loop")
+        var oldestBuffer: BufferEntry? = null
+        for (entry in buffers) {
+            if (entry.jobId == jobId && entry.rank == rank) return null
+        }
+
+        for (entry in buffers) {
+            if (entry.copying) continue
+
+            if (entry.jobId == -1L) {
+                resetBuffer(entry)
+                println("Found empty slot")
+                return entry
+            }
+
+            if (entry.lastUse < (oldestBuffer?.lastUse ?: Long.MAX_VALUE)) {
+                oldestBuffer = entry
+            }
+        }
+
+        if (oldestBuffer != null) {
+            resetBuffer(oldestBuffer)
+            println("Found old slot")
+            return oldestBuffer
+        }
+
+        if (canClean) {
+            clean()
+            return findSlotForEntry(jobId, rank, canClean = false)
+        }
+        return null
+    }
+}
 
 private data class Pod2Container(
     val internalJobId: Long,
@@ -104,6 +219,9 @@ private data class Pod2Container(
         }
 
     override suspend fun cancel(force: Boolean) {
+        // NOTE(Dan): Kubernetes is often really slow to delete a pod. As a result, it is not unlikely that the job
+        // manager will call this repeatedly because the cancellation is too slow. As a result, all of our code here
+        // should be okay with partial failures.
         downloadLogBeforeCancel()
 
         try {
@@ -143,14 +261,15 @@ private data class Pod2Container(
         }
     }
 
-    // TODO Cache this somewhere else since the Container instance is re-created quite a lot
-    private var logFromCancel: ByteArray? = null
     private suspend fun downloadLogBeforeCancel() {
+        // NOTE(Dan): Often called repeatedly, as a result, the LogCache will not insert our log if we have already
+        // done it.
+        println("Want to download logs before cancel")
         val podMeta = pod.metadata!!
         val podName = podMeta.name!!
         val namespace = podMeta.namespace!!
 
-        runCatching {
+        LogCache.insertLog(internalJobId, rank) { output ->
             k8Client.sendRequest(
                 HttpMethod.Get,
                 KubernetesResources.pod.withNameAndNamespace(podName, namespace),
@@ -158,27 +277,33 @@ private data class Pod2Container(
                 "log",
                 longRunning = true,
             ).execute { resp ->
-                // TODO(Dan): I am pretty sure this code ends up copying the data at least 3 times
-                val channel = resp.bodyAsChannel()
-                val bos = ByteArrayOutputStream(0).use { bos ->
-                    channel.copyTo(bos, 1024 * 1024 * 16L)
-                    bos
+                try {
+                    println("1")
+                    val channel = resp.bodyAsChannel()
+                    println("2")
+                    while (output.hasRemaining() && !channel.isClosedForRead) {
+                        channel.read { input ->
+                            output.put(input)
+                        }
+                    }
+                } catch (ignored: EOFException) {
+                    // Ignored
                 }
-                logFromCancel = bos.toByteArray()
             }
         }
     }
 
     override suspend fun downloadLogs(out: LinuxOutputStream) {
-        val bytes = logFromCancel
-        if (bytes == null) {
-            return super.downloadLogs(out)
-        } else {
-            val buf = ByteBuffer.allocateDirect(bytes.size)
-            buf.put(bytes)
-            buf.flip()
-
-            while (buf.hasRemaining()) out.write(buf)
+        try {
+            println("Want to download logs $internalJobId $rank!")
+            if (!LogCache.copyLogTo(internalJobId, rank, out)) {
+                println("Redownloading logs $internalJobId $rank")
+                downloadLogBeforeCancel()
+                println("Copying again $internalJobId $rank")
+                LogCache.copyLogTo(internalJobId, rank, out)
+            }
+        } catch (ex: Throwable) {
+            println(ex.toReadableStacktrace())
         }
     }
 
@@ -555,13 +680,15 @@ class Pod2Runtime(
             return Tunnel(ipAddress, port, close = {})
         } else {
             val allocatedPort = basePortForward + portAllocator.getAndIncrement()
-            val process = k8Client.kubectl(listOf(
-                "port-forward",
-                "-n",
-                namespace,
-                idAndRankToPodName(jobId.toLong(), rank),
-                "$allocatedPort:$port"
-            ))
+            val process = k8Client.kubectl(
+                listOf(
+                    "port-forward",
+                    "-n",
+                    namespace,
+                    idAndRankToPodName(jobId.toLong(), rank),
+                    "$allocatedPort:$port"
+                )
+            )
 
             return Tunnel("127.0.0.1", allocatedPort, close = { process.destroy() })
         }
@@ -621,12 +748,16 @@ class Pod2ContainerBuilder(
 
     val pod: Pod = Pod(
         metadata = ObjectMeta(
-            labels = JsonObject(mapOf(
-                jobIdLabel(jobId)
-            )),
-            annotations = JsonObject(mapOf(
-                jobIdLabel(jobId)
-            ))
+            labels = JsonObject(
+                mapOf(
+                    jobIdLabel(jobId)
+                )
+            ),
+            annotations = JsonObject(
+                mapOf(
+                    jobIdLabel(jobId)
+                )
+            )
         ),
         spec = Pod.Spec(
 
@@ -682,7 +813,8 @@ class Pod2ContainerBuilder(
         if (!supportsSidecar()) error("Cannot call sidecar {} in a sidecar container")
         podSpec.initContainers = podSpec.initContainers ?: ArrayList()
         val initContainers = podSpec.initContainers as ArrayList
-        val sidecarContainer = Pod2ContainerBuilder(jobId, 1, k8Client, namespace, categoryToSelector, fakeIpMount).also(builder).container
+        val sidecarContainer =
+            Pod2ContainerBuilder(jobId, 1, k8Client, namespace, categoryToSelector, fakeIpMount).also(builder).container
         sidecarContainer.name = name
         initContainers.add(sidecarContainer)
     }
