@@ -50,10 +50,7 @@ sealed class ProductV2 {
     abstract val hiddenInGrantApplications: Boolean
 
     @UCloudApiDoc("Included only with certain endpoints which support `includeBalance`")
-    var balance: Long? = null
-
-    @UCloudApiDoc("Included only with certain endpoints which support `includeMaxBalance`")
-    var maxUsableBalance: Long? = null
+    var usage: Long? = null
 
     protected fun verify() {
         checkSingleLine(::name, name)
