@@ -18,8 +18,7 @@ import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import AppStoreOverview = compute.AppStoreOverview;
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
-import {useDispatch} from "react-redux";
-import {setAppFavorites} from "./Redux/Actions";
+import {useSelector} from "react-redux";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -30,8 +29,8 @@ export const ShowAllTagItem: React.FunctionComponent<{tag?: string; children: Re
     <Link to={props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
 );
 
-function favoriteStatusKey(app: ApplicationSummaryWithFavorite): string {
-    return `${app.metadata.name}/${app.metadata.version}`;
+function favoriteStatusKey(metadata: compute.ApplicationMetadata): string {
+    return `${metadata.name}/${metadata.version}`;
 }
 
 const ScrollButtonClass = injectStyle("scroll-button", k => `
@@ -88,7 +87,7 @@ const ApplicationsOverview: React.FunctionComponent = () => {
 
     const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
         if (!loadingCommand) {
-            const key = favoriteStatusKey(app);
+            const key = favoriteStatusKey(app.metadata);
             const isFavorite = favoriteStatus.current[key]?.override ?? app.favorite;
             favoriteStatus.current[key] = {override: !isFavorite, app};
             favoriteStatus.current = {...favoriteStatus.current};
@@ -104,22 +103,10 @@ const ApplicationsOverview: React.FunctionComponent = () => {
         }
     }, [loadingCommand, favoriteStatus]);
 
-    const [favorites, fetchFavorites] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
-        {noop: true},
-        emptyPage,
-    );
-
-    useEffect(() => {
-        fetchFavorites(UCloud.compute.apps.retrieveFavorites({itemsPerPage: 100, page: 0}));
-    }, [refreshId]);
-
     const main = (
         <Box mx="auto" maxWidth="1340px">
             <Box mt="12px" />
-            <TagGrid
-                tag={SPECIAL_FAVORITE_TAG}
-                items={favorites.data.items}
-                tagBanList={[]}
+            <FavoriteAppRow
                 columns={7}
                 favoriteStatus={favoriteStatus}
                 onFavorite={onFavorite}
@@ -150,10 +137,6 @@ const AppOverviewMarginPaddingHack = injectStyleSimple("HACK-HACK-HACK", `
 /* HACK */
 `);
 
-// NOTE(Dan): We don't allow new lines in tags normally. As a result, we can be pretty confident that no application
-// will have this tag.
-const SPECIAL_FAVORITE_TAG = "\n\nFavorites\n\n";
-
 const TagGridTopBoxClass = injectStyle("tag-grid-top-box", k => `
     ${k} {
         border-top-left-radius: 10px;
@@ -168,9 +151,6 @@ const TagGridBottomBoxClass = injectStyle("tag-grid-bottom-box", k => `
         margin-right: 10px;
         border-bottom-left-radius: 10px;
         border-bottom-right-radius: 10px;
-    }
-
-    ${k}[data-favorite="false"] {
         overflow-x: scroll;
     }
 `);
@@ -186,64 +166,65 @@ interface TagGridProps {
     refreshId: number;
 }
 
-const SCROLL_SPEED = 156 * 4;
+function filterAppsByFavorite(
+    items: compute.ApplicationSummaryWithFavorite[],
+    showFavorites: boolean,
+    tagBanList: string[],
+    favoriteStatus: React.MutableRefObject<FavoriteStatus>
+): compute.ApplicationSummaryWithFavorite[] {
+    let _filteredItems = items
+        .filter(it => !it.tags.some(_tag => tagBanList.includes(_tag)))
+        .filter(item => {
+            const isFavorite = favoriteStatus.current[favoriteStatusKey(item.metadata)]?.override ?? item.favorite;
+            return isFavorite === showFavorites;
+        });
 
-let isInitial = true;
-const TagGrid: React.FunctionComponent<TagGridProps> = (
-    {tag, items, tagBanList = [], favoriteStatus, onFavorite}: TagGridProps
-) => {
-    const showFavorites = tag == SPECIAL_FAVORITE_TAG;
-    const dispatch = useDispatch();
+    if (showFavorites) {
+        _filteredItems = _filteredItems.concat(Object.values(favoriteStatus.current).filter(it => it.override).map(it => it.app));
+        _filteredItems = _filteredItems.filter(it => favoriteStatus.current[favoriteStatusKey(it.metadata)]?.override !== false);
+    }
 
-    const filteredItems = React.useMemo(() => {
-        let _filteredItems = items
-            .filter(it => !it.tags.some(_tag => tagBanList.includes(_tag)))
-            .filter(item => {
-                const isFavorite = favoriteStatus.current[favoriteStatusKey(item)]?.override ?? item.favorite;
-                return isFavorite === showFavorites;
-            });
-
-        if (showFavorites) {
-            _filteredItems = _filteredItems.concat(Object.values(favoriteStatus.current).filter(it => it.override).map(it => it.app));
-            _filteredItems = _filteredItems.filter(it => favoriteStatus.current[favoriteStatusKey(it)]?.override !== false);
-        }
-
-        // Remove duplicates (This can happen due to favorite cache)
-        {
-            const observed = new Set<string>();
-            const newList: ApplicationSummaryWithFavorite[] = [];
-            for (const item of _filteredItems) {
-                const key = favoriteStatusKey(item);
-                if (!observed.has(key)) {
-                    observed.add(key);
-                    newList.push(item);
-                }
+    // Remove duplicates (This can happen due to favorite cache)
+    {
+        const observed = new Set<string>();
+        const newList: ApplicationSummaryWithFavorite[] = [];
+        for (const item of _filteredItems) {
+            const key = favoriteStatusKey(item.metadata);
+            if (!observed.has(key)) {
+                observed.add(key);
+                newList.push(item);
             }
-            return newList;
         }
-    }, [items, favoriteStatus.current]);
+        return newList;
+    }
+}
 
-    React.useEffect(() => {
-        if (isInitial) {
-            isInitial = false;
-            return;
-        }
-        if (showFavorites) dispatch(setAppFavorites(filteredItems.map(it => it.metadata)));
-    }, [filteredItems]);
+function FavoriteAppRow({favoriteStatus, onFavorite}: Omit<TagGridProps, "tag" | "items" | "tagBanList">): JSX.Element {
+    const items = useSelector<ReduxObject, compute.ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
+    const filteredItems = React.useMemo(() =>
+        filterAppsByFavorite(items, true, [], favoriteStatus),
+        [items, favoriteStatus.current]);
+
+    return <Flex overflowX="scroll" width="100%">
+        <Flex mx="auto" mb="16px">
+            {filteredItems.map(app =>
+                <FavoriteApp key={app.metadata.name + app.metadata.version} name={app.metadata.name} version={app.metadata.version} onFavorite={() => onFavorite(app)} />
+            )}
+        </Flex>
+    </Flex>
+}
+
+const SCROLL_SPEED = 156 * 4;
+const TagGrid: React.FunctionComponent<TagGridProps> = ({
+    tag, items, tagBanList = [], favoriteStatus, onFavorite
+}: TagGridProps) => {
+    const filteredItems = React.useMemo(() =>
+        filterAppsByFavorite(items, false, tagBanList, favoriteStatus),
+        [items, favoriteStatus.current]);
 
     const scrollRef = React.useRef<HTMLDivElement>(null);
 
     if (filteredItems.length === 0) return null;
-
-    if (showFavorites) {
-        return <Flex overflowX="scroll" width="100%">
-            <Flex mx="auto" mb="16px">
-                {filteredItems.map(app =>
-                    <FavoriteApp key={app.metadata.name + app.metadata.version} name={app.metadata.name} version={app.metadata.version} onFavorite={() => onFavorite(app)} />
-                )}
-            </Flex>
-        </Flex>
-    }
 
     const firstFour = filteredItems.length > 4 ? filteredItems.slice(0, 4) : filteredItems.slice(0, 1);
     const remaining = filteredItems.length > 4 ? filteredItems.slice(4) : filteredItems.slice(1);
@@ -252,7 +233,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
 
     return (
         <>
-            <div className={TagGridTopBoxClass} data-favorite={showFavorites}>
+            <div className={TagGridTopBoxClass}>
                 <Spacer
                     mt="15px" px="10px" alignItems={"center"}
                     left={<Heading.h2>{tag}</Heading.h2>}
@@ -280,9 +261,9 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                     </Absolute>
                 </Relative>
             </>}
-            <div ref={scrollRef} className={TagGridBottomBoxClass} data-favorite={showFavorites}>
+            <div ref={scrollRef} className={TagGridBottomBoxClass}>
                 <Grid
-                    pt="20px"
+                    p="8px"
                     mx="auto"
                     gridGap="10px"
                     gridTemplateRows={"repeat(1, 1fr)"}
@@ -303,8 +284,10 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                 </Grid>
             </div>
             <Grid
-                pt="20px"
-                gridGap="6px"
+                py="8px"
+                pl="4px"
+                mx="auto"
+                gridGap="4px"
                 gridTemplateRows={`repeat(1, 1fr)`}
                 gridTemplateColumns={"repeat(auto-fill, 332px)"}
                 style={{gridAutoFlow: "column"}}

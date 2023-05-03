@@ -481,13 +481,10 @@ function SecondarySidebar({
     const dispatch = useDispatch();
     React.useEffect(() => {
         if (favoriteApps.loading) return;
-        dispatch(setAppFavorites(favoriteApps.data.items.map(it => it.metadata)));
+        dispatch(setAppFavorites(favoriteApps.data.items));
     }, [favoriteApps]);
 
-    React.useEffect(() => {
-
-    }, []);
-    const appFavorites = useSelector<ReduxObject, compute.ApplicationMetadata[]>(it => it.sidebar.favorites);
+    const appFavorites = useSelector<ReduxObject, compute.ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
 
     const rootRef = React.useRef<HTMLDivElement>(null);
     const toggleSize = useCallback(() => {
@@ -586,12 +583,12 @@ function SecondarySidebar({
             <Flex flexDirection="column" mr="4px">
                 <TextSpan mb="8px" bold color="fixedWhite">Favorite apps</TextSpan>
                 {appFavorites.map(it =>
-                    <Link mb="4px" key={it.name + it.version} to={AppRoutes.jobs.create(it.name, it.version)}>
+                    <Link mb="4px" key={it.metadata.name + it.metadata.version} to={AppRoutes.jobs.create(it.metadata.name, it.metadata.version)}>
                         <Flex>
                             <Box mr="4px" pl="4px" backgroundColor="var(--fixedWhite)" width="24px" height="24px" borderRadius="6px">
-                                <AppToolLogo size="16px" name={it.name} type="APPLICATION" />
+                                <AppToolLogo size="16px" name={it.metadata.name} type="APPLICATION" />
                             </Box>
-                            <Truncate color="var(--text)">{it.title}</Truncate>
+                            <Truncate color="var(--text)">{it.metadata.title}</Truncate>
                         </Flex>
                     </Link>
                 )}

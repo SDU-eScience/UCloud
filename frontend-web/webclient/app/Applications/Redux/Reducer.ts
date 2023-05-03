@@ -3,7 +3,7 @@ import {SET_APP_FAVORITES, TOGGLE_APP_FAVORITE, SidebarActionType} from "./Actio
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 
 export interface SidebarStateProps {
-    favorites: compute.ApplicationMetadata[];
+    favorites: compute.ApplicationSummaryWithFavorite[];
 }
 
 export const sidebar = (state: SidebarStateProps = {favorites: []}, action: SidebarActionType): SidebarStateProps => {
@@ -12,12 +12,12 @@ export const sidebar = (state: SidebarStateProps = {favorites: []}, action: Side
             return action.payload;
         }
         case TOGGLE_APP_FAVORITE: {
-            const {metadata} = action.payload;
+            const {app: metadata} = action.payload;
             if (action.payload.favorite) {
                 state.favorites.push(metadata);
-                state.favorites.sort((a, b) => a.name.localeCompare(b.name));
+                state.favorites.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
             } else {
-                state.favorites = state.favorites.filter(it => it.name !== metadata.name && it.version !== metadata.version);
+                state.favorites = state.favorites.filter(it => it.metadata.name !== metadata.metadata.name && it.metadata.version !== metadata.metadata.version);
             }
             
             return deepCopy(state);

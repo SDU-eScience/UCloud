@@ -332,14 +332,14 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             };
             browser.on("open", (oldPath, newPath) => {
                 if (newPath !== "/") {
-                    navigate("/files-experimental?path=" + encodeURIComponent(`/${newPath}`));
+                    navigate("/files/?path=" + encodeURIComponent(`/${newPath}`));
                     return;
                 }
 
                 collectionsOnOpen.retrieve("", () => {
-                    return callAPI(FileCollectionsApi.browse({
-                        ...defaultRetrieveFlags
-                    }))
+                    return callAPI(FileCollectionsApi.browse(
+                        defaultRetrieveFlags
+                    ));
                 }).then(res => {
                     browser.registerPage(res, newPath, true);
                     browser.renderPage();

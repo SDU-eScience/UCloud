@@ -102,10 +102,8 @@ const Core = (): JSX.Element => (
                             element={React.createElement(requireAuth(Dashboard))} />
                         <Route path={AppRoutes.dashboard.dashboardB()}
                             element={React.createElement(requireAuth(Dashboard))} />
-                        <Route path={"/drives/*"} element={React.createElement(requireAuth(FileCollectionsRouter))} />
-                        <Route path={"/files/*"} element={React.createElement(requireAuth(FilesRouter))} />
-                        <Route path={"/drives-experimental/*"} element={React.createElement(requireAuth(ExperimentalDriveBrowse))} />
-                        <Route path={"/files-experimental/*"} element={React.createElement(requireAuth(ExperimentalFileBrowse))} />
+                        <Route path={"/drives/"} element={React.createElement(requireAuth(ExperimentalDriveBrowse))} />
+                        <Route path={"/files/*"} element={React.createElement(requireAuth(ExperimentalFileBrowse))} />
                         <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
                         <Route path={"/shares/outgoing"} element={React.createElement(requireAuth(SharesOutgoing))} />
                         <Route path={"/shares/invite/:id"}

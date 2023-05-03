@@ -19,7 +19,7 @@ export const FavoriteToggle: React.FunctionComponent<{
     const toggle = useCallback(async () => {
         if (!loading) {
             setFavorite(!favorite);
-            dispatch(toggleAppFavorite(application.metadata, !favorite));
+            dispatch(toggleAppFavorite(application, !favorite));
             invokeCommand(UCloud.compute.apps.toggleFavorite({
                 appName: application.metadata.name,
                 appVersion: application.metadata.version
