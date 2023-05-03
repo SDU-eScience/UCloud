@@ -466,10 +466,9 @@ class PuhuriPlugin : ProjectPlugin {
                 puhuri.createOrder(
                     puhuriProjectId,
                     PuhuriAllocation(
-                        // TODO(Brian): Check these calculations
-                        cpuKHours = ceil((cpuAllocation?.balance ?: 0) / 1000.0 / 1000.0 / 1000.0).toInt(),
-                        gpuHours = ceil((gpuAllocation?.balance ?: 0) / 1000.0).toInt(),
-                        gbKHours = ceil((storageAllocation?.balance ?: 0) / 1000.0 / 1000.0).toInt(),
+                        cpuKHours = ceil((cpuAllocation?.balance ?: 0) / 1000.0).toInt(),
+                        gpuHours = ceil(((gpuAllocation?.balance ?: 0).toDouble())).toInt(),
+                        gbKHours = ceil((storageAllocation?.balance ?: 0) / 1000.0).toInt(),
                     )
                 )
 

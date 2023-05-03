@@ -394,7 +394,7 @@ class GrantSettingsService(
             mapper = { _, rows -> rows.map { ProjectWithTitle(it.getString(0)!!, it.getString(1)!!) }}
         ).let { it.copy(items = (extraItems.toSet() + it.items.toSet()).toList()) }
 
-        return if (request.recipientId != null && request.recipientType != null) {
+        return if (request.recipientType != null) {
             result.mapItemsNotNull { projectWithTitle ->
                 val products = applicationService.retrieveProducts(
                     actorAndProject,

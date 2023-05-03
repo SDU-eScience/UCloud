@@ -1036,7 +1036,11 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
     }, [grantApplication, setRequestPending]);
 
     const reload = useCallback(() => {
-        fetchGrantGivers(browseAffiliations({itemsPerPage: 250}));
+        fetchGrantGivers(browseAffiliations({
+            itemsPerPage: 250,
+            recipientId: getRecipientId(grantApplication.currentRevision.document.recipient),
+            recipientType: grantApplication.currentRevision.document.recipient.type
+        }));
         if (appId) {fetchGrantApplication({id: appId}).then(g => dispatch({type: FETCHED_GRANT_APPLICATION, payload: g}));};
     }, [appId]);
 
