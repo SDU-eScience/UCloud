@@ -99,12 +99,35 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
         )
 
         runtime = when (pluginConfig.scheduler) {
-            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Volcano -> VolcanoRuntime(k8, pluginConfig.kubernetes.categoryToSelector,
-                pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
-            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> K8PodRuntime(k8.client, pluginConfig.kubernetes.namespace,
-                pluginConfig.kubernetes.categoryToSelector, pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
-            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods2 -> Pod2Runtime(k8.client, pluginConfig.kubernetes.namespace,
-                pluginConfig.kubernetes.categoryToSelector, pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding, pluginConfig.kubernetes.defaultNodeType)
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Volcano -> {
+                VolcanoRuntime(
+                    k8,
+                    pluginConfig.kubernetes.categoryToSelector,
+                    pluginConfig.developmentMode.fakeIpMount,
+                    pluginConfig.developmentMode.usePortForwarding
+                )
+            }
+
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> {
+                K8PodRuntime(
+                    k8.client,
+                    pluginConfig.kubernetes.namespace,
+                    pluginConfig.kubernetes.categoryToSelector,
+                    pluginConfig.developmentMode.fakeIpMount,
+                    pluginConfig.developmentMode.usePortForwarding
+                )
+            }
+
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods2 -> {
+                Pod2Runtime(
+                    k8,
+                    pluginConfig.kubernetes.namespace,
+                    pluginConfig.kubernetes.categoryToSelector,
+                    pluginConfig.developmentMode.fakeIpMount,
+                    pluginConfig.developmentMode.usePortForwarding,
+                    pluginConfig.kubernetes.defaultNodeType
+                )
+            }
         }
 
         when (val rt = runtime) {
@@ -183,6 +206,7 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             register(FeatureFileOutput(files.fs))
             register(FeatureSshKeys(pluginConfig.ssh?.subnets ?: emptyList()))
             syncthingService?.also { register(it) }
+            register(FeatureModules) // Must run after both fileMountPlugin and FeatureParameter
         }
 
         files.driveLocator.onEnteringMaintenanceMode {

@@ -369,7 +369,7 @@ private data class Pod2Container(
         val pod = runBlocking { pod() }
         return when (val phase = pod.status?.phase ?: "Unknown") {
             "Pending" -> Pair(JobState.IN_QUEUE, "Job is currently in the queue")
-            "Running" -> Pair(JobState.RUNNING, "Job is now running on ${pod.spec?.nodeName ?: "a machine"}")
+            "Running" -> Pair(JobState.RUNNING, "Job has started")
             "Succeeded" -> Pair(JobState.SUCCESS, "Job has terminated")
             "Failed" -> Pair(JobState.SUCCESS, "Job has terminated with a non-zero exit code")
             "Unknown" -> Pair(JobState.FAILURE, "Job has failed")
@@ -389,13 +389,14 @@ sealed class Pod2Data {
 }
 
 class Pod2Runtime(
-    private val k8Client: KubernetesClient,
+    private val k8: K8DependenciesImpl,
     private val namespace: String,
     private val categoryToSelector: Map<String, String>,
     private val fakeIpMount: Boolean,
     private val usePortForwarding: Boolean,
     private val defaultNodeType: String? = null,
 ) : ContainerRuntime {
+    private val k8Client = k8.client
     private val mutex = Mutex()
     private val scheduler = Scheduler<Pod2Data>()
 
@@ -491,12 +492,15 @@ class Pod2Runtime(
         }
 
         val scheduledJobs = scheduler.schedule()
+        val scheduledToNodes = HashMap<Long, ArrayList<String>>()
         for (job in scheduledJobs) {
             val data = job.data
             if (data !is Pod2Data.NotYetScheduled) {
                 log.warn("We were told to schedule a job which has no builder? $job")
                 continue
             }
+
+            scheduledToNodes.getOrPut(job.jobId) { ArrayList() }.add(job.node)
 
             val pod = data.builder.pod
             pod.metadata!!.name = idAndRankToPodName(job.jobId, job.rank)
@@ -564,6 +568,50 @@ class Pod2Runtime(
                     defaultMapper.encodeToString(Service.serializer(), data.builder.myService)
                 )
             }
+        }
+
+        for ((jobId, nodeSet) in scheduledToNodes) {
+            val compacted = ArrayList<Int>()
+
+            var lastNode: String? = null
+            for ((index, node) in nodeSet.withIndex()) {
+                if (node != lastNode) {
+                    if (index != 0) compacted.add(index)
+                    lastNode = node
+                }
+            }
+            compacted.add(nodeSet.size)
+
+            val message = when {
+                nodeSet.size == 1 -> {
+                    "Assigned to ${nodeSet.single()}"
+                }
+
+                compacted.size == 1 -> {
+                    "All nodes assigned to ${nodeSet.first()}"
+                }
+
+                else -> {
+                    buildString {
+                        var startRank = 0
+
+                        for (endRank in compacted) {
+                            if (startRank == endRank -1) {
+                                append("Node ${startRank + 1} assigned to ${nodeSet[startRank]}. ")
+                            } else {
+                                append("Nodes ${startRank + 1} - ${(endRank - 1) + 1} assigned to ${nodeSet[startRank]}. ")
+                            }
+                            startRank = endRank
+                        }
+                    }
+                }
+            }
+
+            k8.addStatus(
+                jobId.toString(),
+                message,
+                "Job is starting soon"
+            )
         }
     }
 

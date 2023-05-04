@@ -85,7 +85,9 @@ class FeatureParameter(
                 app.parameters.find { it.name == paramName }!! to value
             }.toMap()
 
-        val allParameters = defaultParameters + givenParameters
+        val allParameters = (defaultParameters + givenParameters).toMutableMap()
+
+        FeatureModules.run { transformParameters(job, builder, allParameters) }
 
         builder.command(app.invocation.flatMap { parameter ->
             parameter.buildInvocationList(allParameters, builder = argBuilder)
@@ -116,12 +118,17 @@ private class OurArgBuilder(
     override suspend fun build(parameter: ApplicationParameter, value: AppParameterValue): String {
         return when (parameter) {
             is ApplicationParameter.InputFile, is ApplicationParameter.InputDirectory -> {
-                val file = (value as AppParameterValue.File)
-                val components = pathConverter.ucloudToInternal(UCloudFile.create(file.path)).components()
-                if (components.isEmpty()) {
-                    return ArgumentBuilder.Default.build(parameter, value)
+                if (value is AppParameterValue.Text) {
+                    // NOTE(Dan): This might happen when passing through FeatureModules
+                    value.value
+                } else {
+                    val file = (value as AppParameterValue.File)
+                    val components = pathConverter.ucloudToInternal(UCloudFile.create(file.path)).components()
+                    if (components.isEmpty()) {
+                        return ArgumentBuilder.Default.build(parameter, value)
+                    }
+                    joinPath("/work", components[components.lastIndex]).removeSuffix("/")
                 }
-                joinPath("/work", components[components.lastIndex]).removeSuffix("/")
             }
 
             is ApplicationParameter.LicenseServer -> {

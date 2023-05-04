@@ -430,6 +430,7 @@ data class ConfigSchema(
                 val developmentMode: DevelopmentMode = DevelopmentMode(),
                 val scheduler: Scheduler = Scheduler.Volcano,
                 val ssh: Ssh? = null,
+                val modules: Modules? = null,
             ) : Jobs() {
                 @Serializable
                 data class DevelopmentMode(
@@ -479,6 +480,33 @@ data class ConfigSchema(
                     Pods,
                     Pods2,
                 }
+
+                @Serializable
+                data class Modules(
+                    val legacy: ModulesLegacy,
+                    val entries: List<ModuleEntry>
+                )
+
+                @Serializable
+                data class ModulesLegacy(
+                    val parametersToMatch: List<ModuleParameterMatcher>,
+                )
+
+                @Serializable
+                data class ModuleParameterMatcher(
+                    val name: String,
+                    val title: String,
+                    val moduleToMount: String,
+                )
+
+                @Serializable
+                data class ModuleEntry(
+                    val name: String,
+                    val internalPath: String,
+
+                    val hostPath: String? = null,
+                    val volumeClaim: String? = null,
+                )
             }
         }
 

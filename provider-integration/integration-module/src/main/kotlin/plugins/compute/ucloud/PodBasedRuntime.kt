@@ -209,6 +209,7 @@ abstract class PodBasedContainer : Container {
             val systemName = mount.name ?: return@mapNotNull null
             val pathName = mount.subPath ?: return@mapNotNull null
             if (systemName == "shm") return@mapNotNull null
+            if (systemName.startsWith("module-")) return@mapNotNull null
             UCloudMount(systemName, pathName)
         }
     }
@@ -217,9 +218,9 @@ abstract class PodBasedContainer : Container {
 abstract class PodBasedBuilder : ContainerBuilder {
     abstract val podSpec: Pod.Spec
 
-    protected val container: Pod.Container get() = podSpec.containers!![0]
-    protected val volumeMounts: ArrayList<Pod.Container.VolumeMount> get() = container.volumeMounts as ArrayList
-    protected val volumes: ArrayList<Volume> get() = podSpec.volumes as ArrayList
+    val container: Pod.Container get() = podSpec.containers!![0]
+    val volumeMounts: ArrayList<Pod.Container.VolumeMount> get() = container.volumeMounts as ArrayList
+    val volumes: ArrayList<Volume> get() = podSpec.volumes as ArrayList
 
     protected abstract val fakeIpMount: Boolean
 
@@ -255,6 +256,7 @@ abstract class PodBasedBuilder : ContainerBuilder {
     }
 
     override fun mountUCloudFileSystem(system: FsSystem, subPath: String, containerPath: String, readOnly: Boolean) {
+        println("mountUCloudFileSystem($system, $subPath, $containerPath, $readOnly)")
         volumeMounts.add(
             Pod.Container.VolumeMount(
                 name = mountFsSystemIfNeeded(system),
