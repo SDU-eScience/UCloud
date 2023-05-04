@@ -26,8 +26,9 @@ import {createRoot} from "react-dom/client";
 import {ThemeProvider} from "styled-components";
 import {theme} from "@/ui-components";
 import ProviderInfo from "@/Assets/provider_info.json";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 
-const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({ globalTtl: 500 });
+const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProvider<ProductStorage, FileCollectionSupport>>({
     globalTtl: 60_000
 });
@@ -37,6 +38,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<FileCollection> | null>(null);
     const dispatch = useDispatch();
+    useTitle("Drives");
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -51,6 +53,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 showStar: false,
                 renderSpinnerWhenLoading: true,
                 breadcrumbsSeperatedBySlashes: false,
+                search: true,
             };
 
             // Load products and initialize dependencies
@@ -62,9 +65,9 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             const dummyEntry: FileCollection = {
                 createdAt: timestampUnixMs(),
                 status: {},
-                specification: {title: "", product: { id: "", category: "", provider: "" }},
+                specification: {title: "", product: {id: "", category: "", provider: ""}},
                 id: collectionBeingCreated,
-                owner: { createdBy: "", },
+                owner: {createdBy: "", },
                 updates: [],
                 permissions: {myself: []}
             };
@@ -107,7 +110,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                         };
 
                         browser.insertEntryIntoCurrentPage(driveBeingCreated);
-                        browser.renderPage();
+                        browser.renderRows();
                         browser.selectAndShow(it => it === driveBeingCreated);
 
                         try {
@@ -117,7 +120,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                             })))).responses[0] as unknown as FindByStringId;
 
                             driveBeingCreated.id = response.id;
-                            browser.renderPage();
+                            browser.renderRows();
                         } catch (e) {
                             snackbarStore.addFailure("Failed to create new drive. " + extractErrorMessage(e), false);
                             browser.refresh();
@@ -142,7 +145,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                         if (drive) {
                             drive.specification.title = browser.renameValue;
                             browser.dispatchMessage("sort", fn => fn(page));
-                            browser.renderPage();
+                            browser.renderRows();
                             browser.selectAndShow(it => it.id === drive.id);
 
                             callAPI(FileCollectionsApi.rename(bulkRequestOf({
@@ -161,7 +164,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
 
                                 drive.specification.title = oldTitle;
                                 browser.dispatchMessage("sort", fn => fn(page));
-                                browser.renderPage();
+                                browser.renderRows();
                                 browser.selectAndShow(it => it.id === drive.id);
                             });
                         }
@@ -179,7 +182,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     dispatch: dispatch,
                     embedded: false,
                     isWorkspaceAdmin: false,
-                    navigate: to => { navigate(to) },
+                    navigate: to => {navigate(to)},
                     reload: () => browser.refresh(),
                     startCreation(): void {
                         startCreation();
@@ -258,7 +261,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             // Rendering of breadcrumbs
             // =========================================================================================================
             browser.on("generateBreadcrumbs", () => {
-                return [{ title: "Drives", absolutePath: "/" }];
+                return [{title: "Drives", absolutePath: "/"}];
             });
 
             // Rendering of rows and empty pages
@@ -327,7 +330,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
 
             // Network requests
             // =========================================================================================================
-            const defaultRetrieveFlags: { itemsPerPage: number } = {
+            const defaultRetrieveFlags: {itemsPerPage: number} = {
                 itemsPerPage: 250
             };
             browser.on("open", (oldPath, newPath) => {
@@ -337,12 +340,12 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 }
 
                 collectionsOnOpen.retrieve("", () => {
-                    return callAPI(FileCollectionsApi.browse(
-                        defaultRetrieveFlags
-                    ));
+                    return callAPI(FileCollectionsApi.browse({
+                        ...defaultRetrieveFlags
+                    }))
                 }).then(res => {
                     browser.registerPage(res, newPath, true);
-                    browser.renderPage();
+                    browser.renderRows();
                 })
             });
 
@@ -381,9 +384,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
 
     return <MainContainer
         main={
-            <>
-                <div ref={mountRef}/>
-            </>
+            <div ref={mountRef} />
         }
     />;
 };
@@ -393,7 +394,7 @@ export function resourceCreationWithProductSelector<T>(
     products: Product[],
     dummyEntry: T,
     onCreate: (product: Product) => void,
-): { startCreation: () => void, cancelCreation: () => void } {
+): {startCreation: () => void, cancelCreation: () => void} {
     const productSelector = document.createElement("div");
     productSelector.style.display = "none";
     productSelector.style.position = "fixed";
@@ -434,7 +435,7 @@ export function resourceCreationWithProductSelector<T>(
             ev.preventDefault();
 
             browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-            browser.renderPage();
+            browser.renderRows();
         }
     });
 
@@ -442,12 +443,12 @@ export function resourceCreationWithProductSelector<T>(
         if (isSelectingProduct()) return;
         selectedProduct = null;
         browser.insertEntryIntoCurrentPage(dummyEntry);
-        browser.renderPage();
+        browser.renderRows();
     };
 
     const cancelCreation = () => {
         browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-        browser.renderPage();
+        browser.renderRows();
     };
 
     const onProductSelected = (product: Product) => {

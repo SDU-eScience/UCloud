@@ -10,14 +10,19 @@ import {fileName, resolvePath} from "@/Utilities/FileUtilities";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2} from "@/UCloud";
+import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
+import {WSFactory} from "@/Authentication/HttpClientInstance";
 
 /* BUGS FOUND
     - Double click/accesssing is available for files (not directory)
+    - Coloring of Icons does not seem do fully work.
 */
 
 /* MISSING FEATURES
     - Handling projects that cannot consume resources.
 */
+
+const RESOURCE_NAME = "Resource";
 
 export type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
 
@@ -69,8 +74,9 @@ interface ResourceBrowserListenerMap<T> {
     "renderRow": (entry: T, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
     "endRenderPage": () => void;
 
-    "open": (oldPath: string, path: string) => void;
+    "open": (oldPath: string, path: string, resource?: T) => void;
     "wantToFetchNextPage": (path: string) => Promise<void>;
+    "search": (query: string) => void;
 
     "useFolder": () => void;
     "useEntry": (entry: T) => void;
@@ -88,11 +94,11 @@ interface ResourceBrowserListenerMap<T> {
     "validDropTarget": (entry: T) => boolean;
     "renderDropIndicator": (selectedEntries: T[], currentTarget: string | null) => void;
 
-    "generateBreadcrumbs": (path: string) => { title: string, absolutePath: string }[];
+    "generateBreadcrumbs": (path: string) => {title: string, absolutePath: string}[];
     "locationBarVisibilityUpdated": (visible: boolean) => void;
 
     "generateTabCompletionEntries": (prompt: string, shouldFetch: boolean, lastSelectedIndex: number) => string[] | Promise<void>;
-    "renderLocationBar": (prompt: string) => { rendered: string, normalized: string };
+    "renderLocationBar": (prompt: string) => {rendered: string, normalized: string};
 
     "pathToEntry": (entry: T) => string;
     "nameOfEntry": (entry: T) => string;
@@ -121,6 +127,7 @@ interface ResourceBrowseFeatures {
     showStar?: boolean;
     renderSpinnerWhenLoading?: boolean;
     breadcrumbsSeperatedBySlashes?: boolean;
+    search?: boolean;
 }
 
 export class ResourceBrowser<T> {
@@ -179,7 +186,7 @@ export class ResourceBrowser<T> {
 
     // Drag-and-drop
     private entryBelowCursorTemporary: T | string | null = null;
-    private entryBelowCursor: T  | string | null = null;
+    private entryBelowCursor: T | string | null = null;
 
     icons: SvgCache = new SvgCache();
     private didPerformInitialOpen = false;
@@ -217,6 +224,7 @@ export class ResourceBrowser<T> {
         showUseButtonOnDirectory: false,
         showProjectSelector: false,
         showStar: false,
+        search: true,
         renderSpinnerWhenLoading: true, // automatically inserts the spinner graphic before invoking "renderEmptyPage"
     };
 
@@ -236,6 +244,10 @@ export class ResourceBrowser<T> {
                 <div class="header-first-row">
                     <ul></ul>
                     <input class="location-bar">
+                    <img class="location-bar-edit">
+                    <input class="search-field" hidden>
+                    <img class="search-icon">
+                    <img class="refresh-icon">
                 </div>
                 <div class="operations"></div>
             </header>
@@ -266,7 +278,7 @@ export class ResourceBrowser<T> {
         this.scrolling = this.root.querySelector<HTMLDivElement>(".scrolling")!;
         this.renameField = this.root.querySelector<HTMLInputElement>(".rename-field")!;
         this.locationBar = this.root.querySelector<HTMLInputElement>(".location-bar")!;
-        this.header = this.root.querySelector("header")!;
+        this.header = this.root.querySelector("header")!; // Add UtilityBar
         this.breadcrumbs = this.root.querySelector<HTMLUListElement>("header ul")!;
         this.emptyPageElement = {
             container: this.root.querySelector(".page-empty")!,
@@ -289,15 +301,60 @@ export class ResourceBrowser<T> {
 
         if (this.features.locationBar) {
             // Render edit button for the location bar
-            const headerFirstRow = this.header.querySelector(".header-first-row")!;
-            const img = image(placeholderImage, {width: 24, height: 24});
-            headerFirstRow.append(img);
+            const editIcon = this.header.querySelector<HTMLImageElement>(".header-first-row .location-bar-edit")!;
+            editIcon.src = placeholderImage;
+            editIcon.width = 24;
+            editIcon.height = 24;
             this.icons.renderIcon({name: "edit", color: "iconColor", color2: "iconColor2", width: 64, height: 64})
-                .then(url => img.src = url);
-            img.addEventListener("click", () => {
+                .then(url => editIcon.src = url);
+            editIcon.addEventListener("click", () => {
                 this.toggleLocationBar();
             });
         }
+
+        if (this.features.search) {
+            const icon = this.header.querySelector<HTMLImageElement>(".header-first-row .search-icon")!;
+            icon.src = placeholderImage;
+            icon.width = 24;
+            icon.height = 24;
+            this.icons.renderIcon({name: "search", color: "blue", color2: "blue", width: 64, height: 64})
+                .then(url => icon.src = url);
+
+            const input = this.header.querySelector<HTMLInputElement>(".header-first-row .search-field")!;
+            input.placeholder = "Search...";
+            input.onkeydown = e => e.stopPropagation();
+            input.onkeyup = e => {
+                if (e.key === "Enter") {
+                    this.searchQuery = input.value;
+                    if (!this.searchQuery) {
+                        return;
+                    }
+                    this.dispatchMessage("search", fn => fn(this.searchQuery)); 
+                }
+            };
+
+            icon.onclick = () => {
+                if (!input) return;
+                input.toggleAttribute("hidden");
+                if (!input.hasAttribute("hidden")) {
+                    input.focus()
+                }
+            }
+        }
+
+        {
+            // Render refresh icon
+            const icon = this.header.querySelector<HTMLImageElement>(".header-first-row .refresh-icon")!;
+            icon.src = placeholderImage;
+            icon.width = 24;
+            icon.height = 24;
+            this.icons.renderIcon({name: "refresh", color: "blue", color2: "blue", width: 64, height: 64})
+                .then(url => icon.src = url);
+            icon.addEventListener("click", () => {
+                this.refresh();
+            });
+        }
+
 
         // Event handlers not related to rows
         this.renameField.addEventListener("keydown", ev => {
@@ -376,7 +433,7 @@ export class ResourceBrowser<T> {
             if (this.didPerformInitialOpen) {
                 this.renderBreadcrumbs();
                 this.renderOperations();
-                this.renderPage();
+                this.renderRows();
             }
         };
         window.addEventListener("resize", sizeListener);
@@ -457,7 +514,7 @@ export class ResourceBrowser<T> {
         this.open(this.currentPath, true);
     }
 
-    open(path: string, force: boolean = false) {
+    open(path: string, force: boolean = false, resource?: T) {
         this.didPerformInitialOpen = true;
         if (this.currentPath === path && !force) return;
         const oldPath = this.currentPath;
@@ -487,15 +544,15 @@ export class ResourceBrowser<T> {
         // Perform renders
         this.renderBreadcrumbs();
         this.renderOperations();
-        this.renderPage();
+        this.renderRows();
 
         // NOTE(Dan): We need to scroll to the position _after_ we have rendered the page.
         this.scrolling.parentElement!.scrollTo({top: scrollPositionElement ?? 0});
 
-        this.dispatchMessage("open", fn => fn(oldPath, path));
+        this.dispatchMessage("open", fn => fn(oldPath, path, resource));
     }
 
-    renderPage() {
+    renderRows() {
         const page = this.cachedData[this.currentPath] ?? [];
         if (this.isSelected.length < page.length) {
             const newSelected = new Uint8Array(page.length);
@@ -596,14 +653,14 @@ export class ResourceBrowser<T> {
 
         if (page.length === 0) {
             const initialPage = this.currentPath;
-            const initialReason = this.emptyReasons[this.currentPath] ?? { tag: EmptyReasonTag.LOADING };
+            const initialReason = this.emptyReasons[this.currentPath] ?? {tag: EmptyReasonTag.LOADING};
 
             const renderEmptyPage = async () => {
                 if (this.currentPath !== initialPage) return;
                 const page = this.cachedData[this.currentPath] ?? [];
                 if (page.length !== 0) return;
 
-                const reason = this.emptyReasons[this.currentPath] ?? { tag: EmptyReasonTag.LOADING };
+                const reason = this.emptyReasons[this.currentPath] ?? {tag: EmptyReasonTag.LOADING};
                 const e = this.emptyPageElement;
                 e.container.style.display = "flex";
                 e.graphic.innerHTML = "";
@@ -998,7 +1055,7 @@ export class ResourceBrowser<T> {
         }
 
         if (render) {
-            this.renderPage();
+            this.renderRows();
             this.renderOperations();
         }
 
@@ -1076,7 +1133,7 @@ export class ResourceBrowser<T> {
         this.cachedData[path] = initialData.concat(page.items);
         this.cachedNext[path] = page.next ?? null;
         if (this.cachedData[path].length === 0) {
-            this.emptyReasons[path] = { tag: EmptyReasonTag.EMPTY };
+            this.emptyReasons[path] = {tag: EmptyReasonTag.EMPTY};
         }
 
         if (page.next && this.cachedData[path].length < 10000) {
@@ -1098,7 +1155,7 @@ export class ResourceBrowser<T> {
         this.dispatchMessage("sort", fn => fn(page));
 
         if (page.length === 0) {
-            this.emptyReasons[this.currentPath] = { tag: EmptyReasonTag.EMPTY };
+            this.emptyReasons[this.currentPath] = {tag: EmptyReasonTag.EMPTY};
         }
 
         this.isSelected = new Uint8Array(0);
@@ -1120,7 +1177,7 @@ export class ResourceBrowser<T> {
         this.renameValue = initialValue;
         this.renameOnSubmit = onSubmit;
         this.renameOnCancel = onCancel;
-        this.renderPage();
+        this.renderRows();
 
         const extensionStart = initialValue.lastIndexOf(".");
         const selectionEnd = extensionStart === -1 ? initialValue.length : extensionStart;
@@ -1136,7 +1193,7 @@ export class ResourceBrowser<T> {
         this.renameFieldIndex = -1;
         this.renameOnSubmit = doNothing;
         this.renameOnCancel = doNothing;
-        if (render) this.renderPage();
+        if (render) this.renderRows();
     }
 
     // Context menu
@@ -1433,7 +1490,7 @@ export class ResourceBrowser<T> {
                         if (initialScrollTop === scrollStart) this.isSelected[i + baseFileIdx] = 0;
                     }
                 }
-                this.renderPage();
+                this.renderRows();
                 this.renderOperations();
             };
 
@@ -1479,7 +1536,7 @@ export class ResourceBrowser<T> {
 
         const page = this.cachedData[this.currentPath] ?? [];
         const pathToEntry = this.dispatchMessage("pathToEntry", fn => fn(page[entryIdx]));
-        this.open(pathToEntry);
+        this.open(pathToEntry, false, page[entryIdx]);
     }
 
     private onRowMouseMove(index: number) {
@@ -1506,10 +1563,10 @@ export class ResourceBrowser<T> {
         } else {
             // If we are not right-clicking on a specific file, then clear the entire selection.
             this.select(0, SelectionMode.CLEAR);
-            this.renderPage();
+            this.renderRows();
         }
 
-        this.renderOperationsIn(true, { x: event.clientX, y: event.clientY });
+        this.renderOperationsIn(true, {x: event.clientX, y: event.clientY});
     }
 
     private onStarClicked(index: number) {
@@ -1529,7 +1586,7 @@ export class ResourceBrowser<T> {
             return;
         }
 
-        this.renderPage();
+        this.renderRows();
         this.fetchNext();
     }
 
@@ -1546,7 +1603,7 @@ export class ResourceBrowser<T> {
         this.dispatchMessage("wantToFetchNextPage", fn => fn(this.currentPath))
             .finally(() => {
                 if (initialPath === this.currentPath) this.isFetchingNext = false;
-                this.renderPage();
+                this.renderRows();
             });
     }
 
@@ -1616,7 +1673,8 @@ export class ResourceBrowser<T> {
         if (ev.ctrlKey || ev.metaKey) {
             let didHandle = true;
             switch (ev.code) {
-                case "KeyA": { if (this.contextMenuHandlers.length) return;
+                case "KeyA": {
+                    if (this.contextMenuHandlers.length) return;
 
                     relativeSelect(-1000000000, false);
                     relativeSelect(1000000000, true);
@@ -1719,7 +1777,7 @@ export class ResourceBrowser<T> {
                         for (let i = 0; i < selected.length; i++) {
                             selected[i] = 0;
                         }
-                        this.renderPage();
+                        this.renderRows();
                         this.renderOperations();
                         this.searchQuery = "";
                     }
@@ -2035,7 +2093,7 @@ export class ResourceBrowser<T> {
         beforeShortcut: doNothing,
 
         renderLocationBar: prompt => {
-            return { rendered: prompt, normalized: prompt };
+            return {rendered: prompt, normalized: prompt};
         },
 
         nameOfEntry: entry => {
@@ -2056,8 +2114,8 @@ export class ResourceBrowser<T> {
         }
 
         let result: any;
-        for (const l2 of arr) {
-            result = invoker(l2);
+        for (const l of arr) {
+            result = invoker(l);
         }
         return result;
     }
@@ -2071,10 +2129,8 @@ export class ResourceBrowser<T> {
     static injectStyle() {
         if (ResourceBrowser.styleInjected) return;
         ResourceBrowser.styleInjected = true;
-
-        const styleElem = document.createElement("style");
         //language=css
-        styleElem.innerText = `
+        unstyledInjectStyle("ignored", () => `
             body[data-cursor=not-allowed] * {
                 cursor: not-allowed !important;
             }
@@ -2372,8 +2428,7 @@ export class ResourceBrowser<T> {
             .file-browser .page-empty .provider-reason {
                 font-style: italic;
             }
-        `;
-        document.head.append(styleElem);
+        `);
     }
 }
 
@@ -2383,7 +2438,7 @@ export function div(html: string): HTMLDivElement {
     return elem;
 }
 
-export function image(src: string, opts?: { alt?: string; height?: number; width?: number; }): HTMLImageElement {
+export function image(src: string, opts?: {alt?: string; height?: number; width?: number;}): HTMLImageElement {
     const result = new Image();
     result.src = src;
     result.alt = opts?.alt ?? "Icon";

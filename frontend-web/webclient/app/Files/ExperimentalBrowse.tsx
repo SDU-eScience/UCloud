@@ -25,7 +25,7 @@ import FilesApi, {
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {doNothing, extensionFromPath, extensionType, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
 import {FileIconHint, FileType} from "@/Files/index";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
@@ -39,10 +39,14 @@ import {bulkRequestOf, SensitivityLevel} from "@/DefaultObjects";
 import metadataDocumentApi, {FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
-import {Client} from "@/Authentication/HttpClientInstance";
+import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
 import {Operation} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {setPopInChild} from "@/ui-components/PopIn";
+import {FilePreview} from "./Preview";
+import AppRoutes from "@/Routes";
 
 // Cached network data
 // =====================================================================================================================
@@ -53,6 +57,8 @@ const collectionCacheForCompletion = new AsyncCache<FileCollection[]>({globalTtl
 const trashCache = new AsyncCache<UFile>();
 const metadataTemplateCache = new AsyncCache<string>();
 
+const SEARCH = "/search";
+
 const ExperimentalBrowse: React.FunctionComponent = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -60,6 +66,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     const browserRef = useRef<ResourceBrowser<UFile> | null>(null);
     const openTriggeredByPath = useRef<string | null>(null);
     const dispatch = useDispatch();
+    useTitle("Files");
     const isInitialMount = useRef<boolean>(true);
     useEffect(() => {
         isInitialMount.current = false;
@@ -68,6 +75,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
+        let searching = "";
         if (mount && !browserRef.current) {
             const browser = new ResourceBrowser<UFile>(mount);
             browserRef.current = browser;
@@ -78,6 +86,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 locationBar: true,
                 showStar: true,
                 renderSpinnerWhenLoading: true,
+                search: true,
             };
 
             // Metadata utilities
@@ -173,19 +182,19 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 } else {
                     callAPI(
                         metadataDocumentApi.create(bulkRequestOf({
-                                fileId: file.id,
-                                metadata: {
-                                    document: {favorite: isFavorite},
-                                    version: "1.0.0",
-                                    changeLog: "New favorite status",
-                                    templateId: templateId
-                                }
-                            })
+                            fileId: file.id,
+                            metadata: {
+                                document: {favorite: isFavorite},
+                                version: "1.0.0",
+                                changeLog: "New favorite status",
+                                templateId: templateId
+                            }
+                        })
                         )
                     ).then(doNothing);
                 }
 
-                if (render) browser.renderPage();
+                if (render) browser.renderRows();
             };
 
             const fakeFile = (
@@ -256,7 +265,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 return path;
             }
 
-            const copyOrMove = (files: UFile[], target: string, shouldMove: boolean, opts?: { suffix?: string }) => {
+            const copyOrMove = (files: UFile[], target: string, shouldMove: boolean, opts?: {suffix?: string}) => {
                 const initialPath = browser.currentPath;
                 const isMovingFromCurrentDirectory = files.every(it => it.id.startsWith(initialPath + "/"));
                 const suffix = opts?.suffix ?? "";
@@ -297,7 +306,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     if (shouldMove) browser.removeEntryFromCurrentPage(it => it.id === entry.id);
                 }
 
-                browser.renderPage();
+                browser.renderRows();
                 if (lastEntry) {
                     const idx = browser.findVirtualRowIndex(it => it.id === lastEntry);
                     if (idx !== null) {
@@ -331,7 +340,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                                     }
                                 );
                             }
-                            browser.renderPage();
+                            browser.renderRows();
                         }
 
                         callAPI(FilesApi.move(bulkRequestOf(...undoRequests)));
@@ -352,7 +361,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
 
                     copyOrMove(files, trash.id, true, {suffix: timestampUnixMs().toString()});
                 } catch (e) {
-                    await callAPI(FilesApi.trash(bulkRequestOf(...files.map(it => ({ id: it.id })))));
+                    await callAPI(FilesApi.trash(bulkRequestOf(...files.map(it => ({id: it.id})))));
                     browser.refresh();
                 }
             };
@@ -429,7 +438,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                                 })));
 
                                 actualFile.id = oldId;
-                                browser.renderPage();
+                                browser.renderRows();
                             });
                         }
                     },
@@ -569,7 +578,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 return browser.icons.renderSvg(
                     "file-" + extension,
                     () => <SvgFt color={getCssColorVar("FtIconColor")} color2={getCssColorVar("FtIconColor2")} hasExt={hasExt}
-                                 ext={extension} type={type} width={width} height={height}/>,
+                        ext={extension} type={type} width={width} height={height} />,
                     width,
                     height
                 );
@@ -679,6 +688,9 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             // Rendering of breadcrumbs and the location bar
             // =========================================================================================================
             browser.on("generateBreadcrumbs", path => {
+                if (path === SEARCH) {
+                    return [{absolutePath: SEARCH, title: "Search results for " + browser.searchQuery}]
+                }
                 const components = pathComponents(path);
                 const collection = collectionCache.retrieveFromCacheOnly(components[0]);
                 const collectionName = collection ?
@@ -686,7 +698,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     components[0];
 
                 let builder = "";
-                const result: { title: string, absolutePath: string }[] = [];
+                const result: {title: string, absolutePath: string}[] = [];
                 for (let i = 0; i < components.length; i++) {
                     const component = components[i];
                     builder += "/";
@@ -700,7 +712,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
 
             browser.on("renderLocationBar", prompt => {
                 let path = prompt;
-                if (path.length === 0) return { rendered: path, normalized: path };
+                if (path.length === 0) return {rendered: path, normalized: path};
                 if (path.startsWith("/")) path = path.substring(1);
                 let endOfFirstComponent = path.indexOf("/");
                 if (endOfFirstComponent === -1) endOfFirstComponent = path.length;
@@ -728,7 +740,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 }
 
                 if (collectionId === null) {
-                    return { rendered: prompt, normalized: prompt };
+                    return {rendered: prompt, normalized: prompt};
                 }
 
                 let collection = collectionCache.retrieveFromCacheOnly(collectionId);
@@ -809,7 +821,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             // =========================================================================================================
             const lastFetch: Record<string, number> = {};
             const inflightRequests: Record<string, Promise<boolean>> = {};
-            const defaultRetrieveFlags: Partial<UFileIncludeFlags> & { itemsPerPage: number } = {
+            const defaultRetrieveFlags: Partial<UFileIncludeFlags> & {itemsPerPage: number} = {
                 includeMetadata: true,
                 includeSizes: true,
                 includeTimestamps: true,
@@ -858,11 +870,27 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 return promise;
             };
 
-            browser.on("open", (oldPath, newPath) => {
+            browser.on("open", (oldPath, newPath, resource) => {
+                if (resource?.status.type === "FILE") {
+                    dispatch(setPopInChild({
+                        el: <FilePreview file={resource} />,
+                        onFullScreen: () => navigate(AppRoutes.resource.properties("TODO_123", "TODO_321"))
+                    }));
+                    return;
+                }
+
                 if (openTriggeredByPath.current === newPath) {
                     openTriggeredByPath.current = null;
                 } else {
                     if (!isInitialMount.current) navigate("?path=" + encodeURIComponent(newPath));
+                }
+
+                if (newPath == SEARCH) {
+                    browser.emptyReasons[SEARCH] = {
+                        tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
+                        information: "Search query is empty."
+                    };
+                    return;
                 }
 
                 dispatch({
@@ -892,7 +920,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     // NOTE(Dan): When wasCached is true, then the previous renderPage() already had the correct data.
                     if (wasCached) return;
                     if (browser.currentPath !== newPath) return;
-                    browser.renderPage();
+                    browser.renderRows();
                 });
             });
 
@@ -908,6 +936,52 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 if (path !== browser.currentPath) return;
 
                 browser.registerPage(result, path, false);
+            });
+
+            browser.on("search", query => {
+                let currentPath = browser.currentPath;
+                if (currentPath === SEARCH) currentPath = searching;
+                searching = currentPath;
+                browser.open(SEARCH);
+                browser.cachedData[SEARCH] = [];
+                browser.renderRows();
+                browser.renderBreadcrumbs();
+                const connection = WSFactory.open(
+                    "/files",
+                    {
+                        reconnect: false,
+                        init: async (conn) => {
+                            try {
+                                await conn.subscribe({
+                                    call: "files.streamingSearch",
+                                    payload: {
+                                        query,
+                                        flags: {},
+                                        currentFolder: currentPath
+                                    },
+                                    handler: (message) => {
+                                        if (browser.currentPath !== SEARCH) {
+                                            connection.close();
+                                            return;
+                                        }
+
+                                        if (message.payload["type"] === "result") {
+                                            const result = message.payload["batch"];
+                                            // TODO(Jonas): Handle page change before adding results.
+                                            const data = browser.cachedData[browser.currentPath] ?? [];
+                                            data.push(...result);
+                                            browser.renderRows();
+                                        } else if (message.payload["type"] === "end_of_results") {
+                                            connection.close();
+                                        }
+                                    }
+                                });
+                            } catch (e) {
+                                displayErrorMessageOrDefault(e, "Failed to fetch search results.");
+                            }
+                        }
+                    }
+                )
             });
 
             // Event handlers related to user input
@@ -981,7 +1055,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     return;
                 }
 
-                const icon = image(placeholderImage, { width: 16, height: 16 });
+                const icon = image(placeholderImage, {width: 16, height: 16});
                 content.append(icon);
                 renderFileIcon(selectedFiles[0]).then(url => icon.src = url);
 
@@ -1028,7 +1102,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     });
 
     return <MainContainer
-        main={<div ref={mountRef}/>}
+        main={<div ref={mountRef} />}
     />;
 };
 
