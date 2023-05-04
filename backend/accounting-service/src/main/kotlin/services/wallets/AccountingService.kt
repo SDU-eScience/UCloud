@@ -115,6 +115,15 @@ class AccountingService(
         return BulkResponse(result)
     }
 
+    suspend fun checkIfAllocationIsAllowed(allocs: List<String>, ctx: DBContext = db) {
+        if (!processor.checkIfAllocationIsAllowed(allocs)) {
+            throw RPCException(
+                "One or more of your allocations do not allow sub-allocations. Try a different source allocation.",
+                HttpStatusCode.BadRequest
+            )
+        }
+    }
+
     suspend fun checkIfSubAllocationIsAllowed(allocs: List<String>, ctx: DBContext = db) {
         if (!processor.checkIfSubAllocationIsAllowed(allocs)) {
             throw RPCException(
@@ -140,7 +149,7 @@ class AccountingService(
             isDry = item.dry
         }
         request.items.map { deposit ->
-            checkIfSubAllocationIsAllowed(listOf(deposit.sourceAllocation), db)
+            checkIfAllocationIsAllowed(listOf(deposit.sourceAllocation), db)
             processor.deposit(
                 AccountingRequest.Deposit(
                     actorAndProject.actor,
