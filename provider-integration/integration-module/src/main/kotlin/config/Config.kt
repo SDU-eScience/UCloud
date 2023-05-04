@@ -565,6 +565,10 @@ data class ConfigSchema(
                         require(!system.name.equals("shm", ignoreCase = true)) {
                             "System name cannot be shm (case insensitive)"
                         }
+
+                        require(!system.name.startsWith("module-", ignoreCase = true)) {
+                            "System name cannot start with 'module-'"
+                        }
                     }
 
                     if (mountLocation != null) {
