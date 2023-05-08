@@ -261,7 +261,8 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             // Rendering of breadcrumbs
             // =========================================================================================================
             browser.on("generateBreadcrumbs", () => {
-                return [{title: "Drives", absolutePath: "/"}];
+                if (browser.searchQuery === "") return [{title: "Drives", absolutePath: "/"}];
+                return [{title: "Drives /", absolutePath: "/"}, {absolutePath: "", title: `Search results for ${browser.searchQuery}`}];
             });
 
             // Rendering of rows and empty pages
@@ -339,14 +340,14 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     return;
                 }
 
-                collectionsOnOpen.retrieve("", () => {
-                    return callAPI(FileCollectionsApi.browse({
+                collectionsOnOpen.retrieve("", () =>
+                    callAPI(FileCollectionsApi.browse({
                         ...defaultRetrieveFlags
                     }))
-                }).then(res => {
+                ).then(res => {
                     browser.registerPage(res, newPath, true);
                     browser.renderRows();
-                })
+                });
             });
 
             browser.on("wantToFetchNextPage", async (path) => {
@@ -360,6 +361,26 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 if (path !== browser.currentPath) return;
 
                 browser.registerPage(result, path, false);
+            });
+
+            browser.on("search", async query => {
+                browser.searchQuery = query;
+                browser.currentPath = "/search";
+                browser.cachedData["/search"] = [];
+                browser.renderRows();
+                browser.renderOperations();
+                collectionsOnOpen.retrieve("/search", () =>
+                    callAPI(FileCollectionsApi.search({
+                        query,
+                        itemsPerPage: 250,
+                        flags: {},
+                    }))
+                ).then(res => {
+                    if (browser.currentPath !== "/search") return;
+                    browser.registerPage(res, "/search", true);
+                    browser.renderRows();
+                    browser.renderBreadcrumbs();
+                })
             });
 
             // Utilities required for the ResourceBrowser to understand the structure of the file-system
@@ -383,9 +404,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     });
 
     return <MainContainer
-        main={
-            <div ref={mountRef} />
-        }
+        main={<div ref={mountRef} />}
     />;
 };
 

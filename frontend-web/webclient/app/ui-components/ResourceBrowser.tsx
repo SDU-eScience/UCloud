@@ -79,6 +79,7 @@ interface ResourceBrowserListenerMap<T> {
     "search": (query: string) => void;
 
     "useFolder": () => void;
+    // UNUSED?
     "useEntry": (entry: T) => void;
 
     "copy": (entries: T[], target: string) => void;
@@ -515,6 +516,10 @@ export class ResourceBrowser<T> {
     }
 
     open(path: string, force: boolean = false, resource?: T) {
+        // Note(Jonas): This happens before the child component gets a chance to access the resource and execute logic.
+        // So how do we for instance ensure that the popIn can happen? Call a dispatchable function, provided that
+        // the child component has provided one?
+
         this.didPerformInitialOpen = true;
         if (this.currentPath === path && !force) return;
         const oldPath = this.currentPath;

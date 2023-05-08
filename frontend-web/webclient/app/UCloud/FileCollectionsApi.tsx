@@ -33,7 +33,7 @@ export type FileCollectionStatus = ResourceStatus;
 export interface FileCollectionSpecification extends ResourceSpecification {
     title: string;
 }
-export type FileCollectionFlags = ResourceIncludeFlags & { filterMemberFiles?: string };
+export type FileCollectionFlags = ResourceIncludeFlags & {filterMemberFiles?: string};
 export interface FileCollectionSupport extends ProductSupport {
     stats: {
         sizeInBytes?: boolean;

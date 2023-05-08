@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useLocation, useNavigate} from "react-router";
-import {useEffect, useLayoutEffect, useRef, useState} from "react";
+import {useEffect, useLayoutEffect, useRef} from "react";
 import {useDispatch} from "react-redux";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -689,7 +689,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             // =========================================================================================================
             browser.on("generateBreadcrumbs", path => {
                 if (path === SEARCH) {
-                    return [{absolutePath: SEARCH, title: "Search results for " + browser.searchQuery}]
+                    return [{absolutePath: SEARCH, title: `Search results for "${browser.searchQuery}"`}]
                 }
                 const components = pathComponents(path);
                 const collection = collectionCache.retrieveFromCacheOnly(components[0]);
