@@ -1,9 +1,33 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
+import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.app.orchestrator.api.ComputeProductReference
+import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.JobSpecification
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.JobStatus
+import dk.sdu.cloud.app.orchestrator.api.JobUpdate
+import dk.sdu.cloud.app.store.api.Application
+import dk.sdu.cloud.app.store.api.ApplicationInvocationDescription
+import dk.sdu.cloud.app.store.api.ApplicationMetadata
+import dk.sdu.cloud.app.store.api.ApplicationParameter
+import dk.sdu.cloud.app.store.api.ApplicationType
+import dk.sdu.cloud.app.store.api.ContainerDescription
+import dk.sdu.cloud.app.store.api.InvocationParameter
+import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.api.ToolReference
+import dk.sdu.cloud.app.store.api.WebDescription
+import dk.sdu.cloud.app.store.api.WordInvocationParameter
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.utils.sendTerminalMessage
 import java.lang.IllegalStateException
 import java.util.*
 import kotlin.collections.ArrayList
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
 
 data class AllocatedReplica<UserData>(
     val jobId: Long,
@@ -20,6 +44,7 @@ class Scheduler<UserData> {
     private var nextNodeIdx = 0
     private val nodeNames = arrayOfNulls<String>(MAX_NODES)
     private val nodeEntries = Array(MAX_NODES) { Node() }
+
     data class Node(
         @JvmField var type: String = "",
         @JvmField var cpu: Int = 0,
@@ -31,6 +56,7 @@ class Scheduler<UserData> {
     private var nextQueueIdx = 0
     private val queueJobIds = LongArray(MAX_JOBS_IN_QUEUE)
     private val queueEntries = Array(MAX_JOBS_IN_QUEUE) { QueueEntry<UserData>() }
+
     data class QueueEntry<UserData>(
         @JvmField var type: String = "",
         @JvmField var cpu: Int = 0,
@@ -43,6 +69,7 @@ class Scheduler<UserData> {
 
     private val replicaJobId = LongArray(MAX_JOBS_IN_QUEUE)
     private val replicaEntries = Array(MAX_JOBS_IN_QUEUE) { ReplicaEntry<UserData>() }
+
     data class ReplicaEntry<UserData>(
         @JvmField var rank: Int = 0,
         @JvmField var cpu: Int = 0,
@@ -76,8 +103,10 @@ class Scheduler<UserData> {
         if (nodeNames[idx] != null) idx = nodeNames.indexOf(null)
 
         if (idx == -1) {
-            throw IllegalStateException("Too many nodes while registering " +
-                    "$name $type $virtualCpuMillis $memoryInBytes $nvidiaGpus")
+            throw IllegalStateException(
+                "Too many nodes while registering " +
+                        "$name $type $virtualCpuMillis $memoryInBytes $nvidiaGpus"
+            )
         }
 
         nextNodeIdx = (idx + 1) % MAX_NODES
@@ -192,7 +221,7 @@ class Scheduler<UserData> {
         if (replicaIdx == -1) throw IllegalStateException("Too many running jobs ($jobId $rank)")
 
         replicaJobId[replicaIdx] = jobId
-        with (replicaEntries[replicaIdx]) {
+        with(replicaEntries[replicaIdx]) {
             this.rank = rank
             this.node = nodeIdx
             this.cpu = virtualCpuMillis
@@ -361,7 +390,7 @@ class Scheduler<UserData> {
 
         val maxQueueEntriesToProcess = activeQueueEntries
         var queueEntriesProcessed = 0
-        jobLoop@for (queueIdx in 0 until MAX_JOBS_IN_QUEUE) {
+        jobLoop@ for (queueIdx in 0 until MAX_JOBS_IN_QUEUE) {
             if (queueEntriesProcessed == maxQueueEntriesToProcess) break
             val queueJobId = queueJobIds[queueIdx]
             if (queueJobId == 0L) continue
@@ -391,7 +420,7 @@ class Scheduler<UserData> {
             // Allocate replicas to nodes
             val allocation = IntArray(queueEntry.replicas)
             var rank = 0
-            replicaLoop@while (rank < allocation.size) {
+            replicaLoop@ while (rank < allocation.size) {
                 for (considerIdx in 0 until numberOfNodesToConsider) {
                     val nodeIdx = nodesToConsider[considerIdx]
                     if (nodeSatisfiesRequest(nodeIdx, queueIdx)) {
@@ -478,117 +507,3 @@ class Scheduler<UserData> {
         const val MAX_NODES_TO_CONSIDER = 128
     }
 }
-
-
-fun main() {
-    println("Waiting...")
-    Scanner(System.`in`).nextLine()
-    val scheduler = Scheduler<Unit>()
-
-    scheduler.registerNode(
-        "gpu",
-        "gpu",
-        8000,
-        8000,
-        8
-    )
-
-    /*
-    scheduler.addJobToQueue(1, "gpu", 1000, 1000, 1, data = Unit)
-    scheduler.addJobToQueue(2, "gpu", 1000, 1000, 4, data = Unit)
-    scheduler.addJobToQueue(3, "gpu", 1000, 1000, 1, data = Unit)
-    scheduler.addJobToQueue(4, "gpu", 1000, 1000, 1, data = Unit)
-    scheduler.addJobToQueue(5, "gpu", 1000, 1000, 1, data = Unit)
-    // Now it should be full
-    scheduler.addJobToQueue(6, "gpu", 1000, 1000, 1, data = Unit)
-    scheduler.addJobToQueue(7, "gpu", 1000, 1000, 1, data = Unit)
-    scheduler.addJobToQueue(8, "gpu", 1000, 1000, 1, replicas = 2, data = Unit)
-    scheduler.addJobToQueue(9, "gpu", 1000, 1000, 1, replicas = 2, data = Unit)
-    scheduler.addJobToQueue(10, "gpu", 1000, 1000, 1, data = Unit)
-
-    println("Iteration")
-    scheduler.schedule().forEach { println(it) }
-
-    scheduler.findRunningReplica(1, 0, touch = true)
-    scheduler.findRunningReplica(3, 0, touch = true)
-    scheduler.findRunningReplica(4, 0, touch = true)
-    scheduler.findRunningReplica(5, 0, touch = true)
-    scheduler.pruneJobs()
-
-    println("Iteration")
-    scheduler.schedule().forEach { println(it) }
-
-    scheduler.findRunningReplica(1, 0, touch = true)
-    scheduler.findRunningReplica(3, 0, touch = true)
-    scheduler.findRunningReplica(4, 0, touch = true)
-    scheduler.findRunningReplica(5, 0, touch = true)
-    scheduler.findRunningReplica(6, 0, touch = true)
-    scheduler.findRunningReplica(7, 0, touch = true)
-    scheduler.findRunningReplica(8, 0, touch = true)
-    // 8 1 has died
-    scheduler.pruneJobs()
-
-    println("Iteration")
-    scheduler.schedule().forEach { println(it) }
-
-    scheduler.findRunningReplica(3, 0, touch = true)
-    scheduler.findRunningReplica(4, 0, touch = true)
-    scheduler.findRunningReplica(5, 0, touch = true)
-    scheduler.findRunningReplica(6, 0, touch = true)
-    scheduler.findRunningReplica(7, 0, touch = true)
-    scheduler.findRunningReplica(10, 0, touch = true)
-    scheduler.pruneJobs()
-
-    println("Iteration")
-    scheduler.schedule().forEach { println(it) }
-
-     */
-
-    var scheduleCount = 0
-    repeat(100_000) {
-        if (it % 1000 == 0) println(it)
-        scheduler.pruneJobs()
-        scheduler.addJobToQueue(100L + it, "gpu", 8000, 8000, 8, 1, Unit)
-        scheduler.schedule().also { scheduleCount += it.size }
-    }
-
-    scheduler.dumpState()
-    println(scheduleCount)
-
-    /*
-    (0 until 5000).forEach {
-        scheduler.registerNode(
-            "node-${it.toString().padStart(4, '0')}",
-            "type-${it % 4}",
-            64_000,
-            1024 * 1024 * 1024 * 64L,
-            0
-        )
-    }
-
-    val start = System.currentTimeMillis()
-    repeat(5000) { rounds ->
-        repeat(10) { internalIdx ->
-            val jobId = (rounds * 10L + internalIdx)
-            scheduler.addJobToQueue(
-                jobId,
-                "type-0",
-                1000,
-                1024 * 1024 * 1024L,
-                0,
-                data = Unit
-            )
-        }
-
-        val newJobs = scheduler.schedule()
-//        println(newJobs)
-
-//        println("Scheduled ${newJobs.size} jobs in rounds $rounds in")
-    }
-    val end = System.currentTimeMillis()
-    println("Took ${end - start} for 50000 jobs")
-     */
-
-    scheduler.dumpState()
-}
-
