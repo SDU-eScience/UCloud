@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
+import dk.sdu.cloud.utils.sendTerminalMessage
 import java.lang.IllegalStateException
 import java.util.*
 import kotlin.collections.ArrayList
@@ -52,6 +53,10 @@ class Scheduler<UserData> {
         @JvmField var data: UserData? = null,
     )
 
+    private var activeReplicas = 0
+    private var activeNodes = 0
+    private var activeQueueEntries = 0
+
     private val nodesToConsider = IntArray(MAX_NODES_TO_CONSIDER)
 
     fun registerNode(
@@ -84,13 +89,19 @@ class Scheduler<UserData> {
             this.memory = memoryInBytes
             this.nvidiaGpu = nvidiaGpus
             this.lastSeen = time
+
+            activeNodes++
         }
     }
 
     fun pruneNodes(): List<String> {
         val result = ArrayList<String>()
+        val maxNodes = activeNodes
+        var processed = 0
         for (idx in nodeNames.indices) {
+            if (maxNodes == processed) break
             if (nodeNames[idx] == null) continue
+            processed++
             val entry = nodeEntries[idx]
             if (entry.lastSeen != time) {
                 result.add(nodeNames[idx] ?: "???")
@@ -102,6 +113,8 @@ class Scheduler<UserData> {
                         replicaJobId[rIdx] = 0
                     }
                 }
+
+                activeNodes--
             }
         }
         return result
@@ -187,32 +200,35 @@ class Scheduler<UserData> {
             this.nvidiaGpu = nvidiaGpus
             this.lastSeen = time
             this.data = data
+
+            val nodeEntry = nodeEntries[this.node]
+            nodeEntry.cpu -= this.cpu
+            nodeEntry.memory -= this.memory
+            nodeEntry.nvidiaGpu -= this.nvidiaGpu
+
+            activeReplicas++
         }
     }
 
     fun pruneJobs(): List<AllocatedReplica<UserData>> {
         val replicasPruned = ArrayList<AllocatedReplica<UserData>>()
+        val maxToProcess = activeReplicas
+        var processed = 0
         for (idx in replicaJobId.indices) {
+            if (processed == maxToProcess) break
             if (replicaJobId[idx] == 0L) continue
+            processed++
             val entry = replicaEntries[idx]
             if (entry.lastSeen != time) {
-
                 val nodeEntry = nodeEntries[entry.node]
                 nodeEntry.cpu += entry.cpu
                 nodeEntry.memory += entry.memory
                 nodeEntry.nvidiaGpu += entry.nvidiaGpu
 
+                replicasPruned.add(allocatedReplica(idx))
                 replicaJobId[idx] = 0L
-                @Suppress("UNCHECKED_CAST")
-                replicasPruned.add(
-                    AllocatedReplica(
-                        replicaJobId[idx],
-                        entry.rank,
-                        nodeNames[entry.node]!!,
-                        entry.data as UserData
-                    )
-                )
                 entry.data = null
+                activeReplicas--
             }
         }
         return replicasPruned
@@ -223,6 +239,8 @@ class Scheduler<UserData> {
         for (i in replicaJobId.indices) {
             val replicaId = replicaJobId[i]
             if (replicaId == jobId) {
+                replicasRemoved.add(allocatedReplica(i))
+
                 replicaJobId[i] = 0
 
                 val replicaEntry = replicaEntries[i]
@@ -232,28 +250,24 @@ class Scheduler<UserData> {
                 nodeEntry.memory += replicaEntry.memory
                 nodeEntry.nvidiaGpu += replicaEntry.nvidiaGpu
 
-                @Suppress("UNCHECKED_CAST")
-                replicasRemoved.add(
-                    AllocatedReplica(
-                        jobId,
-                        replicaEntry.rank,
-                        nodeNames[nodeIdx]!!,
-                        replicaEntry.data as UserData
-                    )
-                )
                 replicaEntry.data = null
             }
         }
 
+        removeJobFromQueue(jobId)
+        return replicasRemoved
+    }
+
+    fun removeJobFromQueue(jobId: Long) {
         for (i in queueJobIds.indices) {
             val queueId = queueJobIds[i]
             if (queueId == jobId) {
                 queueJobIds[i] = 0
                 queueEntries[i].data = null
+                activeQueueEntries--
                 break
             }
         }
-        return replicasRemoved
     }
 
     fun addJobToQueue(
@@ -278,6 +292,7 @@ class Scheduler<UserData> {
             this.replicas = replicas
             this.lastSeen = time
             this.data = data
+            activeQueueEntries++
         }
 
         nextQueueIdx = (idx + 1) % MAX_JOBS_IN_QUEUE
@@ -344,15 +359,21 @@ class Scheduler<UserData> {
     fun schedule(): List<AllocatedReplica<UserData>> {
         val scheduledJobs = ArrayList<AllocatedReplica<UserData>>()
 
+        val maxQueueEntriesToProcess = activeQueueEntries
+        var queueEntriesProcessed = 0
         jobLoop@for (queueIdx in 0 until MAX_JOBS_IN_QUEUE) {
+            if (queueEntriesProcessed == maxQueueEntriesToProcess) break
             val queueJobId = queueJobIds[queueIdx]
             if (queueJobId == 0L) continue
+            val queueEntry = queueEntries[queueIdx]
+            queueEntriesProcessed++
 
             var numberOfNodesToConsider = 0
             Arrays.fill(nodesToConsider, -1)
 
             for (nodeIdx in 0 until MAX_NODES) {
                 if (numberOfNodesToConsider >= MAX_NODES_TO_CONSIDER) break
+                if (numberOfNodesToConsider >= queueEntry.replicas) break
 
                 if (nodeSatisfiesRequest(nodeIdx, queueIdx)) {
                     nodesToConsider[numberOfNodesToConsider++] = nodeIdx
@@ -362,10 +383,12 @@ class Scheduler<UserData> {
             if (numberOfNodesToConsider == 0) continue // No nodes satisfy the request, we cannot schedule it yet
 
             // Sort the list, such that the smallest nodes appear first in the list
+            // TODO(Dan): Performance could be improved by using a custom sort implementation. Currently, all of
+            //  the primitives are going to be boxed which is a significant enough overhead that it becomes clearly
+            //  visible in the profiler.
             nodesToConsider.sortedWith(nodeComparator)
 
             // Allocate replicas to nodes
-            val queueEntry = queueEntries[queueIdx]
             val allocation = IntArray(queueEntry.replicas)
             var rank = 0
             replicaLoop@while (rank < allocation.size) {
@@ -403,6 +426,8 @@ class Scheduler<UserData> {
                         this.nvidiaGpu = queueEntry.nvidiaGpu
                         this.lastSeen = time
                         this.data = queueEntry.data
+                        activeReplicas++
+                        activeQueueEntries--
                     }
 
                     @Suppress("UNCHECKED_CAST")
@@ -434,7 +459,7 @@ class Scheduler<UserData> {
             for (i in 0 until replicaJobId.size) {
                 val jobId = replicaJobId[i]
                 if (jobId == 0L) continue
-                println("$jobId[${replicaEntries[i]}] ${nodeNames[replicaEntries[i].node]}")
+                sendTerminalMessage { line("$jobId[${replicaEntries[i]}] ${nodeNames[replicaEntries[i].node]}") }
             }
         }
 
@@ -442,20 +467,22 @@ class Scheduler<UserData> {
             for (i in 0 until nodeNames.size) {
                 val name = nodeNames[i]
                 if (name == null) continue
-                println("${name} ${nodeEntries[i]}")
+                sendTerminalMessage { line("${name} ${nodeEntries[i]}") }
             }
         }
     }
 
     companion object {
-        const val MAX_NODES = 1024 * 16
-        const val MAX_JOBS_IN_QUEUE = 1024 * 16 * 8
+        const val MAX_NODES = 1024
+        const val MAX_JOBS_IN_QUEUE = MAX_NODES * 8
         const val MAX_NODES_TO_CONSIDER = 128
     }
 }
 
 
 fun main() {
+    println("Waiting...")
+    Scanner(System.`in`).nextLine()
     val scheduler = Scheduler<Unit>()
 
     scheduler.registerNode(
@@ -466,6 +493,7 @@ fun main() {
         8
     )
 
+    /*
     scheduler.addJobToQueue(1, "gpu", 1000, 1000, 1, data = Unit)
     scheduler.addJobToQueue(2, "gpu", 1000, 1000, 4, data = Unit)
     scheduler.addJobToQueue(3, "gpu", 1000, 1000, 1, data = Unit)
@@ -513,6 +541,19 @@ fun main() {
 
     println("Iteration")
     scheduler.schedule().forEach { println(it) }
+
+     */
+
+    var scheduleCount = 0
+    repeat(100_000) {
+        if (it % 1000 == 0) println(it)
+        scheduler.pruneJobs()
+        scheduler.addJobToQueue(100L + it, "gpu", 8000, 8000, 8, 1, Unit)
+        scheduler.schedule().also { scheduleCount += it.size }
+    }
+
+    scheduler.dumpState()
+    println(scheduleCount)
 
     /*
     (0 until 5000).forEach {

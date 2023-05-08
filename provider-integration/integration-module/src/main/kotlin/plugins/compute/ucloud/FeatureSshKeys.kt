@@ -148,7 +148,7 @@ class FeatureSshKeys(
                 appendLine("chmod 700 /home/ucloud/.ssh")
                 appendLine("touch /home/ucloud/.ssh/authorized_keys")
                 appendLine("chmod 600 /home/ucloud/.ssh/authorized_keys")
-                appendLine("cat > /home/ucloud/.ssh/authorized_keys << EOF")
+                appendLine("cat >> /home/ucloud/.ssh/authorized_keys << EOF")
                 relevantKeys.items.forEach { key ->
                     appendLine(key.specification.key.trim())
                 }

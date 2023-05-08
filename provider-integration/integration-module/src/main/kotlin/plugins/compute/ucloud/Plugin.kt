@@ -446,7 +446,7 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             for (mount in internalMounts) {
                 val resolvedDrive = files.driveLocator.resolveDriveByInternalFile(mount)
                 if (resolvedDrive.inMaintenanceMode) {
-                    k8.addStatus(job.jobId, "Job is going down for maintenance")
+                    if (job.rank == 0) k8.addStatus(job.jobId, "Job is going down for maintenance")
                     job.cancel()
                     break
                 }

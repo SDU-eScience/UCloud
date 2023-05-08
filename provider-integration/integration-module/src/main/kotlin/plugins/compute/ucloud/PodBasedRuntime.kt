@@ -119,15 +119,16 @@ abstract class PodBasedContainer : Container {
     override suspend fun watchLogs(scope: CoroutineScope): ReceiveChannel<String> {
         return scope.produce {
             coroutineScope {
+                val readBuffer = ByteArray(1024 * 32)
+                val podMeta = pod.metadata!!
+                val podName = podMeta.name!!
+                val namespace = podMeta.namespace!!
+
                 loop@ while (isActive && !isClosedForSend) {
                     // Guarantee that we don't spin too much. Unfortunately we don't have an API for selecting on the
                     // ByteReadChannel.
                     delay(50)
 
-                    val readBuffer = ByteArray(1024 * 32)
-                    val podMeta = pod.metadata!!
-                    val podName = podMeta.name!!
-                    val namespace = podMeta.namespace!!
                     k8Client.sendRequest(
                         HttpMethod.Get,
                         KubernetesResources.pod.withNameAndNamespace(podName, namespace),
@@ -135,8 +136,9 @@ abstract class PodBasedContainer : Container {
                         "log",
                         longRunning = true,
                     ).execute { resp ->
-                        val podChannel = resp.bodyAsChannel()
+                        if (!resp.status.isSuccess()) return@execute
 
+                        val podChannel = resp.bodyAsChannel()
                         while (isActive && !podChannel.isClosedForRead) {
                             val read = podChannel.readAvailable(readBuffer)
                             if (read > 0) {
@@ -256,7 +258,6 @@ abstract class PodBasedBuilder : ContainerBuilder {
     }
 
     override fun mountUCloudFileSystem(system: FsSystem, subPath: String, containerPath: String, readOnly: Boolean) {
-        println("mountUCloudFileSystem($system, $subPath, $containerPath, $readOnly)")
         volumeMounts.add(
             Pod.Container.VolumeMount(
                 name = mountFsSystemIfNeeded(system),

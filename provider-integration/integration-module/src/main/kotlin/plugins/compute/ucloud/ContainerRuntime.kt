@@ -61,6 +61,16 @@ interface ContainerRuntime {
     suspend fun list(): List<Container>
     suspend fun listNodes(): List<ComputeNode>
     suspend fun openTunnel(jobId: String, rank: Int, port: Int): Tunnel
+
+    /**
+     * Removes a job from the queue, if it is present in the queue. This does nothing if the job is either running or
+     * not in the queue at all. There is no guarantee that parts of the job could be in the queue and running at the
+     * same time.
+     */
+    suspend fun removeJobFromQueue(jobId: String) {
+        // Do nothing
+    }
+
     suspend fun isJobKnown(jobId: String): Boolean {
         return retrieve(jobId, 0) != null
     }

@@ -184,7 +184,6 @@ class JobManagement(
     }
 
     private suspend fun cleanup(jobId: String) {
-        println("cleanup($jobId)")
         val resolvedJob = jobCache.findJob(jobId) ?: return
         for (i in 0 until resolvedJob.specification.replicas) {
             runtime.retrieve(jobId, i)?.cancel()
@@ -321,10 +320,10 @@ class JobManagement(
                                 resourcesIterator.remove()
 
                                 try {
-                                    log.info("Terminating unknown job: ${resource.jobId} ${resource.rank}")
+                                    log.info("Terminating job with terminal state: ${resource.jobId} ${resource.rank}")
                                     resource.cancel(force = true)
                                 } catch (ex: Throwable) {
-                                    log.info("Exception while terminating unknown job: " +
+                                    log.info("Exception while terminating job with terminal state: " +
                                             "${resource.jobId} ${resource.rank}\n${ex.toReadableStacktrace()}")
                                 }
                             }
@@ -469,7 +468,7 @@ class JobManagement(
     }
 
     private suspend fun markJobAsComplete(jobId: String): Boolean {
-        println("markJobAsComplete($jobId)")
+        runtime.removeJobFromQueue(jobId)
         val replicas = runtime.list().filter { it.jobId == jobId }
         return markJobAsComplete(replicas)
     }

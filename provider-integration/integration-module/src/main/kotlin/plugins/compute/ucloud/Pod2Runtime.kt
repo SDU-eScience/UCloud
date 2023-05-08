@@ -46,15 +46,12 @@ private object LogCache {
     )
 
     suspend fun insertLog(jobId: Long, rank: Int, block: suspend (buffer: ByteBuffer) -> Unit) {
-        println("insertLog($jobId, $rank)")
         val entry = mutex.withLock {
             findSlotForEntry(jobId, rank)?.also {
                 it.copying = true
             }
         } ?: return
-        println("Found entry")
         try {
-            println("Writing to ${entry}")
             block(entry.buffer)
         } finally {
             entry.copying = false
@@ -67,12 +64,8 @@ private object LogCache {
                 ?.also { it.copying = true }
         }
 
-        println("copyLogTo($jobId, $rank) Found an entry: $entry")
-
         if (entry != null) {
-            println("Before flip ${entry.buffer}")
             entry.buffer.flip()
-            println("After flip ${entry.buffer}")
             try {
                 while (entry.buffer.hasRemaining()) out.write(entry.buffer)
                 return true
@@ -86,7 +79,6 @@ private object LogCache {
     }
 
     private fun clean() {
-        println("Cleaning...")
         val now = Time.now()
         for (entry in buffers) {
             if (!entry.copying && now - entry.lastUse >= maxAge) {
@@ -109,7 +101,6 @@ private object LogCache {
             entry.buffer.clear()
         }
 
-        println("findSlotForEntry($jobId, $rank) loop")
         var oldestBuffer: BufferEntry? = null
         for (entry in buffers) {
             if (entry.jobId == jobId && entry.rank == rank) return null
@@ -120,7 +111,6 @@ private object LogCache {
 
             if (entry.jobId == -1L) {
                 resetBuffer(entry)
-                println("Found empty slot")
                 return entry
             }
 
@@ -131,7 +121,6 @@ private object LogCache {
 
         if (oldestBuffer != null) {
             resetBuffer(oldestBuffer)
-            println("Found old slot")
             return oldestBuffer
         }
 
@@ -210,9 +199,7 @@ private data class Pod2Container(
                     val volcanoAnnotations = (volcano()?.metadata?.annotations ?: JsonObject(emptyMap()))
                         .entries.associate { it.key to it.value.toString() }
 
-                    (volcanoAnnotations + initialAnnotations).also {
-                        println("Returning all of these annotations: $it")
-                    }
+                    (volcanoAnnotations + initialAnnotations)
                 }
             }
             return initialAnnotations
@@ -224,19 +211,13 @@ private data class Pod2Container(
         // should be okay with partial failures.
         downloadLogBeforeCancel()
 
-        try {
+        runCatching {
             k8Client.deleteResource(
                 KubernetesResourceLocator.common.pod.withNameAndNamespace(pod().metadata!!.name!!, namespace),
                 queryParameters = buildMap {
                     if (force) put("force", "true")
                 }
             )
-        } catch (ex: KubernetesException) {
-            if (ex.statusCode == HttpStatusCode.NotFound) {
-                // This is OK
-            } else {
-                throw ex
-            }
         }
 
         if (rank == 0) {
@@ -264,7 +245,6 @@ private data class Pod2Container(
     private suspend fun downloadLogBeforeCancel() {
         // NOTE(Dan): Often called repeatedly, as a result, the LogCache will not insert our log if we have already
         // done it.
-        println("Want to download logs before cancel")
         val podMeta = pod.metadata!!
         val podName = podMeta.name!!
         val namespace = podMeta.namespace!!
@@ -277,17 +257,17 @@ private data class Pod2Container(
                 "log",
                 longRunning = true,
             ).execute { resp ->
-                try {
-                    println("1")
-                    val channel = resp.bodyAsChannel()
-                    println("2")
-                    while (output.hasRemaining() && !channel.isClosedForRead) {
-                        channel.read { input ->
-                            output.put(input)
+                if (resp.status.isSuccess()) {
+                    try {
+                        val channel = resp.bodyAsChannel()
+                        while (output.hasRemaining() && !channel.isClosedForRead) {
+                            channel.read { input ->
+                                output.put(input)
+                            }
                         }
+                    } catch (ignored: EOFException) {
+                        // Ignored
                     }
-                } catch (ignored: EOFException) {
-                    // Ignored
                 }
             }
         }
@@ -295,15 +275,12 @@ private data class Pod2Container(
 
     override suspend fun downloadLogs(out: LinuxOutputStream) {
         try {
-            println("Want to download logs $internalJobId $rank!")
             if (!LogCache.copyLogTo(internalJobId, rank, out)) {
-                println("Redownloading logs $internalJobId $rank")
                 downloadLogBeforeCancel()
-                println("Copying again $internalJobId $rank")
                 LogCache.copyLogTo(internalJobId, rank, out)
             }
         } catch (ex: Throwable) {
-            println(ex.toReadableStacktrace())
+            log.info(ex.toReadableStacktrace().toString())
         }
     }
 
@@ -380,6 +357,10 @@ private data class Pod2Container(
     override suspend fun productCategory(): String? {
         val name = (pod().spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.contentOrNull
         return categoryToSelector.entries.find { it.value == name }?.key ?: name
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
@@ -747,6 +728,12 @@ class Pod2Runtime(
         mutex.withLock {
             if (scheduler.findRunningReplica(jobIdLong, 0, touch = false) != null) return true
             return scheduler.isJobInQueue(jobIdLong)
+        }
+    }
+
+    override suspend fun removeJobFromQueue(jobId: String) {
+        mutex.withLock {
+            scheduler.removeJobFromQueue(jobId.toLongOrNull() ?: return)
         }
     }
 
