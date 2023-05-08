@@ -5,8 +5,11 @@ import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.PaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.cli.genericCommandLineHandler
 import dk.sdu.cloud.cli.sendCommandLineUsage
@@ -96,10 +99,39 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
         )
 
         runtime = when (pluginConfig.scheduler) {
-            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Volcano -> VolcanoRuntime(k8, pluginConfig.kubernetes.categoryToSelector,
-                pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
-            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> K8PodRuntime(k8.client, pluginConfig.kubernetes.namespace,
-                pluginConfig.kubernetes.categoryToSelector, pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Volcano -> {
+                VolcanoRuntime(
+                    k8,
+                    pluginConfig.kubernetes.categoryToSelector,
+                    pluginConfig.developmentMode.fakeIpMount,
+                    pluginConfig.developmentMode.usePortForwarding
+                )
+            }
+
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> {
+                K8PodRuntime(
+                    k8.client,
+                    pluginConfig.kubernetes.namespace,
+                    pluginConfig.kubernetes.categoryToSelector,
+                    pluginConfig.developmentMode.fakeIpMount,
+                    pluginConfig.developmentMode.usePortForwarding
+                )
+            }
+
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods2 -> {
+                Pod2Runtime(
+                    k8,
+                    pluginConfig.kubernetes.namespace,
+                    pluginConfig.kubernetes.categoryToSelector,
+                    pluginConfig.developmentMode.fakeIpMount,
+                    pluginConfig.developmentMode.usePortForwarding,
+                    pluginConfig.kubernetes.defaultNodeType
+                )
+            }
+        }
+
+        when (val rt = runtime) {
+            is Pod2Runtime -> rt.start()
         }
 
         nameAllocator.runtime = runtime
@@ -170,16 +202,39 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             register(FeatureExpiry)
             register(FeatureAccounting)
             register(FeatureMiscellaneous)
-            register(FeatureNetworkLimit)
-            register(FeatureFairShare)
             register(FeatureFirewall)
             register(FeatureFileOutput(files.fs))
             register(FeatureSshKeys(pluginConfig.ssh?.subnets ?: emptyList()))
             syncthingService?.also { register(it) }
+            register(FeatureModules) // Must run after both fileMountPlugin and FeatureParameter
         }
 
         files.driveLocator.onEnteringMaintenanceMode {
             killJobsEnteringMaintenanceMode()
+        }
+
+        if (runtime.requiresReschedulingOfInQueueJobsOnStartup()) {
+            scheduleInQueueJobs()
+        }
+    }
+
+    private suspend fun scheduleInQueueJobs() {
+        var next: String? = null
+        while (true) {
+            val page = JobsControl.browse.call(
+                ResourceBrowseRequest(
+                    JobIncludeFlags(filterState = JobState.IN_QUEUE),
+                    itemsPerPage = 250,
+                    next = next
+                ),
+                k8.serviceClient
+            ).orThrow()
+
+            for (item in page.items) {
+                jobManagement.create(item)
+            }
+
+            next = page.next ?: break
         }
     }
 
@@ -400,7 +455,7 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
 
                 if (isInMaintenanceMode) {
                     if (!dryRun) {
-                        k8.addStatus(job.jobId, "Job is going down for maintenance")
+                        if (job.rank == 0) k8.addStatus(job.jobId, "Job is going down for maintenance")
                         job.cancel()
                     }
                     result.add(job.jobId)

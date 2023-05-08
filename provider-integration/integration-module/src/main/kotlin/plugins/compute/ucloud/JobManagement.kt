@@ -17,6 +17,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.toReadableStacktrace
 import dk.sdu.cloud.utils.forEachGraal
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.currentCoroutineContext
@@ -174,7 +175,7 @@ class JobManagement(
             }
 
             k8.debug?.everything("Creating resource")
-            runtime.scheduleGroup(listOf(builder))
+            runtime.schedule(builder)
             k8.debug?.everything("Resource has been created!")
         } catch (ex: Throwable) {
             log.warn(ex.stackTraceToString())
@@ -216,8 +217,7 @@ class JobManagement(
 
     private var lastScan: Map<String, List<Container>> = emptyMap()
 
-    @Serializable
-    private data class JobEvent(
+    private inner class JobEvent(
         val jobId: String,
         val oldReplicas: List<Container>,
         val newReplicas: List<Container>,
@@ -240,6 +240,15 @@ class JobManagement(
                 if (oldReplicas.size != newReplicas.size) return newReplicas.size
                 return null
             }
+
+        suspend fun isDying(): Boolean {
+            val looksLikeItIsDying = newReplicas.size < oldReplicas.size ||
+                    newReplicas.any { it.stateAndMessage().first.isFinal() }
+            if (!looksLikeItIsDying) return false
+            val job = jobCache.findJob(jobId)
+            if (oldReplicas.size != job?.specification?.replicas) return false
+            return true
+        }
     }
 
     private fun processScan(newJobs: List<Container>): List<JobEvent> {
@@ -299,7 +308,27 @@ class JobManagement(
                 }
 
                 k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "K8 Job monitoring", MessageImportance.IMPLEMENTATION_DETAIL) {
-                    val resources = runtime.list()
+                    val resources = runtime.list().toMutableList()
+
+                    run {
+                        // Remove containers from jobs we no longer recognize
+                        val resourcesIterator = resources.iterator()
+                        while (resourcesIterator.hasNext()) {
+                            val resource = resourcesIterator.next()
+                            val job = jobCache.findJob(resource.jobId) ?: continue
+                            if (job.status.state.isFinal()) {
+                                resourcesIterator.remove()
+
+                                try {
+                                    log.info("Terminating job with terminal state: ${resource.jobId} ${resource.rank}")
+                                    resource.cancel(force = true)
+                                } catch (ex: Throwable) {
+                                    log.info("Exception while terminating job with terminal state: " +
+                                            "${resource.jobId} ${resource.rank}\n${ex.toReadableStacktrace()}")
+                                }
+                            }
+                        }
+                    }
 
                     val events = processScan(resources)
                     k8.debug.detail("Received ${resources.size} resources from runtime")
@@ -317,13 +346,11 @@ class JobManagement(
                     events.forEachGraal { event ->
                         k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "Processing: ${event.jobId}") l@{
                             when {
-                                event.wasDeleted -> {
-                                    val oldJob = event.oldReplicas.find { it.rank == 0 } ?: return@l
-                                    val expiry = oldJob.expiry
+                                event.wasDeleted || event.isDying() -> {
+                                    val expiry = event.oldReplicas.find { it.rank == 0 }?.expiry
                                     if (expiry != null && Time.now() >= expiry) {
                                         // NOTE(Dan): Expiry feature will simply delete the object. This is why we must
                                         // check if the reason was expiration here.
-                                        markJobAsComplete(event.jobId)
                                         k8.changeState(event.jobId, JobState.EXPIRED, "Job has expired")
 
                                         debugExpirations++
@@ -337,6 +364,14 @@ class JobManagement(
                                         )
 
                                         debugTerminations++
+                                    }
+
+                                    runCatching {
+                                        markJobAsComplete(event.oldReplicas)
+                                    }
+
+                                    runCatching {
+                                        cleanup(event.jobId)
                                     }
                                 }
 
@@ -417,8 +452,7 @@ class JobManagement(
         }
     }
 
-    private suspend fun markJobAsComplete(jobId: String): Boolean {
-        val replicas = runtime.list().filter { it.jobId == jobId }
+    private suspend fun markJobAsComplete(replicas: List<Container>): Boolean {
         val job = replicas.find { it.rank == 0 } ?: return false
         features.forEach { feature ->
             with(feature) {
@@ -427,10 +461,16 @@ class JobManagement(
         }
         features.forEach { feature ->
             with(feature) {
-                onCleanup(jobId)
+                onCleanup(job.jobId)
             }
         }
         return true
+    }
+
+    private suspend fun markJobAsComplete(jobId: String): Boolean {
+        runtime.removeJobFromQueue(jobId)
+        val replicas = runtime.list().filter { it.jobId == jobId }
+        return markJobAsComplete(replicas)
     }
 
     fun verifyJobs(jobs: List<Job>) {

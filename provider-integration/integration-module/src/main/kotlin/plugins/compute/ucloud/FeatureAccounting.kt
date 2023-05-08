@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import io.ktor.http.*
+import io.ktor.util.reflect.*
 import kotlinx.coroutines.launch
 import kotlin.math.max
 
@@ -80,6 +81,10 @@ object FeatureAccounting : JobFeature, Loggable {
             ).orThrow().insufficientFunds.isNotEmpty()
 
             if (insufficientFunds) {
+                k8.addStatus(
+                    rootJob.jobId,
+                    "Terminating job because of insufficient funds"
+                )
                 children.forEach { it.cancel() }
             }
         }

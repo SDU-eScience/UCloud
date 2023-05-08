@@ -29,5 +29,8 @@ object FeatureMiscellaneous : JobFeature {
                 podBuilder.podSpec.priorityClassName = pluginConfig.kubernetes.priorityClassName
             }
         }
+
+        builder.upsertAnnotation("ucloud.dk/jobId", job.id)
+
     }
 }

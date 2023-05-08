@@ -54,7 +54,7 @@ class FeatureSshKeys(
         val cidr = IpUtils.validateCidr(subnet)
 
         // TODO(Dan): Robustness would be improved be if we checked to make sure that this actually makes sense.
-        //  Right now you need to supply a port range which will actually full within the subnet you specify.
+        //  Right now you need to supply a port range which will actually fall within the subnet you specify.
         val addr = cidr.first
         val a = (addr shr 24) and 0xFFu
         val b = (addr shr 16) and 0xFFu
@@ -148,7 +148,7 @@ class FeatureSshKeys(
                 appendLine("chmod 700 /home/ucloud/.ssh")
                 appendLine("touch /home/ucloud/.ssh/authorized_keys")
                 appendLine("chmod 600 /home/ucloud/.ssh/authorized_keys")
-                appendLine("cat > /home/ucloud/.ssh/authorized_keys << EOF")
+                appendLine("cat >> /home/ucloud/.ssh/authorized_keys << EOF")
                 relevantKeys.items.forEach { key ->
                     appendLine(key.specification.key.trim())
                 }
