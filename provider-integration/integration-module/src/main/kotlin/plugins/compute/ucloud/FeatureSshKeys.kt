@@ -9,7 +9,6 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.ConfigSchema.Plugins.Jobs.UCloud.SshSubnet
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.service.Time
@@ -58,8 +57,8 @@ class FeatureSshKeys(
         val addr = cidr.first
         val a = (addr shr 24) and 0xFFu
         val b = (addr shr 16) and 0xFFu
-        val c = (1 + port) / 254
-        val d = (1 + port) % 254
+        val c = 1 + (port / 254)
+        val d = 1 + (port % 254)
         return "$a.$b.$c.$d"
     }
 
@@ -99,7 +98,7 @@ class FeatureSshKeys(
                     """
                         insert into ucloud_compute_bound_ssh_ports (name, subnet, port, job_id)
                         values (:plugin_name, :subnet, :port, :job_id)
-                        on conflict (name, subnet, port, job_id) do nothing
+                        on conflict (name, subnet, port) do nothing
                         returning port
                     """
                 ).useAndInvoke(

@@ -331,6 +331,26 @@ class Scheduler<UserData> {
         return queueJobIds.indexOf(id) != -1
     }
 
+    fun jobsInQueue(): Iterator<Long> {
+        return object : Iterator<Long> {
+            var idx = 0
+
+            override fun hasNext(): Boolean {
+                for (i in idx until queueJobIds.size) {
+                    if (queueJobIds[i] != 0L) {
+                        idx = i
+                        return true
+                    }
+                }
+                return false
+            }
+
+            override fun next(): Long {
+                return queueJobIds[idx++]
+            }
+        }
+    }
+
     private fun nodeSatisfiesRequest(node: Int, request: Int): Boolean {
         val nodeEntry = nodeEntries[node]
         val queueEntry = queueEntries[request]

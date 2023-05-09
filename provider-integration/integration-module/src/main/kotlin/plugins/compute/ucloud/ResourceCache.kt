@@ -1,6 +1,9 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductType
+import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.accounting.api.ProductsRetrieveRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.Application
@@ -25,9 +28,19 @@ class ResourceCache(private val k8: K8Dependencies) {
     )
 
     private suspend fun cache(job: Job) {
-        val resolvedProduct = job.status.resolvedProduct
-        if (resolvedProduct != null) {
-            products.insert(key(job.specification.product), resolvedProduct)
+        val productKey = key(job.specification.product)
+        if (products.get(productKey) == null) {
+            val resolvedProduct = Products.retrieve.call(
+                ProductsRetrieveRequest(
+                    filterName = job.specification.product.id,
+                    filterCategory = job.specification.product.category,
+                    filterProvider = job.specification.product.provider,
+                    filterArea = ProductType.COMPUTE
+                ),
+                k8.serviceClient
+            ).orThrow() as Product.Compute
+
+            products.insert(productKey, resolvedProduct)
         }
 
         val resolvedApplication = job.status.resolvedApplication
@@ -36,7 +49,7 @@ class ResourceCache(private val k8: K8Dependencies) {
         }
     }
 
-    suspend fun findResources(job: Job): ResolvedJobResources {
+    suspend fun findResources(job: Job, allowNetwork: Boolean = true): ResolvedJobResources {
         val product = products.get(key(job.specification.product))
         val application = applications.get(key(job.specification.application))
 
@@ -44,17 +57,15 @@ class ResourceCache(private val k8: K8Dependencies) {
             return ResolvedJobResources(product, application)
         }
 
+        if (!allowNetwork) error("Could not find resources for ${job.id}")
+
         val retrievedJob = JobsControl.retrieve.call(
-            ResourceRetrieveRequest(JobIncludeFlags(includeProduct = true, includeApplication = true), job.id),
+            ResourceRetrieveRequest(JobIncludeFlags(includeApplication = true), job.id),
             k8.serviceClient
         ).orThrow()
 
         cache(retrievedJob)
-
-        return ResolvedJobResources(
-            retrievedJob.status.resolvedProduct ?: error("No product returned"),
-            retrievedJob.status.resolvedApplication ?: error("No application returned")
-        )
+        return findResources(job, allowNetwork = false)
     }
 
     private fun key(product: ComputeProductReference): String {

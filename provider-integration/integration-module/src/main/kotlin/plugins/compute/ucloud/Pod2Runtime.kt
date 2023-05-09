@@ -12,10 +12,7 @@ import dk.sdu.cloud.toReadableStacktrace
 import dk.sdu.cloud.utils.LinuxOutputStream
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
-import io.ktor.utils.io.jvm.javaio.*
-import io.ktor.utils.io.jvm.javaio.copyTo
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -26,9 +23,9 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 private object LogCache {
     private val emptyBuffer = ByteBuffer.allocateDirect(0)
@@ -153,7 +150,7 @@ private data class Pod2Container(
     var volcanoDoesNotExist: Boolean? = null
     var cachedVolcano: VolcanoJob? = null
 
-    private suspend fun pod(): Pod {
+    suspend fun pod(): Pod {
         val cached = cachedPod
         if (cached != null) return cached
         cacheMutex.withLock {
@@ -262,6 +259,13 @@ private data class Pod2Container(
                         val channel = resp.bodyAsChannel()
                         while (output.hasRemaining() && !channel.isClosedForRead) {
                             channel.read { input ->
+                                val oldRemaining = input.remaining()
+                                if (oldRemaining > output.remaining()) {
+                                    input.limit(input.position() + output.remaining())
+                                    require(input.remaining() == output.remaining())
+                                    require(input.remaining() < oldRemaining)
+                                }
+
                                 output.put(input)
                             }
                         }
@@ -384,6 +388,29 @@ class Pod2Runtime(
     private var nextNodeScan = 0L
     private var nextPodScan = 0L
 
+    private data class JobToSchedule(
+        val id: Long,
+        val nodeType: String,
+        val virtualCpuMillis: Int,
+        val memoryInBytes: Long,
+        val nvidiaGpus: Int = 0,
+        val replicas: Int = 1,
+        val data: Pod2Data,
+    )
+
+    private data class JobToCancel(
+        val id: Long
+    )
+
+    private val jobsToScheduleMutex = Mutex()
+    private val jobsToSchedule = ArrayList<JobToSchedule>()
+
+    private val jobsToCancelMutex = Mutex()
+    private val jobsToCancel = ArrayList<JobToCancel>()
+
+    private val cachedList = AtomicReference<List<AllocatedReplica<Pod2Data>>>(null)
+    private val cachedQueue = AtomicReference<List<Long>>(emptyList())
+
     override fun requiresReschedulingOfInQueueJobsOnStartup(): Boolean = true
 
     fun start() {
@@ -401,6 +428,32 @@ class Pod2Runtime(
     }
 
     private suspend fun scheduleLoop() {
+        jobsToScheduleMutex.withLock {
+            jobsToSchedule.forEach { job ->
+                scheduler.addJobToQueue(
+                    job.id,
+                    job.nodeType,
+                    job.virtualCpuMillis,
+                    job.memoryInBytes,
+                    job.nvidiaGpus,
+                    job.replicas,
+                    job.data,
+                )
+            }
+
+            cachedQueue.set(scheduler.jobsInQueue().asSequence().toList())
+            jobsToSchedule.clear()
+        }
+
+        jobsToCancelMutex.withLock {
+            jobsToCancel.forEach { job ->
+                scheduler.removeJobFromQueue(job.id)
+            }
+
+            cachedQueue.set(scheduler.jobsInQueue().asSequence().toList())
+            jobsToCancel.clear()
+        }
+
         val now = Time.now()
         if (now >= nextNodeScan) {
             val allNodes = k8Client.listResources(
@@ -413,16 +466,16 @@ class Pod2Runtime(
 
             for (node in allNodes) {
                 val machineType = label(node, "ucloud.dk/machine") ?: defaultNodeType ?: continue
-                val capacity = node.status?.capacity ?: continue
+                val allocatable = node.status?.allocatable ?: continue
 
                 // NOTE(Dan): We do not respect the "pods" capacity. The provider must ensure that we can schedule a
                 // full machine using the smallest product configuration without hitting this limit.
                 scheduler.registerNode(
                     node.metadata!!.name!!,
                     machineType,
-                    cpuStringToMilliCpus(capacity.cpu),
-                    memoryStringToBytes(capacity.memory),
-                    gpuStringToFullGpus(capacity.nvidiaGpu)
+                    cpuStringToMilliCpus(allocatable.cpu),
+                    memoryStringToBytes(allocatable.memory),
+                    gpuStringToFullGpus(allocatable.nvidiaGpu)
                 )
             }
 
@@ -594,6 +647,9 @@ class Pod2Runtime(
                 "Job is starting soon"
             )
         }
+
+        cachedQueue.set(scheduler.jobsInQueue().asSequence().toList())
+        cachedList.set(scheduler.runningReplicas().asSequence().toList())
     }
 
     private val notNumbers = Regex("[^0-9]")
@@ -637,10 +693,10 @@ class Pod2Runtime(
     }
 
     override suspend fun schedule(container: ContainerBuilder) {
-        mutex.withLock {
+        jobsToScheduleMutex.withLock {
             val c = container as Pod2ContainerBuilder
 
-            scheduler.addJobToQueue(
+            jobsToSchedule.add(JobToSchedule(
                 c.jobId.toLong(),
                 c.productCategoryRequired ?: defaultNodeType ?: "",
                 c.vCpuMillis,
@@ -648,32 +704,45 @@ class Pod2Runtime(
                 c.gpus,
                 c.replicas,
                 Pod2Data.NotYetScheduled(c)
-            )
+            ))
         }
     }
 
     override suspend fun retrieve(jobId: String, rank: Int): Container? {
-        mutex.withLock {
-            val jobIdLong = jobId.toLongOrNull() ?: return null
-            val replica = scheduler.findRunningReplica(jobIdLong, rank, touch = false) ?: return null
-            return container(replica)
+        val container = Pod2Container(
+            jobId.toLongOrNull() ?: return null,
+            rank,
+            k8Client,
+            idAndRankToPodName(jobId.toLongOrNull() ?: return null, rank),
+            namespace,
+            categoryToSelector
+        )
+
+        try {
+            container.pod()
+        } catch (ex: Throwable) {
+            return null
         }
+
+        return container
     }
 
     override suspend fun list(): List<Container> {
         val result = ArrayList<Container>()
-        mutex.withLock {
-            for (replica in scheduler.runningReplicas()) {
-                val element = container(replica)
-                try {
-                    // NOTE(Dan): Trigger pod fetch, which might throw if it was recently deleted but not yet removed
-                    // from scheduler
-                    element.pod
+        val replicas = cachedList.get() ?: mutex.withLock {
+            scheduler.runningReplicas().asSequence().toList()
+        }
 
-                    result.add(element)
-                } catch (ex: Throwable) {
-                    // Do nothing
-                }
+        for (replica in replicas) {
+            val element = container(replica)
+            try {
+                // NOTE(Dan): Trigger pod fetch, which might throw if it was recently deleted but not yet removed
+                // from scheduler
+                element.pod()
+
+                result.add(element)
+            } catch (ex: Throwable) {
+                // Do nothing
             }
         }
         return result
@@ -695,16 +764,18 @@ class Pod2Runtime(
 
     override suspend fun openTunnel(jobId: String, rank: Int, port: Int): Tunnel {
         if (!usePortForwarding) {
-            val pod = k8Client.getResource(
-                Pod.serializer(),
-                KubernetesResourceLocator.common.pod.withNameAndNamespace(
-                    idAndRankToPodName(jobId.toLong(), rank),
-                    namespace,
+            val pod = runCatching {
+                k8Client.getResource(
+                    Pod.serializer(),
+                    KubernetesResourceLocator.common.pod.withNameAndNamespace(
+                        idAndRankToPodName(jobId.toLong(), rank),
+                        namespace,
+                    )
                 )
-            )
+            }.getOrNull()
 
             val ipAddress =
-                pod.status?.podIP ?: throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.BadGateway)
+                pod?.status?.podIP ?: throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.BadGateway)
 
             return Tunnel(ipAddress, port, close = {})
         } else {
@@ -725,15 +796,18 @@ class Pod2Runtime(
 
     override suspend fun isJobKnown(jobId: String): Boolean {
         val jobIdLong = jobId.toLongOrNull() ?: return false
-        mutex.withLock {
-            if (scheduler.findRunningReplica(jobIdLong, 0, touch = false) != null) return true
-            return scheduler.isJobInQueue(jobIdLong)
+
+        val isKnownInScheduleQueue = jobsToScheduleMutex.withLock {
+            jobsToSchedule.any { it.id == jobIdLong }
         }
+        if (isKnownInScheduleQueue) return true
+
+        return list().any { it.jobId == jobId } || cachedQueue.get().any { it == jobIdLong }
     }
 
     override suspend fun removeJobFromQueue(jobId: String) {
-        mutex.withLock {
-            scheduler.removeJobFromQueue(jobId.toLongOrNull() ?: return)
+        jobsToCancelMutex.withLock {
+            jobsToCancel.add(JobToCancel(jobId.toLongOrNull() ?: return))
         }
     }
 

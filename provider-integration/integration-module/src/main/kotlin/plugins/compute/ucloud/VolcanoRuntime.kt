@@ -21,11 +21,19 @@ class KubernetesNode(private val node: Node, val categoryToSelector: Map<String,
     }
 
     override suspend fun retrieveCapacity(): CpuAndMemory {
-        val vCpu = node.status?.allocatable?.cpu?.toDouble() ?: 0.0
+        val vCpu = cpuStringToMilliCpus(node.status?.allocatable?.cpu).toDouble() ?: 0.0
         val memory = memoryStringToBytes(node.status?.allocatable?.memory)
         return CpuAndMemory(vCpu, memory)
     }
 
+    private val notNumbers = Regex("[^0-9]")
+    private fun cpuStringToMilliCpus(cpuString: String?): Int {
+        return when {
+            cpuString.isNullOrBlank() -> 0
+            cpuString.endsWith("m") -> notNumbers.replace(cpuString, "").toInt()
+            else -> notNumbers.replace(cpuString, "").toInt() * 1000
+        }
+    }
     companion object {
         private fun memoryStringToBytes(memory: String?): Long {
             val numbersOnly = Regex("[^0-9]")

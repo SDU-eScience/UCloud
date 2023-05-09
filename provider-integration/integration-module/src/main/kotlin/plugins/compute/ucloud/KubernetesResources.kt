@@ -699,8 +699,10 @@ data class Node(
 
     @Serializable
     data class Allocatable(
-        var cpu: Int? = null,
-        var memory: String? = null
+        var cpu: String? = null,
+        var memory: String? = null,
+        @SerialName("nvidia.com/gpu")
+        var nvidiaGpu: String? = null,
     )
 }
 
