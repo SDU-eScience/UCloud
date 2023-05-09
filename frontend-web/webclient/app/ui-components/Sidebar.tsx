@@ -436,7 +436,7 @@ function useSidebarFilesPage(): [
     APICallState<PageV2<FileCollection>>,
     APICallState<PageV2<FileMetadataAttached>>
 ] {
-    const [drives] = useCloudAPI<PageV2<FileCollection>>(FileCollectionsApi.browse({itemsPerPage: 10/* , filterMemberFiles: "all" */}), emptyPageV2);
+    const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>({noop: true}, emptyPageV2);
 
     const [favorites] = useCloudAPI<PageV2<FileMetadataAttached>>(
         metadataApi.browse({
@@ -446,6 +446,12 @@ function useSidebarFilesPage(): [
         }),
         emptyPageV2
     );
+
+    const projectId = useProjectId();
+
+    React.useEffect(() => {
+        fetchDrives(FileCollectionsApi.browse({itemsPerPage: 10/* , filterMemberFiles: "all" */}))
+    }, [projectId]);
 
     return [
         drives,
@@ -469,6 +475,7 @@ function SecondarySidebar({
 }: {hovered: string; clicked: string; clearHover(): void; clearClicked(): void}): JSX.Element {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
+    const projectId = useProjectId();
 
     const navigate = useNavigate();
     const [, invokeCommand] = useCloudCommand();
