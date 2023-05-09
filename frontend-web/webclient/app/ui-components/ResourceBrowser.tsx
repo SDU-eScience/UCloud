@@ -11,7 +11,8 @@ import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2} from "@/UCloud";
 import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
-import {WSFactory} from "@/Authentication/HttpClientInstance";
+import {InputClass} from "./Input";
+import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 
 /* BUGS FOUND
     - Double click/accesssing is available for files (not directory)
@@ -21,8 +22,6 @@ import {WSFactory} from "@/Authentication/HttpClientInstance";
 /* MISSING FEATURES
     - Handling projects that cannot consume resources.
 */
-
-const RESOURCE_NAME = "Resource";
 
 export type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
 
@@ -246,7 +245,7 @@ export class ResourceBrowser<T> {
                     <ul></ul>
                     <input class="location-bar">
                     <img class="location-bar-edit">
-                    <input class="search-field" hidden>
+                    <input class="${InputClass} search-field" hidden>
                     <img class="search-icon">
                     <img class="refresh-icon">
                 </div>
@@ -330,7 +329,7 @@ export class ResourceBrowser<T> {
                     if (!this.searchQuery) {
                         return;
                     }
-                    this.dispatchMessage("search", fn => fn(this.searchQuery)); 
+                    this.dispatchMessage("search", fn => fn(this.searchQuery));
                 }
             };
 
@@ -932,7 +931,6 @@ export class ResourceBrowser<T> {
                 renderOpIconAndText(child, item, shortcutNumber <= 9 ? `[${shortcutNumber}]` : undefined);
 
                 const myIndex = shortcutNumber - 1;
-                const text = item.innerText;
                 this.contextMenuHandlers.push(() => {
                     child.onClick(selected, callbacks, page);
                 });
@@ -1987,10 +1985,8 @@ export class ResourceBrowser<T> {
 
     triggerOperation(predicate: (op: Operation<T, unknown>) => boolean): boolean {
         const callbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn());
-        console.log(callbacks);
         if (callbacks === null) return false;
         const ops = this.dispatchMessage("fetchOperations", fn => fn());
-        console.log(ops);
         for (const op of ops) {
             let toCheck: Operation<T, unknown>[] = [];
             if ("operations" in op) {
@@ -1998,8 +1994,7 @@ export class ResourceBrowser<T> {
             } else {
                 toCheck = [op];
             }
-            console.log(toCheck);
-
+            
             for (const child of toCheck) {
                 if (predicate(child)) {
                     child.onClick(this.findSelectedEntries(), callbacks, this.cachedData[this.currentPath] ?? []);
@@ -2350,7 +2345,7 @@ export class ResourceBrowser<T> {
 
             .file-browser .operation.in-header {
                 padding: 11px;
-                background: #F5F5F5;
+                background: var(--headerOperationColor);
                 border-radius: 8px;
             }
 
