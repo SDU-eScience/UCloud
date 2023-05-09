@@ -471,13 +471,19 @@ function useSidebarRunsPage(): APICallState<PageV2<Job>> {
     return runs;
 }
 
+interface SecondarySidebarProps {
+    hovered: string;
+    clicked: string;
+    clearHover(): void;
+    clearClicked(): void;
+}
 
 function SecondarySidebar({
     hovered,
     clicked,
     clearHover,
     clearClicked
-}: {hovered: string; clicked: string; clearHover(): void; clearClicked(): void}): JSX.Element {
+}: SecondarySidebarProps): JSX.Element {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
 

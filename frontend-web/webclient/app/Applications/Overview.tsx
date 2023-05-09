@@ -18,7 +18,8 @@ import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import AppStoreOverview = compute.AppStoreOverview;
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
-import {useSelector} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
+import {toggleAppFavorite} from "./Redux/Actions";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -75,6 +76,8 @@ const ApplicationsOverview: React.FunctionComponent = () => {
 
     useResourceSearch(ApiLike);
 
+    const dispatch = useDispatch();
+
     useTitle("Applications");
     useSidebarPage(SidebarPages.AppStore);
     const refresh = () => {
@@ -82,26 +85,30 @@ const ApplicationsOverview: React.FunctionComponent = () => {
     };
     useRefreshFunction(refresh);
 
-    const [loadingCommand, invokeCommand] = useCloudCommand();
+    const [, invokeCommand] = useCloudCommand();
     const favoriteStatus = React.useRef<FavoriteStatus>({});
 
     const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
-        if (!loadingCommand) {
-            const key = favoriteStatusKey(app.metadata);
-            const isFavorite = favoriteStatus.current[key]?.override ?? app.favorite;
+        // Note(Jonas): This used to check commandLoading (from invokeCommand), but this gets stuck at true, so removed for now.
+        const key = favoriteStatusKey(app.metadata);
+        const isFavorite = favoriteStatus.current[key]?.override ?? app.favorite;
+        if (favoriteStatus.current[key]) {
+            delete favoriteStatus.current[key]
+        } else {
             favoriteStatus.current[key] = {override: !isFavorite, app};
-            favoriteStatus.current = {...favoriteStatus.current};
-            try {
-                await invokeCommand(UCloud.compute.apps.toggleFavorite({
-                    appName: app.metadata.name,
-                    appVersion: app.metadata.version
-                }));
-            } catch (e) {
-                favoriteStatus.current[key].override = !favoriteStatus.current[key].override;
-                favoriteStatus.current = {...favoriteStatus.current};
-            }
         }
-    }, [loadingCommand, favoriteStatus]);
+        favoriteStatus.current = {...favoriteStatus.current};
+        dispatch(toggleAppFavorite(app, !isFavorite));
+        try {
+            await invokeCommand(UCloud.compute.apps.toggleFavorite({
+                appName: app.metadata.name,
+                appVersion: app.metadata.version
+            }));
+        } catch (e) {
+            favoriteStatus.current[key].override = !favoriteStatus.current[key].override;
+            favoriteStatus.current = {...favoriteStatus.current};
+        }
+    }, [favoriteStatus]);
 
     const main = (
         <Box mx="auto" maxWidth="1340px">

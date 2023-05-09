@@ -17,7 +17,7 @@ export const sidebar = (state: SidebarStateProps = {favorites: []}, action: Side
                 state.favorites.push(metadata);
                 state.favorites.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
             } else {
-                state.favorites = state.favorites.filter(it => it.metadata.name !== metadata.metadata.name && it.metadata.version !== metadata.metadata.version);
+                state.favorites = state.favorites.filter(it => it.metadata.name !== metadata.metadata.name || it.metadata.version !== metadata.metadata.version);
             }
             
             return deepCopy(state);
