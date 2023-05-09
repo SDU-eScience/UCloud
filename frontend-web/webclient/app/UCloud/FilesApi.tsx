@@ -420,6 +420,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Upload files",
                 icon: "upload",
                 primary: true,
+                color: "black",
                 canAppearInLocation: location => location === "SIDEBAR",
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
@@ -447,6 +448,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Create folder",
                 icon: "uploadFolder",
                 primary: true,
+                color: "black",
                 canAppearInLocation: loc => loc === "SIDEBAR",
                 enabled: (selected, cb) => {
                     if (selected.length !== 0 || cb.startCreation == null) return false;

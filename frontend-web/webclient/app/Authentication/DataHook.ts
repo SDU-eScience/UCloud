@@ -126,7 +126,9 @@ export interface APICallStateWithParams<T, Params = any> {
     parameters: APICallParameters<Params>;
 }
 
-export function mapCallState<T, T2>(state: APICallState<T>, mapper: (t: T) => T2): APICallState<T2> {
+export function mapCallState<InputType, OutputType>(
+    state: APICallState<InputType>, mapper: (t: InputType) => OutputType
+): APICallState<OutputType> {
     return {
         ...state,
         data: mapper(state.data)

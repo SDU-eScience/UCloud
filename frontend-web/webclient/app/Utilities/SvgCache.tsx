@@ -71,12 +71,14 @@ export class SvgCache {
             height: number
         }
     ): Promise<string> {
+        const c1 = getCssColorVar(color);
+        const c2 = color2 ? getCssColorVar(color) : undefined;
         return await this.renderSvg(
-            `${name}-${color}-${color2}-${width}-${height}`,
-            () => <Icon name={name} color={color} color2={color2} width={width} height={height}/>,
+            `${name}-${c1}-${color2}-${width}-${height}`,
+            () => <Icon name={name} color={c1} color2={c2} width={width} height={height}/>,
             width,
             height,
-            getCssColorVar(color),
+            c1,
         );
     }
 

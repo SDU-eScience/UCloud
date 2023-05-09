@@ -174,7 +174,8 @@ html {
     --fixedBlack: #000;
     --fixedWhite: #fff;
     --activeSpreadsheet: #dcebf6;
-    --lightOrange: #ffc107;    
+    --lightOrange: #ffc107;
+    --headerOperationColor: #F5F5F5;
     font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;
 }
 
@@ -219,6 +220,7 @@ html.dark {
     --sidebarColor: #141414;
     --sidebarSecondaryColor: #1D1D1D;
     --inputColor: #000;
+    --headerOperationColor: #444;
 }
 
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */
@@ -856,6 +858,10 @@ div.tooltip:hover > div.tooltip-content {
 
 a {
     color: var(--textHighlight);
+}
+
+input.search-field {
+    width: 250px;
 }
 
 `;

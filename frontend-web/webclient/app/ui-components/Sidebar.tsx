@@ -477,7 +477,7 @@ function SecondarySidebar({
         compute.apps.retrieveFavorites({itemsPerPage: 100, page: 0}),
         emptyPage,
     );
-   
+
     const dispatch = useDispatch();
     React.useEffect(() => {
         if (favoriteApps.loading) return;
@@ -530,24 +530,20 @@ function SecondarySidebar({
                 <ul>
                     <li>
                         <Link to={"/drives/"}>Drives</Link>
-                        <ul>
-                            {drives.data.items.map(it =>
-                                <li key={it.id}>
-                                    <Flex ml="4px">
-                                        <Link hoverColor="fixedWhite" to={`/files?path=${it.id}`}>
-                                            <Truncate color="var(--fixedWhite)">
-                                                <Icon size={12} mr="4px" name="hdd" color="var(--fixedWhite)" color2="var(--fixedWhite)" />
-                                                {it.specification.title}
-                                            </Truncate>
-                                        </Link>
+                        {drives.data.items.map(it =>
+                            <Flex ml="4px" key={it.id}>
+                                <Link hoverColor="fixedWhite" to={`/files?path=${it.id}`}>
+                                    <Truncate fontSize="14px" title={it.specification.title} maxWidth={"140px"} color="var(--fixedWhite)">
+                                        <Icon size={12} mr="4px" name="hdd" color="#fff" color2="#fff" />
+                                        {it.specification.title}
+                                    </Truncate>
+                                </Link>
 
-                                        <Flex ml="auto" mr="5px" my="auto">
-                                            <ProviderLogo providerId={it.specification.product.provider} size={20} />
-                                        </Flex>
-                                    </Flex>
-                                </li>
-                            )}
-                        </ul>
+                                <Flex ml="auto" mr="5px" my="auto">
+                                    <ProviderLogo providerId={it.specification.product.provider} size={20} />
+                                </Flex>
+                            </Flex>
+                        )}
                     </li>
 
                     <li>
@@ -555,17 +551,17 @@ function SecondarySidebar({
                         <ul>
                             {favoriteFiles.data.items.length === 0 ? <TextSpan fontSize={"var(--secondaryText)"}>No favorite files</TextSpan> : null}
                             {favoriteFiles.data.items.map(it =>
-                                <li key={it.path}>
-                                    <Flex
-                                        cursor="pointer"
-                                        onClick={() => navigateByFileType(it, invokeCommand, navigate)}
-                                    >
-                                        <Flex mx="auto" my="auto">
-                                            <Icon name="starFilled" size={12} mr="4px" color="white" color2="white" />
-                                        </Flex>
-                                        <Truncate color="white">{fileName(it.path)}</Truncate>
+                                <Flex
+                                    key={it.path}
+                                    ml="9px"
+                                    cursor="pointer"
+                                    onClick={() => navigateByFileType(it, invokeCommand, navigate)}
+                                >
+                                    <Flex mx="auto" my="auto">
+                                        <Icon name="starFilled" size={12} mr="4px" color="#fff" color2="#fff" />
                                     </Flex>
-                                </li>
+                                    <Truncate fontSize={"14px"} color="#fff">{fileName(it.path)}</Truncate>
+                                </Flex>
                             )}
                         </ul>
                     </li>

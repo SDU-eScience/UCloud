@@ -944,6 +944,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 searching = currentPath;
                 browser.open(SEARCH);
                 browser.cachedData[SEARCH] = [];
+                browser.searchQuery = query;
                 browser.renderRows();
                 browser.renderBreadcrumbs();
                 const connection = WSFactory.open(
