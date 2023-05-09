@@ -20,7 +20,11 @@ import dk.sdu.cloud.app.orchestrator.api.Job
  */
 object FeatureMultiNode : JobFeature {
     override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
-        if (!builder.supportsSidecar()) return
+        tryVolcano(job, builder)
+        tryPod2(job, builder)
+    }
+
+    private fun tryVolcano(@Suppress("UNUSED_PARAMETER") job: Job, builder: ContainerBuilder) {
         if (builder !is VolcanoContainerBuilder) return
 
         val ucloudVolume = "ucloud-multinode"
@@ -85,6 +89,34 @@ object FeatureMultiNode : JobFeature {
                       break;
                     done;
                 """
+            ))
+        }
+    }
+
+    private fun tryPod2(job: Job, builder: ContainerBuilder) {
+        if (builder !is Pod2ContainerBuilder) return
+
+        val ucloudVolume = "ucloud-multinode"
+        val mountPath = "/etc/ucloud"
+        builder.mountSharedVolume(ucloudVolume, mountPath)
+        builder.sidecar("ucloud-compat") {
+            mountSharedVolume(ucloudVolume, mountPath)
+
+            image("alpine:latest")
+            vCpuMillis = 100
+            memoryMegabytes = 64
+            command(listOf(
+                "/bin/sh",
+                "-c",
+                buildString {
+                    appendLine("echo '${job.specification.replicas}' > /etc/ucloud/number_of_nodes.txt")
+                    for (rank in 0 until job.specification.replicas) {
+                        val hostname = "j-${job.id}-job-${rank}.j-${job.id}.${builder.namespace}.svc.cluster.local"
+                        appendLine("echo '$hostname' > /etc/ucloud/node-${rank}.txt")
+                        appendLine("echo '$hostname' >> /etc/ucloud/nodes.txt")
+                    }
+                    appendLine("echo ${"$"}UCLOUD_RANK > /etc/ucloud/rank.txt")
+                }
             ))
         }
     }

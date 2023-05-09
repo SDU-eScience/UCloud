@@ -145,7 +145,7 @@ class FeatureFileMount(
     }
 
     override suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<Container>) {
-        if ((Time.now() - lastRun )  < (1000*60*15)) return
+        if ((Time.now() - lastRun) < (1000 * 60 * 15)) return
         val drives = mutableSetOf<String>()
         jobBatch.forEach { job ->
             job.mountedDirectories().forEach { dir ->
@@ -192,7 +192,7 @@ class FeatureFileMount(
                         """
                     ).useAndInvoke(
                         prepare = {
-                            bindStringNullable("username", if (owner.project != null ) null else owner.createdBy)
+                            bindStringNullable("username", if (owner.project != null) null else owner.createdBy)
                             bindStringNullable("project_id", owner.project)
                             bindStringNullable("category", resolved.specification.product.category)
                         },

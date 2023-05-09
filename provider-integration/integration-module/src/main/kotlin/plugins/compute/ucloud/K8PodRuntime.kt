@@ -149,49 +149,44 @@ class K8PodRuntime(
         return K8PodContainerBuilder(jobId, replicas, k8Client, namespace, categoryToSelector, fakeIpMount).also(block)
     }
 
-    override suspend fun scheduleGroup(group: List<ContainerBuilder>) {
-        // TODO(Dan): For a more robust implementation, we would need to check if all the jobs in the group can be
-        //  scheduled together immediately. The current use-case is meant only for a proof-of-concept, as a result, we
-        //  don't worry too much about this right now.
-        group.forEachGraal { container ->
-            if (container !is K8PodContainerBuilder) error("This runtime only accepts K8PodContainerBuilder")
+    override suspend fun schedule(container: ContainerBuilder) {
+        if (container !is K8PodContainerBuilder) error("This runtime only accepts K8PodContainerBuilder")
 
-            if (container.replicas > 1) {
-                // TODO(Dan): Pending proper support in FeatureMultiNode for exporting information
-                throw RPCException(
-                    "Multiple nodes per job is not supported by this provider",
-                    dk.sdu.cloud.calls.HttpStatusCode.BadRequest
-                )
-            }
+        if (container.replicas > 1) {
+            // TODO(Dan): Pending proper support in FeatureMultiNode for exporting information
+            throw RPCException(
+                "Multiple nodes per job is not supported by this provider",
+                dk.sdu.cloud.calls.HttpStatusCode.BadRequest
+            )
+        }
 
-            repeat(container.replicas) { rank ->
-                container.pod.metadata!!.name = idAndRankToPodName(container.jobId, rank)
+        repeat(container.replicas) { rank ->
+            container.pod.metadata!!.name = idAndRankToPodName(container.jobId, rank)
 
+            k8Client.createResource(
+                KubernetesResourceLocator.common.pod.withNamespace(namespace),
+                defaultMapper.encodeToString(Pod.serializer(), container.pod)
+            )
+        }
+
+        val networkPolicy = container.myPolicy
+        for (attempt in 1..5) {
+            try {
                 k8Client.createResource(
-                    KubernetesResourceLocator.common.pod.withNamespace(namespace),
-                    defaultMapper.encodeToString(Pod.serializer(), container.pod)
+                    KubernetesResourceLocator.common.networkPolicies.withNamespace(namespace),
+                    defaultMapper.encodeToString(NetworkPolicy.serializer(), networkPolicy)
                 )
-            }
-
-            val networkPolicy = container.myPolicy
-            for (attempt in 1..5) {
-                try {
-                    k8Client.createResource(
-                        KubernetesResourceLocator.common.networkPolicies.withNamespace(namespace),
-                        defaultMapper.encodeToString(NetworkPolicy.serializer(), networkPolicy)
-                    )
-                    break
-                } catch (ex: KubernetesException) {
-                    if (ex.statusCode == HttpStatusCode.Conflict) {
-                        k8Client.deleteResource(
-                            KubernetesResources.networkPolicies.withNameAndNamespace(
-                                networkPolicy.metadata!!.name!!,
-                                namespace,
-                            )
+                break
+            } catch (ex: KubernetesException) {
+                if (ex.statusCode == HttpStatusCode.Conflict) {
+                    k8Client.deleteResource(
+                        KubernetesResources.networkPolicies.withNameAndNamespace(
+                            networkPolicy.metadata!!.name!!,
+                            namespace,
                         )
-                    }
-                    delay(500)
+                    )
                 }
+                delay(500)
             }
         }
     }
@@ -334,12 +329,15 @@ class K8PodContainerBuilder(
         )
     }
 
+    private var productCategoryField: String? = null
     override var productCategoryRequired: String?
-        get() = error("read not supported")
+        get() = productCategoryField
         set(value) {
+            val mapped = categoryToSelector.getOrDefault(value, value)
+            productCategoryField = mapped
             podSpec.nodeSelector = JsonObject(
                 mapOf(
-                    "ucloud.dk/machine" to JsonPrimitive(categoryToSelector.getOrDefault(value, value))
+                    "ucloud.dk/machine" to JsonPrimitive(mapped)
                 )
             )
         }
