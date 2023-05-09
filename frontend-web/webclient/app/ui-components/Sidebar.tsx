@@ -461,7 +461,12 @@ function useSidebarFilesPage(): [
 
 function useSidebarRunsPage(): APICallState<PageV2<Job>> {
     /* TODO(Jonas): This should be fetched from the same source as the runs page. */
-    const [runs] = useCloudAPI<PageV2<Job>>(JobsApi.browse({itemsPerPage: 10, filterState: "RUNNING"}), emptyPageV2);
+    const [runs, fetchRuns] = useCloudAPI<PageV2<Job>>({noop: true}, emptyPageV2);
+    const projectId = useProjectId();
+
+    React.useEffect(() => {
+        fetchRuns(JobsApi.browse({itemsPerPage: 10, filterState: "RUNNING"}));
+    }, [projectId]);
 
     return runs;
 }
@@ -475,7 +480,6 @@ function SecondarySidebar({
 }: {hovered: string; clicked: string; clearHover(): void; clearClicked(): void}): JSX.Element {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
-    const projectId = useProjectId();
 
     const navigate = useNavigate();
     const [, invokeCommand] = useCloudCommand();
