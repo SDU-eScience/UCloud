@@ -871,14 +871,6 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             };
 
             browser.on("open", (oldPath, newPath, resource) => {
-                if (resource?.status.type === "FILE") {
-                    dispatch(setPopInChild({
-                        el: <FilePreview file={resource} />,
-                        onFullScreen: () => navigate(AppRoutes.resource.properties("TODO_123", "TODO_321"))
-                    }));
-                    return;
-                }
-
                 if (openTriggeredByPath.current === newPath) {
                     openTriggeredByPath.current = null;
                 } else {
@@ -1044,6 +1036,19 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     const currentStatus = await findFavoriteStatus(entry);
                     await setFavoriteStatus(entry, !currentStatus);
                 })();
+            });
+
+            browser.on("beforeOpen", (oldPath, path, resource) => {
+                if (resource?.status.type === "FILE") {
+                    // Note(Jonas): Work to do in this. Too wide, reload missing.
+                    const operations = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks;
+                    dispatch(setPopInChild({
+                        el: <FilesApi.Properties inPopIn resource={resource} reload={operations.reload} />,
+                        onFullScreen: () => navigate(AppRoutes.resource.properties(FilesApi.routingNamespace, resource.id))
+                    }));
+                    return true;
+                }
+                return false;
             });
 
             // Drag-and-drop

@@ -166,7 +166,7 @@ html {
     --FtFolderColor: var(--gray, #f00);
     --FtFolderColor2: var(--midGray, #f00);
     --spinnerColor: var(--blue, #f00);
-    --tableRowHighlight: var(--lightBlue, #f00);
+    --tableRowHighlight: #dae4fd;
     --appCard: #fafbfc;
     --wayfGreen: #c8dd51;
     --appStoreFavBg: #e8f1fc
@@ -181,7 +181,7 @@ html {
 
 html.light {
     --white: #fff;
-    --tableRowHighlight: var(--lightBlue, #f00);
+    --tableRowHighlight: #dae4fd;
     --black: #000;
     --text: #1e252e;
     --lightGray: #f5f7f9;

@@ -73,6 +73,8 @@ interface ResourceBrowserListenerMap<T> {
     "renderRow": (entry: T, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
     "endRenderPage": () => void;
 
+    // beforeOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
+    "beforeOpen": (oldPath: string, path: string, resource?: T) => boolean;
     "open": (oldPath: string, path: string, resource?: T) => void;
     "wantToFetchNextPage": (path: string) => Promise<void>;
     "search": (query: string) => void;
@@ -1539,6 +1541,7 @@ export class ResourceBrowser<T> {
 
         const page = this.cachedData[this.currentPath] ?? [];
         const pathToEntry = this.dispatchMessage("pathToEntry", fn => fn(page[entryIdx]));
+        if (this.dispatchMessage("beforeOpen", fn => fn(pathToEntry, "", page[entryIdx]))) return;
         this.open(pathToEntry, false, page[entryIdx]);
     }
 
@@ -2083,6 +2086,7 @@ export class ResourceBrowser<T> {
 
     private defaultHandlers: Partial<ResourceBrowserListenerMap<T>> = {
         open: doNothing,
+        beforeOpen: () => false,
         rowSelectionUpdated: doNothing,
         mount: doNothing,
         unmount: doNothing,
@@ -2194,6 +2198,7 @@ export class ResourceBrowser<T> {
             }
 
             .file-browser header .header-first-row {
+                margin-top: 5px;
                 display: flex;
             }
 
@@ -2294,7 +2299,7 @@ export class ResourceBrowser<T> {
             }
 
             .file-browser .row[data-selected="true"] {
-                background: #DAE4FD;
+                background: var(--tableRowHighlight);
             }
 
             .file-browser .row .title {

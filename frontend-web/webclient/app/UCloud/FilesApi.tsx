@@ -378,6 +378,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     <HighlightedCard color={"purple"}>
                         <MetadataBrowse
                             file={props.resource as UFile}
+                            inPopIn={!!props.inPopIn}
                             metadata={(props.resource as UFile).status.metadata ?? {metadata: {}, templates: {}}}
                             reload={props.reload}
                         />
