@@ -22,7 +22,9 @@ import dk.sdu.cloud.app.store.api.WebDescription
 import dk.sdu.cloud.app.store.api.WordInvocationParameter
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.ResourceOwner
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.utils.sendTerminalMessage
+import org.slf4j.Logger
 import java.lang.IllegalStateException
 import java.util.*
 import kotlin.collections.ArrayList
@@ -50,7 +52,11 @@ class Scheduler<UserData> {
         @JvmField var cpu: Int = 0,
         @JvmField var memory: Long = 0,
         @JvmField var nvidiaGpu: Int = 0,
+        @JvmField var initialCpu: Int = 0,
+        @JvmField var initialMemory: Long = 0,
+        @JvmField var initialNvidiaGpu: Int = 0,
         @JvmField var lastSeen: Long = 0,
+        @JvmField var unscheduable: Boolean = false,
     )
 
     private var nextQueueIdx = 0
@@ -78,7 +84,17 @@ class Scheduler<UserData> {
         @JvmField var node: Int = 0,
         @JvmField var lastSeen: Long = 0,
         @JvmField var data: UserData? = null,
-    )
+    ) {
+        override fun toString(): String {
+            return buildString {
+                append("rank = $rank, ")
+                append("cpu = $cpu, ")
+                append("memory = $memory, ")
+                append("nvidiaGpu = $nvidiaGpu, ")
+                append("lastSeen = $lastSeen, ")
+            }
+        }
+    }
 
     private var activeReplicas = 0
     private var activeNodes = 0
@@ -91,11 +107,13 @@ class Scheduler<UserData> {
         type: String,
         virtualCpuMillis: Int,
         memoryInBytes: Long,
-        nvidiaGpus: Int = 0
+        nvidiaGpus: Int,
+        isUnschedulable: Boolean,
     ) {
         val existing = nodeNames.indexOf(name)
         if (existing != -1) {
             nodeEntries[existing].lastSeen = time
+            nodeEntries[existing].unscheduable = isUnschedulable
             return
         }
 
@@ -117,7 +135,11 @@ class Scheduler<UserData> {
             this.cpu = virtualCpuMillis
             this.memory = memoryInBytes
             this.nvidiaGpu = nvidiaGpus
+            this.initialCpu = virtualCpuMillis
+            this.initialMemory = memoryInBytes
+            this.initialNvidiaGpu = nvidiaGpus
             this.lastSeen = time
+            this.unscheduable = isUnschedulable
 
             activeNodes++
         }
@@ -144,6 +166,38 @@ class Scheduler<UserData> {
                 }
 
                 activeNodes--
+            } else {
+                // NOTE(Dan): Recalculate node state and warn if we have drifted (once we are confident that we
+                // don't drift, then we can disable this code in production mode)
+                val cpuWas = entry.cpu
+                val memoryWas = entry.memory
+                val nvidiaGpuWas = entry.nvidiaGpu
+
+                entry.cpu = entry.initialCpu
+                entry.memory = entry.initialMemory
+                entry.nvidiaGpu = entry.nvidiaGpu
+
+                for (rIdx in replicaEntries.indices) {
+                    val replica = replicaEntries[rIdx]
+                    if (replicaJobId[rIdx] != 0L && replica.node == idx) {
+                        entry.cpu -= replica.cpu
+                        entry.memory -= replica.memory
+                        entry.nvidiaGpu -= replica.nvidiaGpu
+                    }
+                }
+
+                if (entry.cpu != cpuWas) {
+                    log.warn("CPU state has drifted for ${nodeNames[idx]} was $cpuWas should be ${entry.cpu}")
+                }
+
+                if (entry.cpu != cpuWas) {
+                    log.warn("Memory state has drifted for ${nodeNames[idx]} was $memoryWas should be ${entry.memory}")
+                }
+
+                if (entry.cpu != cpuWas) {
+                    log.warn("NVIDIA GPU state has drifted for ${nodeNames[idx]} was " +
+                            "$nvidiaGpuWas should be ${entry.nvidiaGpu}")
+                }
             }
         }
         return result
@@ -354,6 +408,7 @@ class Scheduler<UserData> {
     private fun nodeSatisfiesRequest(node: Int, request: Int): Boolean {
         val nodeEntry = nodeEntries[node]
         val queueEntry = queueEntries[request]
+        if (nodeEntry.unscheduable) return false
         if (nodeEntry.type != queueEntry.type) return false
         if (nodeEntry.cpu < queueEntry.cpu) return false
         if (nodeEntry.memory < queueEntry.memory) return false
@@ -503,27 +558,37 @@ class Scheduler<UserData> {
         return scheduledJobs
     }
 
-    fun dumpState(replicas: Boolean = true, nodes: Boolean = true) {
-        if (replicas) {
-            for (i in 0 until replicaJobId.size) {
-                val jobId = replicaJobId[i]
-                if (jobId == 0L) continue
-                sendTerminalMessage { line("$jobId[${replicaEntries[i]}] ${nodeNames[replicaEntries[i].node]}") }
-            }
-        }
+    fun dumpState(replicas: Boolean = true, nodes: Boolean = true): String {
+        return buildString {
+            appendLine("Current time: $time")
+            appendLine()
 
-        if (nodes) {
-            for (i in 0 until nodeNames.size) {
-                val name = nodeNames[i]
-                if (name == null) continue
-                sendTerminalMessage { line("${name} ${nodeEntries[i]}") }
+            if (replicas) {
+                appendLine("Running jobs (one line per rank):")
+                for (i in 0 until replicaJobId.size) {
+                    val jobId = replicaJobId[i]
+                    if (jobId == 0L) continue
+                    appendLine("Job $jobId on ${nodeNames[replicaEntries[i].node]}: ${replicaEntries[i]} ")
+                }
+            }
+
+            if (nodes) {
+                if (replicas) appendLine()
+                appendLine("Nodes:")
+                for (i in 0 until nodeNames.size) {
+                    val name = nodeNames[i]
+                    if (name == null) continue
+                    appendLine("${name} ${nodeEntries[i]}")
+                }
             }
         }
     }
 
-    companion object {
+    companion object : Loggable {
         const val MAX_NODES = 1024
         const val MAX_JOBS_IN_QUEUE = MAX_NODES * 8
         const val MAX_NODES_TO_CONSIDER = 128
+
+        override val log = logger()
     }
 }

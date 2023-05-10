@@ -105,7 +105,6 @@ class JobManagement(
         val actualJob = JobsControl.retrieve.call(
             ResourceRetrieveRequest(
                 JobIncludeFlags(
-                    includeProduct = true,
                     includeApplication = true,
                     includeParameters = true,
                 ),
