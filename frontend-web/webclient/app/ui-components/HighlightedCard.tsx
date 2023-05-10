@@ -43,8 +43,6 @@ export const HighlightedCard: React.FunctionComponent<{
     onContextMenu?: (e: React.MouseEvent) => void;
     className?: string;
     highlightSize?: string;
-    innerPaddingX?: string;
-    innerPaddingY?: string;
     children?: React.ReactNode;
 }> = ({
     title,

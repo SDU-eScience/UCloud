@@ -144,7 +144,7 @@ document.head.append(styleTag);
 export function injectStyle(title: string, fn: (k: string) => string): string {
     const className = `${title}${styleIdCounter++}`;
     const styleSheet = fn("." + className);
-    styleTag.innerHTML += styleSheet;
+    styleTag.innerHTML += styleSheet; //.replace(/&/g, "." + className);
     return className;
 }
 

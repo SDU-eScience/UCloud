@@ -1,6 +1,5 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
-import styled from "styled-components";
 import {Button, Flex, Icon, Relative} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import Link, {LinkProps} from "@/ui-components/Link";

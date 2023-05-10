@@ -1,6 +1,5 @@
+import {injectStyle} from "@/Unstyled";
 import * as React from "react";
-import styled from "styled-components";
-
 
 interface HexSpinProps {
     size?: number;
@@ -11,29 +10,29 @@ const nColors = hexColors.length;
 const delay = 0.04;
 const pathN = 18;
 
-function createKF() {
+function createKF(): string {
     let kf = ``;
     for (let i = 0; i < nColors; i += 1) {
         kf += `${i * 100 / nColors}% { fill: ${hexColors[i]}; }`;
     }
     kf += `100% { fill: ${hexColors[0]}; }`;
-    return `${kf}`;
+    return kf;
 }
 
 const SPINNER_ANIMATION_NAME = "spinner";
-export const HexSpinWrapper = styled.div`
-    & {
-        margin: 20px auto;
-        animation-name: spinner;
-    }
-
-    ${createCSS(`& > svg `)};
-
+export const HexSpinWrapper = injectStyle("hex-spinner", k => `
     @keyframes ${SPINNER_ANIMATION_NAME} {
         ${createKF()}
     }
-`;
 
+    ${k} {
+        margin: 20px auto;
+        animation-name: ${SPINNER_ANIMATION_NAME}; 
+    }
+
+    ${createCSS(`${k} > svg `)};
+
+`);
 
 function createCSS(parentPath: string) {
     let style = ``;
@@ -51,7 +50,7 @@ function createCSS(parentPath: string) {
 // NOTE(Dan): Before changing the component below, please be aware that the createSpinner() function of
 // ResourceBrowser has a hardcoded assumption about the DOM that this component renders.
 const HexSpin = ({size = 32}: HexSpinProps): JSX.Element => (
-    <HexSpinWrapper data-tag="loading-spinner" style={{width: size, height: size}}>
+    <div className={HexSpinWrapper} data-tag="loading-spinner" style={{width: size, height: size}}>
         <svg
             xmlns="http://www.w3.org/2000/svg"
             xmlnsXlink="http://www.w3.org/1999/xlink"
@@ -80,7 +79,7 @@ const HexSpin = ({size = 32}: HexSpinProps): JSX.Element => (
             <path d="M94.969,54.881l-54.761,-14.673l14.673,54.761l40.088,-40.088Z" />
             <path d="M80.296,0.12l-40.088,40.088l54.761,14.673l-14.673,-54.761Z" />
         </svg>
-    </HexSpinWrapper>
+    </div>
 );
 
 export function PredicatedLoadingSpinner({loading, size}: {loading: boolean, size?: number}): JSX.Element | null {
