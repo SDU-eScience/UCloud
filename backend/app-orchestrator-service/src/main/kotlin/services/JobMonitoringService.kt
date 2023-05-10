@@ -73,8 +73,8 @@ class JobMonitoringService(
             val now = Time.now()
             if (now >= nextScan) {
                 debug.useContext(DebugContextType.BACKGROUND_TASK, "Job monitoring", MessageImportance.TELL_ME_EVERYTHING) {
-                    db.withSession { session ->
-                        val jobs = session
+                    val jobs = db.withSession { session ->
+                        session
                             .sendPreparedStatement(
                                 {
                                     setParameter(
@@ -111,35 +111,37 @@ class JobMonitoringService(
                                     permissionOneOf = listOf(Permission.READ)
                                 )
                             }
+                    }
 
-                        val jobsByProvider = jobs.map { it }.groupBy { it.specification.product.provider }
-                        scope.launch {
-                            jobsByProvider.forEach { (provider, jobs) ->
-                                val comm = providers.prepareCommunication(provider)
-                                val resp = comm.api.verify.call(
-                                    bulkRequestOf(jobs),
-                                    comm.client
-                                )
+                    val jobsByProvider = jobs.map { it }.groupBy { it.specification.product.provider }
+                    scope.launch {
+                        jobsByProvider.forEach { (provider, jobs) ->
+                            val comm = providers.prepareCommunication(provider)
+                            val resp = comm.api.verify.call(
+                                bulkRequestOf(jobs),
+                                comm.client
+                            )
 
-                                if (!resp.statusCode.isSuccess()) {
-                                    log.info("Failed to verify block in $provider. Jobs: ${jobs.map { it.id }}")
-                                }
+                            if (!resp.statusCode.isSuccess()) {
+                                log.info("Failed to verify block in $provider. Jobs: ${jobs.map { it.id }}")
+                            }
 
-                                val requiresRestart = jobs.filter {
-                                    it.status.state == JobState.SUSPENDED && it.status.allowRestart == true
-                                }
-                                if (requiresRestart.isNotEmpty()) {
-                                    for (job in requiresRestart) {
-                                        try {
-                                            jobOrchestrator.performUnsuspension(listOf(job))
-                                        } catch (ex: Throwable) {
-                                            log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
-                                        }
+                            val requiresRestart = jobs.filter {
+                                it.status.state == JobState.SUSPENDED && it.status.allowRestart == true
+                            }
+                            if (requiresRestart.isNotEmpty()) {
+                                for (job in requiresRestart) {
+                                    try {
+                                        jobOrchestrator.performUnsuspension(listOf(job))
+                                    } catch (ex: Throwable) {
+                                        log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
                                     }
                                 }
                             }
                         }
+                    }
 
+                    db.withSession { session ->
                         for (job in jobs) {
                             // NOTE(Dan): Suspended jobs are re-verified when they are unsuspended. We don't verify them
                             // right now.

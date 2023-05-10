@@ -175,7 +175,7 @@ class Scheduler<UserData> {
 
                 entry.cpu = entry.initialCpu
                 entry.memory = entry.initialMemory
-                entry.nvidiaGpu = entry.nvidiaGpu
+                entry.nvidiaGpu = entry.initialNvidiaGpu
 
                 for (rIdx in replicaEntries.indices) {
                     val replica = replicaEntries[rIdx]
@@ -190,11 +190,11 @@ class Scheduler<UserData> {
                     log.warn("CPU state has drifted for ${nodeNames[idx]} was $cpuWas should be ${entry.cpu}")
                 }
 
-                if (entry.cpu != cpuWas) {
+                if (entry.memory != memoryWas) {
                     log.warn("Memory state has drifted for ${nodeNames[idx]} was $memoryWas should be ${entry.memory}")
                 }
 
-                if (entry.cpu != cpuWas) {
+                if (entry.nvidiaGpu != nvidiaGpuWas) {
                     log.warn("NVIDIA GPU state has drifted for ${nodeNames[idx]} was " +
                             "$nvidiaGpuWas should be ${entry.nvidiaGpu}")
                 }
