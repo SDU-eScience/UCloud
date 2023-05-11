@@ -396,7 +396,7 @@ class JobManagement(
                                                 message,
                                             )
 
-                                            if (didChangeState) {
+                                            if (didChangeState && newState == JobState.RUNNING) {
                                                 features.forEach { feature ->
                                                     with(feature) {
                                                         onJobStart(event.newRoot!!, event.newReplicas)
