@@ -238,40 +238,43 @@ private data class Pod2Container(
     }
 
     private suspend fun downloadLogBeforeCancel() {
-        // NOTE(Dan): Often called repeatedly, as a result, the LogCache will not insert our log if we have already
-        // done it.
-        val podMeta = pod.metadata!!
-        val podName = podMeta.name!!
-        val namespace = podMeta.namespace!!
+        try {
+            // NOTE(Dan): Often called repeatedly, as a result, the LogCache will not insert our log if we have already
+            // done it.
+            val podMeta = pod.metadata!!
+            val podName = podMeta.name!!
+            val namespace = podMeta.namespace!!
 
-        LogCache.insertLog(internalJobId, rank) { output ->
-            k8Client.sendRequest(
-                HttpMethod.Get,
-                KubernetesResources.pod.withNameAndNamespace(podName, namespace),
-                mapOf("container" to USER_JOB_CONTAINER),
-                "log",
-                longRunning = true,
-            ).execute { resp ->
-                if (resp.status.isSuccess()) {
-                    try {
-                        val channel = resp.bodyAsChannel()
-                        while (output.hasRemaining() && !channel.isClosedForRead) {
-                            channel.read { input ->
-                                val oldRemaining = input.remaining()
-                                if (oldRemaining > output.remaining()) {
-                                    input.limit(input.position() + output.remaining())
-                                    require(input.remaining() == output.remaining())
-                                    require(input.remaining() < oldRemaining)
+            LogCache.insertLog(internalJobId, rank) { output ->
+                k8Client.sendRequest(
+                    HttpMethod.Get,
+                    KubernetesResources.pod.withNameAndNamespace(podName, namespace),
+                    mapOf("container" to USER_JOB_CONTAINER),
+                    "log",
+                    longRunning = true,
+                ).execute { resp ->
+                    if (resp.status.isSuccess()) {
+                        try {
+                            val channel = resp.bodyAsChannel()
+                            var shouldCancel = false
+                            while (output.hasRemaining() && !channel.isClosedForRead && !shouldCancel) {
+                                channel.read { input ->
+                                    val oldRemaining = input.remaining()
+                                    if (oldRemaining > output.remaining()) {
+                                        shouldCancel = true
+                                    } else {
+                                        output.put(input)
+                                    }
                                 }
-
-                                output.put(input)
                             }
+                        } catch (ignored: EOFException) {
+                            // Ignored
                         }
-                    } catch (ignored: EOFException) {
-                        // Ignored
                     }
                 }
             }
+        } catch (ex: Throwable) {
+            log.info(ex.toReadableStacktrace().toString())
         }
     }
 
@@ -826,6 +829,9 @@ class Pod2Runtime(
     }
 
     override suspend fun isJobKnown(jobId: String): Boolean {
+        // NOTE(Dan): Turning this code off for now since it appears to be faulty
+        return true
+        /*
         val jobIdLong = jobId.toLongOrNull() ?: return false
         if (!didCompleteRescheduling.get()) return true
 
@@ -835,6 +841,7 @@ class Pod2Runtime(
         if (isKnownInScheduleQueue) return true
 
         return list().any { it.jobId == jobId } || cachedQueue.get().any { it == jobIdLong }
+         */
     }
 
     override suspend fun removeJobFromQueue(jobId: String) {
