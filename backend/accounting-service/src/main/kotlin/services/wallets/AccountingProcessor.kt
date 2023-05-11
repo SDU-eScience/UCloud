@@ -667,13 +667,26 @@ class AccountingProcessor(
                     {},
                     """
                     declare wallet_load cursor for
-                    select w.id, wo.username, wo.project_id, pc.category, pc.provider, pc.product_type, pc.charge_type, w.allocation_selector_policy, pc.unit_of_price
+                    select 
+                        w.id, 
+                        wo.username,
+                        wo.project_id, 
+                        pc.category, 
+                        pc.provider, 
+                        pc.product_type, 
+                        w.allocation_selector_policy, 
+                        au.name, 
+                        au.name_plural, 
+                        au.floating_point, 
+                        au.display_frequency_suffix,
+                        pc.accounting_frequency
                     from
                         accounting.wallets w join
                         accounting.wallet_owner wo
                             on w.owned_by = wo.id join
                         accounting.product_categories pc
-                            on w.category = pc.id
+                            on w.category = pc.id join 
+                        accounting.accounting_unit au on au.id = pc.accounting_unit
                     order by w.id
                 """
                 )
@@ -688,9 +701,14 @@ class AccountingProcessor(
                         val category = row.getString(3)!!
                         val provider = row.getString(4)!!
                         val productType = ProductType.valueOf(row.getString(5)!!)
-                        val chargeType = ChargeType.valueOf(row.getString(6)!!)
-                        val allocationPolicy = AllocationSelectorPolicy.valueOf(row.getString(7)!!)
-                        val unit = ProductPriceUnit.valueOf(row.getString(8)!!)
+                        val allocationPolicy = AllocationSelectorPolicy.valueOf(row.getString(6)!!)
+                        val accountingUnit = AccountingUnit(
+                            row.getString(7)!!,
+                            row.getString(8)!!,
+                            row.getBoolean(9)!!,
+                            row.getBoolean(10)!!
+                        )
+                        val frequency = row.getString(11)!!
                         val emptySlots = id - wallets.size
                         require(emptySlots >= 0) { "Duplicate wallet detected (or bad logic): $id ${wallets.size} $emptySlots" }
                         repeat(emptySlots) { wallets.add(null) }
@@ -704,8 +722,8 @@ class AccountingProcessor(
                                     category,
                                     provider,
                                     productType,
-                                    AccountingUnit(),
-                                    AccountingFrequency(),
+                                    accountingUnit,
+                                    AccountingFrequency.fromValue(frequency),
                                     emptyList()
                                 ),
                                 allocationPolicy,
@@ -2424,9 +2442,10 @@ private class ProductCategoryCache(private val db: DBContext) {
                     {},
                     """
                         declare product_category_load cursor for
-                        select product_category_to_json(pc), pc.id
+                        select product_category_to_json(pc, ac), pc.id
                         from
-                            accounting.product_categories pc
+                            accounting.product_categories pc join 
+                            accounting.accounting_units au on au.id = pc.accounting_unit
                     """
                 )
 

@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.decodeFromString
@@ -466,7 +467,7 @@ class GrantApplicationService(
             accounting.retrieveAllocationsInternal(
                 ActorAndProject(Actor.System, null),
                 WalletOwner.Project(req.grantGiver),
-                ProductCategoryId(req.category, req.provider)
+                ProductCategoryIdV2(req.category, req.provider)
             ).isNotEmpty()
         }.filter { it }
 
@@ -1206,20 +1207,22 @@ class GrantApplicationService(
 
         val requestItems = application.currentRevision.document.allocationRequests.map {
             if (it.sourceAllocation == null ) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Source Allocations not chosen")
-            DepositToWalletRequestItem(
-                recipient = if (type == GrantApplication.Recipient.PersonalWorkspace) WalletOwner.User(workspaceId) else WalletOwner.Project(
-                    workspaceId
-                ),
-                sourceAllocation = it.sourceAllocation.toString(),
-                amount = it.balanceRequested!!,
-                description = "Granted In $applicationId",
-                startDate = it.period.start,
-                endDate = it.period.end,
-                grantedIn = applicationId
+            SubAllocationRequestItem(
+                owner = if (type == GrantApplication.Recipient.PersonalWorkspace)
+                    WalletOwner.User(workspaceId)
+                else WalletOwner.Project(workspaceId),
+                parentAllocation = it.sourceAllocation.toString(),
+                quota = it.balanceRequested!!,
+                start = it.period.start ?: Time.now(),
+                end = it.period.end ?: Long.MAX_VALUE,
+                grantedIn = applicationId,
+                deicAllocationId = if(application.currentRevision.document.referenceId?.lowercase()?.startsWith("deic") == true) {
+                    application.currentRevision.document.referenceId
+                } else {null}
             )
         }
 
-        accounting.deposit(actorAndProject, bulkRequestOf(requestItems))
+        accounting.subAllocate(actorAndProject, bulkRequestOf(requestItems))
 
         if (application.currentRevision.document.recipient is GrantApplication.Recipient.NewProject) {
             projectNotifications.notifyChange(listOf(workspaceId), session)

@@ -3,6 +3,8 @@ package dk.sdu.cloud.accounting.services.products
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
+import dk.sdu.cloud.accounting.services.wallets.AccountingRequest
+import dk.sdu.cloud.accounting.services.wallets.retrieveWalletsInternal
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -219,8 +221,15 @@ class ProductService(
                 val product = defaultMapper.decodeFromString(Product.serializer(), it.getString(0)!!)
                 if (request.includeBalance == true) {
                     val owner = actorAndProject.project ?: actorAndProject.actor.safeUsername()
-                    val balance = processor.retrieveBalanceFromProduct(owner, product.category)
+                    val usage = processor.retrieveUsageFromProduct(owner, ProductCategoryIdV2(product.category.name, product.category.provider))
                         ?: return@mapNotNull null
+                    val quota = processor.retrieveWalletsInternal(AccountingRequest.RetrieveWalletsInternal(actorAndProject.actor, owner))
+                        .wallets.find { wallet -> ProductCategoryId(wallet.paysFor.name, wallet.paysFor.provider) == product.category }
+                        ?.allocations
+                        ?.sumOf { allocation -> allocation.quota }
+                        ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "missing wallet")
+
+                    val balance = quota - usage
                     product.balance = balance
                 }
                 return@mapNotNull product

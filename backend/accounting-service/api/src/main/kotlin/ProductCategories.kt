@@ -3,14 +3,18 @@ package dk.sdu.cloud.accounting.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Contextual
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.math.BigDecimal
 
 @Serializable
 data class AccountingUnit(
     val name: String,           //e.g. gigabyte
+    @SerialName("name_plural")
     val namePlural: String,     //e.g. gigabytes
+    @SerialName("floating_point")
     val floatingPoint: Boolean,
+    @SerialName("display_frequency_suffix")
     val displayFrequencySuffix: Boolean
 )
 
@@ -19,7 +23,17 @@ enum class AccountingFrequency {
     ONCE,
     PERIODIC_MINUTE,
     PERIODIC_HOUR,
-    PERIODIC_DAY
+    PERIODIC_DAY;
+
+    companion object {
+        public fun fromValue(value: String): AccountingFrequency = when (value) {
+            "ONCE" -> ONCE
+            "PERIODIC_MINUTE" -> PERIODIC_MINUTE
+            "PERIODIC_HOUR" -> PERIODIC_HOUR
+            "PERIODIC_DAY" -> PERIODIC_DAY
+            else -> throw IllegalArgumentException()
+        }
+    }
 }
 
 private val periodicalFrequencies = listOf<AccountingFrequency>(
@@ -39,9 +53,13 @@ data class AccountingUnitConversion(
 data class ProductCategory(
     val name: String,                   //e.g. u1-cephfs
     val provider: String,               //e.g. UCloud
+    @SerialName("product_type")
     val productType: ProductType,       //e.g. STORAGE
+    @SerialName("accounting_unit")
     val accountingUnit: AccountingUnit,
+    @SerialName("accounting_frequency")
     val accountingFrequency: AccountingFrequency,
+    @SerialName("conversion_table")
     val conversionTable: List<AccountingUnitConversion>
 ) {
     fun isPeriodic(): Boolean = periodicalFrequencies.contains(accountingFrequency)
