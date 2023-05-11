@@ -12,7 +12,6 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2} from "@/UCloud";
 import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
-import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 
 /* BUGS FOUND
     - Double click/accesssing is available for files (not directory)
@@ -1076,7 +1075,7 @@ export class ResourceBrowser<T> {
         return selectedEntries;
     }
 
-    findVirtualRowIndex(predicate: (T) => boolean): number | null {
+    findVirtualRowIndex(predicate: (arg: T) => boolean): number | null {
         let idx = 0;
         for (const entry of this.cachedData[this.currentPath] ?? []) {
             if (predicate(entry)) {
@@ -1169,7 +1168,7 @@ export class ResourceBrowser<T> {
 
     // Renaming and creation input fields
     showRenameField(
-        predicate: (T) => boolean,
+        predicate: (arg: T) => boolean,
         onSubmit: () => void,
         onCancel: () => void,
         initialValue: string,
@@ -1997,7 +1996,7 @@ export class ResourceBrowser<T> {
             } else {
                 toCheck = [op];
             }
-            
+
             for (const child of toCheck) {
                 if (predicate(child)) {
                     child.onClick(this.findSelectedEntries(), callbacks, this.cachedData[this.currentPath] ?? []);
@@ -2066,7 +2065,7 @@ export class ResourceBrowser<T> {
     // NOTE(Dan): selectAndShow() requires that the matching row has been rendered at least once.
     // If it has not been rendered, then we won't be able to allocate the physical row, which we need in order to
     // scroll to it.
-    selectAndShow(predicate: (T) => boolean) {
+    selectAndShow(predicate: (arg: T) => boolean) {
         const idx = this.findVirtualRowIndex(predicate);
         if (idx !== null) {
             this.ensureRowIsVisible(idx, true, true);
@@ -2403,6 +2402,10 @@ export class ResourceBrowser<T> {
             .file-browser .rename-field {
                 display: none;
                 position: absolute;
+                background-color: var(--lightGray);
+                border-radius: 5px;
+                border: 1px solid var(--black);
+                color: var(--text);
                 z-index: 10000;
                 top: 0;
                 left: 60px;

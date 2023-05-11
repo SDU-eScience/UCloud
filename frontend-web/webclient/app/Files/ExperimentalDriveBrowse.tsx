@@ -92,7 +92,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     browser,
                     creatableProducts,
                     dummyEntry,
-                    async (product) => {
+                    async product => {
                         const temporaryFakeId = isCreatingPrefix + browser.renameValue + "-" + timestampUnixMs();
                         const productReference = {
                             id: product.name,

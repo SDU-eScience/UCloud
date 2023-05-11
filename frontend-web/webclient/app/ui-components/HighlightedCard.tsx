@@ -5,7 +5,7 @@ import Error from "./Error";
 import Icon, {IconName} from "./Icon";
 import theme, {ThemeColor} from "./theme";
 import Spinner from "@/LoadingIcon/LoadingIcon";
-import {injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
 
 const style = injectStyle("highlightedCard", k => `
     ${k} .title-row {
@@ -71,7 +71,7 @@ export const HighlightedCard: React.FunctionComponent<{
             maxHeight={maxHeight}
             maxWidth={maxWidth}
             onContextMenu={onContextMenu}
-            className={`${className ?? ""} ${style}`}
+            className={classConcat(style, className)}
         >
             <div className="title-row">
                 {typeof title === "string" ? <Heading.h3>{title}</Heading.h3> : title ? title : null}

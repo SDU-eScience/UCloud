@@ -565,22 +565,20 @@ function SecondarySidebar({
 
                     <li>
                         <span>Favorite files</span>
-                        <ul>
-                            {favoriteFiles.data.items.length === 0 ? <TextSpan fontSize={"var(--secondaryText)"}>No favorite files</TextSpan> : null}
-                            {favoriteFiles.data.items.map(it =>
-                                <Flex
-                                    key={it.path}
-                                    ml="9px"
-                                    cursor="pointer"
-                                    onClick={() => navigateByFileType(it, invokeCommand, navigate)}
-                                >
-                                    <Flex mx="auto" my="auto">
-                                        <Icon name="starFilled" size={12} mr="4px" color="#fff" color2="#fff" />
-                                    </Flex>
-                                    <Truncate fontSize={"14px"} color="#fff">{fileName(it.path)}</Truncate>
+                        {favoriteFiles.data.items.length === 0 ? <TextSpan fontSize={"var(--secondaryText)"}>No favorite files</TextSpan> : null}
+                        {favoriteFiles.data.items.map(it =>
+                            <Flex
+                                key={it.path}
+                                ml="9px"
+                                cursor="pointer"
+                                onClick={() => navigateByFileType(it, invokeCommand, navigate)}
+                            >
+                                <Flex mx="auto" my="auto">
+                                    <Icon name="starFilled" size={12} mr="4px" color="#fff" color2="#fff" />
                                 </Flex>
-                            )}
-                        </ul>
+                                <Truncate fontSize={"14px"} color="#fff">{fileName(it.path)}</Truncate>
+                            </Flex>
+                        )}
                     </li>
 
                     {Client.hasActiveProject ?

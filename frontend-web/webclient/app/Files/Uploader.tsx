@@ -12,8 +12,6 @@ import {
 } from "@/UtilityFunctions";
 import {fetcherFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
 import {supportedProtocols, Upload, uploadCalculateSpeed, UploadState, uploadTrackProgress} from "@/Files/Upload";
-import {useToggleSet} from "@/Utilities/ToggleSet";
-import {Operation} from "@/ui-components/Operation";
 import {api as FilesApi, FilesCreateUploadResponseItem} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
@@ -76,7 +74,7 @@ async function processUpload(upload: Upload) {
     }
 
     const theFile = files[0];
-    const fullFilePath = upload.targetPath + "/" + theFile.fullPath;
+    const fullFilePath = (upload.targetPath + theFile.fullPath);
 
     const reader = new ChunkedFileReader(theFile.fileObject);
 
@@ -151,6 +149,12 @@ function createResumeable(
     }
 }
 
+function findResumableUploadsFromUploadPath(uploadPath: string): string[] {
+    return Object.keys(localStorage).filter(key => key.startsWith(UPLOAD_LOCALSTORAGE_PREFIX)).map(key =>
+        key.replace(`${UPLOAD_LOCALSTORAGE_PREFIX}:`, "")
+    ).filter(key => key.replace(`/${fileName(key)}`, "") === uploadPath);
+}
+
 const Uploader: React.FunctionComponent = () => {
     const [uploadPath] = useGlobal("uploadPath", "/");
     const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", false);
@@ -163,7 +167,6 @@ const Uploader: React.FunctionComponent = () => {
         setUploaderVisible(false);
     }, []);
 
-    const toggleSet = useToggleSet(uploads);
     const startUploads = useCallback(async (batch: Upload[]) => {
         let activeUploads = 0;
         for (const u of uploads) {
@@ -241,6 +244,7 @@ const Uploader: React.FunctionComponent = () => {
 
     const stopUploads = useCallback((batch: Upload[]) => {
         for (const upload of batch) {
+            // Find possible entries in 
             upload.terminationRequested = true;
         }
     }, []);
@@ -274,7 +278,15 @@ const Uploader: React.FunctionComponent = () => {
         /* Note(Jonas): This is intended as pointer equality. Does this make sense in a Javascript context? */
         /* Note(Jonas): Yes. */
         setUploads(uploads.filter(u => !batch.some(b => b === u)));
-        toggleSet.uncheckAll();
+        // Note(Jonas): Find possible entries in paused uploads and remove it. 
+        setPausedFilesInFolder(entries => {
+            let cpy = [...entries];
+            console.log(cpy, batch);
+            for (const upload of batch) {
+                cpy = cpy.filter(it => it !== upload.targetPath + "/" + upload.row.rootEntry.name);
+            }
+            return cpy;
+        });
     }, [uploads]);
 
     const callbacks: UploadCallback = useMemo(() => (
@@ -349,9 +361,7 @@ const Uploader: React.FunctionComponent = () => {
     const [pausedFilesInFolder, setPausedFilesInFolder] = useState<string[]>([]);
 
     useEffect(() => {
-        const matches = Object.keys(localStorage).filter(key => key.startsWith(UPLOAD_LOCALSTORAGE_PREFIX)).map(key =>
-            key.replace(`${UPLOAD_LOCALSTORAGE_PREFIX}:`, "")
-        ).filter(key => key.replace(`/${fileName(key)}`, "") === uploadPath);
+        const matches = findResumableUploadsFromUploadPath(uploadPath);
         setPausedFilesInFolder(matches);
     }, [uploadPath, lookForNewUploads]);
 
@@ -367,8 +377,12 @@ const Uploader: React.FunctionComponent = () => {
         uploadingText += ` - Approximately ${formatDistance(uploadTimings.timeRemaining, 0)}`;
     }
 
+    const uploadFilePaths = uploads.map(it => it.row.rootEntry.name);
+    const resumables = pausedFilesInFolder.filter(it => !uploadFilePaths.includes(fileName(it)));
+
     return <>
         <ReactModal
+
             isOpen={uploaderVisible}
             style={modalStyle}
             shouldCloseOnEsc
@@ -412,16 +426,15 @@ const Uploader: React.FunctionComponent = () => {
                     </div>
                 </label>
 
-                {pausedFilesInFolder.length === 0 ? null :
+                {resumables.length === 0 ? null :
                     <div style={{
-                        borderRadius: "12px",
-                        marginTop: hasUploads ? "38px" : "-18px",
+                        marginTop: hasUploads ? "66px" : "-18px",
                         marginBottom: "4px",
                         marginLeft: "4px",
                         marginRight: "4px"
                     }}>
                         <Text color="text">Drag files to resume: </Text>
-                        {pausedFilesInFolder.map(it =>
+                        {resumables.map(it =>
                             <div className={UploaderRowClass} key={it}>
                                 <Spacer paddingTop="20px"
                                     left={<>
@@ -432,7 +445,7 @@ const Uploader: React.FunctionComponent = () => {
                                             <Truncate maxWidth="270px" fontSize="18px">{fileName(it)}</Truncate>
                                         </div>
                                     </>}
-                                    right={<Icon name="close" color="red" mr="12px" onClick={() => {
+                                    right={<Icon cursor="pointer" name="close" color="red" mr="12px" onClick={() => {
                                         setPausedFilesInFolder(files => files.filter(file => file !== it));
                                         removeUploadFromStorage(it);
                                     }} />}
@@ -610,54 +623,6 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
         </div>
     </div>
 }
-
-const operations: Operation<Upload, UploadCallback>[] = [
-    {
-        enabled: selected => selected.length > 0 && selected.every(it => it.state === UploadState.UPLOADING),
-        onClick: (selected, cb) => cb.pauseUploads(selected),
-        text: "Pause",
-        icon: "pauseSolid"
-    },
-    {
-        enabled: selected => selected.length > 0 &&
-            selected.every(it => it.state === UploadState.PENDING || it.state === UploadState.UPLOADING),
-        onClick: (selected, cb) => cb.stopUploads(selected),
-        text: "Cancel",
-        color: "red",
-        icon: "trash",
-        confirm: true,
-    },
-    {
-        enabled: selected => selected.length > 0 && selected.every(it => it.paused),
-        onClick: (selected, cb) => cb.resumeUploads(selected),
-        text: "Resume",
-        icon: "play",
-        primary: true
-    },
-    {
-        enabled: selected => selected.length > 0 && selected.every(it => it.state === UploadState.DONE),
-        onClick: (selected, cb) => {
-            cb.clearUploads(selected);
-            for (const upload of selected) {
-                upload.row.fetcher().then(files => {
-                    if (files.length === 0) return;
-                    if (files.length > 1) {
-                        upload.error = "Folder uploads not yet supported";
-                        upload.state = UploadState.DONE;
-                        return;
-                    }
-
-                    const theFile = files[0];
-                    const fullFilePath = upload.targetPath + "/" + theFile.fullPath;
-                    removeUploadFromStorage(fullFilePath);
-                });
-            }
-        },
-        text: "Clear",
-        icon: "close",
-        color: "red"
-    }
-];
 
 const ErrorSpan = injectStyleSimple("error-span", `
     color: var(--white);

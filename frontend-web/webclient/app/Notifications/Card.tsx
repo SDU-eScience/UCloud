@@ -2,8 +2,8 @@ import * as React from "react";
 import {useCallback} from "react";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {Flex} from "@/ui-components";
-import HighlightedCard from "@/ui-components/HighlightedCard";
 import {classConcat, injectStyle} from "@/Unstyled";
+import Card, {CardClass} from "@/ui-components/Card";
 
 export interface NotificationProps {
     icon: IconName;
@@ -47,15 +47,12 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
         onMouseLeave={onMouseLeaveMemo}
         onClick={props.onAction}
     >
-        <HighlightedCard
-            color={props.isPinned ? "orange" : "blue"}
-            highlightSize="2px"
-        >
+        <Card backgroundColor="white" border={`solid 2px var(--${props.isPinned ? "orange" : "blue"})`}>
             <div className="notification-inner">
                 <Icon name={props.icon} size="32px" color={props.iconColor ?? "iconColor"}
                     color2={props.iconColor2 ?? "iconColor2"} />
                 <div className="notification-content">
-                    <Flex>
+                    <Flex pr="20px">
                         <h3>{props.title}</h3>
                         <div className={props.isPinned ? "snooze" : "time"} onClick={onSnooze}>
                             {props.isPinned ? "Snooze" : "Now"}
@@ -65,13 +62,12 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
                     <div className="notification-body">{props.body}</div>
                 </div>
             </div>
-        </HighlightedCard>
+        </Card>
     </div>;
 };
 
 const Style = injectStyle("notification", k => `
     ${k} {
-
         cursor: pointer;
         animation: 0.5s ease-in notification-enter;
         width: 450px;
@@ -99,6 +95,11 @@ const Style = injectStyle("notification", k => `
         white-space: nowrap;
         overflow: hidden;
         width: 330px;
+    }
+    
+    ${k} > .${CardClass} {
+        padding: 12px;
+        border-radius: 8px;
     }
 
     ${k} .notification-inner .notification-body {

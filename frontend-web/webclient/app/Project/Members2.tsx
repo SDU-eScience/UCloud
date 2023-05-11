@@ -677,8 +677,8 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                             </BreadCrumbsBase>
                             <div style={{flexGrow: 1}} />
                             {!isAdmin ? null : (
-                                <Button mt={"2px"} height={"40px"} width={"120px"} onClick={startGroupCreation}>
-                                    New Group
+                                <Button mt={"2px"} disableStandardSizes height={"40px"} width={"110px"} px="12px" onClick={startGroupCreation}>
+                                    New group
                                 </Button>
                             )}
                         </Flex>

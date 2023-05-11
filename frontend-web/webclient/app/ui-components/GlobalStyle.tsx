@@ -862,6 +862,7 @@ a {
 
 input.search-field {
     width: 250px;
+    margin-left: 8px;
 }
 
 `;
