@@ -246,7 +246,6 @@ export const sideBarMenuElements: {
 interface SidebarStateProps {
     loggedIn: boolean;
     avatar: AvatarType;
-    activeProject?: string;
 }
 
 function hasOrParentHasClass(t: EventTarget | null, classname: string): boolean {
@@ -343,7 +342,7 @@ const UserMenu: React.FunctionComponent<{
 
 export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | null => {
     const sidebarEntries = sideBarMenuElements;
-    const {activeProject, loggedIn, avatar} = useSidebarReduxProps();
+    const {loggedIn, avatar} = useSidebarReduxProps();
 
     const [selectedPage, setSelectedPage] = React.useState("");
     const [hoveredPage, setHoveredPage] = React.useState("");
@@ -710,11 +709,9 @@ function copyUserName(): void {
 
 function useSidebarReduxProps(): SidebarStateProps {
     const loggedIn = Client.isLoggedIn;
-    const activeProject = useSelector((it: ReduxObject) => it.project.project);
     const avatar = useSelector((it: ReduxObject) => it.avatar);
     return {
         loggedIn,
-        activeProject,
         avatar
     }
 }
