@@ -548,36 +548,36 @@ function SecondarySidebar({
                     <li>
                         <Link to={"/drives/"}>Drives</Link>
                         {drives.data.items.map(it =>
-                            <Flex ml="4px" key={it.id}>
-                                <Link hoverColor="fixedWhite" to={`/files?path=${it.id}`}>
+                            <Link key={it.id} to={`/files?path=${it.id}`}>
+                                <Flex>
                                     <Truncate fontSize="14px" title={it.specification.title} maxWidth={"140px"} color="var(--fixedWhite)">
                                         <Icon size={12} mr="4px" name="hdd" color="#fff" color2="#fff" />
                                         {it.specification.title}
                                     </Truncate>
-                                </Link>
 
-                                <Flex ml="auto" mr="5px" my="auto">
-                                    <ProviderLogo providerId={it.specification.product.provider} size={20} />
+                                    <Flex ml="auto" mr="5px" my="auto">
+                                        <ProviderLogo providerId={it.specification.product.provider} size={20} />
+                                    </Flex>
                                 </Flex>
-                            </Flex>
+                            </Link>
                         )}
                     </li>
 
                     <li>
-                        <span>Favorite files</span>
+                        <div>Favorite files</div>
                         {favoriteFiles.data.items.length === 0 ? <TextSpan fontSize={"var(--secondaryText)"}>No favorite files</TextSpan> : null}
                         {favoriteFiles.data.items.map(it =>
-                            <Flex
-                                key={it.path}
-                                ml="9px"
-                                cursor="pointer"
-                                onClick={() => navigateByFileType(it, invokeCommand, navigate)}
-                            >
-                                <Flex mx="auto" my="auto">
-                                    <Icon name="starFilled" size={12} mr="4px" color="#fff" color2="#fff" />
+                            <span key={it.path}>
+                                <Flex
+                                    cursor="pointer"
+                                    onClick={() => navigateByFileType(it, invokeCommand, navigate)}
+                                >
+                                    <Flex mx="auto" my="auto">
+                                        <Icon name="starFilled" size={12} mr="4px" color="#fff" color2="#fff" />
+                                    </Flex>
+                                    <Truncate fontSize={"14px"} color="#fff">{fileName(it.path)}</Truncate>
                                 </Flex>
-                                <Truncate fontSize={"14px"} color="#fff">{fileName(it.path)}</Truncate>
-                            </Flex>
+                            </span>
                         )}
                     </li>
 

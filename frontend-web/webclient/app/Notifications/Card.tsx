@@ -47,7 +47,7 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
         onMouseLeave={onMouseLeaveMemo}
         onClick={props.onAction}
     >
-        <Card backgroundColor="white" border={`solid 2px var(--${props.isPinned ? "orange" : "blue"})`}>
+        <Card backgroundColor="var(--white)" border={`solid 2px var(--${props.isPinned ? "orange" : "blue"})`}>
             <div className="notification-inner">
                 <Icon name={props.icon} size="32px" color={props.iconColor ?? "iconColor"}
                     color2={props.iconColor2 ?? "iconColor2"} />
