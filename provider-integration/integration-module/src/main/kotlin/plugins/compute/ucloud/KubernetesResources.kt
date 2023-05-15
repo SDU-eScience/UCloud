@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins.compute.ucloud
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNames
 import kotlinx.serialization.json.JsonObject
 
 object KubernetesResources {
@@ -594,7 +595,7 @@ data class Service(
 ) {
     @Serializable
     data class Spec(
-        var clueterIP: String? = null,
+        var clusterIP: String? = null,
         var externalIPs: List<String> = emptyList(),
         var externalName: String? = null,
         var externalTrafficPolicy: String? = null,
@@ -680,17 +681,34 @@ data class Node(
     var apiVersion: String = "v1",
     var kind: String = "Node",
     var metadata: ObjectMeta? = null,
-    var status: Status? = null
+    var status: Status? = null,
+    var spec: Spec? = null,
 ) {
     @Serializable
     data class Status(
-        var allocatable: Allocatable? = null
+        var allocatable: Allocatable? = null,
+        var capacity: Capacity? = null,
+    )
+
+    @Serializable
+    data class Capacity(
+        var cpu: String? = null,
+        var memory: String? = null,
+        @SerialName("nvidia.com/gpu")
+        var nvidiaGpu: String? = null
     )
 
     @Serializable
     data class Allocatable(
-        var cpu: Int? = null,
-        var memory: String? = null
+        var cpu: String? = null,
+        var memory: String? = null,
+        @SerialName("nvidia.com/gpu")
+        var nvidiaGpu: String? = null,
+    )
+
+    @Serializable
+    data class Spec(
+        var unschedulable: Boolean? = null
     )
 }
 

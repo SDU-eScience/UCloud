@@ -4,7 +4,6 @@ import dk.sdu.cloud.app.orchestrator.api.CpuAndMemory
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.utils.forEachGraal
 import io.ktor.http.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -22,11 +21,19 @@ class KubernetesNode(private val node: Node, val categoryToSelector: Map<String,
     }
 
     override suspend fun retrieveCapacity(): CpuAndMemory {
-        val vCpu = node.status?.allocatable?.cpu?.toDouble() ?: 0.0
+        val vCpu = cpuStringToMilliCpus(node.status?.allocatable?.cpu).toDouble() ?: 0.0
         val memory = memoryStringToBytes(node.status?.allocatable?.memory)
         return CpuAndMemory(vCpu, memory)
     }
 
+    private val notNumbers = Regex("[^0-9]")
+    private fun cpuStringToMilliCpus(cpuString: String?): Int {
+        return when {
+            cpuString.isNullOrBlank() -> 0
+            cpuString.endsWith("m") -> notNumbers.replace(cpuString, "").toInt()
+            else -> notNumbers.replace(cpuString, "").toInt() * 1000
+        }
+    }
     companion object {
         private fun memoryStringToBytes(memory: String?): Long {
             val numbersOnly = Regex("[^0-9]")
@@ -81,34 +88,32 @@ class VolcanoRuntime(
         return VolcanoContainerBuilder(jobId, replicas, k8.nameAllocator, k8, categoryToSelector, fakeIpMount = fakeIpMount).also(block)
     }
 
-    override suspend fun scheduleGroup(group: List<ContainerBuilder>) {
-        group.forEachGraal { c ->
-            if (c !is VolcanoContainerBuilder) error("This runtime only accepts volcano jobs")
+    override suspend fun schedule(container: ContainerBuilder) {
+        if (container !is VolcanoContainerBuilder) error("This runtime only accepts volcano jobs")
 
-            k8.client.createResource(
-                KubernetesResourceLocator.common.volcanoJob.withNamespace(k8.nameAllocator.namespace()),
-                defaultMapper.encodeToString(VolcanoJob.serializer(), c.job)
-            )
+        k8.client.createResource(
+            KubernetesResourceLocator.common.volcanoJob.withNamespace(k8.nameAllocator.namespace()),
+            defaultMapper.encodeToString(VolcanoJob.serializer(), container.job)
+        )
 
-            val networkPolicy = c.myPolicy
-            for (attempt in 1..5) {
-                try {
-                    k8.client.createResource(
-                        KubernetesResourceLocator.common.networkPolicies.withNamespace(k8.nameAllocator.namespace()),
-                        defaultMapper.encodeToString(NetworkPolicy.serializer(), networkPolicy)
-                    )
-                    break
-                } catch (ex: KubernetesException) {
-                    if (ex.statusCode == HttpStatusCode.Conflict) {
-                        k8.client.deleteResource(
-                            KubernetesResources.networkPolicies.withNameAndNamespace(
-                                networkPolicy.metadata!!.name!!,
-                                k8.nameAllocator.namespace()
-                            )
+        val networkPolicy = container.myPolicy
+        for (attempt in 1..5) {
+            try {
+                k8.client.createResource(
+                    KubernetesResourceLocator.common.networkPolicies.withNamespace(k8.nameAllocator.namespace()),
+                    defaultMapper.encodeToString(NetworkPolicy.serializer(), networkPolicy)
+                )
+                break
+            } catch (ex: KubernetesException) {
+                if (ex.statusCode == HttpStatusCode.Conflict) {
+                    k8.client.deleteResource(
+                        KubernetesResources.networkPolicies.withNameAndNamespace(
+                            networkPolicy.metadata!!.name!!,
+                            k8.nameAllocator.namespace()
                         )
-                    }
-                    delay(500)
+                    )
                 }
+                delay(500)
             }
         }
     }

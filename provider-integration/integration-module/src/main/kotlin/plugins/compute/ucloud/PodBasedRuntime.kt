@@ -8,7 +8,6 @@ import dk.sdu.cloud.plugins.storage.ucloud.FsSystem
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.*
-import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -21,7 +20,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
-import java.io.OutputStream
 import kotlin.math.roundToInt
 
 abstract class PodBasedContainer : Container {
@@ -121,15 +119,16 @@ abstract class PodBasedContainer : Container {
     override suspend fun watchLogs(scope: CoroutineScope): ReceiveChannel<String> {
         return scope.produce {
             coroutineScope {
+                val readBuffer = ByteArray(1024 * 32)
+                val podMeta = pod.metadata!!
+                val podName = podMeta.name!!
+                val namespace = podMeta.namespace!!
+
                 loop@ while (isActive && !isClosedForSend) {
                     // Guarantee that we don't spin too much. Unfortunately we don't have an API for selecting on the
                     // ByteReadChannel.
                     delay(50)
 
-                    val readBuffer = ByteArray(1024 * 32)
-                    val podMeta = pod.metadata!!
-                    val podName = podMeta.name!!
-                    val namespace = podMeta.namespace!!
                     k8Client.sendRequest(
                         HttpMethod.Get,
                         KubernetesResources.pod.withNameAndNamespace(podName, namespace),
@@ -137,8 +136,9 @@ abstract class PodBasedContainer : Container {
                         "log",
                         longRunning = true,
                     ).execute { resp ->
-                        val podChannel = resp.bodyAsChannel()
+                        if (!resp.status.isSuccess()) return@execute
 
+                        val podChannel = resp.bodyAsChannel()
                         while (isActive && !podChannel.isClosedForRead) {
                             val read = podChannel.readAvailable(readBuffer)
                             if (read > 0) {
@@ -169,7 +169,7 @@ abstract class PodBasedContainer : Container {
         )
     }
 
-    override val ipAddress: String get() = pod.status!!.podIP!!
+    val ipAddress: String get() = pod.status!!.podIP!!
 
     override val annotations: Map<String, String>
         get() {
@@ -212,6 +212,7 @@ abstract class PodBasedContainer : Container {
             if (systemName == "ucloud") systemName = "CephFS"
             val pathName = mount.subPath ?: return@mapNotNull null
             if (systemName == "shm") return@mapNotNull null
+            if (systemName.startsWith("module-")) return@mapNotNull null
             UCloudMount(systemName, pathName)
         }
     }
@@ -220,9 +221,9 @@ abstract class PodBasedContainer : Container {
 abstract class PodBasedBuilder : ContainerBuilder {
     abstract val podSpec: Pod.Spec
 
-    protected val container: Pod.Container get() = podSpec.containers!![0]
-    protected val volumeMounts: ArrayList<Pod.Container.VolumeMount> get() = container.volumeMounts as ArrayList
-    protected val volumes: ArrayList<Volume> get() = podSpec.volumes as ArrayList
+    val container: Pod.Container get() = podSpec.containers!![0]
+    val volumeMounts: ArrayList<Pod.Container.VolumeMount> get() = container.volumeMounts as ArrayList
+    val volumes: ArrayList<Volume> get() = podSpec.volumes as ArrayList
 
     protected abstract val fakeIpMount: Boolean
 
@@ -389,17 +390,29 @@ abstract class PodBasedBuilder : ContainerBuilder {
         }
     }
 
+    private var vCpuMillisField: Int = 0
     override var vCpuMillis: Int
-        get() = error("Read not supported")
-        set(value) = addResource("cpu", "${value}m")
+        get() = vCpuMillisField
+        set(value) {
+            vCpuMillisField = value
+            addResource("cpu", "${value}m")
+        }
 
+    private var memoryMegabytesField: Int = 0
     override var memoryMegabytes: Int
-        get() = error("Read not supported")
-        set(value) = addResource("memory", "${value}M")
+        get() = memoryMegabytesField
+        set(value) {
+            memoryMegabytesField = value
+            addResource("memory", "${value}M")
+        }
 
+    private var gpusField: Int = 0
     override var gpus: Int
-        get() = error("Read not supported")
-        set(value) = addResource("nvidia.com/gpu", "$value")
+        get() = gpusField
+        set(value) {
+            gpusField = value
+            addResource("nvidia.com/gpu", "$value")
+        }
 
     private fun addResource(key: String, value: String) {
         val limits = container.resources?.limits?.toMutableMap() ?: HashMap()

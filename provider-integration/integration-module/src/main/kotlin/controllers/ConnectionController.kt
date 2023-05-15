@@ -125,6 +125,8 @@ class ConnectionController(
                         onSshKeySynchronized(request.username, request.allKeys)
                     }
                 }
+
+                ok(Unit)
             }
         }
 

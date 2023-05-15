@@ -637,7 +637,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
         /* HACK(Jonas): to ensure the toggleSet knows of the page contents when checking all. */
         toggleSet.allItems.current = items;
         const allChecked = toggleSet.checked.items.length === items.length && items.length > 0;
-        const sizeAllocationForEmbeddedAndCard = Math.min(500, items.length * 56);
+        const sizeAllocationForEmbeddedAndCard = Math.min(530, items.length * 56);
         return <>
             {pageSize.current > 0 ? (
                 <Spacer mr="8px" left={

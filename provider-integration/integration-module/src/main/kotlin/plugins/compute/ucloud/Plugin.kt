@@ -5,8 +5,11 @@ import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.PaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.cli.genericCommandLineHandler
 import dk.sdu.cloud.cli.sendCommandLineUsage
@@ -16,6 +19,7 @@ import dk.sdu.cloud.controllers.ComputeSessionIpc
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.ipc.IpcContainer
+import dk.sdu.cloud.ipc.IpcHandler
 import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.logThrowable
@@ -31,6 +35,7 @@ import dk.sdu.cloud.plugins.ipcServer
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.plugins.storage.ucloud.UCloudFilePlugin
 import dk.sdu.cloud.utils.forEachGraal
+import dk.sdu.cloud.utils.sendTerminalMessage
 import dk.sdu.cloud.utils.sendTerminalTable
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -39,6 +44,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.selects.select
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlin.coroutines.coroutineContext
 
@@ -68,12 +74,15 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
 
     @OptIn(DelicateCoroutinesApi::class)
     override suspend fun PluginContext.initialize() {
+        registerCli()
         if (!config.shouldRunServerCode()) return
 
         files = config.plugins.files[pluginName] as? UCloudFilePlugin
             ?: run {
-                error("Must have storage configured for the UCloud compute plugin ($pluginName). " +
-                        "It appears that '${pluginName}' does not point to a valid UCloud storage plugin.")
+                error(
+                    "Must have storage configured for the UCloud compute plugin ($pluginName). " +
+                            "It appears that '${pluginName}' does not point to a valid UCloud storage plugin."
+                )
             }
 
         jobCache = VerifiedJobCache(rpcClient)
@@ -96,10 +105,39 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
         )
 
         runtime = when (pluginConfig.scheduler) {
-            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Volcano -> VolcanoRuntime(k8, pluginConfig.kubernetes.categoryToSelector,
-                pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
-            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> K8PodRuntime(k8.client, pluginConfig.kubernetes.namespace,
-                pluginConfig.kubernetes.categoryToSelector, pluginConfig.developmentMode.fakeIpMount, pluginConfig.developmentMode.usePortForwarding)
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Volcano -> {
+                VolcanoRuntime(
+                    k8,
+                    pluginConfig.kubernetes.categoryToSelector,
+                    pluginConfig.developmentMode.fakeIpMount,
+                    pluginConfig.developmentMode.usePortForwarding
+                )
+            }
+
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> {
+                K8PodRuntime(
+                    k8.client,
+                    pluginConfig.kubernetes.namespace,
+                    pluginConfig.kubernetes.categoryToSelector,
+                    pluginConfig.developmentMode.fakeIpMount,
+                    pluginConfig.developmentMode.usePortForwarding
+                )
+            }
+
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods2 -> {
+                Pod2Runtime(
+                    k8,
+                    pluginConfig.kubernetes.namespace,
+                    pluginConfig.kubernetes.categoryToSelector,
+                    pluginConfig.developmentMode.fakeIpMount,
+                    pluginConfig.developmentMode.usePortForwarding,
+                    pluginConfig.kubernetes.defaultNodeType
+                )
+            }
+        }
+
+        when (val rt = runtime) {
+            is Pod2Runtime -> rt.start()
         }
 
         nameAllocator.runtime = runtime
@@ -170,12 +208,11 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             register(FeatureExpiry)
             register(FeatureAccounting)
             register(FeatureMiscellaneous)
-            register(FeatureNetworkLimit)
-            register(FeatureFairShare)
             register(FeatureFirewall)
             register(FeatureFileOutput(files.fs))
             register(FeatureSshKeys(pluginConfig.ssh?.subnets ?: emptyList()))
             syncthingService?.also { register(it) }
+            register(FeatureModules) // Must run after both fileMountPlugin and FeatureParameter
         }
 
         files.driveLocator.onEnteringMaintenanceMode {
@@ -183,7 +220,76 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
         }
     }
 
+    private suspend fun PluginContext.registerCli() {
+        commandLineInterface?.addHandler(CliHandler("ucloud-compute") { args ->
+            val client = ipcClient
+
+            fun sendHelp(): Nothing = sendCommandLineUsage("ucloud-compute", "UCloud Compute") {
+                subcommand(
+                    "status",
+                    "Print status of the cluster (if available). Unstable format, please submit an issue before " +
+                            "parsing this format for production use."
+                )
+            }
+
+            genericCommandLineHandler {
+                when (args.getOrNull(0)) {
+                    "status" -> {
+                        val resp = client.sendRequest(Ipc.status, Unit)
+                        sendTerminalMessage { line(resp.text) }
+                    }
+
+                    else -> {
+                        sendHelp()
+                    }
+                }
+            }
+        })
+
+        ipcServerOptional?.addHandler(Ipc.status.handler { user, request ->
+            if (user.uid != 0) throw RPCException("Not root", HttpStatusCode.Forbidden)
+
+            val rt = runtime
+            if (rt is Pod2Runtime) {
+                StringWrapper(rt.dumpState())
+            } else {
+                StringWrapper("Status unavailable for this scheduler")
+            }
+        })
+    }
+
+    @Serializable
+    private data class StringWrapper(val text: String)
+    private object Ipc : IpcContainer("ucloud_compute_cli") {
+        val status = updateHandler("status", Unit.serializer(), StringWrapper.serializer())
+    }
+
+    private suspend fun scheduleInQueueJobs() {
+        var next: String? = null
+        while (true) {
+            val page = JobsControl.browse.call(
+                ResourceBrowseRequest(
+                    JobIncludeFlags(filterState = JobState.IN_QUEUE),
+                    itemsPerPage = 250,
+                    next = next
+                ),
+                k8.serviceClient
+            ).orThrow()
+
+            for (item in page.items) {
+                jobManagement.create(item)
+            }
+
+            next = page.next ?: break
+        }
+    }
+
     override suspend fun PluginContext.runMonitoringLoopInServerMode() {
+        if (runtime.requiresReschedulingOfInQueueJobsOnStartup()) {
+            scheduleInQueueJobs()
+            runtime.notifyReschedulingComplete()
+        }
+
         while (coroutineContext.isActive) {
             try {
                 jobManagement.runMonitoring()
@@ -381,7 +487,10 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             ?: throw RPCException("Not supported by provider", HttpStatusCode.BadRequest)
     }
 
-    suspend fun killJobsEnteringMaintenanceMode(dryRun: Boolean = false, dryMaintenanceMode: List<Long> = emptyList()): List<String> {
+    suspend fun killJobsEnteringMaintenanceMode(
+        dryRun: Boolean = false,
+        dryMaintenanceMode: List<Long> = emptyList()
+    ): List<String> {
         val result = ArrayList<String>()
         for (job in runtime.list()) {
             val internalMounts = job.mountedDirectories().mapNotNull { dir ->
@@ -400,7 +509,7 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
 
                 if (isInMaintenanceMode) {
                     if (!dryRun) {
-                        k8.addStatus(job.jobId, "Job is going down for maintenance")
+                        if (job.rank == 0) k8.addStatus(job.jobId, "Job is going down for maintenance")
                         job.cancel()
                     }
                     result.add(job.jobId)
@@ -507,22 +616,29 @@ class UCloudPublicIPPlugin : PublicIPPlugin {
         commandLineInterface?.addHandler(CliHandler("uc-ip-pool") { args ->
             val ipcClient = ipcClient
 
-            fun sendHelp(): Nothing = sendCommandLineUsage("uc-ip-pool", "View information about IPs in the public IP pool") {
-                subcommand("ls", "List the available ranges in the pool")
+            fun sendHelp(): Nothing =
+                sendCommandLineUsage("uc-ip-pool", "View information about IPs in the public IP pool") {
+                    subcommand("ls", "List the available ranges in the pool")
 
-                subcommand("rm", "Delete an entry in the pool") {
-                    arg(
-                        "externalSubnet",
-                        description = "The external IP subnet to remove from the pool. " +
-                                "This will _not_ invalidate already allocated IP addresses."
-                    )
-                }
+                    subcommand("rm", "Delete an entry in the pool") {
+                        arg(
+                            "externalSubnet",
+                            description = "The external IP subnet to remove from the pool. " +
+                                    "This will _not_ invalidate already allocated IP addresses."
+                        )
+                    }
 
-                subcommand("add", "Adds a new range to the pool") {
-                    arg("externalSubnet", description = "The external IP subnet to add to the pool. For example: 10.0.0.0/24.")
-                    arg("internalSubnet", description = "The internal IP subnet to add to the pool. For example: 10.0.0.0/24.")
+                    subcommand("add", "Adds a new range to the pool") {
+                        arg(
+                            "externalSubnet",
+                            description = "The external IP subnet to add to the pool. For example: 10.0.0.0/24."
+                        )
+                        arg(
+                            "internalSubnet",
+                            description = "The internal IP subnet to add to the pool. For example: 10.0.0.0/24."
+                        )
+                    }
                 }
-            }
 
             genericCommandLineHandler {
                 when (args.getOrNull(0)) {
