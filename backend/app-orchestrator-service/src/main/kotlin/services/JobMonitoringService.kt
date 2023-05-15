@@ -73,7 +73,7 @@ class JobMonitoringService(
             val now = Time.now()
             if (now >= nextScan) {
                 debug.useContext(DebugContextType.BACKGROUND_TASK, "Job monitoring", MessageImportance.TELL_ME_EVERYTHING) {
-                    val jobs = db.withSession { session ->
+                    val jobIds = db.withSession { session ->
                         session
                             .sendPreparedStatement(
                                 {
@@ -104,13 +104,15 @@ class JobMonitoringService(
                             .rows
                             .map { it.getLong(0)!! }
                             .toSet()
-                            .let { set ->
-                                jobOrchestrator.retrieveBulk(
-                                    actorAndProject = ActorAndProject(Actor.System, null),
-                                    set.map { id -> id.toString() },
-                                    permissionOneOf = listOf(Permission.READ)
-                                )
-                            }
+                    }
+
+                    val jobs = db.withSession { session ->
+                        jobOrchestrator.retrieveBulk(
+                            actorAndProject = ActorAndProject(Actor.System, null),
+                            jobIds.map { id -> id.toString() },
+                            permissionOneOf = listOf(Permission.READ),
+                            requireAll = false
+                        )
                     }
 
                     val jobsByProvider = jobs.map { it }.groupBy { it.specification.product.provider }
