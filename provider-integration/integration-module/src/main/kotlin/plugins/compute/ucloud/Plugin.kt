@@ -221,17 +221,27 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
     private suspend fun scheduleInQueueJobs() {
         var next: String? = null
         while (true) {
-            val page = JobsControl.browse.call(
-                ResourceBrowseRequest(
-                    JobIncludeFlags(filterState = JobState.IN_QUEUE),
-                    itemsPerPage = 250,
-                    next = next
-                ),
-                k8.serviceClient
-            ).orThrow()
+            val page = try {
+                JobsControl.browse.call(
+                    ResourceBrowseRequest(
+                        JobIncludeFlags(filterState = JobState.IN_QUEUE),
+                        itemsPerPage = 250,
+                        next = next
+                    ),
+                    k8.serviceClient
+                ).orThrow()
+            } catch (ex: Throwable) {
+                ex.printStackTrace()
+                delay(1000)
+                continue
+            }
 
             for (item in page.items) {
-                jobManagement.create(item)
+                try {
+                    jobManagement.create(item)
+                } catch (ex: Throwable) {
+                    ex.printStackTrace()
+                }
             }
 
             next = page.next ?: break
