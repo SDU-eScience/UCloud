@@ -54,6 +54,7 @@ import Relative from "./Relative";
 import Absolute from "./Absolute";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {setAppFavorites} from "@/Applications/Redux/Actions";
+import {toggleTheme} from "@/Core";
 
 const SidebarElementContainerClass = injectStyle("sidebar-element", k => `
     ${k} {
@@ -294,8 +295,7 @@ function UserMenuExternalLink(props: {icon: IconName; href: string; text: string
 
 const UserMenu: React.FunctionComponent<{
     avatar: AvatarType;
-    onToggleTheme: (e: React.SyntheticEvent<HTMLDivElement, Event>) => void;
-}> = ({avatar, onToggleTheme}) => {
+}> = ({avatar}) => {
     return <ClickableDropdown
         width="230px"
         left="var(--sidebarWidth)"
@@ -333,14 +333,14 @@ const UserMenu: React.FunctionComponent<{
             <Flex cursor="auto">
                 <ThemeToggler
                     isLightTheme={isLightThemeStored()}
-                    onClick={onToggleTheme}
+                    onClick={toggleTheme}
                 />
             </Flex>
         </span>
     </ClickableDropdown>;
 }
 
-export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | null => {
+export const Sidebar = (): JSX.Element | null => {
     const sidebarEntries = sideBarMenuElements;
     const {loggedIn, avatar} = useSidebarReduxProps();
 
@@ -412,7 +412,7 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
 
                 <Notification />
                 <Support />
-                <UserMenu avatar={avatar} onToggleTheme={onToggleTheme} />
+                <UserMenu avatar={avatar} />
             </div>
 
             <SecondarySidebar
@@ -424,11 +424,6 @@ export const Sidebar = ({toggleTheme}: {toggleTheme(): void;}): JSX.Element | nu
             />
         </div>
     );
-
-    function onToggleTheme(e: React.SyntheticEvent<HTMLDivElement, Event>): void {
-        stopPropagationAndPreventDefault(e);
-        toggleTheme();
-    }
 };
 
 function useSidebarFilesPage(): [

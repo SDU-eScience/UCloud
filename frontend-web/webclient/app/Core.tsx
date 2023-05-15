@@ -315,26 +315,19 @@ const _ignored = injectStyle("ignored", () => `
 Client.initializeStore(store);
 removeExpiredFileUploads();
 
+const isLight = isLightThemeStored();
+toggleCssColors(isLight);
+export function toggleTheme(): void {
+    const isLight = isLightThemeStored();
+    toggleCssColors(!isLight);
+    setSiteTheme(!isLight);
+}
+
 function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
-    const [isLightTheme, setTheme] = React.useState(() => {
-        const isLight = isLightThemeStored();
-        toggleCssColors(isLight);
-        return isLight;
-    });
-    const setAndStoreTheme = (isLight: boolean): void => {
-        setSiteTheme(isLight);
-        setTheme(isLight)
-    }
-
-    function toggle(): void {
-        toggleCssColors(isLightTheme);
-        setAndStoreTheme(!isLightTheme);
-    }
-
     return (
         <BrowserRouter basename="app">
             <Flex>
-                <Sidebar toggleTheme={toggle} />
+                <Sidebar />
                 {children}
             </Flex>
         </BrowserRouter>

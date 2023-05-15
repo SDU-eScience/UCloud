@@ -276,9 +276,8 @@ const UsageChartViewer: React.FunctionComponent<{
         return [result, names];
     }, [c.chart]);
 
-    const formatter = useCallback((amount: number) => {
-        return usageExplainer(amount, c.type, c.chargeType, c.unit);
-    }, [c.type, c.chargeType, c.unit])
+    const formatter = useCallback((amount: number) =>
+        usageExplainer(amount, c.type, c.chargeType, c.unit), [c.type, c.chargeType, c.unit]);
 
     return <UsageChartStyle>
         <Flex alignItems={"center"}>
