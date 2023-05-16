@@ -52,9 +52,12 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 locationBar: false,
                 showStar: false,
                 renderSpinnerWhenLoading: true,
-                breadcrumbsSeperatedBySlashes: false,
+                breadcrumbsSeparatedBySlashes: true,
                 search: true,
+                filters: true,
+                sortDirection: true,
             };
+
 
             // Load products and initialize dependencies
             // =========================================================================================================
@@ -72,9 +75,9 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 permissions: {myself: []}
             };
 
-            const supportPromise = supportByProvider.retrieve("", () => {
-                return callAPI(FileCollectionsApi.retrieveProducts());
-            });
+            const supportPromise = supportByProvider.retrieve("", () =>
+                callAPI(FileCollectionsApi.retrieveProducts())
+            );
 
             supportPromise.then(res => {
                 browser.renderOperations();
@@ -332,8 +335,9 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             // Network requests
             // =========================================================================================================
             const defaultRetrieveFlags: {itemsPerPage: number} = {
-                itemsPerPage: 250
+                itemsPerPage: 250,
             };
+
             browser.on("open", (oldPath, newPath) => {
                 if (newPath !== "/") {
                     navigate("/files/?path=" + encodeURIComponent(`/${newPath}`));

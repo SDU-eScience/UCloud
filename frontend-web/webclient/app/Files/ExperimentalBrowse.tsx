@@ -45,7 +45,6 @@ import {Operation} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {setPopInChild} from "@/ui-components/PopIn";
-import {FilePreview} from "./Preview";
 import AppRoutes from "@/Routes";
 
 // Cached network data
@@ -87,6 +86,8 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 showStar: true,
                 renderSpinnerWhenLoading: true,
                 search: true,
+                sortDirection: true,
+                filters: true,
             };
 
             // Metadata utilities
@@ -446,6 +447,33 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     fileName(path)
                 );
             };
+
+            browser.on("fetchFilters", () => ([{
+                type: "options",
+                key: "sortBy",
+                text: "Sort by",
+                options: [{
+                    color: "black",
+                    text: "Name",
+                    icon: "id",
+                    value: "PATH"
+                }, {
+                    color: "black",
+                    icon: "edit",
+                    text: "Modified at",
+                    value: "MODIFIED_AT"
+                }, {
+                    color: "black",
+                    icon: "fullscreen",
+                    text: "Size",
+                    value: "SIZE"
+                }]
+            }, {
+                type: "checkbox",
+                key: "example",
+                text: "example",
+                options: []
+            }]));
 
             browser.on("fetchOperations", () => {
                 function groupOperations<T, R>(ops: Operation<T, R>[]): OperationOrGroup<T, R>[] {
@@ -837,7 +865,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 lastFetch[path] = now;
                 delete browser.emptyReasons[path];
 
-                const promise = callAPI(FilesApi.browse({path, ...defaultRetrieveFlags}))
+                const promise = callAPI(FilesApi.browse({path, ...defaultRetrieveFlags, ...browser.browseFilters}))
                     .then(result => {
                         browser.registerPage(result, path, true);
                         return false;
