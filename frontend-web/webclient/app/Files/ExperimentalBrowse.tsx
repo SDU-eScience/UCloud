@@ -468,11 +468,6 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     text: "Size",
                     value: "SIZE"
                 }]
-            }, {
-                type: "checkbox",
-                key: "example",
-                text: "example",
-                options: []
             }]));
 
             browser.on("fetchOperations", () => {
