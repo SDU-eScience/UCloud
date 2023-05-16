@@ -393,8 +393,9 @@ export class ResourceBrowser<T> {
             const wrapper = document.createElement("div");
             wrapper.style.display = "flex";
             wrapper.style.cursor = "pointer";
-            wrapper.style.width = "100px";
+            wrapper.style.width = "110px";
             const text = document.createElement("span");
+            text.style.marginRight = "5px";
             text.innerText = SORT_DIRECTIONS.text;
             const chevronIcon = document.createElement("img");
             this.icons.renderIcon({name: "chevronDownLight", color: "text", color2: "text", width: 12, height: 12}).then(url => chevronIcon.src = url);
@@ -415,11 +416,23 @@ export class ResourceBrowser<T> {
                 switch (f.type) {
                     case "checkbox": {
                         const wrapper = document.createElement("label");
+                        wrapper.style.cursor = "pointer";
                         wrapper.textContent = f.text;
                         const check = document.createElement("input");
+                        check.style.marginLeft = "5px";
+                        check.style.cursor = "pointer";
                         check.type = "checkbox";
                         wrapper.appendChild(check);
                         this.filters.appendChild(wrapper);
+                        wrapper.onclick = e => {
+                            e.stopImmediatePropagation();
+                            if (this.browseFilters[f.key]) {
+                                delete this.browseFilters[f.key];
+                            } else {
+                                this.browseFilters[f.key] = "true";
+                            }
+                            this.open(this.currentPath, true);
+                        }
                         continue;
                     }
                     case "options": {
@@ -428,6 +441,7 @@ export class ResourceBrowser<T> {
                         wrapper.style.cursor = "pointer";
                         wrapper.style.width = "100px";
                         const text = document.createElement("span");
+                        text.style.marginRight = "5px";
                         text.innerText = f.text;
                         const chevronIcon = document.createElement("img");
                         this.icons.renderIcon({name: "chevronDownLight", color: "text", color2: "text", width: 12, height: 12}).then(url => chevronIcon.src = url);
