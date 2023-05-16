@@ -13,14 +13,44 @@ import {PageV2} from "@/UCloud";
 import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 
-/* BUGS FOUND
-    - Double click/accesssing is available for files (not directory)
-    - Coloring of Icons does not seem do fully work.
+/*
+ BUGS FOUND
 */
 
 /* MISSING FEATURES
     - Handling projects that cannot consume resources.
 */
+
+type Filter = FilterWithOptions | FilterCheckbox;
+
+interface FilterWithOptions {
+    type: "options";
+    key: string;
+    text: string;
+    options: FilterOption[];
+}
+
+interface FilterCheckbox {
+    type: "checkbox";
+    key: string;
+    text: string;
+}
+
+interface FilterOption {
+    text: string;
+    icon: IconName;
+    color: ThemeColor;
+    value: string;
+}
+const SORT_DIRECTIONS: FilterWithOptions = {
+    type: "options",
+    key: "sortDirection",
+    text: "Sort order",
+    options: [
+        {color: "black", icon: "sortAscending", text: "Ascending", value: "ascending"},
+        {color: "black", icon: "sortDescending", text: "Descending", value: "descending"}
+    ]
+};
 
 export type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
 
@@ -105,6 +135,7 @@ interface ResourceBrowserListenerMap<T> {
     "nameOfEntry": (entry: T) => string;
 
     "sort": (page: T[]) => void;
+    "fetchFilters": () => Filter[];
 }
 
 interface ResourceBrowserRow {
@@ -127,21 +158,24 @@ interface ResourceBrowseFeatures {
     showProjectSelector?: boolean;
     showStar?: boolean;
     renderSpinnerWhenLoading?: boolean;
-    breadcrumbsSeperatedBySlashes?: boolean;
+    breadcrumbsSeparatedBySlashes?: boolean;
     search?: boolean;
+    filters?: boolean;
+    sortDirection?: boolean;
 }
 
 export class ResourceBrowser<T> {
     // DOM component references
-    root: HTMLElement;
-    operations: HTMLElement;
-    header: HTMLElement;
-    breadcrumbs: HTMLUListElement;
-    scrolling: HTMLDivElement;
-    entryDragIndicator: HTMLDivElement;
-    entryDragIndicatorContent: HTMLDivElement;
-    dragIndicator: HTMLDivElement;
-    rows: ResourceBrowserRow[] = [];
+    private root: HTMLElement;
+    private operations: HTMLElement;
+    private filters: HTMLElement;
+    private header: HTMLElement;
+    private breadcrumbs: HTMLUListElement;
+    private scrolling: HTMLDivElement;
+    private entryDragIndicator: HTMLDivElement;
+    /* private */ entryDragIndicatorContent: HTMLDivElement;
+    private dragIndicator: HTMLDivElement;
+    private rows: ResourceBrowserRow[] = [];
 
     // Selection state
     private isSelected = new Uint8Array(0);
@@ -157,10 +191,10 @@ export class ResourceBrowser<T> {
     currentPath: string;
 
     // Cached values and temporary state for DOM events
-    scrollingContainerWidth;
-    scrollingContainerHeight;
-    scrollingContainerTop;
-    scrollingContainerLeft;
+    scrollingContainerWidth: number;
+    scrollingContainerHeight: number;
+    scrollingContainerTop: number;
+    scrollingContainerLeft: number;
     private processingShortcut: boolean = false;
     private ignoreScrollEvent = false;
     private ignoreRowClicksUntil: number = 0;
@@ -191,6 +225,9 @@ export class ResourceBrowser<T> {
 
     icons: SvgCache = new SvgCache();
     private didPerformInitialOpen = false;
+
+    // Filters
+    browseFilters: Record<string, string> = {};
 
     // Inline searching
     searchQuery: string = "";
@@ -227,6 +264,8 @@ export class ResourceBrowser<T> {
         showStar: false,
         search: true,
         renderSpinnerWhenLoading: true, // automatically inserts the spinner graphic before invoking "renderEmptyPage"
+        filters: false,
+        sortDirection: false,
     };
 
     private listeners: Record<string, any[]> = {};
@@ -251,6 +290,7 @@ export class ResourceBrowser<T> {
                     <img class="refresh-icon">
                 </div>
                 <div class="operations"></div>
+                <div class="filters"></div>
             </header>
             
             <div style="overflow-y: auto; position: relative;">
@@ -280,6 +320,7 @@ export class ResourceBrowser<T> {
         this.renameField = this.root.querySelector<HTMLInputElement>(".rename-field")!;
         this.locationBar = this.root.querySelector<HTMLInputElement>(".location-bar")!;
         this.header = this.root.querySelector("header")!; // Add UtilityBar
+        this.filters = this.root.querySelector<HTMLDivElement>(".filters")!;
         this.breadcrumbs = this.root.querySelector<HTMLUListElement>("header ul")!;
         this.emptyPageElement = {
             container: this.root.querySelector(".page-empty")!,
@@ -297,7 +338,7 @@ export class ResourceBrowser<T> {
 
         this.breadcrumbs.setAttribute(
             "data-no-slashes",
-            (this.features.breadcrumbsSeperatedBySlashes === false).toString()
+            (this.features.breadcrumbsSeparatedBySlashes === false).toString()
         );
 
         if (this.features.locationBar) {
@@ -342,6 +383,69 @@ export class ResourceBrowser<T> {
                 }
             }
         }
+
+        if (this.features.filters || this.features.sortDirection) {
+            // Note(Jonas): Expand height of header if filters/sort-directions are available.
+            this.header.setAttribute("data-has-filters", "");
+        }
+
+        if (this.features.sortDirection) {
+            const wrapper = document.createElement("div");
+            wrapper.style.display = "flex";
+            wrapper.style.cursor = "pointer";
+            wrapper.style.width = "100px";
+            const text = document.createElement("span");
+            text.innerText = SORT_DIRECTIONS.text;
+            const chevronIcon = document.createElement("img");
+            this.icons.renderIcon({name: "chevronDownLight", color: "text", color2: "text", width: 12, height: 12}).then(url => chevronIcon.src = url);
+            wrapper.appendChild(text);
+            wrapper.appendChild(chevronIcon);
+            this.filters.append(wrapper);
+            
+            wrapper.onclick = e => {
+                const wrapperRect = wrapper.getBoundingClientRect();
+                e.stopImmediatePropagation();
+                this.renderFiltersInContextMenu(SORT_DIRECTIONS, wrapperRect.x, wrapperRect.y + wrapperRect.height);
+            }
+        }
+        
+        if (this.features.filters) {
+            const filters = this.dispatchMessage("fetchFilters", k => k());
+            for (const f of filters) {
+                switch (f.type) {
+                    case "checkbox": {
+                        const wrapper = document.createElement("label");
+                        wrapper.textContent = f.text;
+                        const check = document.createElement("input");
+                        check.type = "checkbox";
+                        wrapper.appendChild(check);
+                        this.filters.appendChild(wrapper);
+                        continue;
+                    }
+                    case "options": {
+                        const wrapper = document.createElement("div");
+                        wrapper.style.display = "flex";
+                        wrapper.style.cursor = "pointer";
+                        wrapper.style.width = "100px";
+                        const text = document.createElement("span");
+                        text.innerText = f.text;
+                        const chevronIcon = document.createElement("img");
+                        this.icons.renderIcon({name: "chevronDownLight", color: "text", color2: "text", width: 12, height: 12}).then(url => chevronIcon.src = url);
+                        wrapper.appendChild(text);
+                        wrapper.appendChild(chevronIcon);
+                        this.filters.appendChild(wrapper);
+                        
+                        wrapper.onclick = e => {
+                            const wrapperRect = wrapper.getBoundingClientRect();
+                            e.stopImmediatePropagation();
+                            this.renderFiltersInContextMenu(f, wrapperRect.x, wrapperRect.y + wrapperRect.height);
+                        }
+                        continue;
+                    }
+                }
+            }
+        }
+
 
         {
             // Render refresh icon
@@ -815,6 +919,103 @@ export class ResourceBrowser<T> {
 
     renderOperations() {
         this.renderOperationsIn(false);
+    }
+
+    private renderFiltersInContextMenu(filter: FilterWithOptions, x: number, y: number) {
+        const renderOpIconAndText = (
+            op: FilterOption,
+            element: HTMLElement,
+            shortcut?: string,
+        ) => {
+            {
+                // Set the icon
+                const icon = image(placeholderImage, {height: 16, width: 16, alt: "Icon"});
+                element.append(icon);
+                this.icons.renderIcon({
+                    name: op.icon as IconName,
+                    color: op.color as ThemeColor,
+                    color2: "iconColor2",
+                    width: 64,
+                    height: 64,
+                }).then(url => icon.src = url);
+            }
+
+            {
+                // ...and the text
+                let operationText = op.text;
+                if (operationText) element.append(operationText);
+                if (operationText && shortcut) {
+                    const shortcutElem = document.createElement("kbd");
+                    shortcutElem.append(shortcut);
+                    element.append(shortcutElem);
+                }
+            }
+        }
+
+        const renderFilterInContextMenu = (
+            options: FilterOption[],
+            posX: number,
+            posY: number
+        ) => {
+            var counter = 1;
+            const menu = this.contextMenu;
+            let actualPosX = posX;
+            let actualPosY = posY;
+            menu.innerHTML = "";
+
+            const itemSize = 40;
+            let opCount = options.length;
+            const listHeight = opCount * itemSize;
+            const listWidth = 400;
+
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+
+            if (posX + listWidth >= windowWidth - 32) {
+                actualPosX -= listWidth;
+            }
+
+            if (posY + listHeight >= windowHeight - 32) {
+                actualPosY -= listHeight;
+            }
+
+            menu.style.transform = `translate(0, -${listHeight / 2}px) scale3d(1, 0.1, 1)`;
+            window.setTimeout(() => menu.style.transform = "scale3d(1, 1, 1)", 0);
+            menu.style.display = "block";
+            menu.style.opacity = "1";
+
+            menu.style.top = actualPosY + "px";
+            menu.style.left = actualPosX + "px";
+
+            const menuList = document.createElement("ul");
+            menu.append(menuList);
+            let shortcutNumber = counter;
+            for (const child of options) {
+                const item = document.createElement("li");
+                renderOpIconAndText(child, item, shortcutNumber <= 9 ? `[${shortcutNumber}]` : undefined);
+
+                const myIndex = shortcutNumber - 1;
+                this.contextMenuHandlers.push(() => {
+                    this.browseFilters[filter.key] = child.value;
+                    this.open(this.currentPath, true);
+                });
+                item.addEventListener("mouseover", () => {
+                    this.findActiveContextMenuItem(true);
+                    this.selectContextMenuItem(myIndex);
+                });
+                item.addEventListener("click", ev => {
+                    ev.stopPropagation();
+                    this.findActiveContextMenuItem(true);
+                    this.selectContextMenuItem(myIndex);
+                    this.onContextMenuItemSelection();
+                });
+
+                menuList.append(item);
+                shortcutNumber++;
+            }
+        };
+
+        renderFilterInContextMenu(filter.options, x, y);
     }
 
     private renderOperationsIn(useContextMenu: boolean, contextOpts?: {
@@ -2094,6 +2295,7 @@ export class ResourceBrowser<T> {
         startRenderPage: doNothing,
         endRenderPage: doNothing,
         beforeShortcut: doNothing,
+        fetchFilters: () => [],
 
         renderLocationBar: prompt => {
             return {rendered: prompt, normalized: prompt};
@@ -2174,13 +2376,17 @@ export class ResourceBrowser<T> {
                 white-space: pre;
             }
 
+            .file-browser .filters {
+                display: flex;
+            }
+
             .file-browser .file-drag-indicator-content img {
                 margin-right: 8px;
             }
 
             .file-browser .file-drag-indicator {
                 transition: transform 0.06s;
-                background: #DAE4FD;
+                background: var(--tableRowHighlight);
                 width: 1px;
                 overflow: hidden;
             }
@@ -2232,6 +2438,10 @@ export class ResourceBrowser<T> {
                 height: 100px;
                 flex-shrink: 0;
                 overflow: hidden;
+            }
+            
+            .file-browser header[data-has-filters] {
+                height: 136px;
             }
 
             .file-browser header .location-bar,
@@ -2396,7 +2606,7 @@ export class ResourceBrowser<T> {
             }
 
             .file-browser .context-menu li[data-selected=true] {
-                background: #DAE4FD;
+                background: var(--tableRowHighlight);
             }
 
             .file-browser .rename-field {
