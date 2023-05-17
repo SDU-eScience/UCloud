@@ -168,7 +168,7 @@ export class ResourceBrowser<T> {
     // DOM component references
     private root: HTMLElement;
     private operations: HTMLElement;
-    private filters: HTMLElement;
+    /* private */ filters: HTMLElement;
     private header: HTMLElement;
     private breadcrumbs: HTMLUListElement;
     private scrolling: HTMLDivElement;
@@ -390,27 +390,7 @@ export class ResourceBrowser<T> {
         }
 
         if (this.features.sortDirection) {
-            const wrapper = document.createElement("div");
-            wrapper.style.display = "flex";
-            wrapper.style.cursor = "pointer";
-            wrapper.style.width = "110px";
-            const text = document.createElement("span");
-            text.style.marginRight = "5px";
-            text.innerText = SORT_DIRECTIONS.text;
-            const chevronIcon = document.createElement("img");
-            chevronIcon.width = 12;
-            chevronIcon.height = 12;
-            chevronIcon.style.marginTop = "7px";
-            this.icons.renderIcon({name: "chevronDownLight", color: "text", color2: "text", width: 12, height: 12}).then(url => chevronIcon.src = url);
-            wrapper.appendChild(text);
-            wrapper.appendChild(chevronIcon);
-            this.filters.append(wrapper);
-
-            wrapper.onclick = e => {
-                const wrapperRect = wrapper.getBoundingClientRect();
-                e.stopImmediatePropagation();
-                this.renderFiltersInContextMenu(SORT_DIRECTIONS, wrapperRect.x, wrapperRect.y + wrapperRect.height);
-            }
+            addOptionsToFilter(SORT_DIRECTIONS, this);
         }
 
         if (this.features.filters) {
@@ -418,48 +398,11 @@ export class ResourceBrowser<T> {
             for (const f of filters) {
                 switch (f.type) {
                     case "checkbox": {
-                        const wrapper = document.createElement("label");
-                        wrapper.style.cursor = "pointer";
-                        wrapper.textContent = f.text;
-                        const check = document.createElement("input");
-                        check.style.marginLeft = "5px";
-                        check.style.cursor = "pointer";
-                        check.type = "checkbox";
-                        wrapper.appendChild(check);
-                        this.filters.appendChild(wrapper);
-                        wrapper.onclick = e => {
-                            e.stopImmediatePropagation();
-                            if (this.browseFilters[f.key]) {
-                                delete this.browseFilters[f.key];
-                            } else {
-                                this.browseFilters[f.key] = "true";
-                            }
-                            this.open(this.currentPath, true);
-                        }
+                        addCheckboxToFilter(f, this);
                         continue;
                     }
                     case "options": {
-                        const wrapper = document.createElement("div");
-                        wrapper.style.display = "flex";
-                        wrapper.style.cursor = "pointer";
-                        wrapper.style.width = "100px";
-                        const text = document.createElement("span");
-                        text.style.marginRight = "5px";
-                        text.innerText = f.text;
-                        const chevronIcon = document.createElement("img");
-                        chevronIcon.width = 12;
-                        chevronIcon.height = 12;
-                        chevronIcon.style.marginTop = "7px";
-                        this.icons.renderIcon({name: "chevronDownLight", color: "text", color2: "text", width: 12, height: 12}).then(url => chevronIcon.src = url);
-                        wrapper.appendChild(text);
-                        wrapper.appendChild(chevronIcon);
-                        this.filters.appendChild(wrapper);
-
-                        wrapper.onclick = e => {
-                            const wrapperRect = wrapper.getBoundingClientRect();
-                            e.stopImmediatePropagation();
-                            this.renderFiltersInContextMenu(f, wrapperRect.x, wrapperRect.y + wrapperRect.height);
-                        }
+                        addOptionsToFilter(f, this);
                         continue;
                     }
                 }
@@ -941,7 +884,7 @@ export class ResourceBrowser<T> {
         this.renderOperationsIn(false);
     }
 
-    private renderFiltersInContextMenu(filter: FilterWithOptions, x: number, y: number) {
+    public renderFiltersInContextMenu(filter: FilterWithOptions, x: number, y: number) {
         const renderOpIconAndText = (
             op: FilterOption,
             element: HTMLElement,
@@ -2684,6 +2627,57 @@ export function image(src: string, opts?: {alt?: string; height?: number; width?
     if (opts?.height != null) result.height = opts.height;
     if (opts?.width != null) result.width = opts.width;
     return result;
+}
+
+// Helper functions for filters. They might need a new home.
+function createChevronImg(): HTMLImageElement {
+    const c = document.createElement("img");
+    c.width = 12;
+    c.height = 12;
+    c.style.marginTop = "7px";
+    return c;
+}
+
+function addCheckboxToFilter<T>(filter: FilterCheckbox, resourceBrowser: ResourceBrowser<T>) {
+    const wrapper = document.createElement("label");
+    wrapper.style.cursor = "pointer";
+    wrapper.textContent = filter.text;
+    const check = document.createElement("input");
+    check.style.marginLeft = "5px";
+    check.style.cursor = "pointer";
+    check.type = "checkbox";
+    wrapper.appendChild(check);
+    resourceBrowser.filters.appendChild(wrapper);
+    wrapper.onclick = e => {
+        e.stopImmediatePropagation();
+        if (resourceBrowser.browseFilters[filter.key]) {
+            delete resourceBrowser.browseFilters[filter.key];
+        } else {
+            resourceBrowser.browseFilters[filter.key] = "true";
+        }
+        resourceBrowser.open(resourceBrowser.currentPath, true);
+    }
+}
+
+function addOptionsToFilter<T>(filter: FilterWithOptions, resourceBrowser: ResourceBrowser<T>) {
+    const wrapper = document.createElement("div");
+    wrapper.style.display = "flex";
+    wrapper.style.cursor = "pointer";
+    wrapper.style.width = "100px";
+    const text = document.createElement("span");
+    text.style.marginRight = "5px";
+    text.innerText = filter.text;
+    const chevronIcon = createChevronImg();
+    resourceBrowser.icons.renderIcon({name: "chevronDownLight", color: "text", color2: "text", width: 12, height: 12}).then(url => chevronIcon.src = url);
+    wrapper.appendChild(text);
+    wrapper.appendChild(chevronIcon);
+    resourceBrowser.filters.appendChild(wrapper);
+
+    wrapper.onclick = e => {
+        const wrapperRect = wrapper.getBoundingClientRect();
+        e.stopImmediatePropagation();
+        resourceBrowser.renderFiltersInContextMenu(filter, wrapperRect.x, wrapperRect.y + wrapperRect.height);
+    }
 }
 
 // https://stackoverflow.com/a/13139830
