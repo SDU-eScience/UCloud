@@ -105,7 +105,6 @@ class JobManagement(
         val actualJob = JobsControl.retrieve.call(
             ResourceRetrieveRequest(
                 JobIncludeFlags(
-                    includeProduct = true,
                     includeApplication = true,
                     includeParameters = true,
                 ),
@@ -279,9 +278,6 @@ class JobManagement(
         if (didAcquire) {
             log.info("This service has become the master responsible for handling Kubernetes events!")
 
-            // NOTE(Dan): Delay the initial scan to wait for server to be ready (needed for local dev)
-            delay(15_000)
-
             val isAlive = true
             whileGraal({currentCoroutineContext().isActive && isAlive}) {
                 k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "Unsuspend queue", MessageImportance.IMPLEMENTATION_DETAIL) {
@@ -375,9 +371,9 @@ class JobManagement(
                                     }
                                 }
 
-                                event.updatedState != null || event.updatedRunning != null -> {
+                                else -> {
                                     val message = event.newRoot?.stateAndMessage()?.second
-                                    val newState: JobState? = event.updatedState
+                                    val newState: JobState? = event.newRoot?.stateAndMessage()?.first
 
                                     if (newState != null) {
                                         if (newState == JobState.SUCCESS) {
@@ -400,7 +396,7 @@ class JobManagement(
                                                 message,
                                             )
 
-                                            if (didChangeState) {
+                                            if (didChangeState && newState == JobState.RUNNING) {
                                                 features.forEach { feature ->
                                                     with(feature) {
                                                         onJobStart(event.newRoot!!, event.newReplicas)
@@ -408,15 +404,9 @@ class JobManagement(
                                                 }
                                             }
                                         }
-                                    } else {
-                                        if (message != null) k8.addStatus(event.jobId, message)
                                     }
 
                                     debugUpdates++
-                                }
-
-                                else -> {
-                                    // Do nothing, just run the normal job monitoring.
                                 }
                             }
                         }

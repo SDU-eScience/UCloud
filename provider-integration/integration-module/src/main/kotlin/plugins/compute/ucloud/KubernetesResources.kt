@@ -681,7 +681,8 @@ data class Node(
     var apiVersion: String = "v1",
     var kind: String = "Node",
     var metadata: ObjectMeta? = null,
-    var status: Status? = null
+    var status: Status? = null,
+    var spec: Spec? = null,
 ) {
     @Serializable
     data class Status(
@@ -703,6 +704,11 @@ data class Node(
         var memory: String? = null,
         @SerialName("nvidia.com/gpu")
         var nvidiaGpu: String? = null,
+    )
+
+    @Serializable
+    data class Spec(
+        var unschedulable: Boolean? = null
     )
 }
 

@@ -76,6 +76,7 @@ interface ContainerRuntime {
     }
 
     fun requiresReschedulingOfInQueueJobsOnStartup(): Boolean = false
+    fun notifyReschedulingComplete() {}
 }
 
 data class Tunnel(val hostnameOrIpAddress: String, val port: Int, val close: suspend () -> Unit)
