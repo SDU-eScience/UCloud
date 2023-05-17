@@ -76,7 +76,6 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         background-color: var(--sidebarSecondaryColor);
         transition: transform 0.1s;
         width: 0;
-        
         display: flex;
         flex-direction: column;
         transform: translate(-300px, 0);
@@ -90,6 +89,13 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k}[data-open="true"] {
         transform: translate(0, 0);
         padding: 12px 16px 16px 16px;
+    }
+
+    ${k}[data-as-pop-over="true"] {
+        position: absolute;
+        left: var(--sidebarWidth);
+        height: 100vh;
+        z-index: 1;
     }
     
     ${k} header {
@@ -512,7 +518,7 @@ function SecondarySidebar({
     }, [isOpen]);
 
     const active = hovered ? hovered : clicked;
-    /* TODO(Jonas): hovering should slide over, while clicking should push */
+    const asPopOver = hovered && !clicked;
     return <div
         className={SecondarySidebarClass + " " + SIDEBAR_IDENTIFIER}
         onTransitionEnd={toggleSize}
@@ -520,6 +526,7 @@ function SecondarySidebar({
             if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover();
         }}
         data-open={isOpen}
+        data-as-pop-over={asPopOver}
         ref={rootRef}
     >
         <header>

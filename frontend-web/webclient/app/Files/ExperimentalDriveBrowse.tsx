@@ -1,12 +1,11 @@
 import * as React from "react";
-import {useLocation, useNavigate} from "react-router";
-import {useEffect, useLayoutEffect, useRef, useState} from "react";
+import {useNavigate} from "react-router";
+import {useLayoutEffect, useRef} from "react";
 import {
     div,
     image,
     EmptyReasonTag,
     ResourceBrowser,
-    SelectionMode,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -177,12 +176,25 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 );
             };
 
+            browser.on("fetchFilters", () => [{
+                key: "sortBy",
+                text: "Sort by",
+                type: "options",
+                options: [{
+                    color: "black", icon: "id", text: "Name", value: "title"
+                }, {
+                    color: "black", icon: "calendar", text: "Date created", value: "createdAt"
+                }, {
+                    color: "black", icon: "user", text: "Created by", value: "createdBy"
+                }]
+            }]);
+
             browser.on("fetchOperationsCallback", () => {
                 const cachedSupport = supportByProvider.retrieveFromCacheOnly("");
                 const support = cachedSupport ?? {productsByProvider: {}};
                 const callbacks: ResourceBrowseCallbacks<FileCollection> = {
                     supportByProvider: support,
-                    dispatch: dispatch,
+                    dispatch,
                     embedded: false,
                     isWorkspaceAdmin: false,
                     navigate: to => {navigate(to)},
@@ -346,7 +358,8 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
 
                 collectionsOnOpen.retrieve("", () =>
                     callAPI(FileCollectionsApi.browse({
-                        ...defaultRetrieveFlags
+                        ...defaultRetrieveFlags,
+                        ...browser.browseFilters
                     }))
                 ).then(res => {
                     browser.registerPage(res, newPath, true);
