@@ -398,18 +398,21 @@ export class ResourceBrowser<T> {
             text.style.marginRight = "5px";
             text.innerText = SORT_DIRECTIONS.text;
             const chevronIcon = document.createElement("img");
+            chevronIcon.width = 12;
+            chevronIcon.height = 12;
+            chevronIcon.style.marginTop = "7px";
             this.icons.renderIcon({name: "chevronDownLight", color: "text", color2: "text", width: 12, height: 12}).then(url => chevronIcon.src = url);
             wrapper.appendChild(text);
             wrapper.appendChild(chevronIcon);
             this.filters.append(wrapper);
-            
+
             wrapper.onclick = e => {
                 const wrapperRect = wrapper.getBoundingClientRect();
                 e.stopImmediatePropagation();
                 this.renderFiltersInContextMenu(SORT_DIRECTIONS, wrapperRect.x, wrapperRect.y + wrapperRect.height);
             }
         }
-        
+
         if (this.features.filters) {
             const filters = this.dispatchMessage("fetchFilters", k => k());
             for (const f of filters) {
@@ -444,11 +447,14 @@ export class ResourceBrowser<T> {
                         text.style.marginRight = "5px";
                         text.innerText = f.text;
                         const chevronIcon = document.createElement("img");
+                        chevronIcon.width = 12;
+                        chevronIcon.height = 12;
+                        chevronIcon.style.marginTop = "7px";
                         this.icons.renderIcon({name: "chevronDownLight", color: "text", color2: "text", width: 12, height: 12}).then(url => chevronIcon.src = url);
                         wrapper.appendChild(text);
                         wrapper.appendChild(chevronIcon);
                         this.filters.appendChild(wrapper);
-                        
+
                         wrapper.onclick = e => {
                             const wrapperRect = wrapper.getBoundingClientRect();
                             e.stopImmediatePropagation();
@@ -2392,6 +2398,7 @@ export class ResourceBrowser<T> {
 
             .file-browser .filters {
                 display: flex;
+                margin-top: 12px;
             }
 
             .file-browser .file-drag-indicator-content img {
