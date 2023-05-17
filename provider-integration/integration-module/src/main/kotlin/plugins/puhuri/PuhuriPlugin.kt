@@ -23,6 +23,7 @@ import dk.sdu.cloud.plugins.connection.OpenIdConnectSubject
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.provider.api.IntegrationControl
 import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.sql.bindStringNullable
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
@@ -699,12 +700,18 @@ class PuhuriClient(
     @OptIn(InternalAPI::class)
     private suspend fun HttpResponse.orThrow(): HttpResponse {
         if (!status.isSuccess()) {
+            val error = content.toByteArray().toString(Charsets.UTF_8)
+            log.debug("Puhuri responded with an error: $error from ${request.url}")
             throw RPCException(
-                content.toByteArray().toString(Charsets.UTF_8),
+                error,
                 HttpStatusCode.parse(status.value)
             )
         }
         return this
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
