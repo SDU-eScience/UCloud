@@ -23,21 +23,21 @@ alter table accounting.product_categories add column accounting_frequency text;
 with insert_units as (
     update accounting.product_categories
     set accounting_frequency = 'ONCE'
-    where unit_of_price = 'PER_UNIT'
+    where unit_of_price::text = 'PER_UNIT'
 ),
 insert_minutes as (
     update accounting.product_categories
     set accounting_frequency = 'PERIODIC_MINUTE'
-    where unit_of_price like '%PER_MINUTE'
+    where unit_of_price::text like '%PER_MINUTE'
 ),
 insert_hours as (
     update accounting.product_categories
     set accounting_frequency = 'PERIODIC_HOUR'
-    where unit_of_price like '%PER_HOUR'
+    where unit_of_price::text like '%PER_HOUR'
 )
 update accounting.product_categories
 set accounting_frequency = 'PERIODIC_DAY'
-where unit_of_price like '%PER_DAY';
+where unit_of_price::text like '%PER_DAY';
 
 --Create AccountingUnits
 with dkkinsert as (
@@ -47,8 +47,8 @@ with dkkinsert as (
 ),
 update_categories_credits as (
     update accounting.product_categories
-    set accounting_unit = id from dkkinsert
-    where postgres.accounting.product_categories.unit_of_price like 'CREDITS_PER%'
+    set accounting_unit = dkkinsert.id from dkkinsert
+    where postgres.accounting.product_categories.unit_of_price::text like 'CREDITS_PER%'
 ),
 licenseInsert as (
     insert into accounting.accounting_units
@@ -57,7 +57,7 @@ licenseInsert as (
 ),
 update_categories_license as (
     update accounting.product_categories
-    set accounting_unit = id from licenseInsert
+    set accounting_unit = licenseInsert.id from licenseInsert
     where product_type = 'LICENSE'
 ),
 ingressInsert as (
@@ -67,7 +67,7 @@ ingressInsert as (
 ),
 update_categories_ingress as (
     update accounting.product_categories
-    set accounting_unit = id from ingressInsert
+    set accounting_unit = ingressInsert.id from ingressInsert
     where product_type = 'INGRESS'
 ),
 networkInsert as (
@@ -77,7 +77,7 @@ networkInsert as (
 ),
 update_categories_network as (
     update accounting.product_categories
-    set accounting_unit = id from networkInsert
+    set accounting_unit = networkInsert.id from networkInsert
     where product_type = 'NETWORK_IP'
 ),
 storageInsert as (
@@ -87,17 +87,17 @@ storageInsert as (
 ),
 update_categories_storage as (
     update accounting.product_categories
-    set accounting_unit = id from storageInsert
+    set accounting_unit = storageInsert.id from storageInsert
     where product_type = 'STORAGE'
 ),
 coreHourInsert as (
     insert into accounting.accounting_units
     (name, name_plural, floating_point, display_frequency_suffix)
-    values ('Core hour', 'Core hours', false, true)
+    values ('Core hour', 'Core hours', false, true) returning id
 )
 update accounting.product_categories
-set accounting_unit = id from coreHourInsert
-where unit_of_price like 'UNITS_PER%';
+set accounting_unit = coreHourInsert.id from coreHourInsert
+where unit_of_price::text like 'UNITS_PER%';
 
 alter table accounting.product_categories add foreign key (accounting_unit) references accounting.accounting_units(id);
 
@@ -132,7 +132,7 @@ create table if not exists transaction_history(
 
 create table if not exists charge_details(
     id bigserial not null primary key,
-    transaction_id text not null references transaction_history(transaction_id),
+    transaction_id text not null,
     description text,
     usage bigint,
     product_id text

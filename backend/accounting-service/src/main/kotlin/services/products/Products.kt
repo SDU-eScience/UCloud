@@ -9,6 +9,7 @@ import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
@@ -18,9 +19,107 @@ class ProductService(
     private val db: DBContext,
     private val processor: AccountingProcessor
 ) {
-    suspend fun create(
+
+    suspend fun productV1toV2(product: Product): ProductV2 {
+        val category = db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("category", product.category.name)
+                    setParameter("provider", product.category.provider)
+                },
+                """
+                select accounting.product_category_to_json(pc, ac)
+                from accounting.product_categories pc join 
+                    accounting.accounting_unit au on ac.id = pc.accounting_unit
+                where category = :category and provider = :provider
+            """.trimIndent()
+            ).rows
+                .map {data ->
+                    defaultMapper.decodeFromString<ProductCategory>(data.getString(0)!!)
+                }.singleOrNull() ?:
+            throw RPCException("Wrong amount of categories found", HttpStatusCode.InternalServerError)
+
+        }
+        return when (product) {
+            is Product.Compute -> {
+                ProductV2.Compute(
+                    name = product.name,
+                    price = product.pricePerUnit,
+                    category = category,
+                    description = product.description,
+                    cpu = product.cpu,
+                    memoryInGigs = product.memoryInGigs,
+                    gpu = product.gpu,
+                    cpuModel = product.cpuModel,
+                    memoryModel = product.memoryModel,
+                    gpuModel = product.gpuModel,
+                    freeToUse = product.freeToUse,
+                    hiddenInGrantApplications = product.hiddenInGrantApplications
+                )
+            }
+            is Product.Storage -> {
+                ProductV2.Storage(
+                    name = product.name,
+                    price = product.pricePerUnit,
+                    category = category,
+                    description = product.description,
+                    freeToUse = product.freeToUse,
+                    hiddenInGrantApplications = product.hiddenInGrantApplications
+                )
+            }
+            is Product.License -> {
+                ProductV2.License(
+                    name = product.name,
+                    price = product.pricePerUnit,
+                    category = category,
+                    description = product.description,
+                    freeToUse = product.freeToUse,
+                    hiddenInGrantApplications = product.hiddenInGrantApplications,
+                    tags = product.tags
+                )
+            }
+            is Product.NetworkIP -> {
+                ProductV2.NetworkIP(
+                    name = product.name,
+                    price = product.pricePerUnit,
+                    category = category,
+                    description = product.description,
+                    freeToUse = product.freeToUse,
+                    hiddenInGrantApplications = product.hiddenInGrantApplications
+                )
+            }
+            is Product.Ingress -> {
+                ProductV2.Ingress(
+                    name = product.name,
+                    price = product.pricePerUnit,
+                    category = category,
+                    description = product.description,
+                    freeToUse = product.freeToUse,
+                    hiddenInGrantApplications = product.hiddenInGrantApplications
+                )
+            }
+            else -> {
+                throw RPCException("Unknown Product Type", HttpStatusCode.InternalServerError)
+            }
+        }
+
+    }
+    suspend fun createV1(
         actorAndProject: ActorAndProject,
         request: BulkRequest<Product>
+    ) {
+        val newProducts = request.items.map { product ->
+            productV1toV2(product)
+        }
+
+        createV2(
+            actorAndProject,
+            bulkRequestOf(newProducts)
+        )
+    }
+    suspend fun createV2(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<ProductV2>
     ) {
         for (req in request.items) {
             requirePermission(actorAndProject.actor, req.category.provider, readOnly = false)
@@ -33,25 +132,39 @@ class ProductService(
                     {
                         setParameter("provider", req.category.provider)
                         setParameter("category", req.category.name)
-                        setParameter("charge_type", req.chargeType.name)
-                        setParameter("product_type", req.productType.name)
-                        setParameter("unit_of_price", req.unitOfPrice.name)
+
+                        setParameter("acname", req.category.accountingUnit.name)
+                        setParameter("name_plural", req.category.accountingUnit.namePlural)
+                        setParameter("floating", req.category.accountingUnit.floatingPoint)
+                        setParameter("display", req.category.accountingUnit.displayFrequencySuffix)
+
+                        setParameter("frequency", req.category.accountingFrequency.name)
                     },
                     """
+                        with acinsert as (
+                            insert into accounting.accounting_units 
+                            (name, name_plural, floating_point, display_frequency_suffix)
+                            values (
+                                :acname,
+                                :name_plural,
+                                :floating,
+                                :display
+                            ) on conflict (name, name_plural, floating_point, display_frequency_suffix)
+                            do update set name_plural = :name_plural
+                            returning id 
+                        )
                         insert into accounting.product_categories
-                        (provider, category, product_type, charge_type, unit_of_price) 
+                        (provider, category, product_type, accounting_unit, accounting_frequency) 
                         values (
                             :provider, 
                             :category, 
                             :product_type::accounting.product_type, 
-                            :charge_type::accounting.charge_type, 
-                            :unit_of_price::accounting.product_price_unit
+                            acinsert.id,
+                            :frequency
                         )
                         on conflict (provider, category)  
                         do update set
-                            charge_type = excluded.charge_type,
-                            product_type = excluded.product_type,
-                            unit_of_price = excluded.unit_of_price
+                            product_type = excluded.product_type
                     """
                 )
             }
@@ -60,7 +173,7 @@ class ProductService(
                 {
                     // NOTE(Dan): The version property is no longer used and instead we simply update the products
                     val names by parameterList<String>()
-                    val pricesPerUnit by parameterList<Long>()
+                    val prices by parameterList<Long>()
                     val cpus by parameterList<Int?>()
                     val gpus by parameterList<Int?>()
                     val memoryInGigs by parameterList<Int?>()
@@ -75,21 +188,21 @@ class ProductService(
 
                     for (req in request.items) {
                         names.add(req.name)
-                        pricesPerUnit.add(req.pricePerUnit)
+                        prices.add(req.price)
                         categories.add(req.category.name)
                         providers.add(req.category.provider)
                         freeToUse.add(req.freeToUse)
-                        licenseTags.add(if (req is Product.License) defaultMapper.encodeToString(req.tags) else null)
+                        licenseTags.add(if (req is ProductV2.License) defaultMapper.encodeToString(req.tags) else null)
                         description.add(req.description)
 
                         run {
-                            cpus.add(if (req is Product.Compute) req.cpu else null)
-                            gpus.add(if (req is Product.Compute) req.gpu else null)
-                            memoryInGigs.add(if (req is Product.Compute) req.memoryInGigs else null)
+                            cpus.add(if (req is ProductV2.Compute) req.cpu else null)
+                            gpus.add(if (req is ProductV2.Compute) req.gpu else null)
+                            memoryInGigs.add(if (req is ProductV2.Compute) req.memoryInGigs else null)
 
-                            cpuModel.add(if (req is Product.Compute) req.cpuModel else null)
-                            gpuModel.add(if (req is Product.Compute) req.gpuModel else null)
-                            memoryModel.add(if (req is Product.Compute) req.memoryModel else null)
+                            cpuModel.add(if (req is ProductV2.Compute) req.cpuModel else null)
+                            gpuModel.add(if (req is ProductV2.Compute) req.gpuModel else null)
+                            memoryModel.add(if (req is ProductV2.Compute) req.memoryModel else null)
                         }
                     }
                 },
@@ -97,7 +210,7 @@ class ProductService(
                     with requests as (
                         select
                             unnest(:names::text[]) uname,
-                            unnest(:prices_per_unit::bigint[]) price_per_unit,
+                            unnest(:prices::bigint[]) price_per_unit,
                             unnest(:cpus::int[]) cpu,
                             unnest(:gpus::int[]) gpu,
                             unnest(:memory_in_gigs::int[]) memory_in_gigs,
@@ -157,19 +270,59 @@ class ProductService(
         ).items.singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 
+    suspend fun retrieve(
+        actorAndProject: ActorAndProject,
+        request: ProductsV2RetrieveRequest
+    ): ProductV2 {
+        return browse(
+            actorAndProject,
+            ProductsV2BrowseRequest(
+                filterName = request.filterName,
+                filterCategory = request.filterCategory,
+                filterProvider = request.filterProvider,
+                filterProductType = request.filterProductType,
+                includeBalance = request.includeBalance
+            )
+        ).items.singleOrNull()?.first ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+    }
+
     suspend fun browse(
         actorAndProject: ActorAndProject,
         request: ProductsBrowseRequest
     ): PageV2<Product> {
+        val newRequests = ProductsV2BrowseRequest(
+            itemsPerPage = request.itemsPerPage,
+            next = request.next,
+            consistency = request.consistency,
+            itemsToSkip = request.itemsToSkip,
+            filterName = request.filterName,
+            filterProvider = request.filterProvider,
+            filterProductType = request.filterArea,
+            filterCategory = request.filterCategory,
+            includeBalance = request.includeBalance,
+            includeMaxBalance = request.includeMaxBalance
+        )
+        val page = browse(actorAndProject, newRequests)
+        val items = page.items.map {
+            val product = it.first.toV1()
+            product.balance= it.second
+            product
+        }
+        return PageV2(page.itemsPerPage, items, page.next)
+    }
+
+    suspend fun browse(
+        actorAndProject: ActorAndProject,
+        request: ProductsV2BrowseRequest
+    ): PageV2<Pair<ProductV2,Long?>> {
         return db.withSession { session ->
             val itemsPerPage = request.normalize().itemsPerPage
             val rows = session.sendPreparedStatement(
                 {
                     setParameter("name_filter", request.filterName)
                     setParameter("provider_filter", request.filterProvider)
-                    setParameter("product_filter", request.filterArea?.name)
+                    setParameter("product_filter", request.filterProductType?.name)
                     setParameter("category_filter", request.filterCategory)
-                    setParameter("version_filter", request.filterVersion)
                     setParameter("accountId", actorAndProject.project ?: actorAndProject.actor.safeUsername())
                     setParameter("account_is_project", actorAndProject.project != null)
 
@@ -218,32 +371,31 @@ class ProductService(
             ).rows
 
             val result = rows.mapNotNull {
-                val product = defaultMapper.decodeFromString(Product.serializer(), it.getString(0)!!)
-                if (request.includeBalance == true) {
+                val product = defaultMapper.decodeFromString(ProductV2.serializer(), it.getString(0)!!)
+                val balance = if (request.includeBalance == true) {
                     val owner = actorAndProject.project ?: actorAndProject.actor.safeUsername()
                     val usage = processor.retrieveUsageFromProduct(owner, ProductCategoryIdV2(product.category.name, product.category.provider))
                         ?: return@mapNotNull null
                     val quota = processor.retrieveWalletsInternal(AccountingRequest.RetrieveWalletsInternal(actorAndProject.actor, owner))
-                        .wallets.find { wallet -> ProductCategoryId(wallet.paysFor.name, wallet.paysFor.provider) == product.category }
+                        .wallets.find { wallet -> ProductCategoryIdV2(wallet.paysFor.name, wallet.paysFor.provider) == ProductCategoryIdV2(product.category.name, product.category.provider) }
                         ?.allocations
                         ?.sumOf { allocation -> allocation.quota }
                         ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "missing wallet")
 
-                    val balance = quota - usage
-                    product.balance = balance
-                }
-                return@mapNotNull product
+                    quota - usage
+                } else {null}
+                return@mapNotNull Pair(product,balance)
             }
 
             val next = if (result.size < itemsPerPage) {
                 null
             } else buildString {
-                val last = result.last()
-                append(last.category.provider)
+                val lastElement = result.last().first
+                append(lastElement.category.provider)
                 append('@')
-                append(last.category.name)
+                append(lastElement.category.name)
                 append('@')
-                append(last.name)
+                append(lastElement.name)
             }
 
             PageV2(

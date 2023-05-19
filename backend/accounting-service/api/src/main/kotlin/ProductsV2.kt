@@ -2,6 +2,8 @@ package dk.sdu.cloud.accounting.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.provider.api.translateToChargeType
+import dk.sdu.cloud.provider.api.translateToProductPriceUnit
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
@@ -57,6 +59,8 @@ sealed class ProductV2 {
         checkSingleLine(::description, description)
     }
 
+    abstract fun toV1(): Product
+
     @Serializable
     @SerialName("storage")
     @UCloudApiStable
@@ -73,6 +77,16 @@ sealed class ProductV2 {
             verify()
         }
 
+        override fun toV1(): Product = Product.Storage(
+            name,
+            price,
+            ProductCategoryId(category.name, category.provider),
+            description,
+            freeToUse = freeToUse,
+            chargeType = translateToChargeType(category),
+            unitOfPrice = translateToProductPriceUnit(category),
+            hiddenInGrantApplications = hiddenInGrantApplications
+        )
         override fun toString() = super.toString()
     }
 
@@ -105,6 +119,22 @@ sealed class ProductV2 {
             if (memoryModel != null) checkSingleLine(::memoryModel, memoryModel, maximumSize = 128)
         }
 
+        override fun toV1(): Product = Product.Compute(
+            name,
+            price,
+            ProductCategoryId(category.name, category.provider),
+            description,
+            freeToUse = freeToUse,
+            chargeType = translateToChargeType(category),
+            unitOfPrice = translateToProductPriceUnit(category),
+            hiddenInGrantApplications = hiddenInGrantApplications,
+            cpu = cpu,
+            gpu = gpu,
+            memoryInGigs = memoryInGigs,
+            cpuModel = cpuModel,
+            gpuModel = gpuModel,
+            memoryModel = memoryModel
+        )
         override fun toString() = super.toString()
     }
 
@@ -123,6 +153,17 @@ sealed class ProductV2 {
         init {
             verify()
         }
+
+        override fun toV1(): Product = Product.Ingress(
+            name,
+            price,
+            ProductCategoryId(category.name, category.provider),
+            description,
+            freeToUse = freeToUse,
+            chargeType = translateToChargeType(category),
+            unitOfPrice = translateToProductPriceUnit(category),
+            hiddenInGrantApplications = hiddenInGrantApplications
+        )
 
         override fun toString() = super.toString()
     }
@@ -144,6 +185,17 @@ sealed class ProductV2 {
             verify()
         }
 
+        override fun toV1(): Product = Product.License(
+            name,
+            price,
+            ProductCategoryId(category.name, category.provider),
+            description,
+            tags = tags,
+            freeToUse = freeToUse,
+            chargeType = translateToChargeType(category),
+            unitOfPrice = translateToProductPriceUnit(category),
+            hiddenInGrantApplications = hiddenInGrantApplications
+        )
         override fun toString() = super.toString()
     }
 
@@ -162,6 +214,17 @@ sealed class ProductV2 {
         init {
             verify()
         }
+
+        override fun toV1(): Product = Product.NetworkIP(
+            name,
+            price,
+            ProductCategoryId(category.name, category.provider),
+            description,
+            freeToUse = freeToUse,
+            chargeType = translateToChargeType(category),
+            unitOfPrice = translateToProductPriceUnit(category),
+            hiddenInGrantApplications = hiddenInGrantApplications
+        )
 
         override fun toString() = super.toString()
     }
