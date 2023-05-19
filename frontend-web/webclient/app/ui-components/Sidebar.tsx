@@ -5,7 +5,6 @@ import {
     copyToClipboard,
     isLightThemeStored,
     joinToString,
-    stopPropagationAndPreventDefault,
     useFrameHidden
 } from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
@@ -89,11 +88,13 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k}[data-open="true"] {
         transform: translate(0, 0);
         padding: 12px 16px 16px 16px;
+        width: var(--secondarySidebarWidth);
     }
 
     ${k}[data-as-pop-over="true"] {
         position: absolute;
         left: var(--sidebarWidth);
+        width: var(--secondarySidebarWidth);
         height: 100vh;
         z-index: 1;
     }
@@ -346,7 +347,7 @@ const UserMenu: React.FunctionComponent<{
     </ClickableDropdown>;
 }
 
-export const Sidebar = (): JSX.Element | null => {
+export function Sidebar(): JSX.Element | null {
     const sidebarEntries = sideBarMenuElements;
     const {loggedIn, avatar} = useSidebarReduxProps();
 
@@ -381,7 +382,9 @@ export const Sidebar = (): JSX.Element | null => {
                 <div
                     className={SidebarItemsClass}
                     onMouseLeave={e => {
-                        if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) setHoveredPage("")
+                        if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) {
+                            setHoveredPage("")
+                        }
                     }}
                 >
                     {sidebar.map(({label, icon, to}) =>
@@ -502,32 +505,16 @@ function SecondarySidebar({
     }, [favoriteApps]);
 
     const appFavorites = useSelector<ReduxObject, compute.ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
-
-    const rootRef = React.useRef<HTMLDivElement>(null);
-    const toggleSize = useCallback(() => {
-        if (!rootRef.current) return;
-        const attribute = rootRef.current.getAttribute("data-open");
-        if (attribute === "false") rootRef.current.style.width = "0";
-    }, []);
-
     const isOpen = clicked !== "" || hovered !== "";
-    React.useEffect(() => {
-        const current = rootRef.current;
-        if (!current) return;
-        if (isOpen) current.style.width = "var(--secondarySidebarWidth)";
-    }, [isOpen]);
-
     const active = hovered ? hovered : clicked;
     const asPopOver = hovered && !clicked;
     return <div
         className={SecondarySidebarClass + " " + SIDEBAR_IDENTIFIER}
-        onTransitionEnd={toggleSize}
         onMouseLeave={e => {
             if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover();
         }}
         data-open={isOpen}
-        data-as-pop-over={asPopOver}
-        ref={rootRef}
+        data-as-pop-over={!!asPopOver}
     >
         <header>
             <h1>{active}</h1>
