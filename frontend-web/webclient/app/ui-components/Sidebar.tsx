@@ -489,6 +489,9 @@ function SecondarySidebar({
 }: SecondarySidebarProps): JSX.Element {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
+    
+    // Note(Jonas): Ensure re-render on project-change.
+    const _ = useProjectId();
 
     const navigate = useNavigate();
     const [, invokeCommand] = useCloudCommand();
