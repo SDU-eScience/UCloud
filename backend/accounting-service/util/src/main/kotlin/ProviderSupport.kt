@@ -14,6 +14,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.toReadableStacktrace
 import kotlinx.coroutines.*
+import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlin.coroutines.coroutineContext
 

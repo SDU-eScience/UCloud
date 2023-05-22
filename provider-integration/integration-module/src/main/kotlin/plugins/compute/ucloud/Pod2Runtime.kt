@@ -1024,13 +1024,15 @@ class Pod2ContainerBuilder(
         podSpec.hostAliases = podSpec.hostAliases?.toMutableList() ?: ArrayList()
         val aliases = podSpec.hostAliases as MutableList
         val podIp = runBlocking {
-            k8Client.getResource(
-                Pod.serializer(),
-                KubernetesResources.pod.withNameAndNamespace(
-                    idAndRankToPodName(jobId.toLong(), rank),
-                    namespace
-                )
-            ).status?.podIP
+            runCatching {
+                k8Client.getResource(
+                    Pod.serializer(),
+                    KubernetesResources.pod.withNameAndNamespace(
+                        idAndRankToPodName(jobId.toLong(), rank),
+                        namespace
+                    )
+                ).status?.podIP
+            }.getOrNull()
         } ?: return
 
         aliases.add(Pod.HostAlias(listOf(alias), podIp))
