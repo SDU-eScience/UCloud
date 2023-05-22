@@ -6,9 +6,7 @@ const ApplicationsOverview = React.lazy(() => import("./Applications/Overview"))
 const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("@/Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
-const FilesRouter = React.lazy(() => import("@/Files/Files"));
 const ProviderRouter = React.lazy(() => import("@/Admin/Providers/Router"));
-const FileCollectionsRouter = React.lazy(() => import("@/Files/FileCollections"));
 const MetadataNamespacesRouter = React.lazy(() => import("@/Files/Metadata/Templates/Namespaces"));
 const SharesAcceptLink = React.lazy(() => import("@/Files/SharesAcceptLink"));
 const ShareRouter = React.lazy(() => import("@/Files/Shares"));
@@ -82,6 +80,7 @@ import {LOGIN_REDIRECT_KEY} from "@/Login/Login";
 import AppRoutes from "./Routes";
 import {RightPopIn} from "./ui-components/PopIn";
 import {injectStyle, injectStyleSimple} from "./Unstyled";
+import FilesApi from "@/UCloud/FilesApi";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -103,6 +102,9 @@ const Core = (): JSX.Element => (
                         <Route path={AppRoutes.dashboard.dashboardB()}
                             element={React.createElement(requireAuth(Dashboard))} />
                         <Route path={"/drives/"} element={React.createElement(requireAuth(ExperimentalDriveBrowse))} />
+                        {/* Kind of a hardcoded solution, removing the generalised solution fro ResourceBrowse */}
+                        <Route path={`/files/properties/:id/`} element={<FilesApi.Properties api={FilesApi} />} />
+                        {/* Hardcoded solution end */}
                         <Route path={"/files/*"} element={React.createElement(requireAuth(ExperimentalFileBrowse))} />
                         <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
                         <Route path={"/shares/outgoing"} element={React.createElement(requireAuth(SharesOutgoing))} />

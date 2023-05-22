@@ -537,6 +537,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     navigate: to => navigate(to),
                     reload: () => browser.refresh(),
                     setSynchronization(file: UFile, shouldAdd: boolean): void {
+                        console.log("setSynchronization is a TODO!");
                         // TODO
                     },
                     startCreation(): void {
@@ -547,7 +548,12 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                         startRenaming(resource.id);
                     },
                     viewProperties(res: UFile): void {
-                        // TODO
+                        navigate(AppRoutes.resource.properties(FilesApi.routingNamespace, res.id))
+                        // Note(Jonas): Alternative solution, that might make more sense
+                        // dispatch(setPopInChild({
+                        //     el: <FilesApi.Properties inPopIn resource={res} reload={operations.reload} />,
+                        //     onFullScreen: () => navigate(AppRoutes.resource.properties(FilesApi.routingNamespace, res.id))
+                        // }));
                     },
                     commandLoading: false,
                     invokeCommand: call => callAPI(call),

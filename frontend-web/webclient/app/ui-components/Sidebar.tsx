@@ -227,31 +227,31 @@ interface SidebarMenuElements {
     predicate: () => boolean;
 }
 
-export const sideBarMenuElements: {
-    guest: SidebarMenuElements;
-    general: SidebarMenuElements;
-    auditing: SidebarMenuElements;
-    admin: SidebarMenuElements;
-} = {
-    guest: {
-        items: [
-            {icon: "sidebarFiles", label: "Files", to: AppRoutes.login.login()},
-            {icon: "sidebarProjects", label: "Projects", to: AppRoutes.login.login()},
-            {icon: "apps", label: "Apps", to: AppRoutes.login.login()}
-        ], predicate: () => !Client.isLoggedIn
-    },
-    general: {
-        items: [
-            {icon: "sidebarFiles", label: "Files", to: "/drives/"},
-            {icon: "sidebarProjects", label: "Projects"},
-            {icon: "dashboard", label: "Resources"},
-            {icon: "sidebarAppStore", label: "Apps", to: AppRoutes.apps.overview()},
-            {icon: "sidebarRuns", label: "Runs", to: "/jobs/"}
-        ], predicate: () => Client.isLoggedIn
-    },
-    auditing: {items: [], predicate: () => Client.isLoggedIn},
-    admin: {items: [{icon: "admin", label: "Admin"}], predicate: () => Client.userIsAdmin}
-};
+export const sideBarMenuElements: [
+    SidebarMenuElements,
+    SidebarMenuElements,
+    SidebarMenuElements,
+    SidebarMenuElements,
+] = [
+        {
+            items: [
+                {icon: "sidebarFiles", label: "Files", to: AppRoutes.login.login()},
+                {icon: "sidebarProjects", label: "Projects", to: AppRoutes.login.login()},
+                {icon: "apps", label: "Apps", to: AppRoutes.login.login()}
+            ], predicate: () => !Client.isLoggedIn
+        },
+        {
+            items: [
+                {icon: "sidebarFiles", label: "Files", to: "/drives/"},
+                {icon: "sidebarProjects", label: "Projects"},
+                {icon: "dashboard", label: "Resources"},
+                {icon: "sidebarAppStore", label: "Apps", to: AppRoutes.apps.overview()},
+                {icon: "sidebarRuns", label: "Runs", to: "/jobs/"}
+            ], predicate: () => Client.isLoggedIn
+        },
+        {items: [], predicate: () => Client.isLoggedIn},
+        {items: [{icon: "admin", label: "Admin"}], predicate: () => Client.userIsAdmin}
+    ];
 
 interface SidebarStateProps {
     loggedIn: boolean;
@@ -368,9 +368,10 @@ export function Sidebar(): JSX.Element | null {
     if (useFrameHidden()) return null;
     if (!loggedIn) return null;
 
-    const sidebar: MenuElement[] = Object.keys(sidebarEntries)
-        .map(key => sidebarEntries[key])
-        .filter(it => it.predicate())
+
+
+
+    const sidebar: MenuElement[] = sidebarEntries.filter(it => it.predicate())
         .flatMap(category => category.items.filter((it: MenuElement) => it?.show?.() ?? true));
 
 
