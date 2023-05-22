@@ -79,6 +79,9 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         flex-direction: column;
         transform: translate(-300px, 0);
         box-sizing: border-box;
+        overflow-y: scroll;
+        overflow-x: hidden;
+        height: 100vh;
     }
     
     ${k}, ${k} a, ${k} a:hover {
@@ -95,7 +98,6 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         position: absolute;
         left: var(--sidebarWidth);
         width: var(--secondarySidebarWidth);
-        height: 100vh;
         z-index: 1;
     }
     
@@ -489,9 +491,6 @@ function SecondarySidebar({
 }: SecondarySidebarProps): JSX.Element {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
-    
-    // Note(Jonas): Ensure re-render on project-change.
-    const _ = useProjectId();
 
     const navigate = useNavigate();
     const [, invokeCommand] = useCloudCommand();
