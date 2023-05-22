@@ -1,8 +1,11 @@
 package dk.sdu.cloud.app.store.api
 
 import dk.sdu.cloud.calls.CALL_REF_LINK
+import dk.sdu.cloud.calls.ExperimentalLevel
 import dk.sdu.cloud.calls.TYPE_REF
 import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.calls.UCloudApiExampleValue
+import dk.sdu.cloud.calls.UCloudApiExperimental
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
@@ -77,6 +80,14 @@ data class SshDescription(
         MANDATORY
     }
 }
+
+@Serializable
+@UCloudApiDoc("Section describing the module capabilities of an application")
+@UCloudApiExperimental(ExperimentalLevel.BETA)
+data class ModulesSection(
+    val mountPath: String,
+    val optional: List<String>
+)
 
 @Serializable
 @UCloudApiDoc("Information to the Provider about how to launch the container", importance = 950)
@@ -177,7 +188,11 @@ data class ApplicationInvocationDescription(
     val fileExtensions: List<String> = emptyList(),
 
     @UCloudApiDoc("Hint used by the frontend to find appropriate license servers")
-    val licenseServers: List<String> = emptyList()
+    val licenseServers: List<String> = emptyList(),
+
+    @UCloudApiDoc("A section describing integration with a module system. " +
+            "Currently only valid for `CONTAINER` based applications.")
+    val modules: ModulesSection? = null,
 ) {
     val shouldAllowAdditionalMounts: Boolean
         get() {

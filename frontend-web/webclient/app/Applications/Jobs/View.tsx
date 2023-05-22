@@ -37,7 +37,7 @@ import {
 import {compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {costOfDuration, priceExplainer, ProductCompute, usageExplainer} from "@/Accounting";
+import {costOfDuration, ProductCompute, usageExplainer} from "@/Accounting";
 import {FilesBrowse} from "@/Files/Files";
 import {BrowseType} from "@/Resource/BrowseType";
 import {prettyFilePath} from "@/Files/FilePath";
@@ -45,149 +45,149 @@ import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
-import { ProviderTitle } from "@/Providers/ProviderTitle";
-import {ButtonClass} from "@/ui-components/Button";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {injectStyleSimple} from "@/Unstyled";
+import {ButtonClass} from "@/ui-components/Button";
 
 const enterAnimation = keyframes`
-    from {
-        transform: scale3d(1, 1, 1);
-    }
-    50% {
-        transform: scale3d(1.05, 1.05, 1.05);
-    }
-    to {
-        transform: scale3d(1, 1, 1);
-    }
+  from {
+    transform: scale3d(1, 1, 1);
+  }
+  50% {
+    transform: scale3d(1.05, 1.05, 1.05);
+  }
+  to {
+    transform: scale3d(1, 1, 1);
+  }
 `;
 
 const busyAnim = keyframes`
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 `;
 
 const zoomInAnim = keyframes`
-    from {
-        opacity: 0;
-        transform: scale3d(0.3, 0.3, 0.3);
-    }
-    50% {
-        opacity: 1;
-    }
+  from {
+    opacity: 0;
+    transform: scale3d(0.3, 0.3, 0.3);
+  }
+  50% {
+    opacity: 1;
+  }
 `;
 
 const Container = styled.div`
-    --logoScale: 1;
-    --logoBaseSize: 200px;
-    --logoSize: calc(var(--logoBaseSize) * var(--logoScale));
+  --logoScale: 1;
+  --logoBaseSize: 200px;
+  --logoSize: calc(var(--logoBaseSize) * var(--logoScale));
 
-    margin: 50px; /* when header is not wrapped this should be equal to logoPX and logoPY */
-    max-width: 2200px;
+  margin: 50px; /* when header is not wrapped this should be equal to logoPX and logoPY */
+  max-width: 2200px;
 
-    ${device("xs")} {
-        margin-left: 0;
-        margin-right: 0;
-    }
+  ${device("xs")} {
+    margin-left: 0;
+    margin-right: 0;
+  }
 
-    & {
-        display: flex;
-        flex-direction: column;
-        position: relative;
+  & {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  .logo-wrapper {
+    position: absolute;
+    left: 0;
+    top: 0;
+    animation: 800ms ${zoomInAnim};
+  }
+
+  .logo-wrapper.active {
+    transition: scale 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
+  }
+
+  .logo-wrapper.active .logo-scale {
+    transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
+    transform: scale(var(--logoScale));
+    transform-origin: top left;
+  }
+
+  .fake-logo {
+    /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo, 
+    this basically fixes our document flow */
+    display: block;
+    width: var(--logoSize);
+    height: var(--logoSize);
+    content: '';
+  }
+
+  .data.data-enter-done {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  .data.data-enter-active {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    transition: transform 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
+  }
+
+  .data.data-exit {
+    opacity: 1;
+  }
+
+  .data-exit-active {
+    display: none;
+  }
+
+  .data {
+    width: 100%; /* fix info card width */
+    opacity: 0;
+    transform: translate3d(0, 50vh, 0);
+  }
+
+  .header-text {
+    margin-left: 32px;
+    margin-top: calc(var(--logoScale) * 16px);
+    width: calc(100% - var(--logoBaseSize) * var(--logoScale) - 32px);
+  }
+
+  ${deviceBreakpoint({maxWidth: "1000px"})} {
+    .fake-logo {
+      width: 100%; /* force the header to wrap */
     }
 
     .logo-wrapper {
-        position: absolute;
-        left: 0;
-        top: 0;
-        animation: 800ms ${zoomInAnim};
+      left: calc(50% - var(--logoSize) / 2);
     }
 
-    .logo-wrapper.active {
-        transition: scale 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-    }
-
-    .logo-wrapper.active .logo-scale {
-        transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-        transform: scale(var(--logoScale));
-        transform-origin: top left;
-    }
-
-    .fake-logo {
-        /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo, 
-        this basically fixes our document flow */
-        display: block;
-        width: var(--logoSize);
-        height: var(--logoSize);
-        content: '';
-    }
-
-    .data.data-enter-done {
-        opacity: 1;
-        transform: translate3d(0, 0, 0);
-    }
-
-    .data.data-enter-active {
-        opacity: 1;
-        transform: translate3d(0, 0, 0);
-        transition: transform 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-    }
-
-    .data.data-exit {
-        opacity: 1;
-    }
-
-    .data-exit-active {
-        display: none;
-    }
-
-    .data {
-        width: 100%; /* fix info card width */
-        opacity: 0;
-        transform: translate3d(0, 50vh, 0);
+    .header {
+      text-align: center;
     }
 
     .header-text {
-        margin-left: 32px;
-        margin-top: calc(var(--logoScale) * 16px);
-        width: calc(100% - var(--logoBaseSize) * var(--logoScale) - 32px);
+      margin-left: 0;
+      margin-top: 0;
+      width: 100%;
     }
+  }
 
-    ${deviceBreakpoint({maxWidth: "1000px"})} {
-        .fake-logo {
-            width: 100%; /* force the header to wrap */
-        }
+  &.IN_QUEUE .logo {
+    animation: 2s ${enterAnimation} infinite;
+  }
 
-        .logo-wrapper {
-            left: calc(50% - var(--logoSize) / 2);
-        }
+  &.RUNNING {
+    --logoScale: 0.5;
+  }
 
-        .header {
-            text-align: center;
-        }
-
-        .header-text {
-            margin-left: 0;
-            margin-top: 0;
-            width: 100%;
-        }
-    }
-
-    &.IN_QUEUE .logo {
-        animation: 2s ${enterAnimation} infinite;
-    }
-
-    &.RUNNING {
-        --logoScale: 0.5;
-    }
-
-    .top-buttons {
-        display: flex;
-        gap: 8px;
-    }
+  .top-buttons {
+    display: flex;
+    gap: 8px;
+  }
 `;
 
 // NOTE(Dan): WS calls don't currently have their types generated
@@ -241,6 +241,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     const delayInitialAnim = action === "start";
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
+
     // const [balanceFetcher, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
     //     retrieveBalance({includeChildren: true}),
     //     {wallets: []}
@@ -451,10 +452,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                             </div>
                         </Flex>
 
-                        <div className={Content}>
-                            <OutputFiles job={job} />
-                            <InfoCards job={job} status={status} />
-                        </div>
+                        <CompletedContent job={job} jobUpdateCallbackHandlers={jobUpdateCallbackHandlers} />
                     </div>
                 </CSSTransition>
             )}
@@ -469,10 +467,47 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     />;
 }
 
+const CompletedContent: React.FunctionComponent<{
+    job: Job;
+    jobUpdateCallbackHandlers: React.RefObject<JobUpdateListener[]>;
+}> = ({job, jobUpdateCallbackHandlers}) => {
+    const project = useProject();
+    const workspaceTitle = Client.hasActiveProject ? project.fetch().id === job?.owner?.project ? project.fetch().specification.title :
+        "My Workspace" : "My Workspace";
+
+    const fileInfo = useJobFiles(job.specification);
+
+    return <div className={Content}>
+        <div className={RunningInfoWrapper}>
+            <HighlightedCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
+                <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
+                    {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
+                    <Box><b>ID:</b> {shortUUID(job.id)}</Box>
+                    <Box>
+                        <b>Reservation:</b>{" "}
+                        <ProviderTitle providerId={job.specification.product.provider} />
+                        {" "}/{" "}
+                        {job.specification.product.id}{" "}
+                        (x{job.specification.replicas})
+                    </Box>
+                    <Box><b>Input:</b> {fileInfo}</Box>
+                    <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
+                </Flex>
+            </HighlightedCard>
+
+            <HighlightedCard color="purple" isLoading={false} title="Messages" icon="chat">
+                <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
+            </HighlightedCard>
+        </div>
+
+        <OutputFiles job={job} />
+    </div>
+};
+
 const Content = injectStyleSimple("content", `
-    display: flex;
-    align-items: center;
-    flex-direction: column;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
 `);
 
 function PeerEntry(props: {peer: AppParameterValueNS.Peer}): JSX.Element {
@@ -528,12 +563,12 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
 };
 
 const BusyWrapper = styled(Box)`
-    display: none;
+  display: none;
 
-    &.active {
-        animation: 1s ${busyAnim};
-        display: block;
-    }
+  &.active {
+    animation: 1s ${busyAnim};
+    display: block;
+  }
 `;
 
 const Busy: React.FunctionComponent<{
@@ -651,7 +686,8 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             statTitle={job.specification.replicas === 1 ? "Node" : "Nodes"}
             icon={"cpu"}
         >
-            <b><ProviderTitle providerId={job.specification.product.provider} /> / {job.specification.product.id}</b><br />
+            <b><ProviderTitle providerId={job.specification.product.provider} /> / {job.specification.product.id}
+            </b><br />
             {!machine?.cpu ? null : <>{machine?.cpu}x vCPU </>}
 
             {machine?.cpu && (machine.memoryInGigs || machine.gpu) ? <>&mdash;</> : null}
@@ -673,7 +709,17 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
                         {usageExplainer(estimatedCost, machine.productType, machine.chargeType, machine.unitOfPrice)}
                         <br />
                     </>}
-                    <b>Price per hour:</b> {priceExplainer(machine)}
+                    <b>Price per hour:</b>
+                    {job.status.resolvedSupport?.product.freeToUse ? "Free" :
+                        job.status.resolvedProduct ?
+                            usageExplainer(
+                                costOfDuration(60, job.specification.replicas, machine),
+                                "COMPUTE",
+                                machine.chargeType,
+                                machine.unitOfPrice
+                            )
+                            : "Unknown"
+                    }
                 </>) : null}
             </InfoCard>
         }
@@ -1029,8 +1075,10 @@ const RunningContent: React.FunctionComponent<{
                         </>}
                         {!supportsSuspend ? null :
                             suspended ?
-                                <ConfirmationButton actionText="Unsuspend" fullWidth mt="8px" mb="4px" onAction={unsuspendJob} /> :
-                                <ConfirmationButton actionText="Suspend" fullWidth mt="8px" mb="4px" onAction={suspendJob} />
+                                <ConfirmationButton actionText="Unsuspend" fullWidth mt="8px" mb="4px"
+                                    onAction={unsuspendJob} /> :
+                                <ConfirmationButton actionText="Suspend" fullWidth mt="8px" mb="4px"
+                                    onAction={suspendJob} />
 
                         }
                     </Box>
@@ -1279,7 +1327,8 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
         {state === "FAILURE" ?
             <Heading.h3>
                 UCloud might be operating at full capacity at the moment.
-                See <ExternalLink href={"https://status.cloud.sdu.dk"}>status.cloud.sdu.dk</ExternalLink> for more information.
+                See <ExternalLink href={"https://status.cloud.sdu.dk"}>status.cloud.sdu.dk</ExternalLink> for more
+                information.
             </Heading.h3> :
             null
         }
@@ -1300,20 +1349,21 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
 };
 
 const OutputFilesWrapper = styled.div`
-    display: flex;
-    flex-direction: column;
-    width: 100%;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 
-    h1, h2, h3, h4 {
-        margin-top: 15px;
-        margin-bottom: 15px;
-    }
+  h1, h2, h3, h4 {
+    margin-top: 15px;
+    margin-bottom: 15px;
+  }
 `;
 
 const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
     const pathRef = React.useRef(job.output?.outputFolder ?? "");
     return <OutputFilesWrapper>
-        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} forceNavigationToPage={true} allowMoveCopyOverride />
+        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} forceNavigationToPage={true}
+            allowMoveCopyOverride />
     </OutputFilesWrapper>;
 };
 
@@ -1467,7 +1517,7 @@ const ProviderUpdates: React.FunctionComponent<{
             mounted = false;
         };
     }, [updateListeners]);
-    return <Box height={"200px"} divRef={termRef} />
+    return <Box height={"200px"} divRef={termRef}/>
 };
 
 export default View;

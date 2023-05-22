@@ -30,6 +30,7 @@ import dk.sdu.cloud.plugins.FileCollectionPlugin
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.SharePlugin
 import dk.sdu.cloud.plugins.UCloudFile
+import dk.sdu.cloud.plugins.compute.ucloud.UCloudComputePlugin
 import dk.sdu.cloud.plugins.fileName
 import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.plugins.ipcServer
@@ -77,6 +78,7 @@ class UCloudFilePlugin : FilePlugin {
     lateinit var pathConverter: PathConverter
     lateinit var usageScan: UsageScan
     lateinit var driveLocator: DriveLocator
+    var computePlugin: UCloudComputePlugin? = null
 
     override fun supportsRealUserMode(): Boolean = false
     override fun supportsServiceUserMode(): Boolean = true
@@ -89,6 +91,8 @@ class UCloudFilePlugin : FilePlugin {
         registerCli()
 
         if (!config.shouldRunServerCode()) return
+
+        computePlugin = (config.plugins.jobs[pluginName] as? UCloudComputePlugin)
 
         driveLocator = DriveLocator(
             productAllocationResolved.filterIsInstance<Product.Storage>(),
@@ -373,6 +377,14 @@ class UCloudFilePlugin : FilePlugin {
                 )
 
                 subcommand(
+                    "used-by-jobs",
+                    "Locates the set of jobs which should be killed when the drive is put into maintenance mode",
+                    builder = {
+                        arg("path", description = "The local path to a collection")
+                    }
+                )
+
+                subcommand(
                     "update-system",
                     "Updates the system of a drive",
                     builder = {
@@ -477,6 +489,22 @@ class UCloudFilePlugin : FilePlugin {
                         sendDriveInfoTable(result)
                     }
 
+                    "used-by-jobs" -> {
+                        val path = args.getOrNull(1) ?: sendHelp()
+                        val result = ipcClient.sendRequest(
+                            CliIpc.usedByJobs,
+                            LocateByPath(path)
+                        )
+
+                        sendTerminalTable {
+                            header("Job ID", 120)
+                            for (row in result.jobIds) {
+                                nextRow()
+                                cell(row)
+                            }
+                        }
+                    }
+
                     "update-system" -> {
                         val path = args.getOrNull(1) ?: sendHelp()
                         val system = args.getOrNull(2) ?: sendHelp()
@@ -556,6 +584,18 @@ class UCloudFilePlugin : FilePlugin {
             )
         })
 
+        ipcServer.addHandler(CliIpc.usedByJobs.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+            val dryMaintenance = driveLocator.listGroupedDrives(
+                driveLocator.resolveDriveByInternalFile(InternalFile(request.path))
+            ).map { it.drive.ucloudId }
+
+            UsedBySystems(
+                computePlugin?.killJobsEnteringMaintenanceMode(dryRun = true, dryMaintenance)
+                    ?: throw RPCException("No compute plugin registered", HttpStatusCode.BadRequest)
+            )
+        })
     }
 
     private fun driveInfo(driveAndSystem: DriveAndSystem) = DriveInfo(
@@ -605,6 +645,11 @@ class UCloudFilePlugin : FilePlugin {
         val items: List<DriveInfo>
     )
 
+    @Serializable
+    private data class UsedBySystems(
+        val jobIds: List<String>
+    )
+
     private object CliIpc : IpcContainer("ucloud_storage_drives") {
         val enableMaintenanceMode =
             updateHandler("enableMaintenanceMode", EnableMaintenanceMode.serializer(), Unit.serializer())
@@ -614,6 +659,7 @@ class UCloudFilePlugin : FilePlugin {
         val updateSystem = updateHandler("updateSystem", UpdateSystem.serializer(), Unit.serializer())
         val browseBySystem = updateHandler("browseBySystem", BrowseBySystem.serializer(), DriveInfoItems.serializer())
         val locateInMaintenance = updateHandler("locateInMaintenance", Unit.serializer(), DriveInfoItems.serializer())
+        val usedByJobs = updateHandler("usedByJobs", LocateByPath.serializer(), UsedBySystems.serializer())
     }
 }
 

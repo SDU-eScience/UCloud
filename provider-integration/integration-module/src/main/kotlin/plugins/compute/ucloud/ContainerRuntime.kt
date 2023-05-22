@@ -14,7 +14,6 @@ interface Container {
     val jobId: String
     val rank: Int
     val annotations: Map<String, String>
-    val ipAddress: String
 
     suspend fun upsertAnnotation(key: String, value: String)
 
@@ -57,14 +56,27 @@ interface ComputeNode {
 interface ContainerRuntime {
     fun builder(jobId: String, replicas: Int, block: ContainerBuilder.() -> Unit = {}): ContainerBuilder
 
-    suspend fun scheduleGroup(group: List<ContainerBuilder>)
+    suspend fun schedule(container: ContainerBuilder)
     suspend fun retrieve(jobId: String, rank: Int): Container?
     suspend fun list(): List<Container>
     suspend fun listNodes(): List<ComputeNode>
     suspend fun openTunnel(jobId: String, rank: Int, port: Int): Tunnel
+
+    /**
+     * Removes a job from the queue, if it is present in the queue. This does nothing if the job is either running or
+     * not in the queue at all. There is no guarantee that parts of the job could be in the queue and running at the
+     * same time.
+     */
+    suspend fun removeJobFromQueue(jobId: String) {
+        // Do nothing
+    }
+
     suspend fun isJobKnown(jobId: String): Boolean {
         return retrieve(jobId, 0) != null
     }
+
+    fun requiresReschedulingOfInQueueJobsOnStartup(): Boolean = false
+    fun notifyReschedulingComplete() {}
 }
 
 data class Tunnel(val hostnameOrIpAddress: String, val port: Int, val close: suspend () -> Unit)

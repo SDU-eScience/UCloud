@@ -41,7 +41,8 @@ sealed class ApplicationDescription(val application: String) {
         val allowPublicLink: Boolean? = false,
         var fileExtensions: List<String> = emptyList(),
         var licenseServers: List<String> = emptyList(),
-        val website: String? = null
+        val website: String? = null,
+        val modules: ModulesSection? = null,
     ) : ApplicationDescription("v1") {
         val invocation: List<InvocationParameter>
         val environment: Map<String, InvocationParameter>?
@@ -593,7 +594,8 @@ sealed class ApplicationDescription(val application: String) {
                 allowPublicIp = allowPublicIp,
                 allowPublicLink = allowPublicLink ?: (applicationType == ApplicationType.WEB),
                 fileExtensions = fileExtensions,
-                licenseServers = licenseServers
+                licenseServers = licenseServers,
+                modules = modules,
             )
 
             return Application(metadata, invocation)

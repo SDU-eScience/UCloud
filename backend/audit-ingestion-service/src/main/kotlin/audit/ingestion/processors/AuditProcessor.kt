@@ -139,8 +139,8 @@ class AuditProcessor(
                         }
                         val handledBy = defaultMapper.decodeFromJsonElement<JsonObject>(tree["handledBy"]!!)
                         val handledByDef = defaultMapper.decodeFromJsonElement<JsonObject>(handledBy["definition"]!!)
-                        val token = defaultMapper.decodeFromJsonElement<JsonObject>(tree["token"]!!)
-                        val principal = defaultMapper.decodeFromJsonElement<JsonObject?>(token["principal"] ?: JsonObject(emptyMap()))
+                        val token = defaultMapper.decodeFromJsonElement<JsonObject?>(tree["token"]?: JsonObject(emptyMap()))
+                        val principal = defaultMapper.decodeFromJsonElement<JsonObject?>(token?.get("principal") ?: JsonObject(emptyMap()))
                         val elasticAudit = ElasticAuditIn(
                             timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
                             jobId = (tree["jobId"] as JsonPrimitive).content,
@@ -157,25 +157,27 @@ class AuditProcessor(
                             requestName = requestName,
                             userAgent = (tree["userAgent"] as JsonPrimitive).content,
                             remoteOrigin = (tree["remoteOrigin"] as JsonPrimitive).content,
-                            token = ElasticSecurityPrincipalToken(
-                                principal = ElasticSecurityPrincipal(
-                                    username = (principal?.get("username") as JsonPrimitive).content,
-                                    role = (principal?.get("role") as JsonPrimitive).content,
-                                    firstName = (principal?.get("firstName") as JsonPrimitive).content,
-                                    lastName = (principal?.get("lastName") as JsonPrimitive).content,
-                                    email = (principal?.get("email") as JsonPrimitive).content,
-                                    twoFactorAuthentication = (principal?.get("twoFactorAuthentication") as JsonPrimitive).boolean,
-                                    principalType = (principal?.get("principalType") as JsonPrimitive).content,
-                                    serviceAgreementAccepted = (principal?.get("serviceAgreementAccepted") as JsonPrimitive).boolean,
-                                    organization = (principal?.get("organization") as JsonPrimitive).content
-                                ),
-                                //scopes = emptyList(),
-                                issuedAt = (token["issuedAt"] as JsonPrimitive).long,
-                                expiresAt = (token["expiresAt"] as JsonPrimitive).long,
-                                publicSessionReference = (token["publicSessionReference"] as JsonPrimitive).content,
-                                extendedBy = (token["extendedBy"] as JsonPrimitive).content,
-                                extendedByChain = emptyList()
-                            ),
+                            token = if (token != null) {
+                                ElasticSecurityPrincipalToken(
+                                    principal = ElasticSecurityPrincipal(
+                                        username = (principal?.get("username") as JsonPrimitive).content,
+                                        role = (principal?.get("role") as JsonPrimitive).content,
+                                        firstName = (principal?.get("firstName") as JsonPrimitive).content,
+                                        lastName = (principal?.get("lastName") as JsonPrimitive).content,
+                                        email = (principal?.get("email") as JsonPrimitive).content,
+                                        twoFactorAuthentication = (principal?.get("twoFactorAuthentication") as JsonPrimitive).boolean,
+                                        principalType = (principal?.get("principalType") as JsonPrimitive).content,
+                                        serviceAgreementAccepted = (principal?.get("serviceAgreementAccepted") as JsonPrimitive).boolean,
+                                        organization = (principal?.get("organization") as JsonPrimitive).content
+                                    ),
+                                    //scopes = emptyList(),
+                                    issuedAt = (token["issuedAt"] as JsonPrimitive).long,
+                                    expiresAt = (token["expiresAt"] as JsonPrimitive).long,
+                                    publicSessionReference = (token["publicSessionReference"] as JsonPrimitive).content,
+                                    extendedBy = (token["extendedBy"] as JsonPrimitive).content,
+                                    extendedByChain = emptyList()
+                                )
+                            } else null,
                             requestJson = (tree["requestJson"] as JsonObject),
                             requestSize = (tree["requestSize"] as JsonPrimitive).int ,
                             responseCode = (tree["responseCode"] as JsonPrimitive).int,
