@@ -193,8 +193,8 @@ abstract class ResourceService<
         )
 
         @Suppress("SqlResolve")
-        return (ctx ?: db).withSession { session ->
-            val rows = when (browseStrategy) {
+        val rows = (ctx ?: db).withSession { session ->
+            when (browseStrategy) {
                 ResourceBrowseStrategy.OLD -> {
                     session.sendPreparedStatement(
                         {
@@ -224,32 +224,32 @@ abstract class ResourceService<
                         resourceParams()
                     }
                 }
-            }
-
-            val result = rows
-                .asSequence()
-                .map { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }
-                .filter {
-                    if (permissionOneOf.singleOrNull() == Permission.PROVIDER && actorAndProject.actor != Actor.System) {
-                        // Admin isn't enough if we are looking for Provider
-                        if (Permission.PROVIDER !in (it.permissions?.myself ?: emptyList())) {
-                            return@filter false
-                        }
-                    }
-                    return@filter true
-                }
-                .toList()
-
-            if (requireAll && result.size != ids.size) {
-                throw RPCException("Permission denied. Try to reload the page and try again.", HttpStatusCode.BadRequest)
-            }
-
-            result.attachExtra(
-                actorAndProject.actor,
-                flags,
-                flags?.includeSupport ?: simpleFlags?.includeSupport ?: false
-            )
+            }.map { it.getString(0)!! }
         }
+
+        val result = rows
+            .asSequence()
+            .map { defaultMapper.decodeFromString(serializer, it) }
+            .filter {
+                if (permissionOneOf.singleOrNull() == Permission.PROVIDER && actorAndProject.actor != Actor.System) {
+                    // Admin isn't enough if we are looking for Provider
+                    if (Permission.PROVIDER !in (it.permissions?.myself ?: emptyList())) {
+                        return@filter false
+                    }
+                }
+                return@filter true
+            }
+            .toList()
+
+        if (requireAll && result.size != ids.size) {
+            throw RPCException("Permission denied. Try to reload the page and try again.", HttpStatusCode.BadRequest)
+        }
+
+        return result.attachExtra(
+            actorAndProject.actor,
+            flags,
+            flags?.includeSupport ?: simpleFlags?.includeSupport ?: false
+        )
     }
 
     private suspend fun List<Res>.attachExtra(actor: Actor, flags: Flags?, includeSupport: Boolean = false): List<Res> =

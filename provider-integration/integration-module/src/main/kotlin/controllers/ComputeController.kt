@@ -475,7 +475,7 @@ class ComputeController(
         }
     }
 
-    private val jobIsRunningCache = SimpleCache<String, Boolean>(maxAge = 10_000) { id ->
+    private val jobIsRunningCache = SimpleCache<String, Boolean>(maxAge = 100_000) { id ->
         JobsControl.retrieve.call(
             ResourceRetrieveRequest(JobIncludeFlags(), id),
             controllerContext.pluginContext.rpcClient,
