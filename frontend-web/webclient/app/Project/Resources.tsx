@@ -143,65 +143,67 @@ const Resources: React.FunctionComponent = () => {
                 left={<ProjectBreadcrumbs crumbs={[{title: "Resource Usage"}]} />}
                 right={<Box ml="12px" width="512px">Viewing usage from {filterStart} to {filterEnd}</Box>}
             />}
-            sidebar={<ResourceFilter
-                browseType={BrowseType.MainContent}
-                pills={filterPills}
-                filterWidgets={filterWidgets}
-                sortEntries={[]}
-                properties={filters}
-                setProperties={setFilters}
-                sortDirection={"ascending"}
-                onSortUpdated={doNothing}
-            />}
-            main={<div className={ResourcesGrid}>
-                <Grid gridGap={"16px"}>
-                    {maximizedUsage == null ? null :
-                        <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
-                            onMaximizeToggle={() => onUsageMaximize(maximizedUsage)} dateRange={dateRange} />
-                    }
-                    {maximizedUsage != null ? null :
-                        <div className={VisualizationSection}>
-                            {usage.data.charts.map((it, idx) => {
-                                const count = breakdowns.data.charts.filter(bd => bd.type == it.type).length;
-                                const donuts = breakdowns.data.charts.filter(bd =>
-                                    bd.type === it.type &&
-                                    bd.chargeType == it.chargeType &&
-                                    bd.unit == it.unit
-                                ).map((it, idx) => <DonutChart key={idx} chart={it} />);
-                                return <HighlightedCard
-                                    key={it.type + it.unit}
-                                    title={`${productAreaTitle(it.type)}`}
-                                    icon={productTypeToIcon(it.type)}
-                                    color="blue"
-                                    width="400px"
-                                >
-                                    <Flex flexDirection={"column"} height={"calc(100% - 36px)"}>
-                                        <Box color={"var(--gray)"} height="20px">{count > 1 ? prettierString(it.unit) : null}</Box>
-                                        {donuts}
-                                        <Flex flexGrow={1} />
-                                        <UsageChartViewer key={idx} c={it} dateRange={dateRange} onMaximizeToggle={() => onUsageMaximize(idx)} />
-                                    </Flex>
-                                </HighlightedCard>
-                            })}
-                            {unusedProductTypes.map(pt =>
-                                <HighlightedCard
-                                    key={pt}
-                                    title={`${productAreaTitle(pt)}`}
-                                    icon={productTypeToIcon(pt)}
-                                    color="blue"
-                                    width="400px"
-                                >
-                                    <Flex style={{flexDirection: "column", height: "calc(100% - 36px)"}}>
-                                        <Box mb="auto" />
-                                        <Heading ml="auto" mr="auto">No usage found</Heading>
-                                        <Box mt="auto" />
-                                    </Flex>
-                                </HighlightedCard>
-                            )}
-                        </div>
-                    }
-                </Grid>
-            </div>}
+
+            main={<>
+                <ResourceFilter
+                    browseType={BrowseType.MainContent}
+                    pills={filterPills}
+                    filterWidgets={filterWidgets}
+                    sortEntries={[]}
+                    properties={filters}
+                    setProperties={setFilters}
+                    sortDirection={"ascending"}
+                    onSortUpdated={doNothing}
+                /><div className={ResourcesGrid}>
+                    <Grid gridGap={"16px"}>
+                        {maximizedUsage == null ? null :
+                            <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
+                                onMaximizeToggle={() => onUsageMaximize(maximizedUsage)} dateRange={dateRange} />
+                        }
+                        {maximizedUsage != null ? null :
+                            <div className={VisualizationSection}>
+                                {usage.data.charts.map((it, idx) => {
+                                    const count = breakdowns.data.charts.filter(bd => bd.type == it.type).length;
+                                    const donuts = breakdowns.data.charts.filter(bd =>
+                                        bd.type === it.type &&
+                                        bd.chargeType == it.chargeType &&
+                                        bd.unit == it.unit
+                                    ).map((it, idx) => <DonutChart key={idx} chart={it} />);
+                                    return <HighlightedCard
+                                        key={it.type + it.unit}
+                                        title={`${productAreaTitle(it.type)}`}
+                                        icon={productTypeToIcon(it.type)}
+                                        color="blue"
+                                        width="400px"
+                                    >
+                                        <Flex flexDirection={"column"} height={"calc(100% - 36px)"}>
+                                            <Box color={"var(--gray)"} height="20px">{count > 1 ? prettierString(it.unit) : null}</Box>
+                                            {donuts}
+                                            <Flex flexGrow={1} />
+                                            <UsageChartViewer key={idx} c={it} dateRange={dateRange} onMaximizeToggle={() => onUsageMaximize(idx)} />
+                                        </Flex>
+                                    </HighlightedCard>
+                                })}
+                                {unusedProductTypes.map(pt =>
+                                    <HighlightedCard
+                                        key={pt}
+                                        title={`${productAreaTitle(pt)}`}
+                                        icon={productTypeToIcon(pt)}
+                                        color="blue"
+                                        width="400px"
+                                    >
+                                        <Flex style={{flexDirection: "column", height: "calc(100% - 36px)"}}>
+                                            <Box mb="auto" />
+                                            <Heading ml="auto" mr="auto">No usage found</Heading>
+                                            <Box mt="auto" />
+                                        </Flex>
+                                    </HighlightedCard>
+                                )}
+                            </div>
+                        }
+                    </Grid>
+                </div>
+            </>}
         />
     );
 };

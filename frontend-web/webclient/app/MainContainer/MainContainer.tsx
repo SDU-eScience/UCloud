@@ -7,7 +7,6 @@ import {useEffect} from "react";
 import {injectStyleSimple} from "@/Unstyled";
 
 export interface MainContainerProps {
-    sidebar?: React.ReactNode;
     main: React.ReactNode;
     additional?: React.ReactNode;
     header?: React.ReactNode;
@@ -54,7 +53,6 @@ export interface LoadingMainContainerProps extends MainContainerProps {
     loading?: boolean;
     error?: string;
     fallbackHeader?: JSX.Element;
-    fallbackSidebar?: JSX.Element;
 }
 
 export function LoadingMainContainer(props: LoadingMainContainerProps): JSX.Element {
@@ -68,14 +66,12 @@ export function LoadingMainContainer(props: LoadingMainContainerProps): JSX.Elem
     }
 
     const header = props.loading || props.error !== undefined ? props.fallbackHeader : props.header;
-    const sidebar = props.loading || props.error !== undefined ? props.fallbackSidebar : props.sidebar;
 
     return (
         <MainContainer
             {...props}
             main={main}
             header={header}
-            sidebar={sidebar}
         />
     );
 };

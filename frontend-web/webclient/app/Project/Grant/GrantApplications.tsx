@@ -89,28 +89,28 @@ export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (p
             allowPersonalProject
             crumbs={[{title: `${baseName} Grants`}]}
         />}
-        sidebar={<VerticalButtonGroup>
-            <ResourceFilter
-                browseType={BrowseType.MainContent}
-                pills={[pill]}
-                sortEntries={[]}
-                sortDirection={"ascending"}
-                filterWidgets={[widget]}
-                onSortUpdated={onSortUpdated}
-                readOnlyProperties={{}}
-                properties={filters}
-                setProperties={setFilters}
-            />
-        </VerticalButtonGroup>
-        }
         main={
-            <Pagination.ListV2
-                infiniteScrollGeneration={scrollGeneration}
-                page={applications.data}
-                loading={applications.loading}
-                onLoadMore={loadMore}
-                pageRenderer={items => <GrantApplicationList applications={items} />}
-            />
+            <>
+                <ResourceFilter
+                    browseType={BrowseType.MainContent}
+                    pills={[pill]}
+                    sortEntries={[]}
+                    sortDirection={"ascending"}
+                    filterWidgets={[widget]}
+                    onSortUpdated={onSortUpdated}
+                    readOnlyProperties={{}}
+                    properties={filters}
+                    setProperties={setFilters}
+                />
+
+                <Pagination.ListV2
+                    infiniteScrollGeneration={scrollGeneration}
+                    page={applications.data}
+                    loading={applications.loading}
+                    onLoadMore={loadMore}
+                    pageRenderer={items => <GrantApplicationList applications={items} />}
+                />
+            </>
         }
     />;
 };

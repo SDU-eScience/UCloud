@@ -66,7 +66,7 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
         try {
             const result = await invokeCommand<PageV2<T>>(
                 props.generateCall(),
-                { defaultErrorHandler: false }
+                {defaultErrorHandler: false}
             );
             if (result != null) {
                 setInfScroll(prev => prev + 1);
@@ -87,7 +87,7 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
             try {
                 const result = await invokeCommand<PageV2<T>>(
                     props.generateCall(resources.next),
-                    { defaultErrorHandler: false }
+                    {defaultErrorHandler: false}
                 );
 
                 if (result != null) setRemoteResources(result);
@@ -99,7 +99,7 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
 
     if (props.toggleSet) props.toggleSet.allItems.current = resources.items;
 
-    useEffect(() => { reload().then(doNothing).catch(doNothing) }, [reload]);
+    useEffect(() => {reload().then(doNothing).catch(doNothing)}, [reload]);
 
     if (props.setRefreshFunction !== false) {
         useRefreshFunction(reload);
@@ -376,12 +376,12 @@ export function StandardList<T, CB = EmptyObject>(
         return <MainContainer
             header={props.header}
             headerSize={props.headerSize}
-            main={main}
-            sidebar={
-                <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
+            main={<>
+                <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
                     entityNameSingular={props.title} entityNamePlural={titlePlural}
                     extra={callbacks} operations={allOperations} />
-            }
+                {main}
+            </>}
         />;
     }
 }

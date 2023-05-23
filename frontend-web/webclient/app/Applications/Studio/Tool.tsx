@@ -57,9 +57,8 @@ export const Tool: React.FunctionComponent = () => {
                 </Heading.h2>
             )}
             headerSize={86}
-
-            sidebar={(
-                <VerticalButtonGroup>
+            main={(
+                <>
                     <label className={ButtonClass}>
                         Upload Logo
                         <HiddenInputField
@@ -93,11 +92,7 @@ export const Tool: React.FunctionComponent = () => {
                     >
                         Remove Logo
                     </Button>
-                </VerticalButtonGroup>
-            )}
 
-            main={(
-                <>
                     The following applications are currently using this tool, click on any to configure them further:
 
                     <Pagination.List

@@ -148,46 +148,41 @@ export const App: React.FunctionComponent = () => {
                     {appTitle}
                 </Heading.h1>
             )}
-
-            sidebar={(
-                <VerticalButtonGroup>
-                    <label className={ButtonClass}>
-                        Upload Logo
-                        <HiddenInputField
-                            type="file"
-                            onChange={async e => {
-                                const target = e.target;
-                                if (target.files) {
-                                    const file = target.files[0];
-                                    target.value = "";
-                                    if (file.size > 1024 * 512) {
-                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
-                                    } else {
-                                        if (await uploadLogo({name, file, type: "APPLICATION"})) {
-                                            setLogoCacheBust("" + Date.now());
-                                        }
+            main={(<>
+                <label className={ButtonClass}>
+                    Upload Logo
+                    <HiddenInputField
+                        type="file"
+                        onChange={async e => {
+                            const target = e.target;
+                            if (target.files) {
+                                const file = target.files[0];
+                                target.value = "";
+                                if (file.size > 1024 * 512) {
+                                    snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                } else {
+                                    if (await uploadLogo({name, file, type: "APPLICATION"})) {
+                                        setLogoCacheBust("" + Date.now());
                                     }
-                                    dialogStore.success();
                                 }
-                            }}
-                        />
-                    </label>
-
-                    <Button
-                        type="button"
-                        color="red"
-                        disabled={commandLoading}
-                        onClick={async () => {
-                            await invokeCommand(clearLogo({type: "APPLICATION", name}));
-                            setLogoCacheBust("" + Date.now());
+                                dialogStore.success();
+                            }
                         }}
-                    >
-                        Remove Logo
-                    </Button>
-                </VerticalButtonGroup>
-            )}
+                    />
+                </label>
 
-            main={(
+                <Button
+                    type="button"
+                    color="red"
+                    disabled={commandLoading}
+                    onClick={async () => {
+                        await invokeCommand(clearLogo({type: "APPLICATION", name}));
+                        setLogoCacheBust("" + Date.now());
+                    }}
+                >
+                    Remove Logo
+                </Button>
+
                 <Flex flexDirection="column">
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
                         <Heading.h2>Tags</Heading.h2>
@@ -496,7 +491,7 @@ export const App: React.FunctionComponent = () => {
                         </Box>
                     </Box>
                 </Flex>
-            )}
+            </>)}
         />
     );
 };

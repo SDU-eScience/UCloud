@@ -1129,7 +1129,8 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
             header={target === RequestTarget.EXISTING_PROJECT ?
                 <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]} /> : null
             }
-            sidebar={<>
+
+            main={<>
                 {target !== RequestTarget.VIEW_APPLICATION ? (<>
                     <Button fullWidth disabled={grantFinalized || submitLoading} onClick={submitRequest}>
                         Submit Application
@@ -1178,8 +1179,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                         Transfer application
                     </Button> : null
                 }
-            </>}
-            main={<>
+
                 <Flex justifyContent="center">
                     <Box maxWidth={1400} width="100%">
                         {target === RequestTarget.VIEW_APPLICATION ? null : (

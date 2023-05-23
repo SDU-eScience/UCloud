@@ -191,6 +191,8 @@ const Create: React.FunctionComponent = () => {
         headerSize={45}
         main={
             <div style={{minHeight: "calc(100vh - 76px - 47px)", marginTop: "16px"}}>
+                <Operations location={"TOPBAR"} operations={operations} selected={[]} extra={callbacks}
+                    entityNameSingular={templateApi.title} />
                 <div style={{display: stage !== Stage.INFO ? "none" : "block"}}>
                     <Grid maxWidth={"800px"} margin={"0 auto"} gridGap={"32px"}>
                         <Section gap={"16px"}>
@@ -350,10 +352,6 @@ const Create: React.FunctionComponent = () => {
                     </Grid>
                 }
             </div>
-        }
-        sidebar={
-            <Operations location={"SIDEBAR"} operations={operations} selected={[]} extra={callbacks}
-                entityNameSingular={templateApi.title} />
         }
     />;
 };

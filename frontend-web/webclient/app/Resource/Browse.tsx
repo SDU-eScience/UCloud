@@ -818,24 +818,27 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
         return <MainContainer
             header={props.header}
             headerSize={props.headerSize}
-            main={main}
-            sidebar={<Flex flexDirection={"column"} height={"100%"} pb={"16px"}>
-                {inlineInspecting ? null :
-                    <>
-                        <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
-                            entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                            extra={callbacks} operations={operations} />
+            main={
+                <>
+                    {main}
+                    <Flex flexDirection={"column"} height={"100%"} pb={"16px"}>
+                        {inlineInspecting ? null :
+                            <>
+                                <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
+                                    entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                                    extra={callbacks} operations={operations} />
 
-                        <ResourceFilter pills={allPills} filterWidgets={api.filterWidgets}
-                            sortEntries={api.sortEntries} sortDirection={sortDirection}
-                            onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            browseType={props.browseType}
-                            readOnlyProperties={props.additionalFilters} />
-                    </>
-                }
+                                <ResourceFilter pills={allPills} filterWidgets={api.filterWidgets}
+                                    sortEntries={api.sortEntries} sortDirection={sortDirection}
+                                    onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
+                                    browseType={props.browseType}
+                                    readOnlyProperties={props.additionalFilters} />
+                            </>
+                        }
 
-                {!props.extraSidebar ? null : props.extraSidebar}
-            </Flex>}
+                        {!props.extraSidebar ? null : props.extraSidebar}
+                    </Flex>
+                </>}
         />
     }
 }

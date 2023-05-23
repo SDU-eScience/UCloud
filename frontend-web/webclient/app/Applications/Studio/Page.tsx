@@ -46,53 +46,48 @@ export const Studio: React.FunctionComponent = () => {
     return (
         <MainContainer
             header={<Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Application Studio</Heading.h2>}
-
-            sidebar={(
-                <VerticalButtonGroup>
-                    <label className={ButtonClass}>
-                        Upload Application
-                        <HiddenInputField
-                            type="file"
-                            onChange={async e => {
-                                const target = e.target;
-                                if (target.files) {
-                                    const file = target.files[0];
-                                    target.value = "";
-                                    if (file.size > 1024 * 1024 * 5) {
-                                        snackbarStore.addFailure("File exceeds 5MB. Not allowed.", false);
-                                    } else {
-                                        await uploadDocument({document: file, type: "APPLICATION"});
-                                        refresh();
-                                    }
-                                    dialogStore.success();
+            main={(<>
+                <label className={ButtonClass}>
+                    Upload Application
+                    <HiddenInputField
+                        type="file"
+                        onChange={async e => {
+                            const target = e.target;
+                            if (target.files) {
+                                const file = target.files[0];
+                                target.value = "";
+                                if (file.size > 1024 * 1024 * 5) {
+                                    snackbarStore.addFailure("File exceeds 5MB. Not allowed.", false);
+                                } else {
+                                    await uploadDocument({document: file, type: "APPLICATION"});
+                                    refresh();
                                 }
-                            }} />
-                    </label>
+                                dialogStore.success();
+                            }
+                        }} />
+                </label>
 
-                    <label className={ButtonClass}>
-                        Upload Tool
-                        <HiddenInputField
-                            type="file"
-                            onChange={async e => {
-                                const target = e.target;
-                                if (target.files) {
-                                    const file = target.files[0];
-                                    target.value = "";
-                                    if (file.size > 1024 * 512) {
-                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
-                                    } else {
-                                        await uploadDocument({document: file, type: "TOOL"});
-                                        refresh();
-                                    }
-                                    dialogStore.success();
+                <label className={ButtonClass}>
+                    Upload Tool
+                    <HiddenInputField
+                        type="file"
+                        onChange={async e => {
+                            const target = e.target;
+                            if (target.files) {
+                                const file = target.files[0];
+                                target.value = "";
+                                if (file.size > 1024 * 512) {
+                                    snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                } else {
+                                    await uploadDocument({document: file, type: "TOOL"});
+                                    refresh();
                                 }
-                            }}
-                        />
-                    </label>
-                </VerticalButtonGroup>
-            )}
+                                dialogStore.success();
+                            }
+                        }}
+                    />
+                </label>
 
-            main={(
                 <Pagination.List
                     loading={tools.loading}
                     page={tools.data}
@@ -119,7 +114,7 @@ export const Studio: React.FunctionComponent = () => {
                         </Flex>
                     )}
                 />
-            )}
+            </>)}
         />
     );
 };
