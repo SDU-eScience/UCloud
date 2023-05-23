@@ -762,7 +762,7 @@ data class EnvoyCluster(
         ): EnvoyCluster {
             return EnvoyCluster(
                 name,
-                type = if (useDns) "LOGICAL_DNS" else "STATIC",
+                type = if (useDns) "STRICT_DNS" else "STATIC",
                 loadAssignment = JsonObject(
                     "cluster_name" to JsonPrimitive(name),
                     "endpoints" to JsonArray(

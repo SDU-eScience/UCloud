@@ -41,6 +41,7 @@ data class ConfigSchema(
         val allowRootMode: Boolean = false,
         val developmentMode: Boolean? = null,
         val cors: Cors? = null,
+        val internalBindAddress: String? = null,
 
         // NOTE(Dan): Some setups with docker compose doesn't correctly handle file permissions. We have this option to
         // just disable the insecure file check. This setting only works in development mode.

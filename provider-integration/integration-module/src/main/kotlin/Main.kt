@@ -322,7 +322,7 @@ fun main(args: Array<String>) {
 
                 val engine = embeddedServer(
                     CIO,
-                    host = "127.0.0.1",
+                    host = config.core.internalBindAddress,
                     port = rpcServerPort ?: error("Missing rpcServerPort"),
                     module = {}
                 )

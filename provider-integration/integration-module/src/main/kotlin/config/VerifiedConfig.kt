@@ -42,6 +42,7 @@ data class VerifiedConfig(
         val cors: Cors,
         val disableInsecureFileCheck: Boolean,
         val maintenance: Maintenance,
+        val internalBindAddress: String,
     ) {
         data class Hosts(
             val ucloud: Host,
@@ -418,6 +419,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             core.maintenance?.alwaysAllowAccessFrom ?: emptyList()
         )
 
+        val internalBindAddress = core.internalBindAddress ?: "127.0.0.1"
+
         VerifiedConfig.Core(
             certificate,
             providerId,
@@ -430,6 +433,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             cors,
             core.disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy && core.developmentMode == true,
             maintenance,
+            internalBindAddress
         )
     }
 
