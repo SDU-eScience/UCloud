@@ -42,7 +42,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            const browser = new ResourceBrowser<FileCollection>(mount);
+            const browser = new ResourceBrowser<FileCollection>(mount, "drive");
             browserRef.current = browser;
             browser.features = {
                 dragToSelect: true,

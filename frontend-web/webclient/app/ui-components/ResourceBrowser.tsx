@@ -21,7 +21,7 @@ import {InputClass} from "./Input";
     - Handling projects that cannot consume resources.
 */
 
-type Filter = FilterWithOptions | FilterCheckbox;
+export type Filter = FilterWithOptions | FilterCheckbox;
 
 interface FilterWithOptions {
     type: "options";
@@ -227,6 +227,7 @@ export class ResourceBrowser<T> {
     private didPerformInitialOpen = false;
 
     // Filters
+    resourceName: string; // currently just used for 
     browseFilters: Record<string, string> = {};
 
     // Inline searching
@@ -270,8 +271,9 @@ export class ResourceBrowser<T> {
 
     private listeners: Record<string, any[]> = {};
 
-    constructor(root: HTMLElement) {
+    constructor(root: HTMLElement, resourceName: string) {
         this.root = root;
+        this.resourceName = resourceName;
     }
 
     mount() {
@@ -388,27 +390,6 @@ export class ResourceBrowser<T> {
             // Note(Jonas): Expand height of header if filters/sort-directions are available.
             this.header.setAttribute("data-has-filters", "");
         }
-
-        if (this.features.sortDirection) {
-            addOptionsToFilter(SORT_DIRECTIONS, this);
-        }
-
-        if (this.features.filters) {
-            const filters = this.dispatchMessage("fetchFilters", k => k());
-            for (const f of filters) {
-                switch (f.type) {
-                    case "checkbox": {
-                        addCheckboxToFilter(f, this);
-                        continue;
-                    }
-                    case "options": {
-                        addOptionsToFilter(f, this);
-                        continue;
-                    }
-                }
-            }
-        }
-
 
         {
             // Render refresh icon
@@ -617,6 +598,9 @@ export class ResourceBrowser<T> {
         this.renderBreadcrumbs();
         this.renderOperations();
         this.renderRows();
+        this.clearFilters();
+        if (this.features.sortDirection) this.renderSortOrder();
+        if (this.features.filters) this.renderFilters();
 
         // NOTE(Dan): We need to scroll to the position _after_ we have rendered the page.
         this.scrolling.parentElement!.scrollTo({top: scrollPositionElement ?? 0});
@@ -880,11 +864,31 @@ export class ResourceBrowser<T> {
         this.breadcrumbs.append(fragment);
     }
 
+    renderSortOrder() {
+        addOptionsToFilter(SORT_DIRECTIONS, this);
+    }
+
+    renderFilters() {
+        const filters = this.dispatchMessage("fetchFilters", k => k());
+        for (const f of filters) {
+            switch (f.type) {
+                case "checkbox": {
+                    addCheckboxToFilter(f, this);
+                    break;
+                }
+                case "options": {
+                    addOptionsToFilter(f, this);
+                    break;
+                }
+            }
+        }
+    }
+
     renderOperations() {
         this.renderOperationsIn(false);
     }
 
-    public renderFiltersInContextMenu(filter: FilterWithOptions, x: number, y: number) {
+    public renderFiltersInContextMenu(filter: FilterWithOptions, x: number, y: number, setFilterText: (text: string) => void) {
         const renderOpIconAndText = (
             op: FilterOption,
             element: HTMLElement,
@@ -960,6 +964,8 @@ export class ResourceBrowser<T> {
                 const myIndex = shortcutNumber - 1;
                 this.contextMenuHandlers.push(() => {
                     this.browseFilters[filter.key] = child.value;
+                    setFilterText(child.text)
+                    setFilterStorageValue(this.resourceName, filter.key, child.value);
                     this.open(this.currentPath, true);
                 });
                 item.addEventListener("mouseover", () => {
@@ -1164,6 +1170,11 @@ export class ResourceBrowser<T> {
             const posY = contextOpts?.y ?? 0;
             renderOperationsInContextMenu(operations, posX, posY);
         }
+    }
+
+    clearFilters() {
+        this.browseFilters = {};
+        this.filters.replaceChildren();
     }
 
     select(virtualRowIndex: number, selectionMode: SelectionMode, render: boolean = true) {
@@ -2638,6 +2649,7 @@ function createChevronImg(): HTMLImageElement {
     return c;
 }
 
+// Note(Jonas): This could just be a private functino in ResourceBrowser<T>
 function addCheckboxToFilter<T>(filter: FilterCheckbox, resourceBrowser: ResourceBrowser<T>) {
     const wrapper = document.createElement("label");
     wrapper.style.cursor = "pointer";
@@ -2646,29 +2658,55 @@ function addCheckboxToFilter<T>(filter: FilterCheckbox, resourceBrowser: Resourc
     check.style.marginLeft = "5px";
     check.style.cursor = "pointer";
     check.type = "checkbox";
+
+    const valueFromStorage = getFilterStorageValue(resourceBrowser.resourceName, filter.key);
+    if (valueFromStorage === "true") {
+        resourceBrowser.browseFilters[filter.key] = "true";
+        check.checked = true;
+    }
+
+    check.checked = false;
     wrapper.appendChild(check);
     resourceBrowser.filters.appendChild(wrapper);
     wrapper.onclick = e => {
         e.stopImmediatePropagation();
         if (resourceBrowser.browseFilters[filter.key]) {
+            setFilterStorageValue(resourceBrowser.resourceName, filter.key, "false");
             delete resourceBrowser.browseFilters[filter.key];
         } else {
+            setFilterStorageValue(resourceBrowser.resourceName, filter.key, "true");
             resourceBrowser.browseFilters[filter.key] = "true";
         }
         resourceBrowser.open(resourceBrowser.currentPath, true);
     }
 }
 
+// Note(Jonas): This could just be a private functino in ResourceBrowser<T>
 function addOptionsToFilter<T>(filter: FilterWithOptions, resourceBrowser: ResourceBrowser<T>) {
     const wrapper = document.createElement("div");
     wrapper.style.display = "flex";
     wrapper.style.cursor = "pointer";
-    wrapper.style.width = "100px";
+    wrapper.style.marginRight = "8px";
+    wrapper.style.userSelect = "none";
     const text = document.createElement("span");
     text.style.marginRight = "5px";
-    text.innerText = filter.text;
+
+    const valueFromStorage = getFilterStorageValue(resourceBrowser.resourceName, filter.key);
+    if (valueFromStorage != null) {
+        const option = filter.options.find(it => it.value === valueFromStorage);
+        if (option) {
+            text.innerText = option.text;
+            resourceBrowser.browseFilters[filter.key] = option.value;
+        } else {
+            text.innerText = filter.text;
+        }
+    } else {
+        text.innerText = filter.text;
+    }
+
     const chevronIcon = createChevronImg();
-    resourceBrowser.icons.renderIcon({name: "chevronDownLight", color: "text", color2: "text", width: 12, height: 12}).then(url => chevronIcon.src = url);
+    resourceBrowser.icons.renderIcon({name: "chevronDownLight", color: "text", color2: "text", width: 12, height: 12})
+        .then(url => chevronIcon.src = url);
     wrapper.appendChild(text);
     wrapper.appendChild(chevronIcon);
     resourceBrowser.filters.appendChild(wrapper);
@@ -2676,8 +2714,21 @@ function addOptionsToFilter<T>(filter: FilterWithOptions, resourceBrowser: Resou
     wrapper.onclick = e => {
         const wrapperRect = wrapper.getBoundingClientRect();
         e.stopImmediatePropagation();
-        resourceBrowser.renderFiltersInContextMenu(filter, wrapperRect.x, wrapperRect.y + wrapperRect.height);
-    }
+        resourceBrowser.renderFiltersInContextMenu(
+            filter,
+            wrapperRect.x,
+            wrapperRect.y + wrapperRect.height,
+            filter => text.innerText = filter
+        );
+    };
+}
+
+function getFilterStorageValue(namespace: string, key: string): string | null {
+    return localStorage.getItem(`${namespace}:${key}`);
+}
+
+function setFilterStorageValue(namespace: string, key: string, value: string) {
+    localStorage.setItem(`${namespace}:${key}`, value);
 }
 
 // https://stackoverflow.com/a/13139830

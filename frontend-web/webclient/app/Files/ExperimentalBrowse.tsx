@@ -8,6 +8,7 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {
     div,
     EmptyReasonTag,
+    Filter,
     image,
     OperationOrGroup,
     placeholderImage,
@@ -76,7 +77,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
         const mount = mountRef.current;
         let searching = "";
         if (mount && !browserRef.current) {
-            const browser = new ResourceBrowser<UFile>(mount);
+            const browser = new ResourceBrowser<UFile>(mount, "file");
             browserRef.current = browser;
             browser.features = {
                 dragToSelect: true,
@@ -448,27 +449,35 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 );
             };
 
-            browser.on("fetchFilters", () => ([{
-                type: "options",
-                key: "sortBy",
-                text: "Sort by",
-                options: [{
-                    color: "black",
-                    text: "Name",
-                    icon: "id",
-                    value: "PATH"
-                }, {
-                    color: "black",
-                    icon: "edit",
-                    text: "Modified at",
-                    value: "MODIFIED_AT"
-                }, {
-                    color: "black",
-                    icon: "fullscreen",
-                    text: "Size",
-                    value: "SIZE"
-                }]
-            }]));
+            browser.on("fetchFilters", () => {
+                const filters: Filter[] = [{
+                    type: "options",
+                    key: "sortBy",
+                    text: "Sort by",
+                    options: [{
+                        color: "black",
+                        text: "Name",
+                        icon: "id",
+                        value: "PATH"
+                    }, {
+                        color: "black",
+                        icon: "edit",
+                        text: "Modified at",
+                        value: "MODIFIED_AT"
+                    }, {
+                        color: "black",
+                        icon: "fullscreen",
+                        text: "Size",
+                        value: "SIZE"
+                    }]
+                }];
+
+                if (Client.hasActiveProject) {
+                    // TODO(Jonas): Add stuff like include member files.
+                }
+
+                return filters;
+            });
 
             browser.on("fetchOperations", () => {
                 function groupOperations<T, R>(ops: Operation<T, R>[]): OperationOrGroup<T, R>[] {
