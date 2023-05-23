@@ -73,24 +73,24 @@ const Scripts: React.FunctionComponent = () => {
 
     return <MainContainer
         main={
-            <List>
-                {scripts.data.items.map(it =>
-                    <ItemRow
-                        key={it.metadata.id}
-                        browseType={BrowseType.MainContent}
-                        renderer={scriptRenderer}
-                        toggleSet={toggleSet}
-                        operations={operations}
-                        callbacks={callbacks}
-                        itemTitle={"Script"}
-                        item={it}
-                    />
-                )}
-            </List>
-        }
-        sidebar={
-            <Operations location={"SIDEBAR"} operations={operations} selected={toggleSet.checked.items}
-                        extra={callbacks} entityNameSingular={"Script"} />
+            <>
+                <Operations location={"TOPBAR"} operations={operations} selected={toggleSet.checked.items}
+                    extra={callbacks} entityNameSingular={"Script"} />
+                <List>
+                    {scripts.data.items.map(it =>
+                        <ItemRow
+                            key={it.metadata.id}
+                            browseType={BrowseType.MainContent}
+                            renderer={scriptRenderer}
+                            toggleSet={toggleSet}
+                            operations={operations}
+                            callbacks={callbacks}
+                            itemTitle={"Script"}
+                            item={it}
+                        />
+                    )}
+                </List>
+            </>
         }
     />;
 };

@@ -97,7 +97,6 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k}[data-as-pop-over="true"] {
         position: absolute;
         left: var(--sidebarWidth);
-        width: var(--secondarySidebarWidth);
         z-index: 1;
     }
     
@@ -349,6 +348,20 @@ const UserMenu: React.FunctionComponent<{
     </ClickableDropdown>;
 }
 
+const SidebarAppCategories = [
+    "Applied Science",
+    "Bioinformatics",
+    "Data Analytics",
+    "Development",
+    "Digital Humanities",
+    "Engineering",
+    "Health Science",
+    "Natural Science",
+    "Social Science",
+    "Virtual Desktop",
+    "Virtual Machine"
+];
+
 export function Sidebar(): JSX.Element | null {
     const sidebarEntries = sideBarMenuElements;
     const {loggedIn, avatar} = useSidebarReduxProps();
@@ -583,6 +596,10 @@ function SecondarySidebar({
 
         {active !== "Apps" ? null :
             <Flex flexDirection="column" mr="4px">
+                WORK TODO
+                {SidebarAppCategories.map(it =>
+                    <Link key={it} ml="8px" to="/TODO">{it}</Link>
+                )}
                 <TextSpan mb="8px" bold color="fixedWhite">Favorite apps</TextSpan>
                 {appFavorites.map(it =>
                     <Link mb="4px" key={it.metadata.name + it.metadata.version} to={AppRoutes.jobs.create(it.metadata.name, it.metadata.version)}>
