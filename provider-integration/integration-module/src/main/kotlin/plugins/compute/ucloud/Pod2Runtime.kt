@@ -705,6 +705,12 @@ class Pod2Runtime(
     }
 
     private fun memoryStringToBytes(memory: String?): Long {
+        val k = 1000L
+        val m = k * 1000L
+        val g = m * 1000L
+        val t = g * 1000L
+        val p = t * 1000L
+
         val ki = 1024L
         val mi = ki * 1024L
         val gi = mi * 1024L
@@ -713,11 +719,17 @@ class Pod2Runtime(
 
         return when {
             memory.isNullOrBlank() -> 0
-            memory.contains("K") || memory.contains("Ki") -> notNumbers.replace(memory, "").toLong() * ki
-            memory.contains("M") || memory.contains("Mi") -> notNumbers.replace(memory, "").toLong() * mi
-            memory.contains("G") || memory.contains("Gi") -> notNumbers.replace(memory, "").toLong() * gi
-            memory.contains("T") || memory.contains("Ti") -> notNumbers.replace(memory, "").toLong() * ti
-            memory.contains("P") || memory.contains("Pi") -> notNumbers.replace(memory, "").toLong() * pi
+            memory.contains("K") -> notNumbers.replace(memory, "").toLong() * k
+            memory.contains("M") -> notNumbers.replace(memory, "").toLong() * m
+            memory.contains("G") -> notNumbers.replace(memory, "").toLong() * g
+            memory.contains("T") -> notNumbers.replace(memory, "").toLong() * t
+            memory.contains("P") -> notNumbers.replace(memory, "").toLong() * p
+
+            memory.contains("Ki") -> notNumbers.replace(memory, "").toLong() * ki
+            memory.contains("Mi") -> notNumbers.replace(memory, "").toLong() * mi
+            memory.contains("Gi") -> notNumbers.replace(memory, "").toLong() * gi
+            memory.contains("Ti") -> notNumbers.replace(memory, "").toLong() * ti
+            memory.contains("Pi") -> notNumbers.replace(memory, "").toLong() * pi
             else -> notNumbers.replace(memory, "").toLong()
         }
     }
@@ -798,20 +810,8 @@ class Pod2Runtime(
 
     override suspend fun openTunnel(jobId: String, rank: Int, port: Int): Tunnel {
         if (!usePortForwarding) {
-            val pod = runCatching {
-                k8Client.getResource(
-                    Pod.serializer(),
-                    KubernetesResourceLocator.common.pod.withNameAndNamespace(
-                        idAndRankToPodName(jobId.toLong(), rank),
-                        namespace,
-                    )
-                )
-            }.getOrNull()
-
-            val ipAddress =
-                pod?.status?.podIP ?: throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.BadGateway)
-
-            return Tunnel(ipAddress, port, close = {})
+            val hostname = "j-${jobId}-job-${rank}.j-${jobId}.${namespace}.svc.cluster.local"
+            return Tunnel(hostname, port, close = {})
         } else {
             val allocatedPort = basePortForward + portAllocator.getAndIncrement()
             val process = k8Client.kubectl(

@@ -101,6 +101,8 @@ data class VerifiedConfig(
             val directory: String,
             val downstreamTls: Boolean,
             val funceWrapper: Boolean,
+            val internalAddressToProvider: String,
+            val envoyIsManagedExternally: Boolean,
         )
     }
 
@@ -591,7 +593,16 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             val directory = config.server.envoy?.directory ?: "/var/run/ucloud/envoy"
             val downstreamTls = config.server.envoy?.downstreamTls ?: false
             val funceWrapper = config.server.envoy?.funceWrapper ?: true
-            VerifiedConfig.Server.Envoy(executable, directory, downstreamTls, funceWrapper)
+            val internalAddressToProvider = config.server.envoy?.internalAddressToProvider ?: "127.0.0.1"
+            val envoyIsManagedExternally = config.server.envoy?.envoyIsManagedExternally ?: false
+            VerifiedConfig.Server.Envoy(
+                executable,
+                directory,
+                downstreamTls,
+                funceWrapper,
+                internalAddressToProvider,
+                envoyIsManagedExternally
+            )
         }
 
         VerifiedConfig.Server(refreshToken, network, developmentMode, database, envoy)

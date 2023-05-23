@@ -137,6 +137,8 @@ data class ConfigSchema(
             val directory: String,
             val downstreamTls: Boolean = false,
             val funceWrapper: Boolean = true,
+            val internalAddressToProvider: String? = null,
+            val envoyIsManagedExternally: Boolean = false,
         )
     }
 
