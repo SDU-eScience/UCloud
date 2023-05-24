@@ -888,7 +888,7 @@ export class ResourceBrowser<T> {
         this.renderOperationsIn(false);
     }
 
-    public renderFiltersInContextMenu(filter: FilterWithOptions, x: number, y: number, setFilterText: (text: string) => void) {
+    public renderFiltersInContextMenu(filter: FilterWithOptions, x: number, y: number) {
         const renderOpIconAndText = (
             op: FilterOption,
             element: HTMLElement,
@@ -964,7 +964,6 @@ export class ResourceBrowser<T> {
                 const myIndex = shortcutNumber - 1;
                 this.contextMenuHandlers.push(() => {
                     this.browseFilters[filter.key] = child.value;
-                    setFilterText(child.text)
                     setFilterStorageValue(this.resourceName, filter.key, child.value);
                     this.open(this.currentPath, true);
                 });
@@ -2718,7 +2717,6 @@ function addOptionsToFilter<T>(filter: FilterWithOptions, resourceBrowser: Resou
             filter,
             wrapperRect.x,
             wrapperRect.y + wrapperRect.height,
-            filter => text.innerText = filter
         );
     };
 }
