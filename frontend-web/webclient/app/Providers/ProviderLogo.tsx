@@ -29,6 +29,8 @@ const LogoWrapper = injectStyle("logo-wrapper", k => `
         background-color: var(--blue);
         width: var(--wrapper-size);
         height: var(--wrapper-size);
+        min-width: var(--wrapper-size);
+        min-height: var(--wrapper-size);
     }
   
     ${k} > img {
