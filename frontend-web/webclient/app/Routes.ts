@@ -34,7 +34,8 @@ const project = {
     members: () => `/projects/members`,
     usage: () => `/project/resources/`,
     allocations: () => `/project/allocations/`,
-    grants: () => `/project/grants/ingoing/`,
+    grantsIngoing: () => `/project/grants/ingoing/`,
+    grantsOutgoing: () => `/project/grants/outgoing/`,
     settings: (page: string) => `/project/settings/${page}`,
     subprojects: () => `/subprojects/`,
 }

@@ -19,9 +19,7 @@ export const LicenseBrowse: React.FunctionComponent<{
         onSelect={props.onSelect}
         browseType={props.browseType ?? BrowseType.MainContent}
         disableSearch
-        header={
-            browseType === BrowseType.MainContent ? (<>{ResourceOptions.LICENSES} </>) : undefined
-        }
+        header={browseType === BrowseType.MainContent ? (<>{ResourceOptions.LICENSES} </>) : undefined}
         headerSize={48}
         onSelectRestriction={props.onSelectRestriction}
         additionalFilters={props.additionalFilters}

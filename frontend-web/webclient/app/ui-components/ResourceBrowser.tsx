@@ -28,6 +28,7 @@ interface FilterWithOptions {
     key: string;
     text: string;
     options: FilterOption[];
+    icon?: IconName;
 }
 
 interface FilterCheckbox {
@@ -42,6 +43,7 @@ interface FilterOption {
     color: ThemeColor;
     value: string;
 }
+
 const SORT_DIRECTIONS: FilterWithOptions = {
     type: "options",
     key: "sortDirection",

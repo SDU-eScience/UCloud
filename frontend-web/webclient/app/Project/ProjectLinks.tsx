@@ -30,7 +30,7 @@ export function ProjectLinks(): JSX.Element {
             icon: "projects",
         });
         result.push({
-            to: AppRoutes.project.grants(),
+            to: AppRoutes.project.grantsOutgoing(),
             text: "Grant Applications",
             icon: "projects",
         });

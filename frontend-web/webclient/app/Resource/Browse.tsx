@@ -811,7 +811,6 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
                         readOnlyProperties={props.additionalFilters} />
                 </>
             }
-            {/* </StickyBox> */}
             {main}
         </Box>;
     } else {
@@ -820,7 +819,6 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
             headerSize={props.headerSize}
             main={
                 <>
-                    {main}
                     <Flex flexDirection={"column"} height={"100%"} pb={"16px"}>
                         {inlineInspecting ? null :
                             <>
@@ -838,6 +836,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
 
                         {!props.extraSidebar ? null : props.extraSidebar}
                     </Flex>
+                    {main}
                 </>}
         />
     }
