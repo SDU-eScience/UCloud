@@ -2,7 +2,6 @@ package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.logThrowable
@@ -412,9 +411,13 @@ class Pod2Runtime(
     private val cachedQueue = AtomicReference<List<Long>>(emptyList())
     private val didCompleteRescheduling = AtomicBoolean(false)
 
+    private var firstScheduleIteration = true
+    private var nextNoResourcesAnnouncement = Time.now() + NO_RESOURCES_ANNOUNCEMENT_PERIOD
+
     override fun requiresReschedulingOfInQueueJobsOnStartup(): Boolean = true
     override fun notifyReschedulingComplete() {
         didCompleteRescheduling.set(true)
+        firstScheduleIteration = true
     }
 
     fun start() {
@@ -422,10 +425,11 @@ class Pod2Runtime(
             while (isActive) {
                 try {
                     mutex.withLock { scheduleLoop() }
-                    delay(1000)
                 } catch (ex: Throwable) {
                     debugSystem.logThrowable("Error while running scheduleLoop", ex)
                     log.warn(ex.toReadableStacktrace().toString())
+                } finally {
+                    delay(1000)
                 }
             }
         }
@@ -433,8 +437,11 @@ class Pod2Runtime(
 
     private suspend fun scheduleLoop() {
         val sectionAStart = System.currentTimeMillis()
+        val jobsAddedToQueue = HashSet<Long>()
         jobsToScheduleMutex.withLock {
             jobsToSchedule.forEach { job ->
+                jobsAddedToQueue.add(job.id)
+
                 scheduler.addJobToQueue(
                     job.id,
                     job.nodeType,
@@ -666,6 +673,28 @@ class Pod2Runtime(
             )
         }
 
+        if (!firstScheduleIteration) {
+            for (jobId in jobsAddedToQueue) {
+                if (jobId !in scheduledToNodes) {
+                    k8.addStatus(
+                        jobId.toString(),
+                        *UNAVAILABLE_DUE_TO_LACK_OF_RESOURCES
+                    )
+                }
+            }
+        }
+
+        if (Time.now() >= nextNoResourcesAnnouncement) {
+            for (jobId in scheduler.jobsInQueue()) {
+                k8.addStatus(
+                    jobId.toString(),
+                    STILL_UNAVAILABLE_DUE_TO_LACK_OF_RESOURCES,
+                    forceSend = true
+                )
+            }
+            nextNoResourcesAnnouncement = Time.now() + NO_RESOURCES_ANNOUNCEMENT_PERIOD
+        }
+
         val sectionHStart = System.currentTimeMillis()
         cachedList.set(scheduler.runningReplicas().asSequence().toList())
         cachedQueue.set(scheduler.jobsInQueue().asSequence().toList())
@@ -684,6 +713,8 @@ class Pod2Runtime(
                 appendLine("  Section H: ${sectionIStart - sectionHStart}")
             })
         }
+
+        firstScheduleIteration = false
     }
 
     private val notNumbers = Regex("[^0-9]")
@@ -859,6 +890,13 @@ class Pod2Runtime(
 
         private val basePortForward = 30_000
         private val portAllocator = AtomicInteger(0)
+
+        private const val NO_RESOURCES_ANNOUNCEMENT_PERIOD = 1000L * 60 * 60
+        private val UNAVAILABLE_DUE_TO_LACK_OF_RESOURCES = arrayOf(
+            "There are currently no machines available to run your job.",
+            "A smaller machine might give you quicker access to your job."
+        )
+        private const val STILL_UNAVAILABLE_DUE_TO_LACK_OF_RESOURCES = "There are still no machines available for your job."
     }
 }
 

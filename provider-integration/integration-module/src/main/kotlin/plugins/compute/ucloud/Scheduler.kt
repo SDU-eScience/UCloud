@@ -1,35 +1,9 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.app.orchestrator.api.ComputeProductReference
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.JobSpecification
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.JobStatus
-import dk.sdu.cloud.app.orchestrator.api.JobUpdate
-import dk.sdu.cloud.app.store.api.Application
-import dk.sdu.cloud.app.store.api.ApplicationInvocationDescription
-import dk.sdu.cloud.app.store.api.ApplicationMetadata
-import dk.sdu.cloud.app.store.api.ApplicationParameter
-import dk.sdu.cloud.app.store.api.ApplicationType
-import dk.sdu.cloud.app.store.api.ContainerDescription
-import dk.sdu.cloud.app.store.api.InvocationParameter
-import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.app.store.api.ToolReference
-import dk.sdu.cloud.app.store.api.WebDescription
-import dk.sdu.cloud.app.store.api.WordInvocationParameter
-import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.utils.sendTerminalMessage
-import org.slf4j.Logger
 import java.lang.IllegalStateException
 import java.util.*
 import kotlin.collections.ArrayList
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
 
 data class AllocatedReplica<UserData>(
     val jobId: Long,
