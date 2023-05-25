@@ -180,6 +180,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 key: "sortBy",
                 text: "Sort by",
                 type: "options",
+                icon: "properties",
                 options: [{
                     color: "black", icon: "id", text: "Name", value: "title"
                 }, {

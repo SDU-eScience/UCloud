@@ -14,7 +14,7 @@ function ExperimentalRuns(): JSX.Element {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            const browser = new ResourceBrowser<Job>(mount, "job");
+            const browser = new ResourceBrowser<Job>(mount, "jobs");
             browserRef.current = browser;
             browser.features = {
                 renderSpinnerWhenLoading: true,
@@ -22,9 +22,29 @@ function ExperimentalRuns(): JSX.Element {
                 sortDirection: true,
             }
 
-            browser.on("open", () => {});
+            browser.on("open", () => { });
 
-            browser.on("fetchFilters", () => []);
+            browser.on("fetchFilters", () => [{
+                key: "filterCreatedBy",
+                text: "Created by",
+                type: "input",
+                icon: "user"
+
+            },
+            {
+                key: "filterCreatedAfter",
+                options: [],
+                text: "Created after",
+                type: "options",
+                icon: "calendar"
+            },
+            {
+                key: "filterState",
+                options: [],
+                text: "Status",
+                type: "options",
+                icon: "radioEmpty"
+            }]);
 
             browser.on("renderRow", (job, row, dims) => {
 

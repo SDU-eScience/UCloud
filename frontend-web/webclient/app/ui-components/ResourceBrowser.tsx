@@ -21,20 +21,28 @@ import {InputClass} from "./Input";
     - Handling projects that cannot consume resources.
 */
 
-export type Filter = FilterWithOptions | FilterCheckbox;
+export type Filter = FilterWithOptions | FilterCheckbox | FilterInput;
+
+interface FilterInput {
+    type: "input",
+    key: string;
+    text: string;
+    icon: IconName;
+}
 
 interface FilterWithOptions {
     type: "options";
     key: string;
     text: string;
     options: FilterOption[];
-    icon?: IconName;
+    icon: IconName;
 }
 
 interface FilterCheckbox {
     type: "checkbox";
     key: string;
     text: string;
+    icon: IconName;
 }
 
 interface FilterOption {
@@ -48,6 +56,7 @@ const SORT_DIRECTIONS: FilterWithOptions = {
     type: "options",
     key: "sortDirection",
     text: "Sort order",
+    icon: "sortAscending",
     options: [
         {color: "black", icon: "sortAscending", text: "Ascending", value: "ascending"},
         {color: "black", icon: "sortDescending", text: "Descending", value: "descending"}
@@ -171,6 +180,7 @@ export class ResourceBrowser<T> {
     private root: HTMLElement;
     private operations: HTMLElement;
     /* private */ filters: HTMLElement;
+    sessionFilters: HTMLElement;
     private header: HTMLElement;
     private breadcrumbs: HTMLUListElement;
     private scrolling: HTMLDivElement;
@@ -294,7 +304,10 @@ export class ResourceBrowser<T> {
                     <img class="refresh-icon">
                 </div>
                 <div class="operations"></div>
-                <div class="filters"></div>
+                <div style="display: flex;">
+                    <div class="filters"></div>
+                    <div class="session-filters"></div>
+                </div>
             </header>
             
             <div style="overflow-y: auto; position: relative;">
@@ -325,6 +338,7 @@ export class ResourceBrowser<T> {
         this.locationBar = this.root.querySelector<HTMLInputElement>(".location-bar")!;
         this.header = this.root.querySelector("header")!; // Add UtilityBar
         this.filters = this.root.querySelector<HTMLDivElement>(".filters")!;
+        this.sessionFilters = this.root.querySelector<HTMLDivElement>(".session-filters")!;
         this.breadcrumbs = this.root.querySelector<HTMLUListElement>("header ul")!;
         this.emptyPageElement = {
             container: this.root.querySelector(".page-empty")!,
@@ -391,6 +405,10 @@ export class ResourceBrowser<T> {
         if (this.features.filters || this.features.sortDirection) {
             // Note(Jonas): Expand height of header if filters/sort-directions are available.
             this.header.setAttribute("data-has-filters", "");
+        }
+
+        if (this.features.filters) {
+            this.renderSessionFilters();
         }
 
         {
@@ -867,7 +885,7 @@ export class ResourceBrowser<T> {
     }
 
     renderSortOrder() {
-        addOptionsToFilter(SORT_DIRECTIONS, this);
+        this.addOptionsToFilter(SORT_DIRECTIONS);
     }
 
     renderFilters() {
@@ -875,14 +893,24 @@ export class ResourceBrowser<T> {
         for (const f of filters) {
             switch (f.type) {
                 case "checkbox": {
-                    addCheckboxToFilter(f, this);
+                    this.addCheckboxToFilter(f);
                     break;
                 }
                 case "options": {
-                    addOptionsToFilter(f, this);
+                    this.addOptionsToFilter(f);
                     break;
                 }
             }
+        }
+    }
+
+    // This might be a stupid solution, but some filters should not exist beyond the lifetime of the component,
+    // referred to `session` here.
+    renderSessionFilters() {
+        const filters = this.dispatchMessage("fetchFilters", k => k());
+
+        for (const f of filters) {
+            if (f.type === "input") this.addInputToFilter(f);
         }
     }
 
@@ -1174,7 +1202,11 @@ export class ResourceBrowser<T> {
     }
 
     clearFilters() {
-        this.browseFilters = {};
+        const filtersToKeep = this.dispatchMessage("fetchFilters", fn => fn())
+            .filter(it => it.type === "input").map(it => it.key);
+        for (const key of Object.keys(this.browseFilters)) {
+            if (!filtersToKeep.includes(key)) delete this.browseFilters[key];
+        }
         this.filters.replaceChildren();
     }
 
@@ -2351,7 +2383,7 @@ export class ResourceBrowser<T> {
                 white-space: pre;
             }
 
-            .file-browser .filters {
+            .file-browser .filters, .file-browser .session-filters {
                 display: flex;
                 margin-top: 12px;
             }
@@ -2624,6 +2656,145 @@ export class ResourceBrowser<T> {
             }
         `);
     }
+
+    private addCheckboxToFilter<T>(filter: FilterCheckbox) {
+        const wrapper = document.createElement("label");
+        wrapper.style.cursor = "pointer";
+        wrapper.style.marginRight = "8px";
+        
+        const icon = this.createFilterImg(filter.icon);
+        icon.style.marginTop = "0";
+        icon.style.marginRight = "8px";
+        wrapper.appendChild(icon);
+        
+        const span = document.createElement("span");
+        span.innerText = filter.text;
+        wrapper.appendChild(span);
+        
+        const check = document.createElement("input");
+        check.style.marginLeft = "5px";
+        check.style.cursor = "pointer";
+        check.type = "checkbox";
+        check.checked = false;
+    
+        const valueFromStorage = getFilterStorageValue(this.resourceName, filter.key);
+        if (valueFromStorage === "true") {
+            this.browseFilters[filter.key] = "true";
+            check.checked = true;
+        }
+    
+        wrapper.appendChild(check);
+        this.filters.appendChild(wrapper);
+        wrapper.onclick = e => {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            check.checked = !check.checked;
+            if (this.browseFilters[filter.key]) {
+                setFilterStorageValue(this.resourceName, filter.key, "false");
+                delete this.browseFilters[filter.key];
+            } else {
+                setFilterStorageValue(this.resourceName, filter.key, "true");
+                this.browseFilters[filter.key] = "true";
+            }
+            this.open(this.currentPath, true);
+        }
+    }
+    
+    private addOptionsToFilter<T>(filter: FilterWithOptions) {
+        const wrapper = document.createElement("div");
+        wrapper.style.display = "flex";
+        wrapper.style.cursor = "pointer";
+        wrapper.style.marginRight = "8px";
+        wrapper.style.userSelect = "none";
+        
+        const valueFromStorage = getFilterStorageValue(this.resourceName, filter.key);
+        const iconName = filter.options.find(it => it.value === valueFromStorage)?.icon ?? filter.icon;
+        const icon = this.createFilterImg(iconName);
+        icon.style.marginRight = "8px";
+        wrapper.appendChild(icon);
+        
+        const text = document.createElement("span");
+        text.style.marginRight = "5px";
+        text.innerText = filter.text;
+    
+        if (valueFromStorage != null) {
+            const option = filter.options.find(it => it.value === valueFromStorage);
+            if (option) {
+                text.innerText = option.text;
+                this.browseFilters[filter.key] = option.value;
+            }
+        }
+        
+        wrapper.appendChild(text);
+        const chevronIcon = this.createFilterImg("chevronDownLight");
+        wrapper.appendChild(chevronIcon);
+        this.filters.appendChild(wrapper);
+    
+        wrapper.onclick = e => {
+            const wrapperRect = wrapper.getBoundingClientRect();
+            e.stopImmediatePropagation();
+            this.renderFiltersInContextMenu(
+                filter,
+                wrapperRect.x,
+                wrapperRect.y + wrapperRect.height,
+            );
+        };
+    }
+    
+    
+    private addInputToFilter(filter: FilterInput) {
+        const wrapper = document.createElement("div");
+        wrapper.style.display = "flex";
+        wrapper.style.cursor = "pointer";
+        wrapper.style.marginRight = "8px";
+        wrapper.style.userSelect = "none";
+        
+        const icon = this.createFilterImg(filter.icon)
+        icon.style.marginRight = "8px";
+        wrapper.appendChild(icon);
+        
+        const text = document.createElement("span");
+        text.style.marginRight = "5px";
+        text.innerText = filter.text;
+        wrapper.appendChild(text);
+    
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = InputClass;
+        input.placeholder = "Search by...";
+        input.style.display = "none";
+        input.style.marginTop = "-4px";
+        input.style.height = "32px";
+        input.onclick = e => e.stopImmediatePropagation();
+        input.onkeydown = e => {
+            e.stopPropagation();
+            if (input.value) {
+                this.browseFilters[filter.key] = input.value;
+            } else {
+                delete this.browseFilters[filter.key];
+            }
+            this.open(this.currentPath, true);
+        };
+        wrapper.append(input);
+    
+        this.sessionFilters.append(wrapper);
+        wrapper.onclick = e => {
+            e.stopImmediatePropagation();
+            input.value = "";
+            if (input.style.display === "none") {
+                input.style.display = "unset";
+            } else input.style.display = "none";
+        }
+    }
+
+    private createFilterImg(icon: IconName): HTMLImageElement {
+        const c = document.createElement("img");
+        c.width = 12;
+        c.height = 12;
+        c.style.marginTop = "7px";
+        this.icons.renderIcon({color: "text", color2: "text", height: 12, width: 12, name: icon}).then(it => c.src = it);
+        return c;
+    }
 }
 
 export function div(html: string): HTMLDivElement {
@@ -2639,88 +2810,6 @@ export function image(src: string, opts?: {alt?: string; height?: number; width?
     if (opts?.height != null) result.height = opts.height;
     if (opts?.width != null) result.width = opts.width;
     return result;
-}
-
-// Helper functions for filters. They might need a new home.
-function createChevronImg(): HTMLImageElement {
-    const c = document.createElement("img");
-    c.width = 12;
-    c.height = 12;
-    c.style.marginTop = "7px";
-    return c;
-}
-
-// Note(Jonas): This could just be a private functino in ResourceBrowser<T>
-function addCheckboxToFilter<T>(filter: FilterCheckbox, resourceBrowser: ResourceBrowser<T>) {
-    const wrapper = document.createElement("label");
-    wrapper.style.cursor = "pointer";
-    wrapper.textContent = filter.text;
-    const check = document.createElement("input");
-    check.style.marginLeft = "5px";
-    check.style.cursor = "pointer";
-    check.type = "checkbox";
-
-    const valueFromStorage = getFilterStorageValue(resourceBrowser.resourceName, filter.key);
-    if (valueFromStorage === "true") {
-        resourceBrowser.browseFilters[filter.key] = "true";
-        check.checked = true;
-    }
-
-    check.checked = false;
-    wrapper.appendChild(check);
-    resourceBrowser.filters.appendChild(wrapper);
-    wrapper.onclick = e => {
-        e.stopImmediatePropagation();
-        if (resourceBrowser.browseFilters[filter.key]) {
-            setFilterStorageValue(resourceBrowser.resourceName, filter.key, "false");
-            delete resourceBrowser.browseFilters[filter.key];
-        } else {
-            setFilterStorageValue(resourceBrowser.resourceName, filter.key, "true");
-            resourceBrowser.browseFilters[filter.key] = "true";
-        }
-        resourceBrowser.open(resourceBrowser.currentPath, true);
-    }
-}
-
-// Note(Jonas): This could just be a private functino in ResourceBrowser<T>
-function addOptionsToFilter<T>(filter: FilterWithOptions, resourceBrowser: ResourceBrowser<T>) {
-    const wrapper = document.createElement("div");
-    wrapper.style.display = "flex";
-    wrapper.style.cursor = "pointer";
-    wrapper.style.marginRight = "8px";
-    wrapper.style.userSelect = "none";
-    const text = document.createElement("span");
-    text.style.marginRight = "5px";
-
-    const valueFromStorage = getFilterStorageValue(resourceBrowser.resourceName, filter.key);
-    if (valueFromStorage != null) {
-        const option = filter.options.find(it => it.value === valueFromStorage);
-        if (option) {
-            text.innerText = option.text;
-            resourceBrowser.browseFilters[filter.key] = option.value;
-        } else {
-            text.innerText = filter.text;
-        }
-    } else {
-        text.innerText = filter.text;
-    }
-
-    const chevronIcon = createChevronImg();
-    resourceBrowser.icons.renderIcon({name: "chevronDownLight", color: "text", color2: "text", width: 12, height: 12})
-        .then(url => chevronIcon.src = url);
-    wrapper.appendChild(text);
-    wrapper.appendChild(chevronIcon);
-    resourceBrowser.filters.appendChild(wrapper);
-
-    wrapper.onclick = e => {
-        const wrapperRect = wrapper.getBoundingClientRect();
-        e.stopImmediatePropagation();
-        resourceBrowser.renderFiltersInContextMenu(
-            filter,
-            wrapperRect.x,
-            wrapperRect.y + wrapperRect.height,
-        );
-    };
 }
 
 function getFilterStorageValue(namespace: string, key: string): string | null {
