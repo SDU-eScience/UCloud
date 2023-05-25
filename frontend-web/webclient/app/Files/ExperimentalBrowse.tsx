@@ -57,6 +57,15 @@ const collectionCacheForCompletion = new AsyncCache<FileCollection[]>({globalTtl
 const trashCache = new AsyncCache<UFile>();
 const metadataTemplateCache = new AsyncCache<string>();
 
+const defaultRetrieveFlags: Partial<UFileIncludeFlags> & {itemsPerPage: number} = {
+    includeMetadata: true,
+    includeSizes: true,
+    includeTimestamps: true,
+    includeUnixInfo: true,
+    allowUnsupportedInclude: true,
+    itemsPerPage: 250,
+};
+
 const SEARCH = "/search";
 
 const ExperimentalBrowse: React.FunctionComponent = () => {
@@ -875,14 +884,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             // =========================================================================================================
             const lastFetch: Record<string, number> = {};
             const inflightRequests: Record<string, Promise<boolean>> = {};
-            const defaultRetrieveFlags: Partial<UFileIncludeFlags> & {itemsPerPage: number} = {
-                includeMetadata: true,
-                includeSizes: true,
-                includeTimestamps: true,
-                includeUnixInfo: true,
-                allowUnsupportedInclude: true,
-                itemsPerPage: 250,
-            };
+
 
             const prefetch = (path: string): Promise<boolean> => {
                 // TODO(Dan): We can probably replace this with AsyncCache?

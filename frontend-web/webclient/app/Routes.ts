@@ -57,6 +57,7 @@ const apps = {
 };
 
 const jobs = {
+    list: () => `/jobs/`,
     create: (name: string, version: string) => `/jobs/create?app=${name}&version=${version}`,
     view: (jobId: string) => `/jobs/properties/${jobId}`,
     results: () => `/applications/results`,

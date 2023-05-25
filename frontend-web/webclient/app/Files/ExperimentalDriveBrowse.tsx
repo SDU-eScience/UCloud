@@ -537,6 +537,7 @@ export function providerIcon(providerId: string): HTMLElement {
     inner.style.color = "white"
     if (myInfo) {
         inner.style.backgroundImage = `url('/Images/${myInfo.logo}')`;
+        inner.style.backgroundPosition = "center";
     } else {
         inner.style.marginTop = "-8px";
         inner.style.marginLeft = "-5px";

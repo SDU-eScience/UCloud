@@ -5,6 +5,7 @@ import * as React from "react";
 import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
+import {AppToolLogo, appLogoCache} from "@/Applications/AppToolLogo";
 
 // NOTE(Dan): Now why are we doing all of this when we could just be using SVGs? Because they are slow. Not when we
 // show off one or two SVGs, but when we start displaying 5 SVGs per item and the user is loading in hundreds of items.
@@ -33,11 +34,12 @@ export class SvgCache {
             const root = createRoot(fragment);
 
             const promise = new Promise<string>((resolve, reject) => {
-                const Component: React.FunctionComponent<{ children: React.ReactNode }> = props => {
+                const Component: React.FunctionComponent<{children: React.ReactNode}> = props => {
                     const div = useRef<HTMLDivElement | null>(null);
                     useLayoutEffect(() => {
                         const svg = div.current!.querySelector<SVGElement>("svg");
                         if (!svg) {
+                            console.log("no svg!!!!");
                             reject();
                         } else {
                             this.rasterize(fragment.querySelector<SVGElement>("svg")!, width, height, colorHint)
@@ -62,20 +64,18 @@ export class SvgCache {
         });
     }
 
-    async renderIcon(
-        {name, color, color2, width, height}: {
-            name: IconName,
-            color: ThemeColor,
-            color2: ThemeColor,
-            width: number,
-            height: number
-        }
-    ): Promise<string> {
+    async renderIcon({name, color, color2, width, height}: {
+        name: IconName,
+        color: ThemeColor,
+        color2: ThemeColor,
+        width: number,
+        height: number
+    }): Promise<string> {
         const c1 = getCssColorVar(color);
         const c2 = color2 ? getCssColorVar(color) : undefined;
         return await this.renderSvg(
             `${name}-${c1}-${color2}-${width}-${height}`,
-            () => <Icon name={name} color={c1} color2={c2} width={width} height={height}/>,
+            () => <Icon name={name} color={c1} color2={c2} width={width} height={height} />,
             width,
             height,
             c1,
@@ -115,6 +115,7 @@ export class SvgCache {
 
         return new Promise((resolve, reject) => {
             image.onerror = (e) => {
+                console.log("image error!", e);
                 reject(e);
             };
 

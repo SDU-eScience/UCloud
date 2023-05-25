@@ -36,6 +36,7 @@ const LogoWrapper = injectStyle("logo-wrapper", k => `
     ${k} > img {
         --logo-padding: calc(var(--wrapper-size) / 10);
         padding: var(--logo-padding);
+        background-position: center;
         max-width: calc(var(--wrapper-size) - var(--logo-padding));
         max-height: calc(var(--wrapper-size) - var(--logo-padding));
     }

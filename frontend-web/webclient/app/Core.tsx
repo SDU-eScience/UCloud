@@ -81,6 +81,7 @@ import AppRoutes from "./Routes";
 import {RightPopIn} from "./ui-components/PopIn";
 import {injectStyle, injectStyleSimple} from "./Unstyled";
 import FilesApi from "@/UCloud/FilesApi";
+import ExperimentalJobs from "./Applications/Jobs/ExperimentalJobs";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -132,6 +133,7 @@ const Core = (): JSX.Element => (
                         <Route path={AppRoutes.apps.vnc(":jobId", ":rank")}
                             element={React.createElement(requireAuth(JobVnc))} />
                         <Route path="/public-links/*" element={React.createElement(requireAuth(IngressRouter))} />
+                        <Route path={AppRoutes.jobs.list()} element={React.createElement(requireAuth(ExperimentalJobs))} />
                         <Route path="/jobs/*" element={React.createElement(requireAuth(JobRouter))} />
                         <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
                         <Route path="/public-ips/*" element={React.createElement(requireAuth(NetworkIPsRouter))} />
