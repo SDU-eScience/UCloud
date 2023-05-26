@@ -28,6 +28,7 @@ import {BrowseType} from "@/Resource/BrowseType";
 import {formatDistanceToNow} from "date-fns/esm";
 import {ListRowStat} from "@/ui-components/List";
 import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
+import AppRoutes from "@/Routes";
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -297,7 +298,23 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             }
             return true;
         };
-        return baseOperations;
+
+        const ourOps: Operation<Job, ResourceBrowseCallbacks<Job>>[] = [{
+            // Create new app run (Go to App Store),
+            enabled: () => true,
+            onClick: (_, cb) => cb.navigate(AppRoutes.apps.overview()),
+            icon: "appStore",
+            text: "Create new run",
+        }, {
+            // Re-run app
+            enabled: (selected) => selected.length === 1,
+            onClick: ([selected], cb) => cb.navigate(AppRoutes.jobs.create(selected.specification.application.name, selected.
+                specification.application.version)),
+            icon: "play",
+            text: "Run application again"
+        }];
+
+        return ourOps.concat(baseOperations);
     }
 
     terminate(request: BulkRequest<FindByStringId>): APICallParameters<BulkRequest<FindByStringId>, BulkResponse<any | null>> {

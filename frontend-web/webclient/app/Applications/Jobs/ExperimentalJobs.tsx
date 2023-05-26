@@ -7,11 +7,15 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {EmptyReasonTag, ResourceBrowser} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
-import {AppToolLogo, appLogoCache} from "../AppToolLogo";
+import {appLogoCache} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {AppLogo, hashF} from "../Card";
+import {useNavigate} from "react-router";
+import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
+import {useDispatch} from "react-redux";
+import AppRoutes from "@/Routes";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -21,8 +25,9 @@ const logoDataUrls = new AsyncCache<string>();
 
 function ExperimentalJobs(): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
-
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
     useTitle("Jobs");
 
     React.useLayoutEffect(() => {
@@ -38,6 +43,11 @@ function ExperimentalJobs(): JSX.Element {
             }
 
             browser.on("open", (oldPath, newPath, resource) => {
+                if (resource) {
+                    navigate(AppRoutes.jobs.view(resource.id));
+                    return;
+                }
+
                 callAPI(JobsApi.browse({
                     ...defaultRetrieveFlags,
                     ...browser.browseFilters
@@ -113,10 +123,10 @@ function ExperimentalJobs(): JSX.Element {
                 row.title.append(browser.defaultTitleRenderer(job.specification.name ?? job.id, dims));
                 row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
 
-                
+
                 let didSetLogo = false;
                 logoDataUrls.retrieve(job.specification.application.name, async () => {
-                    // setIcon to fallback value here?
+                    // Note(Jonas): Some possible improvements
                     browser.icons.renderSvg(
                         job.specification.application.name,
                         () => <AppLogo size={"32px"} hash={hashF(job.specification.application.name)} />,
@@ -179,11 +189,30 @@ function ExperimentalJobs(): JSX.Element {
             });
 
             browser.on("nameOfEntry", j => j.specification.name ?? j.id ?? "");
-            browser.on("fetchOperationsCallback", () => []);
+            browser.on("pathToEntry", j => j.id);
+            browser.on("fetchOperationsCallback", () => {
+                const support = {productsByProvider: {}}; // TODO(Jonas), FIXME(Jonas): We need to do something different here.
+                const callbacks: ResourceBrowseCallbacks<Job> = {
+                    api: JobsApi,
+                    navigate: to => navigate(to),
+                    commandLoading: false,
+                    invokeCommand: call => callAPI(call),
+                    embedded: false,
+                    isCreating: false,
+                    dispatch: dispatch,
+                    supportByProvider: support,
+                    reload: () => browser.refresh(),
+                    isWorkspaceAdmin: false,
+                    viewProperties: j => {
+                        navigate(AppRoutes.jobs.view(j.id))
+                    }
+                };
+                return callbacks;
+            });
             browser.on("fetchOperations", () => {
                 const entries = browser.findSelectedEntries();
                 const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as any;
-                return JobsApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries))
+                return JobsApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries));
             });
             browser.on("generateBreadcrumbs", () => [{title: "Jobs", absolutePath: ""}]);
 

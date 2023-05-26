@@ -791,6 +791,7 @@ export class ResourceBrowser<T> {
         icon.style.backgroundSize = "contain";
         icon.style.marginRight = "8px";
         icon.style.display = "inline-block";
+        icon.style.backgroundPosition = "center";
         return [icon, (url) => icon.style.backgroundImage = `url(${url})`];
     }
 
