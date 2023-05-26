@@ -15,14 +15,9 @@ repositories {
 application {
     mainClass.set("dk.sdu.cloud.MainKt")
 }
-
-tasks.withType<KotlinCompile> {
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-}
-
 kotlin {
+    jvmToolchain(17)
+
     sourceSets {
         val main by getting {
             dependencies {
@@ -30,8 +25,6 @@ kotlin {
                 implementation(project(":service-lib-server"))
                 implementation(kotlin("compiler-embeddable"))
                 implementation(kotlin("reflect"))
-//                implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.5.31")
-//                implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.31")
 
                 rootProject.childProjects.values
                     .filter { it.name.endsWith("-service") }
