@@ -10,10 +10,14 @@ import * as React from "react";
 import {AppToolLogo, appLogoCache} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
+import {AsyncCache} from "@/Utilities/AsyncCache";
+import {AppLogo, hashF} from "../Card";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
 };
+
+const logoDataUrls = new AsyncCache<string>();
 
 function ExperimentalJobs(): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
@@ -109,7 +113,28 @@ function ExperimentalJobs(): JSX.Element {
                 row.title.append(browser.defaultTitleRenderer(job.specification.name ?? job.id, dims));
                 row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
 
-                appLogoCache.fetchLogo(job.specification.application.name).then(setIcon);
+                
+                let didSetLogo = false;
+                logoDataUrls.retrieve(job.specification.application.name, async () => {
+                    // setIcon to fallback value here?
+                    browser.icons.renderSvg(
+                        job.specification.application.name,
+                        () => <AppLogo size={"32px"} hash={hashF(job.specification.application.name)} />,
+                        32,
+                        32
+                    ).then(it => {
+                        if (!didSetLogo) setIcon(it);
+                    }).catch(e => console.log("render SVG error", e));
+
+                    const result = await appLogoCache.fetchLogo(job.specification.application.name);
+                    return result == null ? "" : result;
+                }).then(result => {
+                    if (result) {
+                        didSetLogo = true;
+                        setIcon(result);
+                    }
+                });
+
                 const [status, setStatus] = browser.defaultIconRenderer();
                 const [statusIconName, statusIconColor] = jobStateToIconAndColor(job.status.state);
                 browser.icons.renderIcon({
@@ -118,7 +143,7 @@ function ExperimentalJobs(): JSX.Element {
                     height: 32,
                     color: statusIconColor,
                     color2: statusIconColor
-                }).then(setStatus).catch(e => console.log("statusIcon", e))
+                }).then(setStatus);
                 row.stat3.append(status);
             });
 
@@ -134,7 +159,7 @@ function ExperimentalJobs(): JSX.Element {
 
                     case EmptyReasonTag.EMPTY: {
                         if (Object.values(browser.browseFilters).length !== 0)
-                        e.reason.append("No jobs found with active filters.")
+                            e.reason.append("No jobs found with active filters.")
                         else e.reason.append("This workspace has not run any jobs yet.");
                         break;
                     }
@@ -155,7 +180,11 @@ function ExperimentalJobs(): JSX.Element {
 
             browser.on("nameOfEntry", j => j.specification.name ?? j.id ?? "");
             browser.on("fetchOperationsCallback", () => []);
-            browser.on("fetchOperations", () => []);
+            browser.on("fetchOperations", () => {
+                const entries = browser.findSelectedEntries();
+                const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as any;
+                return JobsApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries))
+            });
             browser.on("generateBreadcrumbs", () => [{title: "Jobs", absolutePath: ""}]);
 
             browser.mount();

@@ -178,13 +178,13 @@ export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: AppLog
                 />
             </defs>
             <g transform={`rotate(${rot} 0 0)`}>
-                <use xlinkHref="#hex_th___" fill="#fff" />
-                <use xlinkHref="#hex_to___" fill={appColors[appC][c1[0]]} />
-                <use xlinkHref="#hex_to___" fill={appColors[appC][c1[1]]} transform={ROT120} />
-                <use xlinkHref="#hex_to___" fill={appColors[appC][c1[2]]} transform={ROT240} />
-                <use xlinkHref="#hex_ti___" fill={appColors[CENTER_C][c2[0]]} />
-                <use xlinkHref="#hex_ti___" fill={appColors[CENTER_C][c2[1]]} transform={ROT120} />
-                <use xlinkHref="#hex_ti___" fill={appColors[CENTER_C][c2[2]]} transform={ROT240} />
+                <use href="#hex_th___" fill="#fff" />
+                <use href="#hex_to___" fill={appColors[appC][c1[0]]} />
+                <use href="#hex_to___" fill={appColors[appC][c1[1]]} transform={ROT120} />
+                <use href="#hex_to___" fill={appColors[appC][c1[2]]} transform={ROT240} />
+                <use href="#hex_ti___" fill={appColors[CENTER_C][c2[0]]} />
+                <use href="#hex_ti___" fill={appColors[CENTER_C][c2[1]]} transform={ROT120} />
+                <use href="#hex_ti___" fill={appColors[CENTER_C][c2[2]]} transform={ROT240} />
             </g>
         </svg>
     );

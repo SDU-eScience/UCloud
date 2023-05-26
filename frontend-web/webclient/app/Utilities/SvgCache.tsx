@@ -115,7 +115,7 @@ export class SvgCache {
 
         return new Promise((resolve, reject) => {
             image.onerror = (e) => {
-                console.log("image error!", e);
+                console.warn("SVG might be invalid.")
                 reject(e);
             };
 
