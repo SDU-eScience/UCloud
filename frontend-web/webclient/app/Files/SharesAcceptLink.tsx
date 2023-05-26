@@ -8,6 +8,7 @@ import {useNavigate, useParams} from "react-router";
 import styled from "styled-components";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {Box, Button} from "@/ui-components";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 export const SharesAcceptLink: React.FunctionComponent = () => {
     const navigate = useNavigate();
@@ -26,7 +27,9 @@ export const SharesAcceptLink: React.FunctionComponent = () => {
 
     useEffect(() => {
         if (linkInfo.data) {
-            if (linkInfo.data.sharePath) {
+            if (linkInfo.data.sharedBy == Client.username && linkInfo.data.path) {
+                navigate(buildQueryString("/files", {path: linkInfo.data.path}));
+            } else if (linkInfo.data.sharePath) {
                 navigate(buildQueryString("/files", {path: linkInfo.data.sharePath}));
             }
         }
