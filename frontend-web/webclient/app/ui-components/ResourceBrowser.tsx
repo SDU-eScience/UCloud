@@ -12,6 +12,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2} from "@/UCloud";
 import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
+import {getStartOfDay} from "@/Utilities/DateUtilities";
 
 /*
  BUGS FOUND
@@ -23,7 +24,7 @@ import {InputClass} from "./Input";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 
-export type Filter = FilterWithOptions | FilterCheckbox | FilterInput;
+export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
 
 interface FilterInput {
     type: "input",
@@ -55,6 +56,22 @@ interface FilterOption {
     value: string;
 }
 
+interface MultiOptionFilter {
+    type: "multi-option";
+    keys: [string, string];
+    text: string;
+    clearable: boolean;
+    options: MultiOption[];
+    icon: IconName;
+}
+
+interface MultiOption {
+    text: string;
+    icon: IconName;
+    color: ThemeColor;
+    values: [string, string];
+}
+
 const SORT_DIRECTIONS: FilterWithOptions = {
     type: "options",
     key: "sortDirection",
@@ -66,6 +83,45 @@ const SORT_DIRECTIONS: FilterWithOptions = {
         {color: "black", icon: "sortDescending", text: "Descending", value: "descending"}
     ]
 };
+
+export function dateRangeFilters(text: string): MultiOptionFilter {
+    const todayMs = getStartOfDay(new Date(timestampUnixMs())).getTime();
+    const yesterdayEnd = todayMs - 1;
+    const yesterdayStart = getStartOfDay(new Date(todayMs - 1)).getTime();
+    const pastWeekEnd = new Date(timestampUnixMs()).getTime();
+    const pastWeekStart = getStartOfDay(new Date(pastWeekEnd - (7 * 1000 * 60 * 60 * 24))).getTime();
+    const pastMonthEnd = new Date(timestampUnixMs()).getTime();
+    const pastMonthStart = getStartOfDay(new Date(pastMonthEnd - (30 * 1000 * 60 * 60 * 24))).getTime();
+
+    return {
+        text,
+        type: "multi-option",
+        clearable: true,
+        icon: "calendar",
+        keys: ["filterCreatedAfter", "filterCreatedBefore"],
+        options: [{
+            text: "Today",
+            color: "black",
+            icon: "calendar",
+            values: [todayMs.toString(), ""]
+        }, {
+            text: "Yesterday",
+            color: "black",
+            icon: "calendar",
+            values: [yesterdayStart.toString(), yesterdayEnd.toString()]
+        }, {
+            text: "Past week",
+            color: "black",
+            icon: "calendar",
+            values: [pastWeekStart.toString(), pastMonthEnd.toString()]
+        }, {
+            text: "Past month",
+            color: "black",
+            icon: "calendar",
+            values: [pastMonthStart.toString(), pastMonthEnd.toString()]
+        }]
+    }
+}
 
 export type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
 
@@ -901,7 +957,8 @@ export class ResourceBrowser<T> {
                     this.addCheckboxToFilter(f);
                     break;
                 }
-                case "options": {
+                case "options":
+                case "multi-option": {
                     this.addOptionsToFilter(f);
                     break;
                 }
@@ -923,9 +980,9 @@ export class ResourceBrowser<T> {
         this.renderOperationsIn(false);
     }
 
-    public renderFiltersInContextMenu(filter: FilterWithOptions, x: number, y: number) {
+    public renderFiltersInContextMenu(filter: FilterWithOptions | MultiOptionFilter, x: number, y: number) {
         const renderOpIconAndText = (
-            op: FilterOption,
+            op: {text: string; icon: IconName; color: ThemeColor},
             element: HTMLElement,
             shortcut?: string,
         ) => {
@@ -955,7 +1012,7 @@ export class ResourceBrowser<T> {
         }
 
         const renderFilterInContextMenu = (
-            options: FilterOption[],
+            options: FilterOption[] | MultiOption[],
             posX: number,
             posY: number
         ) => {
@@ -998,11 +1055,29 @@ export class ResourceBrowser<T> {
 
                 const myIndex = shortcutNumber - 1;
                 this.contextMenuHandlers.push(() => {
-                    this.browseFilters[filter.key] = child.value;
-                    if (child.value === CLEAR_FILTER_VALUE) {
-                        clearFilterStorageValue(this.resourceName, filter.key);
-                    } else {
-                        setFilterStorageValue(this.resourceName, filter.key, child.value);
+                    if (filter.type === "options") {
+                        let c = child as FilterOption;
+                        this.browseFilters[filter.key] = c.value;
+                        if (c.value === CLEAR_FILTER_VALUE) {
+                            clearFilterStorageValue(this.resourceName, filter.key);
+                        } else {
+                            setFilterStorageValue(this.resourceName, filter.key, c.value);
+                        }
+                    } else if (filter.type === "multi-option") {
+                        let c = child as MultiOption;
+                        const [keyOne, keyTwo] = filter.keys;
+                        const [valueOne, valueTwo] = c.values;
+                        this.browseFilters[keyOne] = valueOne;
+                        if (valueTwo) this.browseFilters[keyTwo] = valueTwo;
+                        else delete this.browseFilters[keyTwo];
+                        if (valueOne === CLEAR_FILTER_VALUE) {
+                            clearFilterStorageValue(this.resourceName, keyOne);
+                            clearFilterStorageValue(this.resourceName, keyTwo);
+                        } else {
+                            setFilterStorageValue(this.resourceName, keyOne, valueOne);
+                            if (valueTwo) setFilterStorageValue(this.resourceName, keyTwo, valueTwo);
+                            else clearFilterStorageValue(this.resourceName, keyTwo);
+                        }
                     }
                     this.open(this.currentPath, true);
                 });
@@ -1022,14 +1097,27 @@ export class ResourceBrowser<T> {
             }
         };
 
-        let filters: FilterOption[] = filter.clearable ? [{
-            text: "Clear filter",
-            color: "red",
-            icon: "close",
-            value: CLEAR_FILTER_VALUE
-        } as FilterOption].concat(filter.options) : filter.options;
-
-        renderFilterInContextMenu(filters, x, y);
+        if (filter.type === "options") {
+            let filters = filter.options.slice();
+            if (filter.clearable) {
+                filters.unshift({
+                    text: "Clear filter",
+                    color: "red",
+                    icon: "close",
+                    value: CLEAR_FILTER_VALUE
+                });
+            }
+            renderFilterInContextMenu(filters, x, y);
+        } else if (filter.type === "multi-option") {
+            let filters = filter.options.slice();
+            filters.unshift({
+                text: "Clear filter",
+                color: "red",
+                icon: "close",
+                values: [CLEAR_FILTER_VALUE, ""]
+            });
+            renderFilterInContextMenu(filters, x, y);
+        }
     }
 
     private renderOperationsIn(useContextMenu: boolean, contextOpts?: {
@@ -1219,7 +1307,7 @@ export class ResourceBrowser<T> {
 
     clearFilters() {
         const filtersToKeep = this.dispatchMessage("fetchFilters", fn => fn())
-            .filter(it => it.type === "input").map(it => it.key);
+            .filter(it => it.type === "input").map((it: FilterInput) => it.key);
         for (const key of Object.keys(this.browseFilters)) {
             if (!filtersToKeep.includes(key)) delete this.browseFilters[key];
         }
@@ -2716,15 +2804,23 @@ export class ResourceBrowser<T> {
         }
     }
 
-    private addOptionsToFilter<T>(filter: FilterWithOptions) {
+    private addOptionsToFilter<T>(filter: FilterWithOptions | MultiOptionFilter) {
         const wrapper = document.createElement("div");
         wrapper.style.display = "flex";
         wrapper.style.cursor = "pointer";
         wrapper.style.marginRight = "8px";
         wrapper.style.userSelect = "none";
 
-        const valueFromStorage = getFilterStorageValue(this.resourceName, filter.key);
-        const iconName = filter.options.find(it => it.value === valueFromStorage)?.icon ?? filter.icon;
+        const valueFromStorage = getFilterStorageValue(this.resourceName, filter.type === "options" ? filter.key : filter.keys[0]);
+        let iconName: IconName = "cloudTryingItsBest";
+        if (valueFromStorage !== null) {
+            if (filter.type === "options") {
+                iconName = filter.options.find(it => it.value === valueFromStorage)?.icon ?? filter.icon;
+            } else if (filter.type === "multi-option") {
+                const secondValue = getFilterStorageValue(this.resourceName, filter.keys[1]);
+                iconName = filter.options.find(it => it.values[0] === valueFromStorage && (!it.values[1] || it.values[1] === secondValue))?.icon ?? filter.icon;
+            }
+        }
         const icon = this.createFilterImg(iconName);
         icon.style.marginRight = "8px";
         wrapper.appendChild(icon);
@@ -2734,10 +2830,21 @@ export class ResourceBrowser<T> {
         text.innerText = filter.text;
 
         if (valueFromStorage != null) {
-            const option = filter.options.find(it => it.value === valueFromStorage);
-            if (option) {
-                text.innerText = option.text;
-                this.browseFilters[filter.key] = option.value;
+            if (filter.type === "options") {
+                const option = filter.options.find(it => it.value === valueFromStorage);
+                if (option) {
+                    text.innerText = option.text;
+                    this.browseFilters[filter.key] = option.value;
+                }
+            } else if (filter.type === "multi-option") {
+                const secondValue = getFilterStorageValue(this.resourceName, filter.keys[1]);
+                const option = filter.options.find(it => it.values[0] === valueFromStorage && (!it.values[1] || it.values[1] === secondValue));
+                if (option) {
+                    text.innerText = option.text;
+                    this.browseFilters[filter.keys[0]] = option.values[0];
+                    if (secondValue) this.browseFilters[filter.keys[1]] = option.values[1];
+                    else delete this.browseFilters[filter.keys[1]];
+                }
             }
         }
 

@@ -5,7 +5,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowser} from "@/ui-components/ResourceBrowser";
+import {dateRangeFilters, EmptyReasonTag, ResourceBrowser} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {appLogoCache} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
@@ -29,6 +29,8 @@ function ExperimentalJobs(): JSX.Element {
     const navigate = useNavigate();
     const dispatch = useDispatch();
     useTitle("Jobs");
+
+    const dateRanges = dateRangeFilters("Created after");
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -95,14 +97,7 @@ function ExperimentalJobs(): JSX.Element {
                 type: "input",
                 icon: "user"
             },
-            {
-                key: "filterCreatedAfter",
-                options: [/* TODO(Jonas) */],
-                text: "Created after",
-                type: "options",
-                icon: "calendar",
-                clearable: true,
-            },
+            dateRanges,
             {
                 key: "filterState",
                 options: [
