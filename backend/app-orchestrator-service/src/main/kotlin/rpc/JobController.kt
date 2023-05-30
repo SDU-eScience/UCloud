@@ -5,18 +5,43 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.util.asController
 import dk.sdu.cloud.app.orchestrator.api.Jobs
 import dk.sdu.cloud.app.orchestrator.api.JobsFollowResponse
+import dk.sdu.cloud.app.orchestrator.services.IdCardServiceImpl
+import dk.sdu.cloud.app.orchestrator.services.InternalJobState
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
+import dk.sdu.cloud.app.orchestrator.services.JobResourceService2
+import dk.sdu.cloud.app.orchestrator.services.ResourceManagerByOwner
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.actorAndProject
+import dk.sdu.cloud.service.db.async.DBContext
+import io.ktor.server.response.*
 
 class JobController(
+    private val db: DBContext,
     private val orchestrator: JobOrchestrator,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        if (true) {
+            val jobs = JobResourceService2(db, null)
+
+            implement(Jobs.browse) {
+//                ok(jobs.browse(actorAndProject, request))
+                (ctx as HttpCall).call.respondBytesWriter {
+                    jobs.browseV2(actorAndProject, request, this)
+                }
+
+                okContentAlreadyDelivered()
+            }
+
+            implement(Jobs.retrieve) {
+                ok(jobs.retrieve(actorAndProject, request) ?: throw RPCException("Unknown job", HttpStatusCode.NotFound))
+            }
+            return
+        }
+
         orchestrator.asController().configure(rpcServer)
 
         implement(Jobs.terminate) {

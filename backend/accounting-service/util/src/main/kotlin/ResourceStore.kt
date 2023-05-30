@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.util
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceIncludeFlags
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 data class ResourceDocument<T>(
@@ -27,7 +28,7 @@ data class IdCard(
 
 interface ResourceStore<T> {
     data class BrowseResult(val count: Int, val next: String?)
-    data class Update(val update: String, val extra: JsonObject? = null)
+    data class Update(val update: String?, val extra: JsonElement? = null)
 
     suspend fun create(
         idCard: IdCard,

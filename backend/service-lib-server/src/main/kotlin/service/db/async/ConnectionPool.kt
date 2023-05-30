@@ -105,6 +105,7 @@ suspend fun <R> DBContext.withSession(
     }
 }
 
+typealias DBTransaction = AsyncDBConnection
 data class AsyncDBConnection(
     internal val conn: SuspendingConnectionImpl, // Internal jasync-sql connection
     internal val debug: DebugSystemFeature

@@ -136,12 +136,17 @@ class IngoingHttpInterceptor(
 
         when (callResult) {
             is OutgoingCallResponse.Ok -> {
+                val start = System.nanoTime()
                 ctx.ktor.call.respond(
                     TextContent(
                         defaultMapper.encodeToString(call.successType, callResult.result),
                         ContentType.Application.Json.withCharset(Charsets.UTF_8)
                     )
                 )
+                val end = System.nanoTime()
+                if (call.fullName == "jobs.browse") {
+                    println("Response time was: " + (end - start))
+                }
             }
 
             is OutgoingCallResponse.Error -> {

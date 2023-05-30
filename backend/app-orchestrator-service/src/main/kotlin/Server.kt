@@ -136,7 +136,7 @@ class Server(override val micro: Micro) : CommonServer {
         if (streams != null) AppProcessor(streams, jobOrchestrator, appStoreCache).init()
 
         configureControllers(
-            JobController(jobOrchestrator),
+            JobController(db, jobOrchestrator),
             ingressService.asController(),
             licenseService.asController(),
             NetworkIPController(networkService),
