@@ -258,7 +258,9 @@ export const ProductSelector: React.FunctionComponent<{
             ReactDOM.createPortal(
                 <SelectorDialog style={{left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} onClick={stopPropagation}>
                     {props.loading && props.products.length === 0 ? <>
-                        <HexSpin />
+                        <Flex mt={(dialogHeight - 64 - 20) / 2 /* subract margin + height of HexSpin */}>
+                            <HexSpin size={64} />
+                        </Flex>
                     </> : props.products.length === 0 ?
                         <>
                             <NoResultsCardBody title={`No ${productName} available for use`}>
