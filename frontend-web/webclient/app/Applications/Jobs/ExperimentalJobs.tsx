@@ -5,7 +5,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import {dateRangeFilters, EmptyReasonTag, ResourceBrowser} from "@/ui-components/ResourceBrowser";
+import {clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowser} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {appLogoCache} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
@@ -31,11 +31,15 @@ function ExperimentalJobs(): JSX.Element {
     useTitle("Jobs");
 
     const dateRanges = dateRangeFilters("Created after");
-
+    
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             const browser = new ResourceBrowser<Job>(mount, "jobs");
+            
+            // Removed stored filters that shouldn't persist.
+            dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
+            
             browserRef.current = browser;
             browser.features = {
                 renderSpinnerWhenLoading: true,

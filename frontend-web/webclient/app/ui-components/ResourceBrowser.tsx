@@ -2943,7 +2943,7 @@ function setFilterStorageValue(namespace: string, key: string, value: string) {
     localStorage.setItem(`${namespace}:${key}`, value);
 }
 
-function clearFilterStorageValue(namespace: string, key: string) {
+export function clearFilterStorageValue(namespace: string, key: string) {
     localStorage.removeItem(`${namespace}:${key}`);
 }
 
