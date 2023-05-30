@@ -181,6 +181,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 text: "Sort by",
                 type: "options",
                 icon: "properties",
+                clearable: false,
                 options: [{
                     color: "black", icon: "id", text: "Name", value: "title"
                 }, {

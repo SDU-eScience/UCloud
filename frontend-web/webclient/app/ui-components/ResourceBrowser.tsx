@@ -21,6 +21,8 @@ import {InputClass} from "./Input";
     - Handling projects that cannot consume resources.
 */
 
+const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
+
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput;
 
 interface FilterInput {
@@ -34,6 +36,7 @@ interface FilterWithOptions {
     type: "options";
     key: string;
     text: string;
+    clearable: boolean;
     options: FilterOption[];
     icon: IconName;
 }
@@ -57,6 +60,7 @@ const SORT_DIRECTIONS: FilterWithOptions = {
     key: "sortDirection",
     text: "Sort order",
     icon: "sortAscending",
+    clearable: false,
     options: [
         {color: "black", icon: "sortAscending", text: "Ascending", value: "ascending"},
         {color: "black", icon: "sortDescending", text: "Descending", value: "descending"}
@@ -995,7 +999,11 @@ export class ResourceBrowser<T> {
                 const myIndex = shortcutNumber - 1;
                 this.contextMenuHandlers.push(() => {
                     this.browseFilters[filter.key] = child.value;
-                    setFilterStorageValue(this.resourceName, filter.key, child.value);
+                    if (child.value === CLEAR_FILTER_VALUE) {
+                        clearFilterStorageValue(this.resourceName, filter.key);
+                    } else {
+                        setFilterStorageValue(this.resourceName, filter.key, child.value);
+                    }
                     this.open(this.currentPath, true);
                 });
                 item.addEventListener("mouseover", () => {
@@ -1014,7 +1022,14 @@ export class ResourceBrowser<T> {
             }
         };
 
-        renderFilterInContextMenu(filter.options, x, y);
+        let filters: FilterOption[] = filter.clearable ? [{
+            text: "Clear filter",
+            color: "red",
+            icon: "close",
+            value: CLEAR_FILTER_VALUE
+        } as FilterOption].concat(filter.options) : filter.options;
+
+        renderFilterInContextMenu(filters, x, y);
     }
 
     private renderOperationsIn(useContextMenu: boolean, contextOpts?: {
@@ -2662,28 +2677,28 @@ export class ResourceBrowser<T> {
         const wrapper = document.createElement("label");
         wrapper.style.cursor = "pointer";
         wrapper.style.marginRight = "8px";
-        
+
         const icon = this.createFilterImg(filter.icon);
         icon.style.marginTop = "0";
         icon.style.marginRight = "8px";
         wrapper.appendChild(icon);
-        
+
         const span = document.createElement("span");
         span.innerText = filter.text;
         wrapper.appendChild(span);
-        
+
         const check = document.createElement("input");
         check.style.marginLeft = "5px";
         check.style.cursor = "pointer";
         check.type = "checkbox";
         check.checked = false;
-    
+
         const valueFromStorage = getFilterStorageValue(this.resourceName, filter.key);
         if (valueFromStorage === "true") {
             this.browseFilters[filter.key] = "true";
             check.checked = true;
         }
-    
+
         wrapper.appendChild(check);
         this.filters.appendChild(wrapper);
         wrapper.onclick = e => {
@@ -2700,24 +2715,24 @@ export class ResourceBrowser<T> {
             this.open(this.currentPath, true);
         }
     }
-    
+
     private addOptionsToFilter<T>(filter: FilterWithOptions) {
         const wrapper = document.createElement("div");
         wrapper.style.display = "flex";
         wrapper.style.cursor = "pointer";
         wrapper.style.marginRight = "8px";
         wrapper.style.userSelect = "none";
-        
+
         const valueFromStorage = getFilterStorageValue(this.resourceName, filter.key);
         const iconName = filter.options.find(it => it.value === valueFromStorage)?.icon ?? filter.icon;
         const icon = this.createFilterImg(iconName);
         icon.style.marginRight = "8px";
         wrapper.appendChild(icon);
-        
+
         const text = document.createElement("span");
         text.style.marginRight = "5px";
         text.innerText = filter.text;
-    
+
         if (valueFromStorage != null) {
             const option = filter.options.find(it => it.value === valueFromStorage);
             if (option) {
@@ -2725,12 +2740,12 @@ export class ResourceBrowser<T> {
                 this.browseFilters[filter.key] = option.value;
             }
         }
-        
+
         wrapper.appendChild(text);
         const chevronIcon = this.createFilterImg("chevronDownLight");
         wrapper.appendChild(chevronIcon);
         this.filters.appendChild(wrapper);
-    
+
         wrapper.onclick = e => {
             const wrapperRect = wrapper.getBoundingClientRect();
             e.stopImmediatePropagation();
@@ -2741,24 +2756,24 @@ export class ResourceBrowser<T> {
             );
         };
     }
-    
-    
+
+
     private addInputToFilter(filter: FilterInput) {
         const wrapper = document.createElement("div");
         wrapper.style.display = "flex";
         wrapper.style.cursor = "pointer";
         wrapper.style.marginRight = "8px";
         wrapper.style.userSelect = "none";
-        
+
         const icon = this.createFilterImg(filter.icon)
         icon.style.marginRight = "8px";
         wrapper.appendChild(icon);
-        
+
         const text = document.createElement("span");
         text.style.marginRight = "5px";
         text.innerText = filter.text;
         wrapper.appendChild(text);
-    
+
         const input = document.createElement("input");
         input.type = "text";
         input.className = InputClass;
@@ -2777,7 +2792,7 @@ export class ResourceBrowser<T> {
             this.open(this.currentPath, true);
         };
         wrapper.append(input);
-    
+
         this.sessionFilters.append(wrapper);
         wrapper.onclick = e => {
             e.stopImmediatePropagation();
@@ -2819,6 +2834,10 @@ function getFilterStorageValue(namespace: string, key: string): string | null {
 
 function setFilterStorageValue(namespace: string, key: string, value: string) {
     localStorage.setItem(`${namespace}:${key}`, value);
+}
+
+function clearFilterStorageValue(namespace: string, key: string) {
+    localStorage.removeItem(`${namespace}:${key}`);
 }
 
 // https://stackoverflow.com/a/13139830

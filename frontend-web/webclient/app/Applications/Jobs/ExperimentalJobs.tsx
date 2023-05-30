@@ -74,6 +74,7 @@ function ExperimentalJobs(): JSX.Element {
             browser.on("fetchFilters", () => [{
                 key: "sortBy",
                 text: "Sort by",
+                clearable: false,
                 options: [{
                     color: "text",
                     icon: "calendar",
@@ -96,10 +97,11 @@ function ExperimentalJobs(): JSX.Element {
             },
             {
                 key: "filterCreatedAfter",
-                options: [],
+                options: [/* TODO(Jonas) */],
                 text: "Created after",
                 type: "options",
-                icon: "calendar"
+                icon: "calendar",
+                clearable: true,
             },
             {
                 key: "filterState",
@@ -111,6 +113,7 @@ function ExperimentalJobs(): JSX.Element {
                     {text: "Expired", value: "EXPIRED", icon: "chrono", color: "text"},
                     {text: "Suspended", value: "SUSPENDED", icon: "pauseSolid", color: "text"},
                 ],
+                clearable: true,
                 text: "Status",
                 type: "options",
                 icon: "radioEmpty"
