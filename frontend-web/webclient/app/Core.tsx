@@ -82,6 +82,7 @@ import {RightPopIn} from "./ui-components/PopIn";
 import {injectStyle, injectStyleSimple} from "./Unstyled";
 import FilesApi from "@/UCloud/FilesApi";
 import ExperimentalJobs from "./Applications/Jobs/ExperimentalJobs";
+import {ExperimentalNetworkIP} from "./Applications/Jobs/Widgets/ExperimentalNetworkIP";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -136,7 +137,10 @@ const Core = (): JSX.Element => (
                         <Route path={AppRoutes.jobs.list()} element={React.createElement(requireAuth(ExperimentalJobs))} />
                         <Route path="/jobs/*" element={React.createElement(requireAuth(JobRouter))} />
                         <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
+
+                        <Route path="/public-ips/" element={React.createElement(ExperimentalNetworkIP)} />
                         <Route path="/public-ips/*" element={React.createElement(requireAuth(NetworkIPsRouter))} />
+
                         <Route path={"/ssh-keys"} element={React.createElement(requireAuth(SshKeyBrowse))} />
                         <Route path={"/ssh-keys/create"} element={React.createElement(requireAuth(SshKeyCreate))} />
 

@@ -2,7 +2,7 @@ import {Operation} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
-import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {capitalize, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
@@ -346,6 +346,19 @@ export class ResourceBrowser<T> {
     constructor(root: HTMLElement, resourceName: string) {
         this.root = root;
         this.resourceName = resourceName;
+    }
+
+    public init(
+        ref: React.MutableRefObject<ResourceBrowser<T> | null>,
+        features: ResourceBrowseFeatures,
+        initialPath: string | undefined,
+        onInit: (browser: ResourceBrowser<T>) => void,
+    ) {
+        ref.current = this;
+        this.features = features;
+        onInit(this);
+        this.mount();
+        if (initialPath !== undefined) this.open(initialPath);
     }
 
     mount() {
@@ -853,6 +866,10 @@ export class ResourceBrowser<T> {
         icon.style.display = "inline-block";
         icon.style.backgroundPosition = "center";
         return [icon, (url) => icon.style.backgroundImage = `url(${url})`];
+    }
+
+    defaultBreadcrumbs(): {title: string; absolutePath: string;}[] {
+        return [{title: capitalize(this.resourceName), absolutePath: ""}];
     }
 
     resetTitleComponent(element: HTMLElement) {
@@ -2812,7 +2829,7 @@ export class ResourceBrowser<T> {
         wrapper.style.userSelect = "none";
 
         const valueFromStorage = getFilterStorageValue(this.resourceName, filter.type === "options" ? filter.key : filter.keys[0]);
-        let iconName: IconName = "cloudTryingItsBest";
+        let iconName: IconName = filter.icon;
         if (valueFromStorage !== null) {
             if (filter.type === "options") {
                 iconName = filter.options.find(it => it.value === valueFromStorage)?.icon ?? filter.icon;
@@ -2915,7 +2932,7 @@ export class ResourceBrowser<T> {
         c.width = 12;
         c.height = 12;
         c.style.marginTop = "7px";
-        this.icons.renderIcon({color: "text", color2: "text", height: 12, width: 12, name: icon}).then(it => c.src = it);
+        this.icons.renderIcon({color: "text", color2: "text", height: 32, width: 32, name: icon}).then(it => c.src = it);
         return c;
     }
 }
