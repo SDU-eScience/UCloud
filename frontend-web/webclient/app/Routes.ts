@@ -48,6 +48,7 @@ const apps = {
     applications: () => "/applications",
     overview: () => "/applications/overview",
     search: () => "/applications/search",
+    byTag: (tag: string) => `applications?tag=${tag}&itemsPerPage=25&page=0`,
     studio: () => "/applications/studio",
     studioTool: (tool: string) => `/applications/studio/t/${tool}`,
     studioApp: (app: string) => `/applications/studio/a/${app}`,

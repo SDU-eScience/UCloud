@@ -598,7 +598,7 @@ function SecondarySidebar({
             <Flex flexDirection="column" mr="4px">
                 WORK TODO
                 {SidebarAppCategories.map(it =>
-                    <Link key={it} ml="8px" to="/TODO">{it}</Link>
+                    <Link key={it} ml="8px" to={AppRoutes.apps.byTag(it)}>{it}</Link>
                 )}
                 <TextSpan mb="8px" bold color="fixedWhite">Favorite apps</TextSpan>
                 {appFavorites.map(it =>

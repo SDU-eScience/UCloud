@@ -79,6 +79,8 @@ export function LoadingMainContainer(props: LoadingMainContainerProps): JSX.Elem
 const HeaderContainer = injectStyleSimple("header-container", `
     position: sticky;
     top: 0;
+    margin-left: -10px;
+    z-index: 1;
 `);
 
 export default MainContainer;

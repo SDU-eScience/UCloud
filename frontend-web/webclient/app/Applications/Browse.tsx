@@ -70,7 +70,7 @@ export const Applications: React.FunctionComponent = () => {
         <MainContainer
             header={(
                 <Spacer
-                    left={(<Heading.h1>{tag}</Heading.h1>)}
+                    left={(<Heading.h2 style={{marginTop: "0", marginLeft: "15px"}}>{tag}</Heading.h2>)}
                     right={(
                         <Pagination.EntriesPerPageSelector
                             content="Apps per page"
@@ -84,7 +84,7 @@ export const Applications: React.FunctionComponent = () => {
                 <Pagination.List
                     loading={appResp.loading}
                     pageRenderer={page =>
-                        <GridCardGroup gridGap={15}>
+                        <GridCardGroup minmax={156} gridGap={15}>
                             {page.items.map(it => (
                                 <Link to={Pages.run(it.metadata.name, it.metadata.version)}>
                                     <AppCard
