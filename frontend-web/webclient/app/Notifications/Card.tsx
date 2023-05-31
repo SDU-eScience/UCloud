@@ -71,7 +71,7 @@ const Style = injectStyle("notification", k => `
         cursor: pointer;
         animation: 0.5s ease-in notification-enter;
         width: 450px;
-        z-index: 10;
+        z-index: 1;
         color: var(--black);
     }
 
