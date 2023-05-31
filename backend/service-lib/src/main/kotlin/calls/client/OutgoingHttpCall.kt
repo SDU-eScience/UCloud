@@ -1,6 +1,5 @@
 package dk.sdu.cloud.calls.client
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
@@ -9,11 +8,11 @@ import dk.sdu.cloud.calls.HttpHeaderParameter
 import dk.sdu.cloud.calls.HttpPathSegment
 import dk.sdu.cloud.calls.HttpRequest
 import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.systemName
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.client.utils.EmptyContent
@@ -23,6 +22,8 @@ import io.ktor.http.content.TextContent
 import io.ktor.util.*
 import io.ktor.utils.io.charsets.*
 import io.ktor.utils.io.core.*
+import io.prometheus.client.Counter
+import io.prometheus.client.Gauge
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlin.random.Random
@@ -48,6 +49,7 @@ class OutgoingHttpCall(
 
 class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCall, OutgoingHttpCall.Companion> {
     override val companion: OutgoingHttpCall.Companion = OutgoingHttpCall.Companion
+
     fun install(
         client: RpcClient,
         targetHostResolver: OutgoingHostResolver,
@@ -74,86 +76,101 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         request: R,
         ctx: OutgoingHttpCall,
     ): IngoingCallResponse<S, E> {
-        val callId = Random.nextInt(10000) // A non unique call ID for logging purposes only
-        val start = Time.now()
-        val shortRequestMessage = request.toString().take(100)
-
-        with(ctx.builder) {
-            val targetHost = ctx.attributes.outgoingTargetHost
-            val scheme = targetHost.scheme ?: "http"
-            val host = targetHost.host.removeSuffix("/")
-            val port = targetHost.port ?: if (scheme == "https") 443 else 80
-            val http = call.http
-
-            val endpoint = http.resolveEndpoint(request, call).removePrefix("/").removeSuffix("/")
-            val url = "$scheme://$host:$port/$endpoint"
-
-            url(url)
-            method = io.ktor.http.HttpMethod(http.method.value)
-            if (body == EmptyContent) {
-                // If a beforeHook has attached a body, don't change it
-                body = http.serializeBody(request, call)
-            }
-            http.serializeHeaders(request).forEach { (name, value, encode) ->
-                if(encode) {
-                    header(name, base64Encode(value.encodeToByteArray()))
-                } else {
-                    header(name, value)
-                }
-            }
-
-            // OkHttp fix. It requires a body for certain methods, even though it shouldn't.
-            if (body == EmptyContent && method in setOf(
-                    HttpMethod.Put,
-                    HttpMethod.Delete,
-                    HttpMethod.Post,
-                    HttpMethod.Patch
-                )
-            ) {
-                body = TextContent("Fix", ContentType.Text.Plain)
-            }
-
-            log.debug("[$callId] -> ${call.fullName}: $shortRequestMessage")
-        }
+        requestsInFlight.labels(call.fullName).inc()
+        requestCounter.labels(call.fullName).inc()
 
         try {
-            log.trace("Sending request")
-            val resp = createHttpClient().use { httpClient ->
-                try {
-                    httpClient.request(ctx.builder)
-                } catch (ex: Throwable) {
-                    if (ex.stackTraceToString().contains("ConnectException") || ex is EOFException) {
-                        log.debug("[$callId] ConnectException: ${ex.message}")
-                        return IngoingCallResponse.Error(null as E?, HttpStatusCode.BadGateway, ctx)
-                    }
+            val callId = Random.nextInt(10000) // A non unique call ID for logging purposes only
+            val start = Time.now()
+            val shortRequestMessage = request.toString().take(100)
 
-                    throw ex
+            with(ctx.builder) {
+                val targetHost = ctx.attributes.outgoingTargetHost
+                val scheme = targetHost.scheme ?: "http"
+                val host = targetHost.host.removeSuffix("/")
+                val port = targetHost.port ?: if (scheme == "https") 443 else 80
+                val http = call.http
+
+                val endpoint = http.resolveEndpoint(request, call).removePrefix("/").removeSuffix("/")
+                val url = "$scheme://$host:$port/$endpoint"
+
+                url(url)
+                method = io.ktor.http.HttpMethod(http.method.value)
+                if (body == EmptyContent) {
+                    // If a beforeHook has attached a body, don't change it
+                    body = http.serializeBody(request, call)
                 }
-            }
-            log.trace("Received response")
+                http.serializeHeaders(request).forEach { (name, value, encode) ->
+                    if (encode) {
+                        header(name, base64Encode(value.encodeToByteArray()))
+                    } else {
+                        header(name, value)
+                    }
+                }
 
-            ctx.response = resp
-            val result = parseResponse(ctx, resp, call, callId)
-            log.trace("Parsing complete")
-            val end = Time.now()
+                // OkHttp fix. It requires a body for certain methods, even though it shouldn't.
+                if (body == EmptyContent && method in setOf(
+                        HttpMethod.Put,
+                        HttpMethod.Delete,
+                        HttpMethod.Post,
+                        HttpMethod.Patch
+                    )
+                ) {
+                    body = TextContent("Fix", ContentType.Text.Plain)
+                }
 
-            val responseDebug =
-                "[$callId] name=${call.fullName} status=${result.statusCode.value} time=${end - start}ms"
-
-            log.debug(responseDebug)
-            return result
-        } catch (ex: Throwable) {
-            if (ex::class.qualifiedName?.contains("StreamResetException") == true) {
-                log.info(buildString {
-                    appendLine("We are about to crash. We know the following:")
-                    appendLine("  - URL: ${ctx.builder.url.buildString()}")
-                    appendLine("  - method: ${ctx.builder.method}")
-                    appendLine("  - call: ${call.fullName}")
-                    appendLine("  - callId: $callId")
-                })
+                log.debug("[$callId] -> ${call.fullName}: $shortRequestMessage")
             }
 
+            try {
+                log.trace("Sending request")
+                val resp = createHttpClient().use { httpClient ->
+                    try {
+                        httpClient.request(ctx.builder)
+                    } catch (ex: Throwable) {
+                        if (ex.stackTraceToString().contains("ConnectException") || ex is EOFException) {
+                            log.debug("[$callId] ConnectException: ${ex.message}")
+                            return IngoingCallResponse.Error(null as E?, HttpStatusCode.BadGateway, ctx)
+                        }
+
+                        throw ex
+                    }
+                }
+                log.trace("Received response")
+
+                ctx.response = resp
+                val result = parseResponse(ctx, resp, call, callId)
+                log.trace("Parsing complete")
+                val end = Time.now()
+
+                val responseDebug =
+                    "[$callId] name=${call.fullName} status=${result.statusCode.value} time=${end - start}ms"
+
+                log.debug(responseDebug)
+                if (result.statusCode.isSuccess()) {
+                    requestsSuccessCounter.labels(call.fullName).inc()
+                } else {
+                    requestsErrorCounter.labels(call.fullName).inc()
+                }
+                return result
+            } catch (ex: Throwable) {
+                if (ex::class.qualifiedName?.contains("StreamResetException") == true) {
+                    log.info(buildString {
+                        appendLine("We are about to crash. We know the following:")
+                        appendLine("  - URL: ${ctx.builder.url.buildString()}")
+                        appendLine("  - method: ${ctx.builder.method}")
+                        appendLine("  - call: ${call.fullName}")
+                        appendLine("  - callId: $callId")
+                    })
+                }
+
+                throw ex
+            }
+        } catch(ex: Throwable) {
+            requestsErrorCounter.labels(call.fullName).inc()
             throw ex
+        } finally {
+            requestsInFlight.labels(call.fullName).dec()
         }
     }
 
@@ -292,5 +309,37 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         override val log = logger()
 
         private const val SAMPLE_FREQUENCY = 100
+
+        private val requestCounter = Counter.build()
+            .namespace(systemName)
+            .subsystem("rpc_client_http")
+            .name("requests_started")
+            .help("Total number of requests passing through RpcClient with an HTTP backend")
+            .labelNames("request_name")
+            .register()
+
+        private val requestsSuccessCounter = Counter.build()
+            .namespace(systemName)
+            .subsystem("rpc_client_http")
+            .name("requests_success")
+            .help("Total number of requests which has passed through RpcClient successfully with an HTTP backend")
+            .labelNames("request_name")
+            .register()
+
+        private val requestsErrorCounter = Counter.build()
+            .namespace(systemName)
+            .subsystem("rpc_client_http")
+            .name("requests_error")
+            .help("Total number of requests which has passed through RpcClient with a failure with an HTTP backend")
+            .labelNames("request_name")
+            .register()
+
+        private val requestsInFlight = Gauge.build()
+            .namespace(systemName)
+            .subsystem("rpc_client_http")
+            .name("requests_in_flight")
+            .help("Number of requests currently in-flight in the RpcClient with an HTTP backend")
+            .labelNames("request_name")
+            .register()
     }
 }

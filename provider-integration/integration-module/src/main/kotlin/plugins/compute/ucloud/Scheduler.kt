@@ -1,6 +1,9 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.systemName
+import io.prometheus.client.Counter
+import io.prometheus.client.Gauge
 import java.lang.IllegalStateException
 import java.util.*
 import kotlin.collections.ArrayList
@@ -341,6 +344,8 @@ class Scheduler<UserData> {
         replicas: Int = 1,
         data: UserData,
     ) {
+        jobsSubmittedMetric.inc()
+
         var idx = nextQueueIdx
         if (queueJobIds[idx] != 0L) idx = queueJobIds.indexOf(0L)
         if (idx == -1) throw IllegalStateException("Too many jobs in the queue: $id")
@@ -529,6 +534,9 @@ class Scheduler<UserData> {
             }
         }
 
+        jobsRunningMetric.set(runningReplicas().asSequence().count().toDouble())
+        jobsInQueueMetric.set(jobsInQueue().asSequence().count().toDouble())
+
         time++
         return scheduledJobs
     }
@@ -572,6 +580,27 @@ class Scheduler<UserData> {
         const val MAX_NODES_TO_CONSIDER = 128
 
         override val log = logger()
+
+        private val jobsInQueueMetric = Gauge.build()
+            .namespace(systemName)
+            .subsystem("compute_scheduler")
+            .name("jobs_in_queue")
+            .help("Number of jobs currently in the queue")
+            .register()
+
+        private val jobsRunningMetric = Gauge.build()
+            .namespace(systemName)
+            .subsystem("compute_scheduler")
+            .name("jobs_running")
+            .help("Number of jobs currently running")
+            .register()
+
+        private val jobsSubmittedMetric = Counter.build()
+            .namespace(systemName)
+            .subsystem("compute_scheduler")
+            .name("jobs_submitted_total")
+            .help("Number of jobs submitted in total")
+            .register()
     }
 }
 

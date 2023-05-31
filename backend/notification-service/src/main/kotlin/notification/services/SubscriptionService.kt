@@ -1,5 +1,6 @@
 package dk.sdu.cloud.notification.services
 
+import dk.sdu.cloud.Prometheus
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.HostInfo
 import dk.sdu.cloud.calls.client.call
@@ -17,6 +18,7 @@ import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.api.SubscriptionResponse
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.GlobalScope
@@ -27,6 +29,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.Closeable
 import java.util.*
+import kotlin.system.measureTimeMillis
 
 data class LocalSubscription(
     val username: String,
@@ -49,8 +52,15 @@ class SubscriptionService(
 
         backgroundScope.launch {
             while (isActive && isRunning) {
+                val taskName = "notification_cleanup"
                 debug.useContext(DebugContextType.BACKGROUND_TASK, "Notification cleanup", MessageImportance.TELL_ME_EVERYTHING) {
-                    subscriptionDao.refreshSessions(db, localhost.host, localhost.port!!)
+                    Prometheus.countBackgroundTask(taskName)
+                    val start = Time.now()
+                    try {
+                        subscriptionDao.refreshSessions(db, localhost.host, localhost.port!!)
+                    } finally {
+                        Prometheus.measureBackgroundDuration(taskName, Time.now() - start)
+                    }
                 }
                 delay(3000)
             }

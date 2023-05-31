@@ -7,11 +7,14 @@ import dk.sdu.cloud.calls.WSMessage
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.systemName
 import io.ktor.client.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.websocket.*
+import io.prometheus.client.Counter
+import io.prometheus.client.Gauge
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
@@ -105,44 +108,56 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         val handler = ctx.attributes.getOrNull(OutgoingWSCall.SUBSCRIPTION_HANDLER_KEY)
 
         val response = coroutineScope {
-            lateinit var response: WSMessage.Response<Any?>
-            val channel = processMessagesFromStream(call, subscription, streamId)
+            requestCounter.labels(call.fullName).inc()
+            requestsInFlight.labels(call.fullName).inc()
 
             try {
-                while (!channel.isClosedForReceive) {
-                    val message = channel.receive()
-                    if (message is WSMessage.Response) {
-                        val responseDebug =
-                            "[$callId] <- ${call.fullName} RESPONSE ${Time.now() - start}ms"
+                lateinit var response: WSMessage.Response<Any?>
+                val channel = processMessagesFromStream(call, subscription, streamId)
 
-                        if (message.status in 400..599 || shouldSample) log.info(responseDebug)
-                        else log.debug(responseDebug)
+                try {
+                    while (!channel.isClosedForReceive) {
+                        val message = channel.receive()
+                        if (message is WSMessage.Response) {
+                            val responseDebug =
+                                "[$callId] <- ${call.fullName} RESPONSE ${Time.now() - start}ms"
 
-                        response = message
-                        session.unsubscribe(streamId)
-                        break
-                    } else if (message is WSMessage.Message && handler != null) {
-                        log.debug("[$callId] <- ${call.fullName} MESSAGE ${Time.now() - start}ms")
-                        handler(message.payload!!)
+                            if (message.status in 400..599 || shouldSample) log.info(responseDebug)
+                            else log.debug(responseDebug)
+
+                            if (message.status in 400..599) requestsErrorCounter.labels(call.fullName).inc()
+                            else requestsSuccessCounter.labels(call.fullName).inc()
+
+                            response = message
+                            session.unsubscribe(streamId)
+                            break
+                        } else if (message is WSMessage.Message && handler != null) {
+                            log.debug("[$callId] <- ${call.fullName} MESSAGE ${Time.now() - start}ms")
+                            handler(message.payload!!)
+
+                            requestsMessageCounter.labels(call.fullName).inc()
+                        }
+                    }
+                } catch (ex: Throwable) {
+                    runCatching {
+                        // Make sure the underlying session is also closed. Otherwise we risk that the connection
+                        // pool won't renew this session.
+                        session.underlyingSession.close()
+                    }
+
+                    if (ex is ClosedReceiveChannelException || ex is CancellationException) {
+                        // Do nothing. It is expected that the channel will close down.
+                        log.trace("Channel was closed")
+                        response = WSMessage.Response(streamId, null, HttpStatusCode.BadGateway.value)
+                    } else {
+                        throw ex
                     }
                 }
-            } catch (ex: Throwable) {
-                runCatching {
-                    // Make sure the underlying session is also closed. Otherwise we risk that the connection
-                    // pool won't renew this session.
-                    session.underlyingSession.close()
-                }
 
-                if (ex is ClosedReceiveChannelException || ex is CancellationException) {
-                    // Do nothing. It is expected that the channel will close down.
-                    log.trace("Channel was closed")
-                    response = WSMessage.Response(streamId, null, HttpStatusCode.BadGateway.value)
-                } else {
-                    throw ex
-                }
+                response
+            } finally {
+                requestsInFlight.labels(call.fullName).dec()
             }
-
-            response
         }
 
         @Suppress("UNCHECKED_CAST")
@@ -194,6 +209,46 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         override val log = logger()
 
         const val SAMPLE_FREQUENCY = 100
+
+        private val requestCounter = Counter.build()
+            .namespace(systemName)
+            .subsystem("rpc_client_ws")
+            .name("requests_started")
+            .help("Total number of requests passing through RpcClient with a WS backend")
+            .labelNames("request_name")
+            .register()
+
+        private val requestsSuccessCounter = Counter.build()
+            .namespace(systemName)
+            .subsystem("rpc_client_ws")
+            .name("requests_success")
+            .help("Total number of requests which has passed through RpcClient successfully with a WS backend")
+            .labelNames("request_name")
+            .register()
+
+        private val requestsErrorCounter = Counter.build()
+            .namespace(systemName)
+            .subsystem("rpc_client_ws")
+            .name("requests_error")
+            .help("Total number of requests which has passed through RpcClient with a failure with a WS backend")
+            .labelNames("request_name")
+            .register()
+
+        private val requestsMessageCounter = Counter.build()
+            .namespace(systemName)
+            .subsystem("rpc_client_ws")
+            .name("messages")
+            .help("Total number of messages which has been sent (more than one message per request is possible)")
+            .labelNames("request_name")
+            .register()
+
+        private val requestsInFlight = Gauge.build()
+            .namespace(systemName)
+            .subsystem("rpc_client_ws")
+            .name("requests_in_flight")
+            .help("Number of requests currently in-flight in the RpcClient with a WS backend")
+            .labelNames("request_name")
+            .register()
     }
 }
 

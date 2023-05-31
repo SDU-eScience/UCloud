@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
+import dk.sdu.cloud.Prometheus
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.SimpleDuration
@@ -281,161 +282,185 @@ class JobManagement(
             val isAlive = true
             whileGraal({currentCoroutineContext().isActive && isAlive}) {
                 k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "Unsuspend queue", MessageImportance.IMPLEMENTATION_DETAIL) {
-                    // NOTE(Dan): Need to take a copy and release the lock to avoid issues with the mutex not being 
-                    // re-entrant.
-                    var listCopy: ArrayList<UnsuspendItem>
-                    unsuspendMutex.withLock {
-                        listCopy = ArrayList(unsuspendQueue)
-                        unsuspendQueue.clear()
-                    }
+                    val taskName = "job_unsuspend"
+                    Prometheus.countBackgroundTask(taskName)
+                    val start = Time.now()
 
-                    k8.debug.detail("Items in queue", defaultMapper.encodeToJsonElement(ListSerializer(UnsuspendItem.serializer()), listCopy))
+                    try {
+                        // NOTE(Dan): Need to take a copy and release the lock to avoid issues with the mutex not being
+                        // re-entrant.
+                        var listCopy: ArrayList<UnsuspendItem>
+                        unsuspendMutex.withLock {
+                            listCopy = ArrayList(unsuspendQueue)
+                            unsuspendQueue.clear()
+                        }
 
-                    val now = Time.now()
-                    for ((job, expiry) in listCopy) {
-                        k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "Processing ${job.id}") {
-                            if (now < expiry) {
-                                create(job, expiry)
+                        k8.debug.detail(
+                            "Items in queue",
+                            defaultMapper.encodeToJsonElement(ListSerializer(UnsuspendItem.serializer()), listCopy)
+                        )
+
+                        val now = Time.now()
+                        for ((job, expiry) in listCopy) {
+                            k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "Processing ${job.id}") {
+                                if (now < expiry) {
+                                    create(job, expiry)
+                                }
                             }
                         }
-                    }
 
-                    k8.debug.normal("Processed ${listCopy.size} items. ${unsuspendQueue.size} items remain in queue.")
+                        k8.debug.normal("Processed ${listCopy.size} items. ${unsuspendQueue.size} items remain in queue.")
+                    } finally {
+                        Prometheus.measureBackgroundDuration(taskName, Time.now() - start)
+                    }
                 }
 
                 k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "K8 Job monitoring", MessageImportance.IMPLEMENTATION_DETAIL) {
-                    val resources = runtime.list().toMutableList()
+                    val taskName = "job_monitoring"
+                    val start = Time.now()
+                    Prometheus.countBackgroundTask(taskName)
 
-                    run {
-                        // Remove containers from jobs we no longer recognize
-                        val resourcesIterator = resources.iterator()
-                        while (resourcesIterator.hasNext()) {
-                            val resource = resourcesIterator.next()
-                            val job = jobCache.findJob(resource.jobId) ?: continue
-                            if (job.status.state.isFinal()) {
-                                resourcesIterator.remove()
+                    try {
+                        val resources = runtime.list().toMutableList()
 
-                                try {
-                                    log.info("Terminating job with terminal state: ${resource.jobId} ${resource.rank}")
-                                    resource.cancel(force = true)
-                                } catch (ex: Throwable) {
-                                    log.info("Exception while terminating job with terminal state: " +
-                                            "${resource.jobId} ${resource.rank}\n${ex.toReadableStacktrace()}")
+                        run {
+                            // Remove containers from jobs we no longer recognize
+                            val resourcesIterator = resources.iterator()
+                            while (resourcesIterator.hasNext()) {
+                                val resource = resourcesIterator.next()
+                                val job = jobCache.findJob(resource.jobId) ?: continue
+                                if (job.status.state.isFinal()) {
+                                    resourcesIterator.remove()
+
+                                    try {
+                                        log.info("Terminating job with terminal state: ${resource.jobId} ${resource.rank}")
+                                        resource.cancel(force = true)
+                                    } catch (ex: Throwable) {
+                                        log.info(
+                                            "Exception while terminating job with terminal state: " +
+                                                    "${resource.jobId} ${resource.rank}\n${ex.toReadableStacktrace()}"
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    val events = processScan(resources)
-                    k8.debug.detail("Received ${resources.size} resources from runtime")
-                    k8.debug.detail(
-                        "Events fetched from K8",
-                        defaultMapper.encodeToJsonElement(ListSerializer(String.serializer()), events.map { it.jobId })
-                    )
-                    // TODO It looks like this code is aware of changes but they are not successfully received by 
-                    // UCloud/sent by this service
+                        val events = processScan(resources)
+                        k8.debug.detail("Received ${resources.size} resources from runtime")
+                        k8.debug.detail(
+                            "Events fetched from K8",
+                            defaultMapper.encodeToJsonElement(
+                                ListSerializer(String.serializer()),
+                                events.map { it.jobId })
+                        )
+                        // TODO It looks like this code is aware of changes but they are not successfully received by
+                        // UCloud/sent by this service
 
-                    var debugTerminations = 0
-                    var debugExpirations = 0
-                    var debugUpdates = 0
+                        var debugTerminations = 0
+                        var debugExpirations = 0
+                        var debugUpdates = 0
 
-                    events.forEachGraal { event ->
-                        k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "Processing: ${event.jobId}") l@{
-                            when {
-                                event.wasDeleted || event.isDying() -> {
-                                    val expiry = event.oldReplicas.find { it.rank == 0 }?.expiry
-                                    if (expiry != null && Time.now() >= expiry) {
-                                        // NOTE(Dan): Expiry feature will simply delete the object. This is why we must
-                                        // check if the reason was expiration here.
-                                        k8.changeState(event.jobId, JobState.EXPIRED, "Job has expired")
+                        events.forEachGraal { event ->
+                            k8.debug.useContext(DebugContextType.BACKGROUND_TASK, "Processing: ${event.jobId}") l@{
+                                when {
+                                    event.wasDeleted || event.isDying() -> {
+                                        val expiry = event.oldReplicas.find { it.rank == 0 }?.expiry
+                                        if (expiry != null && Time.now() >= expiry) {
+                                            // NOTE(Dan): Expiry feature will simply delete the object. This is why we must
+                                            // check if the reason was expiration here.
+                                            k8.changeState(event.jobId, JobState.EXPIRED, "Job has expired")
 
-                                        debugExpirations++
-                                    } else {
-                                        k8.changeState(
-                                            event.jobId,
-                                            JobState.SUCCESS, 
-                                            "Job has terminated", 
-                                            allowRestart = false,
-                                            expectedDifferentState = true,
-                                        )
-
-                                        debugTerminations++
-                                    }
-
-                                    runCatching {
-                                        markJobAsComplete(event.oldReplicas)
-                                    }
-
-                                    runCatching {
-                                        cleanup(event.jobId)
-                                    }
-                                }
-
-                                else -> {
-                                    val message = event.newRoot?.stateAndMessage()?.second
-                                    val newState: JobState? = event.newRoot?.stateAndMessage()?.first
-
-                                    if (newState != null) {
-                                        if (newState == JobState.SUCCESS) {
-                                            val didChange = k8.changeState(
+                                            debugExpirations++
+                                        } else {
+                                            k8.changeState(
                                                 event.jobId,
-                                                JobState.SUCCESS, 
-                                                message,
-                                                allowRestart = true,
+                                                JobState.SUCCESS,
+                                                "Job has terminated",
+                                                allowRestart = false,
                                                 expectedDifferentState = true,
                                             )
 
-                                            if (didChange) {
-                                                markJobAsComplete(event.jobId)
-                                                event.newRoot?.cancel()
-                                            }
-                                        } else {
-                                            val didChangeState = k8.changeState(
-                                                event.jobId,
-                                                newState,
-                                                message,
-                                            )
+                                            debugTerminations++
+                                        }
 
-                                            if (didChangeState && newState == JobState.RUNNING) {
-                                                features.forEach { feature ->
-                                                    with(feature) {
-                                                        onJobStart(event.newRoot!!, event.newReplicas)
+                                        runCatching {
+                                            markJobAsComplete(event.oldReplicas)
+                                        }
+
+                                        runCatching {
+                                            cleanup(event.jobId)
+                                        }
+                                    }
+
+                                    else -> {
+                                        val message = event.newRoot?.stateAndMessage()?.second
+                                        val newState: JobState? = event.newRoot?.stateAndMessage()?.first
+
+                                        if (newState != null) {
+                                            if (newState == JobState.SUCCESS) {
+                                                val didChange = k8.changeState(
+                                                    event.jobId,
+                                                    JobState.SUCCESS,
+                                                    message,
+                                                    allowRestart = true,
+                                                    expectedDifferentState = true,
+                                                )
+
+                                                if (didChange) {
+                                                    markJobAsComplete(event.jobId)
+                                                    event.newRoot?.cancel()
+                                                }
+                                            } else {
+                                                val didChangeState = k8.changeState(
+                                                    event.jobId,
+                                                    newState,
+                                                    message,
+                                                )
+
+                                                if (didChangeState && newState == JobState.RUNNING) {
+                                                    features.forEach { feature ->
+                                                        with(feature) {
+                                                            onJobStart(event.newRoot!!, event.newReplicas)
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
-                                    }
 
-                                    debugUpdates++
+                                        debugUpdates++
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    features.forEachGraal { feature ->
-                        with(feature) {
-                            onJobMonitoring(resources)
+                        features.forEachGraal { feature ->
+                            with(feature) {
+                                onJobMonitoring(resources)
+                            }
                         }
+
+                        k8.debug.normal(
+                            buildString {
+                                if (debugUpdates > 0) {
+                                    append(" Updates = ")
+                                    append(debugUpdates)
+                                }
+
+                                if (debugTerminations > 0) {
+                                    append(" Terminations = ")
+                                    append(debugTerminations)
+                                }
+
+                                if (debugExpirations > 0) {
+                                    append(" Expirations = ")
+                                    append(debugExpirations)
+                                }
+                            },
+                        )
+                    } finally {
+                        Prometheus.measureBackgroundDuration(taskName, Time.now() - start)
                     }
 
-                    k8.debug.normal(
-                        buildString {
-                            if (debugUpdates > 0) {
-                                append(" Updates = ")
-                                append(debugUpdates)
-                            }
-
-                            if (debugTerminations > 0)  {
-                                append(" Terminations = ")
-                                append(debugTerminations)
-                            }
-
-                            if (debugExpirations > 0) {
-                                append(" Expirations = ")
-                                append(debugExpirations)
-                            }
-                        },
-                    )
                     delay(5000)
                 }
             }
