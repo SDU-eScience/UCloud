@@ -94,7 +94,13 @@ export function ExperimentalLicenses(): JSX.Element {
                         value: "UNAVAILABLE"
                     }],
                     text: "Status"
-                }]);
+                }, {
+                        type: "input",
+                        icon: "user",
+                        key: "filterCreatedBy",
+                        text: "Created by"
+                    }
+                ]);
 
                 browser.on("renderRow", (key, row, dims) => {
                     const [icon, setIcon] = browser.defaultIconRenderer();

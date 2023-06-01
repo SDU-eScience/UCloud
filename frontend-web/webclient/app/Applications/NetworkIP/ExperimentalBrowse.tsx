@@ -95,7 +95,13 @@ export function ExperimentalNetworkIP(): JSX.Element {
                         value: "UNAVAILABLE"
                     }],
                     text: "Status"
-                }]);
+                }, {
+                        type: "input",
+                        icon: "user",
+                        key: "filterCreatedBy",
+                        text: "Created by"
+                    }
+                ]);
 
                 browser.on("renderRow", (ip, row, dims) => {
                     const [icon, setIcon] = browser.defaultIconRenderer();

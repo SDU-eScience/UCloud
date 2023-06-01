@@ -15,7 +15,6 @@ const defaultRetrieveFlags = {
 
 const FEATURES = {
     renderSpinnerWhenLoading: true,
-    filters: true,
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
 };
@@ -26,8 +25,6 @@ export function ExperimentalSSHKey(): JSX.Element {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     useTitle("SSH keys");
-
-    const dateRanges = dateRangeFilters("Date created");
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -72,30 +69,6 @@ export function ExperimentalSSHKey(): JSX.Element {
 
                     browser.registerPage(result, path, false);
                 });
-
-                browser.on("fetchFilters", () => [dateRanges, {
-                    key: "status",
-                    type: "options",
-                    clearable: true,
-                    icon: "radioEmpty",
-                    options: [{
-                        color: "black",
-                        icon: "hashtag",
-                        text: "Preparing",
-                        value: "PREPARING",
-                    }, {
-                        color: "black",
-                        icon: "hashtag",
-                        text: "Ready",
-                        value: "READY"
-                    }, {
-                        color: "black",
-                        icon: "hashtag",
-                        text: "Unavailable",
-                        value: "UNAVAILABLE"
-                    }],
-                    text: "Status"
-                }]);
 
                 browser.on("renderRow", (key, row, dims) => {
                     const [icon, setIcon] = browser.defaultIconRenderer();
