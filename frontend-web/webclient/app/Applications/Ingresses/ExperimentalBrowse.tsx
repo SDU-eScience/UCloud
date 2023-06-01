@@ -1,8 +1,8 @@
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import NetworkIPApi, {NetworkIP} from "@/UCloud/NetworkIPApi";
-import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 import {EmptyReasonTag, ResourceBrowser, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
@@ -19,26 +19,34 @@ const FEATURES = {
     breadcrumbsSeparatedBySlashes: false,
 };
 
-export function ExperimentalNetworkIP(): JSX.Element {
+export function ExperimentalPublicLinks(): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
-    const browserRef = React.useRef<ResourceBrowser<NetworkIP> | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<Ingress> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
+    useTitle("Public links");
 
     const dateRanges = dateRangeFilters("Date created");
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<NetworkIP>(mount, "Public IP").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<Ingress>(mount, "Public links").init(browserRef, FEATURES, "", browser => {
                 // TODO(Jonas): Set filter to "RUNNING" initially for state.
+
+                const isCreatingPrefix = "creating-";
+                const {startCreation, cancelCreation} = {
+                    startCreation: () => void 0,
+                    cancelCreation: () => void 0,
+                };
+
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
                         // TODO(Jonas): Handle properties
                     }
 
-                    callAPI(NetworkIPApi.browse({
+                    callAPI(IngressApi.browse({
                         ...defaultRetrieveFlags,
                         ...browser.browseFilters
                     })).then(result => {
@@ -52,7 +60,7 @@ export function ExperimentalNetworkIP(): JSX.Element {
                 browser.on("wantToFetchNextPage", async path => {
                     /* TODO(Jonas): Test if the fetch more works properly */
                     const result = await callAPI(
-                        NetworkIPApi.browse({
+                        IngressApi.browse({
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
                             ...browser.browseFilters
@@ -88,11 +96,11 @@ export function ExperimentalNetworkIP(): JSX.Element {
                     text: "Status"
                 }]);
 
-                browser.on("renderRow", (ip, row, dims) => {
+                browser.on("renderRow", (key, row, dims) => {
                     const [icon, setIcon] = browser.defaultIconRenderer();
                     row.title.append(icon)
 
-                    row.title.append(browser.defaultTitleRenderer(ip.id, dims));
+                    row.title.append(browser.defaultTitleRenderer(key.id, dims));
 
                     browser.icons.renderIcon({name: "networkWiredSolid", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
                 });
@@ -102,25 +110,25 @@ export function ExperimentalNetworkIP(): JSX.Element {
                     const e = browser.emptyPageElement;
                     switch (reason.tag) {
                         case EmptyReasonTag.LOADING: {
-                            e.reason.append("We are fetching your public IPs...");
+                            e.reason.append("We are fetching your public links...");
                             break;
                         }
 
                         case EmptyReasonTag.EMPTY: {
                             if (Object.values(browser.browseFilters).length !== 0)
-                                e.reason.append("No network IP found with active filters.")
-                            else e.reason.append("This workspace has no public IPs.");
+                                e.reason.append("No public link found with active filters.")
+                            else e.reason.append("This workspace has no public links.");
                             break;
                         }
 
                         case EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS: {
-                            e.reason.append("We could not find any data related to your public IPs.");
+                            e.reason.append("We could not find any data related to your public links.");
                             e.providerReason.append(reason.information ?? "");
                             break;
                         }
 
                         case EmptyReasonTag.UNABLE_TO_FULFILL: {
-                            e.reason.append("We are currently unable to show your public IPs. Try again later.");
+                            e.reason.append("We are currently unable to show your public links. Try again later.");
                             e.providerReason.append(reason.information ?? "");
                             break;
                         }
@@ -128,12 +136,13 @@ export function ExperimentalNetworkIP(): JSX.Element {
                 });
 
                 browser.on("fetchOperationsCallback", () => /* TODO(Jonas): Missing props */
-                    ({dispatch, navigate})
+                    ({dispatch, navigate, isCreating: false, startCreation, cancelCreation})
                 );
+
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<NetworkIP>;
-                    return NetworkIPApi.retrieveOperations().filter(it => it.enabled(entries, callbacks, entries))
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn());
+                    return IngressApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries))
                 });
             });
         }

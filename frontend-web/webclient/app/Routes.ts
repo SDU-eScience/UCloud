@@ -28,6 +28,7 @@ const resources = {
     publicLinks: () => "/public-links",
     licenses: () => "/licenses",
     sshKeys: () => "/ssh-keys",
+    sshKeysCreate: () => "/ssh-keys/create",
 }
 
 const project = {

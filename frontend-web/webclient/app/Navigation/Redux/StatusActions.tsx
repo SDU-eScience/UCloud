@@ -39,7 +39,7 @@ export function useTitle(title: string): void {
         return () => {
             dispatch(updatePageTitle(""));
         };
-    });
+    }, [title]);
 }
 
 export function useLoading(loading: boolean): void {

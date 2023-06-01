@@ -49,7 +49,6 @@ const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Route
 const SubprojectList = React.lazy(() => import("@/Project/SubprojectList"));
 const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
 const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
-const SshKeyBrowse = React.lazy(() => import("@/Applications/SshKeys/Browse"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Create"));
 const ExperimentalFileBrowse = React.lazy(() => import("@/Files/ExperimentalBrowse"));
 const ExperimentalDriveBrowse = React.lazy(() => import("@/Files/ExperimentalDriveBrowse"));
@@ -82,7 +81,10 @@ import {RightPopIn} from "./ui-components/PopIn";
 import {injectStyle, injectStyleSimple} from "./Unstyled";
 import FilesApi from "@/UCloud/FilesApi";
 import ExperimentalJobs from "./Applications/Jobs/ExperimentalJobs";
-import {ExperimentalNetworkIP} from "./Applications/Jobs/Widgets/ExperimentalNetworkIP";
+import {ExperimentalNetworkIP} from "./Applications/NetworkIP/ExperimentalBrowse";
+import {ExperimentalSSHKey} from "./Applications/SshKeys/ExperimentalBrowse";
+import {ExperimentalLicenses} from "./Applications/ExperimentalLicenses";
+import {ExperimentalPublicLinks} from "./Applications/Ingresses/ExperimentalBrowse";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -133,15 +135,19 @@ const Core = (): JSX.Element => (
                             element={React.createElement(requireAuth(JobWeb))} />
                         <Route path={AppRoutes.apps.vnc(":jobId", ":rank")}
                             element={React.createElement(requireAuth(JobVnc))} />
+
+                        <Route path={AppRoutes.resources.publicLinks()} element={React.createElement(requireAuth(ExperimentalPublicLinks))} />
                         <Route path="/public-links/*" element={React.createElement(requireAuth(IngressRouter))} />
                         <Route path={AppRoutes.jobs.list()} element={React.createElement(requireAuth(ExperimentalJobs))} />
                         <Route path="/jobs/*" element={React.createElement(requireAuth(JobRouter))} />
+
+                        <Route path="/licenses/" element={React.createElement(requireAuth(ExperimentalLicenses))} />
                         <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
 
                         <Route path="/public-ips/" element={React.createElement(ExperimentalNetworkIP)} />
                         <Route path="/public-ips/*" element={React.createElement(requireAuth(NetworkIPsRouter))} />
 
-                        <Route path={"/ssh-keys"} element={React.createElement(requireAuth(SshKeyBrowse))} />
+                        <Route path={"/ssh-keys"} element={React.createElement(requireAuth(ExperimentalSSHKey))} />
                         <Route path={"/ssh-keys/create"} element={React.createElement(requireAuth(SshKeyCreate))} />
 
                         <Route path={AppRoutes.apps.studio()} element={React.createElement(requireAuth(Studio))} />
