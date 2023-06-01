@@ -106,10 +106,9 @@ class TaskSystem(
     fun launchScheduler(scope: CoroutineScope) {
         scope.launch {
             whileGraal({ isActive }) {
-                val taskName = "file_task_scheduling"
+                val prometheusTaskName = "file_task_scheduling"
                 debug.useContext(DebugContextType.BACKGROUND_TASK, "File background task", MessageImportance.IMPLEMENTATION_DETAIL) {
                     var taskInProgress: String? = null
-                    Prometheus.countBackgroundTask(taskName)
                     val start = Time.now()
                     try {
                         val task = db.withSession { session ->
@@ -210,6 +209,7 @@ class TaskSystem(
                             return@useContext
                         }
 
+                        Prometheus.countBackgroundTask(prometheusTaskName)
                         taskInProgress = task.taskId
 
                         val handler = handlers.find {
@@ -251,7 +251,7 @@ class TaskSystem(
                         log.warn("Execution of task failed!\n${ex.stackTraceToString()}")
                         if (taskInProgress != null) markJobAsComplete(db, taskInProgress)
                     } finally {
-                        Prometheus.measureBackgroundDuration(taskName, Time.now() - start)
+                        if (taskInProgress != null) Prometheus.measureBackgroundDuration(prometheusTaskName, Time.now() - start)
                     }
                 }
             }

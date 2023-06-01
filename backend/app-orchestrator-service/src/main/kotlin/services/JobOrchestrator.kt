@@ -744,7 +744,7 @@ class JobOrchestrator(
                         (backend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.logs == true) ||
                         (backend == ToolBackend.NATIVE && support.native.logs == true)
 
-                    // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
+            // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
             // retrieve them by themselves.
             sendWSMessage(JobsFollowResponse(emptyList(), emptyList(), initialJob.status))
 

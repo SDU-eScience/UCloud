@@ -19,6 +19,7 @@ import io.ktor.server.websocket.*
 import io.ktor.util.cio.ChannelReadException
 import io.ktor.util.cio.ChannelWriteException
 import io.ktor.websocket.*
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.ClosedSendChannelException
@@ -147,6 +148,7 @@ class IngoingWebSocketInterceptor(
                     log.trace("New websocket connection at $path")
                     val session = WSSession(UUID.randomUUID().toString(), this)
                     val callsByName = calls.associateBy { it.fullName }
+                    var job: Job? = null
 
                     var nextPing = Time.now() + PING_PERIOD
                     try {
@@ -205,7 +207,7 @@ class IngoingWebSocketInterceptor(
                                 }
 
                                 val ctx = WSCall(session, parsedMessage, streamId)
-                                launch {
+                                job = launch {
                                     debugSystem.useContext(DebugContextType.SERVER_REQUEST, call.fullName) {
                                         rpcServer.handleIncomingCall(
                                             this@IngoingWebSocketInterceptor,
@@ -236,6 +238,8 @@ class IngoingWebSocketInterceptor(
                         }
 
                         session.close()
+
+                        job?.cancel()
                     }
                 }
             }
