@@ -3,7 +3,10 @@ import {providerIcon} from "@/Files/ExperimentalDriveBrowse";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
+import AppRoutes from "@/Routes";
 import IngressApi, {Ingress} from "@/UCloud/IngressApi";
+import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
+import {doNothing} from "@/UtilityFunctions";
 import {EmptyReasonTag, ResourceBrowser, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
@@ -34,7 +37,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Ingress>(mount, "Public links").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<Ingress>(mount, "public-links").init(browserRef, FEATURES, "", browser => {
                 // TODO(Jonas): Set filter to "RUNNING" initially for state.
 
                 const isCreatingPrefix = "creating-";
@@ -145,10 +148,33 @@ export function ExperimentalPublicLinks(): JSX.Element {
                         }
                     }
                 });
+                
+                browser.on("fetchOperationsCallback", () => {/* TODO(Jonas): Missing props */
+                    const callbacks: ResourceBrowseCallbacks<Ingress> = {
+                        supportByProvider: {productsByProvider: {}},
+                        dispatch,
+                        embedded: false,
+                        isWorkspaceAdmin: false,
+                        navigate,
+                        reload: () => browser.refresh(),
+                        startCreation(): void {
+                            startCreation();
+                        },
+                        cancelCreation: doNothing,
+                        startRenaming(resource: Ingress): void {
+                            // TODO
+                        },
+                        viewProperties(res: Ingress): void {
+                            navigate(AppRoutes.resource.properties(browser.resourceName, res.id));
+                        },
+                        commandLoading: false,
+                        invokeCommand: callAPI,
+                        api: IngressApi,
+                        isCreating: false
+                    };
 
-                browser.on("fetchOperationsCallback", () => /* TODO(Jonas): Missing props */
-                    ({dispatch, navigate, isCreating: false, startCreation, cancelCreation})
-                );
+                    return callbacks;
+                });
 
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();

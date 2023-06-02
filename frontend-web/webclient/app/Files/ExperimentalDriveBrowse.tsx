@@ -26,6 +26,7 @@ import {ThemeProvider} from "styled-components";
 import {theme} from "@/ui-components";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
+import AppRoutes from "@/Routes";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProvider<ProductStorage, FileCollectionSupport>>({
@@ -209,7 +210,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                             startRenaming(resource);
                         },
                         viewProperties(res: FileCollection): void {
-                            // TODO
+                            navigate(AppRoutes.resource.properties("drives", res.id));
                         },
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),

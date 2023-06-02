@@ -3,8 +3,10 @@ import {providerIcon} from "@/Files/ExperimentalDriveBrowse";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
+import AppRoutes from "@/Routes";
 import NetworkIPApi, {NetworkIP} from "@/UCloud/NetworkIPApi";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
+import {doNothing} from "@/UtilityFunctions";
 import {EmptyReasonTag, ResourceBrowser, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
@@ -33,7 +35,7 @@ export function ExperimentalNetworkIP(): JSX.Element {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<NetworkIP>(mount, "Public IP").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<NetworkIP>(mount, "public-ips").init(browserRef, FEATURES, "", browser => {
                 // TODO(Jonas): Set filter to "RUNNING" initially for state.
 
                 const isCreatingPrefix = "creating-";
@@ -144,9 +146,34 @@ export function ExperimentalNetworkIP(): JSX.Element {
                     }
                 });
 
-                browser.on("fetchOperationsCallback", () => /* TODO(Jonas): Missing props */
-                    ({dispatch, navigate, isCreating: false, startCreation, cancelCreation})
-                );
+                browser.on("fetchOperationsCallback", () => {/* TODO(Jonas): Missing props */
+                    const callbacks: ResourceBrowseCallbacks<NetworkIP> = {
+                        supportByProvider: {productsByProvider: {}},
+                        dispatch,
+                        embedded: false,
+                        isWorkspaceAdmin: false,
+                        navigate,
+                        reload: () => browser.refresh(),
+                        startCreation(): void {
+                            startCreation();
+                        },
+                        cancelCreation: doNothing,
+                        startRenaming(resource: NetworkIP): void {
+                            // TODO
+                        },
+                        viewProperties(res: NetworkIP): void {
+                            navigate(AppRoutes.resource.properties(browser.resourceName, res.id));
+                        },
+                        commandLoading: false,
+                        invokeCommand: call => callAPI(call),
+                        api: NetworkIPApi,
+                        isCreating: false
+                    };
+
+                    return callbacks;
+
+
+                });
 
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();

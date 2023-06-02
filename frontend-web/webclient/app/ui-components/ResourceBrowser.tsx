@@ -2895,6 +2895,8 @@ export class ResourceBrowser<T> {
 
         const text = document.createElement("span");
         text.style.marginRight = "5px";
+        /* Hacky solution to keep width */
+        text.style.width = filter.text.length + 2 + "ch";
         text.innerText = filter.text;
         wrapper.appendChild(text);
 

@@ -7,6 +7,9 @@ import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
 import LicenseApi, {License} from "@/UCloud/LicenseApi";
+import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
+import {doNothing} from "@/UtilityFunctions";
+import AppRoutes from "@/Routes";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -31,7 +34,7 @@ export function ExperimentalLicenses(): JSX.Element {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<License>(mount, "Licenses").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<License>(mount, "licenses").init(browserRef, FEATURES, "", browser => {
                 // TODO(Jonas): Set filter to "RUNNING" initially for state.
 
                 const isCreatingPrefix = "creating-";
@@ -108,7 +111,7 @@ export function ExperimentalLicenses(): JSX.Element {
 
                     row.title.append(browser.defaultTitleRenderer(key.id, dims));
 
-                    browser.icons.renderIcon({name: "license", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
+                    browser.icons.renderIcon({name: "fileSignatureSolid", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
                 });
 
                 browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
@@ -141,9 +144,34 @@ export function ExperimentalLicenses(): JSX.Element {
                     }
                 });
 
-                browser.on("fetchOperationsCallback", () => /* TODO(Jonas): Missing props */
-                    ({dispatch, navigate, isCreating: false, startCreation, cancelCreation})
-                );
+                browser.on("fetchOperationsCallback", () => {/* TODO(Jonas): Missing props */
+                    const callbacks: ResourceBrowseCallbacks<License> = {
+                        supportByProvider: {productsByProvider: {}},
+                        dispatch,
+                        embedded: false,
+                        isWorkspaceAdmin: false,
+                        navigate,
+                        reload: () => browser.refresh(),
+                        startCreation(): void {
+                            startCreation();
+                        },
+                        cancelCreation: doNothing,
+                        startRenaming(resource: License): void {
+                            // TODO
+                        },
+                        viewProperties(res: License): void {
+                            navigate(AppRoutes.resource.properties(browser.resourceName, res.id));
+                        },
+                        commandLoading: false,
+                        invokeCommand: callAPI,
+                        api: LicenseApi,
+                        isCreating: false
+                    };
+
+                    return callbacks;
+
+
+                });
 
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
