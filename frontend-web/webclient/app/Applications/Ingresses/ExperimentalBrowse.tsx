@@ -1,4 +1,5 @@
 import {callAPI} from "@/Authentication/DataHook";
+import {providerIcon} from "@/Files/ExperimentalDriveBrowse";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
@@ -10,7 +11,9 @@ import {useNavigate} from "react-router";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
-}
+    includeUpdates: true,
+    includeOthers: true,
+};
 
 const FEATURES = {
     renderSpinnerWhenLoading: true,
@@ -73,7 +76,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
                 });
 
                 browser.on("fetchFilters", () => [dateRanges, {
-                    key: "status",
+                    key: "filterState",
                     type: "options",
                     clearable: true,
                     icon: "radioEmpty",
@@ -102,13 +105,15 @@ export function ExperimentalPublicLinks(): JSX.Element {
                     }
                 ]);
 
-                browser.on("renderRow", (key, row, dims) => {
+                browser.on("renderRow", (link, row, dims) => {
                     const [icon, setIcon] = browser.defaultIconRenderer();
                     row.title.append(icon)
 
-                    row.title.append(browser.defaultTitleRenderer(key.id, dims));
+                    row.title.append(browser.defaultTitleRenderer(link.id, dims));
 
                     browser.icons.renderIcon({name: "networkWiredSolid", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
+
+                    row.stat3.append(providerIcon(link.specification.product.provider));
                 });
 
                 browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());

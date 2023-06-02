@@ -74,7 +74,7 @@ export function ExperimentalNetworkIP(): JSX.Element {
                 });
 
                 browser.on("fetchFilters", () => [dateRanges, {
-                    key: "status",
+                    key: "filterState",
                     type: "options",
                     clearable: true,
                     icon: "radioEmpty",

@@ -108,7 +108,7 @@ export function ExperimentalLicenses(): JSX.Element {
 
                     row.title.append(browser.defaultTitleRenderer(key.id, dims));
 
-                    browser.icons.renderIcon({name: "networkWiredSolid", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
+                    browser.icons.renderIcon({name: "license", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
                 });
 
                 browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());

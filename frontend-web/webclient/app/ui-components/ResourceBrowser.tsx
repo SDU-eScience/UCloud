@@ -2908,13 +2908,15 @@ export class ResourceBrowser<T> {
         input.onclick = e => e.stopImmediatePropagation();
         input.onkeydown = e => {
             e.stopPropagation();
+        };
+        input.onkeyup = e => {
             if (input.value) {
                 this.browseFilters[filter.key] = input.value;
             } else {
                 delete this.browseFilters[filter.key];
             }
             this.open(this.currentPath, true);
-        };
+        }
         wrapper.append(input);
 
         this.sessionFilters.append(wrapper);
