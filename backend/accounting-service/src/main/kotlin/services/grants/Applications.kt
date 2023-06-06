@@ -109,14 +109,15 @@ class GrantApplicationService(
                                 unnest(:providers::text[]) provider,
                                 unnest(:category_names::text[]) category_name
                         )
-                        select accounting.product_to_json(p, pc, null)
+                        select accounting.product_to_json(p, pc, au, null)
                         from
                             accounting.products p join
                             accounting.product_categories pc on p.category = pc.id join 
+                            accounting.accounting_units au on pc.accounting_unit = au.id join
                             names_and_providers nap on pc.provider = nap.provider and pc.category = nap.category_name                        
                         order by pc.provider, pc.category
                     """.trimIndent()
-                ).rows.map { defaultMapper.decodeFromString<Product>(it.getString(0)!!) }
+                ).rows.map { defaultMapper.decodeFromString<ProductV2>(it.getString(0)!!).toV1() }
                 results
             } else {
                 throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Not allowed to make requests to grant")

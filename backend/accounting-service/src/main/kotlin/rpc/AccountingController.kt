@@ -131,7 +131,7 @@ class AccountingController(
                     ProductCategoryIdV2(it.categoryId.name, it.categoryId.provider),
                     it.amount,
                     it.startDate ?: Time.now(),
-                    it.endDate ?: Long.MAX_VALUE,
+                    it.endDate ?: 4102444800000, //Long.MaxValue is to large for Postgres so we give the timestamp to 1/1/2100
                     deicAllocationId = null,
                     forcedSync = it.forcedSync
                 )

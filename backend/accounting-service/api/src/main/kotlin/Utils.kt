@@ -25,7 +25,77 @@ fun getTime(atStartOfDay: Boolean): Long {
 
 private val creditsPerMinuteNames = listOf("uc-general","uc-t4","u1-fat","u2-gpu","u1-standard","u1-gpu","uc-a10","syncthing")
 
-
+fun basicTranslationToAccountingUnit(productPriceUnit: ProductPriceUnit, productType: ProductType):AccountingUnit {
+    println("$productType, $productPriceUnit")
+    return when (productType) {
+        ProductType.STORAGE -> AccountingUnit(
+            "Gigabyte",
+            "Gigabytes",
+            floatingPoint = false,
+            displayFrequencySuffix = false
+        )
+        ProductType.COMPUTE -> {
+            if (productPriceUnit.name == "PER_UNIT") {
+                AccountingUnit(
+                    "Syncthing",
+                    "Syncthing",
+                    false,
+                    false
+                )
+            }
+            else if (productPriceUnit.name.contains("UNITS_PER")) {
+                AccountingUnit(
+                    "Core hour",
+                    "Core hours",
+                    floatingPoint = false,
+                    displayFrequencySuffix = true
+                )
+            }
+            else if (productPriceUnit.name.contains("CREDITS_PER")) {
+                AccountingUnit(
+                    "DKK",
+                    "DKK",
+                    floatingPoint = true,
+                    displayFrequencySuffix = false
+                )
+            }
+            else {
+                println("WRIONG: $productPriceUnit $productType")
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Missing type to translate")
+            }
+        }
+        ProductType.INGRESS -> AccountingUnit(
+            "Link",
+            "Links",
+            floatingPoint = false,
+            displayFrequencySuffix = false
+        )
+        ProductType.LICENSE -> AccountingUnit(
+            "License",
+            "Licenses",
+            floatingPoint = false,
+            displayFrequencySuffix = false
+        )
+        ProductType.NETWORK_IP -> AccountingUnit(
+            "IP",
+            "IPs",
+            floatingPoint = false,
+            displayFrequencySuffix = false
+        )
+    }
+}
+fun translateToAccountingFrequency(productPriceUnit: ProductPriceUnit): AccountingFrequency {
+    return when (productPriceUnit) {
+        ProductPriceUnit.CREDITS_PER_UNIT -> AccountingFrequency.ONCE
+        ProductPriceUnit.PER_UNIT -> AccountingFrequency.ONCE
+        ProductPriceUnit.CREDITS_PER_MINUTE -> AccountingFrequency.PERIODIC_MINUTE
+        ProductPriceUnit.CREDITS_PER_HOUR -> AccountingFrequency.PERIODIC_HOUR
+        ProductPriceUnit.CREDITS_PER_DAY -> AccountingFrequency.PERIODIC_DAY
+        ProductPriceUnit.UNITS_PER_MINUTE -> AccountingFrequency.PERIODIC_MINUTE
+        ProductPriceUnit.UNITS_PER_HOUR -> AccountingFrequency.PERIODIC_HOUR
+        ProductPriceUnit.UNITS_PER_DAY -> AccountingFrequency.PERIODIC_DAY
+    }
+}
 fun translateToChargeType(productCategory: ProductCategory): ChargeType {
     return when(productCategory.accountingFrequency) {
         AccountingFrequency.PERIODIC_MINUTE,

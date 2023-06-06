@@ -284,9 +284,13 @@ const GenericRequestCard: React.FunctionComponent<{
     }, []);
 
     React.useEffect(() => {
+        if (allocationRequest && allocationRequest.period.end) {
+            setEndDate(getStartOfDay(new Date(allocationRequest.period.end)));
+        }
         if (endDate == null) return;
         if (endDate < startDate) {
             setEndDate(null);
+            return;
         }
     }, [startDate, endDate]);
 

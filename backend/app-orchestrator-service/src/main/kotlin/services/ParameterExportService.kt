@@ -5,6 +5,7 @@ import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -37,10 +38,11 @@ class ParameterExportService(
                         setParameter("name", reference.id)
                     },
                     """
-                        select accounting.product_to_json(p, pc, null)
+                        select accounting.product_to_json(p, pc, au, null)
                         from
                             accounting.products p join
-                            accounting.product_categories pc on p.category = pc.id
+                            accounting.product_categories pc on p.category = pc.id join 
+                            accounting.accounting_units au on au.id = pc.accounting_unit
                         where
                             pc.provider = :provider and
                             pc.category = :category and
@@ -51,8 +53,8 @@ class ParameterExportService(
                 )
             }.rows.singleOrNull()?.let {
                 runCatching {
-                    defaultMapper.decodeFromString<Product.Compute>(it.getString(0)!!)
-                }.getOrNull()
+                    defaultMapper.decodeFromString<ProductV2.Compute>(it.getString(0)!!)
+                }.getOrNull()?.toV1() as Product.Compute
             }
         }
     )

@@ -28,6 +28,9 @@ sealed class ProductV2 {
     @UCloudApiDoc("A short (single-line) description of the Product")
     abstract val description: String
 
+    @UCloudApiDoc("Classifier used to explain the type of Product")
+    abstract val productType: ProductType
+
     @UCloudApiDoc(
         """
         Indicates that a Wallet is not required to use this Product
@@ -72,6 +75,7 @@ sealed class ProductV2 {
         override val freeToUse: Boolean = false,
         override val hiddenInGrantApplications: Boolean = false,
     ) : ProductV2() {
+        override val productType: ProductType = ProductType.STORAGE
 
         init {
             verify()
@@ -107,6 +111,7 @@ sealed class ProductV2 {
         override val freeToUse: Boolean = false,
         override val hiddenInGrantApplications: Boolean = false,
     ) : ProductV2() {
+        override val productType: ProductType = ProductType.COMPUTE
 
         init {
             verify()
@@ -149,6 +154,7 @@ sealed class ProductV2 {
         override val freeToUse: Boolean = false,
         override val hiddenInGrantApplications: Boolean = false,
     ) : ProductV2() {
+        override val productType: ProductType = ProductType.INGRESS
 
         init {
             verify()
@@ -180,6 +186,7 @@ sealed class ProductV2 {
         override val freeToUse: Boolean = false,
         override val hiddenInGrantApplications: Boolean = false,
     ) : ProductV2() {
+        override val productType: ProductType = ProductType.LICENSE
 
         init {
             verify()
@@ -210,6 +217,7 @@ sealed class ProductV2 {
         override val freeToUse: Boolean = false,
         override val hiddenInGrantApplications: Boolean = false,
     ) : ProductV2() {
+        override val productType: ProductType = ProductType.NETWORK_IP
 
         init {
             verify()

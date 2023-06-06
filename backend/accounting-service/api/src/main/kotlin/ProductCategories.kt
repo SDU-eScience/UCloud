@@ -60,7 +60,7 @@ data class ProductCategory(
     @SerialName("accounting_frequency")
     val accountingFrequency: AccountingFrequency,
     @SerialName("conversion_table")
-    val conversionTable: List<AccountingUnitConversion>
+    val conversionTable: List<AccountingUnitConversion> = emptyList()
 ) {
     fun isPeriodic(): Boolean = periodicalFrequencies.contains(accountingFrequency)
 }

@@ -196,32 +196,6 @@ sealed class Product : DocVisualizable {
         checkMinimumValue(::pricePerUnit, pricePerUnit, 0)
         checkSingleLine(::name, name)
         checkSingleLine(::description, description)
-
-        when (unitOfPrice) {
-            ProductPriceUnit.UNITS_PER_MINUTE,
-            ProductPriceUnit.UNITS_PER_HOUR,
-            ProductPriceUnit.UNITS_PER_DAY -> {
-                if (chargeType != ChargeType.ABSOLUTE) {
-                    throw RPCException("UNITS_PER_X cannot be used with DIFFERENTIAL_QUOTA", HttpStatusCode.BadRequest)
-                }
-            }
-
-            ProductPriceUnit.CREDITS_PER_UNIT,
-            ProductPriceUnit.CREDITS_PER_MINUTE,
-            ProductPriceUnit.CREDITS_PER_HOUR,
-            ProductPriceUnit.CREDITS_PER_DAY -> {
-                if (chargeType != ChargeType.ABSOLUTE) {
-                    throw RPCException(
-                        "CREDITS_PER_X cannot be used with DIFFERENTIAL_QUOTA",
-                        HttpStatusCode.BadRequest
-                    )
-                }
-            }
-
-            ProductPriceUnit.PER_UNIT -> {
-                // OK
-            }
-        }
     }
 
     @Serializable

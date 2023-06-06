@@ -686,7 +686,7 @@ class AccountingProcessor(
                             on w.owned_by = wo.id join
                         accounting.product_categories pc
                             on w.category = pc.id join 
-                        accounting.accounting_unit au on au.id = pc.accounting_unit
+                        accounting.accounting_units au on au.id = pc.accounting_unit
                     order by w.id
                 """
                 )
@@ -770,8 +770,8 @@ class AccountingProcessor(
                         var startDate = row.getDouble(3)!!.toLong()
                         var endDate = row.getDouble(4)?.toLong()
                         var quota = row.getLong(5)!!
-                        var treeUsage = row.getLong(6)!!
-                        var localUsage = row.getLong(7)!!
+                        var treeUsage = quota - row.getLong(6)!!
+                        var localUsage = quota - row.getLong(7)!!
                         val grantedIn = row.getLong(8)
                         val canAllocate = row.getBoolean(9)!!
                         val allowSubAllocationsToAllocate = row.getBoolean(10)!!
@@ -1093,8 +1093,10 @@ class AccountingProcessor(
     }
 
     private suspend fun createWallet(owner: String, category: ProductCategoryIdV2): InternalWallet? {
+        println("creating Wallet for $owner, $category")
         val category = productcategories.retrieveProductCategory(category) ?: return null
         val selectorPolicy = AllocationSelectorPolicy.EXPIRE_FIRST
+        println("creating")
         val wallet = InternalWallet(
             walletsIdGenerator++,
             owner,
@@ -1301,10 +1303,12 @@ class AccountingProcessor(
             return AccountingResponse.Error("Only UCloud administrators can perform a root deposit", 403)
         }
 
+        println("checking wallet. finding ${request.owner}, ${request.productCategory}")
         val existingWallet = findWallet(request.owner, request.productCategory)
             ?: createWallet(request.owner, request.productCategory)
             ?: return AccountingResponse.Error("Unknown product category.", 400)
 
+        println("creating allocation")
         val created = createAllocation(
             existingWallet.id,
             request.amount,
@@ -1315,6 +1319,8 @@ class AccountingProcessor(
             canAllocate = true,
             allowSubAllocationsToAllocate = true
         ).id
+        println("Allocation $created is created")
+
         val transactionId = transactionId()
         dirtyTransactions.add(
             Transaction.Deposit(
@@ -1331,6 +1337,7 @@ class AccountingProcessor(
                 transactionId
             )
         )
+        println("transaction done")
         if (request.forcedSync) {
             attemptSynchronize(forced = true)
         }
@@ -1370,7 +1377,7 @@ class AccountingProcessor(
                 )
             }
         }
-
+        println("END: ${request.notAfter}")
         val notBefore = max(parent.notBefore, request.notBefore)
 
         run {
@@ -1936,6 +1943,7 @@ class AccountingProcessor(
 
             db.withSession { session ->
                 debug.detail("Dealing with wallets")
+                println("wallets")
                 wallets.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
                     val filtered = chunk
                         .filter { it.isDirty }
@@ -2001,7 +2009,7 @@ class AccountingProcessor(
                 }
 
                 debug.detail("Dealing with allocations")
-
+                println("allocs")
                 allocations.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
                     val filtered = chunk
                         .filter { it.isDirty }
@@ -2059,11 +2067,12 @@ class AccountingProcessor(
                             start_date = excluded.start_date,
                             end_date = excluded.end_date,
                             granted_in = excluded.granted_in
-                    """
+                    """, debug = true
                     )
                 }
 
                 debug.detail("Dealing with transactions")
+                println("trans")
 
                 dirtyTransactions.chunkedSequence(500).forEach { chunk ->
                     session.sendPreparedStatement(
@@ -2442,7 +2451,7 @@ private class ProductCategoryCache(private val db: DBContext) {
                     {},
                     """
                         declare product_category_load cursor for
-                        select product_category_to_json(pc, ac), pc.id
+                        select accounting.product_category_to_json(pc, au), pc.id
                         from
                             accounting.product_categories pc join 
                             accounting.accounting_units au on au.id = pc.accounting_unit
@@ -2450,7 +2459,7 @@ private class ProductCategoryCache(private val db: DBContext) {
                 )
 
                 while (true) {
-                    val rows = session.sendPreparedStatement({}, "fetch forward 100 from product_load").rows
+                    val rows = session.sendPreparedStatement({}, "fetch forward 100 from product_category_load").rows
                     if (rows.isEmpty()) break
 
                     rows.forEach { row ->
@@ -2476,11 +2485,12 @@ private class ProductCategoryCache(private val db: DBContext) {
 
     suspend fun retrieveProductCategory(category: ProductCategoryIdV2, allowCacheRefill: Boolean = true): ProductCategory? {
         val productCategories = productCategories.get()
+        println("cats: $productCategories")
         val productCategory = productCategories.find {
             it.first.name == category.name &&
                 it.first.provider == category.provider
         }
-
+        println("CAT: $productCategory")
         if (productCategory == null && allowCacheRefill) {
             fillCache()
             return retrieveProductCategory(category, false)
@@ -2507,11 +2517,12 @@ private class ProductCache(private val db: DBContext) {
                     {},
                     """
                         declare product_load cursor for
-                        select accounting.product_to_json(p, pc, 0), p.id
+                        select accounting.product_to_json(p, pc, au, 0), p.id
                         from
                             accounting.products p join
                             accounting.product_categories pc on
-                                p.category = pc.id
+                                p.category = pc.id join 
+                            accounting.accounting_units au on au.id = pc.accounting_unit
                     """
                 )
 

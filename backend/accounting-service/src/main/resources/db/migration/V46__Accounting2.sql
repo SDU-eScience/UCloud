@@ -1,9 +1,10 @@
 create table if not exists accounting.accounting_units (
-    id bigserial not null unique primary key,
+    id bigserial primary key ,
     name text not null,
     name_plural text not null,
     floating_point bool not null,
-    display_frequency_suffix bool not null
+    display_frequency_suffix bool not null,
+    unique (name, name_plural, floating_point, display_frequency_suffix)
 );
 
 create table if not exists accounting.accounting_unit_conversions (
@@ -100,14 +101,14 @@ set accounting_unit = coreHourInsert.id from coreHourInsert
 where unit_of_price::text like 'UNITS_PER%';
 
 alter table accounting.product_categories add foreign key (accounting_unit) references accounting.accounting_units(id);
-
+alter table accounting.products rename column price_per_unit to price;
 create or replace function accounting.product_category_to_json(
     pc accounting.product_categories,
     au accounting.accounting_units
 ) returns jsonb language sql as $$
     select jsonb_build_object(
         'id', pc.id,
-        'category', pc.category,
+        'name', pc.category,
         'provider', pc.provider,
         'accounting_frequency', pc.accounting_frequency,
         'product_type', pc.product_type,
@@ -118,6 +119,63 @@ create or replace function accounting.product_category_to_json(
             'display_frequency_suffix', au.display_frequency_suffix
         )
 );
+$$;
+
+create or replace function accounting.product_to_json(
+    product_in accounting.products,
+    category_in accounting.product_categories,
+    unit_in accounting.accounting_units,
+    balance bigint
+) returns jsonb
+	language plpgsql
+as $$
+declare
+    builder jsonb;
+begin
+    builder := (
+        select jsonb_build_object(
+            'category', accounting.product_category_to_json(category_in, unit_in),
+            'name', product_in.name,
+            'description', product_in.description,
+            'freeToUse', product_in.free_to_use,
+            'productType', category_in.product_type,
+            'price', product_in.price,
+            'balance', balance,
+            'hiddenInGrantApplications', product_in.hidden_in_grant_applications
+        )
+    );
+    if category_in.product_type = 'STORAGE' then
+        builder := builder || jsonb_build_object('type', 'storage');
+    end if;
+    if category_in.product_type = 'COMPUTE' then
+        builder := builder || jsonb_build_object(
+            'type', 'compute',
+            'cpu', product_in.cpu,
+            'gpu', product_in.gpu,
+            'memoryInGigs', product_in.memory_in_gigs,
+            'cpuModel', product_in.cpu_model,
+            'memoryModel', product_in.memory_model,
+            'gpuModel', product_in.gpu_model
+        );
+    end if;
+    if category_in.product_type = 'INGRESS' then
+        builder := builder || jsonb_build_object('type', 'ingress');
+    end if;
+    if category_in.product_type = 'LICENSE' then
+        builder := builder || jsonb_build_object(
+            'type', 'license',
+            'tags', product_in.license_tags
+        );
+    end if;
+    if category_in.product_type = 'NETWORK_IP' then
+        builder := builder || jsonb_build_object('type', 'network_ip');
+    end if;
+    if category_in.product_type = 'SYNCHRONIZATION' then
+        builder := builder || jsonb_build_object('type', 'synchronization');
+    end if;
+
+    return builder;
+end
 $$;
 
 create table if not exists transaction_history(
@@ -139,3 +197,53 @@ create table if not exists charge_details(
 );
 
 
+create or replace function accounting.require_fixed_price_per_unit_for_diff_quota() returns trigger language plpgsql as $$
+declare
+    current_charge_type accounting.charge_type;
+begin
+    select pc.charge_type into current_charge_type
+    from
+        accounting.products p join
+        accounting.product_categories pc on pc.id = p.category
+    where
+        p.id = new.id;
+
+    if (current_charge_type = 'DIFFERENTIAL_QUOTA' and new.price != 1) then
+        raise exception 'Price per unit for differential_quota products can only be 1';
+    end if;
+    return null;
+end;
+$$;
+
+
+create or replace function accounting.require_fixed_price_per_unit_for_unit_per_x() returns trigger language plpgsql as $$
+declare
+    current_unit_of_price accounting.product_price_unit;
+begin
+    select pc.unit_of_price into current_unit_of_price
+    from
+        accounting.products p join
+        accounting.product_categories pc on pc.id = p.category
+    where
+        p.id = new.id;
+
+    if ((current_unit_of_price = 'UNITS_PER_MINUTE' or
+        current_unit_of_price = 'UNITS_PER_HOUR' or
+        current_unit_of_price = 'UNITS_PER_DAY' or
+        current_unit_of_price = 'PER_UNIT') and
+        new.price != 1) then
+        raise exception 'Price per unit for UNITS_PER_X or PER_UNIT products can only be 1';
+    end if;
+    return null;
+end;
+$$;
+
+create or replace function accounting.require_fixed_price_per_unit_for_free_to_use() returns trigger language plpgsql as $$
+begin
+
+    if (new.free_to_use and new.price != 1) then
+        raise exception 'Price per unit for free_to_use products can only be 1';
+    end if;
+    return null;
+end;
+$$;

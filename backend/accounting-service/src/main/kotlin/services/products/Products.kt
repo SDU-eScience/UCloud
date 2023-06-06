@@ -10,6 +10,9 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.provider.api.basicTranslationToAccountingUnit
+import dk.sdu.cloud.provider.api.translateToAccountingFrequency
+import dk.sdu.cloud.provider.api.translateToChargeType
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
@@ -21,25 +24,15 @@ class ProductService(
 ) {
 
     suspend fun productV1toV2(product: Product): ProductV2 {
-        val category = db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("category", product.category.name)
-                    setParameter("provider", product.category.provider)
-                },
-                """
-                select accounting.product_category_to_json(pc, ac)
-                from accounting.product_categories pc join 
-                    accounting.accounting_unit au on ac.id = pc.accounting_unit
-                where category = :category and provider = :provider
-            """.trimIndent()
-            ).rows
-                .map {data ->
-                    defaultMapper.decodeFromString<ProductCategory>(data.getString(0)!!)
-                }.singleOrNull() ?:
-            throw RPCException("Wrong amount of categories found", HttpStatusCode.InternalServerError)
+        val category = ProductCategory(
+                product.category.name,
+                product.category.provider,
+                product.productType,
+                basicTranslationToAccountingUnit(product.unitOfPrice, product.productType),
+                translateToAccountingFrequency(product.unitOfPrice),
+                emptyList()
+            )
 
-        }
         return when (product) {
             is Product.Compute -> {
                 ProductV2.Compute(
@@ -139,6 +132,7 @@ class ProductService(
                         setParameter("display", req.category.accountingUnit.displayFrequencySuffix)
 
                         setParameter("frequency", req.category.accountingFrequency.name)
+                        setParameter("product_type", req.productType.name)
                     },
                     """
                         with acinsert as (
@@ -152,16 +146,19 @@ class ProductService(
                             ) on conflict (name, name_plural, floating_point, display_frequency_suffix)
                             do update set name_plural = :name_plural
                             returning id 
+                        ), inserts as (
+                            select 
+                                :provider provider, 
+                                :category category, 
+                                :product_type::accounting.product_type product_type, 
+                                ac.id accounting_unit,
+                                :frequency frequency
+                            from acinsert ac
                         )
                         insert into accounting.product_categories
                         (provider, category, product_type, accounting_unit, accounting_frequency) 
-                        values (
-                            :provider, 
-                            :category, 
-                            :product_type::accounting.product_type, 
-                            acinsert.id,
-                            :frequency
-                        )
+                            select provider, category, product_type, accounting_unit, frequency
+                            from inserts
                         on conflict (provider, category)  
                         do update set
                             product_type = excluded.product_type
@@ -210,7 +207,7 @@ class ProductService(
                     with requests as (
                         select
                             unnest(:names::text[]) uname,
-                            unnest(:prices::bigint[]) price_per_unit,
+                            unnest(:prices::bigint[]) price,
                             unnest(:cpus::int[]) cpu,
                             unnest(:gpus::int[]) gpu,
                             unnest(:memory_in_gigs::int[]) memory_in_gigs,
@@ -224,10 +221,10 @@ class ProductService(
                             unnest(:memory_model::text[]) memory_model
                     )
                     insert into accounting.products
-                        (name, price_per_unit, cpu, gpu, memory_in_gigs, license_tags, category,
+                        (name, price, cpu, gpu, memory_in_gigs, license_tags, category,
                          free_to_use, version, description, cpu_model, gpu_model, memory_model) 
                     select
-                        req.uname, req.price_per_unit, req.cpu, req.gpu, req.memory_in_gigs, req.license_tags,
+                        req.uname, req.price, req.cpu, req.gpu, req.memory_in_gigs, req.license_tags,
                         pc.id, req.free_to_use, 1, req.description, req.cpu_model, req.gpu_model, req.memory_model
                     from
                         requests req join
@@ -239,7 +236,7 @@ class ProductService(
                             existing.category = pc.id
                     on conflict (name, category, version)
                     do update set
-                        price_per_unit = excluded.price_per_unit,
+                        price = excluded.price,
                         cpu = excluded.cpu,
                         gpu = excluded.gpu,
                         memory_in_gigs = excluded.memory_in_gigs,
@@ -315,6 +312,7 @@ class ProductService(
         actorAndProject: ActorAndProject,
         request: ProductsV2BrowseRequest
     ): PageV2<Pair<ProductV2,Long?>> {
+        println("browsing")
         return db.withSession { session ->
             val itemsPerPage = request.normalize().itemsPerPage
             val rows = session.sendPreparedStatement(
@@ -336,11 +334,13 @@ class ProductService(
                     select accounting.product_to_json(
                         p,
                         pc,
+                        au,
                         0
                     )
                     from
                         accounting.products p join
-                        accounting.product_categories pc on pc.id = p.category 
+                        accounting.product_categories pc on pc.id = p.category join 
+                        accounting.accounting_units au on au.id = pc.accounting_unit
                     where
                         (
                             (:next_provider::text is null or :next_category::text is null or :next_name::text is null) or
@@ -369,24 +369,28 @@ class ProductService(
                     limit $itemsPerPage;
                 """
             ).rows
-
+            println("mappiung")
             val result = rows.mapNotNull {
                 val product = defaultMapper.decodeFromString(ProductV2.serializer(), it.getString(0)!!)
+                println(product)
                 val balance = if (request.includeBalance == true) {
                     val owner = actorAndProject.project ?: actorAndProject.actor.safeUsername()
+                    println(owner)
                     val usage = processor.retrieveUsageFromProduct(owner, ProductCategoryIdV2(product.category.name, product.category.provider))
                         ?: return@mapNotNull null
-                    val quota = processor.retrieveWalletsInternal(AccountingRequest.RetrieveWalletsInternal(actorAndProject.actor, owner))
+                        println("M")
+                    val quota = processor.retrieveWalletsInternal(AccountingRequest.RetrieveWalletsInternal(Actor.System, owner))
                         .wallets.find { wallet -> ProductCategoryIdV2(wallet.paysFor.name, wallet.paysFor.provider) == ProductCategoryIdV2(product.category.name, product.category.provider) }
                         ?.allocations
                         ?.sumOf { allocation -> allocation.quota }
                         ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "missing wallet")
-
+                    println(quota)
+                    println(usage)
                     quota - usage
                 } else {null}
                 return@mapNotNull Pair(product,balance)
             }
-
+            println(result)
             val next = if (result.size < itemsPerPage) {
                 null
             } else buildString {
