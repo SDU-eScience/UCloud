@@ -571,6 +571,9 @@ class Pod2Runtime(
             val allContainers = (data.builder.podSpec.initContainers ?: emptyList()) +
                     (data.builder.podSpec.containers ?: emptyList())
             val oldEnv = allContainers.map { c -> c.env?.let { ArrayList(it) } }
+            val oldVolumeMounts = allContainers.map { c -> c.volumeMounts?.let { ArrayList(it) } }
+            val oldPorts = allContainers.map { c -> c.ports?.let { ArrayList(it) } }
+            val oldVolumes = ArrayList(data.builder.volumes)
             for (container in allContainers) {
                 val env = (container.env ?: emptyList()).toMutableList()
 
@@ -607,6 +610,15 @@ class Pod2Runtime(
                 )
 
                 container.env = env
+
+                if (job.rank == 0) {
+                    container.volumeMounts = (container.volumeMounts ?: emptyList()) + data.builder.rootOnlyVolumeMounts
+                    container.ports = (container.ports ?: emptyList()) + data.builder.rootOnlyPorts
+                }
+            }
+
+            if (job.rank == 0) {
+                data.builder.podSpec.volumes = data.builder.volumes + data.builder.rootOnlyVolumes
             }
 
             k8Client.createResource(
@@ -616,6 +628,9 @@ class Pod2Runtime(
 
             // NOTE(Dan): We must restore the environment since the pod builder itself is shared among all replicas
             allContainers.zip(oldEnv).forEach { (c, env) -> c.env = env }
+            allContainers.zip(oldVolumeMounts).forEach { (c, mounts) -> c.volumeMounts = mounts }
+            allContainers.zip(oldPorts).forEach { (c, ports) -> c.ports = ports }
+            data.builder.podSpec.volumes = oldVolumes
 
             // NOTE(Dan): These resources should only be created once, as a result we only do it for rank 0
             if (job.rank == 0) {
