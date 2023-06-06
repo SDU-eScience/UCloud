@@ -11,6 +11,7 @@ import dk.sdu.cloud.toReadableStacktrace
 import dk.sdu.cloud.utils.LinuxOutputStream
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -253,8 +254,8 @@ private data class Pod2Container(
                     longRunning = true,
                 ).execute { resp ->
                     if (resp.status.isSuccess()) {
+                        val channel = resp.bodyAsChannel()
                         try {
-                            val channel = resp.bodyAsChannel()
                             var shouldCancel = false
                             while (output.hasRemaining() && !channel.isClosedForRead && !shouldCancel) {
                                 channel.read { input ->
@@ -268,6 +269,8 @@ private data class Pod2Container(
                             }
                         } catch (ignored: EOFException) {
                             // Ignored
+                        } finally {
+                            runCatching { channel.cancel() }
                         }
                     }
                 }
@@ -777,7 +780,7 @@ class Pod2Runtime(
                 c.jobId.toLong(),
                 c.productCategoryRequired ?: defaultNodeType ?: "",
                 c.vCpuMillis,
-                c.memoryMegabytes * 1024 * 1024L,
+                c.memoryMegabytes * 1000 * 1000L,
                 c.gpus,
                 c.replicas,
                 Pod2Data.NotYetScheduled(c)

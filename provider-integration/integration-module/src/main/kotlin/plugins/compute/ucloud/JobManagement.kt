@@ -461,7 +461,9 @@ class JobManagement(
                         Prometheus.measureBackgroundDuration(taskName, Time.now() - start)
                     }
 
-                    delay(5000)
+                    val end = Time.now()
+                    val delayTime = 5000 - (end - start)
+                    if (delayTime > 0) delay(delayTime)
                 }
             }
         }
