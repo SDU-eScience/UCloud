@@ -7,7 +7,7 @@ import {
     EmptyReasonTag,
     ResourceBrowser,
 } from "@/ui-components/ResourceBrowser";
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector, useStore} from "react-redux";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import MainContainer from "@/MainContainer/MainContainer";
 import {callAPI} from "@/Authentication/DataHook";
@@ -15,7 +15,7 @@ import {api as FileCollectionsApi, FileCollection, FileCollectionSupport} from "
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {FindByStringId, PageV2} from "@/UCloud";
 import {dateToString} from "@/Utilities/DateUtilities";
-import {doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
+import {doNothing, extractErrorMessage, isLightThemeStored, timestampUnixMs} from "@/UtilityFunctions";
 import {DELETE_TAG, ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Product, ProductStorage} from "@/Accounting";
 import {bulkRequestOf} from "@/DefaultObjects";
@@ -27,6 +27,9 @@ import {theme} from "@/ui-components";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
+import {createPortal} from "react-dom";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {useProjectId} from "@/Project/Api";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProvider<ProductStorage, FileCollectionSupport>>({
@@ -51,7 +54,11 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<FileCollection> | null>(null);
     const dispatch = useDispatch();
+    const projectId = useProjectId();
+    const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
     useTitle("Drives");
+
+    const [switcher, setSwitcherWorkaround] = React.useState(<></>);
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -411,16 +418,42 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 browser.on("pathToEntry", f => f.id);
                 browser.on("nameOfEntry", f => f.specification.title);
                 browser.on("sort", page => page.sort((a, b) => a.specification.title.localeCompare(b.specification.title)));
+
+                document.addEventListener("", (a) => console.log(a));
             });
+
+            const contextSwitcher = document.querySelector<HTMLDivElement>(".context-switcher");
+            if (contextSwitcher) {
+                setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
+            }
         }
     }, []);
+
+    /* Reload on new project */
+    React.useEffect(() => {
+        if (mountRef.current && browserRef.current) {
+            browserRef.current.open("/", true);
+        }
+    }, [projectId]);
+    
+    /* Re-render on theme change */
+    React.useEffect(() => {
+        if (mountRef.current && browserRef.current) {
+            browserRef.current.rerender();
+        }
+    }, [theme]);
 
     useRefreshFunction(() => {
         browserRef.current?.refresh();
     });
 
     return <MainContainer
-        main={<div ref={mountRef} />}
+        main={
+            <>
+                <div ref={mountRef} />
+                {switcher}
+            </>
+        }
     />;
 };
 

@@ -1,6 +1,10 @@
 import * as React from "react";
 import Relative from "./Relative";
 import {injectStyle} from "@/Unstyled";
+import {useDispatch} from "react-redux";
+import {toggleThemeRedux} from "@/Applications/Redux/Actions";
+import {toggleTheme} from "@/Core";
+import {isLightThemeStored} from "@/UtilityFunctions";
 
 /*!
 
@@ -24,37 +28,39 @@ import {injectStyle} from "@/Unstyled";
 
  */
 
-export function ThemeToggler({isLightTheme, onClick}: {
-    isLightTheme: boolean;
-    onClick: (e: React.SyntheticEvent<HTMLDivElement>) => void
-}): JSX.Element {
+export function ThemeToggler(): JSX.Element {
+    const isLightTheme = isLightThemeStored();
+    const dispatch = useDispatch();
+
     function toggleActive(): void {
         setActive(!active);
+        toggleTheme();
+        dispatch(toggleThemeRedux(active ? "dark" : "light"));
     }
 
     const [active, setActive] = React.useState<boolean>(isLightTheme);
     return (
-        <Relative onClick={onClick} marginLeft="auto" marginRight="auto">
-            <div className={Wrapper} onClick={toggleActive} data-active={active}>
+        <Relative onClick={toggleActive} marginLeft="auto" marginRight="auto">
+            <div className={Wrapper} data-active={active}>
                 <div className={Switch} data-active={active}>
                     <div className={Moon}>
-                        <div className={Crater} data-active={active}/>
-                        <div className={Crater} data-active={active}/>
-                        <div className={Crater} data-active={active}/>
+                        <div className={Crater} data-active={active} />
+                        <div className={Crater} data-active={active} />
+                        <div className={Crater} data-active={active} />
                     </div>
                 </div>
                 <div className={StarsAndsCloudsBase + " " + Clouds} data-active={active}>
-                    <div className={Cloud}/>
-                    <div className={Cloud}/>
-                    <div className={Cloud}/>
+                    <div className={Cloud} />
+                    <div className={Cloud} />
+                    <div className={Cloud} />
                 </div>
                 <div className={StarsAndsCloudsBase + " " + Stars} data-active={active}>
-                    <div className={Star} data-active={active}/>
-                    <div className={Star} data-active={active}/>
-                    <div className={Star} data-active={active}/>
-                    <div className={Star} data-active={active}/>
-                    <div className={Star} data-active={active}/>
-                    <div className={Star} data-active={active}/>
+                    <div className={Star} data-active={active} />
+                    <div className={Star} data-active={active} />
+                    <div className={Star} data-active={active} />
+                    <div className={Star} data-active={active} />
+                    <div className={Star} data-active={active} />
+                    <div className={Star} data-active={active} />
                 </div>
             </div>
         </Relative>

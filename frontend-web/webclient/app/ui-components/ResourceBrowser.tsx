@@ -14,6 +14,7 @@ import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 
+
 /*
  BUGS FOUND
 */
@@ -233,6 +234,7 @@ interface ResourceBrowseFeatures {
     search?: boolean;
     filters?: boolean;
     sortDirection?: boolean;
+    contextSwitcher?: boolean;
 }
 
 export class ResourceBrowser<T> {
@@ -339,6 +341,7 @@ export class ResourceBrowser<T> {
         renderSpinnerWhenLoading: true, // automatically inserts the spinner graphic before invoking "renderEmptyPage"
         filters: false,
         sortDirection: false,
+        contextSwitcher: false,
     };
 
     private listeners: Record<string, any[]> = {};
@@ -375,6 +378,7 @@ export class ResourceBrowser<T> {
                     <input class="${InputClass} search-field" hidden>
                     <img class="search-icon">
                     <img class="refresh-icon">
+                    <div style="margin-left:20px;margin-right:20px;margin-top:4px;" class="context-switcher"></div>
                 </div>
                 <div class="operations"></div>
                 <div style="display: flex;">
@@ -482,6 +486,15 @@ export class ResourceBrowser<T> {
 
         if (this.features.filters) {
             this.renderSessionFilters();
+        }
+
+        if (this.features.contextSwitcher) {
+            const div = document.createElement("div");
+            div.style.marginLeft = "20px";
+            div.style.marginRight = "20px";
+            div.style.marginTop = "4px";            
+            div.className = "context-switcher";
+            this.header.appendChild(div);
         }
 
         {
@@ -688,17 +701,21 @@ export class ResourceBrowser<T> {
         const scrollPositionElement = this.scrollPosition[path];
 
         // Perform renders
+        this.rerender();
+
+        // NOTE(Dan): We need to scroll to the position _after_ we have rendered the page.
+        this.scrolling.parentElement!.scrollTo({top: scrollPositionElement ?? 0});
+
+        this.dispatchMessage("open", fn => fn(oldPath, path, resource));
+    }
+
+    public rerender() {
         this.renderBreadcrumbs();
         this.renderOperations();
         this.renderRows();
         this.clearFilters();
         if (this.features.sortDirection) this.renderSortOrder();
         if (this.features.filters) this.renderFilters();
-
-        // NOTE(Dan): We need to scroll to the position _after_ we have rendered the page.
-        this.scrolling.parentElement!.scrollTo({top: scrollPositionElement ?? 0});
-
-        this.dispatchMessage("open", fn => fn(oldPath, path, resource));
     }
 
     renderRows() {

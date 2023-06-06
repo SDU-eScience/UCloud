@@ -181,6 +181,8 @@ export function ExperimentalPublicLinks(): JSX.Element {
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn());
                     return IngressApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries))
                 });
+
+                browser.on("pathToEntry", entry => entry.id);
             });
         }
         // TODO(Jonas): Creation

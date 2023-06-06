@@ -16,6 +16,7 @@ import {NavigateFunction} from "react-router";
 import {initTerminalState, TerminalState} from "@/Terminal/State";
 import {PopInArgs} from "./ui-components/PopIn";
 import {SidebarStateProps} from "./Applications/Redux/Reducer";
+import {getUserThemePreference, isLightThemeStored} from "./UtilityFunctions";
 
 export enum KeyCode {
     ENTER = 13,
@@ -157,8 +158,12 @@ export function initObject(): ReduxObject {
         project: ProjectRedux.initialState,
         terminal: initTerminalState(),
         popinChild: null,
-        sidebar: {favorites: []}
+        sidebar: {favorites: [], theme: getThemeOrDefaultValue()}
     };
+}
+
+function getThemeOrDefaultValue(): "light" | "dark" {
+    return (window.localStorage.getItem("theme") ?? getUserThemePreference()) as "light" | "dark"
 }
 
 export type AvatarReduxObject = typeof defaultAvatar & {error?: string};

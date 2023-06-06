@@ -339,10 +339,7 @@ const UserMenu: React.FunctionComponent<{
         <Divider />
         <span>
             <Flex cursor="auto">
-                <ThemeToggler
-                    isLightTheme={isLightThemeStored()}
-                    onClick={toggleTheme}
-                />
+                <ThemeToggler />
             </Flex>
         </span>
     </ClickableDropdown>;

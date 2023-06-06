@@ -47,6 +47,8 @@ import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {setPopInChild} from "@/ui-components/PopIn";
 import AppRoutes from "@/Routes";
+import {createPortal} from "react-dom";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
 // Cached network data
 // =====================================================================================================================
@@ -78,6 +80,7 @@ const FEATURES = {
     search: true,
     sortDirection: true,
     filters: true,
+    contextSwitcher: true,
 }
 
 const ExperimentalBrowse: React.FunctionComponent = () => {
@@ -92,6 +95,8 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     useEffect(() => {
         isInitialMount.current = false;
     }, []);
+
+    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
 
     useLayoutEffect(() => {
@@ -1143,6 +1148,11 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 browser.on("nameOfEntry", f => fileName(f.id));
                 browser.on("sort", page => page.sort((a, b) => a.id.localeCompare(b.id)));
             });
+
+            const contextSwitcher = document.querySelector<HTMLDivElement>(".context-switcher");
+            if (contextSwitcher) {
+                setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
+            }
         }
     }, []);
 
@@ -1162,7 +1172,10 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     });
 
     return <MainContainer
-        main={<div ref={mountRef} />}
+        main={<>
+            <div ref={mountRef} />
+            {switcher}
+        </>}
     />;
 };
 

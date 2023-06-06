@@ -174,15 +174,17 @@ function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => voi
     const {pathname} = window.location;
     runThisFunction();
     const splitPath = pathname.split("/").filter(it => it);
-    if (pathname === "/app/files") {
+    let doRefresh = true;
+    if (["/app/files/", "/app/files"].includes(pathname)) {
         navigate("/drives")
+        doRefresh = false;
     } else if (splitPath.length === 5) {
         if (splitPath[0] === "app" && splitPath[2] === "grants" && splitPath[3] == "view") {
             navigate(`/project/grants/ingoing/${projectId}`);
         }
     }
     initializeResources();
-    refresh?.();
+    if (doRefresh) refresh?.();
 }
 
 const BottomBorderedRow = injectStyle("bottom-bordered-row", k => `

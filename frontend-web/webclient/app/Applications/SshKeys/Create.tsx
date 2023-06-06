@@ -147,8 +147,8 @@ You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/in
         header={<>{ResourceOptions.SSH_KEYS}</>}
         headerSize={48}
         main={
-            <>
-                <Box maxWidth={"900px"}>
+            <Flex maxWidth={"1200px"} mx="auto">
+                <Box maxWidth={"1200px"}>
                     <form onSubmit={onSubmit}>
                         <GenericTextField
                             name={titleKey}
@@ -197,7 +197,7 @@ You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/in
                         </tbody>
                     </Table>
                 </Box>
-            </>
+            </Flex>
         }
     />;
 };

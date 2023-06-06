@@ -74,7 +74,7 @@ export class SvgCache {
         const c1 = getCssColorVar(color);
         const c2 = color2 ? getCssColorVar(color) : undefined;
         return await this.renderSvg(
-            `${name}-${c1}-${color2}-${width}-${height}`,
+            `${name}-${c1}-${c2}-${width}-${height}`,
             () => <Icon name={name} color={c1} color2={c2} width={width} height={height} />,
             width,
             height,

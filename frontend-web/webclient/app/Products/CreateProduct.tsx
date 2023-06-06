@@ -100,7 +100,7 @@ interface TextAreaField extends ResourceField {
     rows: number;
 }
 
-export default abstract class ResourceForm<Request, Response> extends React.Component<{
+export default class ResourceForm<Request, Response> extends React.Component<{
     /* Note(jonas): Seems passing "fields" only would work just as well. */
     createRequest: (d: DataType) => Promise<APICallParameters<Request>>;
     title: string;
