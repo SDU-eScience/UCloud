@@ -96,6 +96,10 @@ enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Bool
             else -> false
         }
     }),
+
+    LoadSimulation("load-simulation", { svc ->
+        false
+    }),
 }
 
 suspend fun main(args: Array<String>) {
@@ -139,7 +143,7 @@ suspend fun main(args: Array<String>) {
                 })")
     }
 
-    if (args.contains("--dev") && !isInstalling) {
+    if (args.contains("--dev") && !isInstalling && preset != LauncherPreset.LoadSimulation) {
         val reg = ServiceRegistry(args + "--no-server", PlaceholderServiceDescription)
         reg.rootMicro.install(DatabaseConfigurationFeature)
         reg.rootMicro.install(FlywayFeature)
@@ -187,11 +191,21 @@ suspend fun main(args: Array<String>) {
         }
     }
 
-    reg.rootMicro.feature(ServerFeature).ktorApplicationEngine!!.application.routing {
-        get("/i") {
-            call.respondRedirect("http://localhost:9000/app", permanent = false)
+    if (!args.contains("--no-server")) {
+        reg.rootMicro.feature(ServerFeature).ktorApplicationEngine!!.application.routing {
+            get("/i") {
+                call.respondRedirect("http://localhost:9000/app", permanent = false)
+            }
         }
     }
 
-    reg.start()
+    if (preset == LauncherPreset.LoadSimulation) {
+        val m = Micro(reg.rootMicro)
+        m.install(AuthenticatorFeature)
+        val client = m.authenticator.authenticateClient(OutgoingHttpCall)
+        val simulator = Simulator(client, 5)
+        simulator.start()
+    } else {
+        reg.start()
+    }
 }

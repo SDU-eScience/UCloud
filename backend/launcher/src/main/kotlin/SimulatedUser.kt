@@ -1,32 +1,45 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.accounting.AccountingService
+import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.projects.*
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.ToolStore
-import dk.sdu.cloud.auth.api.CreateSingleUserRequest
-import dk.sdu.cloud.auth.api.JwtRefresher
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.avatar.api.AvatarDescriptions
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.file.orchestrator.api.FileCollection
 import dk.sdu.cloud.file.orchestrator.api.FileCollections
 import dk.sdu.cloud.grant.api.*
+import dk.sdu.cloud.news.api.ListPostsRequest
+import dk.sdu.cloud.news.api.News
+import dk.sdu.cloud.news.api.NewsServiceDescription
 import dk.sdu.cloud.project.api.v2.*
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.util.*
 import kotlinx.coroutines.*
+import kotlinx.serialization.builtins.serializer
+import org.jetbrains.kotlin.backend.common.push
+import org.slf4j.Logger
+import java.io.File
+import java.math.BigInteger
+import java.net.URLDecoder
+import java.security.MessageDigest
+import java.security.SecureRandom
 import java.util.*
 import kotlin.random.Random
 import kotlin.system.exitProcess
 
 class Simulator(
     private val serviceClient: AuthenticatedClient,
-    private val numberOfUsers: Int,
-    private val numberOfSteps: Int,
+    private val numberOfUsers: Int
 ) {
     val simulationId = Random.nextBytes(16).encodeBase64()
         .replace("+", "")
@@ -35,8 +48,9 @@ class Simulator(
         .replace("/", "")
 
     private val users = ArrayList<SimulatedUser>()
+    private lateinit var project: Project
 
-    fun allocatePi(): SimulatedUser = users.filter { it.becomesPi }.random()
+    //fun allocatePi(): SimulatedUser = users.filter { it.becomesPi }.random()
     suspend fun requestGrantApproval(id: Long) {
         Grants.updateApplicationState.call(
             bulkRequestOf(
@@ -50,139 +64,121 @@ class Simulator(
         ).orThrow()
     }
 
-    private suspend fun createProduct(product: Product) {
-        val hasProduct = Products.retrieve.call(
-            ProductsRetrieveRequest(
-                filterName = product.name,
-                filterCategory = product.category.name,
-                filterProvider = product.category.provider
-            ),
-            serviceClient
-        ).orNull() != null
-
-        if (hasProduct) return
-        Products.create.call(bulkRequestOf(product), serviceClient)
+    private fun applyForResources() {
+        runBlocking {
+            Grants.submitApplication.call(
+                bulkRequestOf(
+                    users.map { user ->
+                        CreateApplication(
+                            GrantApplication.Document(
+                                GrantApplication.Recipient.PersonalWorkspace(user.username),
+                                listOf(
+                                    GrantApplication.AllocationRequest(
+                                        computeByHours.name,
+                                        computeByHours.provider,
+                                        "k8",
+                                        100_000L,
+                                        period = GrantApplication.Period(System.currentTimeMillis() - 1000L, null)
+                                    ),
+                                    GrantApplication.AllocationRequest(
+                                        storageByQuota.name,
+                                        storageByQuota.provider,
+                                        "k8",
+                                        100_000L,
+                                        period = GrantApplication.Period(System.currentTimeMillis() - 1000L, null)
+                                    )
+                                ),
+                                GrantApplication.Form.PlainText("Grant application request from simulated user")
+                            )
+                        )
+                    }
+                ),
+                serviceClient
+            )
+        }
     }
+
+    private suspend fun initializeUsers() {
+        // Look up users
+        val userFile = File("simulated_users")
+
+        if (!userFile.exists()) {
+            userFile.createNewFile()
+        }
+
+        log.debug(userFile.absolutePath)
+        val existingUsers = userFile.readLines().filter { it.isNotEmpty() }
+
+        val selectedUsers = if (existingUsers.size > numberOfUsers) {
+            existingUsers.subList(0, numberOfUsers - 1)
+        } else {
+            existingUsers
+        }
+
+        log.debug("Reusing ${selectedUsers.size} existing simulated users")
+        for (existingUser in selectedUsers) {
+            val (username, password) = existingUser.split(" ")
+            val simUser = SimulatedUser(serviceClient)
+            simUser.initialize(username, password)
+            users.add(simUser)
+        }
+
+        if (existingUsers.size < numberOfUsers) {
+            log.debug("Creating ${numberOfUsers - existingUsers.size} new simulated users")
+            val newUsers = ArrayList<SimulatedUser>()
+            var missingCount = numberOfUsers - existingUsers.size
+
+            while (missingCount > 0) {
+                val newUser = SimulatedUser(serviceClient)
+                newUser.initialize()
+                newUsers.push(newUser)
+                missingCount--
+            }
+
+            log.debug("Writing users to file")
+            for (user in newUsers) {
+                userFile.appendText("${user.username} ${user.password}\n")
+            }
+
+            users.addAll(newUsers)
+        }
+    }
+
+    /*fun initializeProject(): Project {
+        project = Projects.browse.call(
+            ProjectsBrowseRequest(itemsPerPage = 250),
+            serviceClient
+        ).orThrow().items.single().id
+
+        Projects.browse.call(
+            ProjectsBrowseRequest()
+        )
+    }*/
 
     @OptIn(DelicateCoroutinesApi::class)
     fun start() {
-        GlobalScope.launch {
-            createProduct(
-                Product.Storage(
-                    storageByQuota.name,
-                    1L,
-                    storageByQuota,
-                    "Storage by quota",
-                    unitOfPrice = ProductPriceUnit.PER_UNIT,
-                    chargeType = ChargeType.DIFFERENTIAL_QUOTA
-                )
-            )
+        log.debug("Started load simulation")
 
-            createProduct(
-                Product.Compute(
-                    computeByHours.name,
-                    1L,
-                    computeByHours,
-                    "Compute by hours",
-                    cpu = 1,
-                    memoryInGigs = 1,
-                    gpu = 0,
-                    unitOfPrice = ProductPriceUnit.UNITS_PER_MINUTE,
-                    chargeType = ChargeType.ABSOLUTE
-                )
-            )
+        runBlocking {
+            initializeUsers()
+        }
 
-            createProduct(
-                Product.Compute(
-                    computeByCredits.name,
-                    1L,
-                    computeByCredits,
-                    "Compute by credits",
-                    cpu = 1,
-                    memoryInGigs = 1,
-                    gpu = 0,
-                    unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE,
-                    chargeType = ChargeType.ABSOLUTE
-                )
-            )
+        //project = initializeProject()
 
-            createProduct(
-                Product.Ingress(
-                    linkFree.name,
-                    1L,
-                    linkFree,
-                    "Public link product",
-                    freeToUse = true,
-                )
-            )
 
-            ToolStore.create.call(
-                Unit,
-                serviceClient.withHttpBody(
-                    """
-                        ---
-                        tool: v1
+        // TODO Apply for resources
 
-                        title: Simulated Application
-                        name: ${simulatedApplication.name}
-                        version: ${simulatedApplication.version}
 
-                        container: alpine:3
 
-                        authors:
-                        - Dan
-                          
-                        defaultTimeAllocation:
-                          hours: 1
-                          minutes: 0
-                          seconds: 0
+        // TODO Approve grant applications
 
-                        description: All
-                                   
-                        defaultNumberOfNodes: 1 
-                        defaultTasksPerNode: 1
 
-                        backend: DOCKER
-                    """.trimIndent()
-                )
-            )
+        // TODO Start simulation
 
-            AppStore.create.call(
-                Unit,
-                serviceClient.withHttpBody(
-                    """
-                        application: v1
 
-                        title: Simulated Application
-                        name: ${simulatedApplication.name}
-                        version: ${simulatedApplication.version}
 
-                        applicationType: BATCH
-
-                        tool:
-                          name: alpine
-                          version: 1
-
-                        authors:
-                        - Dan
-
-                        container:
-                          runAsRoot: true
-                         
-                        description: An application used for user simulations. This application never runs and registers a random amount of consumption.
-                         
-                        invocation:
-                        - exit
-                        - 0
-
-                        outputFileGlobs:
-                          - "*"
-
-                    """.trimIndent()
-                )
-            )
-
-            val root = Projects.create.call(
+        return
+            /*val root = Projects.create.call(
                 bulkRequestOf(
                     Project.Specification(null, "Simulation-Root-${simulationId}"),
                 ),
@@ -203,9 +199,9 @@ class Simulator(
                     )
                 ),
                 serviceClient.withProject(root)
-            ).orThrow()
+            ).orThrow()*/
 
-            Accounting.rootDeposit.call(
+            /*Accounting.rootDeposit.call(
                 bulkRequestOf(
                     RootDepositRequestItem(computeByHours, WalletOwner.Project(root), 1_000_000L * 1_000_000_000, "Root"),
                     RootDepositRequestItem(computeByCredits, WalletOwner.Project(root), 1_000_000L * 1_000_000_000, "Root"),
@@ -246,27 +242,25 @@ class Simulator(
                 println("Got a chunk! $chunk")
                 launch {
                     println("Steps!")
-                    repeat(numberOfSteps) {
+                    /*repeat(numberOfSteps) {
                         chunk.forEach { it.doStep() }
                         counter[index] = counter[index] + chunk.size
-                    }
+                    }*/
                     println("Done!")
                 }
             }.joinAll()
-            statJob.cancel()
+            statJob.cancel()*/
 
-            println("Completed $numberOfSteps")
-        }
+            //println("Completed $numberOfSteps")
     }
 
-    companion object {
-        val computeByCredits = ProductCategoryId("cpu-dkk", "ucloud")
-        val computeByHours = ProductCategoryId("cpu-core", "ucloud")
-        val storageByQuota = ProductCategoryId("u1-cephfs", "ucloud")
-        val licenseByQuota = ProductCategoryId("license-quota", "ucloud")
-        val linkFree = ProductCategoryId("u1-publiclink", "ucloud")
+    companion object : Loggable {
+        val computeByHours = ProductCategoryId("cpu-1", "k8")
+        val storageByQuota = ProductCategoryId("storage", "k8")
 
         val simulatedApplication = NameAndVersion("simulated", "1.0.0")
+
+        override val log = logger()
     }
 }
 
@@ -275,52 +269,92 @@ private fun ProductCategoryId.toReference(): ProductReference {
 }
 
 class SimulatedUser(
-    private val serviceClient: AuthenticatedClient,
-    private val parentProject: String,
-    private val simulator: Simulator,
-    forcePi: Boolean = false,
+    private val serviceClient: AuthenticatedClient
 ) {
-    val becomesPi = forcePi || Random.nextInt(100) <= 10
-    val becomesAdmin = !becomesPi && Random.nextInt(100) <= 30
-    val becomesUser = !becomesPi && !becomesAdmin
+    //val isPi = forcePi || Random.nextInt(100) <= 10
+    //val becomesAdmin = !becomesPi && Random.nextInt(100) <= 30
+    //val becomesUser = !becomesPi && !becomesAdmin
 
-    var hasComputeByCredits = Random.nextBoolean()
-    var hasComputeByHours = !hasComputeByCredits
-    var hasLicenses = Random.nextBoolean()
-    var hasStorage = true
-    var hasLinks = Random.nextBoolean()
+    //var hasComputeByCredits = Random.nextBoolean()
+    //var hasComputeByHours = !hasComputeByCredits
+    //var hasLicenses = Random.nextBoolean()
+    //var hasStorage = true
+    //var hasLinks = Random.nextBoolean()
 
     lateinit var username: String
+    lateinit var password: String
     lateinit var client: AuthenticatedClient
     lateinit var projectId: String
 
-    suspend fun initialStep() {
-        username = when {
-            becomesPi -> "pi-${simulator.simulationId}-${userIdGenerator.getAndIncrement()}"
-            becomesAdmin -> "admin-${simulator.simulationId}-${userIdGenerator.getAndIncrement()}"
-            else -> "user-${simulator.simulationId}-${userIdGenerator.getAndIncrement()}"
+    suspend fun initialize(username: String? = null, password: String? = null) {
+        val refreshToken: String = if (username.isNullOrBlank()) {
+            this.username = "sim-${Time.now()}"
+            this.password = generatePassword()
+            log.debug("Creating user ${this.username} with password ${this.password}")
+            UserDescriptions.createNewUser.call(
+                listOf(
+                    CreateSingleUserRequest(
+                        this.username,
+                        this.password,
+                        "email-${username}@localhost",
+                        Role.USER,
+                        "First",
+                        "Last"
+                    )
+                ),
+                serviceClient
+            ).orThrow().single().refreshToken
+        } else {
+            this.username = username
+            this.password = password ?: ""
+            log.debug("Trying to log in as ${this.username}")
+
+            val testCall = News.listPosts.call(ListPostsRequest(itemsPerPage = 10, page = 0, withHidden = false), serviceClient).ctx as OutgoingHttpCall
+            log.debug("${testCall.response}")
+            val call = AuthDescriptions.passwordLogin.call(
+                Unit,
+                serviceClient.withHttpBody(
+                    """
+                        -----boundary
+                        Content-Disposition: form-data; name="service"
+
+                        web
+                        -----boundary
+                        Content-Disposition: form-data; name="username"
+
+                        user
+                        -----boundary
+                        Content-Disposition: form-data; name="password"
+
+                        mypassword
+                        -----boundary--
+                    """.trimIndent(),
+                    ContentType.MultiPart.FormData.withParameter("boundary", "---boundary")
+                )
+            ).ctx as OutgoingHttpCall
+
+            val response = call.response!!
+            log.debug("${call.attributes}")
+            log.debug("body: ${response.bodyAsText()}")
+            val cookiesSet = response.headers[HttpHeaders.SetCookie]!!
+            val split = cookiesSet.split(";").associate {
+                val key = it.substringBefore('=')
+                val value = URLDecoder.decode(it.substringAfter('=', ""), "UTF-8")
+                key to value
+            }
+
+            log.debug("$split")
+
+            split["refreshToken"]!!
         }
 
-        val refreshToken = UserDescriptions.createNewUser.call(
-            listOf(
-                CreateSingleUserRequest(
-                    username,
-                    "simulated-user",
-                    "email-${username}@localhost",
-                    Role.USER,
-                    "First",
-                    "Last"
-                )
-            ),
-            serviceClient
-        ).orThrow().single().refreshToken
-
+        log.debug("${this.username} logged in with token: $refreshToken")
         client = RefreshingJWTAuthenticator(
             serviceClient.client,
             JwtRefresher.Normal(refreshToken, OutgoingHttpCall)
         ).authenticateClient(OutgoingHttpCall)
 
-        if (becomesPi) {
+        /*if (becomesPi) {
             val grantId = Grants.submitApplication.call(
                 bulkRequestOf(
                     CreateApplication(
@@ -329,10 +363,10 @@ class SimulatedUser(
                             buildList {
                                 fun request(categoryId: ProductCategoryId): GrantApplication.AllocationRequest =
                                     GrantApplication.AllocationRequest(categoryId.name, categoryId.provider, parentProject, 50_000 * 1_000_000L, period = GrantApplication.Period(System.currentTimeMillis()-1000L, null))
-                                if (hasComputeByCredits) add(request(Simulator.computeByCredits))
-                                if (hasComputeByHours) add(request(Simulator.computeByHours))
-                                if (hasLicenses) add(request(Simulator.licenseByQuota))
-                                if (hasStorage) add(request(Simulator.storageByQuota))
+                                //if (hasComputeByCredits) add(request(Simulator.computeByCredits))
+                                //if (hasComputeByHours) add(request(Simulator.computeByHours))
+                                //if (hasLicenses) add(request(Simulator.licenseByQuota))
+                                //if (hasStorage) add(request(Simulator.storageByQuota))
                             },
                             GrantApplication.Form.PlainText("This is my application"),
                         )
@@ -341,7 +375,7 @@ class SimulatedUser(
                 client
             ).orThrow().responses.first().id
 
-            simulator.requestGrantApproval(grantId)
+            //simulator.requestGrantApproval(grantId)
 
             projectId = Projects.browse.call(
                 ProjectsBrowseRequest(itemsPerPage = 250),
@@ -350,11 +384,11 @@ class SimulatedUser(
 
             client = client.withProject(projectId)
         } else {
-            simulator.allocatePi().requestInvite(this)
-        }
+            //simulator.allocatePi().requestInvite(this)
+        }*/
     }
 
-    suspend fun requestInvite(member: SimulatedUser) {
+    /*suspend fun requestInvite(member: SimulatedUser) {
         Projects.createInvite.call(
             bulkRequestOf(ProjectsCreateInviteRequestItem(member.username)),
             client
@@ -374,12 +408,12 @@ class SimulatedUser(
 
         member.projectId = projectId
         member.client = member.client.withProject(projectId)
-        member.hasLicenses = hasLicenses
+        /*member.hasLicenses = hasLicenses
         member.hasLinks = hasLinks
         member.hasStorage = hasStorage
         member.hasComputeByCredits = hasComputeByCredits
-        member.hasComputeByHours = hasComputeByHours
-    }
+        member.hasComputeByHours = hasComputeByHours*/
+    }*/
 
     suspend fun doStep() {
         var diceRoll = Random.nextInt(100)
@@ -389,7 +423,7 @@ class SimulatedUser(
             return success
         }
 
-        when {
+        /*when {
             chance(5) -> {
                 if (!hasStorage || !(becomesPi || becomesAdmin)) return
 
@@ -453,11 +487,15 @@ class SimulatedUser(
             else -> {
                 // Do nothing
             }
-        }
+        }*/
     }
 
-    companion object {
-        val userIdGenerator = AtomicInteger(0)
-        val projectIdGenerator = AtomicInteger(0)
+    companion object : Loggable {
+        override val log = logger()
+    }
+
+    private fun generatePassword(): String {
+        val pool = ('a'..'z') + ('A'..'Z') + ('0'..'9')
+        return (1..30).map { Random.nextInt(0, pool.size).let { pool[it] }}.joinToString("")
     }
 }
