@@ -4,12 +4,15 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {EmptyReasonTag, ResourceBrowser, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 import {useNavigate} from "react-router";
 import LicenseApi, {License} from "@/UCloud/LicenseApi";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {doNothing} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
+import {useProjectId} from "@/Project/Api";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {createPortal} from "react-dom";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -20,6 +23,7 @@ const FEATURES = {
     filters: true,
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
+    contextSwitcher: true,
 };
 
 export function ExperimentalLicenses(): JSX.Element {
@@ -28,6 +32,9 @@ export function ExperimentalLicenses(): JSX.Element {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     useTitle("Public IPs");
+    const projectId = useProjectId();
+    const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
+    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     const dateRanges = dateRangeFilters("Date created");
 
@@ -179,6 +186,10 @@ export function ExperimentalLicenses(): JSX.Element {
                     return LicenseApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries))
                 });
             });
+            const contextSwitcher = document.querySelector<HTMLDivElement>(".context-switcher");
+            if (contextSwitcher) {
+                setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
+            }
         }
         // TODO(Jonas): Creation
     }, []);
@@ -187,7 +198,25 @@ export function ExperimentalLicenses(): JSX.Element {
         browserRef.current?.refresh();
     });
 
+    /* Reload on new project */
+    React.useEffect(() => {
+        if (mountRef.current && browserRef.current) {
+            browserRef.current.open("", true);
+        }
+    }, [projectId]);
+
+
+    /* Re-render on theme change */
+    React.useEffect(() => {
+        if (mountRef.current && browserRef.current) {
+            browserRef.current.rerender();
+        }
+    }, [theme]);
+
     return <MainContainer
-        main={<div ref={mountRef} />}
+        main={<>
+            <div ref={mountRef} />
+            {switcher}
+        </>}
     />
 }

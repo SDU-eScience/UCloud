@@ -492,7 +492,7 @@ export class ResourceBrowser<T> {
             const div = document.createElement("div");
             div.style.marginLeft = "20px";
             div.style.marginRight = "20px";
-            div.style.marginTop = "4px";            
+            div.style.marginTop = "4px";
             div.className = "context-switcher";
             this.header.appendChild(div);
         }
@@ -715,7 +715,20 @@ export class ResourceBrowser<T> {
         this.renderRows();
         this.clearFilters();
         if (this.features.sortDirection) this.renderSortOrder();
-        if (this.features.filters) this.renderFilters();
+        if (this.features.filters) {
+            this.renderFilters();
+            this.rerenderSessionFilterIcons();
+        }
+    }
+
+    private rerenderSessionFilterIcons() {
+        const filters = this.dispatchMessage("fetchFilters", fn => fn()).filter(it => it.type === "input");
+        this.sessionFilters.querySelectorAll<HTMLImageElement>("img").forEach((it, index) => {
+            const filter = filters[index];
+            this.icons.renderIcon({name: filter.icon, color: "black", color2: "iconColor2", height: 32, width: 32}).then(icon =>
+                it.src = icon
+            );
+        })
     }
 
     renderRows() {
@@ -1183,7 +1196,7 @@ export class ResourceBrowser<T> {
                 element.append(icon);
                 this.icons.renderIcon({
                     name: op.icon as IconName,
-                    color: op.color as ThemeColor,
+                    color: op.color ?? "black",
                     color2: "iconColor2",
                     width: 64,
                     height: 64,
@@ -2953,7 +2966,7 @@ export class ResourceBrowser<T> {
         c.width = 12;
         c.height = 12;
         c.style.marginTop = "7px";
-        this.icons.renderIcon({color: "text", color2: "text", height: 32, width: 32, name: icon}).then(it => c.src = it);
+        this.icons.renderIcon({color: "black", color2: "iconColor2", height: 32, width: 32, name: icon}).then(it => c.src = it);
         return c;
     }
 }

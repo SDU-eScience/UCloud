@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useLocation, useNavigate} from "react-router";
 import {useEffect, useLayoutEffect, useRef} from "react";
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import MainContainer from "@/MainContainer/MainContainer";
@@ -49,6 +49,7 @@ import {setPopInChild} from "@/ui-components/PopIn";
 import AppRoutes from "@/Routes";
 import {createPortal} from "react-dom";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {useProjectId} from "@/Project/Api";
 
 // Cached network data
 // =====================================================================================================================
@@ -95,6 +96,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     useEffect(() => {
         isInitialMount.current = false;
     }, []);
+    const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
 
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
@@ -1170,6 +1172,13 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     useRefreshFunction(() => {
         browserRef.current?.refresh();
     });
+
+    /* Re-render on theme change */
+    React.useEffect(() => {
+        if (mountRef.current && browserRef.current) {
+            browserRef.current.rerender();
+        }
+    }, [theme]);
 
     return <MainContainer
         main={<>

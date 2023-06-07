@@ -2,12 +2,14 @@ import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {EmptyReasonTag, ResourceBrowser, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 import {useNavigate} from "react-router";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
+import {useProjectId} from "@/Project/Api";
+import {createPortal} from "react-dom";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -17,6 +19,7 @@ const FEATURES = {
     renderSpinnerWhenLoading: true,
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
+    contextSwitcher: true,
 };
 
 export function ExperimentalSSHKey(): JSX.Element {
@@ -25,6 +28,9 @@ export function ExperimentalSSHKey(): JSX.Element {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     useTitle("SSH keys");
+    const projectId = useProjectId();
+    const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
+    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -122,6 +128,10 @@ export function ExperimentalSSHKey(): JSX.Element {
 
                 browser.on("pathToEntry", sshKey => sshKey.id);
             });
+            const contextSwitcher = document.querySelector<HTMLDivElement>(".context-switcher");
+            if (contextSwitcher) {
+                setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
+            }
         }
         // TODO(Jonas): Creation
     }, []);
@@ -130,7 +140,25 @@ export function ExperimentalSSHKey(): JSX.Element {
         browserRef.current?.refresh();
     });
 
+    /* Reload on new project */
+    React.useEffect(() => {
+        if (mountRef.current && browserRef.current) {
+            browserRef.current.open("", true);
+        }
+    }, [projectId]);
+
+
+    /* Re-render on theme change */
+    React.useEffect(() => {
+        if (mountRef.current && browserRef.current) {
+            browserRef.current.rerender();
+        }
+    }, [theme]);
+
     return <MainContainer
-        main={<div ref={mountRef} />}
+        main={<>
+            <div ref={mountRef} />
+            {switcher}
+        </>}
     />
 }

@@ -3,13 +3,16 @@ import {providerIcon} from "@/Files/ExperimentalDriveBrowse";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useProjectId} from "@/Project/Api";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import AppRoutes from "@/Routes";
 import NetworkIPApi, {NetworkIP} from "@/UCloud/NetworkIPApi";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {doNothing} from "@/UtilityFunctions";
 import {EmptyReasonTag, ResourceBrowser, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
-import {useDispatch} from "react-redux";
+import {createPortal} from "react-dom";
+import {useDispatch, useSelector} from "react-redux";
 import {useNavigate} from "react-router";
 
 const defaultRetrieveFlags = {
@@ -21,6 +24,7 @@ const FEATURES = {
     filters: true,
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
+    contextSwitcher: true,
 };
 
 export function ExperimentalNetworkIP(): JSX.Element {
@@ -29,6 +33,9 @@ export function ExperimentalNetworkIP(): JSX.Element {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     useTitle("Public IPs");
+    const projectId = useProjectId();
+    const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
+    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     const dateRanges = dateRangeFilters("Date created");
 
@@ -181,15 +188,37 @@ export function ExperimentalNetworkIP(): JSX.Element {
                     return NetworkIPApi.retrieveOperations().filter(it => it.enabled(entries, callbacks, entries))
                 });
             });
+            const contextSwitcher = document.querySelector<HTMLDivElement>(".context-switcher");
+            if (contextSwitcher) {
+                setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
+            }
         }
         // TODO(Jonas): Creation
     }, []);
+
+    /* Reload on new project */
+    React.useEffect(() => {
+        if (mountRef.current && browserRef.current) {
+            browserRef.current.open("", true);
+        }
+    }, [projectId]);
+
+
+    /* Re-render on theme change */
+    React.useEffect(() => {
+        if (mountRef.current && browserRef.current) {
+            browserRef.current.rerender();
+        }
+    }, [theme]);
 
     useRefreshFunction(() => {
         browserRef.current?.refresh();
     });
 
     return <MainContainer
-        main={<div ref={mountRef} />}
+        main={<>
+            <div ref={mountRef} />
+            {switcher}
+        </>}
     />
 }

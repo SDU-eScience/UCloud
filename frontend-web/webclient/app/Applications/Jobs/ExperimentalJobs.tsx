@@ -14,8 +14,11 @@ import {AsyncCache} from "@/Utilities/AsyncCache";
 import {AppLogo, hashF} from "../Card";
 import {useNavigate} from "react-router";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 import AppRoutes from "@/Routes";
+import {useProjectId} from "@/Project/Api";
+import {createPortal} from "react-dom";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -26,6 +29,7 @@ const FEATURES = {
     filters: true,
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
+    contextSwitcher: true,
 }
 
 const logoDataUrls = new AsyncCache<string>();
@@ -36,6 +40,10 @@ function ExperimentalJobs(): JSX.Element {
     const navigate = useNavigate();
     const dispatch = useDispatch();
     useTitle("Jobs");
+    const projectId = useProjectId();
+    const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
+    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+
 
     const dateRanges = dateRangeFilters("Created after");
 
@@ -213,6 +221,10 @@ function ExperimentalJobs(): JSX.Element {
                 });
                 browser.on("generateBreadcrumbs", () => [{title: "Jobs", absolutePath: ""}]);
             });
+            const contextSwitcher = document.querySelector<HTMLDivElement>(".context-switcher");
+            if (contextSwitcher) {
+                setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
+            }
         }
     }, []);
 
@@ -220,8 +232,26 @@ function ExperimentalJobs(): JSX.Element {
         browserRef.current?.refresh();
     });
 
+    /* Reload on new project */
+    React.useEffect(() => {
+        if (mountRef.current && browserRef.current) {
+            browserRef.current.open("", true);
+        }
+    }, [projectId]);
+
+
+    /* Re-render on theme change */
+    React.useEffect(() => {
+        if (mountRef.current && browserRef.current) {
+            browserRef.current.rerender();
+        }
+    }, [theme]);
+
     return <MainContainer
-        main={<div ref={mountRef} />}
+        main={<>
+            <div ref={mountRef} />
+            {switcher}
+        </>}
     />;
 }
 
