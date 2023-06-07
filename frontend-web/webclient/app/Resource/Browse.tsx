@@ -454,7 +454,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
 
             if (resource === undefined) {
                 return !selectedProduct ?
-                    <ProductSelector products={products} support={support} onSelect={onProductSelected} selected={null} slim />
+                    <ProductSelector loading={productsWithSupport.loading} products={products} support={support} onSelect={onProductSelected} selected={null} slim />
                     :
                     <NamingField
                         confirmText={"Create"}

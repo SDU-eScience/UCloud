@@ -6,12 +6,9 @@ import dk.sdu.cloud.service.Loggable
 import io.ktor.server.cio.*
 import io.ktor.server.engine.embeddedServer
 
-private const val DEFAULT_PORT = 8080
-
 class KtorServerProviderFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
-        val port = ctx.configuration.requestChunkAtOrNull("servicePort") ?: DEFAULT_PORT
-        ctx.serverProvider = { module ->
+        ctx.serverProvider = { port, module ->
             embeddedServer(
                 CIO,
                 port = port,

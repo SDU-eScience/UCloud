@@ -1,35 +1,12 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.app.orchestrator.api.ComputeProductReference
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.JobSpecification
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.JobStatus
-import dk.sdu.cloud.app.orchestrator.api.JobUpdate
-import dk.sdu.cloud.app.store.api.Application
-import dk.sdu.cloud.app.store.api.ApplicationInvocationDescription
-import dk.sdu.cloud.app.store.api.ApplicationMetadata
-import dk.sdu.cloud.app.store.api.ApplicationParameter
-import dk.sdu.cloud.app.store.api.ApplicationType
-import dk.sdu.cloud.app.store.api.ContainerDescription
-import dk.sdu.cloud.app.store.api.InvocationParameter
-import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.app.store.api.ToolReference
-import dk.sdu.cloud.app.store.api.WebDescription
-import dk.sdu.cloud.app.store.api.WordInvocationParameter
-import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.utils.sendTerminalMessage
-import org.slf4j.Logger
+import dk.sdu.cloud.systemName
+import io.prometheus.client.Counter
+import io.prometheus.client.Gauge
 import java.lang.IllegalStateException
 import java.util.*
 import kotlin.collections.ArrayList
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
 
 data class AllocatedReplica<UserData>(
     val jobId: Long,
@@ -367,6 +344,8 @@ class Scheduler<UserData> {
         replicas: Int = 1,
         data: UserData,
     ) {
+        jobsSubmittedMetric.inc()
+
         var idx = nextQueueIdx
         if (queueJobIds[idx] != 0L) idx = queueJobIds.indexOf(0L)
         if (idx == -1) throw IllegalStateException("Too many jobs in the queue: $id")
@@ -555,6 +534,9 @@ class Scheduler<UserData> {
             }
         }
 
+        jobsRunningMetric.set(runningReplicas().asSequence().count().toDouble())
+        jobsInQueueMetric.set(jobsInQueue().asSequence().count().toDouble())
+
         time++
         return scheduledJobs
     }
@@ -598,6 +580,27 @@ class Scheduler<UserData> {
         const val MAX_NODES_TO_CONSIDER = 128
 
         override val log = logger()
+
+        private val jobsInQueueMetric = Gauge.build()
+            .namespace(systemName)
+            .subsystem("compute_scheduler")
+            .name("jobs_in_queue")
+            .help("Number of jobs currently in the queue")
+            .register()
+
+        private val jobsRunningMetric = Gauge.build()
+            .namespace(systemName)
+            .subsystem("compute_scheduler")
+            .name("jobs_running")
+            .help("Number of jobs currently running")
+            .register()
+
+        private val jobsSubmittedMetric = Counter.build()
+            .namespace(systemName)
+            .subsystem("compute_scheduler")
+            .name("jobs_submitted_total")
+            .help("Number of jobs submitted in total")
+            .register()
     }
 }
 

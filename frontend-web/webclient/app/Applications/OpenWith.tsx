@@ -22,14 +22,14 @@ import {findRelevantMachinesForApplication, Machines} from "@/Applications/Jobs/
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 
 function findApplicationsByExtension(
-    request: { files: string[] } & PaginationRequestV2
-): APICallParameters<{ files: string[] } & PaginationRequestV2> {
+    request: {files: string[]} & PaginationRequestV2
+): APICallParameters<{files: string[]} & PaginationRequestV2> {
     return apiUpdate(request, "/api/hpc/apps", "bySupportedFileExtension");
 }
 
 const appRenderer: ItemRenderer<ApplicationWithExtension> = {
     Icon: props =>
-        <AppToolLogo name={props.resource?.metadata.name ?? "app"} type={"APPLICATION"} size={props.size}/>,
+        <AppToolLogo name={props.resource?.metadata.name ?? "app"} type={"APPLICATION"} size={props.size} />,
     MainTitle: props => !props.resource ? null : <>{props.resource.metadata.title}</>,
 };
 
@@ -187,7 +187,7 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
         />
 
         {!selectedApplication ? null : <>
-            <Machines machines={allProducts} support={support} onMachineChange={onProductSelected} />
+            <Machines machines={allProducts} loading={machineSupport.loading} support={support} onMachineChange={onProductSelected} />
             <Button mt={"8px"} fullWidth onClick={launch} disabled={commandLoading}>Launch</Button>
         </>}
     </>;

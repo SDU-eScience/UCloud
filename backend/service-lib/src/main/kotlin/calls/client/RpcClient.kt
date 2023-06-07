@@ -6,6 +6,9 @@ import dk.sdu.cloud.debug.DebugContextType
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.systemName
+import io.prometheus.client.Counter
+import io.prometheus.client.Gauge
 import kotlin.reflect.KClass
 
 interface OutgoingCall {
@@ -93,30 +96,76 @@ class RpcClient {
         @Suppress("UNCHECKED_CAST")
         interceptor as OutgoingRequestInterceptor<Ctx, Companion>
 
-        return wrapContext(callDescription.fullName) {
-            val ctx = interceptor.prepareCall(callDescription, request)
-            beforeHook?.invoke(ctx)
+        try {
+            requestCounter.labels(callDescription.fullName).inc()
+            requestsInFlight.labels(callDescription.fullName).inc()
 
-            callFilters.filterIsInstance<OutgoingCallFilter.BeforeCall>().forEach {
-                if (it.canUseContext(ctx)) {
-                    it.run(ctx, callDescription, request)
+            return wrapContext(callDescription.fullName) {
+                val ctx = interceptor.prepareCall(callDescription, request)
+                beforeHook?.invoke(ctx)
+
+                callFilters.filterIsInstance<OutgoingCallFilter.BeforeCall>().forEach {
+                    if (it.canUseContext(ctx)) {
+                        it.run(ctx, callDescription, request)
+                    }
                 }
-            }
 
-            afterHook?.invoke(ctx)
+                afterHook?.invoke(ctx)
 
-            val response = interceptor.finalizeCall(callDescription, request, ctx)
-            callFilters.filterIsInstance<OutgoingCallFilter.AfterCall>().forEach {
-                if (it.canUseContext(ctx)) {
-                    it.run(ctx, callDescription, response, Time.now() - start)
+                val response = interceptor.finalizeCall(callDescription, request, ctx)
+                callFilters.filterIsInstance<OutgoingCallFilter.AfterCall>().forEach {
+                    if (it.canUseContext(ctx)) {
+                        it.run(ctx, callDescription, response, Time.now() - start)
+                    }
                 }
+
+                if (response.statusCode.isSuccess()) {
+                    requestSuccessCounter.labels(callDescription.fullName).inc()
+                } else {
+                    requestErrorCounter.labels(callDescription.fullName).inc()
+                }
+
+                response
             }
-            response
+        } finally {
+            requestsInFlight.labels(callDescription.fullName).dec()
         }
     }
 
     companion object : Loggable {
         override val log = logger()
+
+        private val requestCounter = Counter.build()
+            .namespace(systemName)
+            .subsystem("rpc_client")
+            .name("requests_started")
+            .help("Total number of requests passing through RpcClient")
+            .labelNames("request_name")
+            .register()
+
+        private val requestSuccessCounter = Counter.build()
+            .namespace(systemName)
+            .subsystem("rpc_client")
+            .name("requests_success")
+            .help("Total number of requests which has passed through RpcClient successfully")
+            .labelNames("request_name")
+            .register()
+
+        private val requestErrorCounter = Counter.build()
+            .namespace(systemName)
+            .subsystem("rpc_client")
+            .name("requests_error")
+            .help("Total number of requests which has passed through RpcClient with a failure")
+            .labelNames("request_name")
+            .register()
+
+        private val requestsInFlight = Gauge.build()
+            .namespace(systemName)
+            .subsystem("rpc_client")
+            .name("requests_in_flight")
+            .help("Number of requests currently in-flight in the RpcClient")
+            .labelNames("request_name")
+            .register()
     }
 }
 

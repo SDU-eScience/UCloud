@@ -14,6 +14,10 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.systemName
+import io.prometheus.client.Counter
+import io.prometheus.client.Gauge
+import io.prometheus.client.Summary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import java.util.concurrent.atomic.AtomicBoolean
@@ -144,6 +148,7 @@ class AsyncDBSessionFactory(
     }
 
     override suspend fun closeSession(session: AsyncDBConnection) {
+        inflightTransactions.dec()
         pool.giveBack((session.conn).connection as PostgreSQLConnection)
     }
 
@@ -164,6 +169,7 @@ class AsyncDBSessionFactory(
             pool.take().await().asSuspending as SuspendingConnectionImpl,
             debug,
         )
+        inflightTransactions.inc()
         return result
     }
 
@@ -198,5 +204,23 @@ class AsyncDBSessionFactory(
     companion object : Loggable {
         override val log = logger()
         private val setJitOff = AtomicBoolean(true)
+
+        private val inflightTransactions = Gauge.build()
+            .namespace(systemName)
+            .subsystem("database")
+            .name("transactions_in_flight")
+            .help("Number of transactions currently in-flight")
+            .register()
+
+        val transactionDuration = Summary.build()
+            .namespace(systemName)
+            .subsystem("database")
+            .name("transaction_duration")
+            .help("Number of transactions currently in-flight")
+            .quantile(0.5, 0.01)
+            .quantile(0.75, 0.01)
+            .quantile(0.95, 0.01)
+            .quantile(0.99, 0.01)
+            .register()
     }
 }
