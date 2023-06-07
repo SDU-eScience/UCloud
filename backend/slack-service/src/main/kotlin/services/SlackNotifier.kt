@@ -4,6 +4,7 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.createHttpClient
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.Loggable
@@ -28,9 +29,7 @@ class SlackNotifier(
     private val hook: String,
     private val db: DBContext,
 ) : Notifier {
-    private val httpClient = HttpClient() {
-        expectSuccess = false
-    }
+    private val httpClient = createHttpClient()
 
     @OptIn(KtorExperimentalAPI::class)
     override suspend fun onAlert(alert: Alert) {
