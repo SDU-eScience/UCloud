@@ -84,6 +84,7 @@ abstract class UCloudTest {
     fun testFactory(): List<DynamicTest> {
         run {
             // Configure RPC to the already running local cluster
+            loadAndInitializeMissingCaCertsForLauncherInDevelopmentModeOnlyPlease()
 
             rpcClient = RpcClient().apply {
                 attachFilter(OutgoingProject())

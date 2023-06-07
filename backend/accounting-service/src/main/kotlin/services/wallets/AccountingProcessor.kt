@@ -1440,6 +1440,7 @@ class AccountingProcessor(
                     ChargeType.ABSOLUTE -> {
                         deltaCharge(
                             request.toDelta()
+
                         )
                     }
 
@@ -1873,6 +1874,10 @@ class AccountingProcessor(
             if (it != null && currentProjectWalletsIds.contains(it.associatedWallet)) {
                 currentProjectAllocations.add(it.id)
             }
+        }
+
+        //Double loop needed due to ids not in order for first allocations on production.
+        allocations.forEach {
             if (it != null && currentProjectAllocations.contains(it.parentAllocation)) {
                 subAllocations.add(it)
             }
