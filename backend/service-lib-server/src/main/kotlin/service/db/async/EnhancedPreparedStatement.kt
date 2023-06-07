@@ -7,17 +7,24 @@ import dk.sdu.cloud.debug.databaseResponse
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.systemName
+import io.prometheus.client.CollectorRegistry
+import io.prometheus.client.Summary
+import io.prometheus.client.exporter.common.TextFormat
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.intellij.lang.annotations.Language
 import java.io.File
+import java.io.FileWriter
+import java.io.PrintWriter
 import java.time.LocalDateTime
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.collections.HashSet
+import kotlin.random.Random
 import kotlin.reflect.KProperty
 
 /**
@@ -152,7 +159,7 @@ class EnhancedPreparedStatement(
     suspend fun sendPreparedStatement(
         session: AsyncDBConnection,
         release: Boolean = false,
-        tagName: String = "Untitled query"
+        tagName: String = defaultTag,
     ): QueryResult {
         val debugQueryParameters = JsonObject(
             rawParameters.map { (param, value) -> param to JsonPrimitive(value.toString()) }.toMap()
@@ -209,6 +216,11 @@ class EnhancedPreparedStatement(
         }
 
         val duration = end - start
+
+        if (tagName != defaultTag && !tagName.contains(" ")) {
+            querySummary.labels(tagName).observe(duration.toDouble())
+        }
+
         session.debug.system.databaseResponse(
             importance = when {
                 duration >= 300 -> MessageImportance.THIS_IS_WRONG
@@ -250,6 +262,18 @@ class EnhancedPreparedStatement(
         private val statementInputRegex = Regex("(^|[^:])[?:]([a-zA-Z0-9_]+)")
         private val queryCounter = AtomicInteger(0)
         var debug = false
+
+        private val querySummary = Summary.build()
+            .namespace(systemName)
+            .subsystem("database")
+            .quantile(0.5, 0.01)
+            .quantile(0.75, 0.01)
+            .quantile(0.99, 0.01)
+            .labelNames("query")
+            .name("query_latency_milliseconds")
+            .help("The latency of a named query in milliseconds")
+            .register()
+
     }
 }
 
@@ -323,3 +347,5 @@ class SplitBuilder<T>(
         }
     }
 }
+
+private const val defaultTag = "Untitled query"

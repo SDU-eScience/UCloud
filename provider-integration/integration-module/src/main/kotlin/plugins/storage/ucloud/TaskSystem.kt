@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins.storage.ucloud
 
+import dk.sdu.cloud.Prometheus
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -105,8 +106,10 @@ class TaskSystem(
     fun launchScheduler(scope: CoroutineScope) {
         scope.launch {
             whileGraal({ isActive }) {
+                val prometheusTaskName = "file_task_scheduling"
                 debug.useContext(DebugContextType.BACKGROUND_TASK, "File background task", MessageImportance.IMPLEMENTATION_DETAIL) {
                     var taskInProgress: String? = null
+                    val start = Time.now()
                     try {
                         val task = db.withSession { session ->
                             val processorAndTask = run {
@@ -206,6 +209,7 @@ class TaskSystem(
                             return@useContext
                         }
 
+                        Prometheus.countBackgroundTask(prometheusTaskName)
                         taskInProgress = task.taskId
 
                         val handler = handlers.find {
@@ -246,6 +250,8 @@ class TaskSystem(
                     } catch (ex: Throwable) {
                         log.warn("Execution of task failed!\n${ex.stackTraceToString()}")
                         if (taskInProgress != null) markJobAsComplete(db, taskInProgress)
+                    } finally {
+                        if (taskInProgress != null) Prometheus.measureBackgroundDuration(prometheusTaskName, Time.now() - start)
                     }
                 }
             }

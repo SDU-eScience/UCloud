@@ -1479,6 +1479,18 @@ class AccountingProcessor(
             ChargeType.DIFFERENTIAL_QUOTA -> {
                 var charged = 0L
 
+                //DryRun=true only used for check call which only checks if there are 1 GB free when drives created.
+                //This should fix issue with workspaces getting insufficient funds when they have negative value
+                //in single allocations but actually space.
+                if (request.dryRun) {
+                    val sum = myAllocations.sumOf { it.localBalance }
+                    if (sum > 0) {
+                        return AccountingResponse.Charge(true)
+                    } else {
+                        return AccountingResponse.Charge(false)
+                    }
+                }
+
                 run {
                     // Strategy:
                     // - For each allocation (even if charge remaining is 0):
@@ -1967,6 +1979,10 @@ class AccountingProcessor(
             if (it != null && currentProjectWalletsIds.contains(it.associatedWallet)) {
                 currentProjectAllocations.add(it.id)
             }
+        }
+
+        //Double loop needed due to ids not in order for first allocations on production.
+        allocations.forEach {
             if (it != null && currentProjectAllocations.contains(it.parentAllocation)) {
                 subAllocations.add(it)
             }

@@ -520,6 +520,7 @@ data class Volume(
     var persistentVolumeClaim: PersistentVolumeClaimSource? = null,
     var cephfs: CephfsVolumeSource? = null,
     var hostPath: HostPathSource? = null,
+    var csi: CsiVolumeSource? = null,
 ) {
     @Serializable
     data class EmptyDirVolumeSource(
@@ -557,6 +558,13 @@ data class Volume(
         var options: JsonObject? = null,
         var readOnly: Boolean? = null,
         var secretRef: LocalObjectReference? = null
+    )
+
+    @Serializable
+    data class CsiVolumeSource(
+        var driver: String? = null,
+        var volumeAttributes: JsonObject? = null,
+        var readOnly: Boolean? = null,
     )
 
     @Serializable
