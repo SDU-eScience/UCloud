@@ -191,7 +191,7 @@ const Container = styled.div`
 // NOTE(Dan): WS calls don't currently have their types generated
 interface JobsFollowResponse {
     updates: compute.JobUpdate[];
-    log: { rank: number; stdout?: string; stderr?: string }[];
+    log: {rank: number; stdout?: string; stderr?: string}[];
     newStatus?: JobStatus;
 }
 
@@ -201,18 +201,18 @@ function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowRespons
 
         const conn = WSFactory.open(
             "/jobs", {
-                init: async conn => {
-                    await conn.subscribe({
-                        call: "jobs.follow",
-                        payload: {id: job.id},
-                        handler: message => {
-                            const streamEntry = message.payload as JobsFollowResponse;
-                            callback(streamEntry);
-                        }
-                    });
-                    conn.close();
-                },
-            });
+            init: async conn => {
+                await conn.subscribe({
+                    call: "jobs.follow",
+                    payload: {id: job.id},
+                    handler: message => {
+                        const streamEntry = message.payload as JobsFollowResponse;
+                        callback(streamEntry);
+                    }
+                });
+                conn.close();
+            },
+        });
 
         return () => {
             conn.close();
@@ -228,8 +228,8 @@ function getBackend(job?: Job): string {
     return job?.status.resolvedApplication?.invocation.tool.tool?.description.backend ?? "";
 }
 
-export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
-    const id = props.id ?? useParams<{ id: string }>().id!;
+export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
+    const id = props.id ?? useParams<{id: string}>().id!;
 
     // Note: This might not match the real app name
     const location = useLocation();
@@ -364,7 +364,7 @@ export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
     useJobUpdates(job, jobUpdateListener);
 
     if (jobFetcher.error !== undefined) {
-        return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>}/>;
+        return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>} />;
     }
 
     const main = (
@@ -373,8 +373,8 @@ export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
                 <div className="logo-scale">
                     <div className="logo">
                         <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
-                                     type={"APPLICATION"}
-                                     size={"200px"}/>
+                            type={"APPLICATION"}
+                            size={"200px"} />
                     </div>
                 </div>
             </div>
@@ -390,9 +390,9 @@ export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
                 >
                     <div className={"data"}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"}/>
+                            <div className={"fake-logo"} />
                             <div className={"header-text"}>
-                                {status?.state === "IN_QUEUE" ? <InQueueText job={job!}/> : null}
+                                {status?.state === "IN_QUEUE" ? <InQueueText job={job!} /> : null}
                             </div>
                         </Flex>
 
@@ -400,11 +400,11 @@ export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
                             <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
                                 <HighlightedCard color={"purple"}>
                                     <Box py={"16px"}>
-                                        <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers}/>
+                                        <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
                                     </Box>
                                 </HighlightedCard>
                             </Box>
-                            <InfoCards job={job} status={status}/>
+                            <InfoCards job={job} status={status} />
                         </Content>
                     </div>
                 </CSSTransition>
@@ -419,9 +419,9 @@ export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
                 >
                     <div className={"data"}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"}/>
+                            <div className={"fake-logo"} />
                             <div className={"header-text"}>
-                                <RunningText job={job}/>
+                                <RunningText job={job} />
                             </div>
                         </Flex>
 
@@ -444,13 +444,13 @@ export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
                 >
                     <div className={"data"}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"}/>
+                            <div className={"fake-logo"} />
                             <div className={"header-text"}>
-                                <CompletedText job={job} state={status.state}/>
+                                <CompletedText job={job} state={status.state} />
                             </div>
                         </Flex>
 
-                        <CompletedContent job={job} jobUpdateCallbackHandlers={jobUpdateCallbackHandlers}/>
+                        <CompletedContent job={job} jobUpdateCallbackHandlers={jobUpdateCallbackHandlers} />
                     </div>
                 </CSSTransition>
             )}
@@ -483,7 +483,7 @@ const CompletedContent: React.FunctionComponent<{
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
                     <Box>
                         <b>Reservation:</b>{" "}
-                        <ProviderTitle providerId={job.specification.product.provider}/>
+                        <ProviderTitle providerId={job.specification.product.provider} />
                         {" "}/{" "}
                         {job.specification.product.id}{" "}
                         (x{job.specification.replicas})
@@ -494,11 +494,11 @@ const CompletedContent: React.FunctionComponent<{
             </HighlightedCard>
 
             <HighlightedCard color="purple" isLoading={false} title="Messages" icon="chat">
-                <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers}/>
+                <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
             </HighlightedCard>
         </RunningInfoWrapper>
 
-        <OutputFiles job={job}/>
+        <OutputFiles job={job} />
     </Content>
 };
 
@@ -508,15 +508,15 @@ const Content = styled.div`
   flex-direction: column;
 `;
 
-function PeerEntry(props: { peer: AppParameterValueNS.Peer }): JSX.Element {
+function PeerEntry(props: {peer: AppParameterValueNS.Peer}): JSX.Element {
     return <Flex width={1}>
         <Truncate width={0.5}>{props.peer.hostname}</Truncate><Truncate width={0.5}></Truncate>
     </Flex>
 }
 
-function IngressEntry({id}: { id: string }): JSX.Element {
+function IngressEntry({id}: {id: string}): JSX.Element {
     const [ingress] = useCloudAPI<Ingress | null>(IngressApi.retrieve({id}), null);
-    if (ingress.data == null) return <div/>
+    if (ingress.data == null) return <div />
     const {domain} = ingress.data.specification;
 
     const httpDomain = domain.startsWith("https://") ? domain : "https://" + domain;
@@ -525,7 +525,7 @@ function IngressEntry({id}: { id: string }): JSX.Element {
     </Truncate>
 }
 
-const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
+const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
     const [utilization, setUtilization] = useCloudAPI<compute.JobsRetrieveUtilizationResponse | null>(
         {noop: true},
         null
@@ -556,7 +556,7 @@ const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
                 </>)
             }
         </Heading.h3>
-        <Busy job={job} utilization={utilization.data}/>
+        <Busy job={job} utilization={utilization.data} />
     </>;
 };
 
@@ -592,7 +592,7 @@ const Busy: React.FunctionComponent<{
                 {clusterUtilization > 80 ? (
                     <>
                         Due to high resource utilization, it might take longer than normal to prepare the machine you
-                        requested.<br/>
+                        requested.<br />
                         {utilization ? (
                             <>
                                 Cluster utilization is currently at {clusterUtilization}%
@@ -607,7 +607,7 @@ const Busy: React.FunctionComponent<{
                 )}
             </Box>
 
-            <CancelButton job={job} state={"IN_QUEUE"}/>
+            <CancelButton job={job} state={"IN_QUEUE"} />
         </Box>
     </BusyWrapper>;
 };
@@ -636,7 +636,7 @@ function isSupported(jobBackend: string | undefined, support: ComputeSupport | u
     }
 }
 
-const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({job, status}) => {
+const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job, status}) => {
     const fileInfo = useJobFiles(job.specification);
     let time = job.specification.timeAllocation;
     if (status.expiresAt && status.startedAt) {
@@ -684,8 +684,8 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
             statTitle={job.specification.replicas === 1 ? "Node" : "Nodes"}
             icon={"cpu"}
         >
-            <b><ProviderTitle providerId={job.specification.product.provider}/> / {job.specification.product.id}
-            </b><br/>
+            <b><ProviderTitle providerId={job.specification.product.provider} /> / {job.specification.product.id}
+            </b><br />
             {!machine?.cpu ? null : <>{machine?.cpu}x vCPU </>}
 
             {machine?.cpu && (machine.memoryInGigs || machine.gpu) ? <>&mdash;</> : null}
@@ -705,7 +705,7 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
                     {!time ? null : <>
                         <b>Estimated price:</b>{" "}
                         {usageExplainer(estimatedCost, machine.productType, machine.chargeType, machine.unitOfPrice)}
-                        <br/>
+                        <br />
                     </>}
                     <b>Price per hour:</b>
                     {job.status.resolvedSupport?.product.freeToUse ? "Free" :
@@ -761,7 +761,7 @@ const InfoCard: React.FunctionComponent<{
 }> = props => {
     return <HighlightedCard color={"purple"} isLoading={false}>
         <InfoCardContainer>
-            <Icon name={props.icon} size={"60px"} color={"iconColor"} color2={"iconColor2"}/>
+            <Icon name={props.icon} size={"60px"} color={"iconColor"} color2={"iconColor2"} />
             <div className={"stat"}>{props.stat}</div>
             <div className={"stat-title"}>{props.statTitle}</div>
             <div className={"content"}>
@@ -771,7 +771,7 @@ const InfoCard: React.FunctionComponent<{
     </HighlightedCard>;
 };
 
-const RunningText: React.FunctionComponent<{ job: Job }> = ({job}) => {
+const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
     return <>
         <Flex justifyContent={"space-between"}>
             <Box>
@@ -784,7 +784,7 @@ const RunningText: React.FunctionComponent<{ job: Job }> = ({job}) => {
                 </Heading.h3>
             </Box>
             {job.specification.replicas > 1 ? null : (
-                <RunningButtonGroup job={job} rank={0}/>
+                <RunningButtonGroup job={job} rank={0} />
             )}
         </Flex>
     </>;
@@ -794,12 +794,12 @@ const RunningInfoWrapper = styled.div`
   margin-top: 32px;
   display: grid;
   width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(550px, 1fr));
   grid-gap: 16px;
   justify-content: center;
 `;
 
-const AltButtonGroup = styled.div<{ minButtonWidth: string } & MarginProps>`
+const AltButtonGroup = styled.div<{minButtonWidth: string} & MarginProps>`
   display: grid;
   width: 100%;
   grid-template-columns: repeat(auto-fit, minmax(${props => props.minButtonWidth}, max-content));
@@ -1017,16 +1017,16 @@ const RunningContent: React.FunctionComponent<{
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
                     <Box>
                         <b>Reservation:</b>{" "}
-                        <ProviderTitle providerId={job.specification.product.provider}/>
+                        <ProviderTitle providerId={job.specification.product.provider} />
                         {" "}/{" "}
                         {job.specification.product.id}{" "}
                         (x{job.specification.replicas})
                     </Box>
                     <Box><b>Input:</b> {fileInfo}</Box>
                     <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
-                    <Box flexGrow={1}/>
+                    <Box flexGrow={1} />
                     <Box mt={"16px"}>
-                        <CancelButton job={job} state={"RUNNING"} fullWidth/>
+                        <CancelButton job={job} state={"RUNNING"} fullWidth />
                     </Box>
                 </Flex>
             </HighlightedCard>
@@ -1049,17 +1049,17 @@ const RunningContent: React.FunctionComponent<{
                     }
                     <Box>
                         <b>Estimated price per hour: </b>{job.status.resolvedSupport?.product.freeToUse ? "Free" :
-                        job.status.resolvedProduct ?
-                            usageExplainer(
-                                costOfDuration(60, job.specification.replicas, resolvedProduct),
-                                "COMPUTE",
-                                resolvedProduct.chargeType,
-                                resolvedProduct.unitOfPrice
-                            )
-                            : "Unknown"
-                    }
+                            job.status.resolvedProduct ?
+                                usageExplainer(
+                                    costOfDuration(60, job.specification.replicas, resolvedProduct),
+                                    "COMPUTE",
+                                    resolvedProduct.chargeType,
+                                    resolvedProduct.unitOfPrice
+                                )
+                                : "Unknown"
+                        }
                     </Box>
-                    <Box flexGrow={1}/>
+                    <Box flexGrow={1} />
                     <Box>
                         {!expiresAt || !supportsExtension ? null : <>
                             Extend allocation (hours):
@@ -1074,22 +1074,22 @@ const RunningContent: React.FunctionComponent<{
                         {!supportsSuspend ? null :
                             suspended ?
                                 <ConfirmationButton actionText="Unsuspend" fullWidth mt="8px" mb="4px"
-                                                    onAction={unsuspendJob}/> :
+                                    onAction={unsuspendJob} /> :
                                 <ConfirmationButton actionText="Suspend" fullWidth mt="8px" mb="4px"
-                                                    onAction={suspendJob}/>
+                                    onAction={suspendJob} />
 
                         }
                     </Box>
                 </Flex>
             </HighlightedCard>
             <HighlightedCard color="purple" isLoading={false} title="Messages" icon="chat">
-                <ProviderUpdates job={job} updateListeners={updateListeners}/>
+                <ProviderUpdates job={job} updateListeners={updateListeners} />
             </HighlightedCard>
 
             {ingresses.length === 0 ? null :
                 <HighlightedCard color="purple" isLoading={false} title="Public links" icon="globeEuropeSolid">
                     <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
-                        {ingresses.map(ingress => <IngressEntry id={ingress.id}/>)}
+                        {ingresses.map(ingress => <IngressEntry id={ingress.id} />)}
                     </Text>
                 </HighlightedCard>
             }
@@ -1109,18 +1109,18 @@ const RunningContent: React.FunctionComponent<{
                                 </TableRow>
                             </TableHeader>
                             <tbody>
-                            {peers.map(it =>
-                                <TableRow key={it.jobId}>
-                                    <TableCell textAlign="left">
-                                        <Truncate width={1}>{it.hostname}</Truncate>
-                                    </TableCell>
-                                    <TableCell textAlign="left">
-                                        <Link to={`/jobs/properties/${it.jobId}?app=`}>
-                                            <Truncate width={1}>{it.jobId}</Truncate>
-                                        </Link>
-                                    </TableCell>
-                                </TableRow>
-                            )}
+                                {peers.map(it =>
+                                    <TableRow key={it.jobId}>
+                                        <TableCell textAlign="left">
+                                            <Truncate width={1}>{it.hostname}</Truncate>
+                                        </TableCell>
+                                        <TableCell textAlign="left">
+                                            <Link to={`/jobs/properties/${it.jobId}?app=`}>
+                                                <Truncate width={1}>{it.jobId}</Truncate>
+                                            </Link>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                             </tbody>
                         </Table>
                     </Text>
@@ -1149,9 +1149,9 @@ const RunningContent: React.FunctionComponent<{
 
         {!supportsLogs ? null :
             <RunningJobsWrapper>
-                {Array(job.specification.replicas).fill(0).map((_, i) => {
-                    return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners}/>;
-                })}
+                {Array(job.specification.replicas).fill(0).map((_, i) =>
+                    <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners} />
+                )}
             </RunningJobsWrapper>
         }
     </>;
@@ -1284,11 +1284,11 @@ const RunningJobRank: React.FunctionComponent<{
                     <Heading.h3>Node</Heading.h3>
                 </div>
 
-                <div className={"term"} ref={termRef}/>
+                <div className={"term"} ref={termRef} />
 
                 {job.specification.replicas === 1 ? null : (
                     <RunningButtonGroup job={job} rank={rank} expanded={expanded}
-                                        toggleExpand={toggleExpand}/>
+                        toggleExpand={toggleExpand} />
                 )}
             </RunningJobRankWrapper>
         </HighlightedCard>
@@ -1318,7 +1318,7 @@ function jobStateToText(state: JobState) {
     }
 }
 
-const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({job, state}) => {
+const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
     const app = job.specification.application;
     return <CompletedTextWrapper>
         <Heading.h2>Your job has {jobStateToText(state)}</Heading.h2>
@@ -1357,11 +1357,11 @@ const OutputFilesWrapper = styled.div`
   }
 `;
 
-const OutputFiles: React.FunctionComponent<{ job: Job }> = ({job}) => {
+const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
     const pathRef = React.useRef(job.output?.outputFolder ?? "");
     return <OutputFilesWrapper>
         <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} forceNavigationToPage={true}
-                     allowMoveCopyOverride/>
+            allowMoveCopyOverride />
     </OutputFilesWrapper>;
 };
 
@@ -1515,7 +1515,7 @@ const ProviderUpdates: React.FunctionComponent<{
             mounted = false;
         };
     }, [updateListeners]);
-    return <Box height={"200px"} ref={termRef}/>
+    return <Box height={"200px"} ref={termRef} />
 };
 
 export default View;
