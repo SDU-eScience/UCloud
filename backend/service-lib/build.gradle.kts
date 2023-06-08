@@ -13,26 +13,19 @@ repositories {
     maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
 }
 
-tasks.withType<KotlinCompile> {
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-}
-
 dependencies {
-    val jacksonVersion = "2.10.0.pr3"
-    val ktorVersion = "2.0.2"
+    val ktorVersion = "2.3.0"
 
-    api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1")
 
     api("io.ktor:ktor-client-websockets:$ktorVersion")
     api("io.ktor:ktor-client-cio:$ktorVersion")
     api("io.ktor:ktor-client-core:$ktorVersion")
 
-    api("org.apache.logging.log4j:log4j-api:2.17.1")
-    api("org.apache.logging.log4j:log4j-core:2.17.1")
-    api("com.auth0:java-jwt:3.8.3")
+    api("org.apache.logging.log4j:log4j-api:2.20.0")
+    api("org.apache.logging.log4j:log4j-core:2.20.0")
+    api("com.auth0:java-jwt:3.19.4")
 
     testApi(kotlin("test"))
 }
