@@ -42,7 +42,7 @@ export function ExperimentalNetworkIP(): JSX.Element {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<NetworkIP>(mount, "public-ips").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<NetworkIP>(mount, "Public IPs").init(browserRef, FEATURES, "", browser => {
                 // TODO(Jonas): Set filter to "RUNNING" initially for state.
 
                 const isCreatingPrefix = "creating-";

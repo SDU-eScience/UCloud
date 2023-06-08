@@ -105,7 +105,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
         const mount = mountRef.current;
         let searching = "";
         if (mount && !browserRef.current) {
-            new ResourceBrowser<UFile>(mount, "file").init(browserRef, FEATURES, undefined, browser => {
+            new ResourceBrowser<UFile>(mount, "File").init(browserRef, FEATURES, undefined, browser => {
 
                 // Metadata utilities
                 // =========================================================================================================

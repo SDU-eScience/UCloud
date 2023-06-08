@@ -2,7 +2,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {EmptyReasonTag, ResourceBrowser, dateRangeFilters} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowser, dateRangeFilters, getFilterStorageValue, setFilterStorageValue} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
 import {useNavigate} from "react-router";
@@ -41,14 +41,15 @@ export function ExperimentalLicenses(): JSX.Element {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<License>(mount, "licenses").init(browserRef, FEATURES, "", browser => {
-                // TODO(Jonas): Set filter to "RUNNING" initially for state.
+            new ResourceBrowser<License>(mount, "Licenses").init(browserRef, FEATURES, "", browser => {
 
                 const isCreatingPrefix = "creating-";
                 const {startCreation, cancelCreation} = {
                     startCreation: () => void 0,
                     cancelCreation: () => void 0,
                 };
+
+                
 
 
                 browser.on("open", (oldPath, newPath, resource) => {
@@ -111,6 +112,10 @@ export function ExperimentalLicenses(): JSX.Element {
                         text: "Created by"
                     }
                 ]);
+
+                if (!getFilterStorageValue(browser.resourceName, "status")) {
+                    setFilterStorageValue(browser.resourceName, "status", "READY");
+                }
 
                 browser.on("renderRow", (key, row, dims) => {
                     const [icon, setIcon] = browser.defaultIconRenderer();

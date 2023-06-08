@@ -146,7 +146,7 @@ const Resources: React.FunctionComponent = () => {
 
             main={<>
                 <ResourceFilter
-                    browseType={BrowseType.MainContent}
+                    browseType={BrowseType.Embedded}
                     pills={filterPills}
                     filterWidgets={filterWidgets}
                     sortEntries={[]}

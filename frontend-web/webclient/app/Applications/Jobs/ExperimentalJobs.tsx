@@ -5,7 +5,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import {clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowser} from "@/ui-components/ResourceBrowser";
+import {clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {appLogoCache} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
@@ -24,13 +24,13 @@ const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
 };
 
-const FEATURES = {
+const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
-}
+};
 
 const logoDataUrls = new AsyncCache<string>();
 
@@ -50,7 +50,7 @@ function ExperimentalJobs(): JSX.Element {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Job>(mount, "jobs").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<Job>(mount, "Jobs").init(browserRef, FEATURES, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 

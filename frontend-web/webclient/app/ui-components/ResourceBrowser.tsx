@@ -220,7 +220,7 @@ interface ResourceBrowserRow {
     stat3: HTMLElement;
 }
 
-interface ResourceBrowseFeatures {
+export interface ResourceBrowseFeatures {
     dragToSelect?: boolean;
     supportsMove?: boolean;
     supportsCopy?: boolean;
@@ -2986,11 +2986,11 @@ export function image(src: string, opts?: {alt?: string; height?: number; width?
     return result;
 }
 
-function getFilterStorageValue(namespace: string, key: string): string | null {
+export function getFilterStorageValue(namespace: string, key: string): string | null {
     return localStorage.getItem(`${namespace}:${key}`);
 }
 
-function setFilterStorageValue(namespace: string, key: string, value: string) {
+export function setFilterStorageValue(namespace: string, key: string, value: string) {
     localStorage.setItem(`${namespace}:${key}`, value);
 }
 

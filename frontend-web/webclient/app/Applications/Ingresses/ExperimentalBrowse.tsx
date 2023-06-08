@@ -9,7 +9,7 @@ import AppRoutes from "@/Routes";
 import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {doNothing} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowser, dateRangeFilters} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {createPortal} from "react-dom";
 import {useDispatch, useSelector} from "react-redux";
@@ -21,7 +21,7 @@ const defaultRetrieveFlags = {
     includeOthers: true,
 };
 
-const FEATURES = {
+const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
     sortDirection: true,
@@ -45,7 +45,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Ingress>(mount, "public-links").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<Ingress>(mount, "Public Links").init(browserRef, FEATURES, "", browser => {
                 // TODO(Jonas): Set filter to "RUNNING" initially for state.
 
                 const isCreatingPrefix = "creating-";

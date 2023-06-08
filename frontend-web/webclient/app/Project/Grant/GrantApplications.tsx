@@ -92,7 +92,7 @@ export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (p
         main={
             <>
                 <ResourceFilter
-                    browseType={BrowseType.MainContent}
+                    browseType={BrowseType.Embedded}
                     pills={[pill]}
                     sortEntries={[]}
                     sortDirection={"ascending"}

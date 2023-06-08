@@ -1,59 +1,53 @@
-import {callAPI} from "@/Authentication/DataHook";
-import MainContainer from "@/MainContainer/MainContainer";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, dateRangeFilters} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
+import {GrantApplication, browseGrantApplications} from "./GrantApplicationTypes";
 import {useDispatch, useSelector} from "react-redux";
 import {useNavigate} from "react-router";
-import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
-import {useProjectId} from "@/Project/Api";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useProjectId} from "../Api";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {createPortal} from "react-dom";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {ContextSwitcher} from "../ContextSwitcher";
+import {callAPI} from "@/Authentication/DataHook";
+import {GrantApplicationFilter} from ".";
+import MainContainer from "@/MainContainer/MainContainer";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
-}
+};
 
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     sortDirection: true,
-    filters: false,
+    filters: true,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
-};
+}
 
-export function ExperimentalSSHKey(): JSX.Element {
+export function ExperimentalGrantApplications(): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
-    const browserRef = React.useRef<ResourceBrowser<SSHKey> | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<GrantApplication>>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    useTitle("SSH keys");
+    useTitle("Grant Applications");
     const projectId = useProjectId();
     const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
-    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    const [switcher, setSwitcherWorkaround] = React.useState(<></>)
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<SSHKey>(mount, "SSH Keys").init(browserRef, FEATURES, "", browser => {
-                // TODO(Jonas): Set filter to "RUNNING" initially for state.
-
-                const isCreatingPrefix = "creating-";
-                const {startCreation, cancelCreation} = {
-                    startCreation: () => void 0,
-                    cancelCreation: () => void 0,
-                };
-
-
+            new ResourceBrowser<GrantApplication>(mount, "Grant Application").init(browserRef, FEATURES, "", browser => {
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
                         // TODO(Jonas): Handle properties
                     }
 
-                    callAPI(SshKeyApi.browse({
-                        ...defaultRetrieveFlags,
-                        ...browser.browseFilters
+                    callAPI(browseGrantApplications({
+                        filter: GrantApplicationFilter.SHOW_ALL,
+                        includeIngoingApplications: false,
+                        includeOutgoingApplications: true,
+                        ...defaultRetrieveFlags
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
@@ -65,10 +59,13 @@ export function ExperimentalSSHKey(): JSX.Element {
                 browser.on("wantToFetchNextPage", async path => {
                     /* TODO(Jonas): Test if the fetch more works properly */
                     const result = await callAPI(
-                        SshKeyApi.browse({
+                        browseGrantApplications({
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            filter: GrantApplicationFilter.SHOW_ALL,
+                            includeIngoingApplications: false,
+                            includeOutgoingApplications: false
                         })
                     )
 
@@ -118,23 +115,20 @@ export function ExperimentalSSHKey(): JSX.Element {
 
                 browser.on("fetchOperationsCallback", () =>
                     /* TODO(Jonas): Missing props */
-                    ({dispatch, navigate, isCreating: false, startCreation, cancelCreation})
+                    ({dispatch, navigate, isCreating: false, startCreation: () => console.log("TODO!"), cancelCreation: () => void 0})
                 );
 
-                browser.on("fetchOperations", () => {
-                    const entries = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn());
-                    return SshKeyApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries))
-                });
+                browser.on("fetchOperations", () => []);
 
-                browser.on("pathToEntry", sshKey => sshKey.id);
+                browser.on("pathToEntry", grantApplication => grantApplication.id);
             });
+
+
             const contextSwitcher = document.querySelector<HTMLDivElement>(".context-switcher");
             if (contextSwitcher) {
                 setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
             }
         }
-        // TODO(Jonas): Creation
     }, []);
 
     useRefreshFunction(() => {
