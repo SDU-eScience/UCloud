@@ -514,7 +514,7 @@ sealed class ComposeService {
                           cost:
                             currency: DKK
                             frequency: MINUTE
-                            price: 0.001666
+                            price: 0.000001
                             
                         - name: cpu-2
                           description: An example CPU machine with 2 vCPU.
@@ -524,7 +524,7 @@ sealed class ComposeService {
                           cost:
                             currency: DKK
                             frequency: MINUTE
-                            price: 0.003332
+                            price: 0.000002
                             
                     storage: 
                       storage:

@@ -1275,7 +1275,8 @@ class AccountingProcessor(
         val a = dateString(earliestAfter)
 
         return AccountingResponse.Error(
-            "Allocation period is outside of allowed range. It must be between $b and $a."
+            "Allocation period is outside of allowed range. It must be between $b and $a.",
+            code = 400
         )
     }
 
