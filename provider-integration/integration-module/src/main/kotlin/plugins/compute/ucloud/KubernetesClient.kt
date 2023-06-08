@@ -5,6 +5,8 @@ import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlConfiguration
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.systemName
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.*
@@ -15,6 +17,8 @@ import io.ktor.http.content.*
 import io.ktor.util.*
 import io.ktor.util.cio.*
 import io.ktor.utils.io.*
+import io.prometheus.client.Counter
+import io.prometheus.client.Summary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -109,7 +113,7 @@ sealed class KubernetesConfigurationSource {
                     user.user.clientCertificate != null && user.user.clientKey != null -> {
                         log.debug(
                             "Client certificate authentication is not currently supported. " +
-                                "Falling back to kubectl proxy approach."
+                                    "Falling back to kubectl proxy approach."
                         )
 
                         KubernetesAuthenticationMethod.Proxy(actualContext.name)
@@ -352,10 +356,10 @@ class KubernetesConnection(
     val masterUrl = masterUrl.removeSuffix("/")
     override fun toString(): String {
         return "KubernetesConnection(" +
-            "authenticationMethod=$authenticationMethod, " +
-            "defaultNamespace='$defaultNamespace', " +
-            "masterUrl='$masterUrl'" +
-            ")"
+                "authenticationMethod=$authenticationMethod, " +
+                "defaultNamespace='$defaultNamespace', " +
+                "masterUrl='$masterUrl'" +
+                ")"
     }
 }
 
@@ -510,7 +514,7 @@ class KubernetesClient(
             throw KubernetesException(
                 resp.status,
                 "Kubernetes request has failed. Context is: ${errorContext()}\n" +
-                    resp.bodyAsChannel().toByteArray(1024 * 4096).decodeToString().prependIndent("    ")
+                        resp.bodyAsChannel().toByteArray(1024 * 4096).decodeToString().prependIndent("    ")
             )
         }
 
@@ -558,6 +562,38 @@ class KubernetesClient(
 
     companion object : Loggable {
         override val log = logger()
+
+        val totalRequestsSent = Counter.build()
+            .namespace(systemName)
+            .subsystem("kubernetes_client")
+            .name("requests_started")
+            .help("Total number of requests sent by this Kubernetes client")
+            .register()
+
+        val requestsSuccess = Counter.build()
+            .namespace(systemName)
+            .subsystem("kubernetes_client")
+            .name("requests_success")
+            .help("Total number of successful responses received")
+            .register()
+
+        val requestsError = Counter.build()
+            .namespace(systemName)
+            .subsystem("kubernetes_client")
+            .name("requests_error")
+            .help("Total number of failed requests")
+            .register()
+
+        val requestDurationSummary = Summary.build()
+            .namespace(systemName)
+            .subsystem("kubernetes_client")
+            .name("request_duration_milliseconds")
+            .help("Summary of the duration it takes to complete requests")
+            .quantile(0.5, 0.01)
+            .quantile(0.75, 0.01)
+            .quantile(0.95, 0.01)
+            .quantile(0.99, 0.01)
+            .register()
     }
 }
 
@@ -567,11 +603,13 @@ suspend fun <T> KubernetesClient.getResource(
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
 ): T {
-    return parseResponse(
-        serializer,
-        sendRequest(HttpMethod.Get, locator, queryParameters, operation).execute(),
-        { "getResource($locator, $queryParameters, $operation)" }
-    )
+    return observeRequest {
+        parseResponse(
+            serializer,
+            sendRequest(HttpMethod.Get, locator, queryParameters, operation).execute(),
+            { "getResource($locator, $queryParameters, $operation)" }
+        )
+    }
 }
 
 data class KubernetesList<T>(
@@ -585,79 +623,59 @@ suspend fun <T> KubernetesClient.listResources(
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
 ): KubernetesList<T> {
-    val resp = sendRequest(HttpMethod.Get, locator, queryParameters, operation)
+    return observeRequest {
+        val resp = sendRequest(HttpMethod.Get, locator, queryParameters, operation)
 
-    val parsedResp = parseResponse(
-        JsonObject.serializer(),
-        resp.execute(),
-        { "listResources($locator, $queryParameters, $operation)" }
-    )
-    val items = parsedResp["items"] as? JsonArray ?: error("Could not parse items of response: $parsedResp")
-
-    return KubernetesList(
-        (0 until items.size).map {
-            defaultMapper.decodeFromJsonElement(serializer, items[it])
-        },
-
-        ((parsedResp["metadata"] as? JsonObject)?.get("continue") as? JsonPrimitive)?.contentOrNull
-    )
-}
-
-@OptIn(ExperimentalCoroutinesApi::class)
-fun <T : WatchEvent<*>> KubernetesClient.watchResource(
-    serializer: KSerializer<T>,
-    scope: CoroutineScope,
-    locator: KubernetesResourceLocator,
-    queryParameters: Map<String, String> = emptyMap(),
-    operation: String? = null,
-): ReceiveChannel<T> {
-    return scope.produce {
-        val resp = sendRequest(
-            HttpMethod.Get,
-            locator,
-            queryParameters + mapOf("watch" to "true"),
-            operation
+        val parsedResp = parseResponse(
+            JsonObject.serializer(),
+            resp.execute(),
+            { "listResources($locator, $queryParameters, $operation)" }
         )
-        val content = resp.execute().bodyAsChannel()
-        while (isActive) {
-            val nextLine = content.readUTF8Line() ?: break
-            @Suppress("BlockingMethodInNonBlockingContext")
-            send(defaultMapper.decodeFromString(serializer, nextLine))
-        }
+        val items = parsedResp["items"] as? JsonArray ?: error("Could not parse items of response: $parsedResp")
 
-        runCatching { content.cancel() }
+        KubernetesList(
+            (0 until items.size).map {
+                defaultMapper.decodeFromJsonElement(serializer, items[it])
+            },
+
+            ((parsedResp["metadata"] as? JsonObject)?.get("continue") as? JsonPrimitive)?.contentOrNull
+        )
     }
 }
 
-suspend inline fun KubernetesClient.deleteResource(
+suspend fun KubernetesClient.deleteResource(
     locator: KubernetesResourceLocator,
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
 ): JsonObject {
-    return parseResponse(
-        JsonObject.serializer(),
-        sendRequest(HttpMethod.Delete, locator, queryParameters, operation).execute(),
-        { "deleteResource($locator, $queryParameters, $operation)" }
-    )
+    return observeRequest {
+        parseResponse(
+            JsonObject.serializer(),
+            sendRequest(HttpMethod.Delete, locator, queryParameters, operation).execute(),
+            { "deleteResource($locator, $queryParameters, $operation)" }
+        )
+    }
 }
 
-suspend inline fun KubernetesClient.replaceResource(
+suspend fun KubernetesClient.replaceResource(
     locator: KubernetesResourceLocator,
     replacementJson: String,
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
 ): JsonObject {
-    return parseResponse(
-        JsonObject.serializer(),
-        sendRequest(
-            HttpMethod.Put,
-            locator,
-            queryParameters,
-            operation,
-            TextContent(replacementJson, ContentType.Application.Json)
-        ).execute(),
-        { "replaceResource($locator, $replacementJson, $queryParameters, $operation)" }
-    )
+    return observeRequest {
+        parseResponse(
+            JsonObject.serializer(),
+            sendRequest(
+                HttpMethod.Put,
+                locator,
+                queryParameters,
+                operation,
+                TextContent(replacementJson, ContentType.Application.Json)
+            ).execute(),
+            { "replaceResource($locator, $replacementJson, $queryParameters, $operation)" }
+        )
+    }
 }
 
 suspend fun KubernetesClient.patchResource(
@@ -667,17 +685,19 @@ suspend fun KubernetesClient.patchResource(
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
 ): JsonObject {
-    return parseResponse(
-        JsonObject.serializer(),
-        sendRequest(
-            HttpMethod.Patch,
-            locator,
-            queryParameters,
-            operation,
-            TextContent(replacement, contentType)
-        ).execute(),
-        { "patchResource($locator, $replacement, $contentType, $queryParameters, $operation)" }
-    )
+    return observeRequest {
+        parseResponse(
+            JsonObject.serializer(),
+            sendRequest(
+                HttpMethod.Patch,
+                locator,
+                queryParameters,
+                operation,
+                TextContent(replacement, contentType)
+            ).execute(),
+            { "patchResource($locator, $replacement, $contentType, $queryParameters, $operation)" }
+        )
+    }
 }
 
 suspend fun KubernetesClient.createResource(
@@ -687,17 +707,34 @@ suspend fun KubernetesClient.createResource(
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
 ): JsonObject {
-    return parseResponse(
-        JsonObject.serializer(),
-        sendRequest(
-            HttpMethod.Post,
-            locator,
-            queryParameters,
-            operation,
-            TextContent(replacement, contentType)
-        ).execute(),
-        { "createResource($locator, $replacement, $contentType, $queryParameters, $operation)" }
-    )
+    return observeRequest {
+        parseResponse(
+            JsonObject.serializer(),
+            sendRequest(
+                HttpMethod.Post,
+                locator,
+                queryParameters,
+                operation,
+                TextContent(replacement, contentType)
+            ).execute(),
+            { "createResource($locator, $replacement, $contentType, $queryParameters, $operation)" }
+        )
+    }
+}
+
+private suspend fun <T> observeRequest(block: suspend () -> T): T {
+    KubernetesClient.totalRequestsSent.inc()
+    val start = Time.now()
+    try {
+        val result = block()
+        KubernetesClient.requestsSuccess.inc()
+        return result
+    } catch (ex: Throwable) {
+        KubernetesClient.requestsError.inc()
+        throw ex
+    } finally {
+        KubernetesClient.requestDurationSummary.observe((Time.now() - start).toDouble())
+    }
 }
 
 const val API_GROUP_CORE = ""

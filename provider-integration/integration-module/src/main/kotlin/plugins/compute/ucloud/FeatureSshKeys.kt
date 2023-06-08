@@ -9,17 +9,12 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.ConfigSchema.Plugins.Jobs.UCloud.SshSubnet
 import dk.sdu.cloud.dbConnection
-import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.plugins.storage.ucloud.LINUX_FS_USER_UID
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.selects.select
-import kotlin.coroutines.coroutineContext
 
 class FeatureSshKeys(
     private val subnets: List<SshSubnet>,
@@ -29,6 +24,46 @@ class FeatureSshKeys(
         if (subnets.isEmpty()) {
             k8.addStatus(job.id, "SSH: Failure! This provider does not support SSH servers.")
             return
+        }
+
+        val application = job.status.resolvedApplication!!
+        val sshStatus = application.invocation.ssh ?: return
+        if (sshStatus.mode == SshDescription.Mode.DISABLED) return
+
+        val relevantKeys = JobsControl.browseSshKeys.call(
+            JobsControlBrowseSshKeys(job.id),
+            k8.serviceClient
+        ).orNull()
+
+        if (relevantKeys == null) {
+            k8.addStatus(job.id, "SSH: Failure! Unable to install keys. Try again later.")
+            return
+        }
+
+        builder.mountSharedVolume("ssh-keys", "/etc/ucloud/ssh")
+
+        builder.sidecar("ssh-keys") {
+            mountSharedVolume("ssh-keys", "/etc/ucloud/ssh")
+
+            image("alpine:latest")
+            vCpuMillis = 100
+            memoryMegabytes = 64
+            command(listOf(
+                "/bin/sh",
+                "-c",
+                buildString {
+                    appendLine("chmod 700 /etc/ucloud/ssh")
+                    appendLine("touch /etc/ucloud/ssh/authorized_keys.ucloud")
+                    appendLine("chmod 600 /etc/ucloud/ssh/authorized_keys.ucloud")
+                    appendLine("cat >> /etc/ucloud/ssh/authorized_keys.ucloud << EOF")
+                    relevantKeys.items.forEach { key ->
+                        appendLine(key.specification.key.trim())
+                    }
+                    appendLine("EOF")
+
+                    appendLine("chown ${LINUX_FS_USER_UID}:${LINUX_FS_USER_UID} -R /etc/ucloud/ssh")
+                }
+            ))
         }
 
         val portAndSubnet = findAndRegisterPort(job.id)
@@ -58,8 +93,8 @@ class FeatureSshKeys(
         val addr = cidr.first
         val a = (addr shr 24) and 0xFFu
         val b = (addr shr 16) and 0xFFu
-        val c = (1 + port) / 254
-        val d = (1 + port) % 254
+        val c = 1 + (port / 254)
+        val d = 1 + (port % 254)
         return "$a.$b.$c.$d"
     }
 
@@ -99,7 +134,7 @@ class FeatureSshKeys(
                     """
                         insert into ucloud_compute_bound_ssh_ports (name, subnet, port, job_id)
                         values (:plugin_name, :subnet, :port, :job_id)
-                        on conflict (name, subnet, port, job_id) do nothing
+                        on conflict (name, subnet, port) do nothing
                         returning port
                     """
                 ).useAndInvoke(
@@ -120,65 +155,5 @@ class FeatureSshKeys(
             if (!success) throw RPCException("Could not allocate a port for SSH", HttpStatusCode.InternalServerError)
             ConsumedPort(randomSubnet!!, randomPort!!)
         }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    override suspend fun JobManagement.onJobStart(rootJob: Container, children: List<Container>) {
-        if (subnets.isEmpty()) return
-        val cachedJob = k8.jobCache.findJob(rootJob.jobId) ?: return
-        if (cachedJob.specification.sshEnabled != true) return
-        val application = cachedJob.status.resolvedApplication!!
-        val sshStatus = application.invocation.ssh ?: return
-        if (sshStatus.mode == SshDescription.Mode.DISABLED) return
-
-        val relevantKeys = JobsControl.browseSshKeys.call(
-            JobsControlBrowseSshKeys(rootJob.jobId),
-            k8.serviceClient
-        ).orNull()
-
-        if (relevantKeys == null) {
-            k8.addStatus(rootJob.jobId, "SSH: Failure! Unable to install keys. Try again later.")
-            return
-        }
-
-        // NOTE(Dan): We only mount the keys in the rootJob right now. It might be better if we connect all of them.
-        rootJob.openShell(listOf("/usr/bin/sh")) {
-            stdin.send(buildString {
-                appendLine("mkdir -p /home/ucloud/.ssh")
-                appendLine("chmod 700 /home/ucloud/.ssh")
-                appendLine("touch /home/ucloud/.ssh/authorized_keys")
-                appendLine("chmod 600 /home/ucloud/.ssh/authorized_keys")
-                appendLine("cat >> /home/ucloud/.ssh/authorized_keys << EOF")
-                relevantKeys.items.forEach { key ->
-                    appendLine(key.specification.key.trim())
-                }
-                appendLine("EOF")
-                appendLine("echo $successMarker")
-            }.encodeToByteArray())
-
-            var foundSuccess = false
-            val deadline = Time.now() + 10_000
-            while (coroutineContext.isActive && Time.now() < deadline && !foundSuccess) {
-                select<Unit> {
-                    outputs.onReceiveCatching { message ->
-                        val decoded = message.getOrNull()?.bytes?.decodeToString() ?: ""
-                        foundSuccess = decoded.contains(successMarker) && !decoded.contains("echo")
-                    }
-
-                    onTimeout(500) {
-                        // Do nothing
-                    }
-                }
-            }
-
-            // NOTE(Dan): This message will require this specific format as the frontend will parse it.
-            if (!foundSuccess) {
-                k8.addStatus(rootJob.jobId, "SSH: Failure! Unable to install keys. Try again later.")
-            }
-        }
-    }
-
-    companion object {
-        private const val successMarker = "ssh-key-installed-successfully"
     }
 }

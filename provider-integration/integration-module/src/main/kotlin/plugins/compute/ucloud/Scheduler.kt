@@ -1,33 +1,12 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.app.orchestrator.api.ComputeProductReference
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.JobSpecification
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.JobStatus
-import dk.sdu.cloud.app.orchestrator.api.JobUpdate
-import dk.sdu.cloud.app.store.api.Application
-import dk.sdu.cloud.app.store.api.ApplicationInvocationDescription
-import dk.sdu.cloud.app.store.api.ApplicationMetadata
-import dk.sdu.cloud.app.store.api.ApplicationParameter
-import dk.sdu.cloud.app.store.api.ApplicationType
-import dk.sdu.cloud.app.store.api.ContainerDescription
-import dk.sdu.cloud.app.store.api.InvocationParameter
-import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.app.store.api.ToolReference
-import dk.sdu.cloud.app.store.api.WebDescription
-import dk.sdu.cloud.app.store.api.WordInvocationParameter
-import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.provider.api.ResourceOwner
-import dk.sdu.cloud.utils.sendTerminalMessage
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.systemName
+import io.prometheus.client.Counter
+import io.prometheus.client.Gauge
 import java.lang.IllegalStateException
 import java.util.*
 import kotlin.collections.ArrayList
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
 
 data class AllocatedReplica<UserData>(
     val jobId: Long,
@@ -50,7 +29,11 @@ class Scheduler<UserData> {
         @JvmField var cpu: Int = 0,
         @JvmField var memory: Long = 0,
         @JvmField var nvidiaGpu: Int = 0,
+        @JvmField var initialCpu: Int = 0,
+        @JvmField var initialMemory: Long = 0,
+        @JvmField var initialNvidiaGpu: Int = 0,
         @JvmField var lastSeen: Long = 0,
+        @JvmField var unscheduable: Boolean = false,
     )
 
     private var nextQueueIdx = 0
@@ -65,7 +48,18 @@ class Scheduler<UserData> {
         @JvmField var replicas: Int = 0,
         @JvmField var lastSeen: Long = 0,
         @JvmField var data: UserData? = null,
-    )
+    ) {
+        override fun toString(): String {
+            return buildString {
+                append("type = $type, ")
+                append("cpu = $cpu, ")
+                append("memory = $memory, ")
+                append("nvidiaGpu = $nvidiaGpu, ")
+                append("replicas = $replicas, ")
+                append("lastSeen = $lastSeen, ")
+            }
+        }
+    }
 
     private val replicaJobId = LongArray(MAX_JOBS_IN_QUEUE)
     private val replicaEntries = Array(MAX_JOBS_IN_QUEUE) { ReplicaEntry<UserData>() }
@@ -78,7 +72,17 @@ class Scheduler<UserData> {
         @JvmField var node: Int = 0,
         @JvmField var lastSeen: Long = 0,
         @JvmField var data: UserData? = null,
-    )
+    ) {
+        override fun toString(): String {
+            return buildString {
+                append("rank = $rank, ")
+                append("cpu = $cpu, ")
+                append("memory = $memory, ")
+                append("nvidiaGpu = $nvidiaGpu, ")
+                append("lastSeen = $lastSeen, ")
+            }
+        }
+    }
 
     private var activeReplicas = 0
     private var activeNodes = 0
@@ -91,11 +95,13 @@ class Scheduler<UserData> {
         type: String,
         virtualCpuMillis: Int,
         memoryInBytes: Long,
-        nvidiaGpus: Int = 0
+        nvidiaGpus: Int,
+        isUnschedulable: Boolean,
     ) {
         val existing = nodeNames.indexOf(name)
         if (existing != -1) {
             nodeEntries[existing].lastSeen = time
+            nodeEntries[existing].unscheduable = isUnschedulable
             return
         }
 
@@ -117,7 +123,11 @@ class Scheduler<UserData> {
             this.cpu = virtualCpuMillis
             this.memory = memoryInBytes
             this.nvidiaGpu = nvidiaGpus
+            this.initialCpu = virtualCpuMillis
+            this.initialMemory = memoryInBytes
+            this.initialNvidiaGpu = nvidiaGpus
             this.lastSeen = time
+            this.unscheduable = isUnschedulable
 
             activeNodes++
         }
@@ -126,11 +136,8 @@ class Scheduler<UserData> {
     fun pruneNodes(): List<String> {
         val result = ArrayList<String>()
         val maxNodes = activeNodes
-        var processed = 0
         for (idx in nodeNames.indices) {
-            if (maxNodes == processed) break
             if (nodeNames[idx] == null) continue
-            processed++
             val entry = nodeEntries[idx]
             if (entry.lastSeen != time) {
                 result.add(nodeNames[idx] ?: "???")
@@ -144,6 +151,38 @@ class Scheduler<UserData> {
                 }
 
                 activeNodes--
+            } else {
+                // NOTE(Dan): Recalculate node state and warn if we have drifted (once we are confident that we
+                // don't drift, then we can disable this code in production mode)
+                val cpuWas = entry.cpu
+                val memoryWas = entry.memory
+                val nvidiaGpuWas = entry.nvidiaGpu
+
+                entry.cpu = entry.initialCpu
+                entry.memory = entry.initialMemory
+                entry.nvidiaGpu = entry.initialNvidiaGpu
+
+                for (rIdx in replicaEntries.indices) {
+                    val replica = replicaEntries[rIdx]
+                    if (replicaJobId[rIdx] != 0L && replica.node == idx) {
+                        entry.cpu -= replica.cpu
+                        entry.memory -= replica.memory
+                        entry.nvidiaGpu -= replica.nvidiaGpu
+                    }
+                }
+
+                if (entry.cpu != cpuWas) {
+                    log.warn("CPU state has drifted for ${nodeNames[idx]} was $cpuWas should be ${entry.cpu}")
+                }
+
+                if (entry.memory != memoryWas) {
+                    log.warn("Memory state has drifted for ${nodeNames[idx]} was $memoryWas should be ${entry.memory}")
+                }
+
+                if (entry.nvidiaGpu != nvidiaGpuWas) {
+                    log.warn("NVIDIA GPU state has drifted for ${nodeNames[idx]} was " +
+                            "$nvidiaGpuWas should be ${entry.nvidiaGpu}")
+                }
             }
         }
         return result
@@ -242,11 +281,8 @@ class Scheduler<UserData> {
     fun pruneJobs(): List<AllocatedReplica<UserData>> {
         val replicasPruned = ArrayList<AllocatedReplica<UserData>>()
         val maxToProcess = activeReplicas
-        var processed = 0
         for (idx in replicaJobId.indices) {
-            if (processed == maxToProcess) break
             if (replicaJobId[idx] == 0L) continue
-            processed++
             val entry = replicaEntries[idx]
             if (entry.lastSeen != time) {
                 val nodeEntry = nodeEntries[entry.node]
@@ -308,6 +344,8 @@ class Scheduler<UserData> {
         replicas: Int = 1,
         data: UserData,
     ) {
+        jobsSubmittedMetric.inc()
+
         var idx = nextQueueIdx
         if (queueJobIds[idx] != 0L) idx = queueJobIds.indexOf(0L)
         if (idx == -1) throw IllegalStateException("Too many jobs in the queue: $id")
@@ -331,9 +369,30 @@ class Scheduler<UserData> {
         return queueJobIds.indexOf(id) != -1
     }
 
+    fun jobsInQueue(): Iterator<Long> {
+        return object : Iterator<Long> {
+            var idx = 0
+
+            override fun hasNext(): Boolean {
+                for (i in idx until queueJobIds.size) {
+                    if (queueJobIds[i] != 0L) {
+                        idx = i
+                        return true
+                    }
+                }
+                return false
+            }
+
+            override fun next(): Long {
+                return queueJobIds[idx++]
+            }
+        }
+    }
+
     private fun nodeSatisfiesRequest(node: Int, request: Int): Boolean {
         val nodeEntry = nodeEntries[node]
         val queueEntry = queueEntries[request]
+        if (nodeEntry.unscheduable) return false
         if (nodeEntry.type != queueEntry.type) return false
         if (nodeEntry.cpu < queueEntry.cpu) return false
         if (nodeEntry.memory < queueEntry.memory) return false
@@ -388,14 +447,10 @@ class Scheduler<UserData> {
     fun schedule(): List<AllocatedReplica<UserData>> {
         val scheduledJobs = ArrayList<AllocatedReplica<UserData>>()
 
-        val maxQueueEntriesToProcess = activeQueueEntries
-        var queueEntriesProcessed = 0
         jobLoop@ for (queueIdx in 0 until MAX_JOBS_IN_QUEUE) {
-            if (queueEntriesProcessed == maxQueueEntriesToProcess) break
             val queueJobId = queueJobIds[queueIdx]
             if (queueJobId == 0L) continue
             val queueEntry = queueEntries[queueIdx]
-            queueEntriesProcessed++
 
             var numberOfNodesToConsider = 0
             Arrays.fill(nodesToConsider, -1)
@@ -479,31 +534,80 @@ class Scheduler<UserData> {
             }
         }
 
+        jobsRunningMetric.set(runningReplicas().asSequence().count().toDouble())
+        jobsInQueueMetric.set(jobsInQueue().asSequence().count().toDouble())
+
         time++
         return scheduledJobs
     }
 
-    fun dumpState(replicas: Boolean = true, nodes: Boolean = true) {
-        if (replicas) {
-            for (i in 0 until replicaJobId.size) {
-                val jobId = replicaJobId[i]
-                if (jobId == 0L) continue
-                sendTerminalMessage { line("$jobId[${replicaEntries[i]}] ${nodeNames[replicaEntries[i].node]}") }
-            }
-        }
+    fun dumpState(replicas: Boolean = true, nodes: Boolean = true): String {
+        return buildString {
+            appendLine("Current time: $time")
+            appendLine()
 
-        if (nodes) {
-            for (i in 0 until nodeNames.size) {
-                val name = nodeNames[i]
-                if (name == null) continue
-                sendTerminalMessage { line("${name} ${nodeEntries[i]}") }
+            appendLine("Queue:")
+            for (i in 0 until queueEntries.size) {
+                val queueId = queueJobIds[i]
+                if (queueId == 0L) continue
+                appendLine("Job $queueId in queue: ${queueEntries[i]}")
+            }
+
+            if (replicas) {
+                appendLine("Running jobs (one line per rank):")
+                for (i in 0 until replicaJobId.size) {
+                    val jobId = replicaJobId[i]
+                    if (jobId == 0L) continue
+                    appendLine("Job $jobId on ${nodeNames[replicaEntries[i].node]}: ${replicaEntries[i]} ")
+                }
+            }
+
+            if (nodes) {
+                if (replicas) appendLine()
+                appendLine("Nodes:")
+                for (i in 0 until nodeNames.size) {
+                    val name = nodeNames[i]
+                    if (name == null) continue
+                    appendLine("${name} ${nodeEntries[i]}")
+                }
             }
         }
     }
 
-    companion object {
+    companion object : Loggable {
         const val MAX_NODES = 1024
         const val MAX_JOBS_IN_QUEUE = MAX_NODES * 8
         const val MAX_NODES_TO_CONSIDER = 128
+
+        override val log = logger()
+
+        private val jobsInQueueMetric = Gauge.build()
+            .namespace(systemName)
+            .subsystem("compute_scheduler")
+            .name("jobs_in_queue")
+            .help("Number of jobs currently in the queue")
+            .register()
+
+        private val jobsRunningMetric = Gauge.build()
+            .namespace(systemName)
+            .subsystem("compute_scheduler")
+            .name("jobs_running")
+            .help("Number of jobs currently running")
+            .register()
+
+        private val jobsSubmittedMetric = Counter.build()
+            .namespace(systemName)
+            .subsystem("compute_scheduler")
+            .name("jobs_submitted_total")
+            .help("Number of jobs submitted in total")
+            .register()
     }
+}
+
+
+fun main() {
+    val scheduler = Scheduler<Unit>()
+    scheduler.registerNode("nodeaa-05", type = "u1-standard", virtualCpuMillis = 8004, memoryInBytes = 48083152896L, nvidiaGpus = 0, isUnschedulable = false)
+    scheduler.addJobToQueue(4123, "u1-standard", 937, 6160384000L, 0, 1, Unit)
+    println(scheduler.schedule())
 }

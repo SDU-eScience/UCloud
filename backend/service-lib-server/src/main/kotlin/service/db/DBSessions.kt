@@ -1,6 +1,7 @@
 package dk.sdu.cloud.service.db
 
 import dk.sdu.cloud.debug.DebugContextType
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.TransactionMode
 
@@ -37,6 +38,7 @@ suspend fun <R, Session> DBSessionFactory<Session>.withTransaction(
 ): R {
     require(this is AsyncDBSessionFactory)
     return this.debug.system.useContext(DebugContextType.DATABASE_TRANSACTION) {
+        val start = Time.now()
         openTransaction(session, transactionMode)
         try {
             val result = closure(session)
@@ -46,6 +48,8 @@ suspend fun <R, Session> DBSessionFactory<Session>.withTransaction(
         } catch (ex: Throwable) {
             rollback(session)
             throw ex
+        } finally {
+            AsyncDBSessionFactory.transactionDuration.observe((Time.now() - start).toDouble())
         }
     }
 }
