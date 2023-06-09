@@ -794,7 +794,7 @@ const RunningInfoWrapper = styled.div`
   margin-top: 32px;
   display: grid;
   width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(550px, 1fr));
   grid-gap: 16px;
   justify-content: center;
 `;
