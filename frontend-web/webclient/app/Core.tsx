@@ -85,6 +85,7 @@ import {ExperimentalNetworkIP} from "./Applications/NetworkIP/ExperimentalBrowse
 import {ExperimentalSSHKey} from "./Applications/SshKeys/ExperimentalBrowse";
 import {ExperimentalLicenses} from "./Applications/ExperimentalLicenses";
 import {ExperimentalPublicLinks} from "./Applications/Ingresses/ExperimentalBrowse";
+import {ExperimentalGrantApplications} from "./Project/Grant/ExperimentalGrantApplications";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -241,10 +242,10 @@ const Core = (): JSX.Element => (
                                 target: RequestTarget.VIEW_APPLICATION
                             })}
                         />
-                        <Route path="/project/grants/ingoing/"
-                            element={React.createElement(requireAuth(IngoingApplications))} />
-                        <Route path="/project/grants/outgoing/"
-                            element={React.createElement(requireAuth(OutgoingApplications))} />
+                        <Route path={AppRoutes.project.grantsIngoing()}
+                            element={React.createElement(requireAuth(ExperimentalGrantApplications))} />
+                        <Route path={AppRoutes.project.grantsOutgoing()}
+                            element={React.createElement(requireAuth(ExperimentalGrantApplications))} />
                         <Route
                             path="/sla"
                             element={React.createElement(requireAuth(ServiceLicenseAgreement, {

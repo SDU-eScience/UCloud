@@ -2,7 +2,7 @@ import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser} from "@/ui-comp
 import * as React from "react";
 import {GrantApplication, browseGrantApplications} from "./GrantApplicationTypes";
 import {useDispatch, useSelector} from "react-redux";
-import {useNavigate} from "react-router";
+import {useLocation, useNavigate} from "react-router";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useProjectId} from "../Api";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -11,6 +11,8 @@ import {ContextSwitcher} from "../ContextSwitcher";
 import {callAPI} from "@/Authentication/DataHook";
 import {GrantApplicationFilter} from ".";
 import MainContainer from "@/MainContainer/MainContainer";
+import {useAvatars} from "@/AvataaarLib/hook";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -32,7 +34,12 @@ export function ExperimentalGrantApplications(): JSX.Element {
     useTitle("Grant Applications");
     const projectId = useProjectId();
     const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
-    const [switcher, setSwitcherWorkaround] = React.useState(<></>)
+    const [switcher, setSwitcherWorkaround] = React.useState(<></>);
+
+    const location = useLocation();
+    let isIngoing = location.pathname.endsWith("/ingoing/");
+    console.log(isIngoing);
+    const avatars = useAvatars();
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -45,8 +52,8 @@ export function ExperimentalGrantApplications(): JSX.Element {
 
                     callAPI(browseGrantApplications({
                         filter: GrantApplicationFilter.SHOW_ALL,
-                        includeIngoingApplications: false,
-                        includeOutgoingApplications: true,
+                        includeIngoingApplications: isIngoing,
+                        includeOutgoingApplications: !isIngoing,
                         ...defaultRetrieveFlags
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
@@ -64,8 +71,8 @@ export function ExperimentalGrantApplications(): JSX.Element {
                             ...defaultRetrieveFlags,
                             ...browser.browseFilters,
                             filter: GrantApplicationFilter.SHOW_ALL,
-                            includeIngoingApplications: false,
-                            includeOutgoingApplications: false
+                            includeIngoingApplications: isIngoing,
+                            includeOutgoingApplications: !isIngoing
                         })
                     )
 
@@ -78,9 +85,16 @@ export function ExperimentalGrantApplications(): JSX.Element {
                     const [icon, setIcon] = browser.defaultIconRenderer();
                     row.title.append(icon)
 
-                    row.title.append(browser.defaultTitleRenderer(key.id, dims));
+                    row.title.append(browser.defaultTitleRenderer(key.createdBy, dims));
 
-                    browser.icons.renderIcon({name: "networkWiredSolid", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
+                    browser.icons.renderSvg(
+                        key.createdBy, () => <UserAvatar
+                            avatar={avatars.avatar(key.createdBy)}
+                            width={"45px"}
+                        />,
+                        32,
+                        32
+                    ).then(setIcon);
                 });
 
                 browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
@@ -88,25 +102,25 @@ export function ExperimentalGrantApplications(): JSX.Element {
                     const e = browser.emptyPageElement;
                     switch (reason.tag) {
                         case EmptyReasonTag.LOADING: {
-                            e.reason.append("We are fetching your SSH keys...");
+                            e.reason.append("We are fetching your grant applications...");
                             break;
                         }
 
                         case EmptyReasonTag.EMPTY: {
                             if (Object.values(browser.browseFilters).length !== 0)
-                                e.reason.append("No SSH key found with active filters.")
-                            else e.reason.append("This workspace has no SSH keys.");
+                                e.reason.append("No grant applications found with active filters.")
+                            else e.reason.append("This workspace has no grant applications.");
                             break;
                         }
 
                         case EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS: {
-                            e.reason.append("We could not find any data related to your SSH keys.");
+                            e.reason.append("We could not find any data related to your grant applications.");
                             e.providerReason.append(reason.information ?? "");
                             break;
                         }
 
                         case EmptyReasonTag.UNABLE_TO_FULFILL: {
-                            e.reason.append("We are currently unable to show your SSH keys. Try again later.");
+                            e.reason.append("We are currently unable to show your grant applications. Try again later.");
                             e.providerReason.append(reason.information ?? "");
                             break;
                         }
