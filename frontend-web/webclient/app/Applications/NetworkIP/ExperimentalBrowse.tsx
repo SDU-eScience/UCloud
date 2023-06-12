@@ -188,7 +188,10 @@ export function ExperimentalNetworkIP(): JSX.Element {
                     return NetworkIPApi.retrieveOperations().filter(it => it.enabled(entries, callbacks, entries))
                 });
             });
-            const contextSwitcher = document.querySelector<HTMLDivElement>(".context-switcher");
+        }
+        const browser = browserRef.current;
+        if (browser != null) {
+            const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
             if (contextSwitcher) {
                 setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
             }

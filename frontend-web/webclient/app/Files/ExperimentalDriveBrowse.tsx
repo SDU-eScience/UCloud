@@ -6,6 +6,7 @@ import {
     image,
     EmptyReasonTag,
     ResourceBrowser,
+    ResourceBrowseFeatures,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch, useSelector, useStore} from "react-redux";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -36,7 +37,7 @@ const supportByProvider = new AsyncCache<SupportByProvider<ProductStorage, FileC
     globalTtl: 60_000
 });
 
-const FEATURES = {
+const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
     supportsMove: false,
     supportsCopy: false,
@@ -47,6 +48,7 @@ const FEATURES = {
     search: true,
     filters: true,
     sortDirection: true,
+    contextSwitcher: true,
 };
 
 const ExperimentalBrowse: React.FunctionComponent = () => {

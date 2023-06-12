@@ -56,6 +56,8 @@ import AppRoutes from "@/Routes";
 import {StandardButtonSize} from "@/ui-components/Button";
 import {injectStyleSimple} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
+import ExperimentalJobs from "@/Applications/Jobs/ExperimentalJobs";
+import {ExperimentalGrantApplications} from "@/Project/Grant/ExperimentalGrantApplications";
 
 const MY_WORKSPACE = "My Workspace";
 
@@ -295,6 +297,7 @@ const ResourceGridClass = injectStyleSimple("grid", `
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
     grid-auto-rows: minmax(450px, auto);
+    gap: 16px;
 `);
 
 function UsageAndResources(props: {charts: APICallState<{charts: UsageChart[]}>; products: APICallState<PageV2<Product>>}): JSX.Element {
@@ -349,8 +352,6 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
 function DashboardRuns({runs}: {
     runs: APICallState<UCloud.PageV2<Job>>;
 }): JSX.Element {
-    const navigate = useNavigate();
-    const toggle = useToggleSet([]);
     return <HighlightedCard
         color="gray"
         title={<Link to={"/jobs"}><Heading.h3>Recent runs</Heading.h3></Link>}
@@ -364,22 +365,7 @@ function DashboardRuns({runs}: {
                     <Button mt={8}>View applications</Button>
                 </Link>
             </NoResultsCardBody>
-        ) :
-            <List>
-                {runs.data.items.slice(0, 7).map(job =>
-                    <ItemRow
-                        key={job.id}
-                        item={job}
-                        browseType={BrowseType.Card}
-                        navigate={() => navigate(AppRoutes.jobs.view(job.id))}
-                        renderer={JobsApi.renderer}
-                        toggleSet={toggle}
-                        operations={[] as ReturnType<typeof JobsApi.retrieveOperations>}
-                        callbacks={{}}
-                        itemTitle={JobsApi.title}
-                    />
-                )}
-            </List>}
+        ) : <ExperimentalJobs opts={{embedded: true}} />}
     </HighlightedCard>;
 }
 
@@ -503,42 +489,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
         icon="mail"
         error={outgoingApps.error?.why ?? ingoingApps.error?.why}
     >
-        {ingoingApps.error !== undefined ? null : (
-            <Error error={ingoingApps.error} />
-        )}
-
-        {outgoingApps.error !== undefined ? null : (
-            <Error error={outgoingApps.error} />
-        )}
-        {ingoingApps.data.items.length ? <Heading.h5 color="gray" my="4px">Ingoing</Heading.h5> : null}
-        {ingoingApps.error ? null : (<GrantApplicationList applications={ingoingApps.data.items.slice(0, 5)} slim />)}
-
-        {both ? <Heading.h5 color="gray" my="4px">Outgoing</Heading.h5> : null}
-        {outgoingApps.error ? null : (
-            <>
-                {outgoingApps.data.items.length !== 0 || ingoingApps.data.items.length > 0 ? null : (
-                    <>
-                        <NoResultsCardBody title={"No recent outgoing applications"}>
-                            <Text>
-                                Apply for resources to use storage and compute on UCloud.
-                            </Text>
-                            <Link to={grantsLink(Client)} mt={8}>
-                                <Button mt={8}>Apply for resources</Button>
-                            </Link>
-                        </NoResultsCardBody>
-                    </>
-                )}
-
-                {outgoingApps.data.items.length === 0 ? null : (
-                    <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim />
-                )}
-            </>
-        )}
-        {outgoingApps.error || (outgoingApps.data.items.length === 0 && ingoingApps.data.items.length <= 0) ? null : (
-            <Link to={grantsLink(Client)} width={"100%"}>
-                <Button fullWidth my={8}>Apply for resources</Button>
-            </Link>
-        )}
+        <ExperimentalGrantApplications opts={{embedded: true}} />
     </HighlightedCard>;
 };
 

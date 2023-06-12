@@ -127,23 +127,7 @@ export const GrantApplicationList: React.FunctionComponent<{
     return (
         <List>
             {applications.map(app => {
-                let icon: IconName;
-                let iconColor: ThemeColor;
-                switch (app.status.overallState) {
-                    case State.APPROVED:
-                        icon = "check";
-                        iconColor = "green";
-                        break;
-                    case State.CLOSED:
-                    case State.REJECTED:
-                        icon = "close";
-                        iconColor = "red";
-                        break;
-                    case State.IN_PROGRESS:
-                        icon = "ellipsis";
-                        iconColor = "black";
-                        break;
-                }
+                const [icon, iconColor] = STATE_ICON_AND_COLOR[app.status.overallState];
 
                 return <ListRow
                     key={app.id}
@@ -188,5 +172,12 @@ export const GrantApplicationList: React.FunctionComponent<{
         </List>
     );
 };
+
+export const STATE_ICON_AND_COLOR: Record<State, [icon: IconName, iconColor: ThemeColor]> = {
+    [State.APPROVED]: ["check", "green"],
+    [State.CLOSED]: ["close", "red"],
+    [State.REJECTED]: ["close", "red"],
+    [State.IN_PROGRESS]: ["ellipsis", "blue"]
+}
 
 export default GrantApplications;

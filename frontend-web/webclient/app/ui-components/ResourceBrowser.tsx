@@ -243,7 +243,7 @@ export class ResourceBrowser<T> {
     private operations: HTMLElement;
     /* private */ filters: HTMLElement;
     sessionFilters: HTMLElement;
-    private header: HTMLElement;
+    public header: HTMLElement;
     private breadcrumbs: HTMLUListElement;
     private scrolling: HTMLDivElement;
     private entryDragIndicator: HTMLDivElement;
@@ -346,9 +346,11 @@ export class ResourceBrowser<T> {
 
     private listeners: Record<string, any[]> = {};
 
-    constructor(root: HTMLElement, resourceName: string) {
+    public opts: {embedded: boolean} | undefined = {embedded: false};
+    constructor(root: HTMLElement, resourceName: string, opts?: {embedded: boolean;}) {
         this.root = root;
         this.resourceName = resourceName;
+        this.opts = opts;
     }
 
     public init(
@@ -369,6 +371,9 @@ export class ResourceBrowser<T> {
         ResourceBrowser.injectStyle();
 
         this.root.classList.add("file-browser");
+        if (this.opts?.embedded) {
+            this.root.style.height = "auto";
+        }
         this.root.innerHTML = `
             <header>
                 <div class="header-first-row">
@@ -378,10 +383,9 @@ export class ResourceBrowser<T> {
                     <input class="${InputClass} search-field" hidden>
                     <img class="search-icon">
                     <img class="refresh-icon">
-                    <div style="margin-left:20px;margin-right:20px;margin-top:4px;" class="context-switcher"></div>
                 </div>
                 <div class="operations"></div>
-                <div style="display: flex;">
+                <div style="display: flex; overflow-x: scroll;">
                     <div class="filters"></div>
                     <div class="session-filters"></div>
                 </div>
@@ -487,14 +491,16 @@ export class ResourceBrowser<T> {
         if (this.features.filters) {
             this.renderSessionFilters();
         }
-
-        if (this.features.contextSwitcher) {
-            const div = document.createElement("div");
-            div.style.marginLeft = "20px";
-            div.style.marginRight = "20px";
-            div.style.marginTop = "4px";
-            div.className = "context-switcher";
-            this.header.appendChild(div);
+        if (!this.opts?.embedded) {
+            if (this.features.contextSwitcher) {
+                const div = document.createElement("div");
+                div.style.marginLeft = "20px";
+                div.style.marginRight = "20px";
+                div.style.marginTop = "4px";
+                div.className = "context-switcher";
+                const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
+                headerThing.appendChild(div);
+            }
         }
 
         {
@@ -511,50 +517,52 @@ export class ResourceBrowser<T> {
         }
 
 
-        // Event handlers not related to rows
-        this.renameField.addEventListener("keydown", ev => {
-            this.onRenameFieldKeydown(ev);
-        });
+        if (!this.opts?.embedded) {
+            // Event handlers not related to rows
+            this.renameField.addEventListener("keydown", ev => {
+                this.onRenameFieldKeydown(ev);
+            });
 
-        this.renameField.addEventListener("beforeinput", ev => {
-            this.onRenameFieldBeforeInput(ev);
-        });
+            this.renameField.addEventListener("beforeinput", ev => {
+                this.onRenameFieldBeforeInput(ev);
+            });
 
-        this.renameField.addEventListener("input", ev => {
-            this.onRenameFieldInput(ev);
-        });
+            this.renameField.addEventListener("input", ev => {
+                this.onRenameFieldInput(ev);
+            });
 
-        this.scrolling.parentElement!.addEventListener("scroll", () => {
-            this.onScroll();
-        });
+            this.scrolling.parentElement!.addEventListener("scroll", () => {
+                this.onScroll();
+            });
 
-        this.scrolling.parentElement!.addEventListener("pointerdown", e => {
-            this.onRowPointerDown(-1, e);
-        });
+            this.scrolling.parentElement!.addEventListener("pointerdown", e => {
+                this.onRowPointerDown(-1, e);
+            });
 
-        this.scrolling.parentElement!.addEventListener("contextmenu", e => {
-            e.stopPropagation();
-            e.preventDefault();
-            this.onRowContextMenu(-1, e);
-        });
+            this.scrolling.parentElement!.addEventListener("contextmenu", e => {
+                e.stopPropagation();
+                e.preventDefault();
+                this.onRowContextMenu(-1, e);
+            });
 
-        this.locationBar.addEventListener("keydown", ev => {
-            this.onLocationBarKeyDown(ev);
-        });
+            this.locationBar.addEventListener("keydown", ev => {
+                this.onLocationBarKeyDown(ev);
+            });
 
-        this.locationBar.addEventListener("input", ev => {
-            this.onLocationBarKeyDown("input");
-        });
+            this.locationBar.addEventListener("input", ev => {
+                this.onLocationBarKeyDown("input");
+            });
 
-        const keyDownListener = (ev: KeyboardEvent) => {
-            if (!this.root.isConnected) {
-                document.removeEventListener("keydown", keyDownListener);
-                return;
-            }
+            const keyDownListener = (ev: KeyboardEvent) => {
+                if (!this.root.isConnected) {
+                    document.removeEventListener("keydown", keyDownListener);
+                    return;
+                }
 
-            this.onKeyPress(ev);
-        };
-        document.addEventListener("keydown", keyDownListener);
+                this.onKeyPress(ev);
+            };
+            document.addEventListener("keydown", keyDownListener);
+        }
 
         const clickHandler = ev => {
             if (!this.root.isConnected) {
@@ -850,6 +858,12 @@ export class ResourceBrowser<T> {
                 e.container.style.height = containerSize + "px";
                 e.container.style.left = (containerLeft + (containerWidth / 2) - (containerSize / 2)) + "px";
                 e.container.style.top = (containerTop + (containerHeight / 2) - (containerSize / 2)) + "px";
+                if (this.opts?.embedded) {
+                    e.container.style.position = "unset";
+                    e.container.style.marginLeft = "auto";
+                    e.container.style.marginRight = "auto";
+                    e.container.style.height = "100px";
+                }
 
                 if (reason.tag === EmptyReasonTag.LOADING) {
                     if (this.features.renderSpinnerWhenLoading) {
@@ -1175,6 +1189,7 @@ export class ResourceBrowser<T> {
         if (callbacks === null) return;
 
         const operations = this.dispatchMessage("fetchOperations", fn => fn());
+        if (operations.length === 0) return;
 
         if (!useContextMenu) {
             for (let i = 0; i < this.altShortcuts.length; i++) {
@@ -1272,6 +1287,7 @@ export class ResourceBrowser<T> {
             const menuList = allowCreation ? document.createElement("ul") : menu.querySelector("ul")!;
             if (allowCreation) menu.append(menuList);
             let shortcutNumber = counter;
+            const useShortcuts = !this.opts?.embedded;
             for (const child of operations) {
                 if ("operations" in child) {
                     counter = renderOperationsInContextMenu(child.operations, posX, posY, shortcutNumber, false);
@@ -1279,7 +1295,7 @@ export class ResourceBrowser<T> {
                 }
 
                 const item = document.createElement("li");
-                renderOpIconAndText(child, item, shortcutNumber <= 9 ? `[${shortcutNumber}]` : undefined);
+                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts ? `[${shortcutNumber}]` : undefined);
 
                 const myIndex = shortcutNumber - 1;
                 this.contextMenuHandlers.push(() => {
@@ -1306,12 +1322,13 @@ export class ResourceBrowser<T> {
         const renderOperation = (
             op: OperationOrGroup<T, unknown>
         ): HTMLElement => {
+            const useShortcuts = !this.opts?.embedded;
             const element = document.createElement("div");
             element.classList.add("operation");
             element.classList.add(!useContextMenu ? "in-header" : "in-context-menu");
 
             const altKey = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "Alt + ";
-            renderOpIconAndText(op, element, `[${altKey}${this.altKeys[opCount].replace("Key", "")}]`);
+            renderOpIconAndText(op, element, useShortcuts ? `[${altKey}${this.altKeys[opCount].replace("Key", "")}]` : undefined);
 
             {
                 // ...and the handlers
@@ -1499,7 +1516,7 @@ export class ResourceBrowser<T> {
             this.emptyReasons[path] = {tag: EmptyReasonTag.EMPTY};
         }
 
-        if (page.next && this.cachedData[path].length < 10000) {
+        if (page.next && this.cachedData[path].length < 10000 && !this.opts?.embedded) {
             this.dispatchMessage("wantToFetchNextPage", fn => fn(this.currentPath));
         }
     }

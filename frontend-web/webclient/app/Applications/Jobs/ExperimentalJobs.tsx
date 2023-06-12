@@ -34,7 +34,7 @@ const FEATURES: ResourceBrowseFeatures = {
 
 const logoDataUrls = new AsyncCache<string>();
 
-function ExperimentalJobs(): JSX.Element {
+function ExperimentalJobs({opts}: {opts?: {embedded: boolean}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
@@ -44,13 +44,12 @@ function ExperimentalJobs(): JSX.Element {
     const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
-
     const dateRanges = dateRangeFilters("Created after");
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Job>(mount, "Jobs").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<Job>(mount, "Jobs", opts).init(browserRef, FEATURES, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
@@ -60,8 +59,10 @@ function ExperimentalJobs(): JSX.Element {
                         return;
                     }
 
+                    const flags = browser.opts?.embedded ? {itemsPerPage: 10} : defaultRetrieveFlags;
+
                     callAPI(JobsApi.browse({
-                        ...defaultRetrieveFlags,
+                        ...flags,
                         ...browser.browseFilters
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
@@ -221,7 +222,10 @@ function ExperimentalJobs(): JSX.Element {
                 });
                 browser.on("generateBreadcrumbs", () => [{title: "Jobs", absolutePath: ""}]);
             });
-            const contextSwitcher = document.querySelector<HTMLDivElement>(".context-switcher");
+        }
+        const browser = browserRef.current;
+        if (browser != null) {
+            const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
             if (contextSwitcher) {
                 setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
             }

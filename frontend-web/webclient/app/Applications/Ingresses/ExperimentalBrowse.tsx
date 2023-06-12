@@ -192,7 +192,10 @@ export function ExperimentalPublicLinks(): JSX.Element {
 
                 browser.on("pathToEntry", entry => entry.id);
             });
-            const contextSwitcher = document.querySelector<HTMLDivElement>(".context-switcher");
+        }
+        const browser = browserRef.current;
+        if (browser != null) {
+            const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
             if (contextSwitcher) {
                 setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
             }

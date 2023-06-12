@@ -129,7 +129,10 @@ export function ExperimentalSSHKey(): JSX.Element {
 
                 browser.on("pathToEntry", sshKey => sshKey.id);
             });
-            const contextSwitcher = document.querySelector<HTMLDivElement>(".context-switcher");
+        }
+        const browser = browserRef.current;
+        if (browser != null) {
+            const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
             if (contextSwitcher) {
                 setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
             }

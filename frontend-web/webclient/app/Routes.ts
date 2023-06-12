@@ -37,6 +37,7 @@ const project = {
     allocations: () => `/project/allocations/`,
     grantsIngoing: () => `/project/grants/ingoing/`,
     grantsOutgoing: () => `/project/grants/outgoing/`,
+    grant: (id: string) => `/project/grants/view/${id}`,
     settings: (page: string) => `/project/settings/${page}`,
     subprojects: () => `/subprojects/`,
 }

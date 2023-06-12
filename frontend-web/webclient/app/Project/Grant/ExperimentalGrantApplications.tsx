@@ -11,8 +11,10 @@ import {ContextSwitcher} from "../ContextSwitcher";
 import {callAPI} from "@/Authentication/DataHook";
 import {GrantApplicationFilter} from ".";
 import MainContainer from "@/MainContainer/MainContainer";
-import {useAvatars} from "@/AvataaarLib/hook";
-import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import AppRoutes from "@/Routes";
+import {IconName} from "@/ui-components/Icon";
+import {STATE_ICON_AND_COLOR} from "./GrantApplications";
+import {dateToString} from "@/Utilities/DateUtilities";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -26,7 +28,7 @@ const FEATURES: ResourceBrowseFeatures = {
     contextSwitcher: true,
 }
 
-export function ExperimentalGrantApplications(): JSX.Element {
+export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<GrantApplication>>(null);
     const dispatch = useDispatch();
@@ -38,16 +40,15 @@ export function ExperimentalGrantApplications(): JSX.Element {
 
     const location = useLocation();
     let isIngoing = location.pathname.endsWith("/ingoing/");
-    console.log(isIngoing);
-    const avatars = useAvatars();
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<GrantApplication>(mount, "Grant Application").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<GrantApplication>(mount, "Grant Application", opts).init(browserRef, FEATURES, "", browser => {
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
-                        // TODO(Jonas): Handle properties
+                        navigate(AppRoutes.project.grant(resource.id));
+                        return;
                     }
 
                     callAPI(browseGrantApplications({
@@ -83,21 +84,30 @@ export function ExperimentalGrantApplications(): JSX.Element {
 
                 browser.on("renderRow", (key, row, dims) => {
                     const [icon, setIcon] = browser.defaultIconRenderer();
-                    row.title.append(icon)
+                    row.title.append(icon);
+                    browser.icons.renderIcon({
+                        name: "fileSignatureSolid",
+                        color: "black",
+                        color2: "iconColor2",
+                        height: 32,
+                        width: 32,
+                    }).then(setIcon);
 
                     row.title.append(browser.defaultTitleRenderer(key.createdBy, dims));
-
-                    browser.icons.renderSvg(
-                        key.createdBy, () => <UserAvatar
-                            avatar={avatars.avatar(key.createdBy)}
-                            width={"45px"}
-                        />,
-                        32,
-                        32
-                    ).then(setIcon);
+                    const [statusIconName, statusIconColor] = STATE_ICON_AND_COLOR[key.status.overallState];
+                    const [status, setStatus] = browser.defaultIconRenderer();
+                    browser.icons.renderIcon({
+                        name: statusIconName,
+                        color: statusIconColor,
+                        color2: "iconColor2",
+                        height: 32,
+                        width: 32,
+                    }).then(setStatus);
+                    row.stat2.innerText = dateToString(key.currentRevision.createdAt);
+                    row.stat3.append(status);
                 });
 
-                browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
+                browser.on("generateBreadcrumbs", () => [{title: `${isIngoing ? "Ingoing": "Outgoing"} grants`, absolutePath: ""}]);
                 browser.on("renderEmptyPage", reason => {
                     const e = browser.emptyPageElement;
                     switch (reason.tag) {
@@ -132,13 +142,30 @@ export function ExperimentalGrantApplications(): JSX.Element {
                     ({dispatch, navigate, isCreating: false, startCreation: () => console.log("TODO!"), cancelCreation: () => void 0})
                 );
 
-                browser.on("fetchOperations", () => []);
+                browser.on("fetchOperations", () => {
+                    const selected = browser.findSelectedEntries();
+                    const ops = [{
+                        icon: "fileSignatureSolid" as IconName,
+                        enabled(selected: GrantApplication[]) {
+                            return selected.length === 0 && isIngoing;
+                        },
+                        onClick() {navigate(AppRoutes.project.grantsOutgoing())},
+                        text: "Show outgoing applications",
+                    }, {
+                        icon: "fileSignatureSolid" as IconName,
+                        enabled(selected: GrantApplication[]) {return selected.length === 0 && !isIngoing},
+                        onClick() {navigate(AppRoutes.project.grantsIngoing())},
+                        text: "Show ingoing applications",
+                    }];
+                    return ops.filter(it => it.enabled(selected));
+                });
 
                 browser.on("pathToEntry", grantApplication => grantApplication.id);
             });
-
-
-            const contextSwitcher = document.querySelector<HTMLDivElement>(".context-switcher");
+        }
+        const browser = browserRef.current;
+        if (browser != null) {
+            const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
             if (contextSwitcher) {
                 setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
             }

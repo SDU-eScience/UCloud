@@ -12,6 +12,7 @@ import {
     image,
     OperationOrGroup,
     placeholderImage,
+    ResourceBrowseFeatures,
     ResourceBrowser,
     SelectionMode
 } from "@/ui-components/ResourceBrowser";
@@ -71,7 +72,7 @@ const defaultRetrieveFlags: Partial<UFileIncludeFlags> & {itemsPerPage: number} 
 
 const SEARCH = "/search";
 
-const FEATURES = {
+const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
     supportsMove: true,
     supportsCopy: true,
@@ -1151,7 +1152,10 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 browser.on("sort", page => page.sort((a, b) => a.id.localeCompare(b.id)));
             });
 
-            const contextSwitcher = document.querySelector<HTMLDivElement>(".context-switcher");
+        }
+        const browser = browserRef.current;
+        if (browser != null) {
+            const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
             if (contextSwitcher) {
                 setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
             }
