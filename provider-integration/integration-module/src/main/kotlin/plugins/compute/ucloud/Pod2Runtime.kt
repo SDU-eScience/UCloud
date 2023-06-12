@@ -11,6 +11,7 @@ import dk.sdu.cloud.toReadableStacktrace
 import dk.sdu.cloud.utils.LinuxOutputStream
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -253,8 +254,8 @@ private data class Pod2Container(
                     longRunning = true,
                 ).execute { resp ->
                     if (resp.status.isSuccess()) {
+                        val channel = resp.bodyAsChannel()
                         try {
-                            val channel = resp.bodyAsChannel()
                             var shouldCancel = false
                             while (output.hasRemaining() && !channel.isClosedForRead && !shouldCancel) {
                                 channel.read { input ->
@@ -268,6 +269,8 @@ private data class Pod2Container(
                             }
                         } catch (ignored: EOFException) {
                             // Ignored
+                        } finally {
+                            runCatching { channel.cancel() }
                         }
                     }
                 }
@@ -568,6 +571,9 @@ class Pod2Runtime(
             val allContainers = (data.builder.podSpec.initContainers ?: emptyList()) +
                     (data.builder.podSpec.containers ?: emptyList())
             val oldEnv = allContainers.map { c -> c.env?.let { ArrayList(it) } }
+            val oldVolumeMounts = allContainers.map { c -> c.volumeMounts?.let { ArrayList(it) } }
+            val oldPorts = allContainers.map { c -> c.ports?.let { ArrayList(it) } }
+            val oldVolumes = ArrayList(data.builder.volumes)
             for (container in allContainers) {
                 val env = (container.env ?: emptyList()).toMutableList()
 
@@ -604,6 +610,15 @@ class Pod2Runtime(
                 )
 
                 container.env = env
+
+                if (job.rank == 0) {
+                    container.volumeMounts = (container.volumeMounts ?: emptyList()) + data.builder.rootOnlyVolumeMounts
+                    container.ports = (container.ports ?: emptyList()) + data.builder.rootOnlyPorts
+                }
+            }
+
+            if (job.rank == 0) {
+                data.builder.podSpec.volumes = data.builder.volumes + data.builder.rootOnlyVolumes
             }
 
             k8Client.createResource(
@@ -613,6 +628,9 @@ class Pod2Runtime(
 
             // NOTE(Dan): We must restore the environment since the pod builder itself is shared among all replicas
             allContainers.zip(oldEnv).forEach { (c, env) -> c.env = env }
+            allContainers.zip(oldVolumeMounts).forEach { (c, mounts) -> c.volumeMounts = mounts }
+            allContainers.zip(oldPorts).forEach { (c, ports) -> c.ports = ports }
+            data.builder.podSpec.volumes = oldVolumes
 
             // NOTE(Dan): These resources should only be created once, as a result we only do it for rank 0
             if (job.rank == 0) {
@@ -777,7 +795,7 @@ class Pod2Runtime(
                 c.jobId.toLong(),
                 c.productCategoryRequired ?: defaultNodeType ?: "",
                 c.vCpuMillis,
-                c.memoryMegabytes * 1024 * 1024L,
+                c.memoryMegabytes * 1000 * 1000L,
                 c.gpus,
                 c.replicas,
                 Pod2Data.NotYetScheduled(c)

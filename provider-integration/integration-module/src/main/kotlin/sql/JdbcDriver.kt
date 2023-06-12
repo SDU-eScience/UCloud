@@ -7,8 +7,11 @@ import dk.sdu.cloud.debug.databaseResponse
 import dk.sdu.cloud.debug.databaseTransaction
 import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.systemName
 import dk.sdu.cloud.utils.forEachIndexedGraal
 import dk.sdu.cloud.utils.whileGraal
+import io.prometheus.client.Gauge
+import io.prometheus.client.Summary
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -52,11 +55,33 @@ class SimpleConnectionPool(val size: Int, private val constructor: (pool: Simple
             connection = connections[firstFree]
         }
 
+        inflightTransactions.inc()
         return connection
     }
 
     suspend fun recycle(instance: JdbcConnection) {
         isFree[instance._connectionTicket] = true
+        inflightTransactions.dec()
+    }
+
+    companion object {
+        private val inflightTransactions = Gauge.build()
+            .namespace(systemName)
+            .subsystem("database")
+            .name("transactions_in_flight")
+            .help("Number of transactions currently in-flight")
+            .register()
+
+        val transactionDuration = Summary.build()
+            .namespace(systemName)
+            .subsystem("database")
+            .name("transaction_duration")
+            .help("Number of transactions currently in-flight")
+            .quantile(0.5, 0.01)
+            .quantile(0.75, 0.01)
+            .quantile(0.95, 0.01)
+            .quantile(0.99, 0.01)
+            .register()
     }
 }
 

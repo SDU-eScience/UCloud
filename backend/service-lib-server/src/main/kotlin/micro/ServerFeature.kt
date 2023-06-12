@@ -4,6 +4,7 @@ import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.installDefaultFeatures
+import io.ktor.http.*
 import io.ktor.server.engine.ApplicationEngine
 
 class ServerFeature : MicroFeature {
@@ -31,7 +32,9 @@ class ServerFeature : MicroFeature {
 
         if (installHttp) {
             log.trace("Installing HTTP server")
-            val engine = ctx.serverProvider {
+
+            val port = ctx.configuration.requestChunkAtOrNull("servicePort") ?: DEFAULT_PORT
+            val engine = ctx.serverProvider(port) {
                 installDefaultFeatures()
             }
 
@@ -50,6 +53,8 @@ class ServerFeature : MicroFeature {
         override val log = logger()
         override val key: MicroAttributeKey<ServerFeature> = MicroAttributeKey("rpc-server-feature")
         override fun create(config: Unit): ServerFeature = ServerFeature()
+
+        private const val DEFAULT_PORT = 8080
     }
 }
 

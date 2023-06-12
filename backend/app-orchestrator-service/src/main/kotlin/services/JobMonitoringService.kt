@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.Prometheus
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -72,17 +73,24 @@ class JobMonitoringService(
         while (isActive) {
             val now = Time.now()
             if (now >= nextScan) {
-                debug.useContext(DebugContextType.BACKGROUND_TASK, "Job monitoring", MessageImportance.TELL_ME_EVERYTHING) {
-                    val jobIds = db.withSession { session ->
-                        session
-                            .sendPreparedStatement(
-                                {
-                                    setParameter(
-                                        "nonFinalStates",
-                                        JobState.values().filter { !it.isFinal() }.map { it.name }
-                                    )
-                                },
-                                """
+                val taskName = "job_watcher"
+                Prometheus.countBackgroundTask(taskName)
+                try {
+                    debug.useContext(
+                        DebugContextType.BACKGROUND_TASK,
+                        "Job monitoring",
+                        MessageImportance.TELL_ME_EVERYTHING
+                    ) {
+                        val jobIds = db.withSession { session ->
+                            session
+                                .sendPreparedStatement(
+                                    {
+                                        setParameter(
+                                            "nonFinalStates",
+                                            JobState.values().filter { !it.isFinal() }.map { it.name }
+                                        )
+                                    },
+                                    """
                                 update app_orchestrator.jobs
                                 set last_scan = now()
                                 where
@@ -99,70 +107,73 @@ class JobMonitoringService(
                                     )
                                 returning resource;
                             """,
-                                "job monitoring loop"
+                                    "job monitoring loop"
+                                )
+                                .rows
+                                .map { it.getLong(0)!! }
+                                .toSet()
+                        }
+
+                        val jobs = db.withSession { session ->
+                            jobOrchestrator.retrieveBulk(
+                                actorAndProject = ActorAndProject(Actor.System, null),
+                                jobIds.map { id -> id.toString() },
+                                permissionOneOf = listOf(Permission.READ),
+                                requireAll = false
                             )
-                            .rows
-                            .map { it.getLong(0)!! }
-                            .toSet()
-                    }
+                        }
 
-                    val jobs = db.withSession { session ->
-                        jobOrchestrator.retrieveBulk(
-                            actorAndProject = ActorAndProject(Actor.System, null),
-                            jobIds.map { id -> id.toString() },
-                            permissionOneOf = listOf(Permission.READ),
-                            requireAll = false
-                        )
-                    }
+                        val jobsByProvider = jobs.map { it }.groupBy { it.specification.product.provider }
+                        scope.launch {
+                            jobsByProvider.forEach { (provider, jobs) ->
+                                val comm = providers.prepareCommunication(provider)
+                                val resp = comm.api.verify.call(
+                                    bulkRequestOf(jobs),
+                                    comm.client
+                                )
 
-                    val jobsByProvider = jobs.map { it }.groupBy { it.specification.product.provider }
-                    scope.launch {
-                        jobsByProvider.forEach { (provider, jobs) ->
-                            val comm = providers.prepareCommunication(provider)
-                            val resp = comm.api.verify.call(
-                                bulkRequestOf(jobs),
-                                comm.client
-                            )
+                                if (!resp.statusCode.isSuccess()) {
+                                    log.info("Failed to verify block in $provider. Jobs: ${jobs.map { it.id }}")
+                                }
 
-                            if (!resp.statusCode.isSuccess()) {
-                                log.info("Failed to verify block in $provider. Jobs: ${jobs.map { it.id }}")
-                            }
-
-                            val requiresRestart = jobs.filter {
-                                it.status.state == JobState.SUSPENDED && it.status.allowRestart == true
-                            }
-                            if (requiresRestart.isNotEmpty()) {
-                                for (job in requiresRestart) {
-                                    try {
-                                        jobOrchestrator.performUnsuspension(listOf(job))
-                                    } catch (ex: Throwable) {
-                                        log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
+                                val requiresRestart = jobs.filter {
+                                    it.status.state == JobState.SUSPENDED && it.status.allowRestart == true
+                                }
+                                if (requiresRestart.isNotEmpty()) {
+                                    for (job in requiresRestart) {
+                                        try {
+                                            jobOrchestrator.performUnsuspension(listOf(job))
+                                        } catch (ex: Throwable) {
+                                            log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    db.withSession { session ->
-                        for (job in jobs) {
-                            // NOTE(Dan): Suspended jobs are re-verified when they are unsuspended. We don't verify them
-                            // right now.
-                            if (job.status.state == JobState.SUSPENDED) continue
+                        db.withSession { session ->
+                            for (job in jobs) {
+                                // NOTE(Dan): Suspended jobs are re-verified when they are unsuspended. We don't verify them
+                                // right now.
+                                if (job.status.state == JobState.SUSPENDED) continue
 
-                            log.trace("Checking permissions of ${job.id}")
-                            val (hasPermissions, files) = hasPermissionsForExistingMounts(job, session)
-                            if (!hasPermissions) {
-                                terminateAndUpdateJob(job, files)
-                            }
+                                log.trace("Checking permissions of ${job.id}")
+                                val (hasPermissions, files) = hasPermissionsForExistingMounts(job, session)
+                                if (!hasPermissions) {
+                                    terminateAndUpdateJob(job, files)
+                                }
 
-                            val (resourceAvailable, resource) = hasResources(job, session)
-                            if (!resourceAvailable) {
-                                terminateAndUpdateJob(job, resource)
+                                val (resourceAvailable, resource) = hasResources(job, session)
+                                if (!resourceAvailable) {
+                                    terminateAndUpdateJob(job, resource)
+                                }
                             }
                         }
                     }
+                    nextScan = Time.now() + TIME_BETWEEN_SCANS / 2
+                } finally {
+                    Prometheus.measureBackgroundDuration(taskName, Time.now() - now)
                 }
-                nextScan = Time.now() + TIME_BETWEEN_SCANS / 2
             }
 
             if (lock != null && !lock.renew(90_000)) {

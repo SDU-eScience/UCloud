@@ -129,7 +129,7 @@ class GrantNotificationService(
             val requestedBy = rows.first().requestedBy
             val projectId = rows.first().projectId
             val grantRecipientTitle = rows.first().grantRecipientTitle
-            val admins = rows.map { it.projectMember }
+            val admins = rows.map { it.projectMember }.toSet()
             val ctx = NotificationContext(title, projectId, requestedBy, grantRecipientTitle,
                 rows.first().grantRecipient)
 
