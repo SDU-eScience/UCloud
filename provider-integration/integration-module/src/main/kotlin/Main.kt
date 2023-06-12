@@ -39,8 +39,12 @@ import dk.sdu.cloud.utils.ResourceVerification
 import dk.sdu.cloud.plugins.storage.posix.posixFilePermissionsFromInt
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import dk.sdu.cloud.config.ConfigSchema.Core.Logs.Tracer as TracerFeature
 import io.ktor.util.*
+import io.ktor.util.pipeline.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.builtins.ListSerializer
 import org.slf4j.LoggerFactory
@@ -107,6 +111,7 @@ fun main(args: Array<String>) {
         // 1. Process configuration and signal handlers:
         // ===========================================================================================================
 
+        updateSystemName("ucloud_im")
         val ownExecutable = readSelfExecutablePath()
 
         run {
@@ -322,7 +327,7 @@ fun main(args: Array<String>) {
 
                 val engine = embeddedServer(
                     CIO,
-                    host = "127.0.0.1",
+                    host = config.core.internalBindAddress,
                     port = rpcServerPort ?: error("Missing rpcServerPort"),
                     module = {}
                 )
@@ -657,6 +662,22 @@ fun main(args: Array<String>) {
             // NOTE(Dan): None of the services we launch here are supposed to block the current thread of execution.
             // They should instead launch in a new coroutine or thread. As a result, the code ends up being fairly
             // linear when not counting the null checks.
+
+            // Metrics server (only in serverMode == Server)
+            if (serverMode == ServerMode.Server) {
+                @Suppress("ExtractKtorModule")
+                embeddedServer(CIO, port = Prometheus.metricsPort) {
+                    routing {
+                        val handler: suspend PipelineContext<Unit, ApplicationCall>.(Unit) -> Unit = {
+                            val responder = Prometheus.respondToPrometheusQuery(call.request.header(HttpHeaders.Accept))
+                            call.respondTextWriter(ContentType.parse(responder.contentType), writer = responder.generator)
+                        }
+
+                        get(Prometheus.metricsEndpoint, handler)
+                        post(Prometheus.metricsEndpoint, handler)
+                    }
+                }.start(wait = false)
+            }
 
             if (ipcServer != null && rpcClient != null) {
                 IpcToUCloudProxyServer(rpcClient).init(ipcServer, rpcClient)

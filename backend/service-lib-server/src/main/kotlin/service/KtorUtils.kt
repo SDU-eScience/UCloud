@@ -21,6 +21,5 @@ fun Application.installDefaultFeatures() {
     }
 }
 
-
-typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine
+typealias HttpServerProvider = (port: Int, Application.() -> Unit) -> ApplicationEngine
 

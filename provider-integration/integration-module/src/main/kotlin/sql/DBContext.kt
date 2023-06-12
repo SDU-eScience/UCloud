@@ -4,6 +4,7 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.debug.DebugContextType
 import dk.sdu.cloud.debugSystem
+import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.delay
 import org.postgresql.util.PSQLException
 
@@ -172,6 +173,7 @@ suspend fun <R> DBContext.Connection.withTransaction(
     closure: suspend (DBContext.Connection) -> R
 ): R {
     return debugSystem.useContext(DebugContextType.DATABASE_TRANSACTION) {
+        val start = Time.now()
         openTransaction()
         try {
             val result = closure(this)
@@ -181,6 +183,8 @@ suspend fun <R> DBContext.Connection.withTransaction(
         } catch (ex: Throwable) {
             rollback()
             throw ex
+        } finally {
+            SimpleConnectionPool.transactionDuration.observe((Time.now() - start).toDouble())
         }
     }
 }

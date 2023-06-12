@@ -12,7 +12,7 @@ import dk.sdu.cloud.service.SimpleCache
 
 class VerifiedJobCache(private val serviceClient: AuthenticatedClient) {
     private val cache = SimpleCache<String, Job>(
-        maxAge = 1000 * 60 * 60,
+        maxAge = 1000 * 60 * 60 * 8,
         lookup = { id ->
             JobsControl.retrieve.call(
                 ResourceRetrieveRequest(JobIncludeFlags(), id),

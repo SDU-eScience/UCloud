@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins.storage.ucloud
 
+import dk.sdu.cloud.Prometheus
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.calls.client.*
@@ -69,6 +70,8 @@ class UsageScan(
         if (now - lastRun < oneDay) return
         if (!isRunning.compareAndSet(false, true)) return
 
+        val taskName = "file_usage_scan"
+        Prometheus.countBackgroundTask(taskName)
         try {
             dataPoints.clear()
             globalErrorCounter.set(0)
@@ -153,6 +156,7 @@ class UsageScan(
             }
         } finally {
             isRunning.set(false)
+            Prometheus.measureBackgroundDuration(taskName, Time.now() - now)
         }
     }
 
