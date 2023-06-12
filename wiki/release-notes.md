@@ -7,6 +7,13 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 12-06-23
+
+```
+UCloud/Core @ 2023.3.0
+UCloud/Frontend @ 2023.3.0
+```
+
 ## 06-06-23
 
 ```
