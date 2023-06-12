@@ -6,6 +6,7 @@ import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import MainContainer from "@/MainContainer/MainContainer";
 import {
+    addContextSwitcherInPortal,
     div,
     EmptyReasonTag,
     Filter,
@@ -1153,13 +1154,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             });
 
         }
-        const browser = browserRef.current;
-        if (browser != null) {
-            const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
-            if (contextSwitcher) {
-                setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
-            }
-        }
+        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
     useLayoutEffect(() => {

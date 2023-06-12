@@ -2,7 +2,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, dateRangeFilters} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
 import {useNavigate} from "react-router";
@@ -130,13 +130,7 @@ export function ExperimentalSSHKey(): JSX.Element {
                 browser.on("pathToEntry", sshKey => sshKey.id);
             });
         }
-        const browser = browserRef.current;
-        if (browser != null) {
-            const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
-            if (contextSwitcher) {
-                setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
-            }
-        }
+        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
         // TODO(Jonas): Creation
     }, []);
 

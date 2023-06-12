@@ -5,7 +5,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import {clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser} from "@/ui-components/ResourceBrowser";
+import {addContextSwitcherInPortal, clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {appLogoCache} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
@@ -223,13 +223,7 @@ function ExperimentalJobs({opts}: {opts?: {embedded: boolean}}): JSX.Element {
                 browser.on("generateBreadcrumbs", () => [{title: "Jobs", absolutePath: ""}]);
             });
         }
-        const browser = browserRef.current;
-        if (browser != null) {
-            const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
-            if (contextSwitcher) {
-                setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
-            }
-        }
+        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
     useRefreshFunction(() => {

@@ -9,7 +9,7 @@ import AppRoutes from "@/Routes";
 import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {doNothing} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, dateRangeFilters} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {createPortal} from "react-dom";
 import {useDispatch, useSelector} from "react-redux";
@@ -193,13 +193,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
                 browser.on("pathToEntry", entry => entry.id);
             });
         }
-        const browser = browserRef.current;
-        if (browser != null) {
-            const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
-            if (contextSwitcher) {
-                setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
-            }
-        }
+        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);       
         // TODO(Jonas): Creation
     }, [])
 

@@ -1,4 +1,4 @@
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {GrantApplication, browseGrantApplications} from "./GrantApplicationTypes";
 import {useDispatch, useSelector} from "react-redux";
@@ -107,7 +107,7 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
                     row.stat3.append(status);
                 });
 
-                browser.on("generateBreadcrumbs", () => [{title: `${isIngoing ? "Ingoing": "Outgoing"} grants`, absolutePath: ""}]);
+                browser.on("generateBreadcrumbs", () => [{title: `${isIngoing ? "Ingoing" : "Outgoing"} grants`, absolutePath: ""}]);
                 browser.on("renderEmptyPage", reason => {
                     const e = browser.emptyPageElement;
                     switch (reason.tag) {
@@ -163,13 +163,7 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
                 browser.on("pathToEntry", grantApplication => grantApplication.id);
             });
         }
-        const browser = browserRef.current;
-        if (browser != null) {
-            const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
-            if (contextSwitcher) {
-                setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
-            }
-        }
+        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
     useRefreshFunction(() => {

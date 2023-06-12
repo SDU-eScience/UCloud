@@ -13,6 +13,8 @@ import {PageV2} from "@/UCloud";
 import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
+import {createPortal} from "react-dom";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
 
 /*
@@ -3013,6 +3015,16 @@ export function setFilterStorageValue(namespace: string, key: string, value: str
 
 export function clearFilterStorageValue(namespace: string, key: string) {
     localStorage.removeItem(`${namespace}:${key}`);
+}
+
+export function addContextSwitcherInPortal<T>(browserRef: React.RefObject<ResourceBrowser<T>>, setPortal: (el: JSX.Element) => void) {
+    const browser = browserRef.current;
+    if (browser != null) {
+        const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
+        if (contextSwitcher) {
+            setPortal(createPortal(<ContextSwitcher />, contextSwitcher));
+        }
+    }
 }
 
 // https://stackoverflow.com/a/13139830
