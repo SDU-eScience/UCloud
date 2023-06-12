@@ -17,6 +17,10 @@ buildscript {
     }
 }
 
+plugins {
+    `record`
+}
+
 // https://guides.gradle.org/creating-multi-project-builds/
 // https://docs.gradle.org/current/userguide/multi_project_builds.html
 subprojects {

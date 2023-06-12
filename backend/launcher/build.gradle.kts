@@ -53,6 +53,7 @@ kotlin {
 
         all {
             languageSettings.enableLanguageFeature("InlineClasses")
+            languageSettings.enableLanguageFeature("ContextReceivers")
             languageSettings.progressiveMode = true
             languageSettings.optIn("kotlin.RequiresOptIn")
             languageSettings.optIn("kotlin.time.ExperimentalTime")

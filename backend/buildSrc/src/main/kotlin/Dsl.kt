@@ -1,112 +1,3 @@
-fun main() {
-    /*
-    val cursor = Cursor(
-        "stdin",
-        """
-            /// A generic error message
-            ///
-            /// UCloud uses HTTP status codes for all error messages...
-            @Stable
-            record CommonErrorMessage {
-                why: String,
-                errorCode: String?,
-            }
-
-            @Experimental(level = "ALPHA")
-            tagged record AppParameterValue {
-                @Tag(text = "file", ordinal = 0)
-                record File : AppParameterValue {
-                    path: String,
-                    readOnly: Boolean,
-                }
-                
-                @Tag(text = "boolean", ordinal = 1)
-                record Bool : AppParameterValue {
-                    value: Boolean,
-                }
-            }
-
-            @Stable(version = 1)
-            enum JobState {
-                IN_QUEUE = 0,
-                RUNNING = 1,
-                CANCELING = 2,
-                SUCCESS = 3,
-                FAILURE = 4,
-                EXPIRED = 5,
-                SUSPENDED = 6,
-            }
-
-            @Stable(version = 1)
-            record JobStatus {
-                state: JobState,
-                startedAt: Long?,
-                expiresAt: Long?,
-                // ...
-            }
-
-        """.trimIndent()
-    )
-     */
-
-    val cursor = Cursor(
-        "stdin",
-        """
-            // @Stable(version = 1)
-            // enum JobState {
-            //     IN_QUEUE = 0,
-            //     RUNNING = 1,
-            //     CANCELING = 2,
-            //     SUCCESS = 3,
-            //     FAILURE = 4,
-            //     EXPIRED = 5,
-            //     SUSPENDED = 6,
-            // }
-            
-            // record SmallExampleOfPrimitives {
-            //     hund: Byte?,
-            //     dog: Short?,
-            //     fie: Int?,
-            //     fiedog: Long?,
-            //     isGood: Boolean?,
-            //     
-            //     u8: UByte?,
-            //     u16: UShort?,
-            //     u32: UInt?,
-            //     u64: ULong?,
-            // }
-            
-            tagged record AnInterface {
-                myProperty: Int,
-                
-                @Tag(text = "impl1", ordinal = 0)
-                record Impl1 : AnInterface {
-                    myProperty: Int,
-                    myOwnProperty: Short,
-                }
-                
-                @Tag(text = "impl2", ordinal = 1)
-                record Impl2 : AnInterface {
-                    myProperty: Int,
-                    someOtherProperty: String,
-                }
-            }
-            
-            record LinkedList2 {
-                value: AnInterface,
-                next: LinkedList2?,
-            }
-        """.trimIndent()
-    )
-
-    val ast = Parser(cursor).parse()
-    val typeTable = buildTypeTable(listOf(ast))
-    println(generateKotlinCode(ast, typeTable))
-//    repeat(60) {
-//        println(Lexer.consume(cursor))
-//    }
-}
-
 // =====================================================================================================================
 // Parsing
 // =====================================================================================================================
@@ -115,10 +6,14 @@ data class Location(
     var fileIdentifier: String,
     var column: Int,
     var line: Int
-)
+) {
+    override fun toString(): String {
+        return "$fileIdentifier at $line:$column"
+    }
+}
 
 class Cursor(
-    private val fileIdentifier: String,
+    val fileIdentifier: String,
     private val data: String
 ) {
     private var pointer = 0
@@ -309,8 +204,10 @@ class Parser(private val cursor: Cursor) {
             override val location: Location,
             val name: String,
             val annotations: List<Annotation>,
-            val entries: List<Pair<String, Int>>,
+            val entries: List<EnumEntry>,
         ) : Node() {
+            data class EnumEntry(val name: String, val ordinal: Int, val annotations: List<Annotation>)
+
             override fun toString(): String = buildString {
                 appendLine("Node at $location")
                 appendLine("name = $name")
@@ -370,7 +267,9 @@ class Parser(private val cursor: Cursor) {
     }
 
     data class Ast(
+        val fileIdentifier: String,
         val packageName: String?,
+        val imports: List<String>,
         val records: List<Node.Record>,
         val enumerations: List<Node.Enumeration>,
     ) {
@@ -387,16 +286,13 @@ class Parser(private val cursor: Cursor) {
 
     fun parse(): Ast {
         var packageName: String? = null
+        val imports = ArrayList<String>()
 
         val initial = Lexer.consume(cursor)
         var next: Token? = initial
         if (initial is Token.Identifier && initial.identifier == "package") {
-            val packageToken = Lexer.consume(cursor)
-            if (packageToken !is Token.Identifier) {
-                reportError(packageToken?.location, "Expected a package name. For example: package dk.sdu.cloud")
-            }
-
-            packageName = packageToken.identifier
+            cursor.consumeWhitespace()
+            packageName = cursor.consumeRestOfLine()
             next = Lexer.consume(cursor)
         }
 
@@ -406,6 +302,10 @@ class Parser(private val cursor: Cursor) {
         val enumerations = ArrayList<Node.Enumeration>()
         while (true) {
             when {
+                next is Token.Identifier && next.identifier == "import" -> {
+                    imports.add(cursor.consumeRestOfLine().trim())
+                }
+
                 next is Token.Symbol && next.type == Token.Symbol.Type.AT_SYMBOL -> {
                     annotations.add(parseAnnotation())
                 }
@@ -435,7 +335,7 @@ class Parser(private val cursor: Cursor) {
             next = Lexer.consume(cursor, skipComment = false) ?: break
         }
 
-        return Ast(packageName, records, enumerations)
+        return Ast(cursor.fileIdentifier, packageName, imports, records, enumerations)
     }
 
     private fun parseAnnotation(): Node.Annotation {
@@ -554,33 +454,44 @@ class Parser(private val cursor: Cursor) {
     }
 
     private fun parseProperty(initialTok: Token.Identifier, annotations: List<Node.Annotation>): Node.Property {
-        var next: Token?
-        next = initialTok
-        val startOfProperty = next.location
+        val startOfProperty = initialTok.location
 
         var isOptional = false
-        val name = next.identifier
+        val name = initialTok.identifier
+        var type: String = ""
 
-        next = Lexer.consume(cursor)
-        if (next !is Token.Symbol || next.type != Token.Symbol.Type.COLON) {
-            reportError(next?.location, "Expected colon to start the type. For example: `path: String,`")
+        run {
+            val next = Lexer.consume(cursor)
+            if (next !is Token.Symbol || next.type != Token.Symbol.Type.COLON) {
+                reportError(next?.location, "Expected colon to start the type. For example: `path: String,`")
+            }
         }
 
-        next = Lexer.consume(cursor)
-        if (next !is Token.Identifier) {
-            reportError(next?.location, "Expected a type for the property. For example: `path: String,`")
+        run {
+            val next = Lexer.consume(cursor)
+            if (next !is Token.Identifier) {
+                reportError(next?.location, "Expected a type for the property. For example: `path: String,`")
+            }
+
+            type = next.identifier
         }
 
-        val type = next.identifier
+        run {
+            var nextTok = Lexer.consume(cursor)
+            run {
+                val next = nextTok
+                if (next is Token.Symbol && next.type == Token.Symbol.Type.QUESTION_MARK) {
+                    isOptional = true
+                    nextTok = Lexer.consume(cursor)
+                }
+            }
 
-        next = Lexer.consume(cursor)
-        if (next is Token.Symbol && next.type == Token.Symbol.Type.QUESTION_MARK) {
-            isOptional = true
-            next = Lexer.consume(cursor)
-        }
-
-        if (next !is Token.Symbol || next.type != Token.Symbol.Type.COMMA) {
-            reportError(next?.location, "Expected a comma to end the property. For example: `path: String,`")
+            run {
+                val next = nextTok
+                if (next !is Token.Symbol || next.type != Token.Symbol.Type.COMMA) {
+                    reportError(next?.location, "Expected a comma to end the property. For example: `path: String,`")
+                }
+            }
         }
 
         return Node.Property(startOfProperty!!, annotations, name, type, isOptional)
@@ -597,10 +508,16 @@ class Parser(private val cursor: Cursor) {
             reportError(braceStart?.location, "Expected '{' to start the enum")
         }
 
-        val entries = ArrayList<Pair<String, Int>>()
+        var entryAnnotations = ArrayList<Node.Annotation>()
+        val entries = ArrayList<Node.Enumeration.EnumEntry>()
         while (true) {
             val initial = Lexer.consume(cursor)
             if (initial is Token.Symbol && initial.type == Token.Symbol.Type.CURLY_END) break
+
+            if (initial is Token.Symbol && initial.type == Token.Symbol.Type.AT_SYMBOL) {
+                entryAnnotations.add(parseAnnotation())
+                continue
+            }
 
             if (initial !is Token.Identifier) {
                 reportError(initial?.location, "Expected identifier to start enum. Example: `FOO = 1,`")
@@ -621,14 +538,16 @@ class Parser(private val cursor: Cursor) {
                 reportError(commaTok?.location, "Expected a comma to end the enum. This is mandatory even for the last element!")
             }
 
-            entries.add(initial.identifier to ordinalTok.integer)
+            entries.add(Node.Enumeration.EnumEntry(initial.identifier, ordinalTok.integer, entryAnnotations))
+            entryAnnotations = ArrayList()
         }
 
         return Node.Enumeration(nameTok.location, nameTok.identifier, annotations, entries)
     }
 }
 
-fun reportError(location: Location?, message: String): Nothing = error("$location: $message")
+fun reportError(location: Location?, message: String): Nothing =
+    error("Error in $location $message")
 
 // =====================================================================================================================
 // Type table
@@ -637,8 +556,16 @@ data class TypeTable(
     val typesByCanonicalName: Map<String, Type>,
 ) {
     fun lookupType(file: Parser.Ast, name: String): Type? {
-        val packagePrefix = if (file.packageName != null) file.packageName + "." else ""
-        return typesByCanonicalName[packagePrefix + name]
+        val packageNames = ArrayList<String?>()
+        packageNames.add(file.packageName)
+        packageNames.addAll(file.imports)
+
+        for (pack in packageNames) {
+            val packagePrefix = if (pack != null) "$pack." else ""
+            val result = typesByCanonicalName[packagePrefix + name]
+            if (result != null) return result
+        }
+        return null
     }
 
     sealed class Type {
@@ -722,15 +649,6 @@ class IndentedStringBuilder {
 
     override fun toString() = base.toString()
 }
-enum class F(val encoded: Int) {
-    Hund(2),
-
-    ;companion object {
-        fun fromEncoded(encoded: Int): F {
-            return values().find { it.encoded == encoded } ?: error("bad")
-        }
-    }
-}
 
 data class KotlinConversion(
     val ktType: String,
@@ -742,7 +660,7 @@ data class KotlinConversion(
     val jsonDecoder: String?,
 )
 
-private val kotlinConversionTable: Map<String, KotlinConversion> = buildMap {
+private val kotlinConversionTable: Map<String, KotlinConversion> = HashMap<String, KotlinConversion>().apply {
     put("Byte", KotlinConversion("Byte", 1, "get", "put", null, null, ".toByte()"))
     put("UByte", KotlinConversion("UByte", 1, "get", "put", ".toUByte()", ".toByte()", ".toUByte()"))
 
@@ -763,12 +681,12 @@ fun lookupPropertyConversion(ast: Parser.Ast, types: TypeTable, property: Parser
     return if (type is TypeTable.Type.Enumeration) {
         KotlinConversion(
             property.type,
-            4,
-            "getInt",
-            "putInt",
-            ".let { ${property.type}.fromEncoded(it) }",
-            ".encoded",
-            ".let { ${property.type}.valueOf(it) }"
+            2,
+            "getShort",
+            "putShort",
+            ".let { ${property.type}.fromEncoded(it.toInt()) }",
+            ".encoded.toShort()",
+            ".let { ${property.type}.fromSerialName(it) }"
         )
     } else {
         kotlinConversionTable[property.type]
@@ -779,11 +697,20 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
     val toBeInsertedAfterRootRecord = IndentedStringBuilder()
 
     fun IndentedStringBuilder.visitEnum(enum: Parser.Node.Enumeration) {
-        appendLine("enum class ${enum.name}(val encoded: Int) {")
+        appendLine("enum class ${enum.name}(val encoded: Int, val serialName: String) {")
         addIndentation()
 
-        for ((entry, encoded) in enum.entries) {
-            appendLine("$entry($encoded),")
+        for ((entry, encoded, annotations) in enum.entries) {
+            val jsonNameAnnotation = annotations.find { it.name == "Json" }
+                ?.attributes?.find { it.first == "name" }?.second
+
+            val serialName = if (jsonNameAnnotation is Token.Text) {
+                jsonNameAnnotation.text
+            } else {
+                entry
+            }
+
+            appendLine("$entry($encoded, \"$serialName\"),")
         }
 
 
@@ -792,6 +719,13 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
             appendLine("fun fromEncoded(encoded: Int): ${enum.name} {")
             indent {
                 appendLine("return values().find { it.encoded == encoded } ?: error(\"Unknown enum encoding: ${"$"}encoded\")")
+            }
+            appendLine("}")
+
+            appendLine()
+            appendLine("fun fromSerialName(name: String): ${enum.name} {")
+            indent {
+                appendLine("return values().find { it.serialName == name } ?: error(\"Unknown enum encoding: ${"$"}name\")")
             }
             appendLine("}")
         }
@@ -905,7 +839,7 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
             var offset = 0
             if (record.implements != null) {
                 val annotation = record.annotations.find { it.name == "Tag" } ?:
-                    reportError(record.location, "Mandatory @Tag(text = \"name\", ordinal = 42) annotation is missing")
+                reportError(record.location, "Mandatory @Tag(text = \"name\", ordinal = 42) annotation is missing")
 
                 val ordinal = annotation.attributes.find { it.first == "ordinal" }
                 val ordinalValueTok = ordinal?.second
@@ -1103,7 +1037,7 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
                     if (converter != null || prop.type == "String") {
                         val type = types.lookupType(ast, prop.type)
                         if (type is TypeTable.Type.Enumeration) {
-                            append("JsonPrimitive(it.name)")
+                            append("JsonPrimitive(it.serialName)")
                         } else {
                             append("JsonPrimitive(it)")
                         }
@@ -1121,6 +1055,8 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
             appendLine("companion object : BinaryTypeCompanion<${record.name}> {")
             addIndentation()
             appendLine("override val size = $offset")
+            appendLine("private val mySerializer = BinaryTypeSerializer(this)")
+            appendLine("fun serializer() = mySerializer")
             appendLine("override fun create(buffer: BufferAndOffset) = ${record.name}(buffer)")
 
             appendLine("override fun decodeFromJson(allocator: BinaryAllocator, json: JsonElement): ${record.name} {")
@@ -1226,13 +1162,27 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
     }
 
     return IndentedStringBuilder().apply {
-        repeat(3) { appendLine("// GENERATED CODE - DO NOT MODIFY") }
+        repeat(3) { appendLine("// GENERATED CODE - DO NOT MODIFY - See ${ast.fileIdentifier.substringAfterLast("/")}") }
         appendLine()
 
         if (ast.packageName != null) {
-            appendLine("package ${ast.packageName}")
+            appendLine("package dk.sdu.cloud.${ast.packageName.trim()}.api")
             appendLine()
         }
+
+        appendLine("""
+            import kotlinx.serialization.json.JsonElement
+            import kotlinx.serialization.json.JsonNull
+            import kotlinx.serialization.json.JsonObject
+            import kotlinx.serialization.json.JsonPrimitive
+            import dk.sdu.cloud.messages.*
+            
+        """.trimIndent())
+
+        for (import in ast.imports) {
+            appendLine("import dk.sdu.cloud.$import.api.*")
+        }
+        if (ast.imports.isNotEmpty()) appendLine()
 
         for (enum in ast.enumerations) {
             visitEnum(enum)
