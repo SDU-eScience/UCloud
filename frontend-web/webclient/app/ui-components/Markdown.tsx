@@ -13,8 +13,8 @@ function CodeBlock(props: {lang?: string; inline?: boolean; children: React.Reac
     );
 }
 
-const LinkBlock: React.FunctionComponent<{href?: string; children: React.ReactNode & React.ReactNode[]}> = props => {
-return <ExternalLink color={"darkBlue"} href={props.href}>{props.children}</ExternalLink>;
+function LinkBlock(props: {href?: string; children: React.ReactNode & React.ReactNode[]}) {
+    return <ExternalLink color={"darkBlue"} href={props.href}>{props.children}</ExternalLink>;
 };
 
 const Markdown: React.FunctionComponent<Options> = props => {

@@ -103,7 +103,7 @@ export function ContextSwitcher(): JSX.Element {
             <ClickableDropdown
                 trigger={
                     <Flex>
-                        <Truncate fontSize={16} width="100px"><b>{activeContext}</b></Truncate>
+                        <Truncate title={activeContext} fontSize={16} width="130px"><b>{activeContext}</b></Truncate>
                         <Icon name="chevronDown" size="12px" ml="4px" mt="6px" />
                     </Flex>
                 }
