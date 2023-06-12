@@ -807,12 +807,14 @@ class ShareService(
                 {
                     setParameter("token", request.token)
                     setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("approved", Share.State.APPROVED.toString())
                 },
                 """
                     select file_path, shared_by, available_at from file_orchestrator.shares_links l
                     left join file_orchestrator.shares s on
                         file_path = original_file_path and (
-                            shared_with = :username or shared_by = :username
+                            (shared_with = :username and state = :approved) or
+                            shared_by = :username
                         )
                     where token = :token
                     group by available_at, shared_by, file_path
