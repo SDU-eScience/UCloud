@@ -71,6 +71,7 @@ fun startProcess(
     nonBlockingStdout: Boolean = false,
     nonBlockingStderr: Boolean = false,
     workingDir: File? = null,
+    logFile: File? = null,
 ): Process {
     val jvmProcess = ProcessBuilder().apply {
         command(args)
@@ -84,8 +85,17 @@ fun startProcess(
 
         if (workingDir != null) directory(workingDir)
 
-        if (!attachStdout) redirectOutput(ProcessBuilder.Redirect.DISCARD)
-        if (!attachStderr) redirectError(ProcessBuilder.Redirect.DISCARD)
+        if (!attachStdout) {
+            redirectOutput(ProcessBuilder.Redirect.DISCARD)
+        } else if (logFile != null) {
+            redirectOutput(logFile)
+        }
+
+        if (!attachStderr) {
+            redirectError(ProcessBuilder.Redirect.DISCARD)
+        } else if (logFile != null) {
+            redirectError(logFile)
+        }
     }.start()
 
     if (!attachStdin) jvmProcess.outputStream.close()

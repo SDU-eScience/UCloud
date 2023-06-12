@@ -17,7 +17,7 @@ interface K8Dependencies {
     val debug: DebugSystem
     val jobCache: VerifiedJobCache
 
-    suspend fun addStatus(jobId: String, vararg message: String): Boolean
+    suspend fun addStatus(jobId: String, vararg message: String, forceSend: Boolean = false): Boolean
 
     suspend fun changeState(
         jobId: String,
@@ -46,10 +46,10 @@ data class K8DependenciesImpl(
 ) : K8Dependencies {
     private val lastMessage = SimpleCache<String, String>(maxAge = 60_000 * 10, lookup = { null })
 
-    override suspend fun addStatus(jobId: String, vararg message: String): Boolean {
+    override suspend fun addStatus(jobId: String, vararg message: String, forceSend: Boolean): Boolean {
         if (message.isEmpty()) return false
         val last = lastMessage.get(jobId)
-        if (message.size > 1 || last != message.singleOrNull()) {
+        if (message.size > 1 || last != message.singleOrNull() || forceSend) {
             JobsControl.update.call(
                 bulkRequestOf(
                     message.map { ResourceUpdateAndId(jobId, JobUpdate(status = it)) }

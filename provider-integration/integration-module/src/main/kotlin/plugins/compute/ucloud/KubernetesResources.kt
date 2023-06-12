@@ -520,6 +520,7 @@ data class Volume(
     var persistentVolumeClaim: PersistentVolumeClaimSource? = null,
     var cephfs: CephfsVolumeSource? = null,
     var hostPath: HostPathSource? = null,
+    var csi: CsiVolumeSource? = null,
 ) {
     @Serializable
     data class EmptyDirVolumeSource(
@@ -557,6 +558,13 @@ data class Volume(
         var options: JsonObject? = null,
         var readOnly: Boolean? = null,
         var secretRef: LocalObjectReference? = null
+    )
+
+    @Serializable
+    data class CsiVolumeSource(
+        var driver: String? = null,
+        var volumeAttributes: JsonObject? = null,
+        var readOnly: Boolean? = null,
     )
 
     @Serializable
@@ -681,7 +689,8 @@ data class Node(
     var apiVersion: String = "v1",
     var kind: String = "Node",
     var metadata: ObjectMeta? = null,
-    var status: Status? = null
+    var status: Status? = null,
+    var spec: Spec? = null,
 ) {
     @Serializable
     data class Status(
@@ -699,8 +708,15 @@ data class Node(
 
     @Serializable
     data class Allocatable(
-        var cpu: Int? = null,
-        var memory: String? = null
+        var cpu: String? = null,
+        var memory: String? = null,
+        @SerialName("nvidia.com/gpu")
+        var nvidiaGpu: String? = null,
+    )
+
+    @Serializable
+    data class Spec(
+        var unschedulable: Boolean? = null
     )
 }
 
