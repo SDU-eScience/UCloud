@@ -1,9 +1,8 @@
 package dk.sdu.cloud.config
 
-import dk.sdu.cloud.accounting.api.ChargeType
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.accounting.api.ProductPriceUnit
+import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -12,6 +11,7 @@ sealed class ConfigProduct<T : Product> {
     abstract val name: String
     abstract val description: String
     abstract val cost: ConfigProductCost
+    abstract val allowAllocationRequestsFrom: AllocationRequestsGroup
 
     abstract fun toProduct(category: String, provider: String): T
 
@@ -92,6 +92,7 @@ sealed class ConfigProduct<T : Product> {
         override val name: String,
         override val description: String,
         override val cost: ConfigProductCost,
+        override val allowAllocationRequestsFrom: AllocationRequestsGroup = AllocationRequestsGroup.ALL
     ) : ConfigProduct<Product.Storage>() {
         override fun toProduct(category: String, provider: String): Product.Storage {
             return Product.Storage(
@@ -102,6 +103,7 @@ sealed class ConfigProduct<T : Product> {
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
                 freeToUse = isFree(),
+                allowAllocationRequestsFrom = allowAllocationRequestsFrom,
             )
         }
     }
@@ -112,6 +114,7 @@ sealed class ConfigProduct<T : Product> {
         override val name: String,
         override val description: String,
         override val cost: ConfigProductCost,
+        override val allowAllocationRequestsFrom: AllocationRequestsGroup = AllocationRequestsGroup.ALL
     ) : ConfigProduct<Product.Ingress>() {
         override fun toProduct(category: String, provider: String): Product.Ingress {
             return Product.Ingress(
@@ -122,6 +125,7 @@ sealed class ConfigProduct<T : Product> {
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
                 freeToUse = isFree(),
+                allowAllocationRequestsFrom = allowAllocationRequestsFrom
             )
         }
     }
@@ -132,6 +136,7 @@ sealed class ConfigProduct<T : Product> {
         override val name: String,
         override val description: String,
         override val cost: ConfigProductCost,
+        override val allowAllocationRequestsFrom: AllocationRequestsGroup = AllocationRequestsGroup.ALL
     ) : ConfigProduct<Product.NetworkIP>() {
         override fun toProduct(category: String, provider: String): Product.NetworkIP {
             return Product.NetworkIP(
@@ -142,6 +147,7 @@ sealed class ConfigProduct<T : Product> {
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
                 freeToUse = isFree(),
+                allowAllocationRequestsFrom = allowAllocationRequestsFrom
             )
         }
     }
@@ -152,6 +158,7 @@ sealed class ConfigProduct<T : Product> {
         override val name: String,
         override val description: String,
         override val cost: ConfigProductCost,
+        override val allowAllocationRequestsFrom: AllocationRequestsGroup = AllocationRequestsGroup.ALL,
         val tags: List<String>
     ) : ConfigProduct<Product.License>() {
         override fun toProduct(category: String, provider: String): Product.License {
@@ -163,6 +170,7 @@ sealed class ConfigProduct<T : Product> {
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
                 freeToUse = isFree(),
+                allowAllocationRequestsFrom = allowAllocationRequestsFrom,
                 tags = tags,
             )
         }
@@ -174,6 +182,7 @@ sealed class ConfigProduct<T : Product> {
         override val name: String,
         override val description: String,
         override val cost: ConfigProductCost,
+        override val allowAllocationRequestsFrom: AllocationRequestsGroup = AllocationRequestsGroup.ALL,
         val cpu: Int,
         val memoryInGigs: Int,
         val gpu: Int? = null,
@@ -190,6 +199,7 @@ sealed class ConfigProduct<T : Product> {
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
                 freeToUse = isFree(),
+                allowAllocationRequestsFrom = allowAllocationRequestsFrom,
 
                 cpu = cpu,
                 memoryInGigs = memoryInGigs,

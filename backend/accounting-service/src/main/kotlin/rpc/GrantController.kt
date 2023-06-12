@@ -30,12 +30,18 @@ class GrantController(
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         //GRANTS
         implement(Grants.updateApplicationState) {
-            applications.updateStatus(actorAndProject, request )
+            applications.updateStatus(actorAndProject, request)
             ok(Unit)
         }
 
         implement(Grants.closeApplication) {
-            val updates = bulkRequestOf(request.items.map { UpdateApplicationState(it.applicationId.toLong(), GrantApplication.State.CLOSED, false) })
+            val updates = bulkRequestOf(request.items.map {
+                UpdateApplicationState(
+                    it.applicationId.toLong(),
+                    GrantApplication.State.CLOSED,
+                    false
+                )
+            })
             applications.closeApplication(actorAndProject, updates)
             ok(Unit)
         }
@@ -58,14 +64,28 @@ class GrantController(
         }
 
         implement(Grants.browseProjects) {
-            ok(settings.browse(actorAndProject, request))
+            ok(
+                settings.browse(
+                    actorAndProject,
+                    GrantsBrowseAffiliationsRequest(
+                        request.itemsPerPage,
+                        request.next,
+                        request.consistency,
+                        request.itemsToSkip,
+                        null,
+                        null
+                    )
+                )
+            )
         }
 
         implement(Grants.browseAffiliations) {
-            ok(settings.browse(
-                actorAndProject,
-                request
-            ))
+            ok(
+                settings.browse(
+                    actorAndProject,
+                    request
+                )
+            )
         }
 
         implement(Grants.browseAffiliationsByResource) {
