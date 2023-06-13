@@ -225,3 +225,9 @@ record FindBulkRequest {
 record FindBulkResponse {
     avatars: Avatar{}, // Dictionary, which is equivalent to Map<String, Avatar>
 }
+
+record Simple {
+    fie: Int,
+    hund: String,
+    enumeration: Top,
+}

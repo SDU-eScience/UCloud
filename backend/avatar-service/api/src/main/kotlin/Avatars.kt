@@ -663,3 +663,81 @@ fun BinaryAllocator.FindBulkResponse(
     return result
 }
 
+@JvmInline
+value class Simple(override val buffer: BufferAndOffset) : BinaryType {
+    var fie: Int
+        inline get() = buffer.data.getInt(0 + buffer.offset)
+        inline set (value) { buffer.data.putInt(0 + buffer.offset, value) }
+
+    var _hund: Text
+        inline get() = Text(buffer.copy(offset = buffer.data.getInt(4 + buffer.offset)))
+        inline set(value) { buffer.data.putInt(4 + buffer.offset, value.buffer.offset) }
+    val hund: String
+        inline get() = _hund.decode()
+
+    var enumeration: Top
+        inline get() = buffer.data.getShort(8 + buffer.offset).let { Top.fromEncoded(it.toInt()) }
+        inline set (value) { buffer.data.putShort(8 + buffer.offset, value.encoded.toShort()) }
+
+    override fun encodeToJson(): JsonElement = JsonObject(mapOf(
+        "fie" to (fie.let { JsonPrimitive(it) }),
+        "hund" to (hund.let { JsonPrimitive(it) }),
+        "enumeration" to (enumeration.let { JsonPrimitive(it.serialName) }),
+    ))
+
+    companion object : BinaryTypeCompanion<Simple> {
+        override val size = 10
+        private val mySerializer = BinaryTypeSerializer(this)
+        fun serializer() = mySerializer
+        override fun create(buffer: BufferAndOffset) = Simple(buffer)
+        override fun decodeFromJson(allocator: BinaryAllocator, json: JsonElement): Simple {
+            if (json !is JsonObject) error("Simple must be decoded from an object")
+            val fie = run {
+                val element = json["fie"]
+                if (element == null || element == JsonNull) {
+                    null
+                } else {
+                    if (element !is JsonPrimitive) error("Expected 'fie' to be a primitive")
+                    element.content.toInt()
+                }
+            } ?: error("Missing required property: fie in Simple")
+            val hund = run {
+                val element = json["hund"]
+                if (element == null || element == JsonNull) {
+                    null
+                } else {
+                    if (element !is JsonPrimitive) error("Expected 'hund' to be a primitive")
+                    element.content
+                }
+            } ?: error("Missing required property: hund in Simple")
+            val enumeration = run {
+                val element = json["enumeration"]
+                if (element == null || element == JsonNull) {
+                    null
+                } else {
+                    if (element !is JsonPrimitive) error("Expected 'enumeration' to be a primitive")
+                    element.content.let { Top.fromSerialName(it) }
+                }
+            } ?: error("Missing required property: enumeration in Simple")
+            return allocator.Simple(
+                fie = fie,
+                hund = hund,
+                enumeration = enumeration,
+            )
+        }
+    }
+}
+
+
+fun BinaryAllocator.Simple(
+    fie: Int,
+    hund: String,
+    enumeration: Top,
+): Simple {
+    val result = this.allocate(Simple)
+    result.fie = fie
+    result._hund = hund.let { allocateText(it) }
+    result.enumeration = enumeration
+    return result
+}
+

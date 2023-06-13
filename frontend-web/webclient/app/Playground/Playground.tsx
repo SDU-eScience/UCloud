@@ -12,10 +12,14 @@ import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import { ProductSelectorPlayground } from "@/Products/Selector";
+import {messageTest} from "@/UCloud/Messages";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
         <>
+            <Button onClick={() => {
+                messageTest();
+            }}>UCloud message test</Button>
             <ProductSelectorPlayground />
             <Button onClick={() => {
                 const now = timestampUnixMs();
@@ -73,7 +77,6 @@ export const Playground: React.FunctionComponent = () => {
                 ))}
             </Grid>
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
-            <ProjectPlayground />
         </>
     );
     return <MainContainer main={main} />;
