@@ -91,11 +91,9 @@ class IngoingHttpInterceptor(
                     ?.let { ContentType.parse(it) } == ContentType.Application.UCloudMessage
 
                 return if (canParseUCloudMessages) {
-                    println("Loading binary")
                     ctx.requestAllocator.load(ctx.ktor.call.request.receiveChannel())
                     requestType.companion.create(ctx.requestAllocator.root()) as R
                 } else {
-                    println("Loading json")
                     val receiveOrNull = try {
                         ctx.ktor.call.request.receiveChannel().readRemaining().readText().takeIf { it.isNotEmpty() }
                     } catch (ex: Throwable) {
@@ -196,7 +194,6 @@ class IngoingHttpInterceptor(
                 val canProduceBinary = acceptParts.any { ContentType.Application.UCloudMessage == ContentType.parse(it) }
 
                 if (canProduceBinary) {
-                    println("${ctx.call.request.path()} Producing binary")
                     // NOTE(Dan): We are choosing to use the allocator of the BinaryType to allow stuff like repeating
                     // the request back as a response.
                     val binData = data as BinaryType
@@ -214,7 +211,6 @@ class IngoingHttpInterceptor(
                 }
             }
 
-            println("${ctx.call.request.path()} Producing json")
             ctx.ktor.call.respond(
                 TextContent(
                     defaultMapper.encodeToString(serializer, data),
