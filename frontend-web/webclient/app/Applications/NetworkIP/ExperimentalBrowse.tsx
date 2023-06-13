@@ -185,7 +185,7 @@ export function ExperimentalNetworkIP(): JSX.Element {
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<NetworkIP>;
-                    return NetworkIPApi.retrieveOperations().filter(it => it.enabled(entries, callbacks, entries))
+                    return NetworkIPApi.retrieveOperations().filter(it => it.enabled(entries, callbacks, entries) === true);
                 });
             });
         }

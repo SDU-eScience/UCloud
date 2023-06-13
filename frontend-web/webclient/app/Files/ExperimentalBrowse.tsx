@@ -556,7 +556,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
 
                     return groupOperations(
-                        FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected))
+                        FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected) === true)
                     );
                 });
 

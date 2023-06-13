@@ -218,7 +218,7 @@ function ExperimentalJobs({opts}: {opts?: {embedded: boolean}}): JSX.Element {
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as any;
-                    return JobsApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries));
+                    return JobsApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries) === true);
                 });
                 browser.on("generateBreadcrumbs", () => [{title: "Jobs", absolutePath: ""}]);
             });
