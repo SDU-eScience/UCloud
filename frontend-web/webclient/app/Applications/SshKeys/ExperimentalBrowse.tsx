@@ -8,8 +8,6 @@ import {useDispatch, useSelector} from "react-redux";
 import {useNavigate} from "react-router";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
 import {useProjectId} from "@/Project/Api";
-import {createPortal} from "react-dom";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,

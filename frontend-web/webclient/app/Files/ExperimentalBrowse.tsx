@@ -49,9 +49,6 @@ import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {setPopInChild} from "@/ui-components/PopIn";
 import AppRoutes from "@/Routes";
-import {createPortal} from "react-dom";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
-import {useProjectId} from "@/Project/Api";
 
 // Cached network data
 // =====================================================================================================================

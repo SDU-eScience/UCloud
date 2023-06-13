@@ -7,6 +7,7 @@ import {
     EmptyReasonTag,
     ResourceBrowser,
     ResourceBrowseFeatures,
+    addContextSwitcherInPortal,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch, useSelector, useStore} from "react-redux";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -28,8 +29,6 @@ import {theme} from "@/ui-components";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
-import {createPortal} from "react-dom";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {useProjectId} from "@/Project/Api";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
@@ -424,10 +423,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 document.addEventListener("", (a) => console.log(a));
             });
 
-            const contextSwitcher = document.querySelector<HTMLDivElement>(".context-switcher");
-            if (contextSwitcher) {
-                setSwitcherWorkaround(createPortal(<ContextSwitcher />, contextSwitcher));
-            }
+            addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
         }
     }, []);
 

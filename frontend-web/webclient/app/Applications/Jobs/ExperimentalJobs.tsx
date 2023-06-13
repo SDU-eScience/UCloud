@@ -17,8 +17,6 @@ import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useDispatch, useSelector} from "react-redux";
 import AppRoutes from "@/Routes";
 import {useProjectId} from "@/Project/Api";
-import {createPortal} from "react-dom";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,

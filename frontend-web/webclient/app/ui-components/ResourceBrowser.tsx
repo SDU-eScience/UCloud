@@ -2744,6 +2744,7 @@ export class ResourceBrowser<T> {
             .file-browser .operations {
                 display: flex;
                 flex-direction: row;
+                overflow-x: scroll;
                 gap: 16px;
             }
 
