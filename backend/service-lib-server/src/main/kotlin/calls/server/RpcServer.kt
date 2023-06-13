@@ -4,6 +4,9 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.messages.AllocatorPool
+import dk.sdu.cloud.messages.BinaryTypeSerializer
+import dk.sdu.cloud.messages.useAllocator
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.microWhichIsConfiguringCalls
@@ -352,6 +355,14 @@ class RpcServer {
         requestCounter.labels(call.fullName).inc()
         requestsInFlight.labels(call.fullName).inc()
 
+        if (call.requestType is BinaryTypeSerializer<*>) {
+            ctx.requestAllocatorOrNull = AllocatorPool.borrow()
+        }
+
+        if (call.successType is BinaryTypeSerializer<*> || call.errorType is BinaryTypeSerializer<*>) {
+            ctx.responseAllocatorOrNull = AllocatorPool.borrow()
+        }
+
         @Suppress("TooGenericExceptionCaught")
         try {
             val handler = handlers[call] ?: run {
@@ -470,6 +481,14 @@ class RpcServer {
                     }
                 }
             }
+
+        run {
+            val requestAllocator = ctx.requestAllocatorOrNull
+            val responseAllocator = ctx.responseAllocatorOrNull
+
+            if (requestAllocator != null) AllocatorPool.recycle(requestAllocator)
+            if (responseAllocator != null) AllocatorPool.recycle(responseAllocator)
+        }
 
         if (responseOrDefault.statusCode.isSuccess()) {
             requestsSuccessCounter.labels(call.fullName).inc()

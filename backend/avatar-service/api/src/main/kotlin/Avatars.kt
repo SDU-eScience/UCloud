@@ -9,6 +9,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import dk.sdu.cloud.messages.*
+import io.ktor.http.*
 
 enum class Top(val encoded: Int, val serialName: String) {
     NO_HAIR(1, "NoHair"),
@@ -576,6 +577,94 @@ fun BinaryAllocator.Avatar(
 }
 
 @JvmInline
+value class FindBulkRequest(override val buffer: BufferAndOffset) : BinaryType {
+    var username: BinaryTypeList<Text>
+        inline get() {
+            val offset = buffer.data.getInt(0 + buffer.offset)
+            return (if (offset == 0) null else BinaryTypeList(Text, buffer.copy(offset = offset))) ?: error("Missing property username")
+        }
+        inline set(value) { buffer.data.putInt(0 + buffer.offset, value.buffer.offset) }
+
+    override fun encodeToJson(): JsonElement = JsonObject(mapOf(
+        "username" to (username.let { it.encodeToJson() }),
+    ))
+
+    companion object : BinaryTypeCompanion<FindBulkRequest> {
+        override val size = 4
+        private val mySerializer = BinaryTypeSerializer(this)
+        fun serializer() = mySerializer
+        override fun create(buffer: BufferAndOffset) = FindBulkRequest(buffer)
+        override fun decodeFromJson(allocator: BinaryAllocator, json: JsonElement): FindBulkRequest {
+            if (json !is JsonObject) error("FindBulkRequest must be decoded from an object")
+            val username = run {
+                val element = json["username"]
+                if (element == null || element == JsonNull) {
+                    null
+                } else {
+                    BinaryTypeList.decodeFromJson(Text, allocator, element)
+                }
+            } ?: error("Missing required property: username in FindBulkRequest")
+            return allocator.FindBulkRequest(
+                username = username,
+            )
+        }
+    }
+}
+
+
+fun BinaryAllocator.FindBulkRequest(
+    username: BinaryTypeList<Text>,
+): FindBulkRequest {
+    val result = this.allocate(FindBulkRequest)
+    result.username = username
+    return result
+}
+
+@JvmInline
+value class FindBulkResponse(override val buffer: BufferAndOffset) : BinaryType {
+    var avatars: BinaryTypeDictionary<Avatar>
+        inline get() {
+            val offset = buffer.data.getInt(0 + buffer.offset)
+            return (if (offset == 0) null else BinaryTypeDictionary(Avatar, buffer.copy(offset = offset))) ?: error("Missing property avatars")
+        }
+        inline set(value) { buffer.data.putInt(0 + buffer.offset, value.buffer.offset) }
+
+    override fun encodeToJson(): JsonElement = JsonObject(mapOf(
+        "avatars" to (avatars.let { it.encodeToJson() }),
+    ))
+
+    companion object : BinaryTypeCompanion<FindBulkResponse> {
+        override val size = 4
+        private val mySerializer = BinaryTypeSerializer(this)
+        fun serializer() = mySerializer
+        override fun create(buffer: BufferAndOffset) = FindBulkResponse(buffer)
+        override fun decodeFromJson(allocator: BinaryAllocator, json: JsonElement): FindBulkResponse {
+            if (json !is JsonObject) error("FindBulkResponse must be decoded from an object")
+            val avatars = run {
+                val element = json["avatars"]
+                if (element == null || element == JsonNull) {
+                    null
+                } else {
+                    BinaryTypeDictionary.decodeFromJson(Avatar, allocator, element)
+                }
+            } ?: error("Missing required property: avatars in FindBulkResponse")
+            return allocator.FindBulkResponse(
+                avatars = avatars,
+            )
+        }
+    }
+}
+
+
+fun BinaryAllocator.FindBulkResponse(
+    avatars: BinaryTypeDictionary<Avatar>,
+): FindBulkResponse {
+    val result = this.allocate(FindBulkResponse)
+    result.avatars = avatars
+    return result
+}
+
+@JvmInline
 value class A(override val buffer: BufferAndOffset) : BinaryType {
     var fie: B
         inline get() {
@@ -689,6 +778,75 @@ fun BinaryAllocator.B(
     val result = this.allocate(B)
     result.value = value
     result.next = next
+    return result
+}
+
+@JvmInline
+value class BinaryTypeKVPair(override val buffer: BufferAndOffset) : BinaryType {
+    var _key: Text
+        inline get() = Text(buffer.copy(offset = buffer.data.getInt(0 + buffer.offset)))
+        inline set(value) { buffer.data.putInt(0 + buffer.offset, value.buffer.offset) }
+    val key: String
+        inline get() = _key.decode()
+
+    var value: A
+        inline get() {
+            val offset = buffer.data.getInt(4 + buffer.offset)
+            return (if (offset == 0) {
+                null
+            } else {
+                A(buffer.copy(offset = offset))
+            })!!
+        }
+        inline set(value) {
+            buffer.data.putInt(4 + buffer.offset, value?.buffer?.offset ?: 0)
+        }
+
+    override fun encodeToJson(): JsonElement = JsonObject(mapOf(
+        "key" to (key.let { JsonPrimitive(it) }),
+        "value" to (value.let { it.encodeToJson() }),
+    ))
+
+    companion object : BinaryTypeCompanion<BinaryTypeKVPair> {
+        override val size = 8
+        private val mySerializer = BinaryTypeSerializer(this)
+        fun serializer() = mySerializer
+        override fun create(buffer: BufferAndOffset) = BinaryTypeKVPair(buffer)
+        override fun decodeFromJson(allocator: BinaryAllocator, json: JsonElement): BinaryTypeKVPair {
+            if (json !is JsonObject) error("BinaryTypeKVPair must be decoded from an object")
+            val key = run {
+                val element = json["key"]
+                if (element == null || element == JsonNull) {
+                    null
+                } else {
+                    if (element !is JsonPrimitive) error("Expected 'key' to be a primitive")
+                    element.content
+                }
+            } ?: error("Missing required property: key in BinaryTypeKVPair")
+            val value = run {
+                val element = json["value"]
+                if (element == null || element == JsonNull) {
+                    null
+                } else {
+                    A.decodeFromJson(allocator, element)
+                }
+            } ?: error("Missing required property: value in BinaryTypeKVPair")
+            return allocator.BinaryTypeKVPair(
+                key = key,
+                value = value,
+            )
+        }
+    }
+}
+
+
+fun BinaryAllocator.BinaryTypeKVPair(
+    key: String,
+    value: A,
+): BinaryTypeKVPair {
+    val result = this.allocate(BinaryTypeKVPair)
+    result._key = key.let { allocateText(it) }
+    result.value = value
     return result
 }
 

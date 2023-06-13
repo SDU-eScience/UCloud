@@ -101,6 +101,8 @@ sealed class Token {
             SQUARE_END,
             PARENTHESIS_START,
             PARENTHESIS_END,
+            DICTIONARY,
+            ARRAY,
         }
     }
 
@@ -121,6 +123,29 @@ object Lexer {
         if (cursor.isEof()) return null
 
         val location = cursor.location.copy()
+        when (cursor.peek(2)) {
+            "//" -> {
+                val builder = StringBuilder()
+                while (!cursor.isEof()) {
+                    cursor.consume(2)
+                    builder.appendLine(cursor.consumeRestOfLine())
+
+                    cursor.consumeWhitespace()
+                    if (cursor.isEof() || cursor.peek(2) != "//") break
+                }
+
+                if (skipComment) return consume(cursor, skipComment)
+                return Token.Comment(location, builder.toString().trim())
+            }
+
+            "/*", "*/" -> {
+                reportError(cursor.location, "C-style multi-line comments are not supported. Use '//' instead.")
+            }
+
+            "[]" -> return Token.Symbol(location, Token.Symbol.Type.ARRAY).also { cursor.consume(2) }
+            "{}" -> return Token.Symbol(location, Token.Symbol.Type.DICTIONARY).also { cursor.consume(2) }
+        }
+
         when (cursor.peekSingle()) {
             '@' -> return Token.Symbol(location, Token.Symbol.Type.AT_SYMBOL).also { cursor.consume(1) }
             '?' -> return Token.Symbol(location, Token.Symbol.Type.QUESTION_MARK).also { cursor.consume(1) }
@@ -143,6 +168,7 @@ object Lexer {
                 }
                 return Token.Text(location, builder.toString())
             }
+
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
                 val builder = StringBuilder()
                 while (!cursor.isEof()) {
@@ -151,22 +177,6 @@ object Lexer {
                     builder.append(cursor.consume(1))
                 }
                 return Token.Integer(location, builder.toString().toInt())
-            }
-        }
-
-        when (cursor.peek(2)) {
-            "//" -> {
-                val builder = StringBuilder()
-                while (!cursor.isEof()) {
-                    cursor.consume(2)
-                    builder.appendLine(cursor.consumeRestOfLine())
-
-                    cursor.consumeWhitespace()
-                    if (cursor.isEof() || cursor.peek(2) != "//") break
-                }
-
-                if (skipComment) return consume(cursor, skipComment)
-                return Token.Comment(location, builder.toString().trim())
             }
         }
 
@@ -188,6 +198,7 @@ object Lexer {
 class Parser(private val cursor: Cursor) {
     sealed class Node {
         abstract val location: Location
+
         data class Annotation(
             override val location: Location,
             val name: String,
@@ -252,6 +263,7 @@ class Parser(private val cursor: Cursor) {
             val annotations: List<Annotation>,
             val name: String,
             val type: String,
+            val typeModifier: TypeModifier,
             val optional: Boolean,
         ) : Node() {
             override fun toString(): String = buildString {
@@ -263,6 +275,14 @@ class Parser(private val cursor: Cursor) {
                     appendLine("annotation = $annotation")
                 }
             }
+        }
+
+        enum class TypeModifier {
+            NONE,
+            ARRAY,
+            DICTIONARY,
+//            ARRAY_OF_DICTIONARIES,
+//            DICTIONARY_OF_ARRAYS,
         }
     }
 
@@ -355,7 +375,10 @@ class Parser(private val cursor: Cursor) {
                 if (nameTok is Token.Symbol) {
                     if (nameTok.type == Token.Symbol.Type.COMMA) continue
                     if (nameTok.type != Token.Symbol.Type.PARENTHESIS_END) {
-                        reportError(nameTok.location, "Unexpected symbol. Did you mean to end the annotation with a ')'?")
+                        reportError(
+                            nameTok.location,
+                            "Unexpected symbol. Did you mean to end the annotation with a ')'?"
+                        )
                     }
                     break
                 }
@@ -373,7 +396,10 @@ class Parser(private val cursor: Cursor) {
 
                 val valueTok = Lexer.consume(cursor)
                 if (!(valueTok is Token.Text || valueTok is Token.Integer)) {
-                    reportError(valueTok?.location, "Expected either a string or an integer. For example: @Stable(version = 1)")
+                    reportError(
+                        valueTok?.location,
+                        "Expected either a string or an integer. For example: @Stable(version = 1)"
+                    )
                 }
 
                 fields.add(Pair(name, valueTok))
@@ -459,6 +485,7 @@ class Parser(private val cursor: Cursor) {
         var isOptional = false
         val name = initialTok.identifier
         var type: String = ""
+        var typeModifier = Node.TypeModifier.NONE
 
         run {
             val next = Lexer.consume(cursor)
@@ -488,13 +515,64 @@ class Parser(private val cursor: Cursor) {
 
             run {
                 val next = nextTok
+
+                var first: Token.Symbol.Type? = null
+                var second: Token.Symbol.Type? = null
+
+                if (next is Token.Symbol) {
+                    when (next.type) {
+                        Token.Symbol.Type.DICTIONARY,
+                        Token.Symbol.Type.ARRAY -> first = next.type
+
+                        else -> {}
+                    }
+
+                    if (first != null) nextTok = Lexer.consume(cursor)
+                }
+
+                val next2 = nextTok
+                if (first != null && next2 is Token.Symbol) {
+                    when (next2.type) {
+                        Token.Symbol.Type.DICTIONARY,
+                        Token.Symbol.Type.ARRAY -> second = next2.type
+
+                        else -> {}
+                    }
+
+                    if (second != null) nextTok = Lexer.consume(cursor)
+                }
+
+                when {
+                    first == Token.Symbol.Type.ARRAY && second == null -> typeModifier = Node.TypeModifier.ARRAY
+                    first == Token.Symbol.Type.DICTIONARY && second == null -> typeModifier =
+                        Node.TypeModifier.DICTIONARY
+
+//                    first == Token.Symbol.Type.ARRAY && second == Token.Symbol.Type.DICTIONARY -> typeModifier =
+//                        Node.TypeModifier.ARRAY_OF_DICTIONARIES
+//
+//                    first == Token.Symbol.Type.DICTIONARY && second == Token.Symbol.Type.ARRAY -> typeModifier =
+//                        Node.TypeModifier.DICTIONARY_OF_ARRAYS
+
+                    else -> {
+                        if (first != null) {
+                            reportError(
+                                cursor.location,
+                                "Invalid type modifier combination. Only the following are supported: '[]', '{}', '[]{}', '{}[]"
+                            )
+                        }
+                    }
+                }
+            }
+
+            run {
+                val next = nextTok
                 if (next !is Token.Symbol || next.type != Token.Symbol.Type.COMMA) {
                     reportError(next?.location, "Expected a comma to end the property. For example: `path: String,`")
                 }
             }
         }
 
-        return Node.Property(startOfProperty!!, annotations, name, type, isOptional)
+        return Node.Property(startOfProperty!!, annotations, name, type, typeModifier, isOptional)
     }
 
     private fun parseEnum(annotations: List<Node.Annotation>): Node.Enumeration {
@@ -530,12 +608,18 @@ class Parser(private val cursor: Cursor) {
 
             val ordinalTok = Lexer.consume(cursor)
             if (ordinalTok !is Token.Integer) {
-                reportError(ordinalTok?.location, "Expected an integer to define the enum's ordinal. Example: `FOO = 1,`")
+                reportError(
+                    ordinalTok?.location,
+                    "Expected an integer to define the enum's ordinal. Example: `FOO = 1,`"
+                )
             }
 
             val commaTok = Lexer.consume(cursor)
             if (commaTok !is Token.Symbol || commaTok.type != Token.Symbol.Type.COMMA) {
-                reportError(commaTok?.location, "Expected a comma to end the enum. This is mandatory even for the last element!")
+                reportError(
+                    commaTok?.location,
+                    "Expected a comma to end the enum. This is mandatory even for the last element!"
+                )
             }
 
             entries.add(Node.Enumeration.EnumEntry(initial.identifier, ordinalTok.integer, entryAnnotations))
@@ -673,7 +757,10 @@ private val kotlinConversionTable: Map<String, KotlinConversion> = HashMap<Strin
     put("Long", KotlinConversion("Long", 8, "getLong", "putLong", null, null, ".toLong()"))
     put("ULong", KotlinConversion("ULong", 8, "getLong", "putLong", ".toULong()", ".toLong()", ".toULong()"))
 
-    put("Boolean", KotlinConversion("Boolean", 1, "get", "put", " == 1.toByte()", ".let { if (it) 1 else 0 }", " == \"true\""))
+    put(
+        "Boolean",
+        KotlinConversion("Boolean", 1, "get", "put", " == 1.toByte()", ".let { if (it) 1 else 0 }", " == \"true\"")
+    )
 }
 
 fun lookupPropertyConversion(ast: Parser.Ast, types: TypeTable, property: Parser.Node.Property): KotlinConversion? {
@@ -741,23 +828,34 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
             addIndentation()
 
             for (prop in record.properties) {
-                val conversion = lookupPropertyConversion(ast, types, prop)
-                if (conversion == null) {
-                    if (prop.type == "String") {
-                        append("abstract var _${prop.name}: Text")
-                        if (prop.optional) append("?")
-                        appendLine()
-
-                        appendLine("abstract val ${prop.name}: String")
-                    } else {
+                when (prop.typeModifier) {
+                    Parser.Node.TypeModifier.ARRAY,
+                    Parser.Node.TypeModifier.DICTIONARY -> {
                         append("abstract var ${prop.name}: ${prop.type}")
                         if (prop.optional) append("?")
                         appendLine()
                     }
-                } else {
-                    append("abstract var ${prop.name}: ${conversion.ktType}")
-                    if (prop.optional) append("?")
-                    appendLine()
+
+                    Parser.Node.TypeModifier.NONE -> {
+                        val conversion = lookupPropertyConversion(ast, types, prop)
+                        if (conversion == null) {
+                            if (prop.type == "String") {
+                                append("abstract var _${prop.name}: Text")
+                                if (prop.optional) append("?")
+                                appendLine()
+
+                                appendLine("abstract val ${prop.name}: String")
+                            } else {
+                                append("abstract var ${prop.name}: ${prop.type}")
+                                if (prop.optional) append("?")
+                                appendLine()
+                            }
+                        } else {
+                            append("abstract var ${prop.name}: ${conversion.ktType}")
+                            if (prop.optional) append("?")
+                            appendLine()
+                        }
+                    }
                 }
             }
 
@@ -777,11 +875,14 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
                             if (child.implements != record.name) continue
 
                             val annotation = child.annotations.find { it.name == "Tag" }!!
-                            val ordinalValueTok = annotation.attributes.find { it.first == "ordinal" }?.second as Token.Integer
+                            val ordinalValueTok =
+                                annotation.attributes.find { it.first == "ordinal" }?.second as Token.Integer
 
                             if (ordinalValueTok.integer in ordinalsSeen) {
-                                reportError(child.location, "Duplicate ordinal detected. " +
-                                        "All ordinal values must be unique within a single tagged record!")
+                                reportError(
+                                    child.location, "Duplicate ordinal detected. " +
+                                            "All ordinal values must be unique within a single tagged record!"
+                                )
                             }
 
                             ordinalsSeen.add(ordinalValueTok.integer)
@@ -811,13 +912,15 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
                             val nameTokValue = annotation.attributes.find { it.first == "text" }?.second as Token.Text
 
                             if (nameTokValue.text in namesSeen) {
-                                reportError(child.location, "Duplicate text detected. " +
-                                        "All text values must be unique within a single tagged record!")
+                                reportError(
+                                    child.location, "Duplicate text detected. " +
+                                            "All text values must be unique within a single tagged record!"
+                                )
                             }
 
                             namesSeen.add(nameTokValue.text)
 
-                            appendLine("\"${nameTokValue.text}\" -> ${child.name}.decodeFromJson(allocator, json)")
+                            append("\"${nameTokValue.text}\" -> ${child.name}.decodeFromJson(allocator, json)")
                         }
                         appendLine("else -> error(\"Unknown type: ${"$"}{type.content}\")")
                     }
@@ -838,18 +941,25 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
 
             var offset = 0
             if (record.implements != null) {
-                val annotation = record.annotations.find { it.name == "Tag" } ?:
-                reportError(record.location, "Mandatory @Tag(text = \"name\", ordinal = 42) annotation is missing")
+                val annotation = record.annotations.find { it.name == "Tag" } ?: reportError(
+                    record.location,
+                    "Mandatory @Tag(text = \"name\", ordinal = 42) annotation is missing"
+                )
 
                 val ordinal = annotation.attributes.find { it.first == "ordinal" }
                 val ordinalValueTok = ordinal?.second
                 if (ordinalValueTok !is Token.Integer) {
-                    reportError(annotation.location, "Missing or invalid ordinal attribute in the @Tag " +
-                            "annotation. It must exist with an integer value!")
+                    reportError(
+                        annotation.location, "Missing or invalid ordinal attribute in the @Tag " +
+                                "annotation. It must exist with an integer value!"
+                    )
                 }
 
                 if (ordinalValueTok.integer !in 0..127) {
-                    reportError(ordinalValueTok.location, "Ordinal value must be an integer between 0 and 127 (inclusive)")
+                    reportError(
+                        ordinalValueTok.location,
+                        "Ordinal value must be an integer between 0 and 127 (inclusive)"
+                    )
                 }
 
                 appendLine("init {")
@@ -878,136 +988,192 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
 
                 if (offset != 0) appendLine()
 
-                val conversion = lookupPropertyConversion(ast, types, prop)
-                if (conversion == null || prop.optional) {
-                    // Store through pointer
-
-                    if (prop.type == "String") {
-                        append(varPrefix + "var _${prop.name}: Text")
-                        if (prop.optional) append("?")
-                        appendLine()
-                        addIndentation()
-
-                        if (!prop.optional) {
-                            appendLine("inline get() = Text(buffer.copy(offset = buffer.data.getInt($offset + buffer.offset)))")
-                            appendLine("inline set(value) { buffer.data.putInt($offset + buffer.offset, value.buffer.offset) }")
-                        } else {
-                            appendLine("inline get() {")
-                            addIndentation()
-                            appendLine("val offset = buffer.data.getInt($offset + buffer.offset)")
-                            appendLine("return if (offset == 0) null else Text(buffer.copy(offset = offset))")
-                            removeIndentation()
-                            appendLine("}")
-
-                            appendLine("inline set(value) { buffer.data.putInt($offset + buffer.offset, value?.buffer?.offset ?: 0) }")
-                        }
-
-                        removeIndentation()
-
-                        append(varPrefix + "val ${prop.name}: String")
-                        if (prop.optional) append("?")
-                        appendLine()
-                        addIndentation()
-                        if (prop.optional) {
-                            appendLine("inline get() = _${prop.name}?.decode()")
-                        } else {
-                            appendLine("inline get() = _${prop.name}.decode()")
-                        }
-                        removeIndentation()
-                    } else {
+                when (prop.typeModifier) {
+                    Parser.Node.TypeModifier.ARRAY -> {
+                        val conversion = lookupPropertyConversion(ast, types, prop)
                         if (conversion != null) {
-                            val (ktType, size, getter, setter, encoder, decoder) = conversion
+                            reportError(prop.location, "Arrays can only contain records at the moment. Please wrap the primitive type in a record.")
+                        }
 
-                            appendLine(varPrefix + "var ${prop.name}: ${ktType}?")
-                            addIndentation()
-
+                        val type = if (prop.type == "String") "Text" else prop.type
+                        append(varPrefix + "var ${prop.name}: BinaryTypeList<${type}>")
+                        if (prop.optional) append("?")
+                        appendLine()
+                        indent {
                             appendLine("inline get() {")
                             indent {
                                 appendLine("val offset = buffer.data.getInt($offset + buffer.offset)")
-                                appendLine("return if (offset == 0) {")
-                                indent { appendLine("null") }
-                                appendLine("} else {")
-                                indent {
-                                    append("buffer.data.$getter(offset)")
-                                    if (encoder != null) append(encoder)
-                                    appendLine()
-                                }
-                                appendLine("}")
-                            }
-                            appendLine("}")
-
-                            appendLine("inline set(value) {")
-                            indent {
-                                appendLine("if (value == null) {")
-                                indent { appendLine("buffer.data.putInt($offset + buffer.offset, 0)") }
-                                appendLine("} else {")
-                                indent {
-                                    appendLine("val storage = buffer.allocator.allocateDynamic($size)")
-                                    appendLine("buffer.data.putInt($offset + buffer.offset, storage.offset)")
-                                    append("buffer.data.$setter(storage.offset, value")
-                                    if (decoder != null) append(decoder)
-                                    appendLine(")")
-                                }
-                                appendLine("}")
-                            }
-                            appendLine("}")
-
-                            removeIndentation()
-                        } else {
-                            append(varPrefix + "var ${prop.name}: ${prop.type}")
-                            if (prop.optional) append("?")
-                            appendLine()
-                            addIndentation()
-
-                            appendLine("inline get() {")
-                            indent {
-                                appendLine("val offset = buffer.data.getInt($offset + buffer.offset)")
-                                appendLine("return (if (offset == 0) {")
-                                indent { appendLine("null") }
-                                appendLine("} else {")
-                                indent {
-                                    append(prop.type)
-                                    val type = types.lookupType(ast, prop.type)
-                                    if (type is TypeTable.Type.Record && type.record.isTagged) {
-                                        append(".interpret")
-                                    }
-                                    appendLine("(buffer.copy(offset = offset))")
-                                }
-                                append("})")
-                                if (!prop.optional) append("!!")
+                                append("return (if (offset == 0) null else BinaryTypeList(${type}, buffer.copy(offset = offset)))")
+                                if (!prop.optional) append(" ?: error(\"Missing property ${prop.name}\")")
                                 appendLine()
                             }
                             appendLine("}")
 
-                            appendLine("inline set(value) {")
+                            appendLine("inline set(value) { buffer.data.putInt($offset + buffer.offset, value.buffer.offset) }")
+                        }
+
+                        offset += 4
+                    }
+
+                    Parser.Node.TypeModifier.DICTIONARY -> {
+                        val conversion = lookupPropertyConversion(ast, types, prop)
+                        if (conversion != null) {
+                            reportError(prop.location, "Dictionaries can only contain records at the moment. Please wrap the primitive type in a record.")
+                        }
+
+                        val type = if (prop.type == "String") "Text" else prop.type
+                        append(varPrefix + "var ${prop.name}: BinaryTypeDictionary<${type}>")
+                        if (prop.optional) append("?")
+                        appendLine()
+                        indent {
+                            appendLine("inline get() {")
                             indent {
-                                appendLine("buffer.data.putInt($offset + buffer.offset, value?.buffer?.offset ?: 0)")
+                                appendLine("val offset = buffer.data.getInt($offset + buffer.offset)")
+                                append("return (if (offset == 0) null else BinaryTypeDictionary(${type}, buffer.copy(offset = offset)))")
+                                if (!prop.optional) append(" ?: error(\"Missing property ${prop.name}\")")
+                                appendLine()
                             }
                             appendLine("}")
 
-                            removeIndentation()
+                            appendLine("inline set(value) { buffer.data.putInt($offset + buffer.offset, value.buffer.offset) }")
                         }
+
+                        offset += 4
                     }
 
-                    offset += 4
-                } else {
-                    val (ktType, size, getter, setter, encoder, decoder) = conversion
-                    appendLine(varPrefix + "var ${prop.name}: $ktType")
-                    addIndentation()
+                    Parser.Node.TypeModifier.NONE -> {
+                        val conversion = lookupPropertyConversion(ast, types, prop)
+                        if (conversion == null || prop.optional) {
+                            // Store through pointer
 
-                    append("inline get() = buffer.data.$getter($offset + buffer.offset)")
-                    if (encoder != null) append(encoder)
-                    appendLine()
+                            if (prop.type == "String") {
+                                append(varPrefix + "var _${prop.name}: Text")
+                                if (prop.optional) append("?")
+                                appendLine()
+                                addIndentation()
 
-                    append("inline set (value) { ")
-                    append("buffer.data.${setter}($offset + buffer.offset, value")
-                    if (decoder != null) append(decoder)
-                    append(") ")
-                    appendLine("}")
+                                if (!prop.optional) {
+                                    appendLine("inline get() = Text(buffer.copy(offset = buffer.data.getInt($offset + buffer.offset)))")
+                                    appendLine("inline set(value) { buffer.data.putInt($offset + buffer.offset, value.buffer.offset) }")
+                                } else {
+                                    appendLine("inline get() {")
+                                    addIndentation()
+                                    appendLine("val offset = buffer.data.getInt($offset + buffer.offset)")
+                                    appendLine("return if (offset == 0) null else Text(buffer.copy(offset = offset))")
+                                    removeIndentation()
+                                    appendLine("}")
 
-                    removeIndentation()
+                                    appendLine("inline set(value) { buffer.data.putInt($offset + buffer.offset, value?.buffer?.offset ?: 0) }")
+                                }
 
-                    offset += size
+                                removeIndentation()
+
+                                append(varPrefix + "val ${prop.name}: String")
+                                if (prop.optional) append("?")
+                                appendLine()
+                                addIndentation()
+                                if (prop.optional) {
+                                    appendLine("inline get() = _${prop.name}?.decode()")
+                                } else {
+                                    appendLine("inline get() = _${prop.name}.decode()")
+                                }
+                                removeIndentation()
+                            } else {
+                                if (conversion != null) {
+                                    val (ktType, size, getter, setter, encoder, decoder) = conversion
+
+                                    appendLine(varPrefix + "var ${prop.name}: ${ktType}?")
+                                    addIndentation()
+
+                                    appendLine("inline get() {")
+                                    indent {
+                                        appendLine("val offset = buffer.data.getInt($offset + buffer.offset)")
+                                        appendLine("return if (offset == 0) {")
+                                        indent { appendLine("null") }
+                                        appendLine("} else {")
+                                        indent {
+                                            append("buffer.data.$getter(offset)")
+                                            if (encoder != null) append(encoder)
+                                            appendLine()
+                                        }
+                                        appendLine("}")
+                                    }
+                                    appendLine("}")
+
+                                    appendLine("inline set(value) {")
+                                    indent {
+                                        appendLine("if (value == null) {")
+                                        indent { appendLine("buffer.data.putInt($offset + buffer.offset, 0)") }
+                                        appendLine("} else {")
+                                        indent {
+                                            appendLine("val storage = buffer.allocator.allocateDynamic($size)")
+                                            appendLine("buffer.data.putInt($offset + buffer.offset, storage.offset)")
+                                            append("buffer.data.$setter(storage.offset, value")
+                                            if (decoder != null) append(decoder)
+                                            appendLine(")")
+                                        }
+                                        appendLine("}")
+                                    }
+                                    appendLine("}")
+
+                                    removeIndentation()
+                                } else {
+                                    append(varPrefix + "var ${prop.name}: ${prop.type}")
+                                    if (prop.optional) append("?")
+                                    appendLine()
+                                    addIndentation()
+
+                                    appendLine("inline get() {")
+                                    indent {
+                                        appendLine("val offset = buffer.data.getInt($offset + buffer.offset)")
+                                        appendLine("return (if (offset == 0) {")
+                                        indent { appendLine("null") }
+                                        appendLine("} else {")
+                                        indent {
+                                            append(prop.type)
+                                            val type = types.lookupType(ast, prop.type)
+                                            if (type is TypeTable.Type.Record && type.record.isTagged) {
+                                                append(".interpret")
+                                            }
+                                            appendLine("(buffer.copy(offset = offset))")
+                                        }
+                                        append("})")
+                                        if (!prop.optional) append("!!")
+                                        appendLine()
+                                    }
+                                    appendLine("}")
+
+                                    appendLine("inline set(value) {")
+                                    indent {
+                                        appendLine("buffer.data.putInt($offset + buffer.offset, value?.buffer?.offset ?: 0)")
+                                    }
+                                    appendLine("}")
+
+                                    removeIndentation()
+                                }
+                            }
+
+                            offset += 4
+                        } else {
+                            val (ktType, size, getter, setter, encoder, decoder) = conversion
+                            appendLine(varPrefix + "var ${prop.name}: $ktType")
+                            addIndentation()
+
+                            append("inline get() = buffer.data.$getter($offset + buffer.offset)")
+                            if (encoder != null) append(encoder)
+                            appendLine()
+
+                            append("inline set (value) { ")
+                            append("buffer.data.${setter}($offset + buffer.offset, value")
+                            if (decoder != null) append(decoder)
+                            append(") ")
+                            appendLine("}")
+
+                            removeIndentation()
+
+                            offset += size
+                        }
+                    }
                 }
             }
 
@@ -1015,14 +1181,18 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
             appendLine("override fun encodeToJson(): JsonElement = JsonObject(mapOf(")
             indent {
                 if (record.implements != null) {
-                    val annotation = record.annotations.find { it.name == "Tag" } ?:
-                    reportError(record.location, "Mandatory @Tag(text = \"name\", ordinal = 42) annotation is missing")
+                    val annotation = record.annotations.find { it.name == "Tag" } ?: reportError(
+                        record.location,
+                        "Mandatory @Tag(text = \"name\", ordinal = 42) annotation is missing"
+                    )
 
                     val name = annotation.attributes.find { it.first == "text" }
                     val nameValueTok = name?.second
                     if (nameValueTok !is Token.Text) {
-                        reportError(annotation.location, "Missing or invalid text attribute in the @Tag " +
-                                "annotation. It must exist with an string value!")
+                        reportError(
+                            annotation.location, "Missing or invalid text attribute in the @Tag " +
+                                    "annotation. It must exist with an string value!"
+                        )
                     }
 
                     appendLine("\"type\" to JsonPrimitive(\"${nameValueTok.text}\"),")
@@ -1033,17 +1203,29 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
                     append(prop.name)
                     if (prop.optional) append("?")
                     append(".let { ")
-                    val converter = lookupPropertyConversion(ast, types, prop)
-                    if (converter != null || prop.type == "String") {
-                        val type = types.lookupType(ast, prop.type)
-                        if (type is TypeTable.Type.Enumeration) {
-                            append("JsonPrimitive(it.serialName)")
-                        } else {
-                            append("JsonPrimitive(it)")
+
+                    when (prop.typeModifier) {
+                        Parser.Node.TypeModifier.ARRAY,
+                        Parser.Node.TypeModifier.DICTIONARY -> {
+                            append("it.encodeToJson()")
                         }
-                    } else {
-                        append("it.encodeToJson()")
+
+                        Parser.Node.TypeModifier.NONE -> {
+                            val converter = lookupPropertyConversion(ast, types, prop)
+                            if (converter != null || prop.type == "String") {
+                                val type = types.lookupType(ast, prop.type)
+                                if (type is TypeTable.Type.Enumeration) {
+                                    append("JsonPrimitive(it.serialName)")
+                                } else {
+                                    append("JsonPrimitive(it)")
+                                }
+                            } else {
+                                append("it.encodeToJson()")
+                            }
+                        }
                     }
+
+
                     append(" }")
                     if (prop.optional) append(" ?: JsonNull")
                     appendLine("),")
@@ -1070,15 +1252,29 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
                         indent { appendLine("null") }
                         appendLine("} else {")
                         indent {
-                            val converter = lookupPropertyConversion(ast, types, prop)
-                            if (converter != null) {
-                                appendLine("if (element !is JsonPrimitive) error(\"Expected '${prop.name}' to be a primitive\")")
-                                appendLine("element.content${converter.jsonDecoder}")
-                            } else if (prop.type == "String") {
-                                appendLine("if (element !is JsonPrimitive) error(\"Expected '${prop.name}' to be a primitive\")")
-                                appendLine("element.content")
-                            } else {
-                                appendLine("${prop.type}.decodeFromJson(allocator, element)")
+                            when (prop.typeModifier) {
+                                Parser.Node.TypeModifier.ARRAY -> {
+                                    val type = if (prop.type == "String") "Text" else prop.type
+                                    appendLine("BinaryTypeList.decodeFromJson(${type}, allocator, element)")
+                                }
+
+                                Parser.Node.TypeModifier.DICTIONARY -> {
+                                    val type = if (prop.type == "String") "Text" else prop.type
+                                    appendLine("BinaryTypeDictionary.decodeFromJson(${type}, allocator, element)")
+                                }
+
+                                Parser.Node.TypeModifier.NONE -> {
+                                    val converter = lookupPropertyConversion(ast, types, prop)
+                                    if (converter != null) {
+                                        appendLine("if (element !is JsonPrimitive) error(\"Expected '${prop.name}' to be a primitive\")")
+                                        appendLine("element.content${converter.jsonDecoder}")
+                                    } else if (prop.type == "String") {
+                                        appendLine("if (element !is JsonPrimitive) error(\"Expected '${prop.name}' to be a primitive\")")
+                                        appendLine("element.content")
+                                    } else {
+                                        appendLine("${prop.type}.decodeFromJson(allocator, element)")
+                                    }
+                                }
                             }
                         }
                         appendLine("}")
@@ -1131,12 +1327,27 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
                         append(prop.name)
                         append(": ")
 
-                        val conversion = lookupPropertyConversion(ast, types, prop)
-                        if (conversion != null) {
-                            append(conversion.ktType)
-                        } else {
-                            append(prop.type)
+                        when (prop.typeModifier) {
+                            Parser.Node.TypeModifier.ARRAY -> {
+                                val type = if (prop.type == "String") "Text" else prop.type
+                                append("BinaryTypeList<${type}>")
+                            }
+
+                            Parser.Node.TypeModifier.DICTIONARY -> {
+                                val type = if (prop.type == "String") "Text" else prop.type
+                                append("BinaryTypeDictionary<${type}>")
+                            }
+
+                            Parser.Node.TypeModifier.NONE -> {
+                                val conversion = lookupPropertyConversion(ast, types, prop)
+                                if (conversion != null) {
+                                    append(conversion.ktType)
+                                } else {
+                                    append(prop.type)
+                                }
+                            }
                         }
+
 
                         if (prop.optional) append("? = null")
                         appendLine(",")
@@ -1146,12 +1357,21 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
                 indent {
                     appendLine("val result = this.allocate(${recordReference})")
                     for (prop in record.properties) {
-                        if (prop.type == "String") {
-                            append("result._${prop.name} = ${prop.name}")
-                            if (prop.optional) append("?")
-                            appendLine(".let { allocateText(it) }")
-                        } else {
-                            appendLine("result.${prop.name} = ${prop.name}")
+                        when (prop.typeModifier) {
+                            Parser.Node.TypeModifier.DICTIONARY,
+                            Parser.Node.TypeModifier.ARRAY -> {
+                                appendLine("result.${prop.name} = ${prop.name}")
+                            }
+
+                            Parser.Node.TypeModifier.NONE -> {
+                                if (prop.type == "String") {
+                                    append("result._${prop.name} = ${prop.name}")
+                                    if (prop.optional) append("?")
+                                    appendLine(".let { allocateText(it) }")
+                                } else {
+                                    appendLine("result.${prop.name} = ${prop.name}")
+                                }
+                            }
                         }
                     }
                     appendLine("return result")
@@ -1170,14 +1390,16 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
             appendLine()
         }
 
-        appendLine("""
+        appendLine(
+            """
             import kotlinx.serialization.json.JsonElement
             import kotlinx.serialization.json.JsonNull
             import kotlinx.serialization.json.JsonObject
             import kotlinx.serialization.json.JsonPrimitive
             import dk.sdu.cloud.messages.*
             
-        """.trimIndent())
+        """.trimIndent()
+        )
 
         for (import in ast.imports) {
             appendLine("import dk.sdu.cloud.$import.api.*")

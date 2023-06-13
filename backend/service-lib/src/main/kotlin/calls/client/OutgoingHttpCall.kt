@@ -8,8 +8,12 @@ import dk.sdu.cloud.calls.HttpHeaderParameter
 import dk.sdu.cloud.calls.HttpPathSegment
 import dk.sdu.cloud.calls.HttpRequest
 import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.messages.BinaryAllocator
+import dk.sdu.cloud.messages.BinaryType
+import dk.sdu.cloud.messages.BinaryTypeSerializer
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.systemName
@@ -20,6 +24,7 @@ import io.ktor.http.*
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
 import io.ktor.util.*
+import io.ktor.utils.io.*
 import io.ktor.utils.io.charsets.*
 import io.ktor.utils.io.core.*
 import io.prometheus.client.Counter
@@ -80,7 +85,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         requestCounter.labels(call.fullName).inc()
 
         try {
-            val callId = Random.nextInt(10000) // A non unique call ID for logging purposes only
+            val callId = Random.nextInt(10000) // A non-unique call ID for logging purposes only
             val start = Time.now()
             val shortRequestMessage = request.toString().take(100)
 
@@ -96,27 +101,47 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
                 url(url)
                 method = io.ktor.http.HttpMethod(http.method.value)
-                if (body == EmptyContent) {
-                    // If a beforeHook has attached a body, don't change it
-                    body = http.serializeBody(request, call)
-                }
-                http.serializeHeaders(request).forEach { (name, value, encode) ->
-                    if (encode) {
-                        header(name, base64Encode(value.encodeToByteArray()))
-                    } else {
-                        header(name, value)
-                    }
-                }
 
-                // OkHttp fix. It requires a body for certain methods, even though it shouldn't.
-                if (body == EmptyContent && method in setOf(
-                        HttpMethod.Put,
-                        HttpMethod.Delete,
-                        HttpMethod.Post,
-                        HttpMethod.Patch
-                    )
-                ) {
-                    body = TextContent("Fix", ContentType.Text.Plain)
+                val requestType = call.requestType
+                if (requestType is BinaryTypeSerializer<*>) {
+                    val binRequest = request as BinaryType
+                    binRequest.buffer.allocator.updateRoot(binRequest)
+
+                    val requestBuffer = binRequest.buffer.allocator.slicedBuffer()
+                    val length = requestBuffer.remaining().toLong()
+
+                    header(HttpHeaders.Accept, ContentType.Application.UCloudMessage.toString())
+                    body = object : OutgoingContent.WriteChannelContent() {
+                        override val contentType = ContentType.Application.UCloudMessage
+                        override val contentLength: Long = length
+
+                        override suspend fun writeTo(channel: ByteWriteChannel) {
+                            channel.writeFully(requestBuffer)
+                        }
+                    }
+                } else {
+                    if (body == EmptyContent) {
+                        // If a beforeHook has attached a body, don't change it
+                        body = http.serializeBody(request, call)
+                    }
+                    http.serializeHeaders(request).forEach { (name, value, encode) ->
+                        if (encode) {
+                            header(name, base64Encode(value.encodeToByteArray()))
+                        } else {
+                            header(name, value)
+                        }
+                    }
+
+                    // OkHttp fix. It requires a body for certain methods, even though it shouldn't.
+                    if (body == EmptyContent && method in setOf(
+                            HttpMethod.Put,
+                            HttpMethod.Delete,
+                            HttpMethod.Post,
+                            HttpMethod.Patch
+                        )
+                    ) {
+                        body = TextContent("Fix", ContentType.Text.Plain)
+                    }
                 }
 
                 log.debug("[$callId] -> ${call.fullName}: $shortRequestMessage")
@@ -174,16 +199,42 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         }
     }
 
+    @Suppress("UNCHECKED_CAST")
     private suspend fun <S : Any> parseResponseToType(
         resp: HttpResponse,
         type: KSerializer<S>,
     ): S {
         if (type.descriptor.serialName == "kotlin.Unit") return Unit as S
-        val bodyAsString = resp.bodyAsText()
-        return try {
-            defaultMapper.decodeFromString(type, bodyAsString)
-        } catch (ex: SerializationException) {
-            throw RuntimeException("Could not parse response to type!\nRequest:${bodyAsString.prependIndent("  ")}", ex)
+
+        if (type is BinaryTypeSerializer<*> && resp.contentType() == ContentType.Application.UCloudMessage) {
+            val length = resp.contentLength() ?: throw RPCException(
+                "Refusing to parse UCloud message without a content length",
+                HttpStatusCode.BadGateway
+            )
+
+            if (length >= 1024 * 512) {
+                throw RPCException(
+                    "Refusing to parse a UCloud message of this size ($length)!",
+                    HttpStatusCode.BadGateway
+                )
+            }
+
+            val allocator = BinaryAllocator(length.toInt(), 0, readOnly = true)
+
+            val channel = resp.bodyAsChannel()
+            allocator.load(channel)
+
+            return type.companion.create(allocator.root()) as S
+        } else {
+            val bodyAsString = resp.bodyAsText()
+            return try {
+                defaultMapper.decodeFromString(type, bodyAsString)
+            } catch (ex: SerializationException) {
+                throw RuntimeException(
+                    "Could not parse response to type!\nRequest:${bodyAsString.prependIndent("  ")}",
+                    ex
+                )
+            }
         }
     }
 

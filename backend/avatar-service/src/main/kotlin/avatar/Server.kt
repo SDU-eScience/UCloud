@@ -1,8 +1,11 @@
 package dk.sdu.cloud.avatar
 
+import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.avatar.http.AvatarController
+import dk.sdu.cloud.avatar.http.BinaryController
 import dk.sdu.cloud.avatar.services.AvatarAsyncDao
 import dk.sdu.cloud.avatar.services.AvatarService
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.databaseConfig
 import dk.sdu.cloud.micro.server
@@ -21,11 +24,13 @@ class Server(
     override fun start() {
         val avatarDao = AvatarAsyncDao()
         val completedJobsService = AvatarService(db, avatarDao)
+        val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
         // Initialize server
         with(micro.server) {
             configureControllers(
-                AvatarController(completedJobsService)
+                AvatarController(completedJobsService),
+                BinaryController(serviceClient)
             )
         }
 

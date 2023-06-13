@@ -219,18 +219,9 @@ record Avatar {
 }
 
 record FindBulkRequest {
-    username: String[], // Array, equivalent to List<String>
+    usernames: String[], // Array, equivalent to List<String>
 }
 
 record FindBulkResponse {
     avatars: Avatar{}, // Dictionary, which is equivalent to Map<String, Avatar>
-}
-
-record A {
-    fie: B,
-}
-
-record B {
-    value: Int,
-    next: B?,
 }
