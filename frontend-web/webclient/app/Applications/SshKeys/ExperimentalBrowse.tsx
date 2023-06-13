@@ -28,7 +28,6 @@ export function ExperimentalSSHKey(): JSX.Element {
     const navigate = useNavigate();
     useTitle("SSH keys");
     const projectId = useProjectId();
-    const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     React.useLayoutEffect(() => {
@@ -135,21 +134,6 @@ export function ExperimentalSSHKey(): JSX.Element {
     useRefreshFunction(() => {
         browserRef.current?.refresh();
     });
-
-    /* Reload on new project */
-    React.useEffect(() => {
-        if (mountRef.current && browserRef.current) {
-            browserRef.current.open("", true);
-        }
-    }, [projectId]);
-
-
-    /* Re-render on theme change */
-    React.useEffect(() => {
-        if (mountRef.current && browserRef.current) {
-            browserRef.current.rerender();
-        }
-    }, [theme]);
 
     return <MainContainer
         main={<>

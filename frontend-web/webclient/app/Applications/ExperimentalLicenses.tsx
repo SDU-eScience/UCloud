@@ -11,8 +11,6 @@ import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {doNothing} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
 import {useProjectId} from "@/Project/Api";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
-import {createPortal} from "react-dom";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -31,10 +29,8 @@ export function ExperimentalLicenses(): JSX.Element {
     const browserRef = React.useRef<ResourceBrowser<License> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    useTitle("Public IPs");
-    const projectId = useProjectId();
-    const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    useTitle("Public IPs");
 
     const dateRanges = dateRangeFilters("Date created");
 
@@ -199,21 +195,6 @@ export function ExperimentalLicenses(): JSX.Element {
     useRefreshFunction(() => {
         browserRef.current?.refresh();
     });
-
-    /* Reload on new project */
-    React.useEffect(() => {
-        if (mountRef.current && browserRef.current) {
-            browserRef.current.open("", true);
-        }
-    }, [projectId]);
-
-
-    /* Re-render on theme change */
-    React.useEffect(() => {
-        if (mountRef.current && browserRef.current) {
-            browserRef.current.rerender();
-        }
-    }, [theme]);
 
     return <MainContainer
         main={<>

@@ -33,8 +33,6 @@ export function ExperimentalNetworkIP(): JSX.Element {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     useTitle("Public IPs");
-    const projectId = useProjectId();
-    const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     const dateRanges = dateRangeFilters("Date created");
@@ -192,21 +190,6 @@ export function ExperimentalNetworkIP(): JSX.Element {
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
         // TODO(Jonas): Creation
     }, []);
-
-    /* Reload on new project */
-    React.useEffect(() => {
-        if (mountRef.current && browserRef.current) {
-            browserRef.current.open("", true);
-        }
-    }, [projectId]);
-
-
-    /* Re-render on theme change */
-    React.useEffect(() => {
-        if (mountRef.current && browserRef.current) {
-            browserRef.current.rerender();
-        }
-    }, [theme]);
 
     useRefreshFunction(() => {
         browserRef.current?.refresh();

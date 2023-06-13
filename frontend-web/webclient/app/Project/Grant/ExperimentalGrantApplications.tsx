@@ -6,8 +6,6 @@ import {useLocation, useNavigate} from "react-router";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useProjectId} from "../Api";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {createPortal} from "react-dom";
-import {ContextSwitcher} from "../ContextSwitcher";
 import {callAPI} from "@/Authentication/DataHook";
 import {GrantApplicationFilter} from ".";
 import MainContainer from "@/MainContainer/MainContainer";
@@ -33,10 +31,8 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
     const browserRef = React.useRef<ResourceBrowser<GrantApplication>>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    useTitle("Grant Applications");
-    const projectId = useProjectId();
-    const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
     const [switcher, setSwitcherWorkaround] = React.useState(<></>);
+    useTitle("Grant Applications");
 
     const location = useLocation();
     let isIngoing = location.pathname.endsWith("/ingoing/");
@@ -169,21 +165,6 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
     useRefreshFunction(() => {
         browserRef.current?.refresh();
     });
-
-    /* Reload on new project */
-    React.useEffect(() => {
-        if (mountRef.current && browserRef.current) {
-            browserRef.current.open("", true);
-        }
-    }, [projectId]);
-
-
-    /* Re-render on theme change */
-    React.useEffect(() => {
-        if (mountRef.current && browserRef.current) {
-            browserRef.current.rerender();
-        }
-    }, [theme]);
 
     return <MainContainer
         main={<>

@@ -15,6 +15,8 @@ import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {addThemeListener, removeThemeListener} from "@/Core";
+import {addProjectListener, removeProjectListener} from "@/Project/Redux";
 
 
 /*
@@ -349,6 +351,8 @@ export class ResourceBrowser<T> {
     private listeners: Record<string, any[]> = {};
 
     public opts: {embedded: boolean} | undefined = {embedded: false};
+    // Note(Jonas): To use for project change listening.
+    private initialPath: string | undefined = "";
     constructor(root: HTMLElement, resourceName: string, opts?: {embedded: boolean;}) {
         this.root = root;
         this.resourceName = resourceName;
@@ -363,6 +367,7 @@ export class ResourceBrowser<T> {
     ) {
         ref.current = this;
         this.features = features;
+        this.initialPath = initialPath;
         onInit(this);
         this.mount();
         if (initialPath !== undefined) this.open(initialPath);
@@ -433,6 +438,8 @@ export class ResourceBrowser<T> {
         const unmountInterval = window.setInterval(() => {
             if (!this.root.isConnected) {
                 this.dispatchMessage("unmount", fn => fn());
+                removeThemeListener(this.resourceName);
+                removeProjectListener(this.resourceName);
                 window.clearInterval(unmountInterval);
             }
         }, 1000);
@@ -673,6 +680,10 @@ export class ResourceBrowser<T> {
         }
 
         this.scrolling.append(...rows);
+
+        addThemeListener(this.resourceName, () => this.rerender());
+        const path = this.initialPath;
+        if (path !== undefined) addProjectListener(this.resourceName, () => this.open(path, true));
     }
 
     refresh() {

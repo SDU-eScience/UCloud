@@ -9,7 +9,7 @@ import {
     ResourceBrowseFeatures,
     addContextSwitcherInPortal,
 } from "@/ui-components/ResourceBrowser";
-import {useDispatch, useSelector, useStore} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import MainContainer from "@/MainContainer/MainContainer";
 import {callAPI} from "@/Authentication/DataHook";
@@ -17,7 +17,7 @@ import {api as FileCollectionsApi, FileCollection, FileCollectionSupport} from "
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {FindByStringId, PageV2} from "@/UCloud";
 import {dateToString} from "@/Utilities/DateUtilities";
-import {doNothing, extractErrorMessage, isLightThemeStored, timestampUnixMs} from "@/UtilityFunctions";
+import {doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
 import {DELETE_TAG, ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Product, ProductStorage} from "@/Accounting";
 import {bulkRequestOf} from "@/DefaultObjects";
@@ -56,7 +56,6 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     const browserRef = useRef<ResourceBrowser<FileCollection> | null>(null);
     const dispatch = useDispatch();
     const projectId = useProjectId();
-    const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
     useTitle("Drives");
 
     const [switcher, setSwitcherWorkaround] = React.useState(<></>);
@@ -426,20 +425,6 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
         }
     }, []);
-
-    /* Reload on new project */
-    React.useEffect(() => {
-        if (mountRef.current && browserRef.current) {
-            browserRef.current.open("/", true);
-        }
-    }, [projectId]);
-    
-    /* Re-render on theme change */
-    React.useEffect(() => {
-        if (mountRef.current && browserRef.current) {
-            browserRef.current.rerender();
-        }
-    }, [theme]);
 
     useRefreshFunction(() => {
         browserRef.current?.refresh();

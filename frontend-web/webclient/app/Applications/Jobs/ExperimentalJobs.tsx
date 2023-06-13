@@ -14,9 +14,8 @@ import {AsyncCache} from "@/Utilities/AsyncCache";
 import {AppLogo, hashF} from "../Card";
 import {useNavigate} from "react-router";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {useDispatch, useSelector} from "react-redux";
+import {useDispatch} from "react-redux";
 import AppRoutes from "@/Routes";
-import {useProjectId} from "@/Project/Api";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -37,10 +36,8 @@ function ExperimentalJobs({opts}: {opts?: {embedded: boolean}}): JSX.Element {
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    useTitle("Jobs");
-    const projectId = useProjectId();
-    const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    useTitle("Jobs");
 
     const dateRanges = dateRangeFilters("Created after");
 
@@ -227,21 +224,6 @@ function ExperimentalJobs({opts}: {opts?: {embedded: boolean}}): JSX.Element {
     useRefreshFunction(() => {
         browserRef.current?.refresh();
     });
-
-    /* Reload on new project */
-    React.useEffect(() => {
-        if (mountRef.current && browserRef.current) {
-            browserRef.current.open("", true);
-        }
-    }, [projectId]);
-
-
-    /* Re-render on theme change */
-    React.useEffect(() => {
-        if (mountRef.current && browserRef.current) {
-            browserRef.current.rerender();
-        }
-    }, [theme]);
 
     return <MainContainer
         main={<>

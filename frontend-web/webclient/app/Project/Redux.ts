@@ -32,11 +32,24 @@ export function getStoredProject(): string | null {
     return window.localStorage.getItem("project") ?? null;
 }
 
+const projectListeners: Record<string, () => void> = {};
+
 export function setStoredProject(value: string | null): void {
     if (value === null) {
         window.localStorage.removeItem("project");
     } else {
         window.localStorage.setItem("project", value);
     }
+    for (const listener of Object.values(projectListeners)) {
+        listener();
+    }
+}
+
+export function removeProjectListener(key: string) {
+    delete projectListeners[key]; 
+}
+
+export function addProjectListener(key: string, op: () => void) {
+    projectListeners[key] = op; 
 }
 

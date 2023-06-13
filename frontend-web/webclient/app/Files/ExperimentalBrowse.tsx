@@ -95,7 +95,6 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     useEffect(() => {
         isInitialMount.current = false;
     }, []);
-    const theme = useSelector<ReduxObject, "light" | "dark">(it => it.sidebar.theme);
 
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
@@ -1168,13 +1167,6 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     useRefreshFunction(() => {
         browserRef.current?.refresh();
     });
-
-    /* Re-render on theme change */
-    React.useEffect(() => {
-        if (mountRef.current && browserRef.current) {
-            browserRef.current.rerender();
-        }
-    }, [theme]);
 
     return <MainContainer
         main={<>

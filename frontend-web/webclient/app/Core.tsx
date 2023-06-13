@@ -332,10 +332,23 @@ removeExpiredFileUploads();
 
 const isLight = isLightThemeStored();
 toggleCssColors(isLight);
+
 export function toggleTheme(): void {
     const isLight = isLightThemeStored();
     toggleCssColors(!isLight);
     setSiteTheme(!isLight);
+    for (const listener of Object.values(themeListeners)) {
+        listener();
+    }
+}
+
+const themeListeners: Record<string, () => void> = {};
+export function addThemeListener(key: string, op: () => void) {
+    themeListeners[key] = op;
+}
+
+export function removeThemeListener(key: string) {
+    delete themeListeners[key];
 }
 
 function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
