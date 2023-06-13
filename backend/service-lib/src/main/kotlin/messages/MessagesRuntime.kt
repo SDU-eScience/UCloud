@@ -395,3 +395,13 @@ fun <V : BinaryType> BinaryAllocator.dictOf(
     val underlyingMap = mapOf(*pairs)
     return BinaryTypeDictionary.create(companion, this, underlyingMap)
 }
+
+fun <V : BinaryType> BinaryAllocator.dictOf(
+    companion: BinaryTypeCompanion<V>,
+    pairs: List<Pair<String, V>>
+): BinaryTypeDictionary<V> {
+    val underlyingMap = HashMap<String, V>()
+    for (pair in pairs) underlyingMap[pair.first] = pair.second
+
+    return BinaryTypeDictionary.create(companion, this, underlyingMap)
+}

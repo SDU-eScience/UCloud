@@ -1,4 +1,4 @@
-package avatars
+package avatar
 
 enum Top {
     @Json(name = "NoHair") NO_HAIR = 1,

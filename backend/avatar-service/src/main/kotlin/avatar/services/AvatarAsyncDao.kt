@@ -2,6 +2,9 @@ package dk.sdu.cloud.avatar.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.avatar.api.*
+import dk.sdu.cloud.messages.BinaryAllocator
+import dk.sdu.cloud.messages.BinaryTypeDictionary
+import dk.sdu.cloud.messages.dictOf
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.getField
@@ -27,7 +30,7 @@ object AvatarTable : SQLTable("avatars") {
     val hatColor = text("hat_color", notNull = true)
 }
 
-private fun defaultAvatar(): Avatar =
+private fun BinaryAllocator.defaultAvatar(): Avatar =
     Avatar(
         Top.NO_HAIR,
         TopAccessory.BLANK,
@@ -44,170 +47,106 @@ private fun defaultAvatar(): Avatar =
         HatColor.BLUE01
     )
 
-
-private fun RowData.toAvatar(): Avatar = Avatar(
-    Top.fromString(getField(AvatarTable.top)),
-    TopAccessory.fromString(getField(AvatarTable.topAccessory)),
-    HairColor.fromString(getField(AvatarTable.hairColor)),
-    FacialHair.fromString(getField(AvatarTable.facialHair)),
-    FacialHairColor.fromString(getField(AvatarTable.facialHairColor)),
-    Clothes.fromString(getField(AvatarTable.clothes)),
-    ColorFabric.fromString(getField(AvatarTable.colorFabric)),
-    Eyes.fromString(getField(AvatarTable.eyes)),
-    Eyebrows.fromString(getField(AvatarTable.eyebrows)),
-    MouthTypes.fromString(getField(AvatarTable.mouthTypes)),
-    SkinColors.fromString(getField(AvatarTable.skinColors)),
-    ClothesGraphic.fromString(getField(AvatarTable.clothesGraphic)),
-    HatColor.fromString(getField(AvatarTable.hatColor))
+// NOTE(Dan): Deals also with old avatars which might use a different encoding.
+private fun rowToAvatar(allocator: BinaryAllocator, row: RowData) = allocator.Avatar(
+    row.getField(AvatarTable.top).let { field -> runCatching { Top.fromSerialName(field) }.getOrNull() ?: Top.valueOf(field) },
+    row.getField(AvatarTable.topAccessory).let { field -> runCatching { TopAccessory.fromSerialName(field) }.getOrNull() ?: TopAccessory.valueOf(field) },
+    row.getField(AvatarTable.hairColor).let { field -> runCatching { HairColor.fromSerialName(field) }.getOrNull() ?: HairColor.valueOf(field) },
+    row.getField(AvatarTable.facialHair).let { field -> runCatching { FacialHair.fromSerialName(field) }.getOrNull() ?: FacialHair.valueOf(field) },
+    row.getField(AvatarTable.facialHairColor).let { field -> runCatching { FacialHairColor.fromSerialName(field) }.getOrNull() ?: FacialHairColor.valueOf(field) },
+    row.getField(AvatarTable.clothes).let { field -> runCatching { Clothes.fromSerialName(field) }.getOrNull() ?: Clothes.valueOf(field) },
+    row.getField(AvatarTable.colorFabric).let { field -> runCatching { ColorFabric.fromSerialName(field) }.getOrNull() ?: ColorFabric.valueOf(field) },
+    row.getField(AvatarTable.eyes).let { field -> runCatching { Eyes.fromSerialName(field) }.getOrNull() ?: Eyes.valueOf(field) },
+    row.getField(AvatarTable.eyebrows).let { field -> runCatching { Eyebrows.fromSerialName(field) }.getOrNull() ?: Eyebrows.valueOf(field) },
+    row.getField(AvatarTable.mouthTypes).let { field -> runCatching { MouthTypes.fromSerialName(field) }.getOrNull() ?: MouthTypes.valueOf(field) },
+    row.getField(AvatarTable.skinColors).let { field -> runCatching { SkinColors.fromSerialName(field) }.getOrNull() ?: SkinColors.valueOf(field) },
+    row.getField(AvatarTable.clothesGraphic).let { field -> runCatching { ClothesGraphic.fromSerialName(field) }.getOrNull() ?: ClothesGraphic.valueOf(field) },
+    row.getField(AvatarTable.hatColor).let { field -> runCatching { HatColor.fromSerialName(field) }.getOrNull() ?: HatColor.valueOf(field) },
 )
 
-class AvatarAsyncDao {
-
+class AvatarStore(private val db: DBContext,) {
     suspend fun upsert(
-        ctx: DBContext,
         user: String,
-        avatar: Avatar
+        avatar: Avatar,
+        ctx: DBContext = db,
     ) {
         ctx.withSession { session ->
-            val foundAvatar = findInternal(session, user)
-            if (foundAvatar != null) {
-                session.sendPreparedStatement(
-                    {
-                        setParameter("username", user)
-                        setParameter("top", avatar.top.string)
-                        setParameter("topAccessory", avatar.topAccessory.string)
-                        setParameter("hairColor", avatar.hairColor.string)
-                        setParameter("facialHair", avatar.facialHair.string)
-                        setParameter("facialHairColor", avatar.facialHairColor.string)
-                        setParameter("clothes", avatar.clothes.string)
-                        setParameter("colorFabric", avatar.colorFabric.string)
-                        setParameter("eyes", avatar.eyes.string)
-                        setParameter("eyebrows", avatar.eyebrows.string)
-                        setParameter("mouthTypes", avatar.mouthTypes.string)
-                        setParameter("skinColors", avatar.skinColors.string)
-                        setParameter("clothesGraphic", avatar.clothesGraphic.string)
-                        setParameter("hatColor", avatar.hatColor.string)
-                    },
-                    """
-                        UPDATE avatars
-                        SET
-                            top = :top,
-                            top_accessory = :topAccessory,
-                            hair_color = :hairColor,
-                            facial_hair = :facialHair,
-                            facial_hair_color = :facialHairColor,
-                            clothes = :clothes,
-                            color_fabric = :colorFabric,
-                            eyes = :eyes,
-                            eyebrows = :eyebrows,
-                            mouth_types = :mouthTypes,
-                            skin_colors = :skinColors,
-                            clothes_graphic = :clothesGraphic,
-                            hat_color = :hatColor
-                        WHERE username = :username
-                    """
-                )
-            } else {
-                session.insert(AvatarTable) {
-                    set(AvatarTable.username, user)
-                    set(AvatarTable.top, avatar.top.string)
-                    set(AvatarTable.topAccessory, avatar.topAccessory.string)
-                    set(AvatarTable.hairColor, avatar.hairColor.string)
-                    set(AvatarTable.facialHair, avatar.facialHair.string)
-                    set(AvatarTable.facialHairColor, avatar.facialHairColor.string)
-                    set(AvatarTable.clothes, avatar.clothes.string)
-                    set(AvatarTable.colorFabric, avatar.colorFabric.string)
-                    set(AvatarTable.eyes, avatar.eyes.string)
-                    set(AvatarTable.eyebrows, avatar.eyebrows.string)
-                    set(AvatarTable.mouthTypes, avatar.mouthTypes.string)
-                    set(AvatarTable.skinColors, avatar.skinColors.string)
-                    set(AvatarTable.clothesGraphic, avatar.clothesGraphic.string)
-                    set(AvatarTable.hatColor, avatar.hatColor.string)
-                }
-            }
-        }
-    }
-
-    private suspend fun findInternal(
-        ctx: DBContext,
-        user: String
-    ): Avatar? {
-        return ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("username", user)
-                    },
-                    """
-                        SELECT *
-                        FROM avatars
-                        WHERE username = :username
-                    """
-                ).rows
-                .singleOrNull()
-                ?.toAvatar()
+            session.sendPreparedStatement(
+                {
+                    setParameter("username", user)
+                    setParameter("top", avatar.top.serialName)
+                    setParameter("top_accessory", avatar.topAccessory.serialName)
+                    setParameter("hair_color", avatar.hairColor.serialName)
+                    setParameter("facial_hair", avatar.facialHair.serialName)
+                    setParameter("facial_hair_color", avatar.facialHairColor.serialName)
+                    setParameter("clothes", avatar.clothes.serialName)
+                    setParameter("color_fabric", avatar.colorFabric.serialName)
+                    setParameter("eyes", avatar.eyes.serialName)
+                    setParameter("eyebrows", avatar.eyebrows.serialName)
+                    setParameter("mouth_types", avatar.mouthTypes.serialName)
+                    setParameter("skin_colors", avatar.skinColors.serialName)
+                    setParameter("clothes_graphic", avatar.clothesGraphic.serialName)
+                    setParameter("hat_color", avatar.hatColor.serialName)
+                    println(avatar.hatColor.serialName)
+                },
+                """
+                    insert into avatar.avatars
+                    (username, clothes, clothes_graphic, color_fabric, eyebrows, eyes, facial_hair, facial_hair_color, hair_color, mouth_types, skin_colors, top, top_accessory, hat_color) 
+                    values
+                    (:username, :clothes, :clothes_graphic, :color_fabric, :eyebrows, :eyes, :facial_hair, :facial_hair_color, :hair_color, :mouth_types, :skin_colors, :top, :top_accessory, :hat_color) 
+                    on conflict (username)
+                    do update set
+                        top = excluded.top,
+                        top_accessory = excluded.top_accessory,
+                        hair_color = excluded.hair_color,
+                        facial_hair = excluded.facial_hair,
+                        facial_hair_color = excluded.facial_hair_color,
+                        clothes = excluded.clothes,
+                        color_fabric = excluded.color_fabric,
+                        eyes = excluded.eyes,
+                        eyebrows = excluded.eyebrows,
+                        mouth_types = excluded.mouth_types,
+                        skin_colors = excluded.skin_colors,
+                        clothes_graphic = excluded.clothes_graphic,
+                        hat_color = excluded.hat_color
+                """
+            )
         }
     }
 
     suspend fun findByUser(
-        ctx: DBContext,
-        user: String
+        allocator: BinaryAllocator,
+        user: String,
+        ctx: DBContext = db,
     ): Avatar {
         return ctx.withSession { session ->
             session
                 .sendPreparedStatement(
-                    {
-                        setParameter("username", user)
-                    },
-                    """
-                        SELECT *
-                        FROM avatars
-                        WHERE username = :username
-                    """
+                    { setParameter("username", user) },
+                    "select * from avatar.avatars where username = :username"
                 ).rows
                 .singleOrNull()
-                ?.toAvatar() ?: defaultAvatar()
+                ?.let { rowToAvatar(allocator, it) }
+                ?: allocator.defaultAvatar()
         }
     }
 
     suspend fun bulkFind(
-        ctx: DBContext,
-        users: List<String>
-    ): Map<String, SerializedAvatar> {
-        return ctx.withSession { session ->
-            val avatars = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("usernames", users)
-                    },
-                    """
-                        SELECT *
-                        FROM avatars
-                        WHERE username in (select unnest(:usernames::text[]))
-                    """
-                ).rows
-                .map {
-                    it.getField(AvatarTable.username) to it.toAvatar().toSerializedAvatar()
-                }
+        allocator: BinaryAllocator,
+        users: List<String>,
+        ctx: DBContext = db,
+    ): FindBulkResponse {
+        with(allocator) {
+            return ctx.withSession { session ->
+                val avatars = session
+                    .sendPreparedStatement(
+                        { setParameter("usernames", users) },
+                        "select * from avatar.avatars where username = some(:usernames::text[])"
+                    ).rows
+                    .map { it.getField(AvatarTable.username) to rowToAvatar(allocator, it) }
 
-            users.associateWith { user ->
-                avatars.find { it.first == user }?.second ?: defaultAvatar().toSerializedAvatar() }
+                FindBulkResponse(dictOf(Avatar, avatars))
+            }
         }
     }
-
-    private fun Avatar.toSerializedAvatar() = SerializedAvatar(
-        top.string,
-        topAccessory.string,
-        hairColor.string,
-        facialHair.string,
-        facialHairColor.string,
-        clothes.string,
-        colorFabric.string,
-        eyes.string,
-        eyebrows.string,
-        mouthTypes.string,
-        skinColors.string,
-        clothesGraphic.string,
-        hatColor.string
-    )
 }
