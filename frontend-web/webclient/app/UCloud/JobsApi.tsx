@@ -308,8 +308,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         }, {
             // Re-run app
             enabled: (selected) => selected.length === 1,
-            onClick: ([selected], cb) => cb.navigate(AppRoutes.jobs.create(selected.specification.application.name, selected.
-                specification.application.version)),
+            onClick: ([selected], cb) => cb.navigate(AppRoutes.jobs.create(selected.specification.application.name, selected.specification.application.version, selected.id)),
             icon: "play",
             text: "Run application again"
         }];

@@ -12,7 +12,7 @@ import {compute, PageV2} from "@/UCloud";
 import JobSpecification = compute.JobSpecification;
 import AppParameterValue = compute.AppParameterValue;
 import {TextP} from "@/ui-components/Text";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {default as JobsApi, Job} from "@/UCloud/JobsApi";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {BrowseType} from "@/Resource/BrowseType";
@@ -22,6 +22,7 @@ import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
 import {JobBrowse} from "../Browse";
 import {ButtonClass} from "@/ui-components/Button";
+import {getQueryParam} from "@/Utilities/URIUtilities";
 
 export const ImportParameters: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -30,6 +31,22 @@ export const ImportParameters: React.FunctionComponent<{
     setImportDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
     onImportDialogClose: () => void;
 }> = ({application, onImport, importDialogOpen, onImportDialogClose, setImportDialogOpen}) => {
+    const didLoadParameters = React.useRef(false);
+
+    const jobId = getQueryParam(location.search, "import");
+
+    React.useEffect(() => {
+        if (jobId) {
+            callAPI(JobsApi.retrieve({id: jobId})).then(it => {
+                if (!didLoadParameters.current) {
+                    readParsedJSON(it.status.jobParametersJson);
+                    snackbarStore.addSuccess("Imported job parameters", false, 5000);
+                }
+            }).catch(it => {
+                console.warn("Failed to auto-import parameters from query params.", it);
+            });
+        }
+    }, [jobId]);
 
     const [previousRuns] = useCloudAPI<PageV2<Job>>(
         JobsApi.browse({
@@ -43,6 +60,7 @@ export const ImportParameters: React.FunctionComponent<{
 
     const readParsedJSON = useCallback(async (parsedJson: any) => {
         if (typeof parsedJson === "object") {
+            didLoadParameters.current = true;
             const version = parsedJson["siteVersion"];
 
             let result: ImportResult;
@@ -59,7 +77,6 @@ export const ImportParameters: React.FunctionComponent<{
             result = await cleanupImportResult(application, result)
             setMessages(result.messages);
 
-            /* Is this correct? Is the typeof an undefined value not a string? */
             if (typeof result.output === "undefined") {
                 // Do nothing
             } else {

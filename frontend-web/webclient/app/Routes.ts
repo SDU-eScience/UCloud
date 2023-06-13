@@ -50,7 +50,7 @@ const apps = {
     applications: () => "/applications",
     overview: () => "/applications/overview",
     search: () => "/applications/search",
-    byTag: (tag: string) => `applications?tag=${tag}&itemsPerPage=25&page=0`,
+    byTag: (tag: string) => buildQueryString("applications", {tag, itemsPerPage: 25, page: 0}),
     studio: () => "/applications/studio",
     studioTool: (tool: string) => `/applications/studio/t/${tool}`,
     studioApp: (app: string) => `/applications/studio/a/${app}`,
@@ -61,10 +61,9 @@ const apps = {
 
 const jobs = {
     list: () => `/jobs/`,
-    create: (name: string, version: string) => `/jobs/create?app=${name}&version=${version}`,
+    create: (name: string, version: string, importId?: string) => buildQueryString(`/jobs/create`, {app: name, version, import: importId}),
     view: (jobId: string) => `/jobs/properties/${jobId}`,
     results: () => `/applications/results`,
-    run: (name: string, version: string) => buildQueryString("/jobs/create", {app: name, version}),
 };
 
 const login = {

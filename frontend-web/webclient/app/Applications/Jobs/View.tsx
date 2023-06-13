@@ -1340,7 +1340,7 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
         </Heading.h3>
         {app.name === "unknown" ? null :
             <AltButtonGroup minButtonWidth={"200px"}>
-                <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version})}>
+                <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version, import: job.id})}>
                     <Button>Run application again</Button>
                 </Link>
             </AltButtonGroup>
