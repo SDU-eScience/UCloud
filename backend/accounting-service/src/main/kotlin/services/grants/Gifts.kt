@@ -109,7 +109,8 @@ class GiftService(
                             quota = balance,
                             grantedIn =  null,
                             start = Time.now(),
-                            end = Long.MAX_VALUE,
+                            //gifts ends after 1 year
+                            end = Time.now() + (1000L * 3600 * 24 * 365),
                         )
                     )
                 )
@@ -178,6 +179,7 @@ class GiftService(
                     }
 
                     gift.resources.split {
+                        into("h") {it.period}
                         into("resource_cat_name") { it.category }
                         into("resource_provider") { it.provider }
                         into("credits") { it.balanceRequested }
