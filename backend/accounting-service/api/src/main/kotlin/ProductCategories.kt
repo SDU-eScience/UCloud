@@ -37,7 +37,7 @@ enum class AccountingFrequency {
 }
 
 private val periodicalFrequencies = listOf<AccountingFrequency>(
-    AccountingFrequency.PERIODIC_DAY,
+    AccountingFrequency.PERIODIC_MINUTE,
     AccountingFrequency.PERIODIC_HOUR,
     AccountingFrequency.PERIODIC_DAY
 )

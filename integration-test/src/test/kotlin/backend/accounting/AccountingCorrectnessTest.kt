@@ -10,6 +10,7 @@ import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.backend.compute.toReference
 import dk.sdu.cloud.integration.serviceClient
 import dk.sdu.cloud.integration.utils.*
+import dk.sdu.cloud.service.Time
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
@@ -43,14 +44,15 @@ class AccountingCorrectnessTest : IntegrationTest() {
                     val postRootWallets: List<Wallet>
                 )
 
+                /*testFilter = { title, subtitle ->
+                    title == "test correctness of charges" && subtitle == "1000 charge, 10 minutes in Project"
+                }*/
+
                 test<In, Out>("test correctness of charges"){
                     execute {
-                        val normalUser = createUser(
-                            "user-${UUID.randomUUID()}"
-                        )
                         createSampleProducts()
                         val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
-                        val createdProject = initializeNormalProject(root)
+                        val createdProject = initializeNormalProject(root, amount = 1_000_000_000)
                         val createdProjectWalletOwner = WalletOwner.Project(createdProject.projectId)
                         val initialRootWallets = findWalletsInternal(WalletOwner.Project(root)).filter { it.paysFor == sampleCompute.category  }
 
@@ -61,9 +63,11 @@ class AccountingCorrectnessTest : IntegrationTest() {
                                         DepositToWalletRequestItem(
                                             createdProjectWalletOwner,
                                             initialRootWallets.first().allocations.first().id,
-                                            10000,
+                                            1000000,
                                             "another deposit",
-                                            grantedIn = null
+                                            grantedIn = null,
+                                            startDate = Time.now(),
+                                            endDate = Time.now() + 10000000
                                         )
                                     ),
                                     adminClient
@@ -103,7 +107,7 @@ class AccountingCorrectnessTest : IntegrationTest() {
                         )
                     }
 
-                    case("1 charge, 10 hours in Project") {
+                    case("1 charge, 10 minutes in Project") {
                         input(
                             In(
                                 numberOfJobs = 1,
@@ -113,14 +117,17 @@ class AccountingCorrectnessTest : IntegrationTest() {
                         check{
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
+                            val initialRootState = getSumOfWallets(output.initialRootWallets)
+                            val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.pricePerUnit
-                            assertEquals(initialState.currentBalance - totalCharge, postChargeState.currentBalance, "currentBalance wrong")
-                            assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "localBalance wrong")
-                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
+
+                            assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
+                            assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "Usage wrong")
+                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "quota wrong")
                         }
                     }
 
-                    case("10 charge, 10 hours in Project") {
+                    case("10 charges, 10 minutes in Project") {
                         input(
                             In(
                                 numberOfJobs = 10,
@@ -130,14 +137,17 @@ class AccountingCorrectnessTest : IntegrationTest() {
                         check{
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
+                            val initialRootState = getSumOfWallets(output.initialRootWallets)
+                            val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.pricePerUnit
-                            assertEquals(initialState.currentBalance - totalCharge, postChargeState.currentBalance, "currentBalance wrong")
-                            assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "localBalance wrong")
-                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
+
+                            assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
+                            assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "Usage wrong")
+                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "quota wrong")
                         }
                     }
 
-                    case("100 charge, 10 hours in Project") {
+                    case("100 charges, 10 minutes in Project") {
                         input(
                             In(
                                 numberOfJobs = 100,
@@ -147,14 +157,17 @@ class AccountingCorrectnessTest : IntegrationTest() {
                         check{
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
+                            val initialRootState = getSumOfWallets(output.initialRootWallets)
+                            val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.pricePerUnit
-                            assertEquals(initialState.currentBalance - totalCharge, postChargeState.currentBalance, "currentBalance wrong")
-                            assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "localBalance wrong")
-                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
+
+                            assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
+                            assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "Usage wrong")
+                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "quota wrong")
                         }
                     }
 
-                    case("1000 charge, 10 hours in Project") {
+                    case("1000 charges, 10 minutes in Project") {
                         input(
                             In(
                                 numberOfJobs = 1000,
@@ -164,31 +177,37 @@ class AccountingCorrectnessTest : IntegrationTest() {
                         check{
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
+                            val initialRootState = getSumOfWallets(output.initialRootWallets)
+                            val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.pricePerUnit
-                            assertEquals(initialState.currentBalance - totalCharge, postChargeState.currentBalance, "currentBalance wrong")
-                            assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "localBalance wrong")
-                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
+
+                            assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
+                            assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "Usage wrong")
+                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "quota wrong")
                         }
                     }
 
-                    case("10000 charge, 2 hours in Project") {
+                    case("10000 charges, 1 minutes in Project") {
                         input(
                             In(
                                 numberOfJobs = 10000,
-                                durationPerJob = 2L
+                                durationPerJob = 1L
                             )
                         )
                         check{
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
+                            val initialRootState = getSumOfWallets(output.initialRootWallets)
+                            val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.pricePerUnit
-                            assertEquals(initialState.currentBalance - totalCharge, postChargeState.currentBalance, "currentBalance wrong")
-                            assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "localBalance wrong")
-                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
+
+                            assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
+                            assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "Usage wrong")
+                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "quota wrong")
                         }
                     }
 
-                    case("1 charge, 10 hours Root check") {
+                    case("1 charge, 10 minutes Root check") {
                         input(
                             In(
                                 numberOfJobs = 1,
@@ -196,16 +215,17 @@ class AccountingCorrectnessTest : IntegrationTest() {
                             )
                         )
                         check{
-                            val initialState = getSumOfWallets(output.initialRootWallets)
-                            val postChargeState = getSumOfWallets(output.postRootWallets)
+                            val initialRootState = getSumOfWallets(output.initialRootWallets)
+                            val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.pricePerUnit
-                            assertEquals(initialState.currentBalance - totalCharge, postChargeState.currentBalance, "currentBalance wrong")
-                            assertEquals(initialState.localBalance, initialState.initialBalance, "localBalance wrong")
-                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
+
+                            assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
+                            assertEquals(initialRootState.localBalance, postChargeRootState.localBalance, "Usage wrong")
+                            assertEquals(initialRootState.initialBalance, postChargeRootState.initialBalance, "quota wrong")
                         }
                     }
 
-                    case("10 charge, 10 hours Root check") {
+                    case("10 charges, 10 minutes Root check") {
                         input(
                             In(
                                 numberOfJobs = 10,
@@ -213,16 +233,17 @@ class AccountingCorrectnessTest : IntegrationTest() {
                             )
                         )
                         check{
-                            val initialState = getSumOfWallets(output.initialRootWallets)
-                            val postChargeState = getSumOfWallets(output.postRootWallets)
+                            val initialRootState = getSumOfWallets(output.initialRootWallets)
+                            val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.pricePerUnit
-                            assertEquals(initialState.currentBalance - totalCharge, postChargeState.currentBalance, "currentBalance wrong")
-                            assertEquals(initialState.localBalance, initialState.initialBalance, "localBalance wrong")
-                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
+
+                            assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
+                            assertEquals(initialRootState.localBalance, postChargeRootState.localBalance, "Usage wrong")
+                            assertEquals(initialRootState.initialBalance, postChargeRootState.initialBalance, "quota wrong")
                         }
                     }
 
-                    case("100 charge, 10 hours Root check") {
+                    case("100 charges, 10 minutes Root check") {
                         input(
                             In(
                                 numberOfJobs = 100,
@@ -230,16 +251,17 @@ class AccountingCorrectnessTest : IntegrationTest() {
                             )
                         )
                         check{
-                            val initialState = getSumOfWallets(output.initialRootWallets)
-                            val postChargeState = getSumOfWallets(output.postRootWallets)
+                            val initialRootState = getSumOfWallets(output.initialRootWallets)
+                            val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.pricePerUnit
-                            assertEquals(initialState.currentBalance - totalCharge, postChargeState.currentBalance, "currentBalance wrong")
-                            assertEquals(initialState.localBalance, initialState.initialBalance, "localBalance wrong")
-                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
+
+                            assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
+                            assertEquals(initialRootState.localBalance, postChargeRootState.localBalance, "Usage wrong")
+                            assertEquals(initialRootState.initialBalance, postChargeRootState.initialBalance, "quota wrong")
                         }
                     }
 
-                    case("1000 charge, 10 hours Root check") {
+                    case("1000 charges, 10 minutes Root check") {
                         input(
                             In(
                                 numberOfJobs = 1000,
@@ -247,16 +269,17 @@ class AccountingCorrectnessTest : IntegrationTest() {
                             )
                         )
                         check{
-                            val initialState = getSumOfWallets(output.initialRootWallets)
-                            val postChargeState = getSumOfWallets(output.postRootWallets)
+                            val initialRootState = getSumOfWallets(output.initialRootWallets)
+                            val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.pricePerUnit
-                            assertEquals(initialState.currentBalance - totalCharge, postChargeState.currentBalance, "currentBalance wrong")
-                            assertEquals(initialState.localBalance, initialState.initialBalance, "localBalance wrong")
-                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
+
+                            assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
+                            assertEquals(initialRootState.localBalance, postChargeRootState.localBalance, "Usage wrong")
+                            assertEquals(initialRootState.initialBalance, postChargeRootState.initialBalance, "quota wrong")
                         }
                     }
 
-                    case("10000 charge, 2 hours Root check") {
+                    case("10000 charges, 2 minutes Root check") {
                         input(
                             In(
                                 numberOfJobs = 10000,
@@ -264,49 +287,60 @@ class AccountingCorrectnessTest : IntegrationTest() {
                             )
                         )
                         check{
-                            val initialState = getSumOfWallets(output.initialRootWallets)
-                            val postChargeState = getSumOfWallets(output.postRootWallets)
+                            val initialState = getSumOfWallets(output.initialWallets)
+                            val postState = getSumOfWallets(output.postWallets)
+                            val initialRootState = getSumOfWallets(output.initialRootWallets)
+                            val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.pricePerUnit
-                            assertEquals(initialState.currentBalance - totalCharge, postChargeState.currentBalance, "currentBalance wrong")
-                            assertEquals(initialState.localBalance, initialState.initialBalance, "localBalance wrong")
-                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
+
+                            assertEquals(initialRootState.currentBalance - initialState.initialBalance, postChargeRootState.currentBalance, "root treeUsage wrong")
+                            assertEquals(initialState.localBalance - totalCharge, postState.localBalance, "Project local usage wrong" )
+                            assertEquals(initialRootState.localBalance, postChargeRootState.localBalance, "root Usage wrong")
+                            assertEquals(initialRootState.initialBalance, postChargeRootState.initialBalance, "root quota wrong")
                         }
                     }
 
-                    case("10000 charge, 2 hours, multiple allocations") {
+                    case("10000 charges, 1 minut, multiple allocations") {
                         input(
                             In(
                                 numberOfJobs = 10000,
-                                durationPerJob = 2L,
+                                durationPerJob = 1L,
                                 numberOfExtraDeposits = 3L
                             )
                         )
                         check{
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
+                            val initialRootState = getSumOfWallets(output.initialRootWallets)
+                            val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.pricePerUnit
-                            assertEquals(initialState.currentBalance - totalCharge, postChargeState.currentBalance, "currentBalance wrong")
-                            assertEquals(initialState.localBalance, initialState.initialBalance, "localBalance wrong")
-                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
+
+
+                            assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
+                            assertEquals(initialState.localBalance, initialState.initialBalance, "usage wrong")
+                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "quota wrong")
                         }
                     }
 
-                    case("10000 charge, 2 hours - IS OVERCHARGE") {
+                    case("1000 charges, 20 minuts - IS OVERCHARGE") {
                         input(
                             In(
-                                numberOfJobs = 10000,
-                                durationPerJob = 50L,
+                                numberOfJobs = 1000,
+                                durationPerJob = 20L,
                                 numberOfExtraDeposits = 3L
                             )
                         )
                         check{
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
+                            val initialRootState = getSumOfWallets(output.initialRootWallets)
+                            val postChargeRootState = getSumOfWallets(output.postRootWallets)
+                            val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.pricePerUnit
 
-                            val chargeLimit = initialState.initialBalance % (1000 * input.durationPerJob * sampleCompute.pricePerUnit)
-
-                            assertEquals(chargeLimit, postChargeState.currentBalance, "currentBalance wrong")
-                            assertEquals(chargeLimit, postChargeState.localBalance, "localBalance wrong")
+                            assertEquals(0, postChargeState.currentBalance, "project treeusage wrong")
+                            assertEquals(initialState.initialBalance - totalCharge, postChargeState.localBalance, "project Local usage wrong")
+                            assertEquals(initialRootState.initialBalance - postChargeState.initialBalance, postChargeRootState.currentBalance, "root treeUsage wrong")
+                            assertEquals(initialState.initialBalance - totalCharge, postChargeState.localBalance, "localBalance wrong")
                             assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
                         }
                     }
