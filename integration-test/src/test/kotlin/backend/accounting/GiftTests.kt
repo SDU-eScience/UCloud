@@ -13,7 +13,6 @@ import java.util.*
 
 class GiftTest : IntegrationTest() {
 
-
     override fun defineTests() {
         run {
             data class SimplifiedGift(val criteria: List<UserCriteria>)
