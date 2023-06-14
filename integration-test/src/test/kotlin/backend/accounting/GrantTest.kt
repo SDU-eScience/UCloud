@@ -16,6 +16,7 @@ import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.integration.utils.assertThatInstance
 import dk.sdu.cloud.integration.utils.assertThatPropertyEquals
 import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.service.Time
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.*
@@ -89,8 +90,8 @@ class GrantTest : IntegrationTest() {
                             createdProject.projectId,
                             requested.balance,
                             period = GrantApplication.Period(
-                                null,
-                                null
+                                Time.now(),
+                                Time.now() + 1_000_000
                             ),
                             sourceAllocation = alloc?.allocations?.singleOrNull()?.id?.toLong()
                         )
