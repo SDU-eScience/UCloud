@@ -17,7 +17,7 @@ interface UserSettingsState {
     headerLoading: boolean;
 }
 
-const UserSettings: React.FunctionComponent<UserSettingsOperations & UserSettingsState> = props => {
+function UserSettings(props: UserSettingsOperations & UserSettingsState) {
 
     useTitle("User Settings");
 

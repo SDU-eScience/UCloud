@@ -1,18 +1,14 @@
 import {callAPI} from "@/Authentication/DataHook";
-import {providerIcon} from "@/Files/ExperimentalDriveBrowse";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {useProjectId} from "@/Project/Api";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import AppRoutes from "@/Routes";
 import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {doNothing} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
-import {createPortal} from "react-dom";
-import {useDispatch, useSelector} from "react-redux";
+import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
 
 const defaultRetrieveFlags = {

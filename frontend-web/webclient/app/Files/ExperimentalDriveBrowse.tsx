@@ -8,8 +8,10 @@ import {
     ResourceBrowser,
     ResourceBrowseFeatures,
     addContextSwitcherInPortal,
+    resourceCreationWithProductSelector,
+    providerIcon,
 } from "@/ui-components/ResourceBrowser";
-import {useDispatch, useSelector} from "react-redux";
+import {useDispatch} from "react-redux";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import MainContainer from "@/MainContainer/MainContainer";
 import {callAPI} from "@/Authentication/DataHook";
@@ -22,19 +24,18 @@ import {DELETE_TAG, ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/R
 import {Product, ProductStorage} from "@/Accounting";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {ProductSelector} from "@/Products/Selector";
-import {createRoot} from "react-dom/client";
-import {ThemeProvider} from "styled-components";
-import {theme} from "@/ui-components";
-import ProviderInfo from "@/Assets/provider_info.json";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
-import {useProjectId} from "@/Project/Api";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProvider<ProductStorage, FileCollectionSupport>>({
     globalTtl: 60_000
 });
+
+const defaultRetrieveFlags: {itemsPerPage: number} = {
+    itemsPerPage: 250,
+};
 
 const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
@@ -55,7 +56,6 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<FileCollection> | null>(null);
     const dispatch = useDispatch();
-    const projectId = useProjectId();
     useTitle("Drives");
 
     const [switcher, setSwitcherWorkaround] = React.useState(<></>);
@@ -116,8 +116,8 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                                 specification: {
                                     title: browser.renameValue,
                                     product: productReference
-                                }
-                            };
+                                },                                
+                            } as FileCollection;
 
                             browser.insertEntryIntoCurrentPage(driveBeingCreated);
                             browser.renderRows();
@@ -206,7 +206,8 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                         supportByProvider: support,
                         dispatch,
                         embedded: false,
-                        isWorkspaceAdmin: false,
+                        /* TODO(Jonas): Find a way to get this info from cached projects. */
+                        isWorkspaceAdmin: Client.hasActiveProject ? false : true, /* TODO(Jonas) */
                         navigate: to => {navigate(to)},
                         reload: () => browser.refresh(),
                         startCreation(): void {
@@ -231,7 +232,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 browser.on("fetchOperations", () => {
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-                    return FileCollectionsApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected) === true)
+                    return FileCollectionsApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected) === true);
                 });
 
                 browser.on("unhandledShortcut", (ev) => {
@@ -356,10 +357,6 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
 
                 // Network requests
                 // =========================================================================================================
-                const defaultRetrieveFlags: {itemsPerPage: number} = {
-                    itemsPerPage: 250,
-                };
-
                 browser.on("open", (oldPath, newPath) => {
                     if (newPath !== "/") {
                         navigate("/files/?path=" + encodeURIComponent(`/${newPath}`));
@@ -418,8 +415,6 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 browser.on("pathToEntry", f => f.id);
                 browser.on("nameOfEntry", f => f.specification.title);
                 browser.on("sort", page => page.sort((a, b) => a.specification.title.localeCompare(b.specification.title)));
-
-                document.addEventListener("", (a) => console.log(a));
             });
 
             addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
@@ -439,127 +434,5 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
         }
     />;
 };
-
-export function resourceCreationWithProductSelector<T>(
-    browser: ResourceBrowser<T>,
-    products: Product[],
-    dummyEntry: T,
-    onCreate: (product: Product) => void,
-): {startCreation: () => void, cancelCreation: () => void} {
-    const productSelector = document.createElement("div");
-    productSelector.style.display = "none";
-    productSelector.style.position = "fixed";
-    document.body.append(productSelector);
-    const Component: React.FunctionComponent = () => {
-        return <ProductSelector
-            products={products}
-            selected={null}
-            onSelect={onProductSelected}
-            slim
-            type={"STORAGE"}
-        />;
-    };
-
-    let selectedProduct: Product | null = null;
-
-    const root = createRoot(productSelector);
-    root.render(<ThemeProvider theme={theme}><Component /></ThemeProvider>);
-
-
-    browser.on("startRenderPage", () => {
-        browser.resetTitleComponent(productSelector);
-    });
-
-    browser.on("renderRow", (entry, row, dims) => {
-        if (entry !== dummyEntry) return;
-        if (selectedProduct !== null) return;
-
-        browser.placeTitleComponent(productSelector, dims);
-    });
-
-    const isSelectingProduct = () => {
-        return (browser.cachedData[browser.currentPath] ?? []).some(it => it === dummyEntry);
-    }
-
-    browser.on("beforeShortcut", ev => {
-        if (ev.code === "Escape" && isSelectingProduct()) {
-            ev.preventDefault();
-
-            browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-            browser.renderRows();
-        }
-    });
-
-    const startCreation = () => {
-        if (isSelectingProduct()) return;
-        selectedProduct = null;
-        browser.insertEntryIntoCurrentPage(dummyEntry);
-        browser.renderRows();
-    };
-
-    const cancelCreation = () => {
-        browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-        browser.renderRows();
-    };
-
-    const onProductSelected = (product: Product) => {
-        selectedProduct = product;
-        browser.showRenameField(
-            it => it === dummyEntry,
-            () => {
-                browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-                onCreate(product);
-            },
-            () => {
-                browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-            },
-            ""
-        );
-    };
-
-    const onOutsideClick = (ev: MouseEvent) => {
-        if (selectedProduct === null && isSelectingProduct()) {
-            cancelCreation();
-        }
-    };
-
-    document.body.addEventListener("click", onOutsideClick);
-
-    browser.on("unmount", () => {
-        document.body.removeEventListener("click", onOutsideClick);
-        root.unmount();
-    });
-
-
-    return {startCreation, cancelCreation};
-}
-
-export function providerIcon(providerId: string): HTMLElement {
-    const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
-    const outer = div("");
-    outer.style.background = "var(--blue)";
-    outer.style.borderRadius = "8px";
-    outer.style.padding = "5px";
-    outer.style.width = "40px";
-    outer.style.height = "40px";
-
-    const inner = div("");
-    inner.style.backgroundSize = "contain";
-    inner.style.width = "100%";
-    inner.style.height = "100%";
-    inner.style.fontSize = "30px";
-    inner.style.color = "white"
-    if (myInfo) {
-        inner.style.backgroundImage = `url('/Images/${myInfo.logo}')`;
-        inner.style.backgroundPosition = "center";
-    } else {
-        inner.style.marginTop = "-8px";
-        inner.style.marginLeft = "-5px";
-        inner.append((providerId[0] ?? "-").toUpperCase());
-    }
-
-    outer.append(inner);
-    return outer;
-}
 
 export default ExperimentalBrowse;

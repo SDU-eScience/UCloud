@@ -4,17 +4,28 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters, getFilterStorageValue, setFilterStorageValue} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
-import {useDispatch, useSelector} from "react-redux";
+import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
-import LicenseApi, {License} from "@/UCloud/LicenseApi";
-import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {doNothing} from "@/UtilityFunctions";
+import LicenseApi, {License, LicenseSupport} from "@/UCloud/LicenseApi";
+import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
+import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
-import {useProjectId} from "@/Project/Api";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {AsyncCache} from "@/Utilities/AsyncCache";
+import {Product, ProductLicense} from "@/Accounting";
+import {createRoot} from "react-dom/client";
+import {ThemeProvider} from "styled-components";
+import {theme} from "@/ui-components";
+import {ProductSelector} from "@/Products/Selector";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {FindByStringId} from "@/UCloud";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
-}
+};
+
+const DUMMY_ENTRY_ID = "dummy";
 
 const FEATURES = {
     renderSpinnerWhenLoading: true,
@@ -24,13 +35,17 @@ const FEATURES = {
     contextSwitcher: true,
 };
 
+const supportByProvider = new AsyncCache<SupportByProvider<ProductLicense, LicenseSupport>>({
+    globalTtl: 60_000
+});
+
 export function ExperimentalLicenses(): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<License> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
-    useTitle("Public IPs");
+    useTitle("Licenses");
 
     const dateRanges = dateRangeFilters("Date created");
 
@@ -38,15 +53,74 @@ export function ExperimentalLicenses(): JSX.Element {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<License>(mount, "Licenses").init(browserRef, FEATURES, "", browser => {
-
-                const isCreatingPrefix = "creating-";
-                const {startCreation, cancelCreation} = {
-                    startCreation: () => void 0,
-                    cancelCreation: () => void 0,
+                let {startCreation, cancelCreation} = {
+                    startCreation: () => { },
+                    cancelCreation: () => {void 0},
                 };
 
-                
+                supportByProvider.retrieve("", () =>
+                    callAPI(LicenseApi.retrieveProducts())
+                ).then(res => {
+                    const creatableProducts: Product[] = [];
+                    for (const provider of Object.values(res.productsByProvider)) {
+                        for (const {product, support} of provider) {
+                            // TODO(Jonas): What to guard against?
+                            creatableProducts.push(product);
+                        }
+                    }
 
+                    const dummyEntry = {
+                        id: DUMMY_ENTRY_ID,
+                        specification: {product: {id: "string"}}
+                    } as License;
+
+                    const resourceCreator = resourceCreationWithProductSelector(
+                        browser,
+                        creatableProducts,
+                        dummyEntry,
+                        async product => {
+                            const productReference = {
+                                id: product.name,
+                                category: product.category.name,
+                                provider: product.category.provider
+                            };
+
+                            const activatedLicense = {
+                                ...dummyEntry,
+                                id: "",
+                                specification: {
+                                    product: productReference
+                                },
+                                owner: {createdBy: "", },
+                            } as License;
+
+                            browser.insertEntryIntoCurrentPage(activatedLicense);
+                            browser.renderRows();
+                            browser.selectAndShow(it => it === activatedLicense);
+
+                            try {
+                                const response = (await callAPI(
+                                    LicenseApi.create(
+                                        bulkRequestOf({
+                                            product: productReference,
+                                            domain: "",
+                                        })
+                                    )
+                                )).responses[0] as unknown as FindByStringId;
+
+                                activatedLicense.id = response.id;
+                                browser.renderRows();
+                            } catch (e) {
+                                snackbarStore.addFailure("Failed to activate license. " + extractErrorMessage(e), false);
+                                browser.refresh();
+                                return;
+                            }
+                        }
+                    )
+
+                    startCreation = resourceCreator.startCreation;
+                    cancelCreation = resourceCreator.cancelCreation;
+                });
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
@@ -113,11 +187,14 @@ export function ExperimentalLicenses(): JSX.Element {
                     setFilterStorageValue(browser.resourceName, "status", "READY");
                 }
 
-                browser.on("renderRow", (key, row, dims) => {
+                browser.on("renderRow", (license, row, dims) => {
                     const [icon, setIcon] = browser.defaultIconRenderer();
                     row.title.append(icon)
-
-                    row.title.append(browser.defaultTitleRenderer(key.id, dims));
+                    if (license.id !== DUMMY_ENTRY_ID) {
+                        const {product} = license.specification;
+                        const title = product.id + (license.id ? ` (${license.id})` : "")
+                        row.title.append(browser.defaultTitleRenderer(title, dims));
+                    }
 
                     browser.icons.renderIcon({name: "fileSignatureSolid", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
                 });
@@ -157,16 +234,14 @@ export function ExperimentalLicenses(): JSX.Element {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,
                         embedded: false,
-                        isWorkspaceAdmin: false,
+                        /* TODO(Jonas): Find out how to cache projects in a meaningful way. */
+                        isWorkspaceAdmin: !Client.hasActiveProject,
                         navigate,
                         reload: () => browser.refresh(),
                         startCreation(): void {
                             startCreation();
                         },
                         cancelCreation: doNothing,
-                        startRenaming(resource: License): void {
-                            // TODO
-                        },
                         viewProperties(res: License): void {
                             navigate(AppRoutes.resource.properties(browser.resourceName, res.id));
                         },
@@ -177,8 +252,6 @@ export function ExperimentalLicenses(): JSX.Element {
                     };
 
                     return callbacks;
-
-
                 });
 
                 browser.on("fetchOperations", () => {
@@ -186,6 +259,9 @@ export function ExperimentalLicenses(): JSX.Element {
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn());
                     return LicenseApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries) === true)
                 });
+                browser.on("pathToEntry", f => f.id);
+                browser.on("nameOfEntry", f => f.specification.product.id);
+                browser.on("sort", page => page.sort((a, b) => a.specification.product.id.localeCompare(b.specification.product.id)));
             });
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
@@ -202,4 +278,89 @@ export function ExperimentalLicenses(): JSX.Element {
             {switcher}
         </>}
     />
+}
+
+/* Note(Jonas): Duplicated as we don't want to show an input field on creation */
+// Maybe we can fully provide the `onProductSelected`, which seems to be the major difference.
+function resourceCreationWithProductSelector<T>(
+    browser: ResourceBrowser<T>,
+    products: Product[],
+    dummyEntry: T,
+    onCreate: (product: Product) => void,
+): {startCreation: () => void, cancelCreation: () => void} {
+    const productSelector = document.createElement("div");
+    productSelector.style.display = "none";
+    productSelector.style.position = "fixed";
+    document.body.append(productSelector);
+    const Component: React.FunctionComponent = () => {
+        return <ProductSelector
+            products={products}
+            selected={null}
+            onSelect={onProductSelected}
+            slim
+            type={"LICENSE"}
+        />;
+    };
+
+    let selectedProduct: Product | null = null;
+
+    const root = createRoot(productSelector);
+    root.render(<ThemeProvider theme={theme}><Component /></ThemeProvider>);
+
+    browser.on("startRenderPage", () => {
+        browser.resetTitleComponent(productSelector);
+    });
+
+    browser.on("renderRow", (entry, row, dims) => {
+        if (entry !== dummyEntry) return;
+        if (selectedProduct !== null) return;
+
+        browser.placeTitleComponent(productSelector, dims);
+    });
+
+    const isSelectingProduct = () => {
+        return (browser.cachedData[browser.currentPath] ?? []).some(it => it === dummyEntry);
+    }
+
+    browser.on("beforeShortcut", ev => {
+        if (ev.code === "Escape" && isSelectingProduct()) {
+            ev.preventDefault();
+
+            browser.removeEntryFromCurrentPage(it => it === dummyEntry);
+            browser.renderRows();
+        }
+    });
+
+    const startCreation = () => {
+        if (isSelectingProduct()) return;
+        selectedProduct = null;
+        browser.insertEntryIntoCurrentPage(dummyEntry);
+        browser.renderRows();
+    };
+
+    const cancelCreation = () => {
+        browser.removeEntryFromCurrentPage(it => it === dummyEntry);
+        browser.renderRows();
+    };
+
+    const onProductSelected = (product: Product) => {
+        browser.removeEntryFromCurrentPage(it => it === dummyEntry);
+        onCreate(product);
+    };
+
+    const onOutsideClick = (ev: MouseEvent) => {
+        if (selectedProduct === null && isSelectingProduct()) {
+            cancelCreation();
+        }
+    };
+
+    document.body.addEventListener("click", onOutsideClick);
+
+    browser.on("unmount", () => {
+        document.body.removeEventListener("click", onOutsideClick);
+        root.unmount();
+    });
+
+
+    return {startCreation, cancelCreation};
 }

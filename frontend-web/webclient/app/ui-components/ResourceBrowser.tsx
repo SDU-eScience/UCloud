@@ -1,6 +1,6 @@
 import {Operation} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
-import {ThemeColor} from "@/ui-components/theme";
+import theme, {ThemeColor} from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
 import {capitalize, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
@@ -17,7 +17,13 @@ import {createPortal} from "react-dom";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {addThemeListener, removeThemeListener} from "@/Core";
 import {addProjectListener, removeProjectListener} from "@/Project/Redux";
-
+import {Product, ProductStorage} from "@/Accounting";
+import ProviderInfo from "@/Assets/provider_info.json";
+import {ProductSelector} from "@/Products/Selector";
+import {createRoot} from "react-dom/client";
+import {ThemeProvider} from "styled-components";
+import {SupportByProvider} from "@/UCloud/ResourceApi";
+import {FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 
 /*
  BUGS FOUND
@@ -1202,7 +1208,11 @@ export class ResourceBrowser<T> {
         if (callbacks === null) return;
 
         const operations = this.dispatchMessage("fetchOperations", fn => fn());
-        if (operations.length === 0) return;
+        if (operations.length === 0) {
+            const target = this.operations;
+            target.innerHTML = "";
+            return;
+        }
 
         if (!useContextMenu) {
             for (let i = 0; i < this.altShortcuts.length; i++) {
@@ -3037,6 +3047,127 @@ export function addContextSwitcherInPortal<T>(browserRef: React.RefObject<Resour
             setPortal(createPortal(<ContextSwitcher />, contextSwitcher));
         }
     }
+}
+
+export function resourceCreationWithProductSelector<T>(
+    browser: ResourceBrowser<T>,
+    products: Product[],
+    dummyEntry: T,
+    onCreate: (product: Product) => void,
+): {startCreation: () => void, cancelCreation: () => void} {
+    const productSelector = document.createElement("div");
+    productSelector.style.display = "none";
+    productSelector.style.position = "fixed";
+    document.body.append(productSelector);
+    const Component: React.FunctionComponent = () => {
+        return <ProductSelector
+            products={products}
+            selected={null}
+            onSelect={onProductSelected}
+            slim
+            type={"STORAGE"}
+        />;
+    };
+
+    let selectedProduct: Product | null = null;
+
+    const root = createRoot(productSelector);
+    root.render(<ThemeProvider theme={theme}><Component /></ThemeProvider>);
+
+    browser.on("startRenderPage", () => {
+        browser.resetTitleComponent(productSelector);
+    });
+
+    browser.on("renderRow", (entry, row, dims) => {
+        if (entry !== dummyEntry) return;
+        if (selectedProduct !== null) return;
+
+        browser.placeTitleComponent(productSelector, dims);
+    });
+
+    const isSelectingProduct = () => {
+        return (browser.cachedData[browser.currentPath] ?? []).some(it => it === dummyEntry);
+    }
+
+    browser.on("beforeShortcut", ev => {
+        if (ev.code === "Escape" && isSelectingProduct()) {
+            ev.preventDefault();
+
+            browser.removeEntryFromCurrentPage(it => it === dummyEntry);
+            browser.renderRows();
+        }
+    });
+
+    const startCreation = () => {
+        if (isSelectingProduct()) return;
+        selectedProduct = null;
+        browser.insertEntryIntoCurrentPage(dummyEntry);
+        browser.renderRows();
+    };
+
+    const cancelCreation = () => {
+        browser.removeEntryFromCurrentPage(it => it === dummyEntry);
+        browser.renderRows();
+    };
+
+    const onProductSelected = (product: Product) => {
+        selectedProduct = product;
+        browser.showRenameField(
+            it => it === dummyEntry,
+            () => {
+                browser.removeEntryFromCurrentPage(it => it === dummyEntry);
+                onCreate(product);
+            },
+            () => {
+                browser.removeEntryFromCurrentPage(it => it === dummyEntry);
+            },
+            ""
+        );
+    };
+
+    const onOutsideClick = (ev: MouseEvent) => {
+        if (selectedProduct === null && isSelectingProduct()) {
+            cancelCreation();
+        }
+    };
+
+    document.body.addEventListener("click", onOutsideClick);
+
+    browser.on("unmount", () => {
+        document.body.removeEventListener("click", onOutsideClick);
+        root.unmount();
+    });
+
+
+    return {startCreation, cancelCreation};
+}
+
+export function providerIcon(providerId: string): HTMLElement {
+    const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
+    const outer = div("");
+    outer.style.background = "var(--blue)";
+    outer.style.borderRadius = "8px";
+    outer.style.padding = "5px";
+    outer.style.width = "40px";
+    outer.style.height = "40px";
+
+    const inner = div("");
+    inner.style.backgroundSize = "contain";
+    inner.style.width = "100%";
+    inner.style.height = "100%";
+    inner.style.fontSize = "30px";
+    inner.style.color = "white"
+    if (myInfo) {
+        inner.style.backgroundImage = `url('/Images/${myInfo.logo}')`;
+        inner.style.backgroundPosition = "center";
+    } else {
+        inner.style.marginTop = "-8px";
+        inner.style.marginLeft = "-5px";
+        inner.append((providerId[0] ?? "-").toUpperCase());
+    }
+
+    outer.append(inner);
+    return outer;
 }
 
 // https://stackoverflow.com/a/13139830
