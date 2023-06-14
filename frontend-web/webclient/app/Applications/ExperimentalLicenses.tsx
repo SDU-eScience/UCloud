@@ -53,10 +53,7 @@ export function ExperimentalLicenses(): JSX.Element {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<License>(mount, "Licenses").init(browserRef, FEATURES, "", browser => {
-                let {startCreation, cancelCreation} = {
-                    startCreation: () => { },
-                    cancelCreation: () => {void 0},
-                };
+                var startCreation = function() {};
 
                 supportByProvider.retrieve("", () =>
                     callAPI(LicenseApi.retrieveProducts())
@@ -119,12 +116,11 @@ export function ExperimentalLicenses(): JSX.Element {
                     )
 
                     startCreation = resourceCreator.startCreation;
-                    cancelCreation = resourceCreator.cancelCreation;
                 });
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
-                        // TODO(Jonas): Handle properties
+                        navigate(AppRoutes.resource.properties("licenses", resource.id));
                     }
 
                     callAPI(LicenseApi.browse({

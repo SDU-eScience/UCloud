@@ -17,13 +17,11 @@ import {createPortal} from "react-dom";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {addThemeListener, removeThemeListener} from "@/Core";
 import {addProjectListener, removeProjectListener} from "@/Project/Redux";
-import {Product, ProductStorage} from "@/Accounting";
+import {Product} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {createRoot} from "react-dom/client";
 import {ThemeProvider} from "styled-components";
-import {SupportByProvider} from "@/UCloud/ResourceApi";
-import {FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 
 /*
  BUGS FOUND
@@ -292,9 +290,11 @@ export class ResourceBrowser<T> {
     private contextMenuHandlers: (() => void)[] = [];
 
     // Rename
-    private renameField: HTMLInputElement;
+    renameField: HTMLInputElement;
     private renameFieldIndex: number = -1;
     renameValue: string = "";
+    renamePrefix: string = "";
+    renamePostfix: string = "";
     private renameOnSubmit: () => void = doNothing;
     private renameOnCancel: () => void = doNothing;
 

@@ -69,7 +69,6 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 // Load products and initialize dependencies
                 // =========================================================================================================
                 let startCreation: () => void = doNothing;
-                let cancelCreation: () => void = doNothing;
                 const collectionBeingCreated = "collectionBeingCreated$$___$$";
                 const isCreatingPrefix = "creating-";
                 const dummyEntry: FileCollection = {
@@ -140,7 +139,6 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     );
 
                     startCreation = resourceCreator.startCreation;
-                    cancelCreation = resourceCreator.cancelCreation;
                 });
 
                 // Operations

@@ -1,12 +1,17 @@
+import {Product, ProductIngress} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/DefaultObjects";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
-import IngressApi, {Ingress} from "@/UCloud/IngressApi";
-import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {doNothing} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {FindByStringId} from "@/UCloud";
+import IngressApi, {Ingress, IngressSupport} from "@/UCloud/IngressApi";
+import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
+import {AsyncCache} from "@/Utilities/AsyncCache";
+import {doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -24,6 +29,16 @@ const FEATURES: ResourceBrowseFeatures = {
     breadcrumbsSeparatedBySlashes: false,
 };
 
+const INGRESS_PREFIX = "app-";
+const INGRESS_POSTFIX = ".dev.cloud.sdu.dk";
+
+
+const supportByProvider = new AsyncCache<SupportByProvider<ProductIngress, IngressSupport>>({
+    globalTtl: 60_000
+});
+
+const DUMMY_ENTRY_ID = "dummy";
+
 export function ExperimentalPublicLinks(): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Ingress> | null>(null);
@@ -40,16 +55,87 @@ export function ExperimentalPublicLinks(): JSX.Element {
             new ResourceBrowser<Ingress>(mount, "Public Links").init(browserRef, FEATURES, "", browser => {
                 // TODO(Jonas): Set filter to "RUNNING" initially for state.
 
+                let startCreation: () => void = doNothing;
+                const ingressBeingCreated = "collectionBeingCreated$$___$$";
                 const isCreatingPrefix = "creating-";
-                const {startCreation, cancelCreation} = {
-                    startCreation: () => void 0,
-                    cancelCreation: () => void 0,
-                };
+                const dummyEntry = {
+                    createdAt: timestampUnixMs(),
+                    status: {createdAt: 0, boundTo: [], state: "PREPARING"},
+                    specification: {domain: "", product: {category: "", id: "", provider: ""}},
+                    id: ingressBeingCreated,
+                    owner: {createdBy: "", },
+                    updates: [],
+                    permissions: {myself: []},
+                    domain: ""
+                } as Ingress;
 
+                const supportPromise = supportByProvider.retrieve("", () =>
+                    callAPI(IngressApi.retrieveProducts())
+                );
+
+                supportPromise.then(res => {
+                    browser.renderOperations();
+
+                    const creatableProducts: Product[] = [];
+                    for (const provider of Object.values(res.productsByProvider)) {
+                        for (const {product, support} of provider) {
+                            creatableProducts.push(product);
+                        }
+                    }
+
+                    browser.renamePrefix = INGRESS_PREFIX;
+                    browser.renamePostfix = INGRESS_POSTFIX;
+
+                    const resourceCreator = resourceCreationWithProductSelector(
+                        browser,
+                        creatableProducts,
+                        dummyEntry,
+                        async product => {
+                            const temporaryFakeId = isCreatingPrefix + browser.renameValue + "-" + timestampUnixMs();
+                            const productReference = {
+                                id: product.name,
+                                category: product.category.name,
+                                provider: product.category.provider
+                            };
+
+                            const ingressBeingCreated = {
+                                ...dummyEntry,
+                                id: temporaryFakeId,
+                                specification: {
+                                    domain: INGRESS_PREFIX + browser.renameValue + INGRESS_POSTFIX,
+                                    title: browser.renameValue,
+                                    product: productReference
+                                },
+                            } as Ingress;
+
+
+                            browser.insertEntryIntoCurrentPage(ingressBeingCreated);
+                            browser.renderRows();
+                            browser.selectAndShow(it => it === ingressBeingCreated);
+
+                            try {
+                                const response = (await callAPI(IngressApi.create(bulkRequestOf({
+                                    domain: browser.renameValue,
+                                    product: productReference
+                                })))).responses[0] as unknown as FindByStringId;
+
+                                ingressBeingCreated.id = response.id;
+                                browser.renderRows();
+                            } catch (e) {
+                                snackbarStore.addFailure("Failed to create public link. " + extractErrorMessage(e), false);
+                                browser.refresh();
+                                return;
+                            }
+                        }
+                    );
+
+                    startCreation = resourceCreator.startCreation;
+
+                });
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
-                        // TODO(Jonas): Handle properties
+                        navigate(AppRoutes.resource.properties("public-links", resource.id));
                     }
 
                     callAPI(IngressApi.browse({
@@ -112,9 +198,9 @@ export function ExperimentalPublicLinks(): JSX.Element {
                     const [icon, setIcon] = browser.defaultIconRenderer();
                     row.title.append(icon)
 
-                    row.title.append(browser.defaultTitleRenderer(link.id, dims));
+                    row.title.append(browser.defaultTitleRenderer(link.specification.domain, dims));
 
-                    browser.icons.renderIcon({name: "networkWiredSolid", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
+                    browser.icons.renderIcon({name: "globeEuropeSolid", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
 
                     row.stat3.append(providerIcon(link.specification.product.provider));
                 });
@@ -161,9 +247,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
                             startCreation();
                         },
                         cancelCreation: doNothing,
-                        startRenaming(resource: Ingress): void {
-                            // TODO
-                        },
+                        startRenaming(resource: Ingress): void { },
                         viewProperties(res: Ingress): void {
                             navigate(AppRoutes.resource.properties(browser.resourceName, res.id));
                         },
@@ -185,7 +269,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
                 browser.on("pathToEntry", entry => entry.id);
             });
         }
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);       
+        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
         // TODO(Jonas): Creation
     }, [])
 
