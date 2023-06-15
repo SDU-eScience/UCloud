@@ -189,7 +189,6 @@ export function ExperimentalNetworkIP(): JSX.Element {
                     row.title.append(icon)
 
                     if (ip.id !== DUMMY_ENTRY_ID) {
-                        console.log(ip);
                         row.title.append(browser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, dims));
                     }
 

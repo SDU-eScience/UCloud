@@ -20,7 +20,6 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {dispatchSetProjectAction} from "@/Project/Redux";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {GrantApplicationFilter, IngoingGrantApplicationsResponse, } from "@/Project/Grant";
-import {GrantApplicationList} from "@/Project/Grant/GrantApplications";
 import * as UCloud from "@/UCloud";
 import {PageV2} from "@/UCloud";
 import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
@@ -40,21 +39,17 @@ import {
     usageExplainer
 } from "@/Accounting";
 import {api as JobsApi, Job} from "@/UCloud/JobsApi";
-import {ItemRow} from "@/ui-components/Browse";
-import {useToggleSet} from "@/Utilities/ToggleSet";
-import {BrowseType} from "@/Resource/BrowseType";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {browseGrantApplications, GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 import {Connect} from "@/Providers/Connect";
 import {NotificationDashboardCard} from "@/Notifications";
-import {grantsLink} from "@/UtilityFunctions";
 import {isAdminOrPI, useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
 import {StandardButtonSize} from "@/ui-components/Button";
-import {injectStyleSimple} from "@/Unstyled";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
 import ExperimentalJobs from "@/Applications/Jobs/ExperimentalJobs";
 import {ExperimentalGrantApplications} from "@/Project/Grant/ExperimentalGrantApplications";
@@ -160,11 +155,26 @@ function Dashboard(props: DashboardProps): JSX.Element {
     );
 }
 
-const GridClass = injectStyleSimple("grid", `
-    display: grid;
-    margin-top: 24px;
-    margin-bottom: 24px;
-    gap: 20px;
+const GridClass = injectStyle("grid", k => `
+@media screen and (min-width: 900px) {
+    ${k} {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        grid-auto-rows: minmax(450px, auto);
+        margin-top: 24px;
+        margin-bottom: 24px;
+        gap: 16px;
+        gap: 20px;
+    }
+}   
+@media screen and (max-width: 900px) {
+    ${k} > * {
+        margin-bottom: 24px;
+    }   
+    ${k} > *:first-child {
+        margin-top: 24px;
+    }
+}
 `);
 
 export const Gradient = injectStyleSimple("gradient", `
