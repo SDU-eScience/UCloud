@@ -11,30 +11,17 @@ import dk.sdu.cloud.integration.backend.compute.toReference
 import dk.sdu.cloud.integration.serviceClient
 import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.service.Time
-import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
 
-class AccountingCorrectnessTest : IntegrationTest() {
-
-        data class TotalWalletContent(
-            val initialBalance: Long,
-            val localBalance: Long,
-            val currentBalance: Long
-        )
-
-        fun getSumOfWallets(wallets: List<Wallet>): TotalWalletContent{
-            val initialBalance = wallets.sumOf { wallet -> wallet.allocations.sumOf { it.initialBalance } }
-            val localBalance = wallets.sumOf { wallet -> wallet.allocations.sumOf { it.localBalance } }
-            val currentBalance = wallets.sumOf { wallet -> wallet.allocations.sumOf { it.balance } }
-            return TotalWalletContent(initialBalance, localBalance, currentBalance)
-        }
+class AccountingCorrectnessComputeTest : IntegrationTest() {
         override fun defineTests() {
             run {
                 class In(
                     val numberOfJobs: Int,
                     val durationPerJob: Long,
-                    val numberOfExtraDeposits: Long? = null
+                    val numberOfExtraDeposits: Long? = null,
+                    val extraProjectLayer: Boolean = false
                 )
 
                 class Out(
@@ -44,15 +31,14 @@ class AccountingCorrectnessTest : IntegrationTest() {
                     val postRootWallets: List<Wallet>
                 )
 
-                /*testFilter = { title, subtitle ->
-                    title == "test correctness of charges" && subtitle == "1000 charge, 10 minutes in Project"
-                }*/
-
                 test<In, Out>("test correctness of charges"){
                     execute {
                         createSampleProducts()
                         val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
-                        val createdProject = initializeNormalProject(root, amount = 1_000_000_000)
+                        var createdProject = initializeNormalProject(root, amount = 1_000_000_000)
+                        if (input.extraProjectLayer) {
+                            createdProject = initializeNormalProject(createdProject.projectId, amount = 1_000_000)
+                        }
                         val createdProjectWalletOwner = WalletOwner.Project(createdProject.projectId)
                         val initialRootWallets = findWalletsInternal(WalletOwner.Project(root)).filter { it.paysFor == sampleCompute.category  }
 
@@ -342,6 +328,26 @@ class AccountingCorrectnessTest : IntegrationTest() {
                             assertEquals(initialRootState.initialBalance - postChargeState.initialBalance, postChargeRootState.currentBalance, "root treeUsage wrong")
                             assertEquals(initialState.initialBalance - totalCharge, postChargeState.localBalance, "localBalance wrong")
                             assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
+                        }
+                    }
+
+                    case("10 charges, 10 minutes in low layer project") {
+                        input(
+                            In(
+                                numberOfJobs = 10,
+                                durationPerJob = 10L
+                            )
+                        )
+                        check{
+                            val initialState = getSumOfWallets(output.initialWallets)
+                            val postChargeState = getSumOfWallets(output.postWallets)
+                            val initialRootState = getSumOfWallets(output.initialRootWallets)
+                            val postChargeRootState = getSumOfWallets(output.postRootWallets)
+                            val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.pricePerUnit
+
+                            assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
+                            assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "Usage wrong")
+                            assertEquals(initialState.initialBalance, postChargeState.initialBalance, "quota wrong")
                         }
                     }
                 }
