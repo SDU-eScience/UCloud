@@ -11,6 +11,7 @@ import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.auth.http.*
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -20,7 +21,6 @@ import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.security.SecureRandom
 import java.util.*
-import kotlin.system.exitProcess
 
 private const val ONE_YEAR_IN_MILLS = 1000 * 60 * 60 * 24 * 365L
 private const val PASSWORD_BYTES = 64
@@ -104,6 +104,10 @@ class Server(
         val providerDao = ProviderDao()
         val providerService = ProviderService(micro.developmentModeEnabled, db, providerDao)
 
+        val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val registrationService = RegistrationService(db, loginResponder, serviceClient, userCreationService,
+            usernameGenerator, micro.backgroundScope)
+
         val scriptManager = micro.feature(ScriptManager)
         scriptManager.register(
             Script(
@@ -162,7 +166,8 @@ class Server(
                     authSettings,
                     { settings, call, params -> SamlRequestProcessor(settings, call, params) },
                     tokenService,
-                    loginResponder
+                    loginResponder,
+                    registrationService,
                 )
 
                 routing {
@@ -172,41 +177,37 @@ class Server(
                 }
             }
 
-            with(micro.server) {
-                if (config.enablePasswords) configureControllers(passwordController)
+            if (config.enablePasswords) configureControllers(passwordController)
 
-                configureControllers(
-                    // TODO Too many dependencies
-                    CoreAuthController(
-                        db = db,
-                        ottDao = ottDao,
-                        tokenService = tokenService,
-                        tokenValidation = tokenValidation,
-                        trustedOrigins = config.trustedOrigins.toSet(),
-                        ktor = micro.feature(ServerFeature).ktorApplicationEngine?.application
-                    ),
+            configureControllers(
+                // TODO Too many dependencies
+                CoreAuthController(
+                    db = db,
+                    ottDao = ottDao,
+                    tokenService = tokenService,
+                    tokenValidation = tokenValidation,
+                    trustedOrigins = config.trustedOrigins.toSet(),
+                    ktor = micro.feature(ServerFeature).ktorApplicationEngine?.application
+                ),
 
-                    // TODO Too many dependencies
-                    UserController(
-                        db = db,
-                        personService = personService,
-                        userDAO = userDao,
-                        userCreationService = userCreationService,
-                        tokenService = tokenService,
-                        userIterationService = userIterator,
-                        unconditionalPasswordResetWhitelist = config.unconditionalPasswordResetWhitelist,
-                        developmentMode = micro.developmentModeEnabled
-                    ),
+                // TODO Too many dependencies
+                UserController(
+                    db = db,
+                    personService = personService,
+                    userDAO = userDao,
+                    userCreationService = userCreationService,
+                    tokenService = tokenService,
+                    userIterationService = userIterator,
+                    unconditionalPasswordResetWhitelist = config.unconditionalPasswordResetWhitelist,
+                    developmentMode = micro.developmentModeEnabled
+                ),
 
-                    TwoFactorAuthController(twoFactorChallengeService, loginResponder),
-
-                    SessionsController(sessionService),
-
-                    SLAController(slaService),
-
-                    ProviderController(providerService)
-                )
-            }
+                TwoFactorAuthController(twoFactorChallengeService, loginResponder),
+                SessionsController(sessionService),
+                SLAController(slaService),
+                ProviderController(providerService),
+                RegistrationController(registrationService)
+            )
         }
 
         startServices()

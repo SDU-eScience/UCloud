@@ -95,7 +95,7 @@ object AuthService : dk.sdu.cloud.micro.Service {
             ServiceDAO.insert(
                 Service(
                     "web",
-                    "http://localhost:9000/app/login/wayf",
+                    "https://ucloud.localhost.direct/app/login/wayf",
                     ServiceMode.WEB,
                     1000 * 60 * 60 * 24 * 365L
                 )
@@ -103,17 +103,8 @@ object AuthService : dk.sdu.cloud.micro.Service {
             ServiceDAO.insert(
                 Service(
                     "dev-web",
-                    "http://localhost:9000/app/login/wayf",
+                    "https://ucloud.localhost.direct/app/login/wayf",
                     ServiceMode.WEB,
-                    1000 * 60 * 60 * 24 * 365L
-                )
-            )
-
-            ServiceDAO.insert(
-                Service(
-                    "dav",
-                    "http://localhost:9000/app/login/wayf?dav=true",
-                    ServiceMode.APPLICATION,
                     1000 * 60 * 60 * 24 * 365L
                 )
             )

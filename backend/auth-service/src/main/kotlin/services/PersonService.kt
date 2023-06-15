@@ -42,32 +42,24 @@ class PersonService(
         )
     }
 
-    suspend fun createUserByWAYF(authenticatedUser: SamlRequestProcessor): Person.ByWAYF {
-        if (!authenticatedUser.authenticated) throw IllegalStateException("User is not authenticated")
-        val id = authenticatedUser.attributes["eduPersonTargetedID"]?.firstOrNull()
-            ?: throw IllegalArgumentException("Missing EduPersonTargetedId")
-        val firstNames =
-            authenticatedUser.attributes["gn"]?.firstOrNull() ?: throw IllegalArgumentException("Missing gn")
-        val lastNames =
-            authenticatedUser.attributes["sn"]?.firstOrNull() ?: throw IllegalArgumentException("Missing sn")
-        val organization = authenticatedUser.attributes["schacHomeOrganization"]?.firstOrNull()
-            ?: throw IllegalArgumentException("Missing schacHomeOrganization")
-
-        val email = authenticatedUser.attributes["mail"]?.firstOrNull()
-
-        val role = Role.USER
-
+    suspend fun createUserByWAYF(
+        id: String,
+        firstNames: String,
+        lastNames: String,
+        organization: String?,
+        email: String,
+    ): Person.ByWAYF {
         return Person.ByWAYF(
             id = usernameGenerator.generateUniqueName("$firstNames$lastNames".replace(" ", "")),
             wayfId = id,
             firstNames = firstNames,
             lastName = lastNames,
-            role = role,
+            role = Role.USER,
             title = null,
             phoneNumber = null,
             orcId = null,
             email = email,
-            organizationId = organization,
+            organizationId = organization ?: "",
             serviceLicenseAgreement = 0
         )
     }

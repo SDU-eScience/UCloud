@@ -1,5 +1,6 @@
 package dk.sdu.cloud.mail.utils
 
+import dk.sdu.cloud.calls.client.urlEncode
 import dk.sdu.cloud.service.escapeHtml
 
 const val NO_NOTIFICATIONS_DISCLAIMER = """<p>If you do not want to receive these email notifications, 
@@ -226,4 +227,18 @@ fun lowResourcesTemplate(
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
+
+fun verifyEmailAddress(
+    recipient: String,
+    token: String
+) = buildString {
+    val link = "https://cloud.sdu.dk/app/verifyEmail?type=registration&token=${urlEncode(token)}"
+
+    appendLine("<p>Dear ${escapeHtml(recipient)}</p>")
+    appendLine("<p>")
+    appendLine("In order to verify your email address, please open the following")
+    appendLine("<a href=\"$link\">link</a>.")
+    appendLine("</p>")
+    appendLine("<p>If you did not initiate this request, feel free to disregard this email, or reply to this email for support.</p>")
+}
 

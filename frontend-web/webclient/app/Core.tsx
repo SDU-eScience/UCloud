@@ -20,6 +20,8 @@ const JobWeb = React.lazy(() => import("@/Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("@/Applications/Jobs/Vnc"));
 const LicenseServers = React.lazy(() => import("@/Admin/LicenseServers"));
 const LoginPage = React.lazy(() => import("@/Login/Login"));
+const Registration = React.lazy(() => import("@/Login/Registration"));
+const VerifyEmail = React.lazy(() => import("@/Login/VerifyEmail"));
 const NewsList = React.lazy(() => import("@/NewsPost/NewsList"));
 const NewsManagement = React.lazy(() => import("@/Admin/NewsManagement"));
 const Playground = React.lazy(() => import("@/Playground/Playground"));
@@ -104,6 +106,8 @@ const Core = (): JSX.Element => (
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/loginSuccess" element={<LoginSuccess />} />
                         <Route path="/login/wayf" element={<Wayf />} />
+                        <Route path="/registration" element={<Registration />}  />
+                        <Route path="/verifyEmail" element={<VerifyEmail />}  />
                         <Route path="/" element={React.createElement(requireAuth(Dashboard))} />
                         <Route path="/dashboard" element={React.createElement(requireAuth(Dashboard))} />
                         <Route path={"/debugger"} element={<Debugger />} />

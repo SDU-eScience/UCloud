@@ -187,4 +187,10 @@ sealed class Mail {
         val role: String,
         override val subject: String = "Time to review your project"
     ): Mail()
+
+    @Serializable
+    @SerialName("verifyEmailAddress")
+    data class VerifyEmailAddress(val token: String, ) : Mail() {
+        override val subject: String = "[UCloud] Please verify your email"
+    }
 }

@@ -231,7 +231,6 @@ class CoreAuthController(
         }
     }
 
-
     companion object {
         const val REFRESH_WEB_CSRF_TOKEN = "X-CSRFToken"
         const val REFRESH_WEB_REFRESH_TOKEN_COOKIE = "refreshToken"

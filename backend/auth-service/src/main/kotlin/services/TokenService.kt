@@ -295,30 +295,63 @@ class TokenService(
         }
     }
 
-    suspend fun processSAMLAuthentication(samlRequestProcessor: SamlRequestProcessor): Person.ByWAYF? {
+    sealed class SamlAuthenticationResult {
+        data class Success(
+            val person: Person.ByWAYF
+        ) : SamlAuthenticationResult()
+
+        data class SuccessButMissingInformation(
+            val id: String,
+            val firstNames: String?,
+            val lastName: String?,
+            val organization: String?,
+            val email: String?,
+        ) : SamlAuthenticationResult()
+
+        object Failure : SamlAuthenticationResult()
+    }
+
+    suspend fun processSAMLAuthentication(samlRequestProcessor: SamlRequestProcessor): SamlAuthenticationResult {
         try {
             log.debug("Processing SAML response")
             if (samlRequestProcessor.authenticated) {
-                val id =
-                    samlRequestProcessor.attributes["eduPersonTargetedID"]?.firstOrNull()
-                        ?: throw IllegalArgumentException("Missing EduPersonTargetedId")
+                val id = samlRequestProcessor.attributes["eduPersonTargetedID"]?.firstOrNull()
+                    ?: samlRequestProcessor.nameid
+                    ?: throw IllegalArgumentException("Missing EduPersonTargetedId/nameid")
 
                 val email = samlRequestProcessor.attributes["mail"]?.firstOrNull()
 
                 log.debug("User is authenticated with id $id")
 
                 try {
-                    return userDao.findByWayfIdAndUpdateEmail(db, id, email)
+                    val person = userDao.findByWayfIdAndUpdateEmail(db, id, email)
+                    return SamlAuthenticationResult.Success(person)
                 } catch (ex: UserException.NotFound) {
                     log.debug("User not found. Creating new user...")
 
                     loop@ for (i in 0..5) {
                         try {
-                            // Expand this call to accept the username. We need the UserDAO to find a valid ID.
-                            // Alternatively, we can make PersonService a proper service (better choice?)
-                            val userCreated = personService.createUserByWAYF(samlRequestProcessor)
-                            userCreationService.createUser(userCreated)
-                            return userDao.findByWayfId(db, id)
+                            val firstNames = samlRequestProcessor.attributes["gn"]?.firstOrNull()
+                            val lastName = samlRequestProcessor.attributes["sn"]?.firstOrNull()
+                            val organization = samlRequestProcessor.attributes["schacHomeOrganization"]?.firstOrNull()
+
+                            if (firstNames != null && lastName != null && email != null) {
+                                val userCreated = personService.createUserByWAYF(
+                                    id,
+                                    firstNames,
+                                    lastName,
+                                    organization,
+                                    email
+                                )
+
+                                userCreationService.createUser(userCreated)
+                                val person = userDao.findByWayfId(db, id)
+
+                                return SamlAuthenticationResult.Success(person)
+                            } else {
+                                return SamlAuthenticationResult.SuccessButMissingInformation(id, firstNames,
+                                    lastName, organization, email)
+                            }
                         } catch (ex: Exception) {
                             if (i < 5) log.debug(ex.stackTraceToString())
                             else log.warn(ex.stackTraceToString())
@@ -341,7 +374,7 @@ class TokenService(
             }
         }
 
-        return null
+        return SamlAuthenticationResult.Failure
     }
 
     companion object : Loggable {
