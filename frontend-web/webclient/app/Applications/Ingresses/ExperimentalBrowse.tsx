@@ -46,6 +46,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
     const navigate = useNavigate();
     useTitle("Public links");
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
 
     const dateRanges = dateRangeFilters("Date created");
 
@@ -126,11 +127,13 @@ export function ExperimentalPublicLinks(): JSX.Element {
                                 browser.refresh();
                                 return;
                             }
-                        }
+                        },
+                        "INGRESS"
                     );
 
                     startCreation = resourceCreator.startCreation;
 
+                    setProductSelectorPortal(resourceCreator.portal);
                 });
 
                 browser.on("open", (oldPath, newPath, resource) => {
@@ -281,6 +284,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
         main={<>
             <div ref={mountRef} />
             {switcher}
+            {productSelectorPortal}
         </>}
     />
 }

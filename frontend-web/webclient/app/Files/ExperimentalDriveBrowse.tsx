@@ -59,6 +59,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     useTitle("Drives");
 
     const [switcher, setSwitcherWorkaround] = React.useState(<></>);
+    const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -135,10 +136,12 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                                 browser.refresh();
                                 return;
                             }
-                        }
+                        },
+                        "STORAGE"
                     );
 
                     startCreation = resourceCreator.startCreation;
+                    setProductSelectorPortal(resourceCreator.portal);
                 });
 
                 // Operations
@@ -428,6 +431,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
             <>
                 <div ref={mountRef} />
                 {switcher}
+                {productSelectorPortal}
             </>
         }
     />;

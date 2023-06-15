@@ -2,7 +2,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters, getFilterStorageValue, setFilterStorageValue} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters, getFilterStorageValue, resourceCreationWithProductSelector, setFilterStorageValue} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -13,10 +13,6 @@ import AppRoutes from "@/Routes";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {Product, ProductLicense} from "@/Accounting";
-import {createRoot} from "react-dom/client";
-import {ThemeProvider} from "styled-components";
-import {theme} from "@/ui-components";
-import {ProductSelector} from "@/Products/Selector";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
@@ -45,6 +41,7 @@ export function ExperimentalLicenses(): JSX.Element {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    const [productSelectorPortal, setProductSelectorPortal] = React.useState<JSX.Element>(<></>);
     useTitle("Licenses");
 
     const dateRanges = dateRangeFilters("Date created");
@@ -53,7 +50,7 @@ export function ExperimentalLicenses(): JSX.Element {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<License>(mount, "Licenses").init(browserRef, FEATURES, "", browser => {
-                var startCreation = function() {};
+                var startCreation = function () { };
 
                 supportByProvider.retrieve("", () =>
                     callAPI(LicenseApi.retrieveProducts())
@@ -112,10 +109,12 @@ export function ExperimentalLicenses(): JSX.Element {
                                 browser.refresh();
                                 return;
                             }
-                        }
+                        },
+                        "LICENSE"
                     )
 
                     startCreation = resourceCreator.startCreation;
+                    setProductSelectorPortal(resourceCreator.portal);
                 });
 
                 browser.on("open", (oldPath, newPath, resource) => {
@@ -261,7 +260,6 @@ export function ExperimentalLicenses(): JSX.Element {
             });
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
-        // TODO(Jonas): Creation
     }, []);
 
     useRefreshFunction(() => {
@@ -272,91 +270,7 @@ export function ExperimentalLicenses(): JSX.Element {
         main={<>
             <div ref={mountRef} />
             {switcher}
+            {productSelectorPortal}
         </>}
     />
-}
-
-/* Note(Jonas): Duplicated as we don't want to show an input field on creation */
-// Maybe we can fully provide the `onProductSelected`, which seems to be the major difference.
-function resourceCreationWithProductSelector<T>(
-    browser: ResourceBrowser<T>,
-    products: Product[],
-    dummyEntry: T,
-    onCreate: (product: Product) => void,
-): {startCreation: () => void, cancelCreation: () => void} {
-    const productSelector = document.createElement("div");
-    productSelector.style.display = "none";
-    productSelector.style.position = "fixed";
-    document.body.append(productSelector);
-    const Component: React.FunctionComponent = () => {
-        return <ProductSelector
-            products={products}
-            selected={null}
-            onSelect={onProductSelected}
-            slim
-            type={"LICENSE"}
-        />;
-    };
-
-    let selectedProduct: Product | null = null;
-
-    const root = createRoot(productSelector);
-    root.render(<ThemeProvider theme={theme}><Component /></ThemeProvider>);
-
-    browser.on("startRenderPage", () => {
-        browser.resetTitleComponent(productSelector);
-    });
-
-    browser.on("renderRow", (entry, row, dims) => {
-        if (entry !== dummyEntry) return;
-        if (selectedProduct !== null) return;
-
-        browser.placeTitleComponent(productSelector, dims);
-    });
-
-    const isSelectingProduct = () => {
-        return (browser.cachedData[browser.currentPath] ?? []).some(it => it === dummyEntry);
-    }
-
-    browser.on("beforeShortcut", ev => {
-        if (ev.code === "Escape" && isSelectingProduct()) {
-            ev.preventDefault();
-
-            browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-            browser.renderRows();
-        }
-    });
-
-    const startCreation = () => {
-        if (isSelectingProduct()) return;
-        selectedProduct = null;
-        browser.insertEntryIntoCurrentPage(dummyEntry);
-        browser.renderRows();
-    };
-
-    const cancelCreation = () => {
-        browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-        browser.renderRows();
-    };
-
-    const onProductSelected = (product: Product) => {
-        browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-        onCreate(product);
-    };
-
-    const onOutsideClick = (ev: MouseEvent) => {
-        if (selectedProduct === null && isSelectingProduct()) {
-            cancelCreation();
-        }
-    };
-
-    document.body.addEventListener("click", onOutsideClick);
-
-    browser.on("unmount", () => {
-        document.body.removeEventListener("click", onOutsideClick);
-        root.unmount();
-    });
-
-
-    return {startCreation, cancelCreation};
 }

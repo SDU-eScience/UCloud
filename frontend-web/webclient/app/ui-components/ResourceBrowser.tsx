@@ -17,7 +17,7 @@ import {createPortal} from "react-dom";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {addThemeListener, removeThemeListener} from "@/Core";
 import {addProjectListener, removeProjectListener} from "@/Project/Redux";
-import {Product} from "@/Accounting";
+import {Product, ProductType} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {createRoot} from "react-dom/client";
@@ -3054,7 +3054,8 @@ export function resourceCreationWithProductSelector<T>(
     products: Product[],
     dummyEntry: T,
     onCreate: (product: Product) => void,
-): {startCreation: () => void, cancelCreation: () => void} {
+    type: ProductType,
+): {startCreation: () => void, cancelCreation: () => void, portal: React.ReactPortal} {
     const productSelector = document.createElement("div");
     productSelector.style.display = "none";
     productSelector.style.position = "fixed";
@@ -3065,14 +3066,13 @@ export function resourceCreationWithProductSelector<T>(
             selected={null}
             onSelect={onProductSelected}
             slim
-            type={"STORAGE"}
+            type={type}
         />;
     };
 
     let selectedProduct: Product | null = null;
 
-    const root = createRoot(productSelector);
-    root.render(<ThemeProvider theme={theme}><Component /></ThemeProvider>);
+    const portal = createPortal(<Component />, productSelector);
 
     browser.on("startRenderPage", () => {
         browser.resetTitleComponent(productSelector);
@@ -3111,18 +3111,25 @@ export function resourceCreationWithProductSelector<T>(
     };
 
     const onProductSelected = (product: Product) => {
-        selectedProduct = product;
-        browser.showRenameField(
-            it => it === dummyEntry,
-            () => {
-                browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-                onCreate(product);
-            },
-            () => {
-                browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-            },
-            ""
-        );
+        if (["STORAGE", "INGRESS"].includes(type)) {
+            selectedProduct = product;
+            browser.showRenameField(
+                it => it === dummyEntry,
+                () => {
+                    browser.removeEntryFromCurrentPage(it => it === dummyEntry);
+                    onCreate(product);
+                },
+                () => {
+                    browser.removeEntryFromCurrentPage(it => it === dummyEntry);
+                },
+                ""
+            );
+        } else if (["LICENSE", "NETWORK_IP"].includes(type)) {
+            browser.removeEntryFromCurrentPage(it => it === dummyEntry);
+            onCreate(product);
+        } else if (type === "COMPUTE") {
+            // Not handled.
+        }
     };
 
     const onOutsideClick = (ev: MouseEvent) => {
@@ -3135,11 +3142,10 @@ export function resourceCreationWithProductSelector<T>(
 
     browser.on("unmount", () => {
         document.body.removeEventListener("click", onOutsideClick);
-        root.unmount();
     });
 
 
-    return {startCreation, cancelCreation};
+    return {startCreation, cancelCreation, portal};
 }
 
 export function providerIcon(providerId: string): HTMLElement {

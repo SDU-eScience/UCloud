@@ -1,12 +1,17 @@
+import {Product, ProductNetworkIP} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/DefaultObjects";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
-import NetworkIPApi, {NetworkIP} from "@/UCloud/NetworkIPApi";
-import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {doNothing} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {FindByStringId} from "@/UCloud";
+import NetworkIPApi, {NetworkIP, NetworkIPSupport} from "@/UCloud/NetworkIPApi";
+import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
+import {AsyncCache} from "@/Utilities/AsyncCache";
+import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
+import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -23,6 +28,12 @@ const FEATURES = {
     contextSwitcher: true,
 };
 
+const DUMMY_ENTRY_ID = "dummy";
+
+const supportByProvider = new AsyncCache<SupportByProvider<ProductNetworkIP, NetworkIPSupport>>({
+    globalTtl: 60_000
+});
+
 export function ExperimentalNetworkIP(): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<NetworkIP> | null>(null);
@@ -30,6 +41,7 @@ export function ExperimentalNetworkIP(): JSX.Element {
     const navigate = useNavigate();
     useTitle("Public IPs");
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    const [productSelectorPortal, setProductSelectorPortal] = React.useState<JSX.Element>(<></>);
 
     const dateRanges = dateRangeFilters("Date created");
 
@@ -39,11 +51,77 @@ export function ExperimentalNetworkIP(): JSX.Element {
             new ResourceBrowser<NetworkIP>(mount, "Public IPs").init(browserRef, FEATURES, "", browser => {
                 // TODO(Jonas): Set filter to "RUNNING" initially for state.
 
-                const isCreatingPrefix = "creating-";
-                const {startCreation, cancelCreation} = {
-                    startCreation: () => void 0,
-                    cancelCreation: () => void 0,
-                };
+                var startCreation = function () { };
+
+                supportByProvider.retrieve("", () =>
+                    callAPI(NetworkIPApi.retrieveProducts())
+                ).then(res => {
+                    const creatableProducts: Product[] = [];
+                    for (const provider of Object.values(res.productsByProvider)) {
+                        for (const {product, support} of provider) {
+                            // TODO(Jonas): What to guard against?
+                            creatableProducts.push(product);
+                        }
+                    }
+
+                    const dummyEntry: NetworkIP = {
+                        id: DUMMY_ENTRY_ID,
+                        specification: {product: {category: "", id: "", provider: ""}},
+                        createdAt: new Date().getTime(),
+                        owner: {createdBy: ""},
+                        status: {boundTo: [], state: "PREPARING"},
+                        permissions: {myself: []},
+                        updates: [],
+                    };
+
+                    const resourceCreator = resourceCreationWithProductSelector(
+                        browser,
+                        creatableProducts,
+                        dummyEntry,
+                        async product => {
+                            const productReference = {
+                                id: product.name,
+                                category: product.category.name,
+                                provider: product.category.provider
+                            };
+
+                            const activatedLicense = {
+                                ...dummyEntry,
+                                id: "",
+                                specification: {
+                                    product: productReference
+                                },
+                                owner: {createdBy: "", },
+                            } as NetworkIP;
+
+                            browser.insertEntryIntoCurrentPage(activatedLicense);
+                            browser.renderRows();
+                            browser.selectAndShow(it => it === activatedLicense);
+
+                            try {
+                                const response = (await callAPI(
+                                    NetworkIPApi.create(
+                                        bulkRequestOf({
+                                            product: productReference,
+                                            domain: "",
+                                        })
+                                    )
+                                )).responses[0] as unknown as FindByStringId;
+
+                                activatedLicense.id = response.id;
+                                browser.renderRows();
+                            } catch (e) {
+                                snackbarStore.addFailure("Failed to activate public IP. " + extractErrorMessage(e), false);
+                                browser.refresh();
+                                return;
+                            }
+                        },
+                        "NETWORK_IP"
+                    )
+
+                    startCreation = resourceCreator.startCreation;
+                    setProductSelectorPortal(resourceCreator.portal);
+                });
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
@@ -110,7 +188,10 @@ export function ExperimentalNetworkIP(): JSX.Element {
                     const [icon, setIcon] = browser.defaultIconRenderer();
                     row.title.append(icon)
 
-                    row.title.append(browser.defaultTitleRenderer(ip.id, dims));
+                    if (ip.id !== DUMMY_ENTRY_ID) {
+                        console.log(ip);
+                        row.title.append(browser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, dims));
+                    }
 
                     browser.icons.renderIcon({name: "networkWiredSolid", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
 
@@ -195,6 +276,7 @@ export function ExperimentalNetworkIP(): JSX.Element {
         main={<>
             <div ref={mountRef} />
             {switcher}
+            {productSelectorPortal}
         </>}
     />
 }

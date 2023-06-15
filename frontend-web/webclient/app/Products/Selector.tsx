@@ -207,7 +207,7 @@ export const ProductSelector: React.FunctionComponent<{
         };
         const scrollingParent = scrollingParentFn(wrapper);
 
-        const noScroll = (e) => {
+        const noScroll = () => {
             onClose();
         };
 

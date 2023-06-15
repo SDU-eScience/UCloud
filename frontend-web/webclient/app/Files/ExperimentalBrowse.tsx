@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useLocation, useNavigate} from "react-router";
 import {useEffect, useLayoutEffect, useRef} from "react";
-import {useDispatch, useSelector} from "react-redux";
+import {useDispatch} from "react-redux";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import MainContainer from "@/MainContainer/MainContainer";
