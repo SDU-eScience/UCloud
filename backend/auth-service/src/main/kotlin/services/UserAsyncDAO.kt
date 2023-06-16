@@ -142,44 +142,6 @@ class UserAsyncDAO(
     }
 
     /**
-     * Updates information associated with a [username]
-     *
-     * Only the non-null fields will be updated
-     *
-     * @throws UserException.NotFound if the user does not exist
-     */
-    suspend fun updateUserInfo(
-        db: DBContext,
-        username: String,
-        firstNames: String?,
-        lastName: String?,
-        email: String?
-    ) {
-        db.withSession { session ->
-            val success = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("firstNames", firstNames?.takeIf { it.isNotBlank() })
-                        setParameter("lastName", lastName?.takeIf { it.isNotBlank() })
-                        setParameter("email", email?.takeIf { it.isNotBlank() })
-                        setParameter("username", username)
-                    },
-                    """
-                        UPDATE principals p
-                        SET 
-                            first_names = (SELECT COALESCE (:firstNames, p.first_names)), 
-                            last_name = (SELECT COALESCE (:lastName, p.last_name)), 
-                            email = (SELECT COALESCE (:email, p.email))
-                        WHERE p.id = :username
-                    """
-                )
-                .rowsAffected > 0L
-
-            if (!success) throw UserException.NotFound()
-        }
-    }
-
-    /**
      * Retrieves a [Principal] by [id]
      *
      * @throws UserException.NotFound If the principal does not exist

@@ -320,7 +320,7 @@ class MailService(
             }
 
             is Mail.VerifyEmailAddress -> {
-                verifyEmailAddress(recipientName, letter.token)
+                verifyEmailAddress(letter.username ?: recipientName, letter.type, letter.token)
             }
 
             else -> {

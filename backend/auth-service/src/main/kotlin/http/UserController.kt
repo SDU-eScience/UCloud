@@ -14,6 +14,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
+import dk.sdu.cloud.calls.server.remoteHost
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
@@ -22,6 +23,7 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.server.plugins.*
 import io.ktor.server.request.*
+import io.ktor.server.response.*
 
 class UserController(
     private val db: AsyncDBSessionFactory,
@@ -93,6 +95,7 @@ class UserController(
         implement(UserDescriptions.updateUserInfo) {
             val username = ctx.securityPrincipal.username
             userCreationService.updateUserInfo(
+                ctx.remoteHost ?: throw RPCException("No remote host info?", HttpStatusCode.InternalServerError),
                 username,
                 request.firstNames,
                 request.lastName,
@@ -100,6 +103,7 @@ class UserController(
             )
             ok(Unit)
         }
+
         implement(UserDescriptions.getUserInfo) {
             val username = ctx.securityPrincipal.username
             val information = userCreationService.getUserInfo(username)
@@ -108,6 +112,12 @@ class UserController(
                 information.firstNames,
                 information.lastName
             ))
+        }
+
+        implement(UserDescriptions.verifyUserInfo) {
+            val success = userCreationService.verifyUserInfoUpdate(request.id)
+            (ctx as HttpCall).call.respondRedirect("/app/verifyResult?success=$success")
+            okContentAlreadyDelivered()
         }
 
         implement(UserDescriptions.retrievePrincipal) {

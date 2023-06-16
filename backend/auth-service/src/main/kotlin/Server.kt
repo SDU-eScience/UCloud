@@ -39,6 +39,7 @@ class Server(
         val db = AsyncDBSessionFactory(micro)
         @Suppress("UNCHECKED_CAST") val tokenValidation = micro.tokenValidation as TokenValidation<DecodedJWT>
         val streams = micro.eventStreamServiceOrNull
+        val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
         val passwordHashingService = PasswordHashingService()
         val twoFactorDao = TwoFactorAsyncDAO()
@@ -50,7 +51,8 @@ class Server(
         val userCreationService = UserCreationService(
             db,
             userDao,
-            streams?.createProducer(AuthStreams.UserUpdateStream)
+            streams?.createProducer(AuthStreams.UserUpdateStream),
+            serviceClient,
         )
 
         val totpService = WSTOTPService()
@@ -104,7 +106,6 @@ class Server(
         val providerDao = ProviderDao()
         val providerService = ProviderService(micro.developmentModeEnabled, db, providerDao)
 
-        val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val registrationService = RegistrationService(db, loginResponder, serviceClient, userCreationService,
             usernameGenerator, micro.backgroundScope)
 

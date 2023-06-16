@@ -13,6 +13,11 @@ const VerifyEmail: React.FunctionComponent = () => {
             break;
         }
 
+        case "info-update": {
+            window.location.href = buildQueryString("/auth/users/verifyUserInfo", { id: token });
+            break;
+        }
+
         default: {
             window.location.href = "/";
             break;

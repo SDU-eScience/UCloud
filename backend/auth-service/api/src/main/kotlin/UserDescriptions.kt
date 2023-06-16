@@ -67,6 +67,7 @@ data class GetUserInfoResponse(
     val email: String? = null,
     val firstNames: String? = null,
     val lastName: String? = null,
+    val organization: String? = null,
 )
 
 @Serializable
@@ -171,6 +172,27 @@ ${ApiConventions.nonConformingApiWarning}
 
         documentation {
             summary = "Request information about the current user."
+        }
+    }
+
+    val verifyUserInfo = call("verifyUserInfo", FindByStringId.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PUBLIC
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+            path {
+                using(baseContext)
+                +"verifyUserInfo"
+            }
+
+            params { +boundTo(FindByStringId::id) }
+        }
+
+        documentation {
+            summary = "Verifies a change in user info (typically accessed through an email)"
         }
     }
 

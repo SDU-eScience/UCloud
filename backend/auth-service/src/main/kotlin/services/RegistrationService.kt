@@ -459,7 +459,7 @@ class RegistrationService(
             bulkRequestOf(
                 SendDirectMandatoryEmailRequest(
                     email,
-                    Mail.VerifyEmailAddress(emailToken)
+                    Mail.VerifyEmailAddress("registration", emailToken)
                 )
             ),
             serviceClient

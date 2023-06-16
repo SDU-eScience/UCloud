@@ -23,9 +23,12 @@ sealed class Mail {
 
     @Serializable
     @SerialName("verifyEmailAddress")
-    data class VerifyEmailAddress(val token: String) : Mail() {
-        override val subject: String = "[UCloud] Please verify your email"
-    }
+    data class VerifyEmailAddress(
+        val type: String,
+        val token: String,
+        override val subject: String = "[UCloud] Please verify your email address",
+        val username: String? = null,
+    ) : Mail()
 }
 
 object Mails : CallDescriptionContainer("mail") {
