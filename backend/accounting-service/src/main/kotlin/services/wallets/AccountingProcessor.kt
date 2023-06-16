@@ -39,6 +39,7 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.ArrayList
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
@@ -1431,6 +1432,9 @@ class AccountingProcessor(
     // =================================================================================================================
 
     private suspend fun charge(request: AccountingRequest.Charge): AccountingResponse {
+        if (request.dryRun) {
+            return check(request)
+        }
         when(request) {
             is AccountingRequest.Charge.OldCharge -> {
                 val category = productcategories.retrieveProductCategory(request.productCategory)
@@ -1468,6 +1472,19 @@ class AccountingProcessor(
         }
     }
 
+    private suspend fun check(request: AccountingRequest.Charge): AccountingResponse {
+        val productCategory = request.productCategory
+        val wallet = wallets.find {
+            it?.owner == request.owner &&
+                (it.paysFor?.provider == productCategory.provider &&
+                    it.paysFor.name == productCategory.name)
+        }?.toApiWallet() ?: return AccountingResponse.Error("No matching wallet in check", 400)
+
+        val activeAllocations = wallet.allocations.filter { it.isActive() }
+        return AccountingResponse.Charge(
+            activeAllocations.sumOf { it.localUsage } < activeAllocations.sumOf { it.quota }
+        )
+    }
     private suspend fun deltaCharge(request: AccountingRequest.Charge.DeltaCharge): AccountingResponse {
         println("DELTACHARGE: $request")
         val productCategory = productcategories.retrieveProductCategory(request.productCategory)
@@ -1636,15 +1653,27 @@ class AccountingProcessor(
             val alloc = allocations[allocation.id.toInt()]
                 ?: return AccountingResponse.Error("Error on finding walletAllocation", 500)
             alloc.begin()
+            val oldValue = alloc.localUsage
+            val quota = alloc.quota
+            var diff = -oldValue
+            println("FIRST $diff")
             alloc.localUsage = 0L
             if (activeAllocations.contains(allocation.id)) {
                 val weight = allocation.quota.toDouble() / activeQuota.toDouble()
                 val toCharge = (totalUsage.toDouble() * weight).toLong()
+                diff = toCharge - oldValue
+                if (diff < 0 && abs(diff) > quota) {
+                    diff = diff + quota
+                }
+                println("MID: $diff")
+                println(toCharge)
                 alloc.localUsage = toCharge
+                alloc.treeUsage = (alloc.treeUsage ?: alloc.localUsage) + min(diff, alloc.quota)
                 totalCharged += toCharge
             }
             alloc.commit()
-            updateParentTreeUsage(alloc, alloc.localUsage)
+            println("HELLO $diff")
+            updateParentTreeUsage(alloc, min(diff, alloc.quota))
         }
         println("totalCharged: $totalCharged, totalUsage: $totalUsage")
         if (totalCharged != totalUsage) {
