@@ -191,7 +191,7 @@ sealed class Mail {
     @Serializable
     @SerialName("verifyEmailAddress")
     data class VerifyEmailAddress(
-        val type: String,
+        val verifyType: String,
         val token: String,
         override val subject: String = "[UCloud] Please verify your email address",
         val username: String? = null,

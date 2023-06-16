@@ -126,7 +126,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                     mt="1em"
                     type="submit"
                     color="green"
-                    disabled={commandLoading || message}
+                    disabled={commandLoading || !!message}
                 >
                     {message ?? "Update Information"}
                 </Button>

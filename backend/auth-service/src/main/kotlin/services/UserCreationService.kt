@@ -66,6 +66,10 @@ class UserCreationService(
         lastName: String?,
         email: String?
     ) {
+        if (email != null && !emailLooksValid(email)) {
+            throw RPCException("This email does not look valid. Please try again.", HttpStatusCode.BadRequest)
+        }
+
         val token = generateToken()
         val recipientEmail = db.withSession { session ->
             val success = session.sendPreparedStatement(
@@ -110,7 +114,7 @@ class UserCreationService(
                             select uid, :first_names::text, :last_name::text, :email::text, :token::text
                             from user_info i
                         )
-                    select coalesce(i.email, :email::text)
+                    select coalesce(:email::text, i.email)
                     from user_info i;
                 """
             ).rows.singleOrNull()?.getString(0)
@@ -153,8 +157,8 @@ class UserCreationService(
                     update auth.principals p
                     set
                         first_names = coalesce(i.first_names, p.first_names),
-                        last_name = coalesce(i.first_names, p.first_names),
-                        email = coalesce(i.first_names, p.first_names)
+                        last_name = coalesce(i.last_name, p.last_name),
+                        email = coalesce(i.email, p.email)
                     from
                         update_info i
                     where

@@ -327,11 +327,6 @@ class RegistrationService(
         completeRegistration(registration, callHandler)
     }
 
-    private fun emailLooksValid(email: String?): Boolean {
-        if (email == null) return false
-        return email.contains("@") && email.substringAfter('@').contains('.')
-    }
-
     private suspend fun completeRegistration(
         registration: InternalRegistration,
         callHandler: CallHandler<*, *, *>,
@@ -516,4 +511,9 @@ class RegistrationService(
         override val log = logger()
         private const val backgroundTaskName = "registration-cleanup"
     }
+}
+
+fun emailLooksValid(email: String?): Boolean {
+    if (email == null) return false
+    return email.contains("@") && email.substringAfter('@').contains('.')
 }
