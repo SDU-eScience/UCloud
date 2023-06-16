@@ -94,6 +94,15 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         width: var(--secondarySidebarWidth);
     }
 
+    @media screen and (max-width: 640px) {
+        ${k}[data-open="true"] {
+            position: absolute;
+            left: var(--sidebarWidth);
+            z-index: 1;
+        }
+    }
+    
+
     ${k}[data-as-pop-over="true"] {
         position: absolute;
         left: var(--sidebarWidth);

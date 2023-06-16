@@ -83,7 +83,7 @@ const FEATURES: ResourceBrowseFeatures = {
     contextSwitcher: true,
 }
 
-const ExperimentalBrowse: React.FunctionComponent = () => {
+const ExperimentalBrowse: React.FunctionComponent = ({opts}: {opts?: {embedded?: boolean; onSelect?: (file: UFile) => void;}}): JSX.Element => {
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -103,7 +103,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
         const mount = mountRef.current;
         let searching = "";
         if (mount && !browserRef.current) {
-            new ResourceBrowser<UFile>(mount, "File").init(browserRef, FEATURES, undefined, browser => {
+            new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, FEATURES, undefined, browser => {
 
                 // Metadata utilities
                 // =========================================================================================================
@@ -572,7 +572,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                         collection: collection!,
                         directory: folder!,
                         dispatch: dispatch,
-                        embedded: false,
+                        embedded: opts?.embedded ?? false,
                         isWorkspaceAdmin: false,
                         navigate: to => navigate(to),
                         reload: () => browser.refresh(),
@@ -598,7 +598,8 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
                         api: FilesApi,
-                        isCreating: false
+                        isCreating: false,
+                        onSelect: opts?.onSelect,
                     };
 
                     return callbacks;
@@ -665,7 +666,9 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     const [icon, setIcon] = browser.defaultIconRenderer();
                     row.title.append(icon);
 
-                    row.title.append(browser.defaultTitleRenderer(fileName(file.id), containerWidth));
+                    const title = browser.defaultTitleRenderer(fileName(file.id), containerWidth)
+                    row.title.append(title);
+                    row.title.title = title;
                     row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
                     row.stat3.innerText = sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null);
 

@@ -289,7 +289,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 // =========================================================================================================
                 browser.on("generateBreadcrumbs", () => {
                     if (browser.searchQuery === "") return [{title: "Drives", absolutePath: "/"}];
-                    return [{title: "Drives /", absolutePath: "/"}, {absolutePath: "", title: `Search results for ${browser.searchQuery}`}];
+                    return [{title: "Drives", absolutePath: "/"}, {absolutePath: "", title: `Search results for ${browser.searchQuery}`}];
                 });
 
                 // Rendering of rows and empty pages
@@ -298,7 +298,9 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     const [icon, setIcon] = browser.defaultIconRenderer();
                     row.title.append(icon);
 
-                    row.title.append(browser.defaultTitleRenderer(drive.specification.title, dims));
+                    const title = browser.defaultTitleRenderer(drive.specification.title, dims)
+                    row.title.append(title);
+                    row.title.title = title;
                     row.stat2.innerText = dateToString(drive.createdAt ?? timestampUnixMs());
                     row.stat3.append(providerIcon(drive.specification.product.provider));
 

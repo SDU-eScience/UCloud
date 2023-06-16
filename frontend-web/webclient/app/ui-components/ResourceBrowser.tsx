@@ -224,7 +224,7 @@ interface ResourceBrowserRow {
     star: HTMLElement;
     title: HTMLElement;
     stat1: HTMLElement;
-    stat2: HTMLElement;
+     stat2: HTMLElement;
     stat3: HTMLElement;
 }
 
@@ -356,10 +356,10 @@ export class ResourceBrowser<T> {
 
     private listeners: Record<string, any[]> = {};
 
-    public opts: {embedded: boolean} | undefined = {embedded: false};
+    public opts: {embedded?: boolean} | undefined = {embedded: false};
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
-    constructor(root: HTMLElement, resourceName: string, opts?: {embedded: boolean;}) {
+    constructor(root: HTMLElement, resourceName: string, opts?: {embedded?: boolean;}) {
         this.root = root;
         this.resourceName = resourceName;
         this.opts = opts;
@@ -2710,22 +2710,38 @@ export class ResourceBrowser<T> {
                 background: var(--tableRowHighlight);
             }
 
+        
+
             .file-browser .row .title {
                 display: flex;
                 align-items: center;
-                width: ${ResourceBrowser.rowTitleSizePercentage}%;
+                width: 85%;
                 white-space: pre;
             }
-
-            .file-browser .row .stat1,
-            .file-browser .row .stat2,
-            .file-browser .row .stat3 {
-                display: flex;
-                justify-content: end;
-                text-align: end;
-                width: 13%;
+            @media screen and (min-width: 860px) {
+                .file-browser .row .title {
+                    width: ${ResourceBrowser.rowTitleSizePercentage}%;
+                }
             }
 
+            .file-browser .row .stat2,
+            .file-browser .row .stat3  {
+                display: none;
+                width: 0;
+            }
+
+            @media screen and (min-width: 860px) {
+                .file-browser .row .stat1,
+                .file-browser .row .stat2,
+                .file-browser .row .stat3 {
+                    display: flex;
+                    justify-content: end;
+                    text-align: end;
+                    width: 13%;
+                }
+            }
+
+ 
             .file-browser .sensitivity-badge {
                 height: 2em;
                 width: 2em;

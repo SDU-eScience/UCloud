@@ -155,7 +155,7 @@ function ExperimentalJobs({opts}: {opts?: {embedded: boolean}}): JSX.Element {
                         color: statusIconColor,
                         color2: statusIconColor
                     }).then(setStatus);
-                    row.stat3.append(status);
+                    row.stat1.append(status);
                 });
 
                 browser.on("unhandledShortcut", () => void 0);
