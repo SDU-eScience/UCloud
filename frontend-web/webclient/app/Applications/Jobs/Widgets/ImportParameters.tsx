@@ -23,6 +23,7 @@ import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
 import {JobBrowse} from "../Browse";
 import {ButtonClass} from "@/ui-components/Button";
 import {getQueryParam} from "@/Utilities/URIUtilities";
+import ExperimentalJobs from "../ExperimentalJobs";
 
 export const ImportParameters: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -204,7 +205,16 @@ export const ImportParameters: React.FunctionComponent<{
                     <Button mt="6px" fullWidth onClick={() => {
                         onImportDialogClose();
                         dialogStore.addDialog(
-                            <JobBrowse
+
+                            <ExperimentalJobs opts={{
+                                selector: true,
+                                onSelect: res => {
+                                    readParsedJSON(res.status.jobParametersJson);
+                                    dialogStore.success();
+                                },
+                                additionalFilters: {filterApplication: application.metadata.name},
+                            }} />
+                            /*<JobBrowse
                                 browseType={BrowseType.Embedded}
                                 onSelect={res => {
                                     readParsedJSON(res.status.jobParametersJson);
@@ -214,7 +224,7 @@ export const ImportParameters: React.FunctionComponent<{
                                 onSelectRestriction={res =>
                                     res.specification.application.name === application.metadata.name
                                 }
-                            />,
+                            />*/,
                             () => undefined,
                             true,
                             largeModalStyle

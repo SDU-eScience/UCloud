@@ -34,6 +34,12 @@ import {ThemeProvider} from "styled-components";
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
+export interface ResourceBrowserOpts<T> {
+    additionalFilters?: Record<string, string>;
+    embedded?: boolean;
+    selector?: boolean;
+    onSelect?: (res: T) => void;
+}
 
 interface FilterInput {
     type: "input",
@@ -356,10 +362,10 @@ export class ResourceBrowser<T> {
 
     private listeners: Record<string, any[]> = {};
 
-    public opts: {embedded?: boolean} | undefined = {embedded: false};
+    public opts: {embedded?: boolean; selector?: boolean} | undefined = {embedded: false, selector: false};
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
-    constructor(root: HTMLElement, resourceName: string, opts?: {embedded?: boolean;}) {
+    constructor(root: HTMLElement, resourceName: string, opts?: ResourceBrowserOpts<T>) {
         this.root = root;
         this.resourceName = resourceName;
         this.opts = opts;
@@ -384,7 +390,7 @@ export class ResourceBrowser<T> {
         ResourceBrowser.injectStyle();
 
         this.root.classList.add("file-browser");
-        if (this.opts?.embedded) {
+        if (this.opts?.embedded || this.opts?.selector) {
             this.root.style.height = "auto";
         }
         this.root.innerHTML = `
@@ -877,7 +883,7 @@ export class ResourceBrowser<T> {
                 e.container.style.height = containerSize + "px";
                 e.container.style.left = (containerLeft + (containerWidth / 2) - (containerSize / 2)) + "px";
                 e.container.style.top = (containerTop + (containerHeight / 2) - (containerSize / 2)) + "px";
-                if (this.opts?.embedded) {
+                if (this.opts?.embedded || this.opts?.selector) {
                     e.container.style.position = "unset";
                     e.container.style.marginLeft = "auto";
                     e.container.style.marginRight = "auto";
@@ -1310,7 +1316,7 @@ export class ResourceBrowser<T> {
             const menuList = allowCreation ? document.createElement("ul") : menu.querySelector("ul")!;
             if (allowCreation) menu.append(menuList);
             let shortcutNumber = counter;
-            const useShortcuts = !this.opts?.embedded;
+            const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             for (const child of operations) {
                 if ("operations" in child) {
                     counter = renderOperationsInContextMenu(child.operations, posX, posY, shortcutNumber, false);
@@ -1345,7 +1351,7 @@ export class ResourceBrowser<T> {
         const renderOperation = (
             op: OperationOrGroup<T, unknown>
         ): HTMLElement => {
-            const useShortcuts = !this.opts?.embedded;
+            const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             const element = document.createElement("div");
             element.classList.add("operation");
             element.classList.add(!useContextMenu ? "in-header" : "in-context-menu");

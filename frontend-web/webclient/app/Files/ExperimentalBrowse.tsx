@@ -83,7 +83,7 @@ const FEATURES: ResourceBrowseFeatures = {
     contextSwitcher: true,
 }
 
-const ExperimentalBrowse: React.FunctionComponent = ({opts}: {opts?: {embedded?: boolean; onSelect?: (file: UFile) => void;}}): JSX.Element => {
+function ExperimentalBrowse({opts}: {opts?: {embedded?: boolean; onSelect?: (file: UFile) => void;}}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -103,7 +103,7 @@ const ExperimentalBrowse: React.FunctionComponent = ({opts}: {opts?: {embedded?:
         const mount = mountRef.current;
         let searching = "";
         if (mount && !browserRef.current) {
-            new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, FEATURES, undefined, browser => {
+            new ResourceBrowser<UFile>(mount, "File", {...opts, selector: !!opts?.onSelect}).init(browserRef, FEATURES, undefined, browser => {
 
                 // Metadata utilities
                 // =========================================================================================================

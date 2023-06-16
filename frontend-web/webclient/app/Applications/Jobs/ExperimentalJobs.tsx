@@ -5,7 +5,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import {addContextSwitcherInPortal, clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser} from "@/ui-components/ResourceBrowser";
+import {addContextSwitcherInPortal, clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {appLogoCache} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
@@ -31,7 +31,7 @@ const FEATURES: ResourceBrowseFeatures = {
 
 const logoDataUrls = new AsyncCache<string>();
 
-function ExperimentalJobs({opts}: {opts?: {embedded: boolean}}): JSX.Element {
+function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
@@ -48,13 +48,17 @@ function ExperimentalJobs({opts}: {opts?: {embedded: boolean}}): JSX.Element {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
+                const flags = browser.opts?.embedded ? {itemsPerPage: 10} : {
+                    ...defaultRetrieveFlags,
+                    ...(opts?.additionalFilters ?? {})
+                };
+
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
                         navigate(AppRoutes.jobs.view(resource.id));
                         return;
                     }
 
-                    const flags = browser.opts?.embedded ? {itemsPerPage: 10} : defaultRetrieveFlags;
 
                     callAPI(JobsApi.browse({
                         ...flags,
@@ -169,7 +173,7 @@ function ExperimentalJobs({opts}: {opts?: {embedded: boolean}}): JSX.Element {
                         }
 
                         case EmptyReasonTag.EMPTY: {
-                            if (Object.values(browser.browseFilters).length !== 0)
+                            if (Object.values({...browser.browseFilters, ...(opts?.additionalFilters ?? {})}).length !== 0)
                                 e.reason.append("No jobs found with active filters.")
                             else e.reason.append("This workspace has not run any jobs yet.");
                             break;
@@ -198,6 +202,7 @@ function ExperimentalJobs({opts}: {opts?: {embedded: boolean}}): JSX.Element {
                         navigate: to => navigate(to),
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
+                        onSelect: opts?.onSelect,
                         embedded: false,
                         isCreating: false,
                         dispatch: dispatch,

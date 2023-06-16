@@ -14,6 +14,7 @@ import {BrowseType} from "@/Resource/BrowseType";
 import {FolderResourceNS} from "../Resources";
 import {getProviderField, providerMismatchError} from "../Create";
 import {injectStyleSimple} from "@/Unstyled";
+import ExperimentalBrowse from "@/Files/ExperimentalBrowse";
 
 type GenericFileParam =
     UCloud.compute.ApplicationParameterNS.InputFile |
@@ -53,36 +54,38 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
         const pathRef = {current: ""};
         const provider = getProviderField();
         dialogStore.addDialog(
-            <FilesBrowse
-                browseType={BrowseType.Embedded}
-                pathRef={pathRef}
-                onSelectRestriction={file => {
-                    const fileProvider = file.specification.product.provider;
-                    const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
-                    const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
-                    if (provider && provider !== fileProvider) {
-                        if (isCorrectlyDir) {
-                            return providerMismatchError("Folders", fileProvider);
-                        } else if (isCorrectlyFile) {
-                            return providerMismatchError("Files", fileProvider)
+                <ExperimentalBrowse opts={{embedded: true, onSelect: () => console.log("sure enough")}} />
+                /*<FilesBrowse
+                    browseType={BrowseType.Embedded}
+                    pathRef={pathRef}
+                    onSelectRestriction={file => {
+                        const fileProvider = file.specification.product.provider;
+                        const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
+                        const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
+                        if (provider && provider !== fileProvider) {
+                            if (isCorrectlyDir) {
+                                return providerMismatchError("Folders", fileProvider);
+                            } else if (isCorrectlyFile) {
+                                return providerMismatchError("Files", fileProvider)
+                            }
                         }
-                    }
-                    return isCorrectlyDir || isCorrectlyFile;
-                }}
-                onSelect={async res => {
-                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-                    if (props.errors[props.parameter.name]) {
-                        delete props.errors[props.parameter.name];
-                        props.setErrors({...props.errors});
-                    }
-                    FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
-                    WidgetSetProvider(props.parameter, res.specification.product.provider);
-                    dialogStore.success();
-                    if (anyFolderDuplicates()) {
-                        props.setWarning?.("Duplicate folders selected. This is not always supported.");
-                    }
-                }}
-            />,
+                        return isCorrectlyDir || isCorrectlyFile;
+                    }}
+                    onSelect={async res => {
+                        const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                        if (props.errors[props.parameter.name]) {
+                            delete props.errors[props.parameter.name];
+                            props.setErrors({...props.errors});
+                        }
+                        FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
+                        WidgetSetProvider(props.parameter, res.specification.product.provider);
+                        dialogStore.success();
+                        if (anyFolderDuplicates()) {
+                            props.setWarning?.("Duplicate folders selected. This is not always supported.");
+                        }
+                    }}
+                />*/
+            ,
             doNothing,
             true,
             FilesApi.fileSelectorModalStyle
