@@ -1,8 +1,6 @@
 package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.auth.api.Principal
-import dk.sdu.cloud.auth.api.UserEvent
-import dk.sdu.cloud.auth.api.UserEventProducer
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -13,7 +11,6 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import kotlinx.coroutines.runBlocking
 import java.security.SecureRandom
 import java.util.*
 
@@ -26,7 +23,6 @@ sealed class UserException(why: String, httpStatusCode: HttpStatusCode) : RPCExc
 class UserCreationService(
     private val db: DBContext,
     private val userDao: UserAsyncDAO,
-    private val userEventProducer: UserEventProducer?,
     private val serviceClient: AuthenticatedClient,
 ) {
     suspend fun createUser(user: Principal) {
@@ -43,10 +39,6 @@ class UserCreationService(
                     log.info("Creating user: $user")
                     userDao.insert(session, user)
                 }
-            }
-
-            users.forEach { user ->
-                userEventProducer?.produce(UserEvent.Created(user.id, user))
             }
         }
     }
@@ -127,7 +119,12 @@ class UserCreationService(
             bulkRequestOf(
                 SendDirectMandatoryEmailRequest(
                     recipientEmail,
-                    Mail.VerifyEmailAddress("info-update", token, "[UCloud] Someone has requested a change to your UCloud account")
+                    Mail.VerifyEmailAddress(
+                        verifyType = "info-update",
+                        token = token,
+                        subject = "[UCloud] Someone has requested a change to your UCloud account",
+                        username = username
+                    )
                 )
             ),
             serviceClient
@@ -170,10 +167,6 @@ class UserCreationService(
 
     suspend fun getUserInfo(username: String): UserInformation {
         return userDao.getUserInfo(db, username)
-    }
-
-    fun blockingCreateUser(user: Principal) {
-        runBlocking { createUser(user) }
     }
 
     companion object : Loggable {

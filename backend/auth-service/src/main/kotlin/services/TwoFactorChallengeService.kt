@@ -56,7 +56,7 @@ class TwoFactorChallengeService(
             val enforcedCredentials = twoFactorDAO.findEnforcedCredentialsOrNull(session, username)
             if (enforcedCredentials != null) throw TwoFactorException.AlreadyBound()
 
-            val otpAuthUri = newCredentials.toOTPAuthURI(person.displayName, ISSUER).toASCIIString()
+            val otpAuthUri = newCredentials.toOTPAuthURI(person.id, ISSUER).toASCIIString()
             val qrData = qrService.encode(otpAuthUri, QR_WIDTH_PX, QR_HEIGHT_PX).toDataURI()
             val twoFactorCredentials = TwoFactorCredentials(user, newCredentials.secretBase32Encoded, false)
             val credentialsId = twoFactorDAO.createCredentials(session, twoFactorCredentials)

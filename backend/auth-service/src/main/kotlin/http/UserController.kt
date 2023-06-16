@@ -1,6 +1,5 @@
 package dk.sdu.cloud.auth.http
 
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.*
@@ -8,7 +7,6 @@ import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.UserAsyncDAO
 import dk.sdu.cloud.auth.services.UserCreationService
-import dk.sdu.cloud.auth.services.UserIterationService
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
@@ -30,7 +28,6 @@ class UserController(
     private val personService: PersonService,
     private val userDAO: UserAsyncDAO,
     private val userCreationService: UserCreationService,
-    private val userIterationService: UserIterationService,
     private val tokenService: TokenService,
     private val unconditionalPasswordResetWhitelist: List<String>,
     private val developmentMode: Boolean = false
@@ -197,21 +194,6 @@ class UserController(
                     )
                 }
             )
-        }
-
-        implement(UserDescriptions.openUserIterator) {
-            checkUserAccessToIterator(ctx.securityPrincipal)
-            ok(FindByStringId(userIterationService.create()))
-        }
-
-        implement(UserDescriptions.fetchNextIterator) {
-            checkUserAccessToIterator(ctx.securityPrincipal)
-            ok(userIterationService.fetchNext(request.id))
-        }
-
-        implement(UserDescriptions.closeIterator) {
-            checkUserAccessToIterator(ctx.securityPrincipal)
-            ok(userIterationService.close(request.id))
         }
     }
 

@@ -5,7 +5,6 @@ import com.auth0.jwt.interfaces.DecodedJWT
 import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityScope
-import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.ServiceAgreementText
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.auth.http.*
@@ -51,7 +50,6 @@ class Server(
         val userCreationService = UserCreationService(
             db,
             userDao,
-            streams?.createProducer(AuthStreams.UserUpdateStream),
             serviceClient,
         )
 
@@ -124,37 +122,6 @@ class Server(
                 }
             )
         )
-
-        if (micro.developmentModeEnabled) {
-            runBlocking {
-                val existingDevAdmin = db.withTransaction { userDao.findByIdOrNull(it, "admin@dev") }
-                val adminUser = "admin@dev"
-                if (existingDevAdmin == null) {
-                    log.info("Initializing dummy account for development environment")
-                    createTestAccount(personService, userCreationService, tokenService, adminUser, Role.ADMIN)
-                    createTestAccount(personService, userCreationService, tokenService, "user@dev", Role.USER)
-                } else {
-                    val idx = micro.commandLineArguments.indexOf("--save-config")
-                    if (idx != -1) {
-                        val tokens = db.withTransaction { session ->
-                            refreshTokenDao.findTokenForUser(session, adminUser)
-                        }
-                        val refreshToken = tokens?.token
-                        val csrfToken = tokens?.csrf
-                        val configLocation = micro.commandLineArguments.getOrNull(idx + 1)
-                        if (configLocation != null) {
-                            File(configLocation).writeText(
-                                """
-                            ---
-                            refreshToken: "$refreshToken"
-                            devCsrfToken: $csrfToken
-                            """.trimIndent()
-                            )
-                        }
-                    }
-                }
-            }
-        }
 
         val serverFeature = micro.feature(ServerFeature)
         with(serverFeature.ktorApplicationEngine!!.application) {
@@ -237,7 +204,7 @@ class Server(
             "escience@sdu.dk"
         )
 
-        userCreationService.blockingCreateUser(user)
+        runBlocking { userCreationService.createUser(user) }
         val token = tokenService.createAndRegisterTokenFor(
             user, AccessTokenContents(
                 user,
