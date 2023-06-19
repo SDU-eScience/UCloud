@@ -74,7 +74,7 @@ object FeatureAccounting : JobFeature, Loggable {
                         rootJob.jobId,
                         rootJob.jobId + "_" + lastTs.toString(),
                         replicas * virtualCpus.toLong(),
-                        kotlin.math.ceil(timespent / (1000 * 60.0)).toLong()
+                        kotlin.math.round(timespent / (1000 * 60.0)).toLong()
                     )
                 ),
                 k8.serviceClient
