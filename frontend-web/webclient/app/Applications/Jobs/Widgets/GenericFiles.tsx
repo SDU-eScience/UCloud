@@ -53,9 +53,10 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     const onActivate = useCallback(() => {
         const pathRef = {current: ""};
         const provider = getProviderField();
+        // TODO(Jonas): Give provider
         dialogStore.addDialog(
-                <ExperimentalBrowse opts={{embedded: true, onSelect: () => console.log("sure enough")}} />
-                /*<FilesBrowse
+                /* <ExperimentalBrowse opts={{embedded: true, onSelect: () => console.log("sure enough"), providerFilter: provider}} /> */
+                <FilesBrowse
                     browseType={BrowseType.Embedded}
                     pathRef={pathRef}
                     onSelectRestriction={file => {
@@ -84,7 +85,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                             props.setWarning?.("Duplicate folders selected. This is not always supported.");
                         }
                     }}
-                />*/
+                />
             ,
             doNothing,
             true,

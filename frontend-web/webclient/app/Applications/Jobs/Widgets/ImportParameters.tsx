@@ -205,9 +205,7 @@ export const ImportParameters: React.FunctionComponent<{
                     <Button mt="6px" fullWidth onClick={() => {
                         onImportDialogClose();
                         dialogStore.addDialog(
-
                             <ExperimentalJobs opts={{
-                                selector: true,
                                 onSelect: res => {
                                     readParsedJSON(res.status.jobParametersJson);
                                     dialogStore.success();

@@ -1,6 +1,6 @@
 import {Operation} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
-import theme, {ThemeColor} from "@/ui-components/theme";
+import {ThemeColor} from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
 import {capitalize, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
@@ -20,8 +20,6 @@ import {addProjectListener, removeProjectListener} from "@/Project/Redux";
 import {Product, ProductType} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
-import {createRoot} from "react-dom/client";
-import {ThemeProvider} from "styled-components";
 
 /*
  BUGS FOUND
@@ -37,7 +35,6 @@ export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOpt
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string>;
     embedded?: boolean;
-    selector?: boolean;
     onSelect?: (res: T) => void;
 }
 
@@ -230,7 +227,7 @@ interface ResourceBrowserRow {
     star: HTMLElement;
     title: HTMLElement;
     stat1: HTMLElement;
-     stat2: HTMLElement;
+    stat2: HTMLElement;
     stat3: HTMLElement;
 }
 
@@ -368,7 +365,10 @@ export class ResourceBrowser<T> {
     constructor(root: HTMLElement, resourceName: string, opts?: ResourceBrowserOpts<T>) {
         this.root = root;
         this.resourceName = resourceName;
-        this.opts = opts;
+        this.opts = {
+            ...opts,
+            selector: !!opts?.onSelect
+        };
     }
 
     public init(

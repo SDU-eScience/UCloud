@@ -15,6 +15,7 @@ import {
     placeholderImage,
     ResourceBrowseFeatures,
     ResourceBrowser,
+    ResourceBrowserOpts,
     SelectionMode
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
@@ -83,7 +84,7 @@ const FEATURES: ResourceBrowseFeatures = {
     contextSwitcher: true,
 }
 
-function ExperimentalBrowse({opts}: {opts?: {embedded?: boolean; onSelect?: (file: UFile) => void;}}): JSX.Element {
+function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {providerFilter?: string}}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -96,14 +97,16 @@ function ExperimentalBrowse({opts}: {opts?: {embedded?: boolean; onSelect?: (fil
         isInitialMount.current = false;
     }, []);
 
-    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    const isSelector = !!opts?.onSelect;
+    const selectorPathRef = useRef("/");
 
+    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
         let searching = "";
         if (mount && !browserRef.current) {
-            new ResourceBrowser<UFile>(mount, "File", {...opts, selector: !!opts?.onSelect}).init(browserRef, FEATURES, undefined, browser => {
+            new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, FEATURES, undefined, browser => {
 
                 // Metadata utilities
                 // =========================================================================================================
@@ -488,19 +491,6 @@ function ExperimentalBrowse({opts}: {opts?: {embedded?: boolean; onSelect?: (fil
                                 value: "SIZE"
                             }],
                         },
-                        // uncomment for examples
-                        /* {
-                            type: "input",
-                            key: "exampleInput",
-                            icon: "cloudTryingItsBest",
-                            text: "exampleInput",
-                        },
-                        {
-                            type: "checkbox",
-                            key: "exampleCheck",
-                            text: "exampleCheck",
-                            icon: "cloudTryingItsBest"
-                        } */
                     ];
 
                     if (Client.hasActiveProject) {
@@ -864,7 +854,8 @@ function ExperimentalBrowse({opts}: {opts?: {embedded?: boolean; onSelect?: (fil
                                 return callAPI(
                                     FileCollectionsApi.browse({
                                         itemsPerPage: 250,
-                                        filterMemberFiles: "DONT_FILTER_COLLECTIONS"
+                                        filterMemberFiles: "DONT_FILTER_COLLECTIONS",
+                                        filterProvider: opts?.providerFilter,
                                     })
                                 ).then(res => res.items);
                             }).then(doNothing);
@@ -1151,7 +1142,6 @@ function ExperimentalBrowse({opts}: {opts?: {embedded?: boolean; onSelect?: (fil
                 browser.on("nameOfEntry", f => fileName(f.id));
                 browser.on("sort", page => page.sort((a, b) => a.id.localeCompare(b.id)));
             });
-
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
@@ -1160,10 +1150,14 @@ function ExperimentalBrowse({opts}: {opts?: {embedded?: boolean; onSelect?: (fil
         const b = browserRef.current;
         if (!b) return;
 
-        const path = getQueryParamOrElse(location.search, "path", "");
-        if (path) {
-            openTriggeredByPath.current = path;
-            b.open(path);
+        if (isSelector) {
+            b.open(selectorPathRef.current);
+        } else {
+            const path = getQueryParamOrElse(location.search, "path", "");
+            if (path) {
+                openTriggeredByPath.current = path;
+                b.open(path);
+            }
         }
     }, [location.search]);
 
