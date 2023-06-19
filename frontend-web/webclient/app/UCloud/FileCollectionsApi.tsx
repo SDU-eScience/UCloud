@@ -251,3 +251,4 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
 
 const api = new FileCollectionsApi();
 export {api};
+export default api;

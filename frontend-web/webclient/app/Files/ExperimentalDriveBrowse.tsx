@@ -17,7 +17,7 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {callAPI} from "@/Authentication/DataHook";
 import {api as FileCollectionsApi, FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {FindByStringId, PageV2} from "@/UCloud";
+import {FindByStringId, PageV2, provider} from "@/UCloud";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
 import {DELETE_TAG, ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
@@ -295,26 +295,17 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 // Rendering of rows and empty pages
                 // =========================================================================================================
                 browser.on("renderRow", (drive, row, dims) => {
-                    const [icon, setIcon] = browser.defaultIconRenderer();
-                    row.title.append(icon);
+                    const pIcon = providerIcon(drive.specification.product.provider)
+                    pIcon.style.marginRight = "8px";
+                    row.title.append(pIcon);
 
                     const title = browser.defaultTitleRenderer(drive.specification.title, dims)
                     row.title.append(title);
                     row.title.title = title;
                     row.stat2.innerText = dateToString(drive.createdAt ?? timestampUnixMs());
-                    row.stat3.append(providerIcon(drive.specification.product.provider));
-
                     if (drive.id.startsWith(isCreatingPrefix)) {
                         row.stat1.append(browser.createSpinner(30));
                     }
-
-                    browser.icons.renderIcon({
-                        name: "ftFileSystem",
-                        color: "iconColor",
-                        color2: "iconColor",
-                        height: 64,
-                        width: 64
-                    }).then(setIcon);
                 });
 
                 browser.icons.renderIcon({

@@ -10,8 +10,6 @@ const ProviderRouter = React.lazy(() => import("@/Admin/Providers/Router"));
 const MetadataNamespacesRouter = React.lazy(() => import("@/Files/Metadata/Templates/Namespaces"));
 const SharesAcceptLink = React.lazy(() => import("@/Files/SharesAcceptLink"));
 const ShareRouter = React.lazy(() => import("@/Files/Shares"));
-const IngoingApplications = React.lazy(() => import("@/Project/Grant/IngoingApplications"));
-const OutgoingApplications = React.lazy(() => import("@/Project/Grant/OutgoingApplications"));
 const JobShell = React.lazy(() => import("@/Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("@/Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("@/Applications/Jobs/Vnc"));
@@ -80,12 +78,15 @@ import AppRoutes from "./Routes";
 import {RightPopIn} from "./ui-components/PopIn";
 import {injectStyle, injectStyleSimple} from "./Unstyled";
 import FilesApi from "@/UCloud/FilesApi";
+import FileCollectionsApi from "@/UCloud/FileCollectionsApi";
+
 import ExperimentalJobs from "./Applications/Jobs/ExperimentalJobs";
 import {ExperimentalNetworkIP} from "./Applications/NetworkIP/ExperimentalBrowse";
 import {ExperimentalSSHKey} from "./Applications/SshKeys/ExperimentalBrowse";
 import {ExperimentalLicenses} from "./Applications/ExperimentalLicenses";
 import {ExperimentalPublicLinks} from "./Applications/Ingresses/ExperimentalBrowse";
 import {ExperimentalGrantApplications} from "./Project/Grant/ExperimentalGrantApplications";
+import {FileCollectionBrowse} from "./Files/FileCollections";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -106,9 +107,11 @@ const Core = (): JSX.Element => (
                             element={React.createElement(requireAuth(Dashboard))} />
                         <Route path={AppRoutes.dashboard.dashboardB()}
                             element={React.createElement(requireAuth(Dashboard))} />
+                        {/* Kind of a hardcoded solution, removing the generalised solution fro ResourceBrowse */}
+                        <Route path={"/drives/properties/:id/"} element={React.createElement(requireAuth(FileCollectionsApi.Properties), {api: FileCollectionsApi})} />
                         <Route path={"/drives/"} element={React.createElement(requireAuth(ExperimentalDriveBrowse))} />
                         {/* Kind of a hardcoded solution, removing the generalised solution fro ResourceBrowse */}
-                        <Route path={`/files/properties/:id/`} element={<FilesApi.Properties api={FilesApi} />} />
+                        <Route path={`/files/properties/:id/`} element={React.createElement(requireAuth(FilesApi.Properties), {api: FilesApi})} />
                         {/* Hardcoded solution end */}
                         <Route path={"/files/*"} element={React.createElement(requireAuth(ExperimentalFileBrowse))} />
                         <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />

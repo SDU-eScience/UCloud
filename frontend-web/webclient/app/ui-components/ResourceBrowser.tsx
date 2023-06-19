@@ -3175,10 +3175,9 @@ export function providerIcon(providerId: string): HTMLElement {
     const outer = div("");
     outer.style.background = "var(--blue)";
     outer.style.borderRadius = "8px";
-    outer.style.padding = "5px";
     outer.style.width = "40px";
     outer.style.height = "40px";
-
+    
     const inner = div("");
     inner.style.backgroundSize = "contain";
     inner.style.width = "100%";
@@ -3186,11 +3185,11 @@ export function providerIcon(providerId: string): HTMLElement {
     inner.style.fontSize = "30px";
     inner.style.color = "white"
     if (myInfo) {
+        outer.style.padding = "5px";
         inner.style.backgroundImage = `url('/Images/${myInfo.logo}')`;
         inner.style.backgroundPosition = "center";
     } else {
-        inner.style.marginTop = "-8px";
-        inner.style.marginLeft = "-5px";
+        inner.style.textAlign = "center";
         inner.append((providerId[0] ?? "-").toUpperCase());
     }
 
