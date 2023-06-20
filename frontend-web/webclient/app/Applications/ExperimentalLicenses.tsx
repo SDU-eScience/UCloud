@@ -2,7 +2,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters, getFilterStorageValue, resourceCreationWithProductSelector, setFilterStorageValue} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters, getFilterStorageValue, providerIcon, resourceCreationWithProductSelector, setFilterStorageValue} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -183,15 +183,14 @@ export function ExperimentalLicenses(): JSX.Element {
                 }
 
                 browser.on("renderRow", (license, row, dims) => {
-                    const [icon, setIcon] = browser.defaultIconRenderer();
-                    row.title.append(icon)
+                    const icon = providerIcon(license.specification.product.provider);
+                    icon.style.marginRight = "8px";
+                    row.title.append(icon);
                     if (license.id !== DUMMY_ENTRY_ID) {
                         const {product} = license.specification;
                         const title = product.id + (license.id ? ` (${license.id})` : "")
                         row.title.append(browser.defaultTitleRenderer(title, dims));
                     }
-
-                    browser.icons.renderIcon({name: "fileSignatureSolid", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
                 });
 
                 browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());

@@ -198,14 +198,10 @@ export function ExperimentalPublicLinks(): JSX.Element {
                 ]);
 
                 browser.on("renderRow", (link, row, dims) => {
-                    const [icon, setIcon] = browser.defaultIconRenderer();
-                    row.title.append(icon)
-
+                    const icon = providerIcon(link.specification.product.provider);
+                    icon.style.marginRight = "8px";
+                    row.title.append(icon);
                     row.title.append(browser.defaultTitleRenderer(link.specification.domain, dims));
-
-                    browser.icons.renderIcon({name: "globeEuropeSolid", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
-
-                    row.stat3.append(providerIcon(link.specification.product.provider));
                 });
 
                 browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());

@@ -185,16 +185,13 @@ export function ExperimentalNetworkIP(): JSX.Element {
                 ]);
 
                 browser.on("renderRow", (ip, row, dims) => {
-                    const [icon, setIcon] = browser.defaultIconRenderer();
-                    row.title.append(icon)
+                    const icon = providerIcon(ip.specification.product.provider);
+                    icon.style.marginRight = "8px";
+                    row.title.append(icon);
 
                     if (ip.id !== DUMMY_ENTRY_ID) {
                         row.title.append(browser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, dims));
                     }
-
-                    browser.icons.renderIcon({name: "networkWiredSolid", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
-
-                    row.stat3.append(providerIcon(ip.specification.product.provider));
                 });
 
                 browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
