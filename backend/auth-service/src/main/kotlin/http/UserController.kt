@@ -119,7 +119,7 @@ class UserController(
 
         implement(UserDescriptions.retrievePrincipal) {
             val principal = db.withTransaction {
-                userDAO.findById(it, request.username)
+                userDAO.findByUsername(it, request.username)
             }
             ok(
                 principal
@@ -164,7 +164,7 @@ class UserController(
             ok(
                 LookupUsersResponse(
                     db.withTransaction { session ->
-                        userDAO.findAllByIds(session, request.users).mapValues { (_, principal) ->
+                        userDAO.findAllByUsername(session, request.users).mapValues { (_, principal) ->
                             principal?.let { UserLookup(it.id, it.role) }
                         }
                     }

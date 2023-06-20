@@ -2,68 +2,21 @@ package dk.sdu.cloud.auth.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.IdentityProviderConnection
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ProviderPrincipal
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.timestampToLocalDateTime
 
 data class HashedPasswordAndSalt(val hashedPassword: ByteArray, val salt: ByteArray)
 data class UserIdAndName(val userId: String, val firstNames: String, val lastName: String)
 
-object PrincipalTable : SQLTable("principals") {
-    val type = text("dtype", notNull = true)
-    val id = text("id", notNull = true)
-    val role = text("role", notNull = true)
-    val createdAt = timestamp("created_at", notNull = true)
-    val modifiedAt = timestamp("modified_at", notNull = true)
-    val firstNames = text("first_names")
-    val lastName = text("last_name")
-    val title = text("title")
-    val hashedPassword = byteArray("hashed_password")
-    val salt = byteArray("salt")
-    val email = text("email")
-    val serviceLicenseAgreement = int("service_license_agreement", notNull = true)
-}
-
 enum class UserType {
     SERVICE,
     PERSON,
-}
-
-fun RowData.toPrincipal(totpStatus: Boolean): Principal {
-    when {
-        getField(PrincipalTable.type).contains(UserType.SERVICE.name) -> {
-            return ServicePrincipal(
-                getField(PrincipalTable.id),
-                Role.valueOf(getField(PrincipalTable.role))
-            )
-        }
-
-        getField(PrincipalTable.type).contains(UserType.PERSON.name) -> {
-            return Person(
-                getField(PrincipalTable.id),
-                Role.valueOf(getField(PrincipalTable.role)),
-                getField(PrincipalTable.title),
-                getField(PrincipalTable.firstNames),
-                getField(PrincipalTable.lastName),
-                getFieldNullable(PrincipalTable.email),
-                getField(PrincipalTable.serviceLicenseAgreement),
-                totpStatus,
-                emptyList(),
-                getFieldNullable(PrincipalTable.hashedPassword),
-                getFieldNullable(PrincipalTable.salt),
-            )
-        }
-
-        else -> {
-            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unknown Principal Type")
-        }
-    }
 }
 
 data class UserInformation(
@@ -77,7 +30,7 @@ class UserAsyncDAO(
     private val twoFactorDAO: TwoFactorAsyncDAO
 ) {
     suspend fun getUserInfo(db: DBContext, username: String): UserInformation {
-        val principal = findById(db, username)
+        val principal = findByUsername(db, username)
         return when (principal) {
             is Person -> {
                 UserInformation(
@@ -91,35 +44,120 @@ class UserAsyncDAO(
         }
     }
 
-    suspend fun findById(db: DBContext, id: String): Principal {
-        return findByIdOrNull(db, id) ?: throw UserException.NotFound()
+    suspend fun findByUsername(db: DBContext, id: String): Principal {
+        return findByUsernameOrNull(db, id) ?: throw UserException.NotFound()
     }
 
-    suspend fun findByIdOrNull(db: DBContext, id: String): Principal? {
-        return findAllByIds(db, listOf(id))[id]
+    suspend fun findByUsernameOrNull(db: DBContext, id: String): Principal? {
+        return findAllByUsername(db, listOf(id))[id]
     }
 
     /**
      * Finds a set of [Principal]s by their [Principal.id] defined in [ids]
      */
-    suspend fun findAllByIds(db: DBContext, ids: List<String>): Map<String, Principal?> {
-        val status = twoFactorDAO.findStatusBatched(db, ids)
-        val usersWeFound = db.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    { setParameter("ids", ids) },
-                    """
-                        select *
-                        from auth.principals
-                        where id = some(:ids::text[])
-                    """
-                ).rows
-                .map { it.toPrincipal(status.getValue(it.getField(PrincipalTable.id))) }
-                .associateBy { principal -> principal.id }
+    suspend fun findAllByUsername(db: DBContext, ids: List<String>): Map<String, Principal?> {
+        val builder = HashMap<String, Principal?>()
+        ids.forEach { builder[it] = null }
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("ids", ids) },
+                """
+                    with
+                        two_factor_enabled as (
+                            select creds.principal_id
+                            from auth.two_factor_credentials creds
+                            where
+                                creds.enforced = true
+                                and creds.principal_id = some(:ids::text[])
+                        ),
+                        connections as (
+                            select
+                                p.uid,
+                                array_agg(idp.id) as idps,
+                                array_agg(conn.provider_identity) as connections,
+                                array_agg(idp.counts_as_multi_factor) as is_multi_factor,
+                                array_agg(conn.organization_id) as org_id
+                            from
+                                auth.principals p
+                                left join auth.idp_connections conn on p.uid = conn.principal
+                                left join auth.identity_providers idp on conn.idp = idp.id
+                            group by p.uid
+                        )
+                    select
+                        p.id,
+                        p.role,
+                        p.dtype,
+
+                        p.first_names,
+                        p.last_name,
+                        p.email,
+                        p.service_license_agreement,
+                        p.org_id,
+
+                        p.hashed_password,
+                        p.salt,
+
+                        c.idps,
+                        c.connections,
+                        c.org_id,
+                        coalesce(mfa.principal_id is not null or true = some(c.is_multi_factor), false) as mfa_enabled
+                    from
+                        auth.principals p
+                        join connections c on p.uid = c.uid
+                        left join two_factor_enabled mfa on p.id = mfa.principal_id
+                    where
+                        p.id = some(:ids::text[]);
+
+                        select true = some(array[]::bool[])
+                """
+            ).rows.forEach { row ->
+                val id = row.getString(0)!!
+                val role = Role.valueOf(row.getString(1)!!)
+                val dtype = UserType.valueOf(row.getString(2)!!)
+
+                when (dtype) {
+                    UserType.SERVICE -> {
+                        builder[id] = ServicePrincipal(id, role)
+                    }
+
+                    UserType.PERSON -> {
+                        val firstNames = row.getString(3)!!
+                        val lastName = row.getString(4)!!
+                        val email = row.getString(5)!!
+                        val sla = row.getInt(6)!!
+                        val orgId = row.getString(7)
+                        val hashedPassword = row.getAs<ByteArray?>(8)
+                        val salt = row.getAs<ByteArray?>(9)
+
+                        val idps = row.getAs<List<Int?>>(10)
+                        val idpIdentities = row.getAs<List<String?>>(11)
+                        val orgIds = row.getAs<List<String?>>(12)
+                        val mfaEnabled = row.getBoolean(13)!!
+
+                        Person(
+                            id,
+                            role,
+                            firstNames,
+                            lastName,
+                            email,
+                            sla,
+                            orgId,
+                            mfaEnabled,
+                            idps.indices.mapNotNull { idx ->
+                                val idp = idps[idx] ?: return@mapNotNull null
+                                val identity = idpIdentities[idx] ?: return@mapNotNull null
+                                val idpOrg = orgIds[idx]
+                                IdentityProviderConnection(idp, identity, idpOrg)
+                            },
+                            hashedPassword,
+                            salt
+                        )
+                    }
+                }
+            }
         }
-        val usersWeDidntFind = ids.filter { it !in usersWeFound }
-        val nullEntries = usersWeDidntFind.associateWith { null }
-        return usersWeFound + nullEntries
+        return builder
     }
 
     suspend fun findEmail(db: DBContext, id: String): String? {
@@ -131,43 +169,42 @@ class UserAsyncDAO(
      */
     suspend fun findByEmail(db: DBContext, email: String): UserIdAndName {
         val user = db.withSession { session ->
-            session.sendPreparedStatement(
+            val username = session.sendPreparedStatement(
                 { setParameter("email", email) },
                 """
-                    select *
+                    select id
                     from auth.principals
                     where email = :email
                 """
             )
             .rows
-            .singleOrNull() ?: throw UserException.NotFound()
+            .singleOrNull()
+            ?.getString(0) ?: throw UserException.NotFound()
+
+            findByUsername(session, username)
         }
 
+        val person = user as? Person
+
         return UserIdAndName(
-            user.getField(PrincipalTable.id),
-            user.getField(PrincipalTable.firstNames),
-            user.getField(PrincipalTable.lastName)
+            user.id,
+            person?.firstNames ?: "Unknown",
+            person?.lastName ?: "Unknown",
         )
     }
 
-    /**
-     * Finds all [Principal]s by [prefix]. This is used for username generation.
-     */
-    suspend fun findByUsernamePrefix(db: DBContext, prefix: String): List<Principal> {
+    suspend fun findUsernamesByPrefix(db: DBContext, prefix: String): List<String> {
         return db.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("prefix", "$prefix%")
-                    },
-                    """
-                        select *
-                        from auth.principals
-                        where id like :prefix
-                    """
-                )
-                .rows
-                .map { it.toPrincipal(false) }
+            session.sendPreparedStatement(
+                { setParameter("prefix", "$prefix%") },
+                """
+                    select id
+                    from auth.principals
+                    where id like :prefix
+                """
+            )
+            .rows
+            .map { it.getString(0)!! }
         }
     }
 
@@ -203,6 +240,7 @@ class UserAsyncDAO(
         }
     }
 
+    // TODO The insertion API doesn't really make sense. I don't think it should be accepting a Principal in this case.
     suspend fun insert(db: DBContext, principal: Principal) {
         db.withSession(remapExceptions = true) { session ->
             when (principal) {

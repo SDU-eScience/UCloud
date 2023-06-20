@@ -32,7 +32,7 @@ class UserCreationService(
     suspend fun createUsers(users: List<Principal>) {
         db.withSession { session ->
             users.forEach { user ->
-                val exists = userDao.findByIdOrNull(session, user.id) != null
+                val exists = userDao.findByUsernameOrNull(session, user.id) != null
                 if (exists) {
                     throw UserException.AlreadyExists()
                 } else {

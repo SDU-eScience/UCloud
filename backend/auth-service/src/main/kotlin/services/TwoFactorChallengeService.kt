@@ -46,7 +46,7 @@ class TwoFactorChallengeService(
     suspend fun createSetupCredentialsAndChallenge(username: String): Create2FACredentialsResponse {
         val newCredentials = totpService.createSharedSecret()
         return db.withSession { session ->
-            val user = userDAO.findByIdOrNull(session, username) ?: run {
+            val user = userDAO.findByUsernameOrNull(session, username) ?: run {
                 log.warn("Could not lookup user in createSetupCredentialsAndChallenge: $username")
                 throw TwoFactorException.InternalError()
             }

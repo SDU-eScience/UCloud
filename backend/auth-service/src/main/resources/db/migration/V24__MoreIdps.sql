@@ -7,16 +7,18 @@ drop table if exists auth.identity_providers;
 create table auth.identity_providers(
     id serial4 primary key,
     title text unique not null,
-    configuration jsonb not null
+    configuration jsonb not null,
+    counts_as_multi_factor bool not null default false
 );
 
-insert into auth.identity_providers (title, configuration)
-values ('wayf', '{ "type": "wayf" }'::jsonb);
+insert into auth.identity_providers (title, configuration, counts_as_multi_factor)
+values ('wayf', '{ "type": "wayf" }'::jsonb, true);
 
 create table auth.idp_connections(
     principal int references auth.principals(uid),
     idp int references auth.identity_providers(id),
     provider_identity text not null,
+    organization_id text default null,
 
     primary key (provider_identity, idp)
 );
@@ -48,4 +50,4 @@ update auth.principals
 set dtype = 'PERSON'
 where
     dtype = 'WAYF'
-    or dtype = 'PASS
+    or dtype = 'PASSWORD';

@@ -34,10 +34,10 @@ class TwoFactorAsyncDAO {
                         setParameter("user", username)
                     },
                     """
-                        SELECT *
-                        FROM two_factor_credentials
-                        WHERE 
-                            enforced = true AND
+                        select *
+                        from auth.two_factor_credentials
+                        where 
+                            enforced = true and
                             principal_id = :user
                     """
                 )
@@ -60,9 +60,9 @@ class TwoFactorAsyncDAO {
                         setParameter("id", challengeId)
                     },
                     """
-                        SELECT *
-                        FROM two_factor_challenges
-                        WHERE challenge_id = :id AND expires_at > now()
+                        select *
+                        from auth.two_factor_challenges
+                        where challenge_id = :id and expires_at > now()
                     """
                 )
                 .rows
@@ -109,9 +109,9 @@ class TwoFactorAsyncDAO {
                         setParameter("id", challenge.credentials.id)
                     },
                     """
-                        SELECT *
-                        FROM two_factor_credentials
-                        WHERE id = :id
+                        select *
+                        from auth.two_factor_credentials
+                        where id = :id
                     """
                 ).rows
                 .singleOrNull()
@@ -142,9 +142,9 @@ class TwoFactorAsyncDAO {
                         setParameter("ids", ids.toList())
                     },
                     """
-                        SELECT *
-                        FROM two_factor_credentials
-                        WHERE enforced = :enforced AND principal_id IN (select unnest(:ids::text[]))
+                        select *
+                        from auth.two_factor_credentials
+                        where enforced = :enforced and principal_id = some(:ids::text[])
                     """
                 ).rows
                 .forEach { row ->
@@ -197,9 +197,9 @@ fun RowData.toTwoFactorChallenge(db: DBContext): TwoFactorChallenge {
                         setParameter("id", credentialsID)
                     },
                     """
-                        SELECT *
-                        FROM two_factor_credentials
-                        WHERE id = :id
+                        select *
+                        from auth.two_factor_credentials
+                        where id = :id
                     """
                 ).rows
                 .singleOrNull()
@@ -216,6 +216,7 @@ fun RowData.toTwoFactorChallenge(db: DBContext): TwoFactorChallenge {
     )
 }
 
+/*
 fun RowData.toTwoFactorCredentials(db: DBContext): TwoFactorCredentials {
     val principalID = getField(TwoFactorCredentialsTable.principal)
     val principal = runBlocking {
@@ -243,3 +244,4 @@ fun RowData.toTwoFactorCredentials(db: DBContext): TwoFactorCredentials {
         getField(TwoFactorCredentialsTable.id)
     )
 }
+ */

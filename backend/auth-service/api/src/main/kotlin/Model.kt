@@ -42,7 +42,6 @@ data class Person(
     override val id: String,
     override val role: Role,
 
-    val title: String?,
     val firstNames: String,
     val lastName: String,
     val email: String?,
@@ -67,7 +66,6 @@ data class Person(
         require(!id.startsWith("_")) { "A person's ID cannot start with '_'" }
         require(firstNames.isNotEmpty()) { "First name cannot be empty" }
         require(lastName.isNotEmpty()) { "Last name cannot be empty" }
-        require(title?.isEmpty() != true) { "Title cannot be empty if != null" }
         require(password == null || salt != null) { "password and salt must be supplied together" }
     }
 }

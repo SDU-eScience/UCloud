@@ -174,7 +174,7 @@ class TokenService(
 
         // Find user
         log.debug("Looking up user")
-        val user = userDao.findByIdOrNull(db, token.principal.username)
+        val user = userDao.findByUsernameOrNull(db, token.principal.username)
             ?: throw ExtensionException.InternalError("Could not find user in database (${token.principal.username}")
 
         val tokenTemplate = AccessTokenContents(
@@ -206,7 +206,7 @@ class TokenService(
         log.debug("Requesting one-time token: audience=$audience jwt=$jwt")
 
         val validated = tokenValidation.validateOrNull(jwt) ?: throw RefreshTokenException.InvalidToken()
-        val user = userDao.findByIdOrNull(db, validated.subject) ?: throw RefreshTokenException.InternalError()
+        val user = userDao.findByUsernameOrNull(db, validated.subject) ?: throw RefreshTokenException.InternalError()
 
         val currentScopes = validated.toSecurityToken().scopes
         val allScopesCovered = audience.all { requestedScope ->
@@ -255,7 +255,7 @@ class TokenService(
                 throw RefreshTokenException.InvalidToken()
             }
 
-            val user = userDao.findByIdOrNull(session, token.associatedUser) ?: run {
+            val user = userDao.findByUsernameOrNull(session, token.associatedUser) ?: run {
                 log.warn(
                     "Received a valid token, but was unable to resolve the associated user: " +
                         token.associatedUser

@@ -19,7 +19,7 @@ class UniqueUsernameService(
         val normalizedUsername = idealUsername.lines().first().replace(SEPARATOR.toString(), "")
         if (normalizedUsername.length > 250) throw IllegalArgumentException("Username too long")
 
-        val existingNames = userDAO.findByUsernamePrefix(db, normalizedUsername + SEPARATOR).map { it.id }.toSet()
+        val existingNames = userDAO.findUsernamesByPrefix(db, normalizedUsername + SEPARATOR).toSet()
 
         log.debug("Found ${existingNames.size} existing names!")
 

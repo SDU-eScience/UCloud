@@ -27,7 +27,7 @@ class LoginService(
                 Pair(null, LoginResponse.TOO_MANY_REQUESTS)
             } else {
                 val user = try {
-                    users.findById(session, username) as? Person.ByPassword
+                    users.findByUsername(session, username) as? Person.ByPassword
                 } catch (ex: UserException) {
                     null
                 }
