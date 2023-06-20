@@ -1,24 +1,23 @@
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
-import {displayErrorMessageOrDefault, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, errorMessageOrDefault, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
-import {dispatchSetProjectAction, getStoredProject} from "@/Project/Redux";
+import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/Redux";
 import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {NavigateFunction, useNavigate} from "react-router";
 import {initializeResources} from "@/Services/ResourceInit";
 import {useProject} from "./cache";
-import ProjectAPI, {Project, ProjectFlags, ProjectsSortByFlags, useProjectId} from "@/Project/Api";
+import ProjectAPI, {Project, useProjectId} from "@/Project/Api";
 import {TextH3} from "@/ui-components/Text";
 import {injectStyle} from "@/Unstyled";
 import Api from "@/Project/Api";
-import {PageV2, PaginationRequestV2} from "@/UCloud";
+import {AsyncCache} from "@/Utilities/AsyncCache";
+import {PageV2} from "@/UCloud";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
-const REQUESTED_ITEMS = 1000;
-const PAGES_TO_REQUEST = REQUESTED_ITEMS / PROJECT_ITEMS_PER_PAGE - 1; // We deduct the page that's fetched regardless. 
 
 const DEFAULT_FETCH_ARGS = {
     itemsPerPage: PROJECT_ITEMS_PER_PAGE,
@@ -27,34 +26,41 @@ const DEFAULT_FETCH_ARGS = {
     sortDirection: "descending" as const
 }
 
+export const projectCache = new AsyncCache<PageV2<Project>>();
+
+async function fetchProjects(next?: string): Promise<PageV2<Project>> {
+    const result = await callAPI<PageV2<Project>>(ProjectAPI.browse({...DEFAULT_FETCH_ARGS, next}));
+    if (result.next) {
+        const child = await fetchProjects(result.next);
+        return {
+            items: result.items.concat(child.items),
+            itemsPerPage: result.itemsPerPage + child.itemsPerPage,            
+        }
+    }
+
+    return result;
+}
+
 export function ContextSwitcher(): JSX.Element {
     const activeProject = useSelector((it: ReduxObject) => it.project.project);
     const refresh = useSelector((it: ReduxObject) => it.header.refresh);
 
     const project = useProject();
     const projectId = useProjectId();
-    const [response, setFetchParams] = useCloudAPI<PageV2<Project>, ProjectFlags & ProjectsSortByFlags & PaginationRequestV2>(
-        ProjectAPI.browse(DEFAULT_FETCH_ARGS),
-        emptyPageV2
-    );
+    const [error,setError] = React.useState(""); 
 
-    const remainingFetches = React.useRef(PAGES_TO_REQUEST);
-    const nextInvalidation = React.useRef(new Date().getTime() + 1000 * 60 * 15);
-
-    const [projects, setProjects] = React.useState<Project[]>([]);
+    const [projectList, setProjectList] = React.useState<PageV2<Project>>(emptyPageV2);
 
     React.useEffect(() => {
-        if (response.error || response.loading) return;
-        setProjects(p => p.concat(response.data.items));
-        if (remainingFetches.current === 0) return;
-        if (response.data.next) {
-            setFetchParams(ProjectAPI.browse({
-                ...DEFAULT_FETCH_ARGS,
-                next: response.data.next
-            }));
-            remainingFetches.current -= 1;
-        }
-    }, [response]);
+        projectCache.retrieve("", () =>
+            fetchProjects()
+        ).then(res => {
+            setProjectList(res);
+            emitProjects();
+        }).catch(err => {
+            setError(errorMessageOrDefault(err, "Failed to fetch your projects."));
+        });
+    }, []);
 
     const dispatch = useDispatch();
 
@@ -64,7 +70,7 @@ export function ContextSwitcher(): JSX.Element {
 
     let activeContext = "My Workspace";
     if (activeProject) {
-        const title = projectId === project.fetch().id ? project.fetch().specification.title : response.data.items.find(it => it.id === projectId)?.specification.title ?? "";
+        const title = projectId === project.fetch().id ? project.fetch().specification.title : projectList.items.find(it => it.id === projectId)?.specification.title ?? "";
         if (title) {
             activeContext = title;
         } else {
@@ -77,26 +83,13 @@ export function ContextSwitcher(): JSX.Element {
         setProject(storedProject ?? undefined);
     }, []);
 
-    const checkIfShouldInvalidate = React.useCallback(() => {
-        const nextInvalidationTs = nextInvalidation.current;
-        if (nextInvalidationTs <= new Date().getTime()) {
-            setFetchParams(ProjectAPI.browse({
-                ...DEFAULT_FETCH_ARGS,
-                next: undefined
-            }));
-            remainingFetches.current = PAGES_TO_REQUEST;
-            nextInvalidation.current = new Date().getTime() + 1000 * 60 * 15
-            setProjects([]);
-        }
-    }, []);
-
     const navigate = useNavigate();
 
     const [filter, setTitleFilter] = React.useState("");
 
     const filteredProjects = React.useMemo(() =>
-        projects.filter(it => it.specification.title.toLocaleLowerCase().includes(filter.toLocaleLowerCase()))
-        , [projects, filter]);
+        projectList.items.filter(it => it.specification.title.toLocaleLowerCase().includes(filter.toLocaleLowerCase()))
+        , [projectList, filter]);
 
     return (
         <Flex key={activeContext} pr="12px" alignItems={"center"} data-component={"project-switcher"}>
@@ -109,7 +102,7 @@ export function ContextSwitcher(): JSX.Element {
                 }
                 colorOnHover={false}
                 useMousePositioning
-                onTriggerClick={checkIfShouldInvalidate}
+                onTriggerClick={() => projectCache.retrieveWithInvalidCache("", () => callAPI(ProjectAPI.browse(DEFAULT_FETCH_ARGS)))}
                 left="0px"
                 width="500px"
             >
@@ -137,9 +130,9 @@ export function ContextSwitcher(): JSX.Element {
                         )}
 
                         <Box mt="8px">
-                            <Error error={response.error?.why} />
+                            <Error error={error} />
                         </Box>
-                        {filteredProjects.length !== 0 || response.error !== undefined ? null : (
+                        {filteredProjects.length !== 0 || error ? null : (
                             <Box mt="8px" textAlign="center">No workspaces found</Box>
                         )}
                     </div>

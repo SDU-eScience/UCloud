@@ -11,7 +11,7 @@ import IngressApi, {Ingress, IngressSupport} from "@/UCloud/IngressApi";
 import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -239,7 +239,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,
                         embedded: false,
-                        isWorkspaceAdmin: false,
+                        isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate,
                         reload: () => browser.refresh(),
                         startCreation(): void {

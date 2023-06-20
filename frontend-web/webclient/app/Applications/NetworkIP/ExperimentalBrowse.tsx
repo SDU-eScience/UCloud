@@ -11,7 +11,7 @@ import NetworkIPApi, {NetworkIP, NetworkIPSupport} from "@/UCloud/NetworkIPApi";
 import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -229,7 +229,7 @@ export function ExperimentalNetworkIP(): JSX.Element {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,
                         embedded: false,
-                        isWorkspaceAdmin: false,
+                        isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate,
                         reload: () => browser.refresh(),
                         startCreation(): void {

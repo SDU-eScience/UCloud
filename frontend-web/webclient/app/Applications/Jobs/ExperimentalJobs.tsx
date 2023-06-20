@@ -5,7 +5,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import {addContextSwitcherInPortal, clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts} from "@/ui-components/ResourceBrowser";
+import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {appLogoCache} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
@@ -208,7 +208,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job>}): JSX.Elemen
                         dispatch: dispatch,
                         supportByProvider: support,
                         reload: () => browser.refresh(),
-                        isWorkspaceAdmin: false,
+                        isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         viewProperties: j => {
                             navigate(AppRoutes.jobs.view(j.id))
                         }

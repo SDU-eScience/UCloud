@@ -2,7 +2,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters, getFilterStorageValue, providerIcon, resourceCreationWithProductSelector, setFilterStorageValue} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue, providerIcon, resourceCreationWithProductSelector, setFilterStorageValue} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -16,6 +16,7 @@ import {Product, ProductLicense} from "@/Accounting";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
+import {projectCache} from "@/Project/ContextSwitcher";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -228,8 +229,7 @@ export function ExperimentalLicenses(): JSX.Element {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,
                         embedded: false,
-                        /* TODO(Jonas): Find out how to cache projects in a meaningful way. */
-                        isWorkspaceAdmin: !Client.hasActiveProject,
+                        isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate,
                         reload: () => browser.refresh(),
                         startCreation(): void {

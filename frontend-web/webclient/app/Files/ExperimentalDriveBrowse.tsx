@@ -10,6 +10,7 @@ import {
     addContextSwitcherInPortal,
     resourceCreationWithProductSelector,
     providerIcon,
+    checkIsWorkspaceAdmin,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -116,7 +117,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                                 specification: {
                                     title: browser.renameValue,
                                     product: productReference
-                                },                                
+                                },
                             } as FileCollection;
 
                             browser.insertEntryIntoCurrentPage(driveBeingCreated);
@@ -207,8 +208,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                         supportByProvider: support,
                         dispatch,
                         embedded: false,
-                        /* TODO(Jonas): Find a way to get this info from cached projects. */
-                        isWorkspaceAdmin: Client.hasActiveProject ? false : true, /* TODO(Jonas) */
+                        isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate: to => {navigate(to)},
                         reload: () => browser.refresh(),
                         startCreation(): void {

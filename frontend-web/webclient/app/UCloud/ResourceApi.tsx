@@ -190,13 +190,6 @@ export abstract class ResourceApi<Res extends Resource,
     }
 
     public abstract renderer: ItemRenderer<Res>;
-    /*
-    public InlineTitleRenderer?: React.FunctionComponent<{ resource: Res }>;
-    public IconRenderer?: React.FunctionComponent<{ resource: Res | null; size: string; }>
-    public StatsRenderer?: React.FunctionComponent<{ resource: Res }>;
-    public TitleRenderer?: React.FunctionComponent<{ resource: Res }>;
-    public ImportantStatsRenderer?: React.FunctionComponent<{ resource: Res }>;
-     */
     public Properties: React.FunctionComponent<{
         resource?: Res;
         reload?: () => void;

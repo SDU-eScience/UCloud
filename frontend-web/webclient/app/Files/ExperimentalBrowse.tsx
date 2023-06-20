@@ -7,6 +7,7 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import MainContainer from "@/MainContainer/MainContainer";
 import {
     addContextSwitcherInPortal,
+    checkIsWorkspaceAdmin,
     div,
     EmptyReasonTag,
     Filter,
@@ -563,7 +564,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         directory: folder!,
                         dispatch: dispatch,
                         embedded: opts?.embedded ?? false,
-                        isWorkspaceAdmin: false,
+                        isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate: to => navigate(to),
                         reload: () => browser.refresh(),
                         setSynchronization(file: UFile, shouldAdd: boolean): void {

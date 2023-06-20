@@ -40,16 +40,20 @@ export function setStoredProject(value: string | null): void {
     } else {
         window.localStorage.setItem("project", value);
     }
+    emitProjects();
+}
+
+export function emitProjects() {
     for (const listener of Object.values(projectListeners)) {
         listener();
     }
 }
 
 export function removeProjectListener(key: string) {
-    delete projectListeners[key]; 
+    delete projectListeners[key];
 }
 
 export function addProjectListener(key: string, op: () => void) {
-    projectListeners[key] = op; 
+    projectListeners[key] = op;
 }
 

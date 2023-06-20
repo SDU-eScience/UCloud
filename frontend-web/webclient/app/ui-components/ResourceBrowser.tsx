@@ -14,12 +14,14 @@ import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {ContextSwitcher, projectCache} from "@/Project/ContextSwitcher";
 import {addThemeListener, removeThemeListener} from "@/Core";
 import {addProjectListener, removeProjectListener} from "@/Project/Redux";
 import {Product, ProductType} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {isAdminOrPI} from "@/Project/Api";
 
 /*
  BUGS FOUND
@@ -742,11 +744,38 @@ export class ResourceBrowser<T> {
         this.dispatchMessage("open", fn => fn(oldPath, path, resource));
     }
 
+    private renderCantConsumeResources() {
+        const wrapper = div(`
+            <div>
+                <h3 style="text-align: center;">This project cannot consume resources</h3>
+                <p>
+                    This property is set for certain projects which are only meant for allocating resources. If you wish
+                    to consume any of these resources for testing purposes, then please allocate resources to a small
+                    separate test project. This can be done from the "Resource Allocations" menu in the project
+                    management interface.
+                </p>
+
+                <p>
+                    <b>NOTE:</b> All resources created prior to this update are still available. If you need to transfer
+                    old resources to a new project, then please contact support.
+                </p>
+            </div>
+        `);
+        wrapper.style.display = "flex";
+        wrapper.style.height = "400px";
+        wrapper.style.alignItems = "center";
+        wrapper.style.justifyContent = "center";
+        this.header.append(wrapper);
+    }
+
     public rerender() {
+        const callbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn()) as {api: {isCoreResource: boolean}};
+        if ("api" in callbacks && checkCanConsumeResources(callbacks.api)) {
+            // Render non-consumeable
+        }
         this.renderBreadcrumbs();
         this.renderOperations();
         this.renderRows();
-        this.clearFilters();
         if (this.features.sortDirection) this.renderSortOrder();
         if (this.features.filters) {
             this.renderFilters();
@@ -3177,7 +3206,7 @@ export function providerIcon(providerId: string): HTMLElement {
     outer.style.borderRadius = "8px";
     outer.style.width = "40px";
     outer.style.height = "40px";
-    
+
     const inner = div("");
     inner.style.backgroundSize = "contain";
     inner.style.width = "100%";
@@ -3195,6 +3224,23 @@ export function providerIcon(providerId: string): HTMLElement {
 
     outer.append(inner);
     return outer;
+}
+
+export function checkIsWorkspaceAdmin(): boolean {
+    if (!Client.hasActiveProject) return true; // My Workspace.
+    const projects = projectCache.retrieveFromCacheOnly("");
+    if (!projects) return false;
+    const project = projects.items.find(it => it.id === Client.projectId);
+    if (!project) return false;
+    return isAdminOrPI(project.status.myRole);
+}
+
+export function checkCanConsumeResources(api: {isCoreResource: boolean}): boolean {
+    if (!Client.hasActiveProject) return true;
+    if (api.isCoreResource) return true;
+    const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === Client.projectId);
+    if (!project) return false;
+    return project.specification.canConsumeResources !== false;
 }
 
 // https://stackoverflow.com/a/13139830
