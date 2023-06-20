@@ -1,6 +1,3 @@
--- TODO This is definitely not done. As a result, I am adding an error here such that it cannot run
-this is an error;
-
 drop table if exists auth.idp_connections;
 drop table if exists auth.identity_providers;
 

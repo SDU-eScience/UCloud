@@ -34,7 +34,7 @@ sealed class TwoFactorException(why: String, httpStatusCode: HttpStatusCode) : R
 class TwoFactorChallengeService(
     private val db: DBContext,
     private val twoFactorDAO: TwoFactorAsyncDAO,
-    private val userDAO: UserAsyncDAO,
+    private val userDAO: PrincipalService,
     private val totpService: TOTPService,
     private val qrService: QRService
 ) {
@@ -46,7 +46,7 @@ class TwoFactorChallengeService(
     suspend fun createSetupCredentialsAndChallenge(username: String): Create2FACredentialsResponse {
         val newCredentials = totpService.createSharedSecret()
         return db.withSession { session ->
-            val user = userDAO.findByUsernameOrNull(session, username) ?: run {
+            val user = userDAO.findByUsernameOrNull(username, session) ?: run {
                 log.warn("Could not lookup user in createSetupCredentialsAndChallenge: $username")
                 throw TwoFactorException.InternalError()
             }

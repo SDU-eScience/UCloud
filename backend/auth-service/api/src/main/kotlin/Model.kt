@@ -1,6 +1,8 @@
 package dk.sdu.cloud.auth.api
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -67,6 +69,10 @@ data class Person(
         require(firstNames.isNotEmpty()) { "First name cannot be empty" }
         require(lastName.isNotEmpty()) { "Last name cannot be empty" }
         require(password == null || salt != null) { "password and salt must be supplied together" }
+
+        if (id.contains(Regex("[\\\\?/!\$%^&*)(\\[\\]}{':;\\r\\n]+"))) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Username contains illegal chars")
+        }
     }
 }
 

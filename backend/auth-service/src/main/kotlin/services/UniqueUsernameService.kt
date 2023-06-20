@@ -7,7 +7,7 @@ import kotlin.math.absoluteValue
 
 class UniqueUsernameService(
     private val db: DBContext,
-    private val userDAO: UserAsyncDAO
+    private val userDAO: PrincipalService
 ) {
     /**
      * Attempts to generate a unique username based on existing users.
@@ -19,7 +19,7 @@ class UniqueUsernameService(
         val normalizedUsername = idealUsername.lines().first().replace(SEPARATOR.toString(), "")
         if (normalizedUsername.length > 250) throw IllegalArgumentException("Username too long")
 
-        val existingNames = userDAO.findUsernamesByPrefix(db, normalizedUsername + SEPARATOR).toSet()
+        val existingNames = userDAO.findUsernamesByPrefix(normalizedUsername + SEPARATOR, db).toSet()
 
         log.debug("Found ${existingNames.size} existing names!")
 

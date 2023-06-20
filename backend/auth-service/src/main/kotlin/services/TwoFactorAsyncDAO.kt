@@ -1,14 +1,11 @@
 package dk.sdu.cloud.auth.services
 
-import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.allocateId
 import dk.sdu.cloud.service.db.async.bool
-import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.long
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -16,34 +13,55 @@ import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.timestampToLocalDateTime
-import dk.sdu.cloud.service.toTimestamp
-import kotlinx.coroutines.runBlocking
-import java.util.*
 
-class TwoFactorAsyncDAO {
+class TwoFactorAsyncDAO(
+    private val principals: PrincipalService,
+) {
     /**
      * Retrieves enforced two factor credentials associated with a [username]
      *
      * @return `null` if the enforced credentials for the [username] does not exist
      */
-    suspend fun findEnforcedCredentialsOrNull(db: DBContext, username: String): TwoFactorCredentials? {
+    suspend fun findEnforcedCredentialsOrNull(
+        db: DBContext,
+        username: String
+    ): TwoFactorCredentials? {
         return db.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("user", username)
-                    },
-                    """
-                        select *
-                        from auth.two_factor_credentials
-                        where 
-                            enforced = true and
-                            principal_id = :user
-                    """
+            val id = session.sendPreparedStatement(
+                { setParameter("user", username) },
+                """
+                    select id
+                    from auth.two_factor_credentials
+                    where 
+                        enforced = true and
+                        principal_id = :user
+                """
+            ).rows.firstOrNull()?.let { it.getLong(0)!! } ?: return@withSession null
+
+            findCredentialsById(id, session)
+        }
+    }
+
+    private suspend fun findCredentialsById(
+        id: Long,
+        ctx: DBContext,
+    ): TwoFactorCredentials? {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("id", id) },
+                """
+                    select enforced, shared_secret, principal_id
+                    from auth.two_factor_credentials
+                    where id = :id
+                """
+            ).rows.firstOrNull()?.let {
+                TwoFactorCredentials(
+                    principals.findByUsername(it.getString(2)!!),
+                    it.getString(1)!!,
+                    it.getBoolean(0)!!,
+                    id
                 )
-                .rows
-                .singleOrNull()
-                ?.toTwoFactorCredentials(session)
+            }
         }
     }
 
@@ -60,14 +78,21 @@ class TwoFactorAsyncDAO {
                         setParameter("id", challengeId)
                     },
                     """
-                        select *
+                        select dtype, challenge_id, credentials_id, floor(extract(epoch from expires_at) * 1000)
                         from auth.two_factor_challenges
                         where challenge_id = :id and expires_at > now()
                     """
                 )
                 .rows
                 .firstOrNull()
-                ?.toTwoFactorChallenge(session)
+                ?.let { row ->
+                    TwoFactorChallenge(
+                        row.getString(0)!!,
+                        row.getString(1)!!,
+                        row.getLong(3)!!,
+                        findCredentialsById(row.getLong(2)!!, session) ?: error("corrupt db"),
+                    )
+                }
         }
     }
 
@@ -126,34 +151,6 @@ class TwoFactorAsyncDAO {
         }
     }
 
-    /**
-     * Retrieves the enforced status for a batch of user [ids]
-     *
-     * An entry for every [ids] will always be in the output [Map]
-     */
-    suspend fun findStatusBatched(db: DBContext, ids: Collection<String>): Map<String, Boolean> {
-        val result = HashMap<String, Boolean>()
-        ids.forEach { result[it] = false }
-        db.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("enforced", true)
-                        setParameter("ids", ids.toList())
-                    },
-                    """
-                        select *
-                        from auth.two_factor_credentials
-                        where enforced = :enforced and principal_id = some(:ids::text[])
-                    """
-                ).rows
-                .forEach { row ->
-                    result[row.getField(TwoFactorCredentialsTable.principal)] = true
-                }
-        }
-        return result
-    }
-
     private suspend fun hasCredentials(db: DBContext, username: String): Boolean =
         findEnforcedCredentialsOrNull(db, username) != null
 }
@@ -186,62 +183,3 @@ object TwoFactorCredentialsTable : SQLTable("two_factor_credentials") {
     val enforced = bool("enforced", notNull = true)
     val id = long("id")
 }
-
-fun RowData.toTwoFactorChallenge(db: DBContext): TwoFactorChallenge {
-    val credentialsID = getField(TwoFactorChallengeTable.credentials)
-    val twoFactorCredentials = runBlocking {
-        db.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("id", credentialsID)
-                    },
-                    """
-                        select *
-                        from auth.two_factor_credentials
-                        where id = :id
-                    """
-                ).rows
-                .singleOrNull()
-                ?.toTwoFactorCredentials(db)
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        }
-    }
-    return TwoFactorChallenge(
-        getField(TwoFactorChallengeTable.type),
-        getField(TwoFactorChallengeTable.challengeId),
-        getField(TwoFactorChallengeTable.expiresAt).toTimestamp(),
-        twoFactorCredentials,
-        getField(TwoFactorChallengeTable.service)
-    )
-}
-
-/*
-fun RowData.toTwoFactorCredentials(db: DBContext): TwoFactorCredentials {
-    val principalID = getField(TwoFactorCredentialsTable.principal)
-    val principal = runBlocking {
-        db.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("id", principalID)
-                    },
-                    """
-                        SELECT * 
-                        FROM principals
-                        WHERE id = ?id
-                    """.trimIndent()
-                ).rows
-                .singleOrNull()
-                ?.toPrincipal(getField(TwoFactorCredentialsTable.enforced))
-                ?: throw UserException.NotFound()
-        }
-    }
-    return TwoFactorCredentials(
-        principal,
-        getField(TwoFactorCredentialsTable.sharedSecret),
-        getField(TwoFactorCredentialsTable.enforced),
-        getField(TwoFactorCredentialsTable.id)
-    )
-}
- */

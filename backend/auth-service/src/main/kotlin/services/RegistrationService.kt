@@ -3,6 +3,7 @@ package dk.sdu.cloud.auth.services
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Prometheus
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.IdentityProviderConnection
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Registration
 import dk.sdu.cloud.auth.http.LoginResponder
@@ -51,9 +52,10 @@ class RegistrationService(
     private val db: DBContext,
     private val loginResponder: LoginResponder,
     private val serviceClient: AuthenticatedClient,
-    private val users: UserCreationService,
+    private val users: PrincipalService,
     private val usernameGenerator: UniqueUsernameService,
     private val backgroundScope: BackgroundScope,
+    private val idpService: IdpService,
 ) {
     private val nextCleanup = AtomicLong(0)
 
@@ -331,6 +333,7 @@ class RegistrationService(
         registration: InternalRegistration,
         callHandler: CallHandler<*, *, *>,
     ) {
+        val wayfIdp = idpService.findByTitle("wayf")
         val ctx = callHandler.ctx as HttpCall
 
         val firstNames = registration.firstNames ?: run {
@@ -373,19 +376,22 @@ class RegistrationService(
             return
         }
 
-        val person = Person.ByWAYF(
-            usernameGenerator.generateUniqueName("$firstNames$lastName".replace(" ", "")),
+        val username = usernameGenerator.generateUniqueName("$firstNames$lastName".replace(" ", ""))
+        users.insert(
+            id = username,
+            type = UserType.PERSON,
             role = Role.USER,
             firstNames = firstNames,
             lastName = lastName,
-            wayfId = registration.wayfId,
             email = email,
-            organizationId = organization ?: "",
-            serviceLicenseAgreement = 0
+            organizationId = organization,
+            connections = listOf(
+                IdentityProviderConnection(wayfIdp.id, registration.wayfId, organization)
+            ),
         )
 
-        users.createUser(person)
         deleteRegistration(registration.sessionId)
+        val person = users.findByUsername(username) as Person
         loginResponder.handleSuccessfulLogin(ctx.call, "web", person)
     }
 

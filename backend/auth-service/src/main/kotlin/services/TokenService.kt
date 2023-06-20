@@ -1,10 +1,12 @@
 package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
 import dk.sdu.cloud.auth.api.AuthenticationTokens
+import dk.sdu.cloud.auth.api.IdentityProviderConnection
 import dk.sdu.cloud.auth.api.OneTimeAccessToken
 import dk.sdu.cloud.auth.api.OptionalAuthenticationTokens
 import dk.sdu.cloud.auth.api.Person
@@ -23,14 +25,14 @@ import java.util.*
 
 class TokenService(
     private val db: DBContext,
-    private val personService: PersonService,
-    private val userDao: UserAsyncDAO,
+    private val principalService: PrincipalService,
     private val refreshTokenDao: RefreshTokenAsyncDAO,
     private val jwtFactory: JWTFactory,
-    private val userCreationService: UserCreationService,
     private val tokenValidation: TokenValidation<DecodedJWT>,
+    private val usernameService: UniqueUsernameService,
     private val allowedServiceExtensionScopes: Map<String, Set<SecurityScope>> = emptyMap(),
-    private val devMode: Boolean = false
+    private val devMode: Boolean = false,
+    private val idpService: IdpService,
 ) {
     private val secureRandom = SecureRandom()
 
@@ -174,7 +176,7 @@ class TokenService(
 
         // Find user
         log.debug("Looking up user")
-        val user = userDao.findByUsernameOrNull(db, token.principal.username)
+        val user = principalService.findByUsernameOrNull(token.principal.username, db)
             ?: throw ExtensionException.InternalError("Could not find user in database (${token.principal.username}")
 
         val tokenTemplate = AccessTokenContents(
@@ -206,7 +208,7 @@ class TokenService(
         log.debug("Requesting one-time token: audience=$audience jwt=$jwt")
 
         val validated = tokenValidation.validateOrNull(jwt) ?: throw RefreshTokenException.InvalidToken()
-        val user = userDao.findByUsernameOrNull(db, validated.subject) ?: throw RefreshTokenException.InternalError()
+        val user = principalService.findByUsernameOrNull(validated.subject, db) ?: throw RefreshTokenException.InternalError()
 
         val currentScopes = validated.toSecurityToken().scopes
         val allScopesCovered = audience.all { requestedScope ->
@@ -255,7 +257,7 @@ class TokenService(
                 throw RefreshTokenException.InvalidToken()
             }
 
-            val user = userDao.findByUsernameOrNull(session, token.associatedUser) ?: run {
+            val user = principalService.findByUsernameOrNull(token.associatedUser, session) ?: run {
                 log.warn(
                     "Received a valid token, but was unable to resolve the associated user: " +
                         token.associatedUser
@@ -297,7 +299,7 @@ class TokenService(
 
     sealed class SamlAuthenticationResult {
         data class Success(
-            val person: Person.ByWAYF
+            val person: Person,
         ) : SamlAuthenticationResult()
 
         data class SuccessButMissingInformation(
@@ -313,6 +315,8 @@ class TokenService(
 
     suspend fun processSAMLAuthentication(samlRequestProcessor: SamlRequestProcessor): SamlAuthenticationResult {
         try {
+            val wayfIdp = idpService.findByTitle("wayf")
+
             log.debug("Processing SAML response")
             if (samlRequestProcessor.authenticated) {
                 val id = samlRequestProcessor.attributes["eduPersonTargetedID"]?.firstOrNull()
@@ -323,41 +327,44 @@ class TokenService(
 
                 log.debug("User is authenticated with id $id")
 
-                try {
-                    val person = userDao.findByWayfIdAndUpdateEmail(db, id, email)
-                    return SamlAuthenticationResult.Success(person)
-                } catch (ex: UserException.NotFound) {
-                    log.debug("User not found. Creating new user...")
+                val existingPerson = principalService.findByExternalIdentityOrNull(wayfIdp.id, id, email)
+                if (existingPerson != null) {
+                    return SamlAuthenticationResult.Success(existingPerson)
+                }
 
-                    loop@ for (i in 0..5) {
-                        try {
-                            val firstNames = samlRequestProcessor.attributes["gn"]?.firstOrNull()
-                            val lastName = samlRequestProcessor.attributes["sn"]?.firstOrNull()
-                            val organization = samlRequestProcessor.attributes["schacHomeOrganization"]?.firstOrNull()
+                log.debug("User not found. Creating new user...")
 
-                            if (firstNames != null && lastName != null && email != null) {
-                                val userCreated = personService.createUserByWAYF(
-                                    id,
-                                    firstNames,
-                                    lastName,
-                                    organization,
-                                    email
-                                )
+                loop@ for (i in 0..5) {
+                    try {
+                        val firstNames = samlRequestProcessor.attributes["gn"]?.firstOrNull()
+                        val lastName = samlRequestProcessor.attributes["sn"]?.firstOrNull()
+                        val organization = samlRequestProcessor.attributes["schacHomeOrganization"]?.firstOrNull()
 
-                                userCreationService.createUser(userCreated)
-                                val person = userDao.findByWayfId(db, id)
+                        if (firstNames != null && lastName != null && email != null) {
+                            val username = usernameService.generateUniqueName("$firstNames$lastName")
 
-                                return SamlAuthenticationResult.Success(person)
-                            } else {
-                                return SamlAuthenticationResult.SuccessButMissingInformation(id, firstNames,
-                                    lastName, organization, email)
-                            }
-                        } catch (ex: Exception) {
-                            if (i < 5) log.debug(ex.stackTraceToString())
-                            else log.warn(ex.stackTraceToString())
+                            principalService.insert(
+                                username,
+                                Role.USER,
+                                UserType.PERSON,
+                                firstNames = firstNames,
+                                lastName = lastName,
+                                organizationId = organization,
+                                email = email,
+                                connections = listOf(IdentityProviderConnection(wayfIdp.id, id, organization))
+                            )
 
-                            delay(50)
+                            val person = principalService.findByUsername(username)
+                            return SamlAuthenticationResult.Success(person as Person)
+                        } else {
+                            return SamlAuthenticationResult.SuccessButMissingInformation(id, firstNames,
+                                lastName, organization, email)
                         }
+                    } catch (ex: Exception) {
+                        if (i < 5) log.debug(ex.stackTraceToString())
+                        else log.warn(ex.stackTraceToString())
+
+                        delay(50)
                     }
                 }
             }
