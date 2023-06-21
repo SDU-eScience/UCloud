@@ -81,6 +81,7 @@ data class AuthConfiguration(
     val serviceLicenseAgreement: ServiceAgreementText? = null,
     val unconditionalPasswordResetWhitelist: List<String> = listOf("_password-reset"),
     val disable2faCheck: Boolean = false,
+    val wayfReturn: String? = null,
 )
 
 object AuthService : dk.sdu.cloud.micro.Service {
@@ -112,6 +113,16 @@ object AuthService : dk.sdu.cloud.micro.Service {
 
         val samlProperties = Properties().apply {
             load(Server::class.java.classLoader.getResourceAsStream("saml.properties"))
+            if (configuration.wayfReturn != null) {
+                KtorUtils.defaultSelfUrlHost = configuration.wayfReturn
+
+                fun replaceProp(propName: String) {
+                    setProperty(propName, getProperty(propName).replace("https://cloud.sdu.dk", configuration.wayfReturn))
+                }
+
+                replaceProp("onelogin.saml2.sp.assertion_consumer_service.url")
+                replaceProp("onelogin.saml2.sp.single_logout_service.url")
+            }
         }
         if (configuration.enableWayf) {
             insertKeysIntoProps(loadKeys(configuration.wayfCerts), samlProperties)

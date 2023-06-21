@@ -7,6 +7,7 @@ import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.util.urlDecoded
 import dk.sdu.cloud.auth.util.urlEncoded
+import dk.sdu.cloud.toReadableStacktrace
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
@@ -57,6 +58,7 @@ class SAMLController(
             val params = try {
                 call.receiveParameters()
             } catch (ex: ContentTransformationException) {
+                log.info("ACS failed due to a content transformation error")
                 call.respond(HttpStatusCode.BadRequest)
                 return@post
             }

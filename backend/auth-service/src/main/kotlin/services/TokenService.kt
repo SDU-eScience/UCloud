@@ -325,14 +325,10 @@ class TokenService(
 
                 val email = samlRequestProcessor.attributes["mail"]?.firstOrNull()
 
-                log.debug("User is authenticated with id $id")
-
                 val existingPerson = principalService.findByExternalIdentityOrNull(wayfIdp.id, id, email)
                 if (existingPerson != null) {
                     return SamlAuthenticationResult.Success(existingPerson)
                 }
-
-                log.debug("User not found. Creating new user...")
 
                 loop@ for (i in 0..5) {
                     try {
@@ -341,7 +337,7 @@ class TokenService(
                         val organization = samlRequestProcessor.attributes["schacHomeOrganization"]?.firstOrNull()
 
                         if (firstNames != null && lastName != null && email != null) {
-                            val username = usernameService.generateUniqueName("$firstNames$lastName")
+                            val username = usernameService.generateUniqueName("$firstNames$lastName".replace(" ", ""))
 
                             principalService.insert(
                                 username,
