@@ -279,7 +279,7 @@ class AccountingService(
                     setParameter("next", request.next?.toLongOrNull())
                 },
                 """
-                    select accounting.wallet_to_json(w, wo, array_agg(alloc), pc), w.id
+                    select accounting.wallet_to_json(w, wo, array_agg(alloc), pc), w.id, pc.product_type, pc.category
                     from
                         accounting.wallets w join
                         accounting.wallet_owner wo on w.owned_by = wo.id join
@@ -307,7 +307,7 @@ class AccountingService(
                             :next::bigint is null or
                             w.id > :next::bigint
                         )
-                    group by w.*, wo.*, pc.*, pc.provider, pc.category, w.id
+                    group by w.*, wo.*, pc.*, pc.provider, pc.category, w.id, pc.product_type, pc.category
                     order by w.id
                     limit $itemsPerPage
                 """,
@@ -318,7 +318,9 @@ class AccountingService(
             var lastId = 0L
 
             rows.forEach {
-                items.add(defaultMapper.decodeFromString(Wallet.serializer(), it.getString(0)!!))
+                var wallet = defaultMapper.decodeFromString(Wallet.serializer(), it.getString(0)!!)
+                val productPriceUnit = translateToProductPriceUnit(ProductType.valueOf(it.getString(2)!!), it.getString(3)!!)
+                items.add(wallet.copy(unit = productPriceUnit))
                 lastId = it.getLong(1)!!
             }
 
@@ -900,7 +902,7 @@ class AccountingService(
                 ProductCategoryId(alloc.category.name, providerId),
                 alloc.category.productType,
                 translateToChargeType(alloc.category),
-                translateToProductPriceUnit(alloc.category),
+                translateToProductPriceUnit(alloc.category.productType, alloc.category.name),
                 maxUsable,
                 maxPromised,
                 alloc.notBefore,

@@ -88,7 +88,7 @@ sealed class ProductV2 {
             description,
             freeToUse = freeToUse,
             chargeType = translateToChargeType(category),
-            unitOfPrice = translateToProductPriceUnit(category),
+            unitOfPrice = translateToProductPriceUnit(category.productType, category.name),
             hiddenInGrantApplications = hiddenInGrantApplications
         )
         override fun toString() = super.toString()
@@ -131,7 +131,7 @@ sealed class ProductV2 {
             description,
             freeToUse = freeToUse,
             chargeType = translateToChargeType(category),
-            unitOfPrice = translateToProductPriceUnit(category),
+            unitOfPrice = translateToProductPriceUnit(category.productType, category.name),
             hiddenInGrantApplications = hiddenInGrantApplications,
             cpu = cpu,
             gpu = gpu,
@@ -167,7 +167,7 @@ sealed class ProductV2 {
             description,
             freeToUse = freeToUse,
             chargeType = translateToChargeType(category),
-            unitOfPrice = translateToProductPriceUnit(category),
+            unitOfPrice = translateToProductPriceUnit(category.productType, category.name),
             hiddenInGrantApplications = hiddenInGrantApplications
         )
 
@@ -200,7 +200,7 @@ sealed class ProductV2 {
             tags = tags,
             freeToUse = freeToUse,
             chargeType = translateToChargeType(category),
-            unitOfPrice = translateToProductPriceUnit(category),
+            unitOfPrice = translateToProductPriceUnit(category.productType, category.name),
             hiddenInGrantApplications = hiddenInGrantApplications
         )
         override fun toString() = super.toString()
@@ -230,7 +230,7 @@ sealed class ProductV2 {
             description,
             freeToUse = freeToUse,
             chargeType = translateToChargeType(category),
-            unitOfPrice = translateToProductPriceUnit(category),
+            unitOfPrice = translateToProductPriceUnit(category.productType, category.name),
             hiddenInGrantApplications = hiddenInGrantApplications
         )
 

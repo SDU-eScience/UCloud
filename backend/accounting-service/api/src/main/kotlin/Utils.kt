@@ -108,8 +108,8 @@ fun translateToChargeType(productCategory: ProductCategory): ChargeType {
         }
     }
 }
-fun translateToProductPriceUnit(productCategory: ProductCategory):ProductPriceUnit {
-    return when(productCategory.productType) {
+fun translateToProductPriceUnit(productType: ProductType, productCategoryName: String):ProductPriceUnit {
+    return when(productType) {
         ProductType.STORAGE,
         ProductType.INGRESS,
         ProductType.LICENSE,
@@ -117,9 +117,9 @@ fun translateToProductPriceUnit(productCategory: ProductCategory):ProductPriceUn
             ProductPriceUnit.PER_UNIT
         }
         ProductType.COMPUTE -> {
-            if (creditsPerMinuteNames.contains(productCategory.name)) {
+            if (creditsPerMinuteNames.contains(productCategoryName)) {
                 ProductPriceUnit.CREDITS_PER_MINUTE
-            } else if (productCategory.name == "sophia-slim") {
+            } else if (productCategoryName == "sophia-slim") {
                 ProductPriceUnit.UNITS_PER_HOUR
             } else {
                 ProductPriceUnit.UNITS_PER_MINUTE

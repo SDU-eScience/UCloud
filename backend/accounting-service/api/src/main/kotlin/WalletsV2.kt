@@ -19,7 +19,7 @@ data class WalletV2(
         AllocationSelectorPolicy.EXPIRE_FIRST,
         paysFor.productType,
         chargeType = translateToChargeType(paysFor),
-        unit = translateToProductPriceUnit(paysFor)
+        unit = translateToProductPriceUnit(paysFor.productType, paysFor.name)
     )
 }
 

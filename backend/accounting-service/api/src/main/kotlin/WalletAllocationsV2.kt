@@ -89,7 +89,7 @@ data class SubAllocationV2(
         ProductCategoryId(productCategory.name, productCategory.provider),
         productCategory.productType,
         translateToChargeType(productCategory),
-        translateToProductPriceUnit(productCategory),
+        translateToProductPriceUnit(productCategory.productType, productCategory.name),
         workspaceId,
         workspaceTitle,
         workspaceIsProject,
