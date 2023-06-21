@@ -796,7 +796,8 @@ class AccountingService(
                                 principal.id = :id and
                                 (
                                     principal.dtype = 'WAYF' or
-                                    principal.dtype = 'PASSWORD'
+                                    principal.dtype = 'PASSWORD' or
+                                    principal.dtype = 'PERSON'
                                 )
                         )
                     select jsonb_build_object(

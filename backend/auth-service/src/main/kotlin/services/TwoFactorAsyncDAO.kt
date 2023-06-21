@@ -78,7 +78,7 @@ class TwoFactorAsyncDAO(
                         setParameter("id", challengeId)
                     },
                     """
-                        select dtype, challenge_id, credentials_id, floor(extract(epoch from expires_at) * 1000)
+                        select dtype, challenge_id, credentials_id, floor(extract(epoch from expires_at) * 1000)::bigint, service
                         from auth.two_factor_challenges
                         where challenge_id = :id and expires_at > now()
                     """
@@ -91,6 +91,7 @@ class TwoFactorAsyncDAO(
                         row.getString(1)!!,
                         row.getLong(3)!!,
                         findCredentialsById(row.getLong(2)!!, session) ?: error("corrupt db"),
+                        row.getString(4)
                     )
                 }
         }

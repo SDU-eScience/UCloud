@@ -29,8 +29,8 @@ class Server(
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
         val passwordHashingService = PasswordHashingService()
-        val twoFactorDao = TwoFactorAsyncDAO()
         val principalService = PrincipalService(passwordHashingService, db, serviceClient)
+        val twoFactorDao = TwoFactorAsyncDAO(principalService)
         val refreshTokenDao = RefreshTokenAsyncDAO()
         val usernameGenerator = UniqueUsernameService(db, principalService)
         val ottDao = OneTimeTokenAsyncDAO()
@@ -46,10 +46,7 @@ class Server(
             qrService
         )
 
-        val associatedByService = config.tokenExtension.groupBy { it.serviceName }
-        val mergedExtensions = associatedByService.map { (service, lists) ->
-            service to lists.flatMap { it.parsedScopes }.toSet()
-        }.toMap()
+        val idpService = IdpService(db)
 
         val tokenService = TokenService(
             db,
@@ -61,8 +58,9 @@ class Server(
                 disable2faCheck = micro.developmentModeEnabled || config.disable2faCheck
             ),
             tokenValidation,
-            mergedExtensions,
-            devMode = micro.developmentModeEnabled
+            devMode = micro.developmentModeEnabled,
+            usernameService = usernameGenerator,
+            idpService = idpService,
         )
 
         val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
@@ -74,7 +72,7 @@ class Server(
         val providerService = ProviderService(micro.developmentModeEnabled, db, providerDao)
 
         val registrationService = RegistrationService(db, loginResponder, serviceClient, principalService,
-            usernameGenerator, micro.backgroundScope)
+            usernameGenerator, micro.backgroundScope, idpService)
 
         val scriptManager = micro.feature(ScriptManager)
         scriptManager.register(
@@ -131,6 +129,8 @@ class Server(
                     principalService = principalService,
                     tokenService = tokenService,
                     unconditionalPasswordResetWhitelist = config.unconditionalPasswordResetWhitelist,
+                    passwordHashingService = passwordHashingService,
+                    devMode = micro.developmentModeEnabled,
                 ),
 
                 TwoFactorAuthController(twoFactorChallengeService, loginResponder),

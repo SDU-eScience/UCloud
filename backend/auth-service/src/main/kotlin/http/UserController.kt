@@ -1,7 +1,6 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.PasswordHashingService
 import dk.sdu.cloud.auth.services.TokenService
@@ -29,6 +28,7 @@ class UserController(
     private val tokenService: TokenService,
     private val unconditionalPasswordResetWhitelist: List<String>,
     private val passwordHashingService: PasswordHashingService,
+    private val devMode: Boolean,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(UserDescriptions.createNewUser) {
@@ -137,7 +137,7 @@ class UserController(
         implement(UserDescriptions.changePasswordWithReset) {
             audit(ChangePasswordAudit())
 
-            if (ctx.securityPrincipal.username !in unconditionalPasswordResetWhitelist) {
+            if (!devMode && ctx.securityPrincipal.username !in unconditionalPasswordResetWhitelist) {
                 throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
             }
 

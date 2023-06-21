@@ -123,9 +123,7 @@ class PrincipalService(
                         join connections c on p.uid = c.uid
                         left join two_factor_enabled mfa on p.id = mfa.principal_id
                     where
-                        p.id = some(:ids::text[]);
-
-                        select true = some(array[]::bool[])
+                        p.id = some(:ids::text[])
                 """
             ).rows.forEach { row ->
                 val id = row.getString(0)!!
@@ -151,7 +149,7 @@ class PrincipalService(
                         val orgIds = row.getAs<List<String?>>(12)
                         val mfaEnabled = row.getBoolean(13)!!
 
-                        Person(
+                        builder[id] = Person(
                             id,
                             role,
                             firstNames,

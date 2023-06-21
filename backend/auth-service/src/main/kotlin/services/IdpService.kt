@@ -1,11 +1,13 @@
 package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.toReadableStacktrace
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
@@ -13,8 +15,13 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 sealed class IdentityProviderConfiguration {
+    // NOTE(Dan): Please make sure that none of these contain secrets in the toString() method.
+
     @SerialName("wayf")
-    class Wayf()
+    @Serializable
+    class Wayf() : IdentityProviderConfiguration() {
+        override fun toString() = "WAYF"
+    }
 }
 
 data class IdentityProvider(
@@ -59,31 +66,31 @@ class IdpService(
 
     suspend fun findById(id: Int): IdentityProvider {
         renewCache()
-        return mutex.withLock { cacheEntries.find { it.id == id } } ?: error("Unknown IdP: id = $id")
+        return mutex.withLock { cacheEntries.find { it.id == id } } ?: error("Unknown IdP: id = $id. $cacheEntries")
     }
 
     suspend fun findByTitle(title: String): IdentityProvider {
         renewCache()
-        return mutex.withLock { cacheEntries.find { it.title == title } } ?: error("Unknown IdP: title = $title")
+        return mutex.withLock { cacheEntries.find { it.title == title } } ?: error("Unknown IdP: title = $title. $cacheEntries")
     }
 
     private suspend fun renewCache(force: Boolean = false) {
         var now = Time.now()
-        if (!force && lastRenewal - now < 60_000) return
+        if (!force && now - lastRenewal < 60_000) return
 
         mutex.withLock {
             now = Time.now()
-            if (!force && lastRenewal - now < 60_000) return
+            if (!force && now - lastRenewal < 60_000) return
 
             db.withSession { session ->
-                session.sendPreparedStatement(
+                val newEntries = session.sendPreparedStatement(
                     {},
                     """
                         select id, title, configuration, counts_as_multi_factor
                         from auth.identity_providers
                     """
                 ).rows.mapNotNull {
-                    runCatching {
+                    try {
                         IdentityProvider(
                             id = it.getInt(0)!!,
                             title = it.getString(1)!!,
@@ -94,9 +101,19 @@ class IdpService(
                             countsAsMultiFactor = it.getBoolean(3)!!,
                             retrievedAt = now
                         )
-                    }.getOrNull()
+                    } catch (ex: Throwable) {
+                        log.warn(ex.toReadableStacktrace().toString())
+                        null
+                    }
                 }
+
+                cacheEntries.clear()
+                cacheEntries.addAll(newEntries)
             }
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
