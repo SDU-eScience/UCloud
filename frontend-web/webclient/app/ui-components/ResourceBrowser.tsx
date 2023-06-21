@@ -21,7 +21,7 @@ import {Product, ProductType} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {isAdminOrPI} from "@/Project/Api";
+import api, {isAdminOrPI} from "@/Project/Api";
 
 /*
  BUGS FOUND
@@ -745,6 +745,7 @@ export class ResourceBrowser<T> {
     }
 
     private renderCantConsumeResources() {
+        this.prepareEmptyContainer();
         const wrapper = div(`
             <div>
                 <h3 style="text-align: center;">This project cannot consume resources</h3>
@@ -765,17 +766,21 @@ export class ResourceBrowser<T> {
         wrapper.style.height = "400px";
         wrapper.style.alignItems = "center";
         wrapper.style.justifyContent = "center";
-        this.header.append(wrapper);
+        this.emptyPageElement.container.replaceChildren(wrapper);
     }
 
+    private cantConsumeResources = false;
     public rerender() {
-        const callbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn()) as {api: {isCoreResource: boolean}};
-        if ("api" in callbacks && checkCanConsumeResources(callbacks.api)) {
-            // Render non-consumeable
-        }
+        const callbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn()) as {api: {isCoreResource: boolean}} | null;
+        this.cantConsumeResources = !!(callbacks && "api" in callbacks && !checkCanConsumeResources(callbacks.api));
         this.renderBreadcrumbs();
         this.renderOperations();
         this.renderRows();
+        this.clearFilters();
+        if (this.cantConsumeResources) {
+            this.renderCantConsumeResources();
+            return;
+        }
         if (this.features.sortDirection) this.renderSortOrder();
         if (this.features.filters) {
             this.renderFilters();
@@ -803,9 +808,6 @@ export class ResourceBrowser<T> {
             this.isSelected = new Uint8Array(page.length);
         }
 
-        const containerTop = this.scrollingContainerTop;
-        const containerLeft = this.scrollingContainerLeft;
-        const containerHeight = this.scrollingContainerHeight;
         const containerWidth = this.scrollingContainerWidth;
         const approximateSizeForTitle = containerWidth * (ResourceBrowser.rowTitleSizePercentage / 100);
 
@@ -855,6 +857,8 @@ export class ResourceBrowser<T> {
 
         this.renameField.style.display = "none";
 
+        if (this.cantConsumeResources) return;
+
         // Render the visible rows by iterating over all items
         this.dispatchMessage("startRenderPage", fn => fn());
         for (let i = 0; i < page.length; i++) {
@@ -902,22 +906,9 @@ export class ResourceBrowser<T> {
                 if (page.length !== 0) return;
 
                 const reason = this.emptyReasons[this.currentPath] ?? {tag: EmptyReasonTag.LOADING};
+
+                this.prepareEmptyContainer();
                 const e = this.emptyPageElement;
-                e.container.style.display = "flex";
-                e.graphic.innerHTML = "";
-                e.reason.innerHTML = "";
-                e.providerReason.innerHTML = "";
-                const containerSize = 400;
-                e.container.style.width = containerSize + "px";
-                e.container.style.height = containerSize + "px";
-                e.container.style.left = (containerLeft + (containerWidth / 2) - (containerSize / 2)) + "px";
-                e.container.style.top = (containerTop + (containerHeight / 2) - (containerSize / 2)) + "px";
-                if (this.opts?.embedded || this.opts?.selector) {
-                    e.container.style.position = "unset";
-                    e.container.style.marginLeft = "auto";
-                    e.container.style.marginRight = "auto";
-                    e.container.style.height = "100px";
-                }
 
                 if (reason.tag === EmptyReasonTag.LOADING) {
                     if (this.features.renderSpinnerWhenLoading) {
@@ -988,6 +979,11 @@ export class ResourceBrowser<T> {
     }
 
     renderBreadcrumbs() {
+        this.breadcrumbs.innerHTML = "";
+        if (this.cantConsumeResources) {
+            return;
+        }
+
         const crumbs = this.dispatchMessage("generateBreadcrumbs", fn => fn(this.currentPath));
         // NOTE(Dan): The next section computes which crumbs should be shown and what the content of them should be.
         // We start out by truncating all components down to a maximum length. This truncation takes place regardless
@@ -1024,7 +1020,6 @@ export class ResourceBrowser<T> {
         const canKeepMiddle = combinedLengthAfterTruncation <= targetPathLength;
         const canKeepParent = combinedLengthWithParent <= targetPathLength;
 
-        this.breadcrumbs.innerHTML = "";
         const fragment = document.createDocumentFragment();
         let idx = 0;
         for (const component of crumbs) {
@@ -1092,6 +1087,10 @@ export class ResourceBrowser<T> {
     }
 
     renderOperations() {
+        if (this.cantConsumeResources) {
+            this.operations.innerHTML = "";
+            return;
+        }
         this.renderOperationsIn(false);
     }
 
@@ -3050,6 +3049,29 @@ export class ResourceBrowser<T> {
             if (input.style.display === "none") {
                 input.style.display = "unset";
             } else input.style.display = "none";
+        }
+    }
+
+    private prepareEmptyContainer() {
+        const containerTop = this.scrollingContainerTop;
+        const containerLeft = this.scrollingContainerLeft;
+        const containerHeight = this.scrollingContainerHeight;
+        const containerWidth = this.scrollingContainerWidth;
+        const e = this.emptyPageElement;
+        e.container.style.display = "flex";
+        e.graphic.innerHTML = "";
+        e.reason.innerHTML = "";
+        e.providerReason.innerHTML = "";
+        const containerSize = 400;
+        e.container.style.width = containerSize + "px";
+        e.container.style.height = containerSize + "px";
+        e.container.style.left = (containerLeft + (containerWidth / 2) - (containerSize / 2)) + "px";
+        e.container.style.top = (containerTop + (containerHeight / 2) - (containerSize / 2)) + "px";
+        if (this.opts?.embedded || this.opts?.selector) {
+            e.container.style.position = "unset";
+            e.container.style.marginLeft = "auto";
+            e.container.style.marginRight = "auto";
+            e.container.style.height = "100px";
         }
     }
 
