@@ -78,7 +78,7 @@
         },
         {
             "id": "lumi-sdu",
-            "title": "LUMI (SDU partition)",
+            "title": "LUMI (SDU)",
             "logo": "lumi.png",
             "shortDescription": "LUMI is one of the three European pre-exascale supercomputers.",
             "description": "LUMI is one of the three European pre-exascale supercomputers. It's an HPE Cray EX supercomputer consisting of several hardware partitions targeted different use cases.",
