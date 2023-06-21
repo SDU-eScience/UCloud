@@ -524,7 +524,7 @@ sealed class ComposeService {
                           cost:
                             currency: DKK
                             frequency: MINUTE
-                            price: 0.000002
+                            price: 0.000005
                             
                     storage: 
                       storage:

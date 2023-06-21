@@ -8,12 +8,50 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import io.ktor.http.*
-import io.ktor.util.reflect.*
-import kotlinx.coroutines.launch
+import java.util.HashMap
 import kotlin.math.max
+
+private class JobChargedCache() {
+    var lastCheck: Long
+
+    init {
+        lastCheck = Time.now()
+    }
+
+    data class ChargeState(
+        val charged: Boolean,
+        val insertTime: Long
+    )
+
+    private var jobsCharged = HashMap<String, ChargeState>()
+    fun insertIntoCache(jobId: String) {
+        cleanup()
+        jobsCharged[jobId] = ChargeState(true, Time.now())
+    }
+
+    fun getJobChargedStatus(jobId: String): Boolean {
+        cleanup()
+        val chargeState = jobsCharged[jobId] ?: return false
+        return chargeState.charged
+    }
+
+    fun cleanup() {
+        val now = Time.now()
+        if (now - lastCheck > 10_000) {
+            val fresh = jobsCharged.filter { now - it.value.insertTime > 10_000 }
+            jobsCharged.clear()
+            fresh.forEach {
+                jobsCharged[it.key] = it.value
+            }
+            lastCheck = Time.now()
+        }
+
+    }
+}
 
 object FeatureAccounting : JobFeature, Loggable {
     override val log = logger()
+    private val jobChargedCache = JobChargedCache()
     const val LAST_PERFORMED_AT_ANNOTATION = "ucloud.dk/lastAccountingTs"
     const val TIME_BETWEEN_ACCOUNTING = 1000L * 60 * 15
 
@@ -28,13 +66,19 @@ object FeatureAccounting : JobFeature, Loggable {
             log.info("Assuming that ${rootJob.jobId} was a very fast job")
             now - 1000L
         }
-
-        account(rootJob, children, lastTs, now)
+        val isCharged = jobChargedCache.getJobChargedStatus(rootJob.jobId)
+        if (!isCharged) {
+            jobChargedCache.insertIntoCache(rootJob.jobId)
+            account(rootJob, children, lastTs, now)
+        }
     }
 
     override suspend fun JobManagement.onJobStart(rootJob: Container, children: List<Container>) {
         val now = System.currentTimeMillis()
-        account(rootJob, children, now, now)
+        val isCharged = jobChargedCache.getJobChargedStatus(rootJob.jobId)
+        if (!isCharged) {
+            account(rootJob, children, now, now)
+        }
     }
 
     override suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<Container>) {
@@ -47,10 +91,11 @@ object FeatureAccounting : JobFeature, Loggable {
                 log.trace("Found no last accounting timestamp for job with name '${jobId}' (Job might not have started yet)")
                 continue
             }
-
             if (now - lastTs < TIME_BETWEEN_ACCOUNTING) continue
-
-            account(rootJob, children, lastTs, now)
+            val isCharged = jobChargedCache.getJobChargedStatus(rootJob.jobId)
+            if (!isCharged) {
+                account(rootJob, children, lastTs, now)
+            }
         }
     }
 
@@ -61,7 +106,6 @@ object FeatureAccounting : JobFeature, Loggable {
             log.info("No accounting will be performed")
             return
         }
-
         if (timespent > 0L) {
             val replicas = children.size
             val virtualCpus = run {
@@ -74,7 +118,7 @@ object FeatureAccounting : JobFeature, Loggable {
                         rootJob.jobId,
                         rootJob.jobId + "_" + lastTs.toString(),
                         replicas * virtualCpus.toLong(),
-                        kotlin.math.round(timespent / (1000 * 60.0)).toLong()
+                        max(1, kotlin.math.round(timespent / (1000 * 60.0)).toLong())
                     )
                 ),
                 k8.serviceClient

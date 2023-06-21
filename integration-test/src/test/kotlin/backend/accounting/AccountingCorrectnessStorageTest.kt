@@ -30,10 +30,6 @@ class AccountingCorrectnessStorageTest : IntegrationTest() {
                 val postRootWallets: List<Wallet>
             )
 
-            /*testFilter = { title, subtitle ->
-                title == "test correctness of charges storage" && subtitle == "Overcharge and reduce"
-            }*/
-
             test<In, Out>("test correctness of charges storage"){
                 execute {
                     createSampleProducts()
