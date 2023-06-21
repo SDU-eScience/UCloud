@@ -77,12 +77,12 @@
             ]
         },
         {
-            "id": "lumi",
-            "title": "LUMI",
+            "id": "lumi-sdu",
+            "title": "LUMI (SDU partition)",
             "logo": "lumi.png",
             "shortDescription": "LUMI is one of the three European pre-exascale supercomputers.",
             "description": "LUMI is one of the three European pre-exascale supercomputers. It's an HPE Cray EX supercomputer consisting of several hardware partitions targeted different use cases.",
-            "url": "",
+            "url": "https://www.lumi-supercomputer.eu/",
             "texts": [
                 {
                     "description": "### Overview\n\nLUMI is the fastest supercomputer in Europe and third fastest globally (the [Top500 list published in June 2022](https://top500.org/lists/top500/2022/06/)). LUMI is also the third greenest supercomputer on the planet (the Green500 list published in June 2022).\n\nLUMI has a sustained computing power of 375 petaflops (HPL, High-Performance Linpack) which equals a theoretical computing power of more than 550 petaflops which means 550 quintillion calculations per second. LUMI is also one of the world’s leading platforms for artificial intelligence.",
