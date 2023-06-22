@@ -1,6 +1,7 @@
 package dk.sdu.cloud.auth.http
 
 import com.onelogin.saml2.settings.Saml2Settings
+import dk.sdu.cloud.auth.services.IdpService
 import dk.sdu.cloud.auth.services.RegistrationService
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.saml.KtorUtils
@@ -22,6 +23,7 @@ private const val SAML_RELAY_STATE_PREFIX = "/auth/saml/login?service="
 typealias SAMLRequestProcessorFactory = (Saml2Settings, ApplicationCall, Parameters) -> SamlRequestProcessor
 
 class SAMLController(
+    private val idpService: IdpService,
     private val authSettings: Saml2Settings,
     private val samlProcessorFactory: SAMLRequestProcessorFactory,
     private val tokenService: TokenService,
@@ -55,6 +57,8 @@ class SAMLController(
         }
 
         post("acs") {
+            val wayfIdp = idpService.findByTitle("wayf")
+
             val params = try {
                 call.receiveParameters()
             } catch (ex: ContentTransformationException) {
@@ -88,6 +92,7 @@ class SAMLController(
                         result.email,
                         result.email != null,
                         result.organization,
+                        wayfIdp.id,
                         result.id,
                         call = call,
                     )

@@ -324,6 +324,11 @@ class RpcServer {
         val microImplementedBy = microWhichIsConfiguringCalls ?: error("no micro")
         call.microImplementedBy = microImplementedBy
         delayedHandlers.add(DelayedHandler(call, requiredContext, handler))
+
+        if (isRunning) {
+            delayedHandlers.forEach { notifyInterceptors(it) }
+            delayedHandlers.clear()
+        }
     }
 
     fun start() {

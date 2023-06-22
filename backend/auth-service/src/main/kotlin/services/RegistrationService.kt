@@ -43,7 +43,8 @@ data class InternalRegistration(
     val createdAt: Long,
     val modifiedAt: Long,
     val emailVerificationToken: String?,
-    val wayfId: String,
+    val idp: Int,
+    val idpIdentity: String,
 ) {
     fun toApiModel(): Registration = Registration(sessionId, firstNames, lastName, email)
 }
@@ -74,7 +75,8 @@ class RegistrationService(
             row.getLong(6)!!,
             row.getLong(7)!!,
             row.getString(8),
-            row.getString(9)!!,
+            row.getInt(9)!!,
+            row.getString(10)!!,
         )
     }
 
@@ -96,7 +98,8 @@ class RegistrationService(
                         provider.timestamp_to_unix(created_at)::bigint,
                         provider.timestamp_to_unix(modified_at)::bigint,
                         email_verification_token,
-                        wayf_id
+                        identity_provider,
+                        idp_identity
                         
                     from
                         auth.registration
@@ -121,7 +124,8 @@ class RegistrationService(
         email: String? = null,
         emailVerified: Boolean = false,
         organization: String? = null,
-        wayfId: String,
+        idp: Int,
+        idpIdentity: String,
         call: ApplicationCall? = null,
         ctx: DBContext = db,
     ): Registration {
@@ -135,13 +139,14 @@ class RegistrationService(
                     setParameter("email", email)
                     setParameter("email_verified", emailVerified)
                     setParameter("organization", organization)
-                    setParameter("wayf_id", wayfId)
+                    setParameter("idp", idp)
+                    setParameter("idp_identity", idpIdentity)
                 },
                 """
                     insert into auth.registration
-                        (session_id, first_names, last_name, email, email_verified, organization, wayf_id)
+                        (session_id, first_names, last_name, email, email_verified, organization, identity_provider, idp_identity)
                     values
-                        (:session_id, :first_names, :last_name, :email, :email_verified, :organization, :wayf_id)
+                        (:session_id, :first_names, :last_name, :email, :email_verified, :organization, :idp, :idp_identity)
                 """
             )
         }
@@ -210,7 +215,8 @@ class RegistrationService(
                         provider.timestamp_to_unix(created_at)::bigint,
                         provider.timestamp_to_unix(modified_at)::bigint,
                         email_verification_token,
-                        wayf_id,
+                        identity_provider,
+                        idp_identity,
                         tok.token_did_change as token_did_change
                 """
             ).rows.singleOrNull()?.let { mapRow(it) to it.getBoolean("token_did_change")!! }
@@ -333,7 +339,6 @@ class RegistrationService(
         registration: InternalRegistration,
         callHandler: CallHandler<*, *, *>,
     ) {
-        val wayfIdp = idpService.findByTitle("wayf")
         val ctx = callHandler.ctx as HttpCall
 
         val firstNames = registration.firstNames ?: run {
@@ -386,7 +391,7 @@ class RegistrationService(
             email = email,
             organizationId = organization,
             connections = listOf(
-                IdentityProviderConnection(wayfIdp.id, registration.wayfId, organization)
+                IdentityProviderConnection(registration.idp, registration.idpIdentity, organization)
             ),
         )
 
@@ -410,7 +415,7 @@ class RegistrationService(
         message: String,
         isError: Boolean = true,
     ) {
-        respondRedirect("/app/registration?sessionId=$sessionId&message=${urlEncode(message)}&errorHint=$isError")
+        respondRedirect("/app/registration?sessionId=${urlEncode(sessionId)}&message=${urlEncode(message)}&errorHint=$isError")
     }
 
     private suspend fun sendVerificationEmail(

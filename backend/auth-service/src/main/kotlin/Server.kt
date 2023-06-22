@@ -8,11 +8,13 @@ import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.auth.http.*
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
+import dk.sdu.cloud.calls.client.HostInfo
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import io.ktor.http.*
 import io.ktor.server.routing.*
 
 class Server(
@@ -46,8 +48,22 @@ class Server(
             qrService
         )
 
-        val idpService = IdpService(db)
+        val ownHost = when {
+            config.wayfReturn != null -> {
+                val url = Url(config.wayfReturn)
+                HostInfo(url.host, url.protocol.name, url.port)
+            }
 
+            micro.developmentModeEnabled -> {
+                HostInfo("ucloud.localhost.direct", "https")
+            }
+
+            else -> {
+                HostInfo("cloud.sdu.dk", "https")
+            }
+        }
+
+        val idpService = IdpService(db, micro, ownHost)
         val tokenService = TokenService(
             db,
             principalService,
@@ -64,6 +80,13 @@ class Server(
         )
 
         val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
+        val registrationService = RegistrationService(db, loginResponder, serviceClient, principalService,
+            usernameGenerator, micro.backgroundScope, idpService)
+
+        // TODO(Dan): One day we will need to sort out this mess
+        idpService.registrationServiceCyclicHack = registrationService
+        idpService.loginResponderCyclicHack = loginResponder
+        idpService.principalServiceCyclicHack = principalService
 
         val sessionService = SessionService(db, refreshTokenDao)
         val slaService = SLAService(config.serviceLicenseAgreement ?: ServiceAgreementText(0, ""), db, principalService)
@@ -71,8 +94,6 @@ class Server(
         val providerDao = ProviderDao()
         val providerService = ProviderService(micro.developmentModeEnabled, db, providerDao)
 
-        val registrationService = RegistrationService(db, loginResponder, serviceClient, principalService,
-            usernameGenerator, micro.backgroundScope, idpService)
 
         val scriptManager = micro.feature(ScriptManager)
         scriptManager.register(
@@ -98,6 +119,7 @@ class Server(
 
             if (config.enableWayf) {
                 val samlController = SAMLController(
+                    idpService,
                     authSettings,
                     { settings, call, params -> SamlRequestProcessor(settings, call, params) },
                     tokenService,
@@ -121,7 +143,8 @@ class Server(
                     tokenService = tokenService,
                     tokenValidation = tokenValidation,
                     trustedOrigins = config.trustedOrigins.toSet(),
-                    ktor = micro.feature(ServerFeature).ktorApplicationEngine?.application
+                    ktor = micro.feature(ServerFeature).ktorApplicationEngine?.application,
+                    idpService = idpService
                 ),
 
                 UserController(
