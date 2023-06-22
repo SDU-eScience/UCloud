@@ -4,6 +4,8 @@ import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.projects.*
+import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
+import dk.sdu.cloud.accounting.services.wallets.AccountingRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.NameAndVersion
@@ -18,6 +20,7 @@ import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.news.api.ListPostsRequest
 import dk.sdu.cloud.news.api.News
 import dk.sdu.cloud.news.api.NewsServiceDescription
+import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -39,75 +42,87 @@ import kotlin.system.exitProcess
 
 class Simulator(
     private val serviceClient: AuthenticatedClient,
-    private val numberOfUsers: Int
+    private val numberOfUsers: Int,
 ) {
-    val simulationId = Random.nextBytes(16).encodeBase64()
-        .replace("+", "")
-        .replace("-", "")
-        .replace("=", "")
-        .replace("/", "")
-
     private val users = ArrayList<SimulatedUser>()
-    private lateinit var project: Project
+    private val projects = ArrayList<Projects>()
 
-    private suspend fun initializeProject(): Project {
-        val projectTitle = "SimulatedProject1"
-
-        val projects = Projects.browse.call(
+    private suspend fun initializeProject(
+        title: String,
+        pi: SimulatedUser
+    ): Project {
+        val existingProjects = Projects.browse.call(
             ProjectsBrowseRequest(itemsPerPage = 250),
             serviceClient
         ).orThrow().items
 
-        val existing = projects.find { it.specification.title == projectTitle }
+        val existing = existingProjects.find { it.specification.title == title }
 
         if (existing != null) {
             log.debug("Found existing project")
             return existing
         } else {
             log.debug("Find parent project")
-            log.debug("${projects.map { it.specification.title }}")
-            val parent = projects.find { it.specification.title == "Provider k8" }!!
+            log.debug("${existingProjects.map { it.specification.title }}")
+            val parent = existingProjects.find { it.specification.title == "Provider k8" }!!
 
-            log.debug("Applying for new project")
-            val application = Grants.submitApplication.call(
+            log.debug("Creating new project")
+
+            val projectId = Projects.create.call(
                 bulkRequestOf(
-                    CreateApplication(
-                        GrantApplication.Document(
-                            GrantApplication.Recipient.NewProject(projectTitle),
-                            listOf(
-                                GrantApplication.AllocationRequest(
-                                    computeByHours.name,
-                                    computeByHours.provider,
-                                    parent.id,
-                                    100_000L,
-                                    period = GrantApplication.Period(System.currentTimeMillis() - 1000L, null)
-                                ),
-                                GrantApplication.AllocationRequest(
-                                    storageByQuota.name,
-                                    storageByQuota.provider,
-                                    parent.id,
-                                    100_000L,
-                                    period = GrantApplication.Period(System.currentTimeMillis() - 1000L, null)
-                                )
-                            ),
-                            GrantApplication.Form.PlainText("Grant application request from simulated user"),
-                            parentProjectId = parent.id
-                        )
+                    Project.Specification(
+                        parent = parent.id,
+                        title = title
                     )
                 ),
-                users[0].client
-            ).orThrow().responses.first()
+                serviceClient
+            ).orThrow().responses.single().id
 
-            // Approve application
-            Grants.updateApplicationState.call(
-                bulkRequestOf(UpdateApplicationState(application.id, GrantApplication.State.APPROVED, false)),
+            log.debug("Creating invite")
+
+            Projects.createInvite.call(
+                bulkRequestOf(
+                    ProjectsCreateInviteRequestItem(pi.username)
+                ),
+                serviceClient.withProject(projectId)
+            ).orThrow()
+
+
+            log.debug("Accept invite")
+            pi.acceptInvite(projectId)
+
+            Projects.changeRole.call(
+                bulkRequestOf(ProjectsChangeRoleRequestItem(pi.username, ProjectRole.PI)),
+                serviceClient.withProject(projectId)
+            )
+
+            log.debug("retrieving wallet allocations")
+            val allocations = Wallets.retrieveWalletsInternal.call(
+                WalletsInternalRetrieveRequest(WalletOwner.Project(parent.id)),
+                serviceClient
+            ).orThrow().wallets.flatMap { it.allocations }
+
+            log.debug("$allocations")
+            log.debug("making deposits")
+            Accounting.deposit.call(
+                bulkRequestOf(
+                    allocations.map { alloc ->
+                        DepositToWalletRequestItem(
+                            WalletOwner.Project(projectId),
+                            alloc.id,
+                            10_000_000_000L,
+                            "wallet init",
+                            grantedIn = null
+                        )
+                    }
+                ),
                 serviceClient
             ).orThrow()
 
             val project = Projects.browse.call(
                 ProjectsBrowseRequest(itemsPerPage = 250),
                 users[0].client
-            ).orThrow().items.find { it.specification.title == projectTitle }!!
+            ).orThrow().items.find { it.specification.title == title}!!
 
             log.debug("project $project")
 
@@ -164,17 +179,13 @@ class Simulator(
     @OptIn(DelicateCoroutinesApi::class)
     fun start() {
         log.debug("Started load simulation")
+        val projectTitle = "SimulatedProject3"
 
         runBlocking {
             initializeUsers()
-            project = initializeProject()
+            project = initializeProject(projectTitle, users[0])
             log.debug("Initialized project")
         }
-
-
-
-        // TODO Apply for resources
-
 
 
         // TODO Approve grant applications
@@ -184,41 +195,8 @@ class Simulator(
 
 
 
-            /*val root = Projects.create.call(
-                bulkRequestOf(
-                    Project.Specification(null, "Simulation-Root-${simulationId}"),
-                ),
-                serviceClient
-            ).orThrow().responses.single().id
-
-            GrantsEnabled.setEnabledStatus.call(
-                bulkRequestOf(SetEnabledStatusRequest(root, true)),
-                serviceClient
-            ).orThrow()
-
-            GrantSettings.uploadRequestSettings.call(
-                bulkRequestOf(
-                    ProjectApplicationSettings(
-                        root,
-                        listOf(UserCriteria.Anyone()),
-                        emptyList()
-                    )
-                ),
-                serviceClient.withProject(root)
-            ).orThrow()*/
-
-            /*Accounting.rootDeposit.call(
-                bulkRequestOf(
-                    RootDepositRequestItem(computeByHours, WalletOwner.Project(root), 1_000_000L * 1_000_000_000, "Root"),
-                    RootDepositRequestItem(computeByCredits, WalletOwner.Project(root), 1_000_000L * 1_000_000_000, "Root"),
-                    RootDepositRequestItem(licenseByQuota, WalletOwner.Project(root), 1_000_000L * 1_000_000_000, "Root"),
-                    RootDepositRequestItem(storageByQuota, WalletOwner.Project(root), 1_000_000L * 1_000_000_000, "Root"),
-                ),
-                serviceClient
-            ).orThrow()
-
             // Force the first user to be a PI (that way allocatePi() will always succeed)
-            users.add(SimulatedUser(serviceClient, root, this@Simulator, forcePi = true).also { it.initialStep() })
+            /*users.add(SimulatedUser(serviceClient, root, this@Simulator, forcePi = true).also { it.initialStep() })
 
             repeat(numberOfUsers - 1) {
                 val user = SimulatedUser(serviceClient, root, this@Simulator, forcePi = false)
@@ -291,117 +269,103 @@ class SimulatedUser(
     lateinit var password: String
     lateinit var refreshToken: String
     lateinit var client: AuthenticatedClient
-    lateinit var projectId: String
 
-    suspend fun initialize(username: String? = null, password: String? = null, refreshToken: String? = null) {
-        this.refreshToken = if (refreshToken != null) {
-            this.username = username ?: ""
-            this.password = password ?: ""
-            refreshToken
-        } else {
-            if (username.isNullOrBlank()) {
+    private var projectId: String? = null
+
+    fun initialize(username: String? = null, password: String? = null, refreshToken: String? = null) {
+        this.refreshToken = refreshToken
+            ?: if (username.isNullOrBlank()) {
                 this.username = "sim-${Time.now()}"
                 this.password = generatePassword()
-                log.debug("Creating user ${this.username} with password ${this.password}")
-                UserDescriptions.createNewUser.call(
-                    listOf(
-                        CreateSingleUserRequest(
-                            this.username,
-                            this.password,
-                            "email-${username}@localhost",
-                            Role.USER,
-                            "First",
-                            "Last"
-                        )
-                    ),
-                    serviceClient
-                ).orThrow().single().refreshToken
+                log.debug("Creating user ${this.username}")
+
+                runBlocking {
+                    UserDescriptions.createNewUser.call(
+                        listOf(
+                            CreateSingleUserRequest(
+                                username!!,
+                                password,
+                                "email-${username}@localhost",
+                                Role.USER,
+                                "First",
+                                "Last"
+                            )
+                        ),
+                        serviceClient
+                    ).orThrow().single().refreshToken
+                }
             } else {
-                this.username = username
-                this.password = password ?: ""
                 log.debug("Trying to log in as ${this.username}")
 
-                val testCall = News.listPosts.call(
-                    ListPostsRequest(itemsPerPage = 10, page = 0, withHidden = false),
-                    serviceClient
-                ).ctx as OutgoingHttpCall
-                log.debug("${testCall.response}")
-                val call = AuthDescriptions.passwordLogin.call(
-                    Unit,
-                    serviceClient.withHttpBody(
-                        """
-                            -----boundary
-                            Content-Disposition: form-data; name="service"
+                runBlocking {
+                    val login = AuthDescriptions.passwordLogin.call(
+                        Unit,
+                        serviceClient.withHttpBody(
+                            """
+                                -----boundary
+                                Content-Disposition: form-data; name="service"
 
-                            dev-web
-                            -----boundary
-                            Content-Disposition: form-data; name="username"
+                                dev-web
+                                -----boundary
+                                Content-Disposition: form-data; name="username"
 
-                            user
-                            -----boundary
-                            Content-Disposition: form-data; name="password"
+                                user
+                                -----boundary
+                                Content-Disposition: form-data; name="password"
 
-                            mypassword
-                            -----boundary--
-                        """.trimIndent(),
-                        ContentType.MultiPart.FormData.withParameter("boundary", "---boundary")
-                    )
-                ).ctx as OutgoingHttpCall
+                                mypassword
+                                -----boundary--
+                            """.trimIndent(),
+                            ContentType.MultiPart.FormData.withParameter("boundary", "---boundary")
+                        )
+                    ).ctx as OutgoingHttpCall
 
-                val response = call.response!!
-                log.debug("$response")
-                log.debug("${response.headers}")
-                log.debug("${HttpHeaders.SetCookie}")
-                val cookiesSet = response.headers[HttpHeaders.SetCookie]!!
-                log.debug("${cookiesSet}")
+                    val response = login.response!!
+                    log.debug("$response")
+                    log.debug("${response.headers}")
+                    log.debug("${HttpHeaders.SetCookie}")
+                    val cookiesSet = response.headers[HttpHeaders.SetCookie]!!
+                    log.debug("${cookiesSet}")
 
-                val split = cookiesSet.split(";").associate {
-                    val key = it.substringBefore('=')
-                    val value = URLDecoder.decode(it.substringAfter('=', ""), "UTF-8")
-                    key to value
+                    val split = cookiesSet.split(";").associate {
+                        val key = it.substringBefore('=')
+                        val value = URLDecoder.decode(it.substringAfter('=', ""), "UTF-8")
+                        key to value
+                    }
+
+                    log.debug("$split")
+
+                    split["refreshToken"]!!
                 }
-
-                log.debug("$split")
-
-                split["refreshToken"]!!
             }
-        }
 
-        log.debug("${this.username} logged in with token: $refreshToken")
+        log.debug("${this.username} logged in with token: ${this.refreshToken}")
         client = RefreshingJWTAuthenticator(
             serviceClient.client,
             JwtRefresher.Normal(this.refreshToken, OutgoingHttpCall)
         ).authenticateClient(OutgoingHttpCall)
     }
 
-    /*suspend fun requestInvite(member: SimulatedUser) {
+    suspend fun createProject() {
+
+    }
+
+    suspend fun joinProject(project: String) {
         Projects.createInvite.call(
-            bulkRequestOf(ProjectsCreateInviteRequestItem(member.username)),
-            client
+            bulkRequestOf(ProjectsCreateInviteRequestItem(username)),
+            serviceClient.withProject(project)
         ).orThrow()
 
         Projects.acceptInvite.call(
-            bulkRequestOf(FindByProjectId(projectId)),
-            member.client
+            bulkRequestOf(FindByProjectId(project)),
+            client.withProject(project)
         ).orThrow()
 
-        if (member.becomesAdmin) {
-            Projects.changeRole.call(
-                bulkRequestOf(ProjectsChangeRoleRequestItem(member.username, ProjectRole.ADMIN)),
-                client
-            ).orThrow()
-        }
+        projectId = project
+        client = client.withProject(projectId!!)
+    }
 
-        member.projectId = projectId
-        member.client = member.client.withProject(projectId)
-        /*member.hasLicenses = hasLicenses
-        member.hasLinks = hasLinks
-        member.hasStorage = hasStorage
-        member.hasComputeByCredits = hasComputeByCredits
-        member.hasComputeByHours = hasComputeByHours*/
-    }*/
-
-    suspend fun doStep() {
+    /*suspend fun doStep() {
         var diceRoll = Random.nextInt(100)
         fun chance(chance: Int): Boolean {
             val success = diceRoll <= chance
@@ -409,7 +373,7 @@ class SimulatedUser(
             return success
         }
 
-        /*when {
+        when {
             chance(5) -> {
                 if (!hasStorage || !(becomesPi || becomesAdmin)) return
 
@@ -473,8 +437,8 @@ class SimulatedUser(
             else -> {
                 // Do nothing
             }
-        }*/
-    }
+        }
+    }*/
 
     companion object : Loggable {
         override val log = logger()
