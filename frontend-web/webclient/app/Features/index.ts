@@ -3,7 +3,8 @@ import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 export enum Feature {
     SSH,
     PROVIDER_CONNECTION,
-    INLINE_TERMINAL
+    INLINE_TERMINAL,
+    NEW_IDPS,
 }
 
 export function hasFeature(feature: Feature): boolean {
@@ -13,6 +14,9 @@ export function hasFeature(feature: Feature): boolean {
     if (localStorage.getItem("no-features") != null) return false;
 
     switch (feature) {
+        case Feature.NEW_IDPS:
+            return localStorage.getItem("new-idps") != null || inDevEnvironment() || onDevSite();
+
         case Feature.INLINE_TERMINAL:
             return localStorage.getItem("inline-terminal") != null && inDevEnvironment();
 
@@ -21,9 +25,5 @@ export function hasFeature(feature: Feature): boolean {
             break;
     }
 
-    
-    switch (feature) {
-
-    }
     return false;
 }
