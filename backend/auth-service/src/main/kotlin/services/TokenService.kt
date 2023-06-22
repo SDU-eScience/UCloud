@@ -336,7 +336,7 @@ class TokenService(
                         val lastName = samlRequestProcessor.attributes["sn"]?.firstOrNull()
                         val organization = samlRequestProcessor.attributes["schacHomeOrganization"]?.firstOrNull()
 
-                        if (firstNames != null && lastName != null && email != null) {
+                        if (!alwaysGoToRegistration && firstNames != null && lastName != null && email != null) {
                             val username = usernameService.generateUniqueName("$firstNames$lastName".replace(" ", ""))
 
                             principalService.insert(
@@ -384,6 +384,8 @@ class TokenService(
         private const val TEN_MIN_IN_MILLS = 1000 * 60 * 10L
         private const val THIRTY_SECONDS_IN_MILLS = 1000 * 60L
         private const val CSRF_TOKEN_SIZE = 64
+
+        private const val alwaysGoToRegistration = true
 
         override val log = logger()
     }

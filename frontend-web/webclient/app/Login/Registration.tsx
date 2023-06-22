@@ -6,18 +6,27 @@ import {Box, Button, ContainerForText, ExternalLink, Input, Label} from "@/ui-co
 import {PropsWithChildren, useEffect, useRef, useState} from "react";
 import {apiRetrieve, useCloudAPI} from "@/Authentication/DataHook";
 import styled from "styled-components";
+import {TextSpan} from "@/ui-components/Text";
 
 interface Registration {
     sessionId: string;
     firstNames?: string | null;
     lastName?: string | null;
     email?: string | null;
+    organizationFullName?: string | null;
+    department?: string | null;
+    researchField?: string | null;
+    position?: string | null;
 }
 
 const Registration: React.FunctionComponent = props => {
     const firstNames = useRef<HTMLInputElement>(null);
     const lastName = useRef<HTMLInputElement>(null);
     const email = useRef<HTMLInputElement>(null);
+    const organizationFullName = useRef<HTMLInputElement>(null);
+    const department = useRef<HTMLInputElement>(null);
+    const researchField = useRef<HTMLInputElement>(null);
+    const position = useRef<HTMLInputElement>(null);
 
     const [showResendButton, setShowResendButton] = useState(false);
 
@@ -42,6 +51,10 @@ const Registration: React.FunctionComponent = props => {
         firstNames.current!.value = registration.data.firstNames ?? "";
         lastName.current!.value = registration.data.lastName ?? "";
         email.current!.value = registration.data.email ?? "";
+        organizationFullName.current!.value = registration.data.organizationFullName ?? "";
+        department.current!.value = registration.data.department ?? "";
+        researchField.current!.value = registration.data.researchField ?? "";
+        position.current!.value = registration.data.position ?? "";
 
         if (registration.data.email) setShowResendButton(true);
     }, [registration]);
@@ -56,18 +69,19 @@ const Registration: React.FunctionComponent = props => {
                     <input type={"hidden"} value={sessionId ?? ""} name={"sessionId"} />
 
                     <Label>
-                        First name(s):
-                        <Input ref={firstNames} name={"firstNames"} required/>
+                        First name(s) <MandatoryField/>
+                        <Input ref={firstNames} name={"firstNames"} required placeholder={"Example: Jane"}/>
                     </Label>
 
                     <Label>
-                        Last name:
-                        <Input ref={lastName} name={"lastName"} required/>
+                        Last name <MandatoryField/>
+                        <Input ref={lastName} name={"lastName"} required placeholder={"Example: Doe"}/>
                     </Label>
 
                     <Label>
-                        Email:
-                        <Input ref={email} name={"email"} required type={"email"}/>
+                        Email <MandatoryField/>
+                        <Input ref={email} name={"email"} required type={"email"}
+                               placeholder={"Example: jane@example.com"}/>
                         {!showResendButton ?
                             null :
                             <a href={buildQueryString("/auth/registration/reverify", { id: sessionId })}>
@@ -75,6 +89,27 @@ const Registration: React.FunctionComponent = props => {
                             </a>
                         }
                     </Label>
+
+                    <Label>
+                        Full name of organization
+                        <Input ref={organizationFullName} name={"organizationFullName"} placeholder={"Example: University of Example"}/>
+                    </Label>
+
+                    <Label>
+                        Department
+                        <Input ref={department} name={"department"} placeholder={"Example: Department of Examples"}/>
+                    </Label>
+
+                    <Label>
+                        Position
+                        <Input ref={position} name={"position"} placeholder={"Example: Professor"}/>
+                    </Label>
+
+                    <Label>
+                        Research field
+                        <Input ref={researchField} name={"researchField"} placeholder={"Example: Experimental examples"}/>
+                    </Label>
+
 
                     <Button type={"submit"}>Finish registration</Button>
                 </form>
@@ -113,5 +148,7 @@ const InfoBox: React.FunctionComponent<PropsWithChildren<{ isError: boolean }>> 
         {children}
     </div>;
 };
+
+const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="red">*</TextSpan>;
 
 export default Registration;

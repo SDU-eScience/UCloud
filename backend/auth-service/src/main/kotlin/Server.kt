@@ -80,8 +80,10 @@ class Server(
         )
 
         val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
-        val registrationService = RegistrationService(db, loginResponder, serviceClient, principalService,
-            usernameGenerator, micro.backgroundScope, idpService)
+        val registrationService = RegistrationService(
+            db, loginResponder, serviceClient, principalService,
+            usernameGenerator, micro.backgroundScope
+        )
 
         // TODO(Dan): One day we will need to sort out this mess
         idpService.registrationServiceCyclicHack = registrationService

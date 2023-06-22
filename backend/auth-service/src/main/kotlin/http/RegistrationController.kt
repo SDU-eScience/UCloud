@@ -40,7 +40,21 @@ class RegistrationController(
             val lastName = params["lastName"]?.firstOrNull()
             val email = params["email"]?.firstOrNull()
 
-            val request = Registration(sessionId, firstNames, lastName, email)
+            val organizationFullName = params["organizationFullName"]?.firstOrNull()
+            val department = params["department"]?.firstOrNull()
+            val researchField = params["researchField"]?.firstOrNull()
+            val position = params["position"]?.firstOrNull()
+
+            val request = Registration(
+                sessionId,
+                firstNames,
+                lastName,
+                email,
+                organizationFullName,
+                department,
+                researchField,
+                position
+            )
             registrationService.completeRegistration(request, this)
         }
 

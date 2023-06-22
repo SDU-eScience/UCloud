@@ -7,8 +7,6 @@ import dk.sdu.cloud.auth.api.IdentityProviderConnection
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Registration
 import dk.sdu.cloud.auth.http.LoginResponder
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -45,8 +43,23 @@ data class InternalRegistration(
     val emailVerificationToken: String?,
     val idp: Int,
     val idpIdentity: String,
+
+    // The following properties are optional for the registration and not validated by us:
+    val organizationFullName: String? = null,
+    val department: String? = null,
+    val researchField: String? = null,
+    val position: String? = null,
 ) {
-    fun toApiModel(): Registration = Registration(sessionId, firstNames, lastName, email)
+    fun toApiModel(): Registration = Registration(
+        sessionId,
+        firstNames,
+        lastName,
+        email,
+        organizationFullName,
+        department,
+        researchField,
+        position
+    )
 }
 
 class RegistrationService(
@@ -56,7 +69,6 @@ class RegistrationService(
     private val users: PrincipalService,
     private val usernameGenerator: UniqueUsernameService,
     private val backgroundScope: BackgroundScope,
-    private val idpService: IdpService,
 ) {
     private val nextCleanup = AtomicLong(0)
 
@@ -77,6 +89,11 @@ class RegistrationService(
             row.getString(8),
             row.getInt(9)!!,
             row.getString(10)!!,
+
+            row.getString(11),
+            row.getString(12),
+            row.getString(13),
+            row.getString(14),
         )
     }
 
@@ -99,7 +116,11 @@ class RegistrationService(
                         provider.timestamp_to_unix(modified_at)::bigint,
                         email_verification_token,
                         identity_provider,
-                        idp_identity
+                        idp_identity,
+                        organization_full_name,
+                        department,
+                        research_field,
+                        position
                         
                     from
                         auth.registration
@@ -115,7 +136,7 @@ class RegistrationService(
     private fun generateToken(): String {
         val array = ByteArray(64)
         secureRandom.nextBytes(array)
-        return Base64.getEncoder().encodeToString(array)
+        return Base64.getUrlEncoder().encodeToString(array)
     }
 
     suspend fun submitRegistration(
@@ -174,10 +195,15 @@ class RegistrationService(
                 {
                     with(registration) {
                         setParameter("session_id", sessionId)
-                        setParameter("first_names", firstNames)
-                        setParameter("last_name", lastName)
-                        setParameter("email", email)
+                        setParameter("first_names", firstNames.takeIf { !it.isNullOrBlank() })
+                        setParameter("last_name", lastName.takeIf { !it.isNullOrBlank() })
+                        setParameter("email", email.takeIf { !it.isNullOrBlank() })
                         setParameter("email_token", generateToken())
+
+                        setParameter("organization_full_name", organizationFullName.takeIf { !it.isNullOrBlank() })
+                        setParameter("department", department.takeIf { !it.isNullOrBlank() })
+                        setParameter("research_field", researchField.takeIf { !it.isNullOrBlank() })
+                        setParameter("position", position.takeIf { !it.isNullOrBlank() })
                     }
                 },
                 """
@@ -200,7 +226,12 @@ class RegistrationService(
                         last_name = :last_name,
                         email = :email,
                         modified_at = now(),
-                        email_verification_token = tok.new_token
+                        email_verification_token = tok.new_token,
+                        
+                        organization_full_name = :organization_full_name,
+                        department = :department,
+                        research_field = :research_field,
+                        position = :position
                     from
                         email_tokens tok
                     where
@@ -217,6 +248,10 @@ class RegistrationService(
                         email_verification_token,
                         identity_provider,
                         idp_identity,
+                        organization_full_name,
+                        department,
+                        research_field,
+                        position,
                         tok.token_did_change as token_did_change
                 """
             ).rows.singleOrNull()?.let { mapRow(it) to it.getBoolean("token_did_change")!! }
@@ -382,18 +417,38 @@ class RegistrationService(
         }
 
         val username = usernameGenerator.generateUniqueName("$firstNames$lastName".replace(" ", ""))
-        users.insert(
-            id = username,
-            type = UserType.PERSON,
-            role = Role.USER,
-            firstNames = firstNames,
-            lastName = lastName,
-            email = email,
-            organizationId = organization,
-            connections = listOf(
-                IdentityProviderConnection(registration.idp, registration.idpIdentity, organization)
-            ),
-        )
+
+        db.withSession { session ->
+            val uid = users.insert(
+                id = username,
+                type = UserType.PERSON,
+                role = Role.USER,
+                firstNames = firstNames,
+                lastName = lastName,
+                email = email,
+                organizationId = organization,
+                connections = listOf(
+                    IdentityProviderConnection(registration.idp, registration.idpIdentity, organization)
+                ),
+                ctx = session
+            )
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("associated_user", uid)
+                    setParameter("organization_full_name", registration.organizationFullName)
+                    setParameter("department", registration.department)
+                    setParameter("research_field", registration.researchField)
+                    setParameter("position", registration.position)
+                },
+                """
+                    insert into auth.additional_user_info (associated_user, organization_full_name, department, 
+                        research_field, position)
+                    values (:associated_user, :organization_full_name, :department, 
+                        :research_field, :position)
+                """
+            )
+        }
 
         deleteRegistration(registration.sessionId)
         val person = users.findByUsername(username) as Person

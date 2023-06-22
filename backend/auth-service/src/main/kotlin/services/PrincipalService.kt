@@ -279,7 +279,7 @@ class PrincipalService(
         connections: List<IdentityProviderConnection> = emptyList(),
 
         ctx: DBContext = db,
-    ) {
+    ): Int {
         when (type) {
             UserType.SERVICE -> {
                 require(role == Role.SERVICE)
@@ -299,7 +299,7 @@ class PrincipalService(
             }
         }
 
-        ctx.withSession(remapExceptions = true) { session ->
+        return ctx.withSession(remapExceptions = true) { session ->
             val uid = session.sendPreparedStatement(
                 {
                     setParameter("id", id)
@@ -320,6 +320,8 @@ class PrincipalService(
             ).rows.single().getInt(0)!!
 
             insertConnections(uid, connections, session)
+
+            uid
         }
     }
 

@@ -15,6 +15,12 @@ data class Registration(
     val firstNames: String?,
     val lastName: String?,
     val email: String?,
+
+    // The following properties are optional for the registration and not validated by us:
+    val organizationFullName: String? = null,
+    val department: String? = null,
+    val researchField: String? = null,
+    val position: String? = null,
 )
 
 object Registrations : CallDescriptionContainer("auth.registration") {
