@@ -24,6 +24,7 @@ import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.db.async.mapItems
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.util.*
@@ -37,6 +38,7 @@ import java.net.URLDecoder
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.random.Random
 import kotlin.system.exitProcess
 
@@ -45,90 +47,7 @@ class Simulator(
     private val numberOfUsers: Int,
 ) {
     private val users = ArrayList<SimulatedUser>()
-    private val projects = ArrayList<Projects>()
-
-    private suspend fun initializeProject(
-        title: String,
-        pi: SimulatedUser
-    ): Project {
-        val existingProjects = Projects.browse.call(
-            ProjectsBrowseRequest(itemsPerPage = 250),
-            serviceClient
-        ).orThrow().items
-
-        val existing = existingProjects.find { it.specification.title == title }
-
-        if (existing != null) {
-            log.debug("Found existing project")
-            return existing
-        } else {
-            log.debug("Find parent project")
-            log.debug("${existingProjects.map { it.specification.title }}")
-            val parent = existingProjects.find { it.specification.title == "Provider k8" }!!
-
-            log.debug("Creating new project")
-
-            val projectId = Projects.create.call(
-                bulkRequestOf(
-                    Project.Specification(
-                        parent = parent.id,
-                        title = title
-                    )
-                ),
-                serviceClient
-            ).orThrow().responses.single().id
-
-            log.debug("Creating invite")
-
-            Projects.createInvite.call(
-                bulkRequestOf(
-                    ProjectsCreateInviteRequestItem(pi.username)
-                ),
-                serviceClient.withProject(projectId)
-            ).orThrow()
-
-
-            log.debug("Accept invite")
-            pi.acceptInvite(projectId)
-
-            Projects.changeRole.call(
-                bulkRequestOf(ProjectsChangeRoleRequestItem(pi.username, ProjectRole.PI)),
-                serviceClient.withProject(projectId)
-            )
-
-            log.debug("retrieving wallet allocations")
-            val allocations = Wallets.retrieveWalletsInternal.call(
-                WalletsInternalRetrieveRequest(WalletOwner.Project(parent.id)),
-                serviceClient
-            ).orThrow().wallets.flatMap { it.allocations }
-
-            log.debug("$allocations")
-            log.debug("making deposits")
-            Accounting.deposit.call(
-                bulkRequestOf(
-                    allocations.map { alloc ->
-                        DepositToWalletRequestItem(
-                            WalletOwner.Project(projectId),
-                            alloc.id,
-                            10_000_000_000L,
-                            "wallet init",
-                            grantedIn = null
-                        )
-                    }
-                ),
-                serviceClient
-            ).orThrow()
-
-            val project = Projects.browse.call(
-                ProjectsBrowseRequest(itemsPerPage = 250),
-                users[0].client
-            ).orThrow().items.find { it.specification.title == title}!!
-
-            log.debug("project $project")
-
-            return project
-        }
-    }
+    private val projects = ArrayList<Project>()
 
     private suspend fun initializeUsers() {
         // Look up users
@@ -155,6 +74,21 @@ class Simulator(
             users.add(simUser)
         }
 
+        // Find existing projects
+        val foundProjects = Projects.browse.call(
+            ProjectsBrowseRequest(250, includeMembers = true),
+            serviceClient
+        ).orThrow().items.filter { project ->
+            project.status.members?.any { users.map { sim -> sim.username }.contains(it.username) } ?: false
+        }
+
+        log.debug("Found ${foundProjects.size} existing projects:")
+        for (project in foundProjects) {
+            log.debug("  ${project.specification.title}: ${project.status.members?.size}")
+        }
+
+        projects.addAll(foundProjects)
+
         if (existingUsers.size < numberOfUsers) {
             log.debug("Creating ${numberOfUsers - existingUsers.size} new simulated users")
             val newUsers = ArrayList<SimulatedUser>()
@@ -167,25 +101,54 @@ class Simulator(
                 missingCount--
             }
 
-            log.debug("Writing users to file")
+            log.debug("Writing new users to file")
             for (user in newUsers) {
                 userFile.appendText("${user.username} ${user.password} ${user.refreshToken}\n")
             }
 
-            users.addAll(newUsers)
+            log.debug("Assigning users to projects")
+            for (user in newUsers) {
+                val roll = Random.nextInt(100)
+
+                // If this is the first user, create a project else create project 5% of the time.
+                if (users.isEmpty() || roll < 5) {
+                    projects.add(user.createProject())
+                } else {
+                    // Join project with the least members
+                    val chosenProject = projects.sortedBy { it.status.members?.size }.first()
+                    val projectPiName = Projects.retrieve.call(
+                        ProjectsRetrieveRequest(chosenProject.id, includeMembers = true),
+                        serviceClient
+                    ).orThrow().status.members?.first { it.role == ProjectRole.PI }?.username
+                    val simPi = users.first { it.username == projectPiName }
+                    user.joinProject(chosenProject.id, simPi)
+                }
+
+                users.add(user)
+            }
         }
     }
 
     @OptIn(DelicateCoroutinesApi::class)
     fun start() {
         log.debug("Started load simulation")
-        val projectTitle = "SimulatedProject3"
 
         runBlocking {
             initializeUsers()
-            project = initializeProject(projectTitle, users[0])
-            log.debug("Initialized project")
         }
+
+        log.debug("Initialized:")
+        log.debug(" - Users: ${users.size}")
+        for (u in users) {
+            log.debug("   - ${u.username}: ${u.project.specification.title}")
+        }
+
+        log.debug(" - Projects: ${projects.size}")
+
+        for (p in projects) {
+            log.debug("   - ${p.id}: ${p.specification.title}")
+        }
+
 
 
         // TODO Approve grant applications
@@ -269,100 +232,184 @@ class SimulatedUser(
     lateinit var password: String
     lateinit var refreshToken: String
     lateinit var client: AuthenticatedClient
+    lateinit var project: Project
 
-    private var projectId: String? = null
-
-    fun initialize(username: String? = null, password: String? = null, refreshToken: String? = null) {
-        this.refreshToken = refreshToken
-            ?: if (username.isNullOrBlank()) {
+    suspend fun initialize(username: String? = null, password: String? = null, refreshToken: String? = null) {
+        this.refreshToken = if (refreshToken != null) {
+            this.username = username ?: ""
+            this.password = password ?: ""
+            refreshToken
+        } else {
+            if (username.isNullOrBlank()) {
                 this.username = "sim-${Time.now()}"
                 this.password = generatePassword()
                 log.debug("Creating user ${this.username}")
 
-                runBlocking {
-                    UserDescriptions.createNewUser.call(
-                        listOf(
-                            CreateSingleUserRequest(
-                                username!!,
-                                password,
-                                "email-${username}@localhost",
-                                Role.USER,
-                                "First",
-                                "Last"
-                            )
-                        ),
-                        serviceClient
-                    ).orThrow().single().refreshToken
-                }
+                UserDescriptions.createNewUser.call(
+                    listOf(
+                        CreateSingleUserRequest(
+                            this.username,
+                            this.password,
+                            "email-${username}@localhost",
+                            Role.USER,
+                            "First",
+                            "Last"
+                        )
+                    ),
+                    serviceClient
+                ).orThrow().single().refreshToken
             } else {
                 log.debug("Trying to log in as ${this.username}")
 
-                runBlocking {
-                    val login = AuthDescriptions.passwordLogin.call(
-                        Unit,
-                        serviceClient.withHttpBody(
-                            """
-                                -----boundary
-                                Content-Disposition: form-data; name="service"
+                val login = AuthDescriptions.passwordLogin.call(
+                    Unit,
+                    serviceClient.withHttpBody(
+                        """
+                            -----boundary
+                            Content-Disposition: form-data; name="service"
 
-                                dev-web
-                                -----boundary
-                                Content-Disposition: form-data; name="username"
+                            dev-web
+                            -----boundary
+                            Content-Disposition: form-data; name="username"
 
-                                user
-                                -----boundary
-                                Content-Disposition: form-data; name="password"
+                            user
+                            -----boundary
+                            Content-Disposition: form-data; name="password"
 
-                                mypassword
-                                -----boundary--
-                            """.trimIndent(),
-                            ContentType.MultiPart.FormData.withParameter("boundary", "---boundary")
-                        )
-                    ).ctx as OutgoingHttpCall
+                            mypassword
+                            -----boundary--
+                        """.trimIndent(),
+                        ContentType.MultiPart.FormData.withParameter("boundary", "---boundary")
+                    )
+                ).ctx as OutgoingHttpCall
 
-                    val response = login.response!!
-                    log.debug("$response")
-                    log.debug("${response.headers}")
-                    log.debug("${HttpHeaders.SetCookie}")
-                    val cookiesSet = response.headers[HttpHeaders.SetCookie]!!
-                    log.debug("${cookiesSet}")
+                val response = login.response!!
+                log.debug("$response")
+                log.debug("${response.headers}")
+                log.debug("${HttpHeaders.SetCookie}")
+                val cookiesSet = response.headers[HttpHeaders.SetCookie]!!
+                log.debug("${cookiesSet}")
 
-                    val split = cookiesSet.split(";").associate {
-                        val key = it.substringBefore('=')
-                        val value = URLDecoder.decode(it.substringAfter('=', ""), "UTF-8")
-                        key to value
-                    }
-
-                    log.debug("$split")
-
-                    split["refreshToken"]!!
+                val split = cookiesSet.split(";").associate {
+                    val key = it.substringBefore('=')
+                    val value = URLDecoder.decode(it.substringAfter('=', ""), "UTF-8")
+                    key to value
                 }
+
+                log.debug("$split")
+
+                split["refreshToken"]!!
             }
+        }
 
         log.debug("${this.username} logged in with token: ${this.refreshToken}")
         client = RefreshingJWTAuthenticator(
             serviceClient.client,
             JwtRefresher.Normal(this.refreshToken, OutgoingHttpCall)
         ).authenticateClient(OutgoingHttpCall)
+
+        val projects = Projects.browse.call(
+            ProjectsBrowseRequest(),
+            client
+        ).orThrow().items
+
+        if (projects.isNotEmpty()) {
+            project = projects.first()
+            client = client.withProject(project.id)
+        }
     }
 
-    suspend fun createProject() {
+    suspend fun createProject(): Project {
+        val title = "simulated-project-${Time.now()}"
 
-    }
+        val existingProjects = Projects.browse.call(
+            ProjectsBrowseRequest(itemsPerPage = 250),
+            serviceClient
+        ).orThrow().items
 
-    suspend fun joinProject(project: String) {
+        val parent = existingProjects.find { it.specification.title == "Provider k8" }!!
+        val projectId = Projects.create.call(
+            bulkRequestOf(
+                Project.Specification(
+                    parent = parent.id,
+                    title = title
+                )
+            ),
+            serviceClient
+        ).orThrow().responses.single().id
+
         Projects.createInvite.call(
             bulkRequestOf(ProjectsCreateInviteRequestItem(username)),
-            serviceClient.withProject(project)
+            serviceClient.withProject(projectId)
         ).orThrow()
 
         Projects.acceptInvite.call(
-            bulkRequestOf(FindByProjectId(project)),
-            client.withProject(project)
+            bulkRequestOf(FindByProjectId(projectId)),
+            client.withProject(projectId)
         ).orThrow()
 
-        projectId = project
-        client = client.withProject(projectId!!)
+        Projects.changeRole.call(
+            bulkRequestOf(ProjectsChangeRoleRequestItem(username, ProjectRole.PI)),
+            serviceClient.withProject(projectId)
+        )
+
+        val allocations = Wallets.retrieveWalletsInternal.call(
+            WalletsInternalRetrieveRequest(WalletOwner.Project(parent.id)),
+            serviceClient
+        ).orThrow().wallets.flatMap { it.allocations }
+
+        Accounting.deposit.call(
+            bulkRequestOf(
+                allocations.map { alloc ->
+                    DepositToWalletRequestItem(
+                        WalletOwner.Project(projectId),
+                        alloc.id,
+                        10_000_000_000L,
+                        "wallet init",
+                        grantedIn = null
+                    )
+                }
+            ),
+            serviceClient
+        ).orThrow()
+
+        val project = Projects.retrieve.call(
+            ProjectsRetrieveRequest(projectId),
+            client
+        ).orThrow()
+
+        this.project = project
+        client = client.withProject(projectId)
+
+        Simulator.log.debug("Created project ${project.id}: ${project.specification.title}")
+
+        return project
+    }
+
+    suspend fun joinProject(projectId: String, pi: SimulatedUser): Project {
+        log.debug("User $username is joining project ${projectId}")
+
+        Projects.createInvite.call(
+            bulkRequestOf(ProjectsCreateInviteRequestItem(username)),
+            pi.client.withProject(projectId)
+        ).orThrow()
+
+        Projects.acceptInvite.call(
+            bulkRequestOf(FindByProjectId(projectId)),
+            client.withProject(projectId)
+        ).orThrow()
+
+        val joinedProject = Projects.retrieve.call(
+            ProjectsRetrieveRequest(projectId),
+            client.withProject(projectId)
+        ).orThrow()
+
+        this.project = joinedProject
+        client = client.withProject(projectId)
+
+        log.debug("User $username joined ${this.project.specification.title}")
+
+        return joinedProject
     }
 
     /*suspend fun doStep() {
