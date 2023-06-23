@@ -12,8 +12,15 @@ import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import { ProductSelectorPlayground } from "@/Products/Selector";
-import {BinaryAllocator, BinaryTypeList, messageTest, UTextCompanion} from "@/UCloud/Messages";
-import {FindBulkRequest, FindBulkRequestCompanion} from "@/UCloud/Scratch";
+import {BinaryAllocator, BinaryTypeDictionary, BinaryTypeList, messageTest, UTextCompanion} from "@/UCloud/Messages";
+import {
+    AppParameterCompanion,
+    AppParameterFile,
+    AppParameterIntegerNumber,
+    FindBulkRequest,
+    FindBulkRequestCompanion,
+    Wrapper
+} from "@/UCloud/Scratch";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
@@ -28,34 +35,28 @@ export const Playground: React.FunctionComponent = () => {
                 }
 
                 const encoded = useAllocator(alloc => {
-                    const root = FindBulkRequest.create(
+                    const root = Wrapper.create(
                         alloc,
-                        BinaryTypeList.create(
-                            UTextCompanion,
+                        AppParameterFile.create(
                             alloc,
-                            [
-                                alloc.allocateText("DanSebastianThrane#1234"),
-                                alloc.allocateText("DanSebastianThrane#1234"),
-                                alloc.allocateText("DanSebastianThrane#1234"),
-                                alloc.allocateText("DanSebastianThrane#1234"),
-                                alloc.allocateText("DanSebastianThrane#1234"),
-                            ]
+                            "/home/dan/.vimrc"
                         )
                     );
-
-                    alloc.updateRoot(root)
-
-                    return root.encodeToJson()
+                    alloc.updateRoot(root);
+                    return alloc.slicedBuffer();
                 });
 
                 console.log(encoded);
 
                 useAllocator(alloc => {
-                    const res = FindBulkRequestCompanion.decodeFromJson(alloc, encoded);
-                    alloc.updateRoot(res);
+                    alloc.load(encoded);
+                    const value = new Wrapper(alloc.root()).wrapThis;
 
-                    console.log(alloc.slicedBuffer());
-                    console.log(res.encodeToJson());
+                    if (value instanceof AppParameterFile) {
+                        console.log(value.path, value.encodeToJson());
+                    } else {
+                        console.log("Not a file. It must be something else...", value);
+                    }
                 })
             }}>UCloud message test2</Button>
             <ProductSelectorPlayground />

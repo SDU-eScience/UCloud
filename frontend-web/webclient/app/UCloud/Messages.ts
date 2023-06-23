@@ -30,6 +30,13 @@ export class BinaryAllocator {
         this.buf.setInt32(0, this.ptr);
     }
 
+    load(dataView: DataView) {
+        const source = new Uint8Array(dataView.buffer);
+        const destination = new Uint8Array(this.buf.buffer, 0, source.byteLength);
+
+        destination.set(source);
+    }
+
     allocate<T>(companion: BinaryTypeCompanion<T>): T {
         if (this.readOnly) {
             throw "This allocator is marked read only. Please copy the data to a new allocator for modification";
@@ -147,7 +154,6 @@ export class UText implements UBinaryType {
     }
 
     decode(): string {
-        console.log(this.count, this.buffer.offset + 4);
         return textDecoder.decode(this.data);
     }
 }

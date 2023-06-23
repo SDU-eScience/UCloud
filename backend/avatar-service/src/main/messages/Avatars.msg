@@ -231,3 +231,21 @@ record Simple {
     hund: String,
     enumeration: Top,
 }
+
+tagged record AppParameter {
+    @Tag(text = "file", ordinal = 1) record File : AppParameter {
+        path: String,
+    }
+
+    @Tag(text = "text", ordinal = 2) record TextString : AppParameter {
+        value: String,
+    }
+
+    @Tag(text = "int", ordinal = 3) record IntegerNumber : AppParameter {
+        value: Int,
+    }
+}
+
+record Wrapper {
+    wrapThis: AppParameter?,
+}

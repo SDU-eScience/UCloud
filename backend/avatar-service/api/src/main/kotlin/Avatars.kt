@@ -741,3 +741,218 @@ fun BinaryAllocator.Simple(
     return result
 }
 
+sealed interface AppParameter : BinaryType {
+    @JvmInline
+    value class File(override val buffer: BufferAndOffset) : BinaryType, AppParameter {
+        init {
+            buffer.data.put(0 + buffer.offset, 1)
+        }
+
+        var _path: Text
+            inline get() = Text(buffer.copy(offset = buffer.data.getInt(1 + buffer.offset)))
+            inline set(value) { buffer.data.putInt(1 + buffer.offset, value.buffer.offset) }
+        val path: String
+            inline get() = _path.decode()
+
+        override fun encodeToJson(): JsonElement = JsonObject(mapOf(
+            "type" to JsonPrimitive("file"),
+            "path" to (path.let { JsonPrimitive(it) }),
+        ))
+
+        companion object : BinaryTypeCompanion<File> {
+            override val size = 5
+            private val mySerializer = BinaryTypeSerializer(this)
+            fun serializer() = mySerializer
+            override fun create(buffer: BufferAndOffset) = File(buffer)
+            override fun decodeFromJson(allocator: BinaryAllocator, json: JsonElement): File {
+                if (json !is JsonObject) error("File must be decoded from an object")
+                val path = run {
+                    val element = json["path"]
+                    if (element == null || element == JsonNull) {
+                        null
+                    } else {
+                        if (element !is JsonPrimitive) error("Expected 'path' to be a primitive")
+                        element.content
+                    }
+                } ?: error("Missing required property: path in File")
+                return allocator.AppParameterFile(
+                    path = path,
+                )
+            }
+        }
+    }
+
+    @JvmInline
+    value class TextString(override val buffer: BufferAndOffset) : BinaryType, AppParameter {
+        init {
+            buffer.data.put(0 + buffer.offset, 2)
+        }
+
+        var _value: Text
+            inline get() = Text(buffer.copy(offset = buffer.data.getInt(1 + buffer.offset)))
+            inline set(value) { buffer.data.putInt(1 + buffer.offset, value.buffer.offset) }
+        val value: String
+            inline get() = _value.decode()
+
+        override fun encodeToJson(): JsonElement = JsonObject(mapOf(
+            "type" to JsonPrimitive("text"),
+            "value" to (value.let { JsonPrimitive(it) }),
+        ))
+
+        companion object : BinaryTypeCompanion<TextString> {
+            override val size = 5
+            private val mySerializer = BinaryTypeSerializer(this)
+            fun serializer() = mySerializer
+            override fun create(buffer: BufferAndOffset) = TextString(buffer)
+            override fun decodeFromJson(allocator: BinaryAllocator, json: JsonElement): TextString {
+                if (json !is JsonObject) error("TextString must be decoded from an object")
+                val value = run {
+                    val element = json["value"]
+                    if (element == null || element == JsonNull) {
+                        null
+                    } else {
+                        if (element !is JsonPrimitive) error("Expected 'value' to be a primitive")
+                        element.content
+                    }
+                } ?: error("Missing required property: value in TextString")
+                return allocator.AppParameterTextString(
+                    value = value,
+                )
+            }
+        }
+    }
+
+    @JvmInline
+    value class IntegerNumber(override val buffer: BufferAndOffset) : BinaryType, AppParameter {
+        init {
+            buffer.data.put(0 + buffer.offset, 3)
+        }
+
+        var value: Int
+            inline get() = buffer.data.getInt(1 + buffer.offset)
+            inline set (value) { buffer.data.putInt(1 + buffer.offset, value) }
+
+        override fun encodeToJson(): JsonElement = JsonObject(mapOf(
+            "type" to JsonPrimitive("int"),
+            "value" to (value.let { JsonPrimitive(it) }),
+        ))
+
+        companion object : BinaryTypeCompanion<IntegerNumber> {
+            override val size = 5
+            private val mySerializer = BinaryTypeSerializer(this)
+            fun serializer() = mySerializer
+            override fun create(buffer: BufferAndOffset) = IntegerNumber(buffer)
+            override fun decodeFromJson(allocator: BinaryAllocator, json: JsonElement): IntegerNumber {
+                if (json !is JsonObject) error("IntegerNumber must be decoded from an object")
+                val value = run {
+                    val element = json["value"]
+                    if (element == null || element == JsonNull) {
+                        null
+                    } else {
+                        if (element !is JsonPrimitive) error("Expected 'value' to be a primitive")
+                        element.content.toInt()
+                    }
+                } ?: error("Missing required property: value in IntegerNumber")
+                return allocator.AppParameterIntegerNumber(
+                    value = value,
+                )
+            }
+        }
+    }
+
+    companion object : BinaryTypeCompanion<AppParameter> {
+        override val size = 0
+        override fun create(buffer: BufferAndOffset) = interpret(buffer)
+
+        fun interpret(ptr: BufferAndOffset): AppParameter {
+            return when (val tag = ptr.data.get(ptr.offset).toInt()) {
+                1 -> File(ptr)
+                2 -> TextString(ptr)
+                3 -> IntegerNumber(ptr)
+                else -> error("Invalid AppParameter representation stored: $tag")
+            }
+        }
+
+        override fun decodeFromJson(allocator: BinaryAllocator, json: JsonElement): AppParameter {
+            if (json !is JsonObject) error("AppParameter must be decoded from an object")
+            val type = json["type"]
+            if (type !is JsonPrimitive) error("Missing type tag")
+            return when (type.content) {
+                "file" -> File.decodeFromJson(allocator, json)"text" -> TextString.decodeFromJson(allocator, json)"int" -> IntegerNumber.decodeFromJson(allocator, json)else -> error("Unknown type: ${type.content}")
+            }
+        }
+    }
+}
+
+fun BinaryAllocator.AppParameterFile(
+    path: String,
+): AppParameter.File {
+    val result = this.allocate(AppParameter.File)
+    result._path = path.let { allocateText(it) }
+    return result
+}
+fun BinaryAllocator.AppParameterTextString(
+    value: String,
+): AppParameter.TextString {
+    val result = this.allocate(AppParameter.TextString)
+    result._value = value.let { allocateText(it) }
+    return result
+}
+fun BinaryAllocator.AppParameterIntegerNumber(
+    value: Int,
+): AppParameter.IntegerNumber {
+    val result = this.allocate(AppParameter.IntegerNumber)
+    result.value = value
+    return result
+}
+
+@JvmInline
+value class Wrapper(override val buffer: BufferAndOffset) : BinaryType {
+    var wrapThis: AppParameter?
+        inline get() {
+            val offset = buffer.data.getInt(0 + buffer.offset)
+            return (if (offset == 0) {
+                null
+            } else {
+                AppParameter.interpret(buffer.copy(offset = offset))
+            })
+        }
+        inline set(value) {
+            buffer.data.putInt(0 + buffer.offset, value?.buffer?.offset ?: 0)
+        }
+
+    override fun encodeToJson(): JsonElement = JsonObject(mapOf(
+        "wrapThis" to (wrapThis?.let { it.encodeToJson() } ?: JsonNull),
+    ))
+
+    companion object : BinaryTypeCompanion<Wrapper> {
+        override val size = 4
+        private val mySerializer = BinaryTypeSerializer(this)
+        fun serializer() = mySerializer
+        override fun create(buffer: BufferAndOffset) = Wrapper(buffer)
+        override fun decodeFromJson(allocator: BinaryAllocator, json: JsonElement): Wrapper {
+            if (json !is JsonObject) error("Wrapper must be decoded from an object")
+            val wrapThis = run {
+                val element = json["wrapThis"]
+                if (element == null || element == JsonNull) {
+                    null
+                } else {
+                    AppParameter.decodeFromJson(allocator, element)
+                }
+            }
+            return allocator.Wrapper(
+                wrapThis = wrapThis,
+            )
+        }
+    }
+}
+
+
+fun BinaryAllocator.Wrapper(
+    wrapThis: AppParameter? = null,
+): Wrapper {
+    val result = this.allocate(Wrapper)
+    result.wrapThis = wrapThis
+    return result
+}
+

@@ -1567,93 +1567,93 @@ export const AvatarCompanion: BinaryTypeCompanion<Avatar> = {
         }
         let top: Top | null = null;
         {
-            const value = element['top'];
-            if (typeof value !== 'string') throw "Expected 'top' to be a string";
-            top = TopCompanion.fromSerialName(value);
+            const valueForJsonDecode = element['top'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'top' to be a string";
+            top = TopCompanion.fromSerialName(valueForJsonDecode);
             if (top === null) throw "Did not expect 'top' to be null!";
         }
         let topAccessory: TopAccessory | null = null;
         {
-            const value = element['topAccessory'];
-            if (typeof value !== 'string') throw "Expected 'topAccessory' to be a string";
-            topAccessory = TopAccessoryCompanion.fromSerialName(value);
+            const valueForJsonDecode = element['topAccessory'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'topAccessory' to be a string";
+            topAccessory = TopAccessoryCompanion.fromSerialName(valueForJsonDecode);
             if (topAccessory === null) throw "Did not expect 'topAccessory' to be null!";
         }
         let hairColor: HairColor | null = null;
         {
-            const value = element['hairColor'];
-            if (typeof value !== 'string') throw "Expected 'hairColor' to be a string";
-            hairColor = HairColorCompanion.fromSerialName(value);
+            const valueForJsonDecode = element['hairColor'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'hairColor' to be a string";
+            hairColor = HairColorCompanion.fromSerialName(valueForJsonDecode);
             if (hairColor === null) throw "Did not expect 'hairColor' to be null!";
         }
         let facialHair: FacialHair | null = null;
         {
-            const value = element['facialHair'];
-            if (typeof value !== 'string') throw "Expected 'facialHair' to be a string";
-            facialHair = FacialHairCompanion.fromSerialName(value);
+            const valueForJsonDecode = element['facialHair'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'facialHair' to be a string";
+            facialHair = FacialHairCompanion.fromSerialName(valueForJsonDecode);
             if (facialHair === null) throw "Did not expect 'facialHair' to be null!";
         }
         let facialHairColor: FacialHairColor | null = null;
         {
-            const value = element['facialHairColor'];
-            if (typeof value !== 'string') throw "Expected 'facialHairColor' to be a string";
-            facialHairColor = FacialHairColorCompanion.fromSerialName(value);
+            const valueForJsonDecode = element['facialHairColor'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'facialHairColor' to be a string";
+            facialHairColor = FacialHairColorCompanion.fromSerialName(valueForJsonDecode);
             if (facialHairColor === null) throw "Did not expect 'facialHairColor' to be null!";
         }
         let clothes: Clothes | null = null;
         {
-            const value = element['clothes'];
-            if (typeof value !== 'string') throw "Expected 'clothes' to be a string";
-            clothes = ClothesCompanion.fromSerialName(value);
+            const valueForJsonDecode = element['clothes'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'clothes' to be a string";
+            clothes = ClothesCompanion.fromSerialName(valueForJsonDecode);
             if (clothes === null) throw "Did not expect 'clothes' to be null!";
         }
         let colorFabric: ColorFabric | null = null;
         {
-            const value = element['colorFabric'];
-            if (typeof value !== 'string') throw "Expected 'colorFabric' to be a string";
-            colorFabric = ColorFabricCompanion.fromSerialName(value);
+            const valueForJsonDecode = element['colorFabric'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'colorFabric' to be a string";
+            colorFabric = ColorFabricCompanion.fromSerialName(valueForJsonDecode);
             if (colorFabric === null) throw "Did not expect 'colorFabric' to be null!";
         }
         let eyes: Eyes | null = null;
         {
-            const value = element['eyes'];
-            if (typeof value !== 'string') throw "Expected 'eyes' to be a string";
-            eyes = EyesCompanion.fromSerialName(value);
+            const valueForJsonDecode = element['eyes'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'eyes' to be a string";
+            eyes = EyesCompanion.fromSerialName(valueForJsonDecode);
             if (eyes === null) throw "Did not expect 'eyes' to be null!";
         }
         let eyebrows: Eyebrows | null = null;
         {
-            const value = element['eyebrows'];
-            if (typeof value !== 'string') throw "Expected 'eyebrows' to be a string";
-            eyebrows = EyebrowsCompanion.fromSerialName(value);
+            const valueForJsonDecode = element['eyebrows'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'eyebrows' to be a string";
+            eyebrows = EyebrowsCompanion.fromSerialName(valueForJsonDecode);
             if (eyebrows === null) throw "Did not expect 'eyebrows' to be null!";
         }
         let mouthTypes: MouthTypes | null = null;
         {
-            const value = element['mouthTypes'];
-            if (typeof value !== 'string') throw "Expected 'mouthTypes' to be a string";
-            mouthTypes = MouthTypesCompanion.fromSerialName(value);
+            const valueForJsonDecode = element['mouthTypes'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'mouthTypes' to be a string";
+            mouthTypes = MouthTypesCompanion.fromSerialName(valueForJsonDecode);
             if (mouthTypes === null) throw "Did not expect 'mouthTypes' to be null!";
         }
         let skinColors: SkinColors | null = null;
         {
-            const value = element['skinColors'];
-            if (typeof value !== 'string') throw "Expected 'skinColors' to be a string";
-            skinColors = SkinColorsCompanion.fromSerialName(value);
+            const valueForJsonDecode = element['skinColors'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'skinColors' to be a string";
+            skinColors = SkinColorsCompanion.fromSerialName(valueForJsonDecode);
             if (skinColors === null) throw "Did not expect 'skinColors' to be null!";
         }
         let clothesGraphic: ClothesGraphic | null = null;
         {
-            const value = element['clothesGraphic'];
-            if (typeof value !== 'string') throw "Expected 'clothesGraphic' to be a string";
-            clothesGraphic = ClothesGraphicCompanion.fromSerialName(value);
+            const valueForJsonDecode = element['clothesGraphic'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'clothesGraphic' to be a string";
+            clothesGraphic = ClothesGraphicCompanion.fromSerialName(valueForJsonDecode);
             if (clothesGraphic === null) throw "Did not expect 'clothesGraphic' to be null!";
         }
         let hatColor: HatColor | null = null;
         {
-            const value = element['hatColor'];
-            if (typeof value !== 'string') throw "Expected 'hatColor' to be a string";
-            hatColor = HatColorCompanion.fromSerialName(value);
+            const valueForJsonDecode = element['hatColor'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'hatColor' to be a string";
+            hatColor = HatColorCompanion.fromSerialName(valueForJsonDecode);
             if (hatColor === null) throw "Did not expect 'hatColor' to be null!";
         }
         return Avatar.create(
@@ -1720,12 +1720,12 @@ export const FindBulkRequestCompanion: BinaryTypeCompanion<FindBulkRequest> = {
         }
         let usernames: BinaryTypeList<UText> | null = null;
         {
-            const value = element['usernames'];
-            if (!Array.isArray(value)) throw "Expected 'usernames' to be an array";
+            const valueForJsonDecode = element['usernames'];
+            if (!Array.isArray(valueForJsonDecode)) throw "Expected 'usernames' to be an array";
             usernames = BinaryTypeList.create(
                 UTextCompanion,
                 allocator,
-                value.map(it => UTextCompanion.decodeFromJson(allocator, it))
+                valueForJsonDecode.map(it => UTextCompanion.decodeFromJson(allocator, it))
             );
             if (usernames === null) throw "Did not expect 'usernames' to be null!";
         }
@@ -1781,11 +1781,11 @@ export const FindBulkResponseCompanion: BinaryTypeCompanion<FindBulkResponse> = 
         }
         let avatars: BinaryTypeDictionary<Avatar> | null = null;
         {
-            const value = element['avatars'];
-            if (typeof value !== 'object') throw "Expected 'avatars' to be an object";
+            const valueForJsonDecode = element['avatars'];
+            if (typeof valueForJsonDecode !== 'object') throw "Expected 'avatars' to be an object";
             let builder: Record<string, Avatar> = {};
-            for (const key of Object.keys(value)) {
-                builder[key] = AvatarCompanion.decodeFromJson(allocator, value[key]);
+            for (const key of Object.keys(valueForJsonDecode)) {
+                builder[key] = AvatarCompanion.decodeFromJson(allocator, valueForJsonDecode[key]);
             }
             avatars = BinaryTypeDictionary.create(AvatarCompanion, allocator, builder);
             if (avatars === null) throw "Did not expect 'avatars' to be null!";
@@ -1868,23 +1868,23 @@ export const SimpleCompanion: BinaryTypeCompanion<Simple> = {
         }
         let fie: number | null = null;
         {
-            const value = element['fie'];
-            if (typeof value !== 'number') throw "Expected 'fie' to be a number";
-            fie = value;
+            const valueForJsonDecode = element['fie'];
+            if (typeof valueForJsonDecode !== 'number') throw "Expected 'fie' to be a number";
+            fie = valueForJsonDecode;
             if (fie === null) throw "Did not expect 'fie' to be null!";
         }
         let hund: string | null = null;
         {
-            const value = element['hund'];
-            if (typeof value !== 'string') throw "Expected 'hund' to be a string";
-            hund = value;
+            const valueForJsonDecode = element['hund'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'hund' to be a string";
+            hund = valueForJsonDecode;
             if (hund === null) throw "Did not expect 'hund' to be null!";
         }
         let enumeration: Top | null = null;
         {
-            const value = element['enumeration'];
-            if (typeof value !== 'string') throw "Expected 'enumeration' to be a string";
-            enumeration = TopCompanion.fromSerialName(value);
+            const valueForJsonDecode = element['enumeration'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'enumeration' to be a string";
+            enumeration = TopCompanion.fromSerialName(valueForJsonDecode);
             if (enumeration === null) throw "Did not expect 'enumeration' to be null!";
         }
         return Simple.create(
@@ -1895,4 +1895,273 @@ export const SimpleCompanion: BinaryTypeCompanion<Simple> = {
         );
     },
     create: (buf) => new Simple(buf),
+};
+
+export type AppParameter =
+    AppParameterFile |
+    AppParameterTextString |
+    AppParameterIntegerNumber;
+
+export const AppParameterCompanion: BinaryTypeCompanion<AppParameter> & any = {
+    size: 0,
+    interpret(ptr: BufferAndOffset): AppParameter {
+        const tag = ptr.buf.getInt8(ptr.offset);
+        switch (tag) {
+            case 1: return new AppParameterFile(ptr)
+            case 2: return new AppParameterTextString(ptr)
+            case 3: return new AppParameterIntegerNumber(ptr)
+            default: throw new Error("Invalid AppParameter ordinal received: " + tag);
+        }
+    },create(buffer: BufferAndOffset): AppParameter {
+        return this.interpret(buffer);
+    },
+
+    decodeFromJson(allocator: BinaryAllocator, json: unknown): AppParameter {
+        if (typeof json !== "object" || json === null) {
+            throw "Expected an object but found an: " + json;
+        }
+        const typeTag = json['type'];
+        if (typeof typeTag !== 'string') throw "Expected 'type' to be a string";
+        switch (typeTag) {
+            case 'file': return AppParameterFileCompanion.decodeFromJson(allocator, json);
+            case 'text': return AppParameterTextStringCompanion.decodeFromJson(allocator, json);
+            case 'int': return AppParameterIntegerNumberCompanion.decodeFromJson(allocator, json);
+            default: throw new Error("Invalid AppParameter ordinal received: " + typeTag);
+        }
+    },
+};
+export class AppParameterFile implements UBinaryType {
+    buffer: BufferAndOffset;
+    constructor(buffer: BufferAndOffset) {
+        this.buffer = buffer;
+    }
+
+    get _path(): UText {
+        let result: UText | null = null;
+        const ptr = this.buffer.buf.getInt32(1 + this.buffer.offset);
+        if (ptr === 0) result = null;
+        else {
+            result = new UText(this.buffer.copyWithOffset(ptr));
+        }
+        return result!;
+    }
+    set _path(value: UText) {
+        if (value === null) this.buffer.buf.setInt32(1 + this.buffer.offset, 0);
+        else {
+            this.buffer.buf.setInt32(1 + this.buffer.offset, value.buffer.offset);
+        }
+    }
+    get path(): string {
+        return this._path?.decode() ?? null;
+    }
+
+    encodeToJson() {
+        return {
+            type: "file",
+            path: this.path,
+        };
+    }
+
+    static create(
+        allocator: BinaryAllocator,
+        path: string,
+    ): AppParameterFile {
+        const result = allocator.allocate(AppParameterFileCompanion);
+        result.buffer.buf.setInt8(result.buffer.offset, 1);
+        result._path = allocator.allocateText(path);
+        return result;
+    }
+}
+export const AppParameterFileCompanion: BinaryTypeCompanion<AppParameterFile> = {
+    size: 5,
+    decodeFromJson: (allocator, element) => {
+        if (typeof element !== "object" || element === null) {
+            throw "Expected an object but found an: " + element;
+        }
+        let path: string | null = null;
+        {
+            const valueForJsonDecode = element['path'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'path' to be a string";
+            path = valueForJsonDecode;
+            if (path === null) throw "Did not expect 'path' to be null!";
+        }
+        return AppParameterFile.create(
+            allocator,
+            path,
+        );
+    },
+    create: (buf) => new AppParameterFile(buf),
+};
+export class AppParameterTextString implements UBinaryType {
+    buffer: BufferAndOffset;
+    constructor(buffer: BufferAndOffset) {
+        this.buffer = buffer;
+    }
+
+    get _value(): UText {
+        let result: UText | null = null;
+        const ptr = this.buffer.buf.getInt32(1 + this.buffer.offset);
+        if (ptr === 0) result = null;
+        else {
+            result = new UText(this.buffer.copyWithOffset(ptr));
+        }
+        return result!;
+    }
+    set _value(value: UText) {
+        if (value === null) this.buffer.buf.setInt32(1 + this.buffer.offset, 0);
+        else {
+            this.buffer.buf.setInt32(1 + this.buffer.offset, value.buffer.offset);
+        }
+    }
+    get value(): string {
+        return this._value?.decode() ?? null;
+    }
+
+    encodeToJson() {
+        return {
+            type: "text",
+            value: this.value,
+        };
+    }
+
+    static create(
+        allocator: BinaryAllocator,
+        value: string,
+    ): AppParameterTextString {
+        const result = allocator.allocate(AppParameterTextStringCompanion);
+        result.buffer.buf.setInt8(result.buffer.offset, 2);
+        result._value = allocator.allocateText(value);
+        return result;
+    }
+}
+export const AppParameterTextStringCompanion: BinaryTypeCompanion<AppParameterTextString> = {
+    size: 5,
+    decodeFromJson: (allocator, element) => {
+        if (typeof element !== "object" || element === null) {
+            throw "Expected an object but found an: " + element;
+        }
+        let value: string | null = null;
+        {
+            const valueForJsonDecode = element['value'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'value' to be a string";
+            value = valueForJsonDecode;
+            if (value === null) throw "Did not expect 'value' to be null!";
+        }
+        return AppParameterTextString.create(
+            allocator,
+            value,
+        );
+    },
+    create: (buf) => new AppParameterTextString(buf),
+};
+export class AppParameterIntegerNumber implements UBinaryType {
+    buffer: BufferAndOffset;
+    constructor(buffer: BufferAndOffset) {
+        this.buffer = buffer;
+    }
+
+    get value(): number {
+        return this.buffer.buf.getInt32(1 + this.buffer.offset)
+    }
+
+    set value(value: number) {
+        this.buffer.buf.setInt32(1 + this.buffer.offset, value)
+    }
+
+    encodeToJson() {
+        return {
+            type: "int",
+            value: this.value,
+        };
+    }
+
+    static create(
+        allocator: BinaryAllocator,
+        value: number,
+    ): AppParameterIntegerNumber {
+        const result = allocator.allocate(AppParameterIntegerNumberCompanion);
+        result.buffer.buf.setInt8(result.buffer.offset, 3);
+        result.value = value;
+        return result;
+    }
+}
+export const AppParameterIntegerNumberCompanion: BinaryTypeCompanion<AppParameterIntegerNumber> = {
+    size: 5,
+    decodeFromJson: (allocator, element) => {
+        if (typeof element !== "object" || element === null) {
+            throw "Expected an object but found an: " + element;
+        }
+        let value: number | null = null;
+        {
+            const valueForJsonDecode = element['value'];
+            if (typeof valueForJsonDecode !== 'number') throw "Expected 'value' to be a number";
+            value = valueForJsonDecode;
+            if (value === null) throw "Did not expect 'value' to be null!";
+        }
+        return AppParameterIntegerNumber.create(
+            allocator,
+            value,
+        );
+    },
+    create: (buf) => new AppParameterIntegerNumber(buf),
+};
+
+export class Wrapper implements UBinaryType {
+    buffer: BufferAndOffset;
+    constructor(buffer: BufferAndOffset) {
+        this.buffer = buffer;
+    }
+
+    get wrapThis(): AppParameter | null {
+        let result: AppParameter | null = null;
+        const ptr = this.buffer.buf.getInt32(0 + this.buffer.offset);
+        if (ptr === 0) result = null;
+        else {
+            result = AppParameterCompanion.interpret(this.buffer.copyWithOffset(ptr));
+        }
+        return result;
+    }
+    set wrapThis(value: AppParameter | null) {
+        if (value === null) this.buffer.buf.setInt32(0 + this.buffer.offset, 0);
+        else {
+            this.buffer.buf.setInt32(0 + this.buffer.offset, value.buffer.offset);
+        }
+    }
+
+    encodeToJson() {
+        return {
+            wrapThis: this.wrapThis?.encodeToJson() ?? null,
+        };
+    }
+
+    static create(
+        allocator: BinaryAllocator,
+        wrapThis: AppParameter | null,
+    ): Wrapper {
+        const result = allocator.allocate(WrapperCompanion);
+        result.wrapThis = wrapThis;
+        return result;
+    }
+}
+export const WrapperCompanion: BinaryTypeCompanion<Wrapper> = {
+    size: 4,
+    decodeFromJson: (allocator, element) => {
+        if (typeof element !== "object" || element === null) {
+            throw "Expected an object but found an: " + element;
+        }
+        let wrapThis: AppParameter | null | null = null;
+        {
+            const valueForJsonDecode = element['wrapThis'];
+            if (valueForJsonDecode === null) wrapThis = null;
+            else {
+                if (typeof valueForJsonDecode !== 'object') throw "Expected 'wrapThis' to be an object";
+                wrapThis = AppParameterCompanion.decodeFromJson(allocator, valueForJsonDecode);
+            }
+        }
+        return Wrapper.create(
+            allocator,
+            wrapThis,
+        );
+    },
+    create: (buf) => new Wrapper(buf),
 };

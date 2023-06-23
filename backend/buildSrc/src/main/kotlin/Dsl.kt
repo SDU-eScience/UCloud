@@ -863,8 +863,12 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
                 visitRecord(child)
             }
 
-            appendLine("companion object {")
+            appendLine("companion object : BinaryTypeCompanion<${record.name}> {")
             indent {
+                appendLine("override val size = 0")
+                appendLine("override fun create(buffer: BufferAndOffset) = interpret(buffer)")
+                appendLine()
+
                 appendLine("fun interpret(ptr: BufferAndOffset): ${record.name} {")
                 indent {
                     appendLine("return when (val tag = ptr.data.get(ptr.offset).toInt()) {")
@@ -896,7 +900,7 @@ fun generateKotlinCode(ast: Parser.Ast, types: TypeTable): String {
                 appendLine("}")
 
                 appendLine()
-                appendLine("fun decodeFromJson(allocator: BinaryAllocator, json: JsonElement): ${record.name} {")
+                appendLine("override fun decodeFromJson(allocator: BinaryAllocator, json: JsonElement): ${record.name} {")
                 indent {
                     appendLine("if (json !is JsonObject) error(\"${record.name} must be decoded from an object\")")
                     appendLine("val type = json[\"type\"]")
@@ -1658,14 +1662,98 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
 
     fun IndentedStringBuilder.visitRecord(record: Parser.Node.Record) {
         if (record.isTagged) {
-            append("export type ${record.name} =")
+            appendLine("export type ${record.name} =")
             indent {
+                var idx = 0
                 for (nested in record.nested) {
                     val qualifiedName = record.name + nested.name
-                    appendLine(qualifiedName)
+                    if (idx != 0) appendLine(" |")
+                    append(qualifiedName)
+                    idx++
                 }
                 appendLine(";")
             }
+
+            appendLine()
+            appendLine("export const ${record.name}Companion: BinaryTypeCompanion<${record.name}> & any = {")
+            indent {
+                appendLine("size: 0,")
+                appendLine("interpret(ptr: BufferAndOffset): ${record.name} {")
+                indent {
+                    appendLine("const tag = ptr.buf.getInt8(ptr.offset);")
+                    appendLine("switch (tag) {")
+                    addIndentation()
+
+                    val ordinalsSeen = HashSet<Int>()
+
+                    for (child in record.nested) {
+                        if (child.implements != record.name) continue
+
+                        val annotation = child.annotations.find { it.name == "Tag" }!!
+                        val ordinalValueTok =
+                            annotation.attributes.find { it.first == "ordinal" }?.second as Token.Integer
+
+                        if (ordinalValueTok.integer in ordinalsSeen) {
+                            reportError(
+                                child.location, "Duplicate ordinal detected. " +
+                                        "All ordinal values must be unique within a single tagged record!"
+                            )
+                        }
+
+                        ordinalsSeen.add(ordinalValueTok.integer)
+
+                        appendLine("case ${ordinalValueTok.integer}: return new ${record.name}${child.name}(ptr)")
+                    }
+
+                    appendLine("default: throw new Error(\"Invalid ${record.name} ordinal received: \" + tag);")
+                    removeIndentation()
+                    appendLine("}")
+                }
+                append("},")
+                appendLine("create(buffer: BufferAndOffset): ${record.name} {")
+                indent { appendLine("return this.interpret(buffer);") }
+                appendLine("},")
+
+                appendLine()
+                appendLine("decodeFromJson(allocator: BinaryAllocator, json: unknown): ${record.name} {")
+                indent {
+                    appendLine("if (typeof json !== \"object\" || json === null) {")
+                    indent {
+                        appendLine("throw \"Expected an object but found an: \" + json;")
+                    }
+                    appendLine("}")
+                    appendLine("const typeTag = json['type'];")
+                    appendLine("if (typeof typeTag !== 'string') throw \"Expected 'type' to be a string\";")
+                    appendLine("switch (typeTag) {")
+                    indent {
+                        val ordinalsSeen = HashSet<String>()
+
+                        for (child in record.nested) {
+                            if (child.implements != record.name) continue
+
+                            val annotation = child.annotations.find { it.name == "Tag" }!!
+                            val ordinalValueTok =
+                                annotation.attributes.find { it.first == "text" }?.second as Token.Text
+
+                            if (ordinalValueTok.text in ordinalsSeen) {
+                                reportError(
+                                    child.location, "Duplicate type tag detected. " +
+                                            "All ordinal values must be unique within a single tagged record!"
+                                )
+                            }
+
+                            ordinalsSeen.add(ordinalValueTok.text)
+
+                            appendLine("case '${ordinalValueTok.text}': return ${record.name}${child.name}Companion.decodeFromJson(allocator, json);")
+                        }
+
+                        appendLine("default: throw new Error(\"Invalid ${record.name} ordinal received: \" + typeTag);")
+                    }
+                    appendLine("}")
+                }
+                appendLine("},")
+            }
+            appendLine("};")
         } else {
             val qualifiedName = buildString {
                 if (record.implements != null) append(record.implements)
@@ -1678,7 +1766,13 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
             indent {
                 appendLine("buffer: BufferAndOffset;")
                 appendLine("constructor(buffer: BufferAndOffset) {")
-                indent { appendLine("this.buffer = buffer;") }
+                indent {
+                    appendLine("this.buffer = buffer;")
+
+                    if (record.implements != null) {
+                        offset += 1
+                    }
+                }
                 appendLine("}")
                 appendLine()
 
@@ -1720,7 +1814,11 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
                                                 append("result = ")
                                                 getOrSetPrimitive(false, prop.type, "ptr", null, "this.buffer.buf")
                                             } else {
-                                                appendLine("result = new ${tsType(prop.type)}(this.buffer.copyWithOffset(ptr));")
+                                                if (typeLookup is TypeTable.Type.Record && typeLookup.record.isTagged) {
+                                                    appendLine("result = ${tsType(prop.type)}Companion.interpret(this.buffer.copyWithOffset(ptr));")
+                                                } else {
+                                                    appendLine("result = new ${tsType(prop.type)}(this.buffer.copyWithOffset(ptr));")
+                                                }
                                             }
                                         }
                                         appendLine("}")
@@ -1897,6 +1995,15 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
                 appendLine("): $qualifiedName {")
                 indent {
                     appendLine("const result = allocator.allocate(${qualifiedName}Companion);")
+
+                    if (record.implements != null) {
+                        val annotation = record.annotations.find { it.name == "Tag" }!!
+                        val ordinalValueTok =
+                            annotation.attributes.find { it.first == "ordinal" }?.second as Token.Integer
+
+                        appendLine("result.buffer.buf.setInt8(result.buffer.offset, ${ordinalValueTok.integer});")
+                    }
+
                     for (prop in record.properties) {
                         if (prop.type == "String" && prop.typeModifier == Parser.Node.TypeModifier.NONE) {
                             if (prop.optional) {
@@ -1931,9 +2038,9 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
 
                         appendLine("{")
                         indent {
-                            appendLine("const value = element['${prop.name}'];")
+                            appendLine("const valueForJsonDecode = element['${prop.name}'];")
                             if (prop.optional) {
-                                appendLine("if (value === null) ${prop.name} = null;")
+                                appendLine("if (valueForJsonDecode === null) ${prop.name} = null;")
                                 appendLine("else {")
                                 addIndentation()
                             }
@@ -1942,16 +2049,16 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
                                 Parser.Node.TypeModifier.NONE -> {
                                     if (isPrimitive(prop.type) || prop.type == "String") {
                                         val primitiveType = if (prop.type == "String") "string" else tsType(prop.type)
-                                        appendLine("if (typeof value !== '${primitiveType}') throw \"Expected '${prop.name}' to be a $primitiveType\";")
-                                        appendLine("${prop.name} = value;")
+                                        appendLine("if (typeof valueForJsonDecode !== '${primitiveType}') throw \"Expected '${prop.name}' to be a $primitiveType\";")
+                                        appendLine("${prop.name} = valueForJsonDecode;")
                                     } else {
                                         val lookup = types.lookupType(ast, prop.type)
                                         if (lookup is TypeTable.Type.Enumeration) {
-                                            appendLine("if (typeof value !== 'string') throw \"Expected '${prop.name}' to be a string\";")
-                                            appendLine("${prop.name} = ${prop.type}Companion.fromSerialName(value);")
+                                            appendLine("if (typeof valueForJsonDecode !== 'string') throw \"Expected '${prop.name}' to be a string\";")
+                                            appendLine("${prop.name} = ${prop.type}Companion.fromSerialName(valueForJsonDecode);")
                                         } else {
-                                            appendLine("if (typeof value !== 'object') throw \"Expected '${prop.name}' to be an object\";")
-                                            appendLine("${prop.name} = ${prop.type}Companion.decodeFromJson(allocator, value);")
+                                            appendLine("if (typeof valueForJsonDecode !== 'object') throw \"Expected '${prop.name}' to be an object\";")
+                                            appendLine("${prop.name} = ${prop.type}Companion.decodeFromJson(allocator, valueForJsonDecode);")
                                         }
                                     }
 
@@ -1959,23 +2066,23 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
                                 }
 
                                 Parser.Node.TypeModifier.ARRAY -> {
-                                    appendLine("if (!Array.isArray(value)) throw \"Expected '${prop.name}' to be an array\";")
+                                    appendLine("if (!Array.isArray(valueForJsonDecode)) throw \"Expected '${prop.name}' to be an array\";")
                                     appendLine("${prop.name} = BinaryTypeList.create(")
                                     indent {
                                         val elemType = tsType(prop.type)
                                         appendLine("${elemType}Companion,")
                                         appendLine("allocator,")
-                                        appendLine("value.map(it => ${elemType}Companion.decodeFromJson(allocator, it))")
+                                        appendLine("valueForJsonDecode.map(it => ${elemType}Companion.decodeFromJson(allocator, it))")
                                     }
                                     appendLine(");")
                                 }
 
                                 Parser.Node.TypeModifier.DICTIONARY -> {
                                     val elemType = tsType(prop.type)
-                                    appendLine("if (typeof value !== 'object') throw \"Expected '${prop.name}' to be an object\";")
+                                    appendLine("if (typeof valueForJsonDecode !== 'object') throw \"Expected '${prop.name}' to be an object\";")
                                     appendLine("let builder: Record<string, $elemType> = {};")
-                                    appendLine("for (const key of Object.keys(value)) {")
-                                    indent { appendLine("builder[key] = ${elemType}Companion.decodeFromJson(allocator, value[key]);") }
+                                    appendLine("for (const key of Object.keys(valueForJsonDecode)) {")
+                                    indent { appendLine("builder[key] = ${elemType}Companion.decodeFromJson(allocator, valueForJsonDecode[key]);") }
                                     appendLine("}")
 
                                     appendLine("${prop.name} = BinaryTypeDictionary.create(${elemType}Companion, allocator, builder);")
