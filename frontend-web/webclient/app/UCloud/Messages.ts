@@ -152,6 +152,197 @@ export class UText implements UBinaryType {
     }
 }
 
+export const UTextCompanion: BinaryTypeCompanion<UText> = {
+    create(offset: BufferAndOffset): UText {
+        return new UText(offset);
+    },
+
+    decodeFromJson(allocator: BinaryAllocator, json: unknown): UText {
+        if (typeof json !== "string") {
+            throw "Expected a string but found: " + json;
+        }
+
+        return allocator.allocateText(json);
+    },
+
+    size: 0,
+};
+
+export class BinaryTypeList<E extends UBinaryType> implements UBinaryType {
+    buffer: BufferAndOffset;
+    companion: BinaryTypeCompanion<E>;
+
+    constructor(companion: BinaryTypeCompanion<E>, buffer: BufferAndOffset) {
+        this.buffer = buffer;
+        this.companion = companion;
+    }
+
+    get count(): number {
+        return this.buffer.buf.getInt32(this.buffer.offset);
+    }
+
+    set count(value) {
+        this.buffer.buf.setInt32(this.buffer.offset, value);
+    }
+
+    set(index: number, element: E | null) {
+        if (index < 0 || index >= this.count) {
+            throw `Array index of out bounds: wanted to set value at ${index} but size is ${this.count}`;
+        }
+
+        const ptr = element === null ? 0 : element.buffer.offset;
+        this.buffer.buf.setInt32(this.buffer.offset + ((1 + index) * 4), ptr);
+    }
+
+    getOrNull(index: number): E | null {
+        if (index < 0 || index >= this.count) {
+            throw `Array index of out bounds: wanted to get value at ${index} but size is ${this.count}`;
+        }
+
+        const ptr = this.buffer.buf.getInt32(this.buffer.offset + ((1 + index) * 4));
+        if (ptr === 0) return null
+        return this.companion.create(this.buffer.copyWithOffset(ptr));
+    }
+
+    get(index: number): E {
+        const result = this.getOrNull(index);
+        if (result === null) {
+            throw new Error(`Null pointer found in array at index ${index}. ` +
+                `The full array is: ${this.encodeToJson()}`);
+        }
+        return result;
+    }
+
+    encodeToJson() {
+        const result: unknown[] = [];
+        for (let i = 0; i < this.count; i++) {
+            result.push(this.getOrNull(i)?.encodeToJson() ?? null);
+        }
+        return result;
+    }
+
+    static create<E extends UBinaryType>(
+        companion: BinaryTypeCompanion<E>,
+        allocator: BinaryAllocator,
+        entries: E[]
+    ): BinaryTypeList<E> {
+        const result = BinaryTypeList.createOfSize(companion, allocator, entries.length);
+        for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i];
+            result.set(i, entry);
+        }
+        return result;
+    }
+
+    static createOfSize<E extends UBinaryType>(
+        companion: BinaryTypeCompanion<E>,
+        allocator: BinaryAllocator,
+        size: number
+    ): BinaryTypeList<E> {
+        const buf = allocator.allocateDynamic(4 + size * 4);
+        const result = new BinaryTypeList(companion, buf);
+        result.count = size;
+        return result;
+    }
+}
+
+export class BinaryTypeDictionary<E extends UBinaryType> implements UBinaryType {
+    buffer: BufferAndOffset;
+    companion: BinaryTypeCompanion<E>;
+    private nextIdx: number = 0;
+
+    constructor(companion: BinaryTypeCompanion<E>, buffer: BufferAndOffset) {
+        this.buffer = buffer;
+        this.companion = companion;
+    }
+
+    get count(): number {
+        return this.buffer.buf.getInt32(this.buffer.offset);
+    }
+
+    set count(value) {
+        this.buffer.buf.setInt32(this.buffer.offset, value);
+    }
+
+    set(key: string, value: E) {
+        this.setByUText(this.buffer.allocator.allocateText(key), value);
+    }
+
+    setByUText(key: UText, value: E) {
+        let index = this.nextIdx++;
+        if (index < 0 || index >= this.count) {
+            throw `Too many entries in dictionary! Wanted to set value at ${index} but size is ${this.count}`;
+        }
+
+        this.buffer.buf.setInt32(this.buffer.offset + ((1 + (index * 2) + 0) * 4), key.buffer.offset);
+        this.buffer.buf.setInt32(this.buffer.offset + ((1 + (index * 2) + 1) * 4), value.buffer.offset);
+    }
+
+    get(key: string): E | null {
+        for (let i = 0; i < this.count; i++) {
+            const keyPtr = this.buffer.buf.getInt32(this.buffer.offset + ((1 + (i * 2) + 0) * 4));
+            if (keyPtr === 0) continue;
+            const text = new UText(this.buffer.copyWithOffset(keyPtr));
+            if (text.decode() === key) {
+                const dataPtr = this.buffer.buf.getInt32(this.buffer.offset + ((1 + (i * 2) + 1) * 4));
+                if (dataPtr === 0) return null;
+                return this.companion.create(this.buffer.copyWithOffset(dataPtr));
+            }
+        }
+        return null;
+    }
+
+    entries(): [key: string, value: E][] {
+        const entries: [key: string, value: E][] = [];
+        for (let i = 0; i < this.count; i++) {
+            const keyPtr = this.buffer.buf.getInt32(this.buffer.offset + ((1 + (i * 2) + 0) * 4));
+            if (keyPtr === 0) continue;
+            const text = new UText(this.buffer.copyWithOffset(keyPtr));
+            const decoded = text.decode();
+
+            const dataPtr = this.buffer.buf.getInt32(this.buffer.offset + ((1 + (i * 2) + 1) * 4));
+            const value = this.companion.create(this.buffer.copyWithOffset(dataPtr));
+
+            entries.push([decoded, value]);
+        }
+        return entries;
+    }
+
+    encodeToJson(): Record<string, unknown> {
+        const result: Record<string, unknown> = {};
+        for (const [key, value] of this.entries()) {
+            result[key] = value.encodeToJson();
+        }
+        return result;
+    }
+
+    static create<E extends UBinaryType>(
+        companion: BinaryTypeCompanion<E>,
+        allocator: BinaryAllocator,
+        entries: Record<string, E>
+    ) {
+        const keys = Object.keys(entries);
+        const result = BinaryTypeDictionary.createWithSize(companion, allocator, keys.length);
+        for (const key of keys) {
+            const utext = allocator.allocateText(key)
+            const value = entries[key];
+            result.setByUText(utext, value);
+        }
+        return result;
+    }
+
+    static createWithSize<E extends UBinaryType>(
+        companion: BinaryTypeCompanion<E>,
+        allocator: BinaryAllocator,
+        size: number
+    ) {
+        const buf = allocator.allocateDynamic(4 + size * 2 * 4);
+        const result = new BinaryTypeDictionary(companion, buf);
+        result.count = size;
+        return result;
+    }
+}
+
 // Scratch
 export enum Top {
     NO_HAIR,

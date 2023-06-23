@@ -12,7 +12,8 @@ import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import { ProductSelectorPlayground } from "@/Products/Selector";
-import {messageTest} from "@/UCloud/Messages";
+import {BinaryAllocator, BinaryTypeList, messageTest, UTextCompanion} from "@/UCloud/Messages";
+import {FindBulkRequest, FindBulkRequestCompanion} from "@/UCloud/Scratch";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
@@ -20,6 +21,43 @@ export const Playground: React.FunctionComponent = () => {
             <Button onClick={() => {
                 messageTest();
             }}>UCloud message test</Button>
+            <Button onClick={() => {
+                function useAllocator<R>(block: (allocator: BinaryAllocator) => R): R {
+                    const allocator = new BinaryAllocator(1024 * 512, 128, false)
+                    return block(allocator);
+                }
+
+                const encoded = useAllocator(alloc => {
+                    const root = FindBulkRequest.create(
+                        alloc,
+                        BinaryTypeList.create(
+                            UTextCompanion,
+                            alloc,
+                            [
+                                alloc.allocateText("DanSebastianThrane#1234"),
+                                alloc.allocateText("DanSebastianThrane#1234"),
+                                alloc.allocateText("DanSebastianThrane#1234"),
+                                alloc.allocateText("DanSebastianThrane#1234"),
+                                alloc.allocateText("DanSebastianThrane#1234"),
+                            ]
+                        )
+                    );
+
+                    alloc.updateRoot(root)
+
+                    return root.encodeToJson()
+                });
+
+                console.log(encoded);
+
+                useAllocator(alloc => {
+                    const res = FindBulkRequestCompanion.decodeFromJson(alloc, encoded);
+                    alloc.updateRoot(res);
+
+                    console.log(alloc.slicedBuffer());
+                    console.log(res.encodeToJson());
+                })
+            }}>UCloud message test2</Button>
             <ProductSelectorPlayground />
             <Button onClick={() => {
                 const now = timestampUnixMs();

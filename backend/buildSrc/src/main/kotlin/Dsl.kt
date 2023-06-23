@@ -1525,6 +1525,17 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
         }
     }
 
+    fun primitiveSize(type: String): Int {
+        return when (type) {
+            "Byte" -> 1
+            "Short" -> 2
+            "Int" -> 4
+            "Long" -> 8
+            "Boolean" -> 1
+            else -> error("??? $type ???")
+        }
+    }
+
     fun IndentedStringBuilder.getOrSetPrimitive(
         isSetter: Boolean,
         type: String,
@@ -1532,14 +1543,7 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
         valueExpr: String?,
         bufferExpr: String,
     ): Int {
-        val size = when (type) {
-            "Byte" -> 1
-            "Short" -> 2
-            "Int" -> 4
-            "Long" -> 8
-            "Boolean" -> 1
-            else -> error("???")
-        }
+        val size = primitiveSize(type)
 
         val getterFn = "getInt${size * 8}"
         val setterFn = "setInt${size * 8}"
@@ -1561,6 +1565,95 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
         }
 
         return size
+    }
+
+    fun tsType(type: String): String {
+        return when (type) {
+            "Byte", "Short", "Int", "Long",
+            "Boolean" -> {
+                primitiveType(type)
+            }
+
+            "String" -> "UText"
+
+            else -> {
+                when (val lookup = types.lookupType(ast, type)) {
+                    null -> type
+                    is TypeTable.Type.Enumeration -> type
+                    is TypeTable.Type.Record -> {
+                        if (lookup.record.implements != null) {
+                            lookup.record.implements + lookup.record.name
+                        } else {
+                            lookup.record.name
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun tsTypeReference(property: Parser.Node.Property): String {
+        when (property.typeModifier) {
+            Parser.Node.TypeModifier.NONE -> {
+                val baseType = tsType(property.type)
+                return if (property.optional) {
+                    "$baseType | null"
+                } else {
+                    baseType
+                }
+            }
+
+            Parser.Node.TypeModifier.ARRAY -> {
+                val baseType = tsType(property.type)
+                val typeWithoutNull = "BinaryTypeList<$baseType>"
+                return if (property.optional) {
+                    "$typeWithoutNull | null"
+                } else {
+                    typeWithoutNull
+                }
+            }
+
+            Parser.Node.TypeModifier.DICTIONARY -> {
+                val baseType = tsType(property.type)
+                val typeWithoutNull = "BinaryTypeDictionary<$baseType>"
+                return if (property.optional) {
+                    "$typeWithoutNull | null"
+                } else {
+                    typeWithoutNull
+                }
+            }
+        }
+    }
+
+    fun tsTypeInConstructor(property: Parser.Node.Property): String {
+        return if (property.type == "String" && property.typeModifier == Parser.Node.TypeModifier.NONE) {
+            if (property.optional) "string | null"
+            else "string"
+        } else {
+            tsTypeReference(property)
+        }
+    }
+
+    fun isPrimitive(type: String): Boolean {
+        return when (type) {
+            "Byte", "Short", "Int", "Long",
+            "Boolean" -> true
+
+            else -> false
+        }
+    }
+
+    fun shouldAccessThroughPointer(property: Parser.Node.Property): Boolean {
+        when (property.typeModifier) {
+            Parser.Node.TypeModifier.ARRAY -> return true
+            Parser.Node.TypeModifier.DICTIONARY -> return true
+            Parser.Node.TypeModifier.NONE -> {
+                if (property.optional) return true
+                if (isPrimitive(property.type)) return false
+                val typeLookup = types.lookupType(ast, property.name)
+                return typeLookup !is TypeTable.Type.Enumeration
+            }
+        }
     }
 
     fun IndentedStringBuilder.visitRecord(record: Parser.Node.Record) {
@@ -1590,17 +1683,20 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
                 appendLine()
 
                 for (prop in record.properties) {
+                    val propTypeName = tsTypeReference(prop)
+
                     when (prop.typeModifier) {
                         Parser.Node.TypeModifier.NONE -> {
+
                             val typeLookup = types.lookupType(ast, prop.type)
                             if (typeLookup is TypeTable.Type.Enumeration) {
-                                appendLine("get ${prop.name}(): ${prop.type} {")
+                                appendLine("get ${prop.name}(): $propTypeName {")
                                 indent {
-                                    appendLine("return ${prop.type}Companion.fromEncoded(this.buffer.buf.getInt16($offset + this.buffer.offset))!;")
+                                    appendLine("return ${propTypeName}Companion.fromEncoded(this.buffer.buf.getInt16($offset + this.buffer.offset))!;")
                                 }
                                 appendLine("}")
 
-                                appendLine("set ${prop.name}(value: ${prop.type}) {")
+                                appendLine("set ${prop.name}(value: ${propTypeName}) {")
                                 indent {
                                     appendLine("this.buffer.buf.setInt16($offset + this.buffer.offset!, ${prop.type}Companion.encoded(value));")
                                 }
@@ -1608,169 +1704,185 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
                                 appendLine()
 
                                 offset += 2
-                            } else if (typeLookup is TypeTable.Type.Record) {
-                                val propType = buildString {
-                                    if (typeLookup.record.implements != null) append(typeLookup.record.implements)
-                                    append(typeLookup.record.name)
-                                }
-
-                                append("get ${prop.name}(): ${propType}")
-                                if (prop.optional) append(" | null")
-                                appendLine(" {")
-
-                                indent {
-                                    appendLine("let result: $propType | null = null;")
-                                    appendLine("const offset = this.buffer.buf.getInt32($offset + this.buffer.offset);")
-                                    appendLine("if (offset === 0) result = null;")
-                                    appendLine("else result = new $propType(this.buffer.copyWithOffset(offset));")
-
-                                    append("return result")
-                                    if (!prop.optional) append("!")
-                                    appendLine(";")
-                                }
-                                appendLine("}")
-
-                                appendLine()
-                                append("set ${prop.name}(value: $propType")
-                                if (prop.optional) append(" | null")
-                                appendLine(") {")
-                                indent {
-                                    appendLine("if (value === null) this.buffer.buf.setInt32($offset + this.buffer.offset, 0);")
-                                    appendLine("else this.buffer.buf.setInt32($offset + this.buffer.offset, value.buffer.offset);")
-                                }
-                                appendLine("}")
-
-                                offset += 4
                             } else {
-                                when (prop.type) {
-                                    "Byte", "Short", "Int", "Long",
-                                    "Boolean" -> {
-                                        if (prop.optional) {
-                                            var primitiveSize = 0
+                                if (shouldAccessThroughPointer(prop)) {
+                                    // Nullable primitives, records and strings
+                                    val basePropName = if (prop.type == "String") "_${prop.name}" else prop.name
 
-                                            appendLine("get ${prop.name}(): ${primitiveType(prop.type)} | null {")
-                                            indent {
-                                                appendLine("const offset = this.buffer.buf.getInt32($offset + this.buffer.offset);")
-                                                appendLine("if (offset === 0) return null;")
-                                                append("return ")
-                                                primitiveSize = getOrSetPrimitive(
-                                                    false,
-                                                    prop.type,
-                                                    "offset",
-                                                    null,
-                                                    "this.buffer.buf"
-                                                )
+                                    appendLine("get ${basePropName}(): $propTypeName {")
+                                    indent {
+                                        appendLine("let result: ${tsType(prop.type)} | null = null;")
+                                        appendLine("const ptr = this.buffer.buf.getInt32($offset + this.buffer.offset);")
+                                        appendLine("if (ptr === 0) result = null;")
+                                        appendLine("else {")
+                                        indent {
+                                            if (isPrimitive(prop.type)) {
+                                                append("result = ")
+                                                getOrSetPrimitive(false, prop.type, "ptr", null, "this.buffer.buf")
+                                            } else {
+                                                appendLine("result = new ${tsType(prop.type)}(this.buffer.copyWithOffset(ptr));")
                                             }
-                                            appendLine("}")
+                                        }
+                                        appendLine("}")
 
-                                            appendLine()
-                                            appendLine("set ${prop.name}(value: ${primitiveType(prop.type)} | null) {")
-                                            indent {
-                                                appendLine("if (value === null) {")
-                                                indent {
-                                                    appendLine("this.buffer.buf.setInt32($offset + this.buffer.offset, 0);")
-                                                }
-                                                appendLine("} else {")
-                                                indent {
-                                                    appendLine("const destination = this.buffer.allocator.allocateDynamic($primitiveSize);")
-                                                    getOrSetPrimitive(
-                                                        true,
-                                                        prop.type,
-                                                        "destination.offset",
-                                                        "value",
-                                                        "this.buffer.buf"
-                                                    )
-                                                    appendLine("this.buffer.buf.setInt32($offset + this.buffer.offset, destination.offset);")
-                                                }
-                                                appendLine("}")
-                                            }
-                                            appendLine("}")
-                                            appendLine()
+                                        append("return result")
+                                        if (!prop.optional) append("!")
+                                        appendLine(";")
+                                    }
+                                    appendLine("}")
 
-                                            offset += 4
-                                        } else {
-                                            var size = 0
-                                            appendLine("get ${prop.name}(): ${primitiveType(prop.type)} {")
-                                            indent {
-                                                append("return ")
+                                    appendLine("set ${basePropName}(value: $propTypeName) {")
+                                    indent {
+                                        appendLine("if (value === null) this.buffer.buf.setInt32($offset + this.buffer.offset, 0);")
+                                        appendLine("else {")
+                                        indent {
+                                            if (isPrimitive(prop.type)) {
+                                                val size = primitiveSize(prop.type)
+                                                appendLine("const ptr = this.buffer.allocator.allocateDynamic($size);")
+                                                appendLine("this.buffer.buf.setInt32($offset + this.buffer.offset, ptr.offset);")
                                                 getOrSetPrimitive(
-                                                    false,
-                                                    prop.type,
-                                                    "$offset + this.buffer.offset",
-                                                    null,
-                                                    "this.buffer.buf"
-                                                )
-                                            }
-                                            appendLine("}")
-
-                                            appendLine()
-                                            appendLine(
-                                                "set ${prop.name}(value: ${primitiveType(prop.type)}) {"
-                                            )
-                                            indent {
-                                                size = getOrSetPrimitive(
                                                     true,
                                                     prop.type,
-                                                    "$offset + this.buffer.offset",
+                                                    "ptr.offset",
                                                     "value",
                                                     "this.buffer.buf"
                                                 )
+                                            } else {
+                                                appendLine("this.buffer.buf.setInt32($offset + this.buffer.offset, value.buffer.offset);")
                                             }
-                                            appendLine("}")
-
-                                            offset += size
                                         }
+                                        appendLine("}")
                                     }
+                                    appendLine("}")
 
-                                    "String" -> {
-                                        append("get _${prop.name}(): UText")
-                                        if (prop.optional) append(" | null")
-                                        appendLine(" {")
+                                    if (prop.type == "String") {
+                                        require(basePropName != prop.name)
 
-                                        indent {
-                                            appendLine("let result: UText | null = null;")
-                                            appendLine("const offset = this.buffer.buf.getInt32($offset + this.buffer.offset);")
-                                            appendLine("if (offset === 0) result = null;")
-                                            appendLine("else result = new UText(this.buffer.copyWithOffset(offset));")
-
-                                            append("return result")
-                                            if (!prop.optional) append("!")
-                                            appendLine(";")
-                                        }
-                                        appendLine("}")
-
-                                        appendLine()
-                                        append("set _${prop.name}(value: UText")
-                                        if (prop.optional) append(" | null")
-                                        appendLine(") {")
-                                        indent {
-                                            appendLine("if (value === null) this.buffer.buf.setInt32($offset + this.buffer.offset, 0);")
-                                            appendLine("else this.buffer.buf.setInt32($offset + this.buffer.offset, value.buffer.offset);")
-                                        }
-                                        appendLine("}")
-
-                                        appendLine()
                                         append("get ${prop.name}(): string")
                                         if (prop.optional) append(" | null")
                                         appendLine(" {")
-                                        indent {
-                                            append("return this._${prop.name}?.decode() ?? null")
-                                            appendLine(";")
-                                        }
+                                        indent { appendLine("return this.$basePropName?.decode() ?? null;") }
                                         appendLine("}")
-
-                                        offset += 4
                                     }
+
+                                    offset += 4
+                                } else {
+                                    var size = 0
+                                    appendLine("get ${prop.name}(): ${primitiveType(prop.type)} {")
+                                    indent {
+                                        append("return ")
+                                        getOrSetPrimitive(
+                                            false,
+                                            prop.type,
+                                            "$offset + this.buffer.offset",
+                                            null,
+                                            "this.buffer.buf"
+                                        )
+                                    }
+                                    appendLine("}")
+
+                                    appendLine()
+                                    appendLine(
+                                        "set ${prop.name}(value: ${primitiveType(prop.type)}) {"
+                                    )
+                                    indent {
+                                        size = getOrSetPrimitive(
+                                            true,
+                                            prop.type,
+                                            "$offset + this.buffer.offset",
+                                            "value",
+                                            "this.buffer.buf"
+                                        )
+                                    }
+                                    appendLine("}")
+
+                                    offset += size
                                 }
                             }
                         }
 
-                        else -> {} // TODO
+                        else -> {
+                            val containerType =
+                                if (prop.typeModifier == Parser.Node.TypeModifier.ARRAY) "BinaryTypeList"
+                                else "BinaryTypeDictionary"
+
+                            appendLine("get ${prop.name}(): $propTypeName {")
+                            indent {
+                                val elemType = tsType(prop.type)
+                                appendLine("let result: $containerType<$elemType> | null = null;")
+                                appendLine("const ptr = this.buffer.buf.getInt32($offset + this.buffer.offset);")
+                                appendLine("if (ptr === 0) result = null;")
+                                appendLine("else {")
+                                indent {
+                                    appendLine("result = new $containerType<$elemType>(${elemType}Companion, this.buffer.copyWithOffset(ptr));")
+                                }
+                                appendLine("}")
+
+                                append("return result")
+                                if (!prop.optional) append("!")
+                                appendLine(";")
+                            }
+                            appendLine("}")
+                            appendLine()
+
+                            appendLine("set ${prop.name}(value) {")
+                            indent {
+                                appendLine("if (value === null) this.buffer.buf.setInt32($offset + this.buffer.offset, 0);")
+                                appendLine("else this.buffer.buf.setInt32($offset + this.buffer.offset, value.buffer.offset);")
+                            }
+                            appendLine("}")
+
+                            offset += 4
+                        }
                     }
+                    appendLine()
                 }
 
                 appendLine("encodeToJson() {")
-                indent { appendLine("return null; // TODO") }
+                indent {
+                    appendLine("return {")
+                    indent {
+                        if (record.implements != null) {
+                            val annotation = record.annotations.find { it.name == "Tag" } ?: reportError(
+                                record.location,
+                                "Mandatory @Tag(text = \"name\", ordinal = 42) annotation is missing"
+                            )
+
+                            val name = annotation.attributes.find { it.first == "text" }
+                            val nameValueTok = name?.second
+                            if (nameValueTok !is Token.Text) {
+                                reportError(
+                                    annotation.location, "Missing or invalid text attribute in the @Tag " +
+                                            "annotation. It must exist with an string value!"
+                                )
+                            }
+
+                            appendLine("type: \"${nameValueTok.text}\",")
+                        }
+
+                        for (prop in record.properties) {
+                            append("${prop.name}: ")
+                            when (prop.typeModifier) {
+                                Parser.Node.TypeModifier.NONE -> {
+                                    val lookup = types.lookupType(ast, prop.type)
+                                    if (isPrimitive(prop.type) || prop.type == "String") {
+                                        append("this.${prop.name}")
+                                    } else if (lookup is TypeTable.Type.Enumeration) {
+                                        append("this.${prop.name} != null ? ${prop.type}Companion.encoded(this.${prop.name}) : null")
+                                    } else {
+                                        append("this.${prop.name}?.encodeToJson() ?? null")
+                                    }
+                                }
+
+                                else -> {
+                                    append("this.${prop.name}?.encodeToJson() ?? null")
+                                }
+                            }
+                            appendLine(",")
+                        }
+                    }
+                    appendLine("};")
+                }
                 appendLine("}")
 
                 appendLine()
@@ -1778,34 +1890,15 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
                 indent {
                     appendLine("allocator: BinaryAllocator,")
                     for (prop in record.properties) {
-                        val propLookup = types.lookupType(ast, prop.type)
-                        val typeName = when {
-                            propLookup is TypeTable.Type.Record -> buildString {
-                                if (propLookup.record.implements != null) append(propLookup.record.implements)
-                                append(propLookup.record.name)
-                            }
-
-                            prop.type == "String" -> "string"
-
-                            prop.type == "Byte" ||
-                                    prop.type == "Short" ||
-                                    prop.type == "Int" ||
-                                    prop.type == "Long" -> "number"
-
-                            prop.type == "Boolean" -> "boolean"
-
-                            else -> prop.type
-                        }
-                        append("${prop.name}: $typeName")
-                        if (prop.optional) append(" | null")
-                        appendLine(",")
+                        val typeName = tsTypeInConstructor(prop)
+                        appendLine("${prop.name}: $typeName,")
                     }
                 }
                 appendLine("): $qualifiedName {")
                 indent {
                     appendLine("const result = allocator.allocate(${qualifiedName}Companion);")
                     for (prop in record.properties) {
-                        if (prop.type == "String") {
+                        if (prop.type == "String" && prop.typeModifier == Parser.Node.TypeModifier.NONE) {
                             if (prop.optional) {
                                 appendLine("if (${prop.name} === null) result._${prop.name} = null;")
                                 appendLine("else result._${prop.name} = allocator.allocateText(${prop.name});")
@@ -1822,12 +1915,91 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
             }
             appendLine("}")
 
-            appendLine("const ${qualifiedName}Companion: BinaryTypeCompanion<$qualifiedName> = {")
+            appendLine("export const ${qualifiedName}Companion: BinaryTypeCompanion<$qualifiedName> = {")
             indent {
                 appendLine("size: $offset,")
 
                 appendLine("decodeFromJson: (allocator, element) => {")
-                indent { appendLine("throw 0") }
+                indent {
+                    appendLine("if (typeof element !== \"object\" || element === null) {")
+                    indent { appendLine("throw \"Expected an object but found an: \" + element;") }
+                    appendLine("}")
+
+                    for (prop in record.properties) {
+                        val type = tsTypeInConstructor(prop)
+                        appendLine("let ${prop.name}: ${type} | null = null;")
+
+                        appendLine("{")
+                        indent {
+                            appendLine("const value = element['${prop.name}'];")
+                            if (prop.optional) {
+                                appendLine("if (value === null) ${prop.name} = null;")
+                                appendLine("else {")
+                                addIndentation()
+                            }
+
+                            when (prop.typeModifier) {
+                                Parser.Node.TypeModifier.NONE -> {
+                                    if (isPrimitive(prop.type) || prop.type == "String") {
+                                        val primitiveType = if (prop.type == "String") "string" else tsType(prop.type)
+                                        appendLine("if (typeof value !== '${primitiveType}') throw \"Expected '${prop.name}' to be a $primitiveType\";")
+                                        appendLine("${prop.name} = value;")
+                                    } else {
+                                        val lookup = types.lookupType(ast, prop.type)
+                                        if (lookup is TypeTable.Type.Enumeration) {
+                                            appendLine("if (typeof value !== 'string') throw \"Expected '${prop.name}' to be a string\";")
+                                            appendLine("${prop.name} = ${prop.type}Companion.fromSerialName(value);")
+                                        } else {
+                                            appendLine("if (typeof value !== 'object') throw \"Expected '${prop.name}' to be an object\";")
+                                            appendLine("${prop.name} = ${prop.type}Companion.decodeFromJson(allocator, value);")
+                                        }
+                                    }
+
+
+                                }
+
+                                Parser.Node.TypeModifier.ARRAY -> {
+                                    appendLine("if (!Array.isArray(value)) throw \"Expected '${prop.name}' to be an array\";")
+                                    appendLine("${prop.name} = BinaryTypeList.create(")
+                                    indent {
+                                        val elemType = tsType(prop.type)
+                                        appendLine("${elemType}Companion,")
+                                        appendLine("allocator,")
+                                        appendLine("value.map(it => ${elemType}Companion.decodeFromJson(allocator, it))")
+                                    }
+                                    appendLine(");")
+                                }
+
+                                Parser.Node.TypeModifier.DICTIONARY -> {
+                                    val elemType = tsType(prop.type)
+                                    appendLine("if (typeof value !== 'object') throw \"Expected '${prop.name}' to be an object\";")
+                                    appendLine("let builder: Record<string, $elemType> = {};")
+                                    appendLine("for (const key of Object.keys(value)) {")
+                                    indent { appendLine("builder[key] = ${elemType}Companion.decodeFromJson(allocator, value[key]);") }
+                                    appendLine("}")
+
+                                    appendLine("${prop.name} = BinaryTypeDictionary.create(${elemType}Companion, allocator, builder);")
+                                }
+                            }
+
+                            if (prop.optional) {
+                                removeIndentation()
+                                appendLine("}")
+                            } else {
+                                appendLine("if (${prop.name} === null) throw \"Did not expect '${prop.name}' to be null!\";")
+                            }
+                        }
+                        appendLine("}")
+                    }
+                    appendLine("return ${qualifiedName}.create(")
+                    indent {
+                        appendLine("allocator,")
+                        for (prop in record.properties) {
+                            appendLine("${prop.name},")
+                        }
+                    }
+                    appendLine(");")
+                }
                 appendLine("},")
 
                 appendLine("create: (buf) => new $qualifiedName(buf),")
@@ -1844,7 +2016,7 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
         repeat(3) { appendLine("// GENERATED CODE - DO NOT MODIFY - See ${ast.fileIdentifier.substringAfterLast("/")}") }
         appendLine()
 
-        appendLine("import { BinaryAllocator, UBinaryType, BinaryTypeCompanion, UText, BufferAndOffset } from \"@/UCloud/Messages\";")
+        appendLine("import { BinaryAllocator, UBinaryType, BinaryTypeCompanion, UText, UTextCompanion, BufferAndOffset, BinaryTypeList, BinaryTypeDictionary } from \"@/UCloud/Messages\";")
         appendLine()
         for (import in ast.imports) {
             // TODO Imports do not work yet for typescript generation

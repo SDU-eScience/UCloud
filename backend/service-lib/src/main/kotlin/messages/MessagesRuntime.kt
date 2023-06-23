@@ -93,19 +93,62 @@ class BinaryTypeList<T : BinaryType>(val companion: BinaryTypeCompanion<T>, over
     }
 }
 
-class BinaryTypeDictionary<T : BinaryType>(val companion: BinaryTypeCompanion<T>, override val buffer: BufferAndOffset) : BinaryType, AbstractMap<String, T>() {
-    private val delegate = BinaryTypeList(BinaryTypeKVPair.createCompanion(companion), buffer)
+class BinaryTypeDictionary<T : BinaryType>(val companion: BinaryTypeCompanion<T>, override val buffer: BufferAndOffset) : BinaryType {
+    var count: Int
+        get() = buffer.data.getInt(0 + buffer.offset)
+        set(value) { buffer.data.putInt(0 + buffer.offset, value) }
 
-    override fun encodeToJson(): JsonElement {
-        val builder = HashMap<String, JsonElement>()
-        for (item in delegate) {
-            builder[item.key] = item.value.encodeToJson()
+    private var nextIdx: Int = 0
+
+    operator fun get(key: String): T? {
+        for (i in 0 until count) {
+            val textPtr = buffer.data.getInt(buffer.offset + (1 + (i * 2) + 0) * 4)
+            val text = Text(buffer.copy(offset = textPtr))
+            if (text.decode() == key) {
+                val dataPtr = buffer.data.getInt(buffer.offset + (1 + (i * 2) + 1) * 4)
+                if (dataPtr == 0) return null
+                return companion.create(buffer.copy(offset = dataPtr))
+            }
         }
-        return JsonObject(builder)
+        return null
     }
 
-    override val entries: Set<Map.Entry<String, T>>
-        get() = delegate.toSet()
+    operator fun set(key: String, value: T) {
+        set(buffer.allocator.allocateText(key), value)
+    }
+
+    operator fun set(key: Text, value: T) {
+        val index = nextIdx++
+        if (index !in 0 until count) {
+            throw IndexOutOfBoundsException("Too many entries in dictionary! " +
+                    "Wanted to set value at $index but size is $count.")
+        }
+
+        buffer.data.putInt(buffer.offset + (1 + (index * 2) + 0) * 4, key.buffer.offset)
+        buffer.data.putInt(buffer.offset + (1 + (index * 2) + 1) * 4, value.buffer.offset)
+    }
+
+    fun keys(): List<Text> {
+        return (0 until count).mapNotNull { i ->
+            val textPtr = buffer.data.getInt(buffer.offset + (1 + (i * 2) + 0) * 4)
+            if (textPtr == 0) return@mapNotNull null
+
+            Text(buffer.copy(offset = textPtr))
+        }
+    }
+
+    override fun encodeToJson(): JsonElement {
+        return JsonObject(buildMap {
+            for (i in 0 until count) {
+                val textPtr = buffer.data.getInt(buffer.offset + (1 + (i * 2) + 0) * 4)
+                if (textPtr == 0) continue
+
+                val text = Text(buffer.copy(offset = textPtr))
+                val valuePtr = buffer.data.getInt(buffer.offset + (1 + (i * 2) + 1) * 4)
+                put(text.decode(), companion.create(buffer.copy(offset = valuePtr)).encodeToJson())
+            }
+        })
+    }
 
     companion object {
         fun <T : BinaryType> create(
@@ -113,12 +156,22 @@ class BinaryTypeDictionary<T : BinaryType>(val companion: BinaryTypeCompanion<T>
             allocator: BinaryAllocator,
             source: Map<String, T>
         ): BinaryTypeDictionary<T> {
-            val result = BinaryTypeList.create(BinaryTypeKVPair.createCompanion(companion), allocator, source.size)
-            var idx = 0
-            for ((k, v) in source) {
-                result[idx++] = allocator.BinaryTypeKVPair(companion, k, v)
+            val result = createWithSize(companion, allocator, source.size)
+            for ((key, value) in source) {
+                result[key] = value
             }
-            return BinaryTypeDictionary(companion, result.buffer)
+            return result
+        }
+
+        fun <T : BinaryType> createWithSize(
+            companion: BinaryTypeCompanion<T>,
+            allocator: BinaryAllocator,
+            size: Int
+        ): BinaryTypeDictionary<T> {
+            val buf = allocator.allocateDynamic(4 + size * 2 * 4)
+            val result = BinaryTypeDictionary(companion, buf)
+            result.count = size
+            return result
         }
 
         fun <T : BinaryType> decodeFromJson(
