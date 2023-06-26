@@ -235,6 +235,10 @@ class PrincipalService(
         updatedEmail: String? = null,
         ctx: DBContext = db,
     ): Person? {
+        // NOTE(Dan): We no longer automatically change the email. We only use the updated email if we don't already
+        // have one. We do this because the end-user can manually change their email, and we do not want to override
+        // the change everytime they log in. If they need to change the email address, then they can just change it.
+
         return ctx.withSession { session ->
             val username = session.sendPreparedStatement(
                 {
@@ -251,7 +255,7 @@ class PrincipalService(
                             and conn.provider_identity = :identity
                     )
                     update auth.principals p
-                    set email = coalesce(:updated_email::text, p.email)
+                    set email = coalesce(p.email, :updated_email::text)
                     from connected c
                     where c.principal = p.uid
                     returning p.id
