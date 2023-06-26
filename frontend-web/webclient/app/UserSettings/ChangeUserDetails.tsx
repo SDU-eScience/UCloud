@@ -1,7 +1,7 @@
-import {useCloudCommand} from "@/Authentication/DataHook";
+import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler, useCloudCommand} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {Box, Button, Checkbox, Input, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -130,6 +130,73 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                 >
                     {message ?? "Update Information"}
                 </Button>
+            </form>
+        </Box>
+    );
+};
+
+interface OptionalInfo {
+    organizationFullName?: string | null;
+    department?: string | null;
+    researchField?: string | null;
+    position?: string | null;
+}
+
+export const ChangeOptionalUserDetails: React.FunctionComponent = () => {
+    const orgFullNameRef = useRef<HTMLInputElement>(null);
+    const departmentRef = useRef<HTMLInputElement>(null);
+    const researchFieldRef = useRef<HTMLInputElement>(null);
+    const positionRef = useRef<HTMLInputElement>(null);
+
+    useLayoutEffect(() => {
+        (async () => {
+            const info = await callAPI<OptionalInfo>(apiRetrieve({}, "/auth/users", "optionalInfo"));
+
+            orgFullNameRef.current!.value = info.organizationFullName ?? "";
+            departmentRef.current!.value = info.department ?? "";
+            researchFieldRef.current!.value = info.researchField ?? "";
+            positionRef.current!.value = info.position ?? "";
+        })();
+    }, []);
+
+    const onSubmit = useCallback(async (e: React.SyntheticEvent) => {
+        e.preventDefault();
+
+        await callAPIWithErrorHandler(
+            apiUpdate({
+                organizationFullName: orgFullNameRef.current!.value,
+                department: departmentRef.current!.value,
+                researchField: researchFieldRef.current!.value,
+                position: positionRef.current!.value,
+            }, "/auth/users", "optionalInfo")
+        );
+
+        snackbarStore.addSuccess("Your information has been updated.", false);
+    }, []);
+
+    const field = (
+        title: string,
+        placeholder: string,
+        ref: React.MutableRefObject<HTMLInputElement | null>
+    ) => {
+        return <Box mt="0.5em" pt="0.5em">
+            <Label>
+                {title}
+                <Input ref={ref} type="text" placeholder={"Example: " + placeholder}/>
+            </Label>
+        </Box>
+    };
+
+    return (
+        <Box mb={16}>
+            <Heading.h2>Additional User Information</Heading.h2>
+            <form onSubmit={onSubmit}>
+                {field("Full name of organization", "University of Example", orgFullNameRef)}
+                {field("Department", "Department of Examples", departmentRef)}
+                {field("Position", "Professor", positionRef)}
+                {field("Research field", "Experimental examples", researchFieldRef)}
+
+                <Button mt="1em" type="submit" color="green">Update Information</Button>
             </form>
         </Box>
     );

@@ -1,7 +1,9 @@
 package dk.sdu.cloud.auth.services
 
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.IdentityProviderConnection
+import dk.sdu.cloud.auth.api.OptionalUserInformation
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ProviderPrincipal
@@ -12,6 +14,7 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
 import java.security.SecureRandom
 import java.util.*
@@ -558,6 +561,71 @@ class PrincipalService(
                         i.uid = p.uid
                 """
             ).rowsAffected >= 1
+        }
+    }
+
+    suspend fun retrieveOptionalUserInfo(
+        actorAndProject: ActorAndProject,
+        ctx: DBContext = db,
+    ): OptionalUserInformation {
+        return ctx.withSession { session ->
+            val row = session.sendPreparedStatement(
+                { setParameter("username", actorAndProject.actor.safeUsername()) },
+                """
+                    select
+                        info.organization_full_name,
+                        info.department,
+                        info.research_field,
+                        info.position
+                    from
+                        auth.principals p join
+                        auth.additional_user_info info on p.uid = info.associated_user
+                    where
+                        p.id = :username and
+                        p.dtype = 'PERSON'
+                """
+            ).rows.firstOrNull()
+
+            if (row == null) {
+                OptionalUserInformation()
+            } else {
+                OptionalUserInformation(
+                    row.getString(0),
+                    row.getString(1),
+                    row.getString(2),
+                    row.getString(3),
+                )
+            }
+        }
+    }
+
+    suspend fun updateOptionalUserInfo(
+        actorAndProject: ActorAndProject,
+        info: OptionalUserInformation,
+        ctx: DBContext = db,
+    ) {
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("organization_full_name", info.organizationFullName)
+                    setParameter("department", info.department)
+                    setParameter("research_field", info.researchField)
+                    setParameter("position", info.position)
+                },
+                """
+                    insert into auth.additional_user_info (associated_user, organization_full_name, department,
+                        research_field, position) 
+                    select p.uid, :organization_full_name, :department, :research_field, :position
+                    from auth.principals p
+                    where p.id = :username
+                    on conflict (associated_user) do update set
+                        organization_full_name = excluded.organization_full_name,
+                        department = excluded.department,
+                        research_field = excluded.research_field,
+                        position = excluded.position
+                """
+            )
         }
     }
 }

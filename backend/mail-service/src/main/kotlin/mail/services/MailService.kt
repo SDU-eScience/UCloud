@@ -41,7 +41,7 @@ class MailService(
     private val authenticatedClient: AuthenticatedClient,
     private val fromAddress: String,
     private val whitelist: List<String>,
-    private val devMode: Boolean = false,
+    private val fakeSendEmails: Boolean = false,
     private val ctx: DBContext,
     private val settingsService: SettingsService
 ) {
@@ -158,7 +158,7 @@ class MailService(
             multipart.addBodyPart(bodyPart)
 
             message.setContent(multipart)
-            if (devMode) {
+            if (fakeSendEmails) {
                 fakeSend(message)
             } else {
                 Transport.send(message)
@@ -170,7 +170,7 @@ class MailService(
 
     suspend fun sendDirect(items: List<SendDirectMandatoryEmailRequest>) {
         for (item in items) {
-            sendEmail(item.recipientEmail, item.mail, item.recipientEmail, devMode)
+            sendEmail(item.recipientEmail, item.mail, item.recipientEmail, fakeSendEmails)
         }
     }
 
@@ -182,7 +182,7 @@ class MailService(
         testMail: Boolean? = false,
         recipientEmail: String? = null
     ) {
-        if (principal.username !in whitelist && !devMode) {
+        if (principal.username !in whitelist && !fakeSendEmails) {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Unable to send mail")
         }
         if (!emailRequestedByUser) {
@@ -361,7 +361,7 @@ class MailService(
             })
 
             message.setContent(multipart)
-            if (devMode || testMail == true) {
+            if (fakeSendEmails || testMail == true) {
                 fakeSend(message)
             } else {
                 Transport.send(message)

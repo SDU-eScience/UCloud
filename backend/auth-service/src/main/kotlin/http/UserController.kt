@@ -16,6 +16,7 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.server.plugins.*
@@ -187,6 +188,16 @@ class UserController(
                     )
                 }
             )
+        }
+
+        implement(UserDescriptions.retrieveOptionalUserInfo) {
+            ok(principalService.retrieveOptionalUserInfo(actorAndProject))
+        }
+
+        implement(UserDescriptions.updateOptionalUserInfo) {
+            audit(Unit)
+            principalService.updateOptionalUserInfo(actorAndProject, request)
+            ok(Unit)
         }
     }
 

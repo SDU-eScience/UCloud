@@ -7,6 +7,8 @@ import dk.sdu.cloud.auth.api.IdentityProviderConnection
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Registration
 import dk.sdu.cloud.auth.http.LoginResponder
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -319,7 +321,6 @@ class RegistrationService(
                         and email is not null
                         and email_verification_token is not null
                         and not email_verified
-                        and now() - modified_at >= '5 minutes'::interval
                     returning
                         email, email_verification_token
                 """
@@ -328,8 +329,9 @@ class RegistrationService(
             }
         } ?: run {
             callHandler.sendMessage(
-                sessionId,
-                "You have recently requested a new email. Try again in 5 minutes."
+                "",
+                "Invalid link. Please try to log-in again.",
+                isError = true
             )
             return
         }

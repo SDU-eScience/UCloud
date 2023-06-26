@@ -87,6 +87,14 @@ data class ChangePasswordRequest(val currentPassword: String, val newPassword: S
 @Serializable
 data class ChangePasswordWithResetRequest(val userId: String, val newPassword: String)
 
+@Serializable
+data class OptionalUserInformation(
+    val organizationFullName: String? = null,
+    val department: String? = null,
+    val researchField: String? = null,
+    val position: String? = null,
+)
+
 object UserDescriptions : CallDescriptionContainer("auth.users") {
     const val baseContext = "/auth/users"
 
@@ -322,5 +330,14 @@ ${ApiConventions.nonConformingApiWarning}
 
             body { bindEntireRequestFromBody() }
         }
+    }
+
+    val retrieveOptionalUserInfo = call("retrieveOptionalUserInfo", Unit.serializer(), OptionalUserInformation.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(baseContext, "optionalInfo")
+    }
+
+    val updateOptionalUserInfo = call("updateOptionalUserInfo", OptionalUserInformation.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        audit(Unit.serializer())
+        httpUpdate(baseContext, "optionalInfo")
     }
 }
