@@ -44,6 +44,16 @@ enum class ProductType {
 
 @Serializable
 @UCloudApiOwnedBy(Products::class)
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+enum class AllocationRequestsGroup {
+    ALL,
+    PERSONAL,
+    PROJECT
+}
+
+
+@Serializable
+@UCloudApiOwnedBy(Products::class)
 @UCloudApiStable
 @Deprecated("Calculated from AccountingUnit and AccountingFrequency")
 enum class ChargeType {
@@ -148,6 +158,19 @@ sealed class Product : DocVisualizable {
     )
     abstract val freeToUse: Boolean
 
+    @UCloudApiDoc(
+        """
+            Indicates who should be able to make allocation requests for this product (more specifically the product
+            category).
+            
+            Possible options are:
+             - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
+             - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
+             - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
+        """
+    )
+    abstract val allowAllocationRequestsFrom: AllocationRequestsGroup
+
     @UCloudApiDoc("Classifier used to explain the type of Product")
     abstract val productType: ProductType
 
@@ -218,6 +241,7 @@ sealed class Product : DocVisualizable {
         override val priority: Int = 0,
         override val version: Int = 1,
         override val freeToUse: Boolean = false,
+        override val allowAllocationRequestsFrom: AllocationRequestsGroup = AllocationRequestsGroup.ALL,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.CREDITS_PER_DAY,
         override val chargeType: ChargeType = ChargeType.ABSOLUTE,
         override val hiddenInGrantApplications: Boolean = false,
@@ -257,6 +281,7 @@ sealed class Product : DocVisualizable {
         val gpuModel: String? = null,
         override val version: Int = 1,
         override val freeToUse: Boolean = false,
+        override val allowAllocationRequestsFrom: AllocationRequestsGroup = AllocationRequestsGroup.ALL,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.CREDITS_PER_MINUTE,
         override val chargeType: ChargeType = ChargeType.ABSOLUTE,
         override val hiddenInGrantApplications: Boolean = false,
@@ -311,6 +336,7 @@ sealed class Product : DocVisualizable {
         override val priority: Int = 0,
         override val version: Int = 1,
         override val freeToUse: Boolean = false,
+        override val allowAllocationRequestsFrom: AllocationRequestsGroup = AllocationRequestsGroup.ALL,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_UNIT,
         override val chargeType: ChargeType = ChargeType.ABSOLUTE,
         override val hiddenInGrantApplications: Boolean = false,
@@ -345,6 +371,7 @@ sealed class Product : DocVisualizable {
         val tags: List<String> = emptyList(),
         override val version: Int = 1,
         override val freeToUse: Boolean = false,
+        override val allowAllocationRequestsFrom: AllocationRequestsGroup = AllocationRequestsGroup.ALL,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_UNIT,
         override val chargeType: ChargeType = ChargeType.ABSOLUTE,
         override val hiddenInGrantApplications: Boolean = false,
@@ -378,6 +405,7 @@ sealed class Product : DocVisualizable {
         override val priority: Int = 0,
         override val version: Int = 1,
         override val freeToUse: Boolean = false,
+        override val allowAllocationRequestsFrom: AllocationRequestsGroup = AllocationRequestsGroup.ALL,
         override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.PER_UNIT,
         override val chargeType: ChargeType = ChargeType.ABSOLUTE,
         override val hiddenInGrantApplications: Boolean = false,

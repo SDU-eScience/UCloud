@@ -333,6 +333,8 @@ data class ProviderWalletSummary(
 
     @UCloudApiDoc("The earliest timestamp at which the reported balance is no longer fully usable")
     val notAfter: Long?,
+
+    val allocationId: String,
 )
 
 @UCloudApiInternal(InternalLevel.BETA)

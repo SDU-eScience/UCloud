@@ -1,7 +1,6 @@
 package dk.sdu.cloud.accounting.services.wallets
 
 import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.DepositNotification
 import dk.sdu.cloud.accounting.api.DepositNotificationsMarkAsReadRequestItem
 import dk.sdu.cloud.auth.api.AuthProviders

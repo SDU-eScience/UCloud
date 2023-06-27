@@ -853,7 +853,7 @@ class AccountingService(
         request: WalletsRetrieveProviderSummaryRequest,
         ctx: DBContext = db,
     ): PageV2<ProviderWalletSummary> {
-        // This function will retrieve all relevant wallets for a provider and summarize the allocations of each wallet.
+        // This function will retrieve all relevant wallets for a provider and fetches the allocations of each wallet.
         // The keys used for sorting are stable and essentially map to the provider ID, which we can efficiently query.
         val providerId = actorAndProject.actor.safeUsername().removePrefix(AuthProviders.PROVIDER_PREFIX)
         val itemsPerPage = request.normalize().itemsPerPage
@@ -906,7 +906,8 @@ class AccountingService(
                 maxUsable,
                 maxPromised,
                 alloc.notBefore,
-                alloc.notAfter
+                alloc.notAfter,
+                alloc.allocId.toString(),
             )
         }
 

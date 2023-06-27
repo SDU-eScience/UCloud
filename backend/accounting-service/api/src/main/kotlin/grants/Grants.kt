@@ -331,6 +331,8 @@ data class GrantsBrowseAffiliationsRequest(
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
+    val recipientId: String? = null,
+    val recipientType: String? = null,
 ) : WithPaginationRequestV2
 typealias GrantsBrowseAffiliationsResponse = PageV2<ProjectWithTitle>
 

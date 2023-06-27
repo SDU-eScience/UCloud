@@ -314,6 +314,7 @@ class ProductService(
     ): PageV2<Pair<ProductV2,Long?>> {
         return db.withSession { session ->
             val itemsPerPage = request.normalize().itemsPerPage
+
             val rows = session.sendPreparedStatement(
                 {
                     setParameter("name_filter", request.filterName)
