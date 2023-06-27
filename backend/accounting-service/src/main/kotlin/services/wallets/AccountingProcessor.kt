@@ -1434,7 +1434,7 @@ class AccountingProcessor(
         when(request) {
             is AccountingRequest.Charge.OldCharge -> {
                 val category = productcategories.retrieveProductCategory(request.productCategory)
-                    ?: return AccountingResponse.Error("Wrong Product Category Given", 400)
+                    ?: return return AccountingResponse.Charge(false)
                 val price = products.retrieveProduct(request.product)?.first?.price ?: 1
                 return when (translateToChargeType(category)) {
                     ChargeType.ABSOLUTE -> {
@@ -1483,7 +1483,7 @@ class AccountingProcessor(
     }
     private suspend fun deltaCharge(request: AccountingRequest.Charge.DeltaCharge): AccountingResponse {
         val productCategory = productcategories.retrieveProductCategory(request.productCategory)
-            ?: return AccountingResponse.Error("No matching productCategory", 400)
+            ?: return return AccountingResponse.Charge(false)
         val wallet = wallets.find {
             it?.owner == request.owner &&
                 (it.paysFor?.provider == request.productCategory.provider &&
@@ -1503,7 +1503,7 @@ class AccountingProcessor(
 
     private suspend fun totalCharge(request: AccountingRequest.Charge.TotalCharge): AccountingResponse {
         val productCategory = productcategories.retrieveProductCategory(request.productCategory)
-            ?: return AccountingResponse.Error("No matching productCategory", 400)
+            ?: return return AccountingResponse.Charge(false)
         val wallet = wallets.find {
             it?.owner == request.owner &&
                 (it.paysFor.provider == request.productCategory.provider &&
