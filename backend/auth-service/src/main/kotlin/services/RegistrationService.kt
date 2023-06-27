@@ -450,11 +450,11 @@ class RegistrationService(
                         :research_field, :position)
                 """
             )
-
             deleteRegistration(registration.sessionId, session)
-            val person = users.findByUsername(username, session) as Person
-            loginResponder.handleSuccessfulLogin(ctx.call, "web", person)
         }
+
+        val person = users.findByUsername(username) as Person
+        loginResponder.handleSuccessfulLogin(ctx.call, "web", person)
     }
 
     private suspend fun CallHandler<*, *, *>.sendMessage(
