@@ -126,10 +126,11 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             ## Authenticating with UCloud
 
             UCloud provides various backends for authentication. These are all implemented in the authentication service. As of
-            06/01/23 the following backends are supported:
+            27/06/23 the following backends are supported:
 
             - Authentication with username/password
             - Authentication via WAYF
+            - Optional backend for OpenID (disabled in current production env)
 
             Below we will be covering the technical details of each backend.
 
@@ -586,7 +587,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
     val startLogin = call(
         name = "startLogin",
         requestType = FindByIntId.serializer(),
-        successType = BulkResponse.serializer(IdentityProvider.serializer()),
+        successType = Unit.serializer(),
         errorType = CommonErrorMessage.serializer(),
         handler = {
             auth {

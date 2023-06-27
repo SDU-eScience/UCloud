@@ -11,7 +11,6 @@ import kotlinx.serialization.Transient
  * Represents a security principal, i.e., any entity which can authenticate with the system. A security principal
  * can be both a person or any other type of non-human entity (Usually other services).
  */
-@Serializable
 sealed class Principal {
     /**
      * A unique ID for this principal. It should generally not contain sensitive data as this ID will be used a public
@@ -39,7 +38,6 @@ data class IdentityProviderConnection(
     val organizationId: String? = null,
 )
 
-@Serializable
 data class Person(
     override val id: String,
     override val role: Role,
@@ -79,8 +77,6 @@ data class Person(
 /**
  * Represents a service
  */
-@Serializable
-@SerialName("service")
 data class ServicePrincipal(
     override val id: String,
     override val role: Role,
@@ -91,8 +87,6 @@ data class ServicePrincipal(
     }
 }
 
-@Serializable
-@SerialName("provider")
 data class ProviderPrincipal(
     override val id: String,
 ) : Principal() {

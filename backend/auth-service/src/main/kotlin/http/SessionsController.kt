@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityToken
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
+import io.ktor.util.date.*
 
 class SessionsController(
     private val sessionService: SessionService
@@ -21,9 +22,11 @@ class SessionsController(
             sessionService.invalidateSessions(ctx.securityToken)
 
             withContext<HttpCall> {
-                ctx.call.response.cookies.appendExpired(
+                ctx.call.response.cookies.append(
                     REFRESH_WEB_REFRESH_TOKEN_COOKIE,
-                    path = "/"
+                    "",
+                    path = "/",
+                    expires = GMTDate.START,
                 )
             }
 

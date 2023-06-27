@@ -111,15 +111,6 @@ class UserController(
             okContentAlreadyDelivered()
         }
 
-        implement(UserDescriptions.retrievePrincipal) {
-            val principal = db.withTransaction {
-                principalService.findByUsername(request.username, it)
-            }
-            ok(
-                principal
-            )
-        }
-
         implement(UserDescriptions.changePassword) {
             audit(ChangePasswordAudit())
 

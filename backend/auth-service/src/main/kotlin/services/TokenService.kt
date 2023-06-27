@@ -324,18 +324,25 @@ class TokenService(
                     ?: throw IllegalArgumentException("Missing EduPersonTargetedId/nameid")
 
                 val email = samlRequestProcessor.attributes["mail"]?.firstOrNull()
+                val firstNames = samlRequestProcessor.attributes["gn"]?.firstOrNull()
+                val lastName = samlRequestProcessor.attributes["sn"]?.firstOrNull()
+                val organization = samlRequestProcessor.attributes["schacHomeOrganization"]?.firstOrNull()
 
-                val existingPerson = principalService.findByIdpAndTrackInfo(wayfIdp.id, id, email)
+                val existingPerson = principalService.findByIdpAndTrackInfo(
+                    idp = wayfIdp.id,
+                    identity = id,
+                    firstNames = firstNames,
+                    lastName = lastName,
+                    updatedEmail = email,
+                    organization = organization,
+                )
+
                 if (existingPerson != null) {
                     return SamlAuthenticationResult.Success(existingPerson)
                 }
 
                 loop@ for (i in 0..5) {
                     try {
-                        val firstNames = samlRequestProcessor.attributes["gn"]?.firstOrNull()
-                        val lastName = samlRequestProcessor.attributes["sn"]?.firstOrNull()
-                        val organization = samlRequestProcessor.attributes["schacHomeOrganization"]?.firstOrNull()
-
                         if (!alwaysGoToRegistration && firstNames != null && lastName != null && email != null) {
                             val username = usernameService.generateUniqueName("$firstNames$lastName".replace(" ", ""))
 

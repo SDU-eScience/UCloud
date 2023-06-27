@@ -31,6 +31,16 @@ sealed class IdentityProviderConfiguration {
     @Serializable
     class Wayf() : IdentityProviderConfiguration() {
         override fun toString() = "WAYF"
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+            return true
+        }
+
+        override fun hashCode(): Int {
+            return javaClass.hashCode()
+        }
     }
 }
 
@@ -80,31 +90,6 @@ class IdpService(
     private val mutex = Mutex()
     private var cacheEntries = ArrayList<ConfiguredIdentityProvider>()
     private var lastRenewal = 0L
-
-    suspend fun upsert(
-        title: String,
-        countsAsMultiFactor: Boolean,
-        config: IdentityProviderConfiguration
-    ): IdentityProviderMetadata {
-        db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("title", title)
-                    setParameter("counts_as_multi_factor", countsAsMultiFactor)
-                    setParameter(
-                        "configuration",
-                        defaultMapper.encodeToString(IdentityProviderConfiguration.serializer(), config)
-                    )
-                },
-                """
-                    insert into auth.identity_providers (title, configuration, counts_as_multi_factor) 
-                    values (:title, :config, :counts_as_multi_factor)
-                """
-            )
-        }
-        renewCache(force = true)
-        return findByTitle(title)
-    }
 
     suspend fun findById(id: Int): IdentityProviderMetadata {
         renewCache()

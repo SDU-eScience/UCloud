@@ -53,6 +53,7 @@ class JWTFactory(
         }
 
         val type = when (user) {
+            // NOTE(Dan): Backwards compatibility
             is Person -> {
                 if (user.connections.isNotEmpty()) "wayf"
                 else "password"
