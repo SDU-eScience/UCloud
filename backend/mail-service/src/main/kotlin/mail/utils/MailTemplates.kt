@@ -1,5 +1,6 @@
 package dk.sdu.cloud.mail.utils
 
+import dk.sdu.cloud.calls.client.urlEncode
 import dk.sdu.cloud.service.escapeHtml
 
 const val NO_NOTIFICATIONS_DISCLAIMER = """<p>If you do not want to receive these email notifications, 
@@ -226,4 +227,33 @@ fun lowResourcesTemplate(
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
+
+fun verifyEmailAddress(
+    type: String,
+    recipient: String,
+    token: String
+) = buildString {
+    val link = "https://cloud.sdu.dk/app/verifyEmail?type=$type&token=${urlEncode(token)}"
+
+    appendLine("<p>Dear ${escapeHtml(recipient)}</p>")
+
+    if (type == "registration") {
+        appendLine("<p>")
+        appendLine("In order to verify your email address, please open the following")
+        appendLine("<a href=\"$link\">link</a>.")
+        appendLine("</p>")
+        appendLine("<p>If you did not initiate this request, feel free to disregard this email, or reply to this email for support.</p>")
+    } else if (type == "info-update") {
+        appendLine("<p>")
+        appendLine("You, or someone else, has requested changing information affecting your UCloud account. ")
+        appendLine("We are writing to verify that this request is from you. Please verify this by clicking the following ")
+        appendLine("<a href=\"$link\">link</a>.")
+        appendLine("</p>")
+
+        appendLine("<p>")
+        appendLine("If you did not initiate this request, then please consider changing password at your identity provider. ")
+        appendLine("You should also consider contacting support about this incident. ")
+        appendLine("</p>")
+    }
+}
 

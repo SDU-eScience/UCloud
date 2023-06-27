@@ -23,6 +23,15 @@ class MailController(
             ok(mailService.sendSupportTicket(request.fromEmail, request.subject, request.message))
         }
 
+        implement(MailDescriptions.sendDirect) {
+            if (!request.items.all { it.mail is Mail.VerifyEmailAddress }) {
+                throw RPCException("This type of mail cannot be send through this endpoint!", HttpStatusCode.BadRequest)
+            }
+
+            mailService.sendDirect(request.items)
+            ok(Unit)
+        }
+
         implement(MailDescriptions.sendToUser) {
             request.items.forEach {
                 val allowedToSend = mailService.allowedToSend(it.receiver)

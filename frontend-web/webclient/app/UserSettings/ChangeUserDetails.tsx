@@ -1,10 +1,11 @@
-import {useCloudCommand} from "@/Authentication/DataHook";
+import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler, useCloudCommand} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
-import {useCallback, useEffect, useRef} from "react";
+import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {Box, Button, Checkbox, Input, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Feature, hasFeature} from "@/Features";
 
 interface UserDetailsState {
     placeHolderFirstNames: string;
@@ -34,6 +35,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
 
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [state, dispatch] = React.useReducer(reducer, initialState, () => initialState);
+    const [message, setMessage] = useState<string | null>(null);
 
     const info = useCallback(async () => {
 
@@ -80,61 +82,125 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
         }) !== null;
 
         if (!wasSuccessful) {
-            snackbarStore.addFailure("Failed to update user information", false);
+            setMessage("Failed to update user information");
         } else {
-            snackbarStore.addSuccess("User information updated", false);
+            setMessage("Success! Please check your email to verify the update.")
         }
     }, [commandLoading, userFirstNames.current, userLastName.current, userEmail.current]);
 
-    if (Client.principalType !== "password") {
-        return null
-    }
-    else {
-        return (
-            <Box mb={16}>
-                <Heading.h2>Change User Details</Heading.h2>
-                <form onSubmit={onSubmit}>
-                    <Box mt="0.5em" pt="0.5em">
-                        <Label>
-                            First names
-                            <Input
-                                ref={userFirstNames}
-                                type="text"
-                                placeholder={state.placeHolderFirstNames}
-                            />
-                        </Label>
-                    </Box>
+    return (
+        <Box mb={16}>
+            <Heading.h2>Change User Details</Heading.h2>
+            <form onSubmit={onSubmit}>
+                <Box mt="0.5em" pt="0.5em">
+                    <Label>
+                        First names
+                        <Input
+                            ref={userFirstNames}
+                            type="text"
+                            placeholder={state.placeHolderFirstNames}
+                        />
+                    </Label>
+                </Box>
 
-                    <Box mt="0.5em" pt="0.5em">
-                        <Label>
-                            Last name
-                            <Input
-                                ref={userLastName}
-                                type="text"
-                                placeholder={state.placeHolderLastName}
-                            />
-                        </Label>
-                    </Box>
-                    <Box mt="0.5em" pt="0.5em">
-                        <Label>
-                            Email
-                            <Input
-                                ref={userEmail}
-                                type="email"
-                                placeholder={state.placeHolderEmail}
-                            />
-                        </Label>
-                    </Box>
-                    <Button
-                        mt="1em"
-                        type="submit"
-                        color="green"
-                        disabled={commandLoading}
-                    >
-                        Update Information
-                    </Button>
-                </form>
-            </Box>
+                <Box mt="0.5em" pt="0.5em">
+                    <Label>
+                        Last name
+                        <Input
+                            ref={userLastName}
+                            type="text"
+                            placeholder={state.placeHolderLastName}
+                        />
+                    </Label>
+                </Box>
+                <Box mt="0.5em" pt="0.5em">
+                    <Label>
+                        Email
+                        <Input
+                            ref={userEmail}
+                            type="email"
+                            placeholder={state.placeHolderEmail}
+                        />
+                    </Label>
+                </Box>
+                <Button
+                    mt="1em"
+                    type="submit"
+                    color="green"
+                    disabled={commandLoading || !!message}
+                >
+                    {message ?? "Update Information"}
+                </Button>
+            </form>
+        </Box>
+    );
+};
+
+interface OptionalInfo {
+    organizationFullName?: string | null;
+    department?: string | null;
+    researchField?: string | null;
+    position?: string | null;
+}
+
+export const ChangeOptionalUserDetails: React.FunctionComponent = () => {
+    if (!hasFeature(Feature.ADDITIONAL_USER_INFO)) return null;
+
+    const orgFullNameRef = useRef<HTMLInputElement>(null);
+    const departmentRef = useRef<HTMLInputElement>(null);
+    const researchFieldRef = useRef<HTMLInputElement>(null);
+    const positionRef = useRef<HTMLInputElement>(null);
+
+    useLayoutEffect(() => {
+        (async () => {
+            const info = await callAPI<OptionalInfo>(apiRetrieve({}, "/auth/users", "optionalInfo"));
+
+            orgFullNameRef.current!.value = info.organizationFullName ?? "";
+            departmentRef.current!.value = info.department ?? "";
+            researchFieldRef.current!.value = info.researchField ?? "";
+            positionRef.current!.value = info.position ?? "";
+        })();
+    }, []);
+
+    const onSubmit = useCallback(async (e: React.SyntheticEvent) => {
+        e.preventDefault();
+
+        await callAPIWithErrorHandler(
+            apiUpdate({
+                organizationFullName: orgFullNameRef.current!.value,
+                department: departmentRef.current!.value,
+                researchField: researchFieldRef.current!.value,
+                position: positionRef.current!.value,
+            }, "/auth/users", "optionalInfo")
         );
-    }
+
+        snackbarStore.addSuccess("Your information has been updated.", false);
+    }, []);
+
+    const field = (
+        title: string,
+        placeholder: string,
+        ref: React.MutableRefObject<HTMLInputElement | null>
+    ) => {
+        return <Box mt="0.5em" pt="0.5em">
+            <Label>
+                {title}
+                <Input ref={ref} type="text" placeholder={"Example: " + placeholder}/>
+            </Label>
+        </Box>
+    };
+
+    return (
+        <Box mb={16}>
+            <Heading.h2>Additional User Information</Heading.h2>
+            <form onSubmit={onSubmit}>
+                {field("Full name of organization", "University of Example", orgFullNameRef)}
+                {field("Department", "Department of Examples", departmentRef)}
+                {field("Position", "Professor", positionRef)}
+                {field("Research field(s)", "Experimental examples", researchFieldRef)}
+
+                <Button mt="1em" type="submit" color="green">Update Information</Button>
+            </form>
+        </Box>
+    );
 };

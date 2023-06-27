@@ -108,6 +108,13 @@ data class BulkInvalidateRequest(val tokens: List<String>) : DebugSensitive {
 
 typealias BulkInvalidateResponse = Unit
 
+@Serializable
+data class IdentityProvider(
+    val id: Int,
+    val title: String,
+    val logoUrl: String?,
+)
+
 @TSTopLevel
 @UCloudApiInternal(InternalLevel.STABLE)
 object AuthDescriptions : CallDescriptionContainer("auth") {
@@ -119,10 +126,11 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             ## Authenticating with UCloud
 
             UCloud provides various backends for authentication. These are all implemented in the authentication service. As of
-            06/01/23 the following backends are supported:
+            27/06/23 the following backends are supported:
 
             - Authentication with username/password
             - Authentication via WAYF
+            - Optional backend for OpenID (disabled in current production env)
 
             Below we will be covering the technical details of each backend.
 
@@ -565,5 +573,39 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             }
         }
     }
+
+    val browseIdentityProviders = call(
+        name = "browseIdentityProviders",
+        requestType = Unit.serializer(),
+        successType = BulkResponse.serializer(IdentityProvider.serializer()),
+        errorType = CommonErrorMessage.serializer(),
+        handler = {
+            httpBrowse(baseContext, "identityProviders", roles = Roles.PUBLIC)
+        }
+    )
+
+    val startLogin = call(
+        name = "startLogin",
+        requestType = FindByIntId.serializer(),
+        successType = Unit.serializer(),
+        errorType = CommonErrorMessage.serializer(),
+        handler = {
+            auth {
+                access = AccessRight.READ
+                roles = Roles.PUBLIC
+            }
+
+            http {
+                method = HttpMethod.Get
+
+                path {
+                    using(baseContext)
+                    +"startLogin"
+                }
+
+                params { +boundTo(FindByIntId::id) }
+            }
+        }
+    )
 }
 

@@ -8,8 +8,10 @@ import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.RefreshTokenAndCsrf
 import dk.sdu.cloud.auth.api.TokenExtensionAudit
+import dk.sdu.cloud.auth.services.IdpService
 import dk.sdu.cloud.auth.services.OneTimeTokenAsyncDAO
 import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.HttpCall
@@ -41,7 +43,8 @@ class CoreAuthController(
     private val tokenService: TokenService,
     private val tokenValidation: TokenValidation<DecodedJWT>,
     private val trustedOrigins: Set<String> = setOf("localhost", "frontend", "cloud.sdu.dk"),
-    private val ktor: Application? = null
+    private val ktor: Application? = null,
+    private val idpService: IdpService,
 ) : Controller {
     private val log = LoggerFactory.getLogger(CoreAuthController::class.java)
 
@@ -229,8 +232,16 @@ class CoreAuthController(
             tokenService.bulkLogout(tokens, suppressExceptions = true)
             ok(Unit)
         }
-    }
 
+        implement(AuthDescriptions.browseIdentityProviders) {
+            ok(BulkResponse(idpService.findAll()))
+        }
+
+        implement(AuthDescriptions.startLogin) {
+            idpService.startLogin(request.id, (ctx as HttpCall).call)
+            okContentAlreadyDelivered()
+        }
+    }
 
     companion object {
         const val REFRESH_WEB_CSRF_TOKEN = "X-CSRFToken"

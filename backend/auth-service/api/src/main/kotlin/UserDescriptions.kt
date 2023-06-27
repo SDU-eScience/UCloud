@@ -67,13 +67,8 @@ data class GetUserInfoResponse(
     val email: String? = null,
     val firstNames: String? = null,
     val lastName: String? = null,
+    val organization: String? = null,
 )
-
-@Serializable
-data class GetPrincipalRequest(
-    val username: String
-)
-typealias GetPrincipalResponse = Principal
 
 @Serializable
 class ChangePasswordAudit
@@ -86,6 +81,14 @@ data class ChangePasswordRequest(val currentPassword: String, val newPassword: S
 @Serializable
 data class ChangePasswordWithResetRequest(val userId: String, val newPassword: String)
 
+@Serializable
+data class OptionalUserInformation(
+    val organizationFullName: String? = null,
+    val department: String? = null,
+    val researchField: String? = null,
+    val position: String? = null,
+)
+
 object UserDescriptions : CallDescriptionContainer("auth.users") {
     const val baseContext = "/auth/users"
 
@@ -94,7 +97,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
         description = """
 Users form the basis of all authentication in UCloud.
 
-Users in UCloud are authenticated in one of two ways:
+Users in UCloud are authenticated in one of several:
 
 1. `WAYF`: The user is created on first login by using their login credentials from WAYF (Where Are You From) 
 which is a identity federation allowing the reuse of logins from most danish and north atlantic 
@@ -103,6 +106,9 @@ research and education centers on external sites.
 2. `PASSWORD`: The users is created by an ADMIN of the system. This is mainly used to give access to people 
 outside WAYF. When a user is a PASSWORD user then there is also a requirement of 2FA. The 2FA is setup after 
 first login.
+
+3. Alternatively, users can also be authenticated using one of the configured OpenIdConnect providers. None are
+currently configured for the production system.
 
 Each user has a role defining their privileges on the UCloud system. See $TYPE_REF dk.sdu.cloud.Role for more details.
 
@@ -174,23 +180,24 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val retrievePrincipal = call("retrievePrincipal", GetPrincipalRequest.serializer(), GetPrincipalResponse.serializer(), CommonErrorMessage.serializer()) {
+    val verifyUserInfo = call("verifyUserInfo", FindByStringId.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
-            roles = setOf(Role.SERVICE)
+            roles = Roles.PUBLIC
             access = AccessRight.READ
         }
 
         http {
             method = HttpMethod.Get
-
             path {
                 using(baseContext)
-                +"retrievePrincipal"
+                +"verifyUserInfo"
             }
 
-            params {
-                +boundTo(GetPrincipalRequest::username)
-            }
+            params { +boundTo(FindByStringId::id) }
+        }
+
+        documentation {
+            summary = "Verifies a change in user info (typically accessed through an email)"
         }
     }
 
@@ -302,60 +309,12 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val openUserIterator = call("openUserIterator", Unit.serializer(), FindByStringId.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"iterator"
-                +"open"
-            }
-        }
+    val retrieveOptionalUserInfo = call("retrieveOptionalUserInfo", Unit.serializer(), OptionalUserInformation.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(baseContext, "optionalInfo")
     }
 
-    /**
-     * Fetches more principals from an iterator.
-     *
-     * Note: twoFactorAuthentication field is not calculated correctly at the moment.
-     */
-    val fetchNextIterator = call("fetchNextIterator", FindByStringId.serializer(), ListSerializer(Principal.serializer()), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"iterator"
-                +"next"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val closeIterator = call("closeIterator", FindByStringId.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"iterator"
-                +"close"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+    val updateOptionalUserInfo = call("updateOptionalUserInfo", OptionalUserInformation.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        audit(Unit.serializer())
+        httpUpdate(baseContext, "optionalInfo")
     }
 }

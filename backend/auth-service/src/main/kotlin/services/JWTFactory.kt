@@ -38,10 +38,8 @@ class JWTFactory(
             is Person -> {
                 withClaim("firstNames", user.firstNames)
                 withClaim("lastName", user.lastName)
-                if (user.orcId != null) withClaim("orcId", user.orcId)
-                if (user.title != null) withClaim("title", user.title)
                 if (user.email != null) withClaim("email", user.email)
-                if (user is Person.ByWAYF) withClaim("orgId", user.organizationId)
+                if (user.organizationId != null) withClaim("orgId", user.organizationId)
                 withClaim("twoFactorAuthentication", if (!disable2faCheck) user.twoFactorAuthentication else true)
                 withClaim(
                     "serviceLicenseAgreement",
@@ -55,8 +53,11 @@ class JWTFactory(
         }
 
         val type = when (user) {
-            is Person.ByWAYF -> "wayf"
-            is Person.ByPassword -> "password"
+            // NOTE(Dan): Backwards compatibility
+            is Person -> {
+                if (user.connections.isNotEmpty()) "wayf"
+                else "password"
+            }
             is ServicePrincipal -> "service"
             is ProviderPrincipal -> "provider"
             else -> error("Unknown principal type: $user")
