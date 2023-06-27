@@ -312,7 +312,6 @@ class ProductService(
         actorAndProject: ActorAndProject,
         request: ProductsV2BrowseRequest
     ): PageV2<Pair<ProductV2,Long?>> {
-        println("browsing")
         return db.withSession { session ->
             val itemsPerPage = request.normalize().itemsPerPage
             val rows = session.sendPreparedStatement(
@@ -369,23 +368,17 @@ class ProductService(
                     limit $itemsPerPage;
                 """
             ).rows
-            println("mappiung")
             val result = rows.mapNotNull {
                 val product = defaultMapper.decodeFromString(ProductV2.serializer(), it.getString(0)!!)
-                println(product)
                 val balance = if (request.includeBalance == true) {
                     val owner = actorAndProject.project ?: actorAndProject.actor.safeUsername()
-                    println(owner)
                     val usage = processor.retrieveUsageFromProduct(owner, ProductCategoryIdV2(product.category.name, product.category.provider))
                         ?: return@mapNotNull null
-                        println("M")
                     val quota = processor.retrieveWalletsInternal(AccountingRequest.RetrieveWalletsInternal(Actor.System, owner))
                         .wallets.find { wallet -> ProductCategoryIdV2(wallet.paysFor.name, wallet.paysFor.provider) == ProductCategoryIdV2(product.category.name, product.category.provider) }
                         ?.allocations
                         ?.sumOf { allocation -> allocation.quota }
                         ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "missing wallet")
-                    println(quota)
-                    println(usage)
                     quota - usage
                 } else {null}
                 return@mapNotNull Pair(product,balance)

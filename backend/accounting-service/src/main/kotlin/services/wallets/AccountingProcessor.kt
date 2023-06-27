@@ -442,7 +442,7 @@ class AccountingProcessor(
     private val responses = MutableSharedFlow<AccountingResponse>(replay = 16)
     private var requestIdGenerator = AtomicLong(0)
 
-    private val dirtyTransactions = ArrayList<Transaction>()
+    private val dirtyTransactions = ArrayList<UsageReport.AllocationHistoryEntry>()
     private var nextSynchronization = 0L
     private val transactionPrefix = UUID.randomUUID()
     private val transactionCounter = AtomicLong(0)
@@ -1000,6 +1000,7 @@ class AccountingProcessor(
 
             }
 
+            calculateFullTreeUsage()
             //This check only runs with debug=true
             //TODO(HENRIK)
             //verifyFromTransactions()
@@ -1285,6 +1286,7 @@ class AccountingProcessor(
         //Traverses from leafs towards top.
         for (currentAlloc in sortedAndReversedList) {
             currentAlloc.treeUsage = min((currentAlloc.treeUsage ?: 0) + currentAlloc.localUsage, currentAlloc.quota)
+            currentAlloc.isDirty = true
             if (currentAlloc.parentAllocation != null) {
                 val parent = allocations[currentAlloc.parentAllocation]
                     ?: throw RPCException.fromStatusCode(
@@ -1292,6 +1294,7 @@ class AccountingProcessor(
                         "Allocation has parent error"
                     )
                 parent.treeUsage = min((parent.treeUsage ?: 0) + currentAlloc.treeUsage!!, parent.quota)
+                parent.isDirty = true
             }
         }
     }
@@ -1304,12 +1307,10 @@ class AccountingProcessor(
             return AccountingResponse.Error("Only UCloud administrators can perform a root deposit", 403)
         }
 
-        println("checking wallet. finding ${request.owner}, ${request.productCategory}")
         val existingWallet = findWallet(request.owner, request.productCategory)
             ?: createWallet(request.owner, request.productCategory)
             ?: return AccountingResponse.Error("Unknown product category.", 400)
 
-        println("creating allocation")
         val created = createAllocation(
             existingWallet.id,
             request.amount,
@@ -1320,25 +1321,22 @@ class AccountingProcessor(
             canAllocate = true,
             allowSubAllocationsToAllocate = true
         ).id
-        println("Allocation $created is created")
 
         val transactionId = transactionId()
         dirtyTransactions.add(
-            Transaction.Deposit(
-                null,
-                request.startDate,
-                request.endDate,
-                request.amount,
-                "_ucloud",
-                "Root deposit",
+            UsageReport.AllocationHistoryEntry(
                 created.toString(),
-                System.currentTimeMillis(),
-                request.productCategory,
-                transactionId,
+                Time.now(),
+                UsageReport.Balance(
+                    0,
+                    0,
+                    request.amount
+                ),
+                UsageReport.HistoryAction.DEPOSIT,
                 transactionId
             )
         )
-        println("transaction done")
+
         if (request.forcedSync) {
             attemptSynchronize(forced = true)
         }
@@ -1403,20 +1401,17 @@ class AccountingProcessor(
             allowSubAllocationsToAllocate = if (request.isProject) parent.allowSubAllocationsToAllocate else false,
         ).id
 
-        val now = System.currentTimeMillis()
         val transactionId = transactionId()
         dirtyTransactions.add(
-            Transaction.Deposit(
-                null,
-                notBefore,
-                request.notAfter,
-                request.amount,
-                request.actor.safeUsername(),
-                "Deposit",
+            UsageReport.AllocationHistoryEntry(
                 created.toString(),
-                now,
-                ProductCategoryIdV2(parentWallet.paysFor.name, parentWallet.paysFor.provider),
-                transactionId,
+                Time.now(),
+                UsageReport.Balance(
+                    0,
+                    0,
+                    request.amount,
+                ),
+                UsageReport.HistoryAction.DEPOSIT,
                 transactionId
             )
         )
@@ -1486,14 +1481,13 @@ class AccountingProcessor(
         )
     }
     private suspend fun deltaCharge(request: AccountingRequest.Charge.DeltaCharge): AccountingResponse {
-        println("DELTACHARGE: $request")
         val productCategory = productcategories.retrieveProductCategory(request.productCategory)
             ?: return AccountingResponse.Error("No matching productCategory", 400)
         val wallet = wallets.find {
             it?.owner == request.owner &&
                 (it.paysFor?.provider == request.productCategory.provider &&
                     it.paysFor.name == request.productCategory.name)
-        }?.toApiWallet() ?: return AccountingResponse.Error("No matching wallet", 400)
+        }?.toApiWallet() ?: return AccountingResponse.Charge(false)
 
         return if (productCategory.isPeriodic()) {
             applyPeriodCharge(request.usage, wallet.allocations, request.description)
@@ -1513,7 +1507,7 @@ class AccountingProcessor(
             it?.owner == request.owner &&
                 (it.paysFor.provider == request.productCategory.provider &&
                     it.paysFor.name == request.productCategory.name)
-        }?.toApiWallet() ?: return AccountingResponse.Error("No matching wallet", 400)
+        }?.toApiWallet() ?: return AccountingResponse.Charge(false)
         return if (productCategory.isPeriodic()) {
             var currentUsage = 0L
             for (allocation in wallet.allocations) {
@@ -1533,7 +1527,25 @@ class AccountingProcessor(
             val parent = allocations[allocation.parentAllocation] ?: return false
             parent.begin()
             parent.treeUsage = min((parent.treeUsage ?: parent.localUsage) + delta, parent.quota)
+            parent.isDirty = true
             parent.commit()
+
+            val transactionId = transactionId()
+            dirtyTransactions.add(
+                UsageReport.AllocationHistoryEntry(
+                    parent.id.toString(),
+                    Time.now(),
+                    UsageReport.Balance(
+                        parent.treeUsage!!,
+                        parent.localUsage,
+                        parent.quota
+                    ),
+                    //TODO(Henrik) Should be more flexible
+                    //Currently only charges hitting this code
+                    UsageReport.HistoryAction.CHARGE,
+                    transactionId
+                )
+            )
             return if (parent.parentAllocation == null) {
                 true
             } else {
@@ -1553,13 +1565,27 @@ class AccountingProcessor(
             (internalWalletAllocation.treeUsage ?: internalWalletAllocation.localUsage) + delta,
             internalWalletAllocation.quota
         )
+        internalWalletAllocation.isDirty = true
         internalWalletAllocation.commit()
-        //In case of overcharge, only propegate the part of delta that is need to hit quota. Parents should not pay for
+        val transactionId = transactionId()
+        dirtyTransactions.add(
+            UsageReport.AllocationHistoryEntry(
+                internalWalletAllocation.id.toString(),
+                Time.now(),
+                UsageReport.Balance(
+                    internalWalletAllocation.treeUsage ?: internalWalletAllocation.localUsage,
+                    internalWalletAllocation.localUsage,
+                    internalWalletAllocation.quota
+                ),
+                UsageReport.HistoryAction.CHARGE,
+                transactionId
+            )
+        )
+        //In case of overcharge, only propagate the part of delta that is need to hit quota. Parents should not pay for
         // overconsumption
         if (willOvercharge) {
             val remainingDelta = internalWalletAllocation.quota - (internalWalletAllocation.localUsage - delta)
             if (!updateParentTreeUsage(internalWalletAllocation, remainingDelta)) {
-                println("returning false on update")
                 return false
             }
         }
@@ -1567,7 +1593,6 @@ class AccountingProcessor(
             return true
         }
         if (!updateParentTreeUsage(internalWalletAllocation, delta)) {
-            println("returning false on update")
             return false
         }
         return true
@@ -1656,7 +1681,6 @@ class AccountingProcessor(
             val oldValue = alloc.localUsage
             val quota = alloc.quota
             var diff = -oldValue
-            println("FIRST $diff")
             alloc.localUsage = 0L
             if (activeAllocations.contains(allocation.id)) {
                 val weight = allocation.quota.toDouble() / activeQuota.toDouble()
@@ -1665,17 +1689,27 @@ class AccountingProcessor(
                 if (diff < 0 && abs(diff) > quota) {
                     diff = diff + quota
                 }
-                println("MID: $diff")
-                println(toCharge)
                 alloc.localUsage = toCharge
                 alloc.treeUsage = (alloc.treeUsage ?: alloc.localUsage) + min(diff, alloc.quota)
                 totalCharged += toCharge
             }
             alloc.commit()
-            println("HELLO $diff")
+            val transactionId = transactionId()
+            dirtyTransactions.add(
+                UsageReport.AllocationHistoryEntry(
+                    allocation.id,
+                    Time.now(),
+                    UsageReport.Balance(
+                        allocation.treeUsage ?: allocation.localUsage,
+                        allocation.localUsage,
+                        allocation.quota
+                    ),
+                    UsageReport.HistoryAction.CHARGE,
+                    transactionId
+                )
+            )
             updateParentTreeUsage(alloc, min(diff, alloc.quota))
         }
-        println("totalCharged: $totalCharged, totalUsage: $totalUsage")
         if (totalCharged != totalUsage) {
             val difference = totalUsage - totalCharged
             val amountPerAllocation = difference / activeAllocations.size
@@ -1695,6 +1729,21 @@ class AccountingProcessor(
                         "Internal Error in charging remaining of non-periodic", 500
                     )
                 }
+                val transactionId = transactionId()
+                val internalAllocation = allocations[allocation.toInt()]!!
+                dirtyTransactions.add(
+                    UsageReport.AllocationHistoryEntry(
+                        internalAllocation.id.toString(),
+                        Time.now(),
+                        UsageReport.Balance(
+                            internalAllocation.treeUsage ?: internalAllocation.localUsage,
+                            internalAllocation.localUsage,
+                            internalAllocation.quota
+                        ),
+                        UsageReport.HistoryAction.CHARGE,
+                        transactionId
+                    )
+                )
             }
             return AccountingResponse.Charge(false)
         }
@@ -1758,20 +1807,18 @@ class AccountingProcessor(
         if (request.notAfter != null) {
             allocation.notAfter = request.notAfter
         }
-        //TODO(HENRIK) CHANGE TRNASAXCRTION
         val transactionId = transactionId()
         dirtyTransactions.add(
-            Transaction.AllocationUpdate(
-                startDate = allocation.notBefore,
-                endDate = allocation.notAfter,
-                change = allocation.quota - allocation.beginQuota,
-                actionPerformedBy = request.actor.safeUsername(),
-                description = "Allocation update",
-                affectedAllocationId = allocation.id.toString(),
-                timestamp = System.currentTimeMillis(),
-                resolvedCategory = ProductCategoryIdV2(wallet.paysFor.name, wallet.paysFor.provider),
-                initialTransactionId = transactionId,
-                transactionId = transactionId,
+            UsageReport.AllocationHistoryEntry(
+                allocation.id.toString(),
+                Time.now(),
+                UsageReport.Balance(
+                    allocation.treeUsage ?: allocation.localUsage,
+                    allocation.localUsage,
+                    allocation.quota
+                ),
+                UsageReport.HistoryAction.UPDATE,
+                transactionId
             )
         )
 
@@ -2127,83 +2174,38 @@ class AccountingProcessor(
                     session.sendPreparedStatement(
                         {
                             chunk.split {
-                                into("types") {
-                                    when (it) {
-                                        is Transaction.AllocationUpdate -> "allocation_update"
-                                        is Transaction.Charge -> "charge"
-                                        is Transaction.Deposit -> "deposit"
-                                    }
-                                }
 
-                                into("affected_allocations") { it.affectedAllocationId.toLong() }
-                                into("performed_by") { it.actionPerformedBy }
-                                into("changes") { it.change }
-                                into("descriptions") { it.description }
-                                into("source_allocations") {
-                                    when (it) {
-                                        is Transaction.Deposit -> it.sourceAllocationId
-                                        is Transaction.Charge -> it.sourceAllocationId
-                                        is Transaction.AllocationUpdate -> null
-                                    }
-                                }
-                                into("product_ids") {
-                                    if (it is Transaction.Charge) it.productId else null
-                                }
-                                into("periods") {
-                                    if (it is Transaction.Charge) it.periods else null
-                                }
-                                into("units") {
-                                    if (it is Transaction.Charge) it.units else null
-                                }
-                                into("start_dates") {
-                                    when (it) {
-                                        is Transaction.Deposit -> it.startDate
-                                        is Transaction.Charge -> null
-                                        is Transaction.AllocationUpdate -> it.startDate
-                                    }
-                                }
-                                into("end_dates") {
-                                    when (it) {
-                                        is Transaction.Deposit -> it.endDate
-                                        is Transaction.Charge -> null
-                                        is Transaction.AllocationUpdate -> it.endDate
-                                    }
-                                }
+                                into("affected_allocations") {it.allocationId}
+                                into("new_usages") {it.balance.localUsage}
+                                into("new_treeusages") {it.balance.treeUsage}
+                                into("new_quotas") { it.balance.quota}
+                                into("timestamps") {it.timestamp}
                                 into("transaction_ids") { it.transactionId }
-                                into("initial_transaction_ids") { it.initialTransactionId }
+                                into("actions") {it.relatedAction.toString()}
                             }
                         },
                         """
-                            insert into accounting.transactions
-                                (type, created_at, affected_allocation_id, action_performed_by, change, description, 
-                                 source_allocation_id, product_id, periods, units, start_date, end_date, transaction_id, 
-                                 initial_transaction_id) 
+                            insert into accounting.transaction_history
+                                (transaction_id, created_at, affected_allocation, new_tree_usage, new_local_usage, new_quota, action) 
                             select
-                                unnest(:types::accounting.transaction_type[]),
+                                unnest(:transaction_ids::text[]),
                                 now(),
                                 unnest(:affected_allocations::bigint[]),
-                                unnest(:performed_by::text[]),
-                                unnest(:changes::bigint[]),
-                                unnest(:descriptions::text[]),
-                                unnest(:source_allocations::bigint[]),
-                                unnest(:product_ids::bigint[]),
-                                unnest(:periods::bigint[]),
-                                unnest(:units::bigint[]),
-                                to_timestamp(unnest(:start_dates::bigint[]) / 1000),
-                                to_timestamp(unnest(:end_dates::bigint[]) / 1000),
-                                unnest(:transaction_ids::text[]),
-                                unnest(:initial_transaction_ids::text[])
+                                unnest(:new_treeusages::bigint[]),
+                                unnest(:new_usages::bigint[]),
+                                unnest(:new_quotas::bigint[]),
+                                unnest(:actions::text[])
                         """
                     )
                 }
 
-                dirtyTransactions.asSequence().filterIsInstance<Transaction.Deposit>().chunkedSequence(500)
+                dirtyTransactions.asSequence().filter { it.relatedAction == UsageReport.HistoryAction.DEPOSIT }.chunkedSequence(500)
                     .forEach { chunk ->
                         session.sendPreparedStatement(
                             {
                                 chunk.split {
-                                    into("allocations") { it.affectedAllocationId }
-                                    into("balances") { it.change }
+                                    into("allocations") { it.allocationId }
+                                    into("balances") { it.balance.quota }
                                 }
                             },
                             """
@@ -2259,8 +2261,8 @@ class AccountingProcessor(
             }
 
             val depositForProviders = dirtyTransactions.asSequence()
-                .filterIsInstance<Transaction.Deposit>()
-                .map { wallets[allocations[it.affectedAllocationId.toInt()]!!.associatedWallet]!!.paysFor.provider }
+                .filter { it.relatedAction == UsageReport.HistoryAction.DEPOSIT }
+                .map { wallets[allocations[it.allocationId.toInt()]!!.associatedWallet]!!.paysFor.provider }
                 .toSet()
 
             if (depositForProviders.isNotEmpty()) {

@@ -3,6 +3,12 @@ package dk.sdu.cloud.accounting.api
 data class UsageReport(
         val sections: List<Section>
     ) {
+    enum class HistoryAction {
+        CHARGE,
+        DEPOSIT,
+        UPDATE
+    }
+
     data class Section(
         val category: ProductCategoryIdV2,
         val allocationUnit: AccountingUnit,
@@ -22,7 +28,18 @@ data class UsageReport(
         //List of itemized Charge. When a charge is made the provider can supply
         //specifications for the charge. These can be seen here. Since it is not required
         //of the providers to supply this then the amount here will not always add up to the total usage.
-        val details: List<ItemizedCharge>
+        val details: List<ItemizedCharge>,
+
+        //What action is this entry related to? Usage, deposit etc.
+        val transactionId: String
+    )
+
+    data class AllocationHistoryEntry(
+        val allocationId: String,
+        val timestamp: Long,
+        val balance: Balance,
+        val relatedAction: HistoryAction,
+        val transactionId: String
     )
 
     data class AllocationAndBalance(

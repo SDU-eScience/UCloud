@@ -178,24 +178,16 @@ begin
 end
 $$;
 
-create table if not exists transaction_history(
+create table if not exists accounting.transaction_history(
     id bigserial not null primary key,
     transaction_id text not null,
     created_at timestamp not null,
-    affected_allocation bigint not null,
+    affected_allocation bigint not null references accounting.wallet_allocations,
     new_tree_usage bigint,
     new_local_usage bigint,
-    new_quota_usage bigint
+    new_quota bigint,
+    action text
 );
-
-create table if not exists charge_details(
-    id bigserial not null primary key,
-    transaction_id text not null,
-    description text,
-    usage bigint,
-    product_id text
-);
-
 
 create or replace function accounting.require_fixed_price_per_unit_for_diff_quota() returns trigger language plpgsql as $$
 declare
@@ -245,5 +237,39 @@ begin
         raise exception 'Price per unit for free_to_use products can only be 1';
     end if;
     return null;
+end;
+$$;
+
+create or replace function accounting.recreate_product_price_unit(
+    categoryname text,
+    type accounting.product_type
+) returns accounting.product_price_unit language plpgsql as $$
+begin
+    if (type = 'STORAGE'
+        or type = 'INGRESS'
+        or type = 'LICENSE' or
+        type = 'NETWORK_IP'
+    ) then
+        return 'PER_UNIT'::accounting.product_price_unit;
+    end if;
+    if (type = 'COMPUTE' and
+            (categoryname  = 'uc-general'
+            or categoryname  = 'uc-t4'
+            or categoryname  = 'u1-fat'
+            or categoryname  = 'u2-gpu'
+            or categoryname  = 'u1-standard'
+            or categoryname  = 'u1-gpu'
+            or categoryname  = 'uc-a10'
+            or categoryname  = 'syncthing'
+            )
+        ) then
+            return 'CREDIT_PER_MINUTE'::accounting.product_price_unit;
+        end if;
+    if (type = 'COMPUTE' and categoryname  = 'sophia_slim') then
+        return 'UNITS_PER_HOUR'::accounting.product_price_unit;
+    end if;
+    if (type = 'COMPUTE') then
+        return 'UNITS_PER_MINUTE'::accounting.product_price_unit;
+    end if;
 end;
 $$;

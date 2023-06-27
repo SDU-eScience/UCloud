@@ -545,7 +545,7 @@ class AccountingService(
                         change_per_bucket_sum as (
                             select
                                 category, provider, charge_type, product_type, unit_of_price, bucket,
-                                sum(data_point) over (partition by category, provider order by bucket) * -1 as data_point
+                                sum(data_point) over (partition by category, provider order by bucket) * 1 as data_point
                             from change_per_bucket
                             order by provider, category, product_type, unit_of_price, bucket
                         ),
@@ -592,7 +592,7 @@ class AccountingService(
                             select jsonb_build_object(
                                 'type', product_type,
                                 'chargeType', charge_type,
-                                'unit', unit_of_price,
+                                'unit', accounting.recreate_product_price_unit(category, product_type),
                                 'periodUsage', sum(period_usage),
                                 'chart', jsonb_build_object(
                                     'lines', array_agg(jsonb_build_object(
@@ -602,7 +602,7 @@ class AccountingService(
                                 )
                             ) chart
                             from point_aggregation
-                            group by product_type, charge_type, unit_of_price
+                            group by product_type, charge_type, unit_of_price, category
                         ),
                         -- NOTE(Dan): And the charts are combined into a single output for consumption by UCloud/Core.
                         combined_charts as (
@@ -718,7 +718,7 @@ class AccountingService(
                         change_per_bucket_sum as (
                             select
                                 category, provider, charge_type, product_type, unit_of_price, product,
-                                sum(change) * -1 as data_point
+                                sum(change) * 1 as data_point
                             from all_transactions transaction
                             where charge_type = 'ABSOLUTE'
                             group by category, provider, charge_type, product_type, unit_of_price, product
@@ -740,21 +740,21 @@ class AccountingService(
                         -- NOTE(Dan): We use this information to combine entries with rank > 3 into a single entry
                         collapse_others as (
                             select charge_type, product_type, unit_of_price, data_point,
-                                product || ' / ' || category || ' / ' || provider as name
+                                product || ' / ' || category || ' / ' || provider as name, category
                             from ranked_categories
                             where rank <= 3
                             union
-                            select charge_type, product_type, unit_of_price, sum(data_point), 'Other' as name
+                            select charge_type, product_type, unit_of_price, sum(data_point), 'Other' as name, category
                             from ranked_categories
                             where rank > 3
-                            group by charge_type, product_type, unit_of_price
+                            group by charge_type, product_type, unit_of_price, category
                         ),
                         -- NOTE(Dan): Once we have this building the chart is straight-forward
                         chart_aggregation as (
                             select jsonb_build_object(
                                 'type', product_type,
                                 'chargeType', charge_type,
-                                'unit', unit_of_price,
+                                'unit', accounting.recreate_product_price_unit(category, product_type),
                                 'chart', jsonb_build_object(
                                     'points', array_agg(
                                         jsonb_build_object(
@@ -765,7 +765,7 @@ class AccountingService(
                                 )
                             ) chart
                             from collapse_others
-                            group by product_type, charge_type, unit_of_price
+                            group by product_type, charge_type, unit_of_price, category
                         ),
                         combined_charts as (
                             select jsonb_build_object('charts', coalesce(array_remove(array_agg(chart), null), array[]::jsonb[]))
