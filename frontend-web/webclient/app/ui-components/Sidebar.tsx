@@ -48,7 +48,7 @@ import {useNavigate} from "react-router";
 import JobsApi, {Job, jobStateToIconAndColor} from "@/UCloud/JobsApi";
 import {ProjectLinks} from "@/Project/ProjectLinks";
 import {ResourceLinks} from "@/Resource/ResourceOptions";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import Relative from "./Relative";
 import Absolute from "./Absolute";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
@@ -387,16 +387,12 @@ export function Sidebar(): JSX.Element | null {
     if (useFrameHidden()) return null;
     if (!loggedIn) return null;
 
-
-
-
     const sidebar: MenuElement[] = sidebarEntries.filter(it => it.predicate())
         .flatMap(category => category.items.filter((it: MenuElement) => it?.show?.() ?? true));
 
-
     return (
         <div style={{display: "flex"}}>
-            <div className={SidebarContainerClass + " " + SIDEBAR_IDENTIFIER}>
+            <div className={classConcat(SidebarContainerClass, SIDEBAR_IDENTIFIER)}>
                 <Link data-component={"logo"} to="/">
                     <Icon name="logoEsc" mt="10px" size="34px" />
                 </Link>
@@ -560,14 +556,10 @@ function SecondarySidebar({
                         {drives.data.items.map(it =>
                             <Link key={it.id} to={`/files?path=${it.id}`}>
                                 <Flex>
-                                    <Truncate fontSize="14px" title={it.specification.title} maxWidth={"140px"} color="var(--fixedWhite)">
-                                        <Icon size={12} mr="4px" name="hdd" color="#fff" color2="#fff" />
+                                    <Box mt="1px" mr="4px"><ProviderLogo providerId={it.specification.product.provider} size={20} /></Box>
+                                    <Truncate fontSize="14px" title={it.specification.title} maxWidth={"150px"} color="var(--fixedWhite)">
                                         {it.specification.title}
                                     </Truncate>
-
-                                    <Flex ml="auto" mr="5px" my="auto">
-                                        <ProviderLogo providerId={it.specification.product.provider} size={20} />
-                                    </Flex>
                                 </Flex>
                             </Link>
                         )}
