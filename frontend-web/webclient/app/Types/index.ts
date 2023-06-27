@@ -58,17 +58,3 @@ export type Error<T> = PayloadAction<T, {error?: string, statusCode?: number}>;
 declare global {
     export interface PayloadAction<Act, T> extends Action<Act> {payload: T;}
 }
-
-export interface PredicatedOperation<T> {
-    predicate: (listItems: T[], client: HttpClient) => boolean;
-    onTrue: Operation<T>;
-    onFalse: Operation<T>;
-}
-
-export interface Operation<T> {
-    text: string;
-    onClick: (listItems: T[], client: HttpClient) => void;
-    disabled: (listItems: T[], client: HttpClient) => boolean;
-    icon: IconName;
-    color?: ThemeColor;
-}

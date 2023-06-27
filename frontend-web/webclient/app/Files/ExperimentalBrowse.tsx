@@ -8,10 +8,8 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {
     addContextSwitcherInPortal,
     checkIsWorkspaceAdmin,
-    div,
     EmptyReasonTag,
     Filter,
-    image,
     OperationOrGroup,
     placeholderImage,
     ResourceBrowseFeatures,
@@ -51,6 +49,7 @@ import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {setPopInChild} from "@/ui-components/PopIn";
 import AppRoutes from "@/Routes";
+import {div, image} from "@/Utilities/HTMLUtilities";
 
 // Cached network data
 // =====================================================================================================================

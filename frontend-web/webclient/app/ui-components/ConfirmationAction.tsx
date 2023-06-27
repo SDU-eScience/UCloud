@@ -1,11 +1,13 @@
 import * as React from "react";
 import {Button} from "@/ui-components/index";
 import {CSSProperties, useCallback, useLayoutEffect, useRef, useState} from "react";
-import {ButtonProps} from "@/ui-components/Button";
+import {ButtonClass, ButtonProps} from "@/ui-components/Button";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {doNothing} from "@/UtilityFunctions";
 import {selectHoverColor, ThemeColor} from "@/ui-components/theme";
-import {injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
+import {div} from "@/Utilities/HTMLUtilities";
+//import {div} from "./ResourceBrowser";
 
 const ConfirmButtonClass = injectStyle("confirm-button", k => `
     ${k} {
@@ -383,3 +385,135 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         )}
     </Button>;
 };
+
+export function ConfirmationButtonPlainHTML(
+    icon: HTMLDivElement,
+    text: {actionText?: string, doneText?: string},
+    opts: {align?: "left" | "center", asSquare?: boolean}
+): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.className = classConcat(ButtonClass, ConfirmButtonClass);
+
+    let timeout = -1;
+    let timer = 0;
+    let wasReset = false;
+    const TEMP_STARTED_KEY = Math.random() + new Date().getTime();
+
+    function end() {
+        button.classList.remove("process");
+        if (timeout !== -1) {
+            clearTimeout(timeout);
+            timeout = window.setTimeout(countUp, tickRate);
+        }
+
+        if (timer > holdToConfirmTime - shakeDelta && !wasReset) {
+            for (let i = 0; i < button.children.length; i++) {
+                button.children.item(i)?.classList.add("shaking");
+            }
+            const firstLi = button.querySelector("li");
+            if (firstLi) firstLi.innerText = "Hold to confirm"
+            setTimeout(() => {
+                if (firstLi) firstLi.innerText = text.actionText ?? "";
+                for (let i = 0; i < button.children.length; i++) {
+                    button.children.item(i)?.classList.remove("shaking");
+                }
+            }, holdToConfirmTime - shakeDelta);
+        }
+        startedMap[TEMP_STARTED_KEY] = false;
+        wasReset = false;
+    }
+
+    function start() {
+        if (button.classList.contains("process")) return;
+        if (timeout !== -1) {
+            window.clearTimeout(timeout);
+            timeout = -1;
+        }
+
+        if (button.classList.contains("success")) {
+            wasReset = true;
+        }
+
+        button.classList.remove("success");
+        button.classList.add("process");
+        startedMap[TEMP_STARTED_KEY] = true;
+        timeout = window.setTimeout(success, tickRate);
+    }
+
+    function countUp() {
+        timer += tickRate;
+        if (timer >= holdToConfirmTime) {
+            timer = holdToConfirmTime;
+        } else {
+            timeout = window.setTimeout(countUp, tickRate);
+        }
+    }
+
+    function success() {
+        timer -= tickRate;
+        if (timer <= 0) {
+            button.classList.add("success");
+            timeout = window.setTimeout(countUp, tickRate);
+            setTimeout(() => {
+                prompt("onAction?.()");
+                end();
+            }, actionDelay);
+        } else {
+            timeout = window.setTimeout(success, tickRate);
+        }
+    }
+
+    button.onmousedown = start;
+    button.ontouchstart = start;
+    button.onmouseleave = () => {if (startedMap[TEMP_STARTED_KEY]) end();}
+    button.onmouseup = end;
+    button.ontouchend = end;
+    button.onclick = doNothing;
+    button.type = "button";
+
+    if (icon) {
+        icon.className = "ucloud-native-icons";
+        const image = document.createElement("img");
+        image.style.height = "20px";
+        image.style.width = "20px";
+        image.style.marginBottom = "3px";
+        icon.append(image);
+        button.append(icon);
+    }
+
+    const icons = div(`
+        <svg className="progress" viewBox="0 0 32 32">
+            <circle r="8" cx="16" cy="16" />
+        </svg>
+        <svg className="tick" viewBox="0 0 24 24">
+            <polyline points="18,7 11,16 6,12" />
+        </svg>
+    `);
+
+    icons.className = "icons";
+    button.append(icons);
+
+    if (text.actionText) {
+        const ul = document.createElement("ul");
+        const ulStyle: CSSProperties = {};
+        if (opts.align === "left" && opts.asSquare) ulStyle.marginLeft = "34px";
+        if (opts.align !== "left") {
+            ul.style.textAlign = "center";
+        } else {
+            ul.style.textAlign = "left";
+        }
+
+        const actionTextLi = document.createElement("li");
+        actionTextLi.innerText = text.actionText;
+        ul.append(actionTextLi);
+        const holdToConfirmLi = document.createElement("li");
+        holdToConfirmLi.innerText = "Hold to confirm";
+        ul.append(holdToConfirmLi);
+        const doneTextLi = document.createElement("li");
+        doneTextLi.innerText = text.doneText ?? "Done";
+        ul.append(doneTextLi);
+    }
+
+
+    return button;
+}

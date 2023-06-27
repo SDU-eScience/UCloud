@@ -21,7 +21,9 @@ import {Product, ProductType} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
-import api, {isAdminOrPI} from "@/Project/Api";
+import {isAdminOrPI} from "@/Project/Api";
+import {div, image} from "@/Utilities/HTMLUtilities";
+import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 
 /*
  BUGS FOUND
@@ -1260,7 +1262,7 @@ export class ResourceBrowser<T> {
         const renderOpIconAndText = (
             op: OperationOrGroup<unknown, unknown>,
             element: HTMLElement,
-            shortcut?: string,
+            shortcut?: string
         ) => {
             {
                 // Set the icon
@@ -3083,21 +3085,6 @@ export class ResourceBrowser<T> {
         this.icons.renderIcon({color: "black", color2: "iconColor2", height: 32, width: 32, name: icon}).then(it => c.src = it);
         return c;
     }
-}
-
-export function div(html: string): HTMLDivElement {
-    const elem = document.createElement("div");
-    elem.innerHTML = html;
-    return elem;
-}
-
-export function image(src: string, opts?: {alt?: string; height?: number; width?: number;}): HTMLImageElement {
-    const result = new Image();
-    result.src = src;
-    result.alt = opts?.alt ?? "Icon";
-    if (opts?.height != null) result.height = opts.height;
-    if (opts?.width != null) result.width = opts.width;
-    return result;
 }
 
 export function getFilterStorageValue(namespace: string, key: string): string | null {

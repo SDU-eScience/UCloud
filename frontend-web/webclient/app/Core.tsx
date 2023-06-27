@@ -86,7 +86,6 @@ import {ExperimentalSSHKey} from "./Applications/SshKeys/ExperimentalBrowse";
 import {ExperimentalLicenses} from "./Applications/ExperimentalLicenses";
 import {ExperimentalPublicLinks} from "./Applications/Ingresses/ExperimentalBrowse";
 import {ExperimentalGrantApplications} from "./Project/Grant/ExperimentalGrantApplications";
-import {FileCollectionBrowse} from "./Files/FileCollections";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 

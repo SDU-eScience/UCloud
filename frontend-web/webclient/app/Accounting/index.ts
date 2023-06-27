@@ -6,8 +6,6 @@ import {BulkRequest, PaginationRequestV2} from "@/UCloud";
 export const UCLOUD_PROVIDER = "ucloud";
 
 export type AccountType = "USER" | "PROJECT";
-/* @deprecated */
-export type ProductArea = ProductType;
 
 export interface ProductCategoryId {
     name: string;
@@ -15,7 +13,7 @@ export interface ProductCategoryId {
     title?: string;
 }
 
-export function productToArea(product: Product): ProductArea {
+export function productToArea(product: Product): ProductType {
     switch (product.type) {
         case "compute": return "COMPUTE";
         case "ingress": return "INGRESS";
@@ -25,7 +23,7 @@ export function productToArea(product: Product): ProductArea {
     }
 }
 
-export function productAreaTitle(area: ProductArea): string {
+export function productAreaTitle(area: ProductType): string {
     switch (area) {
         case "COMPUTE":
             return "Compute";

@@ -2,8 +2,6 @@ import * as React from "react";
 import {useNavigate} from "react-router";
 import {useLayoutEffect, useRef} from "react";
 import {
-    div,
-    image,
     EmptyReasonTag,
     ResourceBrowser,
     ResourceBrowseFeatures,
@@ -28,6 +26,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {image} from "@/Utilities/HTMLUtilities";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProvider<ProductStorage, FileCollectionSupport>>({
