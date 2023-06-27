@@ -2,12 +2,8 @@ package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.auth.api.IdentityProvider
 import dk.sdu.cloud.auth.http.LoginResponder
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.HostInfo
-import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.Micro
@@ -147,7 +143,14 @@ class IdpService(
         organization: String?,
         call: ApplicationCall
     ) {
-        val personOrNull = principalServiceCyclicHack.findByExternalIdentityOrNull(idp, idpIdentity, email)
+        val personOrNull = principalServiceCyclicHack.findByIdpAndTrackInfo(
+            idp,
+            idpIdentity,
+            firstNames,
+            lastNames,
+            email.takeIf { emailVerified },
+            organization,
+        )
         if (personOrNull != null) {
             loginResponderCyclicHack.handleSuccessfulLogin(call, "web", personOrNull)
             return

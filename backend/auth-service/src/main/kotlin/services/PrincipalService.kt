@@ -6,7 +6,6 @@ import dk.sdu.cloud.auth.api.IdentityProviderConnection
 import dk.sdu.cloud.auth.api.OptionalUserInformation
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
-import dk.sdu.cloud.auth.api.ProviderPrincipal
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -231,41 +230,114 @@ class PrincipalService(
         }
     }
 
-    suspend fun findByExternalIdentityOrNull(
+    suspend fun findByIdpAndTrackInfo(
         idp: Int,
         identity: String,
 
+        firstNames: String? = null,
+        lastName: String? = null,
         updatedEmail: String? = null,
+        organization: String? = null,
         ctx: DBContext = db,
     ): Person? {
-        // NOTE(Dan): We no longer automatically change the email. We only use the updated email if we don't already
-        // have one. We do this because the end-user can manually change their email, and we do not want to override
-        // the change everytime they log in. If they need to change the email address, then they can just change it.
+        // NOTE(Dan): We no longer automatically change the email. We do this because the end-user can manually change
+        // their email, and we do not want to override the change everytime they log in. If they need to change the
+        // email address, then they can just change it.
 
         return ctx.withSession { session ->
+            trackIdpInfo(idp, identity, firstNames, lastName, updatedEmail, organization, session)
+
             val username = session.sendPreparedStatement(
                 {
                     setParameter("idp", idp)
                     setParameter("identity", identity)
-                    setParameter("updated_email", updatedEmail)
                 },
                 """
-                    with connected as (
-                        select conn.principal
-                        from auth.idp_connections conn
-                        where
-                            conn.idp = :idp
-                            and conn.provider_identity = :identity
-                    )
-                    update auth.principals p
-                    set email = coalesce(p.email, :updated_email::text)
-                    from connected c
-                    where c.principal = p.uid
-                    returning p.id
+                    select p.id
+                    from
+                        auth.idp_connections conn join
+                        auth.principals p on conn.principal = p.uid
+                    where
+                        conn.idp = :idp
+                        and conn.provider_identity = :identity
                 """
             ).rows.singleOrNull()?.getString(0) ?: return@withSession null
 
             findByUsernameOrNull(username, session) as? Person?
+        }
+    }
+
+    private suspend fun trackIdpInfo(
+        idp: Int,
+        identity: String,
+
+        firstNames: String? = null,
+        lastName: String? = null,
+        email: String? = null,
+        organization: String? = null,
+        ctx: DBContext = db,
+    ) {
+        // NOTE(Dan): This was added after a discussion with Claudio. Since we now allow end-users to change their
+        // contact information, then we want to also be able to keep a record of info from the IdP. We want to do
+        // this because we might want to cross-reference the information between the two if any ambiguity arises
+        // related to a support situation.
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("idp", idp)
+                    setParameter("idp_identity", identity)
+                    setParameter("first_names", firstNames)
+                    setParameter("last_name", lastName)
+                    setParameter("email", email)
+                    setParameter("organization_id", organization)
+                },
+                """
+                    with
+                        connected_user as (
+                            select c.principal
+                            from
+                                auth.idp_connections c
+                            where
+                                c.idp = :idp
+                                and c.provider_identity = :idp_identity
+                        ),
+                        latest_response as (
+                            select
+                                r.first_names,
+                                r.last_name,
+                                r.organization_id,
+                                r.email
+                            from
+                                auth.idp_auth_responses r join
+                                connected_user p on r.associated_user = p.principal
+                            order by r.created_at desc
+                            limit 1
+                        ),
+                        row_to_insert as (
+                            select
+                                :first_names::text first_names,
+                                :last_name::text last_name,
+                                :organization_id::text organization_id,
+                                :email::text email
+                        )
+                    insert into auth.idp_auth_responses(associated_user, idp, idp_identity, first_names, last_name, 
+                        organization_id, email)
+                    select u.principal, :idp, :idp_identity, i.first_names, i.last_name, i.organization_id, i.email
+                    from
+                        row_to_insert i,
+                        connected_user u
+                    where
+                        not exists(
+                            select 1
+                            from latest_response r
+                            where
+                                i.first_names is not distinct from r.first_names
+                                and i.last_name is not distinct from r.last_name
+                                and i.organization_id is not distinct from r.organization_id
+                                and i.email is not distinct from r.email
+                        );
+                """
+            )
         }
     }
 

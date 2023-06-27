@@ -302,8 +302,6 @@ class OpenIdConnect(
                     }
                 }
 
-                // We also fetch some additional information which can be of use to the extensions which performs
-                // mapping and/or user creation.
                 val subject = jwt["sub"]?.takeIf { !it.isNull }?.asString() ?: run {
                     debugSystem.detail(
                         "Rejecting OIDC callback: Missing subject!",

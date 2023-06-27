@@ -194,7 +194,7 @@ export const ChangeOptionalUserDetails: React.FunctionComponent = () => {
                 {field("Full name of organization", "University of Example", orgFullNameRef)}
                 {field("Department", "Department of Examples", departmentRef)}
                 {field("Position", "Professor", positionRef)}
-                {field("Research field", "Experimental examples", researchFieldRef)}
+                {field("Research field(s)", "Experimental examples", researchFieldRef)}
 
                 <Button mt="1em" type="submit" color="green">Update Information</Button>
             </form>

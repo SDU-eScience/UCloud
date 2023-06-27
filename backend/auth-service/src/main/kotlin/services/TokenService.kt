@@ -325,7 +325,7 @@ class TokenService(
 
                 val email = samlRequestProcessor.attributes["mail"]?.firstOrNull()
 
-                val existingPerson = principalService.findByExternalIdentityOrNull(wayfIdp.id, id, email)
+                val existingPerson = principalService.findByIdpAndTrackInfo(wayfIdp.id, id, email)
                 if (existingPerson != null) {
                     return SamlAuthenticationResult.Success(existingPerson)
                 }

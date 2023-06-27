@@ -2,7 +2,8 @@ import * as React from "react";
 import {useLocation} from "react-router";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
-import {Box, Button, ContainerForText, ExternalLink, Input, Label} from "@/ui-components";
+import {Box, Button, Input, Label} from "@/ui-components";
+import {Client} from "@/Authentication/HttpClientInstance";
 import {PropsWithChildren, useEffect, useRef, useState} from "react";
 import {apiRetrieve, useCloudAPI} from "@/Authentication/DataHook";
 import styled from "styled-components";
@@ -35,8 +36,6 @@ const Registration: React.FunctionComponent = props => {
     let message = getQueryParam(location.search, "message");
     let isErrorHint = getQueryParam(location.search, "errorHint") === "true";
 
-    console.log(location.search, sessionId, message, isErrorHint);
-
     const [registration] = useCloudAPI<Registration>(
         {...apiRetrieve({id: sessionId}, "/auth/registration"), unauthenticated: true},
         { sessionId: sessionId ?? "" }
@@ -59,6 +58,11 @@ const Registration: React.FunctionComponent = props => {
         if (registration.data.email) setShowResendButton(true);
     }, [registration]);
 
+    if (Client.isLoggedIn) {
+        window.location.href = "/";
+        return null;
+    }
+
     return <>
         <NonAuthenticatedHeader/>
         <Box mb="72px"/>
@@ -68,6 +72,7 @@ const Registration: React.FunctionComponent = props => {
                 <form action={"/auth/registration/complete"} method={"post"}>
                     <input type={"hidden"} value={sessionId ?? ""} name={"sessionId"} />
 
+                    <h3>Mandatory fields</h3>
                     <Label>
                         First name(s) <MandatoryField/>
                         <Input ref={firstNames} name={"firstNames"} required placeholder={"Example: Jane"}/>
@@ -90,6 +95,9 @@ const Registration: React.FunctionComponent = props => {
                         }
                     </Label>
 
+                    <br/>
+                    <h3>Optional fields</h3>
+
                     <Label>
                         Full name of organization
                         <Input ref={organizationFullName} name={"organizationFullName"} placeholder={"Example: University of Example"}/>
@@ -106,7 +114,7 @@ const Registration: React.FunctionComponent = props => {
                     </Label>
 
                     <Label>
-                        Research field
+                        Research field(s)
                         <Input ref={researchField} name={"researchField"} placeholder={"Example: Experimental examples"}/>
                     </Label>
 
