@@ -40,6 +40,16 @@ private object PodCache {
         val expectedName = idAndRankToPodName(jobId, rank)
         return allPods.get().find { it.metadata?.name == expectedName }
     }
+
+    fun upsertCachedAnnotation(jobId: Long, rank: Int, key: String, value: String) {
+        val pod = findPod(jobId, rank) ?: return
+        val metadata = pod.metadata ?: ObjectMeta()
+        val oldAnnotations = pod.metadata?.annotations ?: JsonObject(emptyMap())
+        val newAnnotations = JsonObject(oldAnnotations + (key to JsonPrimitive(value)))
+
+        metadata.annotations = newAnnotations
+        pod.metadata = metadata
+    }
 }
 
 private object LogCache {
@@ -364,6 +374,11 @@ private data class Pod2Container(
     override suspend fun productCategory(): String? {
         val name = (pod().spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.contentOrNull
         return categoryToSelector.entries.find { it.value == name }?.key ?: name
+    }
+
+    override suspend fun upsertAnnotation(key: String, value: String) {
+        PodCache.upsertCachedAnnotation(internalJobId, rank, key, value)
+        super.upsertAnnotation(key, value)
     }
 
     companion object : Loggable {
