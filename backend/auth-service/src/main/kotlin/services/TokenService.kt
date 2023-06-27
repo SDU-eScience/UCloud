@@ -385,7 +385,8 @@ class TokenService(
         private const val THIRTY_SECONDS_IN_MILLS = 1000 * 60L
         private const val CSRF_TOKEN_SIZE = 64
 
-        private const val alwaysGoToRegistration = true
+        // NOTE(Dan): Switch this to true once we know for sure that we can ask for optional information.
+        private const val alwaysGoToRegistration = false
 
         override val log = logger()
     }

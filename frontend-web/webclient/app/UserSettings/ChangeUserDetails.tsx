@@ -5,6 +5,7 @@ import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {Box, Button, Checkbox, Input, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Feature, hasFeature} from "@/Features";
 
 interface UserDetailsState {
     placeHolderFirstNames: string;
@@ -143,6 +144,8 @@ interface OptionalInfo {
 }
 
 export const ChangeOptionalUserDetails: React.FunctionComponent = () => {
+    if (!hasFeature(Feature.ADDITIONAL_USER_INFO)) return null;
+
     const orgFullNameRef = useRef<HTMLInputElement>(null);
     const departmentRef = useRef<HTMLInputElement>(null);
     const researchFieldRef = useRef<HTMLInputElement>(null);

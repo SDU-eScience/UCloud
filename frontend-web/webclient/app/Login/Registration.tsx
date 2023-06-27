@@ -8,6 +8,7 @@ import {PropsWithChildren, useEffect, useRef, useState} from "react";
 import {apiRetrieve, useCloudAPI} from "@/Authentication/DataHook";
 import styled from "styled-components";
 import {TextSpan} from "@/ui-components/Text";
+import {Feature, hasFeature} from "@/Features";
 
 interface Registration {
     sessionId: string;
@@ -50,10 +51,13 @@ const Registration: React.FunctionComponent = props => {
         firstNames.current!.value = registration.data.firstNames ?? "";
         lastName.current!.value = registration.data.lastName ?? "";
         email.current!.value = registration.data.email ?? "";
-        organizationFullName.current!.value = registration.data.organizationFullName ?? "";
-        department.current!.value = registration.data.department ?? "";
-        researchField.current!.value = registration.data.researchField ?? "";
-        position.current!.value = registration.data.position ?? "";
+
+        if (hasFeature(Feature.ADDITIONAL_USER_INFO)) {
+            organizationFullName.current!.value = registration.data.organizationFullName ?? "";
+            department.current!.value = registration.data.department ?? "";
+            researchField.current!.value = registration.data.researchField ?? "";
+            position.current!.value = registration.data.position ?? "";
+        }
 
         if (registration.data.email) setShowResendButton(true);
     }, [registration]);
@@ -95,29 +99,30 @@ const Registration: React.FunctionComponent = props => {
                         }
                     </Label>
 
-                    <br/>
-                    <h3>Optional fields</h3>
+                    {!hasFeature(Feature.ADDITIONAL_USER_INFO) ? null : <>
+                        <br/>
+                        <h3>Optional fields</h3>
 
-                    <Label>
-                        Full name of organization
-                        <Input ref={organizationFullName} name={"organizationFullName"} placeholder={"Example: University of Example"}/>
-                    </Label>
+                        <Label>
+                            Full name of organization
+                            <Input ref={organizationFullName} name={"organizationFullName"} placeholder={"Example: University of Example"}/>
+                        </Label>
 
-                    <Label>
-                        Department
-                        <Input ref={department} name={"department"} placeholder={"Example: Department of Examples"}/>
-                    </Label>
+                        <Label>
+                            Department
+                            <Input ref={department} name={"department"} placeholder={"Example: Department of Examples"}/>
+                        </Label>
 
-                    <Label>
-                        Position
-                        <Input ref={position} name={"position"} placeholder={"Example: Professor"}/>
-                    </Label>
+                        <Label>
+                            Position
+                            <Input ref={position} name={"position"} placeholder={"Example: Professor"}/>
+                        </Label>
 
-                    <Label>
-                        Research field(s)
-                        <Input ref={researchField} name={"researchField"} placeholder={"Example: Experimental examples"}/>
-                    </Label>
-
+                        <Label>
+                            Research field(s)
+                            <Input ref={researchField} name={"researchField"} placeholder={"Example: Experimental examples"}/>
+                        </Label>
+                    </>}
 
                     <Button type={"submit"}>Finish registration</Button>
                 </form>
