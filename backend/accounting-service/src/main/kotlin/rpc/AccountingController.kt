@@ -257,13 +257,13 @@ class AccountingController(
         }
 
         implement(Visualization.retrieveUsage) {
-            val charts = accounting.retrieveUsage(actorAndProject, request)
+            val charts = accounting.retrieveUsageV2(actorAndProject, request)
 
             ok(charts)
         }
 
         implement(Visualization.retrieveBreakdown) {
-            ok(accounting.retrieveBreakdown(actorAndProject, request))
+            ok(accounting.retrieveBreakdownV2(actorAndProject, request))
         }
 
         implement(Transactions.browse) {

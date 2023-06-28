@@ -17,8 +17,8 @@ create table if not exists accounting.accounting_unit_conversions (
 		foreign key (product_category) references accounting.product_categories
 );
 
-alter table accounting.product_categories add column accounting_unit bigint;
-alter table accounting.product_categories add column accounting_frequency text;
+alter table accounting.product_categories add column if not exists accounting_unit bigint;
+alter table accounting.product_categories add column if not exists accounting_frequency text;
 
 --Insert Frequency
 with insert_units as (
