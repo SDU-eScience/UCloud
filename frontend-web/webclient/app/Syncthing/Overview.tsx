@@ -8,7 +8,6 @@ import {default as ReactModal} from "react-modal";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {Label, Input, Image, Box, Flex, Tooltip, Icon, Text, Button, ExternalLink, FtIcon, List} from "@/ui-components";
 import MainContainer from "@/MainContainer/MainContainer";
 import HighlightedCard from "@/ui-components/HighlightedCard";
@@ -413,7 +412,6 @@ export const Overview: React.FunctionComponent = () => {
 
     useTitle("File Synchronization");
     useRefreshFunction(reload);
-    useSidebarPage(SidebarPages.Files);
 
     let main: JSX.Element;
     if (uiState.devices !== undefined && uiState.devices.length === 0) {

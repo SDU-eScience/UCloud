@@ -8,7 +8,6 @@ import {
     ResourceStatus,
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
-import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {Icon} from "@/ui-components";
 import {EnumFilter} from "@/Resource/Filter";
 import {JobBinding} from "@/UCloud/JobsApi";
@@ -45,7 +44,6 @@ class LicenseApi extends ResourceApi<License, ProductLicense, LicenseSpecificati
     LicenseFlags, LicenseStatus, LicenseSupport> {
     routingNamespace = "licenses";
     title = "Software License";
-    page = SidebarPages.Resources;
     productType = "LICENSE" as const;
 
     renderer: ItemRenderer<License> = {

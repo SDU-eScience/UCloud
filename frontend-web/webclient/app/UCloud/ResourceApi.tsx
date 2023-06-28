@@ -2,7 +2,6 @@ import * as UCloud from ".";
 import * as React from "react";
 import {accounting, BulkRequest, BulkResponse, PageV2, PaginationRequestV2} from ".";
 import ProductReference = accounting.ProductReference;
-import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {apiBrowse, apiCreate, apiDelete, apiRetrieve, apiSearch, apiUpdate, InvokeCommand} from "@/Authentication/DataHook";
 import {Operation} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -157,7 +156,6 @@ export abstract class ResourceApi<Res extends Resource,
     public abstract productType?: ProductType;
     public abstract routingNamespace;
     public abstract title: string;
-    public abstract page: SidebarPages;
     public isCoreResource: boolean = false;
     public defaultSortDirection: "ascending" | "descending" = "ascending";
 

@@ -26,7 +26,6 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {NamingField} from "@/UtilityComponents";
 import {doNothing, preventDefault, randomUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import * as Heading from "@/ui-components/Heading";
 import {NavigateFunction, useLocation, useNavigate} from "react-router";
 import {EnumFilterWidget, EnumOption, ResourceFilter, StaticPill} from "@/Resource/Filter";
@@ -741,7 +740,6 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
     if (!isEmbedded) {
         useTitle(api.titlePlural);
         useLoading(commandLoading);
-        useSidebarPage(api.page);
         if (!props.disableSearch) useResourceSearch(api);
     }
 

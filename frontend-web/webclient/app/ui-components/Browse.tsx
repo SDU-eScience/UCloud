@@ -17,7 +17,6 @@ import {useDispatch} from "react-redux";
 import {NavigateFunction, useNavigate} from "react-router";
 import {Box, List} from "@/ui-components/index";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {StickyBox} from "@/ui-components/StickyBox";
 import MainContainer from "@/MainContainer/MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";
@@ -265,7 +264,6 @@ interface StandardListBrowse<T, CB> {
     onSelect?: (item: T) => void;
     onSelectRestriction?: (item: T) => boolean;
     emptyPage?: JSX.Element;
-    sidebarPage?: SidebarPages;
     extraCallbacks?: CB;
     hide?: boolean;
     navigate?: (item: T) => void;
@@ -352,7 +350,6 @@ export function StandardList<T, CB = EmptyObject>(
     if (isMainContainer) {
         useTitle(titlePlural);
         useLoading(commandLoading || loadingRef.current);
-        useSidebarPage(props.sidebarPage ?? SidebarPages.None);
     }
 
 

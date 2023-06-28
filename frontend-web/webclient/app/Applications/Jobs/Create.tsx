@@ -22,7 +22,6 @@ import {displayErrorMessageOrDefault, extractErrorCode, prettierString} from "@/
 import {addStandardDialog, WalletWarning} from "@/UtilityComponents";
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
@@ -267,7 +266,6 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [application, folders, peers, ingress, networks]);
 
-    useSidebarPage(SidebarPages.Runs);
     useTitle(application == null ? `${appName} ${appVersion}` : `${application.metadata.title} ${appVersion}`);
 
     if (applicationResp.loading) return <MainContainer main={<LoadingIcon size={36} />} />;

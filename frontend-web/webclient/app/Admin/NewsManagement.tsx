@@ -12,7 +12,6 @@ import {
 } from "@/ui-components";
 import {DatePicker} from "@/ui-components/DatePicker";
 import * as Heading from "@/ui-components/Heading";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {Spacer} from "@/ui-components/Spacer";
 import {displayErrorMessageOrDefault, stopPropagationAndPreventDefault, capitalized} from "@/UtilityFunctions";
 import {NewsPost} from "@/Dashboard/Dashboard";
@@ -35,7 +34,6 @@ function NewsManagement(): JSX.Element | null {
     const categoryRef = React.useRef<HTMLInputElement>(null);
     const promises = usePromiseKeeper();
 
-    useSidebarPage(SidebarPages.Admin);
     useTitle("News Management");
 
     React.useEffect(() => {

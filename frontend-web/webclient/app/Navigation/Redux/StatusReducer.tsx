@@ -12,7 +12,6 @@ const status = (state: StatusReduxObject = initStatus(), action: StatusActions):
             document.title = `${PRODUCT_NAME} | ${action.payload.title}`;
             return {...state, ...action.payload};
         case SET_STATUS_LOADING:
-        case SET_ACTIVE_PAGE:
             return {...state, ...action.payload};
         default: {
             return state;

@@ -8,7 +8,6 @@ import * as Heading from "@/ui-components/Heading";
 import {Spacer} from "@/ui-components/Spacer";
 import {AppCard, ApplicationCardType, FavoriteApp} from "./Card";
 import * as Pages from "./Pages";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -79,10 +78,9 @@ const ApplicationsOverview: React.FunctionComponent = () => {
     const dispatch = useDispatch();
 
     useTitle("Applications");
-    useSidebarPage(SidebarPages.AppStore);
-    const refresh = () => {
-        setRefreshId(refreshId + 1);
-    };
+    const refresh = useCallback(() => {
+        setRefreshId(id => id + 1);
+    }, []);
     useRefreshFunction(refresh);
 
     const [, invokeCommand] = useCloudCommand();

@@ -7,7 +7,6 @@ import {
     ResourceStatus,
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
-import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {Icon} from "@/ui-components";
 import {EnumFilter} from "@/Resource/Filter";
 import {ItemRenderer} from "@/ui-components/Browse";
@@ -45,7 +44,6 @@ class IngressApi extends ResourceApi<Ingress, ProductIngress, IngressSpecificati
     IngressFlags, IngressStatus, IngressSupport> {
     routingNamespace = "public-links";
     title = "Public Link";
-    page = SidebarPages.Resources;
     productType = "INGRESS" as const;
 
     renderer: ItemRenderer<Ingress> = {

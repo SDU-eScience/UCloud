@@ -2,14 +2,13 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {Avatar} from "@/AvataaarLib";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {MainContainer} from "@/MainContainer/MainContainer";
-import {setActivePage, useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 import PromiseKeeper from "@/PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Box, Button, Flex, Label, Select} from "@/ui-components";
-import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {findAvatarQuery} from "@/Utilities/AvatarUtilities";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import * as Options from "./AvatarOptions";
@@ -19,7 +18,6 @@ type AvataaarModificationStateProps = AvatarType;
 
 interface AvataaarModificationOperations {
     save: (avatar: AvatarType) => void;
-    setActivePage: () => void;
 }
 
 function Modification(props: AvataaarModificationOperations): JSX.Element {
@@ -207,7 +205,6 @@ function AvatarSelect<T1 extends string, T2 extends Object>({
 const mapStateToProps = ({avatar}: ReduxObject): AvataaarModificationStateProps => avatar;
 const mapDispatchToProps = (dispatch: Dispatch): AvataaarModificationOperations => ({
     save: async avatar => dispatch(await saveAvatar(avatar)),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.None))
 });
 
 const defaultAvatar = ({

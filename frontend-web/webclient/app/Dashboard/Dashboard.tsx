@@ -1,15 +1,13 @@
 import {bulkRequestOf, defaultSearch, emptyPage, emptyPageV2, useSearch} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {setActivePage, updatePageTitle} from "@/Navigation/Redux/StatusActions";
+import {updatePageTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Box, Button, Flex, Icon, Link, Markdown, Text} from "@/ui-components";
-import Error from "@/ui-components/Error";
 import * as Heading from "@/ui-components/Heading";
 import List from "@/ui-components/List";
-import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {DashboardOperations, DashboardProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
@@ -552,7 +550,6 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     onInit: () => {
         dispatch(updatePageTitle("Dashboard"));
-        dispatch(setActivePage(SidebarPages.None));
     },
     setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId),
     setAllLoading: loading => dispatch(setAllLoading(loading)),

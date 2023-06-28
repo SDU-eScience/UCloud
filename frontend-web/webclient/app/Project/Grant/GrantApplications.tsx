@@ -15,7 +15,6 @@ import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {useNavigate} from "react-router";
 import {dateToString} from "@/Utilities/DateUtilities";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -71,7 +70,6 @@ export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (p
     }, [applications.data, filters]);
 
     useLoading(applications.loading);
-    useSidebarPage(SidebarPages.Projects);
 
     const onSortUpdated = React.useCallback((dir: "ascending" | "descending", column?: string) => { }, []);
 

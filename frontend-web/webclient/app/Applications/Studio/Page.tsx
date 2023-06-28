@@ -14,9 +14,7 @@ import {ButtonClass} from "@/ui-components/Button";
 import Flex from "@/ui-components/Flex";
 import * as Heading from "@/ui-components/Heading";
 import {HiddenInputField} from "@/ui-components/Input";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import Truncate from "@/ui-components/Truncate";
-import VerticalButtonGroup from "@/ui-components/VerticalButtonGroup";
 import {AppToolLogo} from "../AppToolLogo";
 import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import * as UCloud from "@/UCloud";
@@ -25,7 +23,6 @@ import {Link} from "@/ui-components";
 
 export const Studio: React.FunctionComponent = () => {
     useTitle("Application Studio");
-    useSidebarPage(SidebarPages.Admin);
     usePrioritizedSearch("applications");
 
     const [tools, setToolParameters, toolParameters] = useCloudAPI(

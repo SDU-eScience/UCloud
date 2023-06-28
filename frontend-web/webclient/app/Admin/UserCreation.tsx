@@ -8,7 +8,6 @@ import {Dispatch} from "redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Input, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {defaultErrorHandler} from "@/UtilityFunctions";
 import {UserCreationState} from ".";
 
@@ -61,7 +60,6 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
     const promiseKeeper = usePromiseKeeper();
 
     useTitle("User Creation");
-    useSidebarPage(SidebarPages.Admin);
 
     if (!Client.userIsAdmin) return null;
 

@@ -4,7 +4,6 @@ import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {PageV2} from "@/UCloud";
 import {DateRangeFilter, EnumFilter, FilterWidgetProps, PillProps, ResourceFilter, ValuePill} from "@/Resource/Filter";
 import {capitalized, doNothing, prettierString, timestampUnixMs} from "@/UtilityFunctions";
@@ -112,7 +111,6 @@ const Resources: React.FunctionComponent = () => {
     }, [filters]);
 
     useTitle("Resources");
-    useSidebarPage(SidebarPages.Projects);
     useRefreshFunction(reloadPage);
     useEffect(() => {
         if (filters.filterStartDate != null || filters.filterEndDate != null) {

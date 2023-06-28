@@ -5,7 +5,6 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import MainContainer from "@/MainContainer/MainContainer";
 import {FormBuilder} from "@ginkgo-bioworks/react-json-schema-form-builder";
 import {Text, TextArea, Box, Input, Label, Select, SelectableText, SelectableTextWrapper, Grid, theme} from "@/ui-components";
@@ -171,7 +170,6 @@ const Create: React.FunctionComponent = () => {
         useTitle(title);
         useLoading(latestTemplate.loading || namespace.loading);
         useRefreshFunction(reload);
-        useSidebarPage(SidebarPages.Files);
     }
 
     return <MainContainer

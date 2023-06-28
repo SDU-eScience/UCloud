@@ -13,7 +13,6 @@ import {
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useLayoutEffect, useMemo} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import {useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
@@ -270,7 +269,6 @@ export function ResourceProperties<Res extends Resource>(
     if (props.embedded != true) {
         useTitle(props.api.title);
         useLoading(ownResource.loading);
-        useSidebarPage(props.api.page);
         useRefreshFunction(reload);
         useResourceSearch(api);
     }

@@ -5,7 +5,6 @@ import {useCallback, useMemo} from "react";
 import {ResourceOptions} from "@/Resource/ResourceOptions";
 import {StandardList} from "@/ui-components/Browse";
 import SshKeyApi from "@/UCloud/SshKeyApi";
-import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {Box} from "@/ui-components";
 
 export const SshKeyBrowse: React.FunctionComponent = () => {
@@ -28,7 +27,6 @@ export const SshKeyBrowse: React.FunctionComponent = () => {
         titlePlural={SshKeyApi.titlePlural}
         header={<>{ResourceOptions.SSH_KEYS}</>}
         headerSize={48}
-        sidebarPage={SidebarPages.Resources}
     />
 };
 

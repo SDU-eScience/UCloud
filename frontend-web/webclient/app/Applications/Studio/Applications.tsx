@@ -22,7 +22,6 @@ import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import {clearLogo, uploadLogo} from "@/Applications/api";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useParams} from "react-router";
@@ -121,7 +120,6 @@ export const App: React.FunctionComponent = () => {
     }, [apps.data.items]);
 
     useTitle("Application Studio | Applications");
-    useSidebarPage(SidebarPages.Admin);
     usePrioritizedSearch("applications");
 
     const refresh = useCallback(() => {

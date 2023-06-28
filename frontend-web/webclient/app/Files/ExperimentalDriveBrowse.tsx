@@ -294,9 +294,11 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 // Rendering of rows and empty pages
                 // =========================================================================================================
                 browser.on("renderRow", (drive, row, dims) => {
-                    const pIcon = providerIcon(drive.specification.product.provider)
-                    pIcon.style.marginRight = "8px";
-                    row.title.append(pIcon);
+                    if (drive.specification.product.provider) {
+                        const pIcon = providerIcon(drive.specification.product.provider)
+                        pIcon.style.marginRight = "8px";
+                        row.title.append(pIcon);
+                    }
 
                     const title = browser.defaultTitleRenderer(drive.specification.title, dims)
                     row.title.append(title);

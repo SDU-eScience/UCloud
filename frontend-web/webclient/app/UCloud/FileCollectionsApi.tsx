@@ -8,7 +8,6 @@ import {
     ResourceStatus,
     ResourceUpdate, SortFlags
 } from "./ResourceApi";
-import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {Box, Button, Divider, Icon, Input} from "@/ui-components";
 import * as React from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
@@ -74,7 +73,6 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
     FileCollectionUpdate, FileCollectionFlags, FileCollectionStatus, FileCollectionSupport> {
     routingNamespace = "drives";
     title = "Drive";
-    page = SidebarPages.Files;
     productType = "STORAGE" as const;
 
     renderer: ItemRenderer<FileCollection> = {
@@ -171,6 +169,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         const deleteOperation = baseOperations.find(it => it.tag === DELETE_TAG);
         if (deleteOperation) {
             const enabled = deleteOperation.enabled;
+            deleteOperation.confirm = false;
             deleteOperation.enabled = (selected, cb, all) => {
                 if (selected.find(it => it.specification.product.id === "share")) return false;
                 const isEnabled = enabled(selected, cb, all);

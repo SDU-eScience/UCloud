@@ -5,7 +5,6 @@ import {MainContainer} from "@/MainContainer/MainContainer";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
@@ -250,7 +249,6 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
 
     if (!props.embedded) {
-        useSidebarPage(SidebarPages.Runs);
         useTitle(`Job ${shortUUID(id)}`);
     }
 

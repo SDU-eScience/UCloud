@@ -9,7 +9,6 @@ import {
     ResourceStatus,
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
-import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {Flex, Icon, RadioTile, RadioTilesContainer, Tooltip} from "@/ui-components";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {Product} from "@/Accounting";
@@ -112,7 +111,6 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
     ShareFlags, ShareStatus, ShareSupport> {
     routingNamespace = "shares";
     title = "File Share";
-    page = SidebarPages.Shares;
     productType = "STORAGE" as const;
 
     renderer: ItemRenderer<Share, ResourceBrowseCallbacks<Share>> = {

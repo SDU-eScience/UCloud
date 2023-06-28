@@ -18,7 +18,6 @@ import {MainContainer} from "@/MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {GrantProjectSettings, ProjectLogo, ProjectDescription} from "@/Project/Grant/Settings";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useEffect} from "react";
 import {
@@ -87,7 +86,6 @@ export const ProjectSettings: React.FunctionComponent = () => {
     const project = projectOps.fetch();
 
     useTitle("Project Settings");
-    useSidebarPage(SidebarPages.Projects);
     const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
         {noop: true},
         {enabled: false}

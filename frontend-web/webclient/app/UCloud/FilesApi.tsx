@@ -60,7 +60,6 @@ import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ShareModal} from "@/Files/Shares";
-import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -261,7 +260,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
     public routingNamespace = "files";
     public title = "File";
-    public page = SidebarPages.Files;
     public productType = "STORAGE" as const
 
     public idIsUriEncoded = true;

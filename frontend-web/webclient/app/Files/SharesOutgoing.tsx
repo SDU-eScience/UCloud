@@ -1,6 +1,5 @@
 import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share} from "@/UCloud/SharesApi";
 import {useCallback, useMemo, useRef, useState} from "react";
 import {ItemRow, StandardBrowse} from "@/ui-components/Browse";
@@ -60,7 +59,6 @@ function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
 
 export const SharesOutgoing: React.FunctionComponent = () => {
     useTitle("Shares (Outgoing)");
-    useSidebarPage(SidebarPages.Shares);
     // HACK(Jonas): DISABLE UNTIL ALL SHARES CAN BE SEARCHED
     // useResourceSearch(SharesApi);
 

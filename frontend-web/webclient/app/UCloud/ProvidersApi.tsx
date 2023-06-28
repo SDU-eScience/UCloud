@@ -13,7 +13,6 @@ import {
     ResourceStatus,
     ResourceUpdate,
 } from "@/UCloud/ResourceApi";
-import {SidebarPages} from "@/ui-components/SidebarPagesEnum";
 import {Box, Button, Icon, List, TextArea} from "@/ui-components";
 import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
 import * as Types from "@/Accounting";
@@ -78,7 +77,6 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
     ProviderFlags, ProviderStatus, ProviderSupport> {
     routingNamespace = "providers";
     title = "Provider";
-    page = SidebarPages.Admin;
     productType = undefined;
     isCoreResource = true;
 

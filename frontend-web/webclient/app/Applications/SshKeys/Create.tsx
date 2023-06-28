@@ -1,7 +1,6 @@
 import * as React from "react";
 import MainContainer from "@/MainContainer/MainContainer";
 import {ResourceOptions} from "@/Resource/ResourceOptions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import SshKeyApi from "@/UCloud/SshKeyApi";
 import {Box, Button, Divider, Flex, Icon, Input, Label, Markdown, Text, TextArea} from "@/ui-components";
@@ -67,7 +66,6 @@ const GenericTextArea: React.FunctionComponent<GenericInputFieldProps> = props =
 
 export const SshKeysCreate: React.FunctionComponent = () => {
     useTitle(SshKeyApi.titlePlural);
-    useSidebarPage(SidebarPages.Resources);
 
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);

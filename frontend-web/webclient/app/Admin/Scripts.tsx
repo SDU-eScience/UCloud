@@ -10,7 +10,6 @@ import {Flex, Icon, List} from "@/ui-components";
 import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
 import {Operation, Operations} from "@/ui-components/Operation";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {formatDistanceToNow} from "date-fns";
@@ -59,7 +58,6 @@ const Scripts: React.FunctionComponent = () => {
         toggleSet.uncheckAll();
     }, []);
 
-    useSidebarPage(SidebarPages.Admin);
     useTitle("Scripts");
     useRefreshFunction(reload);
     useEffect(() => reload(), [reload]);

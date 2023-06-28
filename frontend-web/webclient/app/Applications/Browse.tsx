@@ -9,7 +9,6 @@ import {
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import * as Pagination from "@/Pagination";
 import * as Heading from "@/ui-components/Heading";
-import {SidebarPages, useSidebarPage} from "@/ui-components/SidebarPagesEnum";
 import {Spacer} from "@/ui-components/Spacer";
 import {getQueryParam, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import * as Pages from "./Pages";
@@ -24,7 +23,6 @@ import {Link} from "@/ui-components";
 
 export const Applications: React.FunctionComponent = () => {
     useTitle("Applications");
-    useSidebarPage(SidebarPages.AppStore);
     usePrioritizedSearch("applications");
     const location = useLocation();
 
