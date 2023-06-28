@@ -1,5 +1,6 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.Simulator.Companion.terminalApplication
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.accounting.api.*
@@ -9,6 +10,7 @@ import dk.sdu.cloud.accounting.services.wallets.AccountingRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.ToolStore
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.avatar.api.AvatarDescriptions
@@ -149,14 +151,14 @@ class Simulator(
             log.debug("   - ${p.id}: ${p.specification.title}")
         }
 
-
-
-        // TODO Approve grant applications
-
-
-        // TODO Start simulation
-
-
+        // Start simulation
+        runBlocking {
+            users.forEach { user ->
+                launch {
+                    user.simulate()
+                }
+            }
+        }
 
             // Force the first user to be a PI (that way allocatePi() will always succeed)
             /*users.add(SimulatedUser(serviceClient, root, this@Simulator, forcePi = true).also { it.initialStep() })
@@ -205,14 +207,14 @@ class Simulator(
         val computeByHours = ProductCategoryId("cpu", "k8")
         val storageByQuota = ProductCategoryId("storage", "k8")
 
-        val simulatedApplication = NameAndVersion("simulated", "1.0.0")
+        val terminalApplication = NameAndVersion("terminal-ubuntu", "0.17.0")
 
         override val log = logger()
     }
 }
 
 private fun ProductCategoryId.toReference(): ProductReference {
-    return ProductReference(name, name, provider)
+    return ProductReference("$name-1", name, provider)
 }
 
 class SimulatedUser(
@@ -412,17 +414,36 @@ class SimulatedUser(
         return joinedProject
     }
 
-    /*suspend fun doStep() {
-        var diceRoll = Random.nextInt(100)
+
+    // Do:
+    //  - Launch terminal app and open terminal
+    //  - Launch visual app and launch interface
+    //  - Copy some files around (maybe)?
+
+    suspend fun simulate() {
+        println("Started simulating $username")
+        while (true) {
+            doStep()
+
+            val delayMillis = Random.nextLong(1000, 5000)
+            delay(delayMillis)
+        }
+        println("Done $username")
+    }
+
+    private suspend fun doStep() {
+        println("Hello from $username")
         fun chance(chance: Int): Boolean {
+            var diceRoll = Random.nextInt(100)
+            log.debug("$username $chance $diceRoll ${diceRoll<=chance}");
             val success = diceRoll <= chance
-            diceRoll -= chance
             return success
         }
 
         when {
             chance(5) -> {
-                if (!hasStorage || !(becomesPi || becomesAdmin)) return
+                /*
+                //if (!hasStorage || !(becomesPi || becomesAdmin)) return
 
                 FileCollections.create.call(
                     bulkRequestOf(
@@ -432,13 +453,15 @@ class SimulatedUser(
                         )
                     ),
                     client
-                ).orThrow()
+                ).orThrow()*/
+                log.debug("$username Did something with 5% chance")
             }
 
             chance(10) -> {
-                if (!hasLinks) return
+                log.debug("$username Did something with 10% chance")
+                //if (!hasLinks) return
 
-                val token = Random.nextBytes(16).encodeBase64()
+                /*val token = Random.nextBytes(16).encodeBase64()
                     .replace("+", "")
                     .replace("=", "")
                     .replace("-", "")
@@ -452,29 +475,34 @@ class SimulatedUser(
                         )
                     ),
                     client
-                ).orThrow()
+                ).orThrow()*/
             }
 
             chance(5) -> {
-                if (!hasLicenses) return
+                log.debug("$username Did something with 5% chance")
+                //if (!hasLicenses) return
 
-                Licenses.create.call(
+                /*Licenses.create.call(
                     bulkRequestOf(
                         LicenseSpecification(Simulator.licenseByQuota.toReference())
                     ),
                     client
-                ).orThrow()
+                ).orThrow()*/
             }
 
-            chance(50) -> {
+
+
+            chance(20) -> {
+                log.debug("$username Starting application ")
                 Jobs.create.call(
                     bulkRequestOf(
                         JobSpecification(
-                            Simulator.simulatedApplication,
-                            if (hasComputeByHours) Simulator.computeByHours.toReference()
-                            else Simulator.computeByCredits.toReference(),
+                            terminalApplication
+                            ,
+                            Simulator.computeByHours.toReference(),
                             parameters = emptyMap(),
                             resources = emptyList(),
+                            timeAllocation = SimpleDuration(1, 0, 0)
                         ),
                     ),
                     client
@@ -485,7 +513,7 @@ class SimulatedUser(
                 // Do nothing
             }
         }
-    }*/
+    }
 
     companion object : Loggable {
         override val log = logger()
