@@ -24,7 +24,7 @@ export function toggleCssColors(light: boolean): void {
  * Sets theme based in input. Either "light" or "dark".
  * @param {boolean} isLightTheme Signifies if the currently selected theme is "light".
  */
-export const setSiteTheme = (isLightTheme: boolean): void => {
+export function setSiteTheme(isLightTheme: boolean): void {
     const lightTheme = isLightTheme ? "light" : "dark";
     toggleCssColors(lightTheme === "light");
     window.localStorage.setItem("theme", lightTheme);
@@ -49,7 +49,7 @@ export function isLightThemeStored(): boolean {
 export const capitalized = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
 export const extensionTypeFromPath = (path: string): ExtensionType => extensionType(extensionFromPath(path));
-export const extensionFromPath = (path: string): string => {
+export function extensionFromPath(path: string): string {
     const splitString = path.split(".");
     return splitString[splitString.length - 1];
 };
@@ -77,7 +77,7 @@ export const commonFileExtensions = [
     "dat", "binary", "rs",
 ];
 
-export const extensionType = (ext: string): ExtensionType => {
+export function extensionType(ext: string): ExtensionType {
     switch (ext.toLowerCase()) {
         case "app":
             return "application";
@@ -187,7 +187,7 @@ export const inRange = ({status, min, max}: {status: number; min: number; max: n
     status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange({status, min: 200, max: 299});
 export const removeTrailingSlash = (path: string): string => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
-export const addTrailingSlash = (path: string): string => {
+export function addTrailingSlash(path: string): string {
     if (!path) return path;
     else return path.endsWith("/") ? path : `${path}/`;
 };

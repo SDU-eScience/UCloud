@@ -238,7 +238,6 @@ const tickRate = 50;
 
 export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     actionText?: string,
-    doneText?: string,
     icon?: IconName,
     align?: "left" | "center",
     onAction?: () => void;
@@ -380,112 +379,140 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
             <ul style={ulStyle}>
                 <li>{showHelp ? "Hold to confirm" : props.actionText}</li>
                 <li>Hold to confirm</li>
-                <li>{props.doneText ?? "Done"}</li>
+                <li>Done</li>
             </ul>
         )}
     </Button>;
 };
+/* 
+<button class="button2 confirm-button40" type="button" style="border-radius: 0px;">
+    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Icon" class="ucloud-native-icons" width="16" height="16" />
+    <div class="icons">
+        <svg classname="progress" viewBox="0 0 32 32">
+            <circle r="8" cx="16" cy="16"></circle>
+        </svg>
+        <svg classname="tick" viewBox="0 0 24 24">
+            <polyline points="18,7 11,16 6,12"></polyline>
+        </svg>
+    </div>
+    <ul style="text-align: center;">
+        <li>Move to trash</li>
+        <li>Hold to confirm</li>
+        <li>Done</li>
+    </ul>
+</button> */
 
 export function ConfirmationButtonPlainHTML(
     icon: HTMLDivElement,
-    text: {actionText?: string, doneText?: string},
-    opts: {align?: "left" | "center", asSquare?: boolean}
-): HTMLButtonElement {
+    actionText: string,
+    action: () => void,
+    opts: {
+        align?: "left" | "center",
+        asSquare?: boolean,
+        color?: string,
+        hoverColor?: string,
+        textColor?: string,
+    },
+): HTMLElement {
     const button = document.createElement("button");
     button.className = classConcat(ButtonClass, ConfirmButtonClass);
+    {
+        button.style.setProperty("--duration", `${holdToConfirmTime}ms`);
+        button.setAttribute("data-no-text", (!actionText).toString());
+        button.style.setProperty("--hoverColor", `var(--${opts.hoverColor ?? selectHoverColor(opts.color ?? "blue")})`)
+        button.style.setProperty("--color", `var(--${opts.textColor ?? "white"})`)
+        button.style.setProperty("--background", `var(--${opts.color})`)
+        button.style.removeProperty("background-color");
+        button.setAttribute("data-attached", "false");
+        button.setAttribute("data-square", (!!opts.asSquare).toString());
+        button.setAttribute("data-fullwidth", "false");
+        button.setAttribute("data-size", "standard");
+    }
 
-    let timeout = -1;
-    let timer = 0;
-    let wasReset = false;
+    button.style.removeProperty("background-color");
+
+    let timeout = {id: -1};
+    let timer = {time: holdToConfirmTime};
+    let wasReset = {state: false};
     const TEMP_STARTED_KEY = Math.random() + new Date().getTime();
 
     function end() {
         button.classList.remove("process");
-        if (timeout !== -1) {
-            clearTimeout(timeout);
-            timeout = window.setTimeout(countUp, tickRate);
+        if (timeout.id !== -1) {
+            window.clearTimeout(timeout.id);
         }
 
-        if (timer > holdToConfirmTime - shakeDelta && !wasReset) {
+        if (timer.time > holdToConfirmTime - shakeDelta && !wasReset) {
             for (let i = 0; i < button.children.length; i++) {
                 button.children.item(i)?.classList.add("shaking");
             }
             const firstLi = button.querySelector("li");
             if (firstLi) firstLi.innerText = "Hold to confirm"
             setTimeout(() => {
-                if (firstLi) firstLi.innerText = text.actionText ?? "";
+                if (firstLi) firstLi.innerText = actionText ?? "";
                 for (let i = 0; i < button.children.length; i++) {
                     button.children.item(i)?.classList.remove("shaking");
                 }
             }, holdToConfirmTime - shakeDelta);
         }
+        timer.time = holdToConfirmTime;
         startedMap[TEMP_STARTED_KEY] = false;
-        wasReset = false;
+        wasReset.state = false;
     }
 
     function start() {
         if (button.classList.contains("process")) return;
-        if (timeout !== -1) {
-            window.clearTimeout(timeout);
-            timeout = -1;
+        if (timeout.id !== -1) {
+            window.clearTimeout(timeout.id);
+            timeout.id = -1;
         }
 
         if (button.classList.contains("success")) {
-            wasReset = true;
+            wasReset.state = true;
         }
 
         button.classList.remove("success");
         button.classList.add("process");
         startedMap[TEMP_STARTED_KEY] = true;
-        timeout = window.setTimeout(success, tickRate);
-    }
-
-    function countUp() {
-        timer += tickRate;
-        if (timer >= holdToConfirmTime) {
-            timer = holdToConfirmTime;
-        } else {
-            timeout = window.setTimeout(countUp, tickRate);
-        }
+        timeout.id = window.setTimeout(success, tickRate);
     }
 
     function success() {
-        timer -= tickRate;
-        if (timer <= 0) {
+        timer.time -= tickRate;
+        if (timer.time <= 0) {
+            debugger;
             button.classList.add("success");
-            timeout = window.setTimeout(countUp, tickRate);
+            timer.time = holdToConfirmTime;
             setTimeout(() => {
-                prompt("onAction?.()");
-                end();
+                action();
             }, actionDelay);
         } else {
-            timeout = window.setTimeout(success, tickRate);
+            timeout.id = window.setTimeout(success, tickRate);
         }
     }
 
     button.onmousedown = start;
     button.ontouchstart = start;
-    button.onmouseleave = () => {if (startedMap[TEMP_STARTED_KEY]) end();}
+    button.onmouseleave = end;
     button.onmouseup = end;
     button.ontouchend = end;
-    button.onclick = doNothing;
+    button.onclick = e => e.stopImmediatePropagation();
     button.type = "button";
+    if (opts.asSquare) button.style.borderRadius = "0";
 
-    if (icon) {
-        icon.className = "ucloud-native-icons";
-        const image = document.createElement("img");
-        image.style.height = "20px";
-        image.style.width = "20px";
-        image.style.marginBottom = "3px";
-        icon.append(image);
-        button.append(icon);
-    }
+    const divEl = document.createElement("div");
+    divEl.className = "ucloud-native-icons";
+    divEl.append(icon);
+    icon.innerHTML = `
+    <svg viewBox="0 0 24 22" xmlns="http://www.w3.org/2000/svg" fill-rule="evenodd" clip-rule="evenodd" fill="currentcolor" data-component="icon-files" width="24" height="24" color2="#8393A7" color="iconColor" class="icon6" data-spin="false" style="color: var(--iconColor); --hoverColor: inherit; cursor: inherit;"><path d="M16.711 4.128H23.4c.33 0 .6.309.6.687v16.5c0 .378-.27.688-.6.688H6.309L16.711 4.128z" fill="#8393A7"></path><path d="M10.8 4.125h5.911L6.309 22H.6c-.33 0-.6-.309-.6-.687V.688C0 .339.229.049.6 0h6.6l3.6 4.125z"></path></svg>
+    `
+    button.append(divEl);
 
     const icons = div(`
-        <svg className="progress" viewBox="0 0 32 32">
+        <svg class="progress" viewBox="0 0 32 32">
             <circle r="8" cx="16" cy="16" />
         </svg>
-        <svg className="tick" viewBox="0 0 24 24">
+        <svg class="tick" viewBox="0 0 24 24">
             <polyline points="18,7 11,16 6,12" />
         </svg>
     `);
@@ -493,27 +520,26 @@ export function ConfirmationButtonPlainHTML(
     icons.className = "icons";
     button.append(icons);
 
-    if (text.actionText) {
-        const ul = document.createElement("ul");
-        const ulStyle: CSSProperties = {};
-        if (opts.align === "left" && opts.asSquare) ulStyle.marginLeft = "34px";
-        if (opts.align !== "left") {
-            ul.style.textAlign = "center";
-        } else {
-            ul.style.textAlign = "left";
-        }
-
-        const actionTextLi = document.createElement("li");
-        actionTextLi.innerText = text.actionText;
-        ul.append(actionTextLi);
-        const holdToConfirmLi = document.createElement("li");
-        holdToConfirmLi.innerText = "Hold to confirm";
-        ul.append(holdToConfirmLi);
-        const doneTextLi = document.createElement("li");
-        doneTextLi.innerText = text.doneText ?? "Done";
-        ul.append(doneTextLi);
+    const ul = document.createElement("ul");
+    const ulStyle: CSSProperties = {};
+    if (opts.align === "left" && opts.asSquare) ulStyle.marginLeft = "34px";
+    if (opts.align !== "left") {
+        ul.style.textAlign = "center";
+    } else {
+        ul.style.textAlign = "left";
     }
 
+    const actionTextLi = document.createElement("li");
+    actionTextLi.innerText = actionText;
+    ul.append(actionTextLi);
+    const holdToConfirmLi = document.createElement("li");
+    holdToConfirmLi.innerText = "Hold to confirm";
+    ul.append(holdToConfirmLi);
+    const doneTextLi = document.createElement("li");
+    doneTextLi.innerText = "Done";
+    ul.append(doneTextLi);
+    button.append(ul);
 
+    console.log(button.outerHTML);
     return button;
 }

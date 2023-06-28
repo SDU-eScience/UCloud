@@ -141,6 +141,10 @@ export function dateRangeFilters(text: string): MultiOptionFilter {
 
 export type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
 
+export function isOperation<T, R>(op: OperationOrGroup<unknown, unknown>): op is Operation<T, R> {
+    return !("operations" in op);
+}
+
 export interface OperationGroup<T, R> {
     icon: IconName;
     text: string;
@@ -1264,30 +1268,55 @@ export class ResourceBrowser<T> {
             element: HTMLElement,
             shortcut?: string
         ) => {
-            {
-                // Set the icon
-                const icon = image(placeholderImage, {height: 16, width: 16, alt: "Icon"});
-                element.append(icon);
-                this.icons.renderIcon({
-                    name: op.icon as IconName,
-                    color: op.color ?? "black",
-                    color2: "iconColor2",
-                    width: 64,
-                    height: 64,
-                }).then(url => icon.src = url);
-                if (op.iconRotation) {
-                    icon.style.transform = `rotate(${op.iconRotation}deg)`;
+            const isConfirmButton = isOperation(op) && op.confirm;
+
+            // Set the icon
+            const icon = image(placeholderImage, {height: 16, width: 16, alt: "Icon"});
+            this.icons.renderIcon({
+                name: op.icon as IconName,
+                color: isConfirmButton ? "fixedBlack" : op.color ?? "black",
+                color2: "iconColor2",
+                width: 64,
+                height: 64,
+            }).then(url => icon.src = url);
+            if (op.iconRotation) {
+                icon.style.transform = `rotate(${op.iconRotation}deg)`;
+            }
+
+            // ...and the text
+            let operationText = "";
+            if (typeof op.text === "string") {
+                operationText = op.text;
+            } else {
+                operationText = op.text(selected, callbacks);
+            }
+
+
+            if (isConfirmButton) {
+                const button = ConfirmationButtonPlainHTML(
+                    icon,
+                    operationText,
+                    () => {
+                        op.onClick(selected, callbacks);
+                        if (useContextMenu) this.closeContextMenu();
+                    },
+                    {asSquare: useContextMenu}
+                );
+
+                if (useContextMenu) {
+                    button.style.width = "100%";
                 }
+
+                element.style.padding = "0";
+                element.append(button);
+                return;
             }
 
             {
-                // ...and the text
-                let operationText = "";
-                if (typeof op.text === "string") {
-                    operationText = op.text;
-                } else {
-                    operationText = op.text(selected, callbacks);
-                }
+                element.append(icon);
+            }
+
+            {
                 if (operationText) element.append(operationText);
                 if (operationText && shortcut) {
                     const shortcutElem = document.createElement("kbd");
@@ -1313,7 +1342,7 @@ export class ResourceBrowser<T> {
                 const itemSize = 40;
                 let opCount = 0;
                 for (const op of operations) {
-                    if ("operations" in op) {
+                    if (!isOperation(op)) {
                         opCount += op.operations.length;
                     } else {
                         opCount++;
@@ -1348,16 +1377,17 @@ export class ResourceBrowser<T> {
             let shortcutNumber = counter;
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             for (const child of operations) {
-                if ("operations" in child) {
+                if (!isOperation(child)) {
                     counter = renderOperationsInContextMenu(child.operations, posX, posY, shortcutNumber, false);
                     continue;
                 }
 
-                const item = document.createElement("li");
+                var item: HTMLElement = document.createElement("li");
                 renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts ? `[${shortcutNumber}]` : undefined);
 
                 const myIndex = shortcutNumber - 1;
                 this.contextMenuHandlers.push(() => {
+                    if (isOperation(child) && child.confirm) return;
                     child.onClick(selected, callbacks, page);
                 });
                 item.addEventListener("mouseover", () => {
@@ -1393,14 +1423,14 @@ export class ResourceBrowser<T> {
                 // ...and the handlers
                 const handler = (ev?: Event) => {
                     ev?.stopPropagation();
-                    if ("operations" in op) {
+                    if (!isOperation(op)) {
                         const elementBounding = element.getBoundingClientRect();
                         renderOperationsInContextMenu(
                             op.operations,
                             elementBounding.left,
                             (elementBounding.top + elementBounding.height),
                         );
-                    } else if ("onClick" in op) {
+                    } else if (isOperation(op)) {
                         op.onClick(selected, callbacks, page);
                     }
                 };
@@ -2426,7 +2456,7 @@ export class ResourceBrowser<T> {
         const ops = this.dispatchMessage("fetchOperations", fn => fn());
         for (const op of ops) {
             let toCheck: Operation<T, unknown>[] = [];
-            if ("operations" in op) {
+            if (!isOperation(op)) {
                 toCheck = op.operations;
             } else {
                 toCheck = [op];

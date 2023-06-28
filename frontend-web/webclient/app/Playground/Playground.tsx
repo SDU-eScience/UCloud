@@ -4,7 +4,7 @@ import {useEffect} from "react";
 import Icon, {EveryIcon} from "@/ui-components/Icon";
 import {Grid, Box, Button, Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
-import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {ConfirmationButton, ConfirmationButtonPlainHTML} from "@/ui-components/ConfirmationAction";
 import {api as ProjectApi, Project, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import BaseLink from "@/ui-components/BaseLink";
@@ -15,9 +15,21 @@ import {useSelector} from "react-redux";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {Toggle} from "@/ui-components/Toggle";
 import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
+import {div} from "@/Utilities/HTMLUtilities";
 
 export const Playground: React.FunctionComponent = () => {
     const [checked, setChecked] = React.useState(false);
+    const confirmationButtonPlainHTMLRef = React.useRef<HTMLDivElement>(null);
+
+    React.useLayoutEffect(() => {
+        const image = div("")
+        image.style.backgroundColor = "black";
+        image.style.color = "black";
+        image.style.backgroundImage = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+        confirmationButtonPlainHTMLRef.current?.append(ConfirmationButtonPlainHTML(image, "Some text", () => console.log("foobar"), {}));
+    }, []);
+
+
     const main = (
         <>
             <UtilityBar searchEnabled operations={[]} callbacks={{}} />
@@ -80,6 +92,7 @@ export const Playground: React.FunctionComponent = () => {
                 ))}
             </Grid>
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
+            <div ref={confirmationButtonPlainHTMLRef} />
             <ProjectPlayground />
         </>
     );
@@ -159,7 +172,7 @@ function SearchThing({enabled}): JSX.Element | null {
 function RefreshThing(): JSX.Element | null {
     const refresh = useSelector((it: ReduxObject) => it.header.refresh);
     const spin = useSelector((it: ReduxObject) => it.loading);
-    const loading = useSelector((it: ReduxObject) =>  it.status.loading);
+    const loading = useSelector((it: ReduxObject) => it.status.loading);
     if (!refresh) return null;
     return <Icon cursor="pointer" size={20} onClick={refresh} spin={spin || loading} hoverColor="blue" color="var(--blue)" name="refresh" />
 }
