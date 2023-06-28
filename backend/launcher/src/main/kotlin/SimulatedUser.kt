@@ -1,48 +1,27 @@
 package dk.sdu.cloud
 
 import dk.sdu.cloud.Simulator.Companion.terminalApplication
-import dk.sdu.cloud.accounting.AccountingService
-import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.api.projects.*
-import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
-import dk.sdu.cloud.accounting.services.wallets.AccountingRequest
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.app.store.api.AppStore
+import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
-import dk.sdu.cloud.app.store.api.ToolStore
 import dk.sdu.cloud.auth.api.*
-import dk.sdu.cloud.avatar.api.AvatarDescriptions
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.file.orchestrator.api.FileCollection
-import dk.sdu.cloud.file.orchestrator.api.FileCollections
-import dk.sdu.cloud.grant.api.*
-import dk.sdu.cloud.news.api.ListPostsRequest
-import dk.sdu.cloud.news.api.News
-import dk.sdu.cloud.news.api.NewsServiceDescription
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.db.async.mapItems
-import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.util.*
 import kotlinx.coroutines.*
-import kotlinx.serialization.builtins.serializer
 import org.jetbrains.kotlin.backend.common.push
-import org.slf4j.Logger
 import java.io.File
-import java.math.BigInteger
 import java.net.URLDecoder
-import java.security.MessageDigest
-import java.security.SecureRandom
-import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.random.Random
-import kotlin.system.exitProcess
 
 class Simulator(
     private val serviceClient: AuthenticatedClient,
@@ -131,7 +110,6 @@ class Simulator(
         }
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     fun start() {
         log.debug("Started load simulation")
 
@@ -159,48 +137,6 @@ class Simulator(
                 }
             }
         }
-
-            // Force the first user to be a PI (that way allocatePi() will always succeed)
-            /*users.add(SimulatedUser(serviceClient, root, this@Simulator, forcePi = true).also { it.initialStep() })
-
-            repeat(numberOfUsers - 1) {
-                val user = SimulatedUser(serviceClient, root, this@Simulator, forcePi = false)
-                users.add(user)
-                user.initialStep()
-            }
-
-            val chunks = users.chunked(users.size / 8)
-            val counter = Array<Long>(chunks.size) { 0 }
-            val statJob = launch {
-                val lastCounts = Array<Long>(chunks.size) { 0 }
-                while (isActive) {
-                    for (i in counter.indices) {
-                        val newCounter = counter[i]
-                        val oldCounter = lastCounts[i]
-
-                        println("[$i] ${(newCounter - oldCounter) / 10.0} steps per second")
-                        lastCounts[i] = newCounter
-                    }
-                    println()
-
-                    delay(10_000)
-                }
-            }
-
-            chunks.mapIndexed { index, chunk ->
-                println("Got a chunk! $chunk")
-                launch {
-                    println("Steps!")
-                    /*repeat(numberOfSteps) {
-                        chunk.forEach { it.doStep() }
-                        counter[index] = counter[index] + chunk.size
-                    }*/
-                    println("Done!")
-                }
-            }.joinAll()
-            statJob.cancel()*/
-
-            //println("Completed $numberOfSteps")
     }
 
     companion object : Loggable {
@@ -217,24 +153,23 @@ private fun ProductCategoryId.toReference(): ProductReference {
     return ProductReference("$name-1", name, provider)
 }
 
+enum class SimulatedUserState {
+    Normal,
+    Following
+}
+
 class SimulatedUser(
     private val serviceClient: AuthenticatedClient,
 ) {
-    //val isPi = forcePi || Random.nextInt(100) <= 10
-    //val becomesAdmin = !becomesPi && Random.nextInt(100) <= 30
-    //val becomesUser = !becomesPi && !becomesAdmin
-
-    //var hasComputeByCredits = Random.nextBoolean()
-    //var hasComputeByHours = !hasComputeByCredits
-    //var hasLicenses = Random.nextBoolean()
-    //var hasStorage = true
-    //var hasLinks = Random.nextBoolean()
-
     lateinit var username: String
     lateinit var password: String
     lateinit var refreshToken: String
     lateinit var client: AuthenticatedClient
+    lateinit var wsClient: AuthenticatedClient
     lateinit var project: Project
+
+    val jobs = ArrayList<JobSpecification>()
+    var state: SimulatedUserState = SimulatedUserState.Normal
 
     suspend fun initialize(username: String? = null, password: String? = null, refreshToken: String? = null) {
         this.refreshToken = if (refreshToken != null) {
@@ -243,7 +178,7 @@ class SimulatedUser(
             refreshToken
         } else {
             if (username.isNullOrBlank()) {
-                this.username = "sim-${Time.now()}"
+                this.username = "simulated-user-${Time.now()}"
                 this.password = generatePassword()
                 log.debug("Creating user ${this.username}")
 
@@ -252,7 +187,7 @@ class SimulatedUser(
                         CreateSingleUserRequest(
                             this.username,
                             this.password,
-                            "email-${username}@localhost",
+                            "${username}@localhost",
                             Role.USER,
                             "First",
                             "Last"
@@ -261,6 +196,8 @@ class SimulatedUser(
                     serviceClient
                 ).orThrow().single().refreshToken
             } else {
+                // TODO(Brian): Login using password does not seem to work currently
+
                 log.debug("Trying to log in as ${this.username}")
 
                 val login = AuthDescriptions.passwordLogin.call(
@@ -305,10 +242,16 @@ class SimulatedUser(
         }
 
         log.debug("${this.username} logged in with token: ${this.refreshToken}")
+
         client = RefreshingJWTAuthenticator(
             serviceClient.client,
             JwtRefresher.Normal(this.refreshToken, OutgoingHttpCall)
         ).authenticateClient(OutgoingHttpCall)
+
+        wsClient = RefreshingJWTAuthenticator(
+            serviceClient.client,
+            JwtRefresher.Normal(this.refreshToken, OutgoingHttpCall)
+        ).authenticateClient(OutgoingWSCall)
 
         val projects = Projects.browse.call(
             ProjectsBrowseRequest(),
@@ -425,94 +368,122 @@ class SimulatedUser(
         while (true) {
             doStep()
 
-            val delayMillis = Random.nextLong(1000, 5000)
+            val delayMillis = Random.nextLong(2000, 5000)
             delay(delayMillis)
         }
         println("Done $username")
     }
 
     private suspend fun doStep() {
-        println("Hello from $username")
         fun chance(chance: Int): Boolean {
             var diceRoll = Random.nextInt(100)
-            log.debug("$username $chance $diceRoll ${diceRoll<=chance}");
             val success = diceRoll <= chance
             return success
         }
 
-        when {
-            chance(5) -> {
-                /*
-                //if (!hasStorage || !(becomesPi || becomesAdmin)) return
+        if (state == SimulatedUserState.Following) {
+            when {
+                // Open application interface
+                chance(10) -> {
+                    // TODO(Brian)
+                }
 
-                FileCollections.create.call(
-                    bulkRequestOf(
-                        FileCollection.Spec(
-                            UUID.randomUUID().toString().substringBefore('-'),
-                            Simulator.storageByQuota.toReference()
-                        )
-                    ),
-                    client
-                ).orThrow()*/
-                log.debug("$username Did something with 5% chance")
+                // Open terminal
+                chance(10) -> {
+                    // TODO(Brian)
+                }
+                else -> {
+
+                }
             }
-
-            chance(10) -> {
-                log.debug("$username Did something with 10% chance")
-                //if (!hasLinks) return
-
-                /*val token = Random.nextBytes(16).encodeBase64()
-                    .replace("+", "")
-                    .replace("=", "")
-                    .replace("-", "")
-                    .replace("/", "")
-
-                Ingresses.create.call(
-                    bulkRequestOf(
-                        IngressSpecification(
-                            "app-$token.cloud.sdu.dk",
-                            Simulator.linkFree.toReference()
-                        )
-                    ),
-                    client
-                ).orThrow()*/
-            }
-
-            chance(5) -> {
-                log.debug("$username Did something with 5% chance")
-                //if (!hasLicenses) return
-
-                /*Licenses.create.call(
-                    bulkRequestOf(
-                        LicenseSpecification(Simulator.licenseByQuota.toReference())
-                    ),
-                    client
-                ).orThrow()*/
-            }
+        } else {
+            when {
+                // Browse jobs
+                chance(10) -> {
+                    log.debug("$username Browsing jobs")
+                    val jobs = browseJobs()
+                    log.debug("Browsed ${jobs.size} jobs")
+                }
 
 
+                // Follow job
+                chance(10) -> {
+                    log.debug("$username Following job")
+                    val jobs = browseJobs()
+                    val running = jobs.firstOrNull { it.status.state == JobState.RUNNING }
 
-            chance(20) -> {
-                log.debug("$username Starting application ")
-                Jobs.create.call(
-                    bulkRequestOf(
-                        JobSpecification(
-                            terminalApplication
-                            ,
-                            Simulator.computeByHours.toReference(),
-                            parameters = emptyMap(),
-                            resources = emptyList(),
-                            timeAllocation = SimpleDuration(1, 0, 0)
-                        ),
-                    ),
-                    client
-                ).orThrow()
-            }
+                    if (running != null) {
+                        log.debug("$username Following job ${running!!.id}")
+                        coroutineScope {
+                            val job = launch {
+                                try {
+                                    Jobs.follow.subscribe(
+                                        FindByStringId(running.id),
+                                        wsClient,
+                                        handler = { message ->
 
-            else -> {
-                // Do nothing
+                                        }
+                                    ).orThrow()
+                                } catch (ex: RPCException) {
+                                    if (ex.httpStatusCode.value == 499) {
+                                        // Ignore
+                                    } else {
+                                        throw ex
+                                    }
+                                }
+                            }
+
+                            // TODO(Brian) Update delay
+                            delay(5_000)
+
+                            runCatching {
+                                job.cancel()
+                            }
+
+                            runCatching { job.join() }
+                        }
+                    }
+                }
+
+
+
+                // Start Job
+                chance(10) -> {
+                    log.debug("$username wants to start a job")
+                    val jobs = browseJobs()
+                    val running = jobs.filter { it.status.state == JobState.RUNNING && it.owner.createdBy == username}
+
+                    if (running.size < 2) {
+                        log.debug("$username Starting job")
+                        Jobs.create.call(
+                            bulkRequestOf(
+                                JobSpecification(
+                                    terminalApplication,
+                                    Simulator.computeByHours.toReference(),
+                                    parameters = emptyMap(),
+                                    resources = emptyList(),
+                                    timeAllocation = SimpleDuration(1, 0, 0)
+                                ),
+                            ),
+                            client
+                        ).orThrow()
+                    } else {
+                        log.debug("$username already has 2 jobs running. Skipping.")
+                    }
+                }
+
+                else -> {
+                    // Do nothing
+                }
             }
         }
+    }
+
+    suspend fun browseJobs(): List<Job> {
+        return Jobs.browse.call(
+            ResourceBrowseRequest(JobIncludeFlags()),
+            client
+        ).orThrow().items
     }
 
     companion object : Loggable {
