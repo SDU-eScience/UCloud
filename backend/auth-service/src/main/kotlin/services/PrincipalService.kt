@@ -130,7 +130,10 @@ class PrincipalService(
             ).rows.forEach { row ->
                 val id = row.getString(0)!!
                 val role = Role.valueOf(row.getString(1)!!)
-                val dtype = UserType.valueOf(row.getString(2)!!)
+                val dtype = when (val dtype = row.getString(2)!!) {
+                    "PASSWORD", "WAYF" -> UserType.PERSON
+                    else -> UserType.valueOf(dtype)
+                }
 
                 when (dtype) {
                     UserType.SERVICE -> {
