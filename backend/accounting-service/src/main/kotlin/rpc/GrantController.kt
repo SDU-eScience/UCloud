@@ -47,6 +47,12 @@ class GrantController(
         }
 
         implement(Grants.submitApplication) {
+            //Addition to stop applications without end date early
+            request.items.forEach {createRequest ->
+                createRequest.document.allocationRequests.forEach { alloc ->
+                    if (alloc.period.end == null) { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "End time must be specified. Missing on request for: ${alloc.category}") }
+                }
+            }
             ok(applications.submit(actorAndProject, request))
         }
 
