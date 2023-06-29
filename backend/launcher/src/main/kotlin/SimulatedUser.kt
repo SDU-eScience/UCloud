@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.store.api.ApplicationType
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.auth.api.*
@@ -15,11 +16,9 @@ import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import io.ktor.http.*
 import kotlinx.coroutines.*
 import org.jetbrains.kotlin.backend.common.push
 import java.io.File
-import java.net.URLDecoder
 import kotlin.collections.ArrayList
 import kotlin.random.Random
 
@@ -198,7 +197,7 @@ class SimulatedUser(
             } else {
                 // TODO(Brian): Login using password does not seem to work currently
 
-                log.debug("Trying to log in as ${this.username}")
+                /*log.debug("Trying to log in as ${this.username}")
 
                 val login = AuthDescriptions.passwordLogin.call(
                     Unit,
@@ -237,7 +236,8 @@ class SimulatedUser(
 
                 log.debug("$split")
 
-                split["refreshToken"]!!
+                split["refreshToken"]!!*/
+                ""
             }
         }
 
@@ -366,115 +366,28 @@ class SimulatedUser(
     suspend fun simulate() {
         println("Started simulating $username")
         while (true) {
-            doStep()
-
             val delayMillis = Random.nextLong(2000, 5000)
             delay(delayMillis)
+
+            doStep()
         }
-        println("Done $username")
     }
 
     private suspend fun doStep() {
         fun chance(chance: Int): Boolean {
-            var diceRoll = Random.nextInt(100)
-            val success = diceRoll <= chance
-            return success
+            val diceRoll = Random.nextInt(100)
+            return diceRoll <= chance
         }
 
-        if (state == SimulatedUserState.Following) {
-            when {
-                // Open application interface
-                chance(10) -> {
-                    // TODO(Brian)
-                }
-
-                // Open terminal
-                chance(10) -> {
-                    // TODO(Brian)
-                }
-                else -> {
-
-                }
-            }
-        } else {
-            when {
-                // Browse jobs
-                chance(10) -> {
-                    log.debug("$username Browsing jobs")
-                    val jobs = browseJobs()
-                    log.debug("Browsed ${jobs.size} jobs")
-                }
-
-
-                // Follow job
-                chance(10) -> {
-                    log.debug("$username Following job")
-                    val jobs = browseJobs()
-                    val running = jobs.firstOrNull { it.status.state == JobState.RUNNING }
-
-                    if (running != null) {
-                        log.debug("$username Following job ${running!!.id}")
-                        coroutineScope {
-                            val job = launch {
-                                try {
-                                    Jobs.follow.subscribe(
-                                        FindByStringId(running.id),
-                                        wsClient,
-                                        handler = { message ->
-
-                                        }
-                                    ).orThrow()
-                                } catch (ex: RPCException) {
-                                    if (ex.httpStatusCode.value == 499) {
-                                        // Ignore
-                                    } else {
-                                        throw ex
-                                    }
-                                }
-                            }
-
-                            // TODO(Brian) Update delay
-                            delay(5_000)
-
-                            runCatching {
-                                job.cancel()
-                            }
-
-                            runCatching { job.join() }
-                        }
-                    }
-                }
-
-
-
-                // Start Job
-                chance(10) -> {
-                    log.debug("$username wants to start a job")
-                    val jobs = browseJobs()
-                    val running = jobs.filter { it.status.state == JobState.RUNNING && it.owner.createdBy == username}
-
-                    if (running.size < 2) {
-                        log.debug("$username Starting job")
-                        Jobs.create.call(
-                            bulkRequestOf(
-                                JobSpecification(
-                                    terminalApplication,
-                                    Simulator.computeByHours.toReference(),
-                                    parameters = emptyMap(),
-                                    resources = emptyList(),
-                                    timeAllocation = SimpleDuration(1, 0, 0)
-                                ),
-                            ),
-                            client
-                        ).orThrow()
-                    } else {
-                        log.debug("$username already has 2 jobs running. Skipping.")
-                    }
-                }
-
-                else -> {
-                    // Do nothing
-                }
+        when {
+            chance(10) -> doAction(Action.OpenInterface)
+            chance(10) -> doAction(Action.OpenTerminal)
+            chance(1) && chance(10) -> doAction(Action.StopJob)
+            chance(10) -> doAction(Action.BrowseJobs)
+            chance(10) -> doAction(Action.FollowJob)
+            chance(10) -> doAction(Action.StartJob)
+            else -> {
+                // Do nothing
             }
         }
     }
@@ -486,12 +399,142 @@ class SimulatedUser(
         ).orThrow().items
     }
 
+    enum class Action {
+        BrowseJobs,
+        StartJob,
+        StopJob,
+        FollowJob,
+        OpenInterface,
+        OpenTerminal
+    }
+
+    suspend fun doAction(action: Action) {
+        when (action) {
+            Action.BrowseJobs -> {
+                log.debug("$username Browsing jobs")
+                val jobs = browseJobs()
+                log.debug("Browsed ${jobs.size} jobs")
+            }
+
+            Action.StartJob -> {
+                log.debug("$username wants to start a job")
+                val jobs = browseJobs()
+                val running = jobs.filter { it.status.state == JobState.RUNNING && it.owner.createdBy == username }
+
+                if (running.size < 2) {
+                    log.debug("$username Starting job")
+                    Jobs.create.call(
+                        bulkRequestOf(
+                            JobSpecification(
+                                terminalApplication,
+                                Simulator.computeByHours.toReference(),
+                                parameters = emptyMap(),
+                                resources = emptyList(),
+                                timeAllocation = SimpleDuration(1, 0, 0)
+                            ),
+                        ),
+                        client
+                    ).orThrow()
+                } else {
+                    log.debug("$username already has 2 jobs running. Skipping.")
+                }
+            }
+
+            Action.StopJob -> {
+                log.debug("$username stopping job")
+
+                val job = browseJobs().firstOrNull {
+                    it.status.state == JobState.RUNNING && it.owner.createdBy == username
+                }
+
+                log.debug("$username Found job: $job.id")
+
+                if (job != null) {
+                    Jobs.terminate.call(
+                        bulkRequestOf(FindByStringId(job.id)),
+                        client
+                    ).orThrow()
+                }
+            }
+
+            Action.OpenInterface -> {
+                log.debug("$username open interface")
+                val job = browseJobs().firstOrNull {
+                    it.owner.createdBy == username &&
+                        it.status.state == JobState.RUNNING &&
+                        it.status.resolvedApplication?.invocation?.applicationType == ApplicationType.WEB
+                }
+
+                log.debug("$username found job: ${job?.id}")
+                if (job != null) {
+                    Jobs.openInteractiveSession.call(
+                        bulkRequestOf(JobsOpenInteractiveSessionRequestItem(job.id, 0, InteractiveSessionType.WEB)),
+                        client
+                    ).orThrow()
+                }
+            }
+
+            Action.FollowJob -> {
+                log.debug("$username Following job")
+                val jobs = browseJobs()
+                val running = jobs.firstOrNull { it.status.state == JobState.RUNNING }
+
+                if (running != null) {
+                    log.debug("$username Following job ${running.id}")
+                    coroutineScope {
+                        val job = launch {
+                            try {
+                                Jobs.follow.subscribe(
+                                    FindByStringId(running.id),
+                                    wsClient,
+                                    handler = { message ->
+
+                                    }
+                                ).orThrow()
+                            } catch (ex: RPCException) {
+                                if (ex.httpStatusCode.value == 499) {
+                                    // Ignore
+                                } else {
+                                    throw ex
+                                }
+                            }
+                        }
+
+                        delay(Random.nextLong(5_000, 10_000))
+
+                        runCatching {
+                            job.cancel()
+                        }
+
+                        runCatching { job.join() }
+                    }
+                }
+                log.debug("$username Done following")
+            }
+
+            Action.OpenTerminal -> {
+                log.debug("$username open terminal")
+                val job = browseJobs().firstOrNull {
+                    it.owner.createdBy == username && it.status.state == JobState.RUNNING
+                }
+
+                log.debug("$username found job: ${job?.id}")
+                if (job != null) {
+                    Jobs.openInteractiveSession.call(
+                        bulkRequestOf(JobsOpenInteractiveSessionRequestItem(job.id, 0, InteractiveSessionType.SHELL)),
+                        client
+                    ).orThrow()
+                }
+            }
+        }
+    }
+
     companion object : Loggable {
         override val log = logger()
     }
 
     private fun generatePassword(): String {
         val pool = ('a'..'z') + ('A'..'Z') + ('0'..'9')
-        return (1..30).map { Random.nextInt(0, pool.size).let { pool[it] }}.joinToString("")
+        return (1..30).map { Random.nextInt(0, pool.size).let { pool[it] } }.joinToString("")
     }
 }
