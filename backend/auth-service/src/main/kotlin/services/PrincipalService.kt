@@ -364,7 +364,7 @@ class PrincipalService(
 
         ctx: DBContext = db,
     ): Int {
-        checkSingleLine("id", id)
+        checkSingleLine("id", id, allowSpecial = true)
         if (firstNames != null) checkSingleLine("firstNames", firstNames)
         if (lastName != null) checkSingleLine("lastName", lastName)
         if (organizationId != null) checkSingleLine("organizationId", organizationId)
