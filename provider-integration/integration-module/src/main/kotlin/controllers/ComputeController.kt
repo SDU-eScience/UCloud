@@ -484,48 +484,6 @@ class ComputeController(
 
     override fun onServerReady(rpcServer: RpcServer) {
         val providerId = controllerContext.configuration.core.providerId
-        val ipcClient = controllerContext.pluginContext.ipcClient
-
-        val authorizeApp: suspend PipelineContext<Unit, ApplicationCall>.(Unit) -> Unit = fn@{
-            val host = call.request.header(HttpHeaders.Host)
-            val requestCookies = HashMap(call.request.cookies.rawCookies)
-            val relevantCookie = URLDecoder.decode(requestCookies[cookieName + host], Charsets.UTF_8)
-            if (relevantCookie == null) {
-                log.info("No cookie supplied for $host")
-                call.respondText("", status = io.ktor.http.HttpStatusCode.Unauthorized)
-                return@fn
-            }
-
-            try {
-                val session = ipcClient.sendRequest(
-                    ComputeSessionIpc.retrieve,
-                    FindByStringId(relevantCookie)
-                )
-
-                if (session.sessionType != InteractiveSessionType.WEB) error("Unauthorized")
-                val target = session.target ?: error("Unauthorized")
-                if (host != target.ingress) error("Unauthorized")
-
-                if (jobIsRunningCache.get(session.jobId) != true) error("Unauthorized")
-
-                call.respondText("", status = io.ktor.http.HttpStatusCode.OK)
-            } catch (ex: Throwable) {
-                log.info("Failure while authenticating application '$host':\n${ex.toReadableStacktrace()}")
-                call.respondText("", status = io.ktor.http.HttpStatusCode.Unauthorized)
-                return@fn
-            }
-        }
-
-        ktor.routing {
-            val handler: Route.() -> Unit = {
-                handle(authorizeApp)
-                route("/") { handle(authorizeApp) }
-            }
-
-            route("/app-authorize-request", handler)
-            route("/app-authorize-request/", handler)
-            route("/app-authorize-request/{...}", handler)
-        }
 
         ktor.routing {
             if (!controllerContext.configuration.shouldRunServerCode()) return@routing
@@ -646,7 +604,7 @@ class ComputeController(
                         EnvoyRoute.WebIngressSession(
                             generatedSessionId,
                             target.ingress,
-                            isAuthorizationEnabled = !target.webSessionIsPublic,
+                            tokensRequired = if (target.webSessionIsPublic) null else listOf(generatedSessionId),
                             "_$generatedSessionId"
                         ),
                         EnvoyCluster.create(
@@ -716,80 +674,86 @@ class ComputeController(
             return
         }
 
-        val items = ArrayList<Job>()
-        var next: String? = null
-        while (true) {
-            val page = JobsControl.browse.call(
-                ResourceBrowseRequest(
-                    JobIncludeFlags(filterState = JobState.RUNNING),
-                    next = next,
-                    itemsPerPage = 250,
-                ),
-                controllerContext.pluginContext.rpcClient
-            ).orNull()
+        envoy.disableAutoConfigure()
 
-            if (page == null) {
-                log.info("Could not fetch list of running jobs. Retrying...")
-                delay(1000)
-                continue
+        try {
+            val items = ArrayList<Job>()
+            var next: String? = null
+            while (true) {
+                val page = JobsControl.browse.call(
+                    ResourceBrowseRequest(
+                        JobIncludeFlags(filterState = JobState.RUNNING),
+                        next = next,
+                        itemsPerPage = 250,
+                    ),
+                    controllerContext.pluginContext.rpcClient
+                ).orNull()
+
+                if (page == null) {
+                    log.info("Could not fetch list of running jobs. Retrying...")
+                    delay(1000)
+                    continue
+                }
+
+                items.addAll(page.items)
+                next = page.next ?: break
             }
 
-            items.addAll(page.items)
-            next = page.next ?: break
-        }
+            val jobIds = items.map { it.id }.toSet()
 
-        val jobIds = items.map { it.id }.toSet()
-
-        log.debug("Found the following active jobs: $jobIds")
-        val sessions = ArrayList<ComputeSessionIpc.Session>()
-        dbConnection.withSession { session ->
-            session.prepareStatement(
-                """
+            log.debug("Found the following active jobs: $jobIds")
+            val sessions = ArrayList<ComputeSessionIpc.Session>()
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
                     select session_type, job_id, job_rank, plugin_name, plugin_data, target, session
                     from compute_sessions
                     where
                         job_id = some(:ids::text[]) and
                         session_type = 'WEB'
                 """
-            ).useAndInvoke(
-                prepare = { bindList("ids", jobIds.toList()) },
-                readRow = { row ->
-                    sessions.add(
-                        ComputeSessionIpc.Session(
-                            InteractiveSessionType.valueOf(row.getString(0)!!),
-                            row.getString(1)!!,
-                            row.getInt(2)!!,
-                            row.getString(3)!!,
-                            row.getString(4)!!,
-                            row.getString(5)?.let {
-                                defaultMapper.decodeFromString(ComputeSessionIpc.SessionTarget.serializer(), it)
-                            },
-                            row.getString(6)!!,
+                ).useAndInvoke(
+                    prepare = { bindList("ids", jobIds.toList()) },
+                    readRow = { row ->
+                        sessions.add(
+                            ComputeSessionIpc.Session(
+                                InteractiveSessionType.valueOf(row.getString(0)!!),
+                                row.getString(1)!!,
+                                row.getInt(2)!!,
+                                row.getString(3)!!,
+                                row.getString(4)!!,
+                                row.getString(5)?.let {
+                                    defaultMapper.decodeFromString(ComputeSessionIpc.SessionTarget.serializer(), it)
+                                },
+                                row.getString(6)!!,
+                            )
                         )
-                    )
-                }
-            )
-        }
-
-        log.debug("We found ${sessions.size} sessions for ${jobIds.size} active jobs")
-
-        for (session in sessions) {
-            val target = session.target ?: continue
-            log.debug("Init route for: ${target.ingress}")
-            envoy.requestConfiguration(
-                EnvoyRoute.WebIngressSession(
-                    session.sessionId,
-                    target.ingress,
-                    isAuthorizationEnabled = !target.webSessionIsPublic,
-                    "_${session.sessionId}"
-                ),
-                EnvoyCluster.create(
-                    "_${session.sessionId}",
-                    target.clusterAddress,
-                    target.clusterPort,
-                    useDns = target.useDnsForAddressLookup
+                    }
                 )
-            )
+            }
+
+            log.debug("We found ${sessions.size} sessions for ${jobIds.size} active jobs")
+
+            for (session in sessions) {
+                val target = session.target ?: continue
+                log.debug("Init route for: ${target.ingress}")
+                envoy.requestConfiguration(
+                    EnvoyRoute.WebIngressSession(
+                        session.sessionId,
+                        target.ingress,
+                        tokensRequired = if (target.webSessionIsPublic) null else listOf(session.sessionId),
+                        "_${session.sessionId}"
+                    ),
+                    EnvoyCluster.create(
+                        "_${session.sessionId}",
+                        target.clusterAddress,
+                        target.clusterPort,
+                        useDns = target.useDnsForAddressLookup
+                    )
+                )
+            }
+        } finally {
+            envoy.enableAutoConfigure()
         }
     }
 

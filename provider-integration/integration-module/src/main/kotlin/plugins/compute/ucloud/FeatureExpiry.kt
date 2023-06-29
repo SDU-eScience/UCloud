@@ -31,7 +31,7 @@ object FeatureExpiry : JobFeature, Loggable {
         for (job in jobBatch) {
             if (job.rank != 0) continue
             val expiry = job.expiry ?: continue
-            log.trace("expiry in ${expiry - now}")
+            log.trace("${job.jobId} expiry in ${expiry - now} ($expiry)")
             if (now >= expiry) {
                 job.cancel()
             }
@@ -40,14 +40,15 @@ object FeatureExpiry : JobFeature, Loggable {
 
     suspend fun JobManagement.extendJob(rootJob: Container, extendBy: SimpleDuration) {
         val maxTime = rootJob.maxTime
+        val toMillis = extendBy.toMillis()
         if (maxTime != null) {
-            k8.updateTimeAllocation(rootJob.jobId, maxTime + extendBy.toMillis())
-            rootJob.upsertAnnotation(MAX_TIME_ANNOTATION, (maxTime + extendBy.toMillis()).toString())
+            k8.updateTimeAllocation(rootJob.jobId, maxTime + toMillis)
+            rootJob.upsertAnnotation(MAX_TIME_ANNOTATION, (maxTime + toMillis).toString())
         }
 
         val jobExpiry = rootJob.expiry
         if (jobExpiry != null) {
-            rootJob.upsertAnnotation(EXPIRY_ANNOTATION, (jobExpiry + extendBy.toMillis()).toString())
+            rootJob.upsertAnnotation(EXPIRY_ANNOTATION, (jobExpiry + toMillis).toString())
         }
     }
 }

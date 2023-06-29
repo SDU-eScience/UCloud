@@ -47,6 +47,7 @@ export function findRelevantMachinesForApplication(
 export const Machines: React.FunctionComponent<{
     machines: ProductCompute[];
     support: ResolvedSupport[];
+    loading: boolean;
     onMachineChange?: (product: ProductCompute) => void;
 }> = props => {
     const [selected, setSelectedOnlyByListener] = useState<ProductCompute | null>(null);
@@ -92,6 +93,7 @@ export const Machines: React.FunctionComponent<{
                 type={"COMPUTE"}
                 products={filteredMachines}
                 selected={selected}
+                loading={props.loading}
                 onSelect={setMachineReservation}
                 omitBorder
                 support={props.support}

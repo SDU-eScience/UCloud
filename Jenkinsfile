@@ -143,11 +143,11 @@ node {
 
 def cleanDocker() {
     sh script: """
-        docker rm -f \$(docker ps -q) || true
+        docker rm -f \$(docker ps -qa) || true
         docker volume rm -f \$(docker volume ls -q) || true
         docker network rm  \$(docker network ls -q) || true
         
-        docker rm -f \$(docker ps -q) || true
+        docker rm -f \$(docker ps -qa) || true
         docker volume rm -f \$(docker volume ls -q) || true
         docker network rm  \$(docker network ls -q) || true
         

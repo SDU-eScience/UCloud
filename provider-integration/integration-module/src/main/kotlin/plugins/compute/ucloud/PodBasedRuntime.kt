@@ -225,6 +225,12 @@ abstract class PodBasedBuilder : ContainerBuilder {
     val volumeMounts: ArrayList<Pod.Container.VolumeMount> get() = container.volumeMounts as ArrayList
     val volumes: ArrayList<Volume> get() = podSpec.volumes as ArrayList
 
+    // NOTE(Dan): These are only normalized by the Pod2Runtime at the moment. This is not great, but we are likely
+    // deprecating and removing the two other runtimes.
+    val rootOnlyVolumes = ArrayList<Volume>()
+    val rootOnlyVolumeMounts = ArrayList<Pod.Container.VolumeMount>()
+    val rootOnlyPorts = ArrayList<Pod.Container.ContainerPort>()
+
     protected abstract val fakeIpMount: Boolean
 
     protected fun initPodSpec() {
@@ -346,25 +352,24 @@ abstract class PodBasedBuilder : ContainerBuilder {
     override fun mountIpAddress(ipAddress: String, networkInterface: String, ports: List<Pair<Int, IPProtocol>>) {
         if (fakeIpMount) return
         val ipIdx = ipCounter++
-        volumes.add(
+        rootOnlyVolumes.add(
             Volume(
                 name = "ip$ipIdx",
-                flexVolume = Volume.FlexVolumeSource(
-                    driver = "ucloud/ipman",
-                    fsType = "ext4",
-                    options = JsonObject(
+                csi = Volume.CsiVolumeSource(
+                    driver = "ucloud.csi.ipfs",
+                    volumeAttributes = JsonObject(
                         mapOf(
                             // NOTE(Dan): /16 is required for our new infrastructure. We might need to move this into
                             // some sort of configuration later.
-                            "addr" to JsonPrimitive("$ipAddress/16"),
-                            "iface" to JsonPrimitive(networkInterface)
+                            "address" to JsonPrimitive("$ipAddress/16"),
+                            "interface" to JsonPrimitive(networkInterface)
                         )
                     )
                 )
             )
         )
 
-        volumeMounts.add(
+        rootOnlyVolumeMounts.add(
             Pod.Container.VolumeMount(
                 name = "ip$ipIdx",
                 readOnly = true,
@@ -372,10 +377,8 @@ abstract class PodBasedBuilder : ContainerBuilder {
             )
         )
 
-        container.ports = container.ports ?: ArrayList()
-        val cPorts = container.ports as ArrayList
         for ((port, protocol) in ports) {
-            cPorts.add(
+            rootOnlyPorts.add(
                 Pod.Container.ContainerPort(
                     containerPort = port,
                     hostPort = port,

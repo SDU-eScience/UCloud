@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins.storage.ucloud
 
+import dk.sdu.cloud.Prometheus
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import java.util.concurrent.atomic.AtomicInteger
@@ -38,6 +39,7 @@ class WorkQueue<T>(
                             continue
                         }
 
+                        Prometheus.countBackgroundTask("file_task_progress")
                         doWork(nextItem)
                     }
                 }

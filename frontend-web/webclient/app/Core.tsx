@@ -14,6 +14,9 @@ const JobShell = React.lazy(() => import("@/Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("@/Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("@/Applications/Jobs/Vnc"));
 const LoginPage = React.lazy(() => import("@/Login/Login"));
+const Registration = React.lazy(() => import("@/Login/Registration"));
+const VerifyEmail = React.lazy(() => import("@/Login/VerifyEmail"));
+const VerifyResult = React.lazy(() => import("@/Login/VerifyResult"));
 const NewsList = React.lazy(() => import("@/NewsPost/NewsList"));
 const NewsManagement = React.lazy(() => import("@/Admin/NewsManagement"));
 const Playground = React.lazy(() => import("@/Playground/Playground"));
@@ -113,6 +116,9 @@ const Core = (): JSX.Element => (
                         <Route path={`/files/properties/:id/`} element={React.createElement(requireAuth(FilesApi.Properties), {api: FilesApi})} />
                         {/* Hardcoded solution end */}
                         <Route path={"/files/*"} element={React.createElement(requireAuth(ExperimentalFileBrowse))} />
+                        <Route path="/registration" element={<Registration />}  />
+                        <Route path="/verifyEmail" element={<VerifyEmail />}  />
+                        <Route path="/verifyResult" element={<VerifyResult />}  />
                         <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
                         <Route path={"/shares/outgoing"} element={React.createElement(requireAuth(SharesOutgoing))} />
                         <Route path={"/shares/invite/:id"}

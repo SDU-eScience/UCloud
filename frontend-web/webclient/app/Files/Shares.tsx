@@ -105,7 +105,7 @@ export const ShareModal: React.FunctionComponent<{
         {inviteLinks.data.items.length < 1 ? <>
             <Heading.h3>Share with link</Heading.h3>
             <Box textAlign="center">
-                <Text mb="20px" mt="20px">Share files with other users by sharing a link</Text>
+                <Text mb="20px" mt="20px">Share files with other users with a link</Text>
                 <Button
                     onClick={async () => {
                         await callAPIWithErrorHandler(

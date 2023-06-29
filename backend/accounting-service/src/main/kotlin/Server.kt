@@ -72,9 +72,9 @@ class Server(
         val favoriteProjects = FavoriteProjectService(projectsV2)
 
         val giftService = GiftService(db, accountingService)
-        val settings = GrantSettingsService(db)
         val notifications = GrantNotificationService(db, client)
         val grantApplicationService = GrantApplicationService(db, notifications, simpleProviders, projectNotifications, accountingService)
+        val settings = GrantSettingsService(db, grantApplicationService)
         val templates = GrantTemplateService(db, config)
         val comments = GrantCommentService(db)
 

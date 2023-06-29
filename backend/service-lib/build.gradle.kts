@@ -27,6 +27,10 @@ dependencies {
     api("org.apache.logging.log4j:log4j-core:2.20.0")
     api("com.auth0:java-jwt:3.19.4")
 
+    val prometheusVersion = "0.16.0"
+    api("io.prometheus:simpleclient:$prometheusVersion")
+    api("io.prometheus:simpleclient_common:$prometheusVersion")
+
     testApi(kotlin("test"))
 }
 

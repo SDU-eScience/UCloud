@@ -1081,7 +1081,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
     return inviteLinksFromApi.data.items.length < 1 ? <>
         <Heading.h3>Invite with link</Heading.h3>
         <Box textAlign="center">
-            <Text mb="20px" mt="20px">Invite collaborators to this project by sharing a link</Text>
+            <Text mb="20px" mt="20px">Invite collaborators to this project with a link</Text>
             <Button
                 onClick={async () => {
                     await callAPIWithErrorHandler({

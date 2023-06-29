@@ -91,14 +91,6 @@ export class HttpClient {
     /**
      * Makes an AJAX call to the API. This will automatically add relevant authorization headers.
      * If the user's JWT has expired this will automatically attempt to refresh it.
-     *
-     * The path argument should be without the context, it should also not include the /api/ part of the context.
-     * For example, to call `GET https://cloud.sdu.dk/api/files?path=/home/foobar` you should use
-     * `cloud.call("GET", "/files?path=/home/foobar/")`
-     *
-     * The body argument is assumed to be JSON.
-     *
-     * @return {Promise} promise
      */
     public async call(params: CallParameters): Promise<any> {
         let {
@@ -109,6 +101,7 @@ export class HttpClient {
             withCredentials = false,
             projectOverride,
             accessTokenOverride,
+            unauthenticated = false,
         } = params;
 
         await this.waitForCloudReady();
@@ -124,15 +117,12 @@ export class HttpClient {
             }
         }
 
-        return this.receiveAccessTokenOrRefreshIt()
-            .catch(it => {
-                console.warn(it);
-                if (!this.isPublicPage) snackbarStore.addFailure("Could not refresh login token.", false);
-                if ([401, 403].includes(it.status)) HttpClient.clearTokens();
-            }).then(token => {
-                return new Promise((resolve, reject) => {
-                    const req = new XMLHttpRequest();
-                    req.open(method, this.computeURL(context, path));
+        try {
+            const token = unauthenticated ? null : await this.receiveAccessTokenOrRefreshIt();
+            return new Promise((resolve, reject) => {
+                const req = new XMLHttpRequest();
+                req.open(method, this.computeURL(context, path));
+                if (token !== null || accessTokenOverride !== undefined) {
                     req.setRequestHeader(
                         "Authorization",
                         accessTokenOverride === undefined ? `Bearer ${token}` : `Bearer ${accessTokenOverride}`
@@ -142,60 +132,65 @@ export class HttpClient {
                     if (signedIntent !== null) {
                         req.setRequestHeader("UCloud-Signed-Intent", signedIntent);
                     }
+                }
 
-                    req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
-                    const projectId = projectOverride ?? this.projectId;
-                    if (projectId) req.setRequestHeader("Project", projectId);
-                    req.responseType = "text"; // Explicitly set, otherwise issues with empty response
-                    if (withCredentials) {
-                        req.withCredentials = true;
+                req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+                const projectId = projectOverride ?? this.projectId;
+                if (projectId) req.setRequestHeader("Project", projectId);
+                req.responseType = "text"; // Explicitly set, otherwise issues with empty response
+                if (withCredentials) {
+                    req.withCredentials = true;
+                }
+
+                const rejectOrRetry = (parsedResponse?) => {
+                    if (req.status === 401) {
+                        this.forceRefresh = true;
                     }
 
-                    const rejectOrRetry = (parsedResponse?) => {
-                        if (req.status === 401) {
-                            this.forceRefresh = true;
-                        }
-
-                        if (req.status === 482) {
-                            clearSigningKey();
-                        }
-
-                        reject({request: req, response: parsedResponse});
-                    };
-
-                    req.onload = async () => {
-                        try {
-                            const responseContentType = req.getResponseHeader("content-type");
-                            let parsedResponse = req.response.length === 0 ? "{}" : req.response;
-
-                            // JSON Parsing
-                            if (responseContentType !== null) {
-                                if (responseContentType.indexOf("application/json") !== -1 ||
-                                    responseContentType.indexOf("application/javascript") !== -1) {
-                                    parsedResponse = JSON.parse(parsedResponse);
-                                }
-                            }
-
-                            if (inSuccessRange(req.status)) {
-                                resolve({
-                                    response: parsedResponse,
-                                    request: req,
-                                });
-                            } else {
-                                rejectOrRetry(parsedResponse);
-                            }
-                        } catch (e) {
-                            rejectOrRetry();
-                        }
-                    };
-
-                    if (body) {
-                        req.send(JSON.stringify(body));
-                    } else {
-                        req.send();
+                    if (req.status === 482) {
+                        clearSigningKey();
                     }
-                });
+
+                    reject({request: req, response: parsedResponse});
+                };
+
+                req.onload = async () => {
+                    try {
+                        const responseContentType = req.getResponseHeader("content-type");
+                        let parsedResponse = req.response.length === 0 ? "{}" : req.response;
+
+                        // JSON Parsing
+                        if (responseContentType !== null) {
+                            if (responseContentType.indexOf("application/json") !== -1 ||
+                                responseContentType.indexOf("application/javascript") !== -1) {
+                                parsedResponse = JSON.parse(parsedResponse);
+                            }
+                        }
+
+                        if (inSuccessRange(req.status)) {
+                            resolve({
+                                response: parsedResponse,
+                                request: req,
+                            });
+                        } else {
+                            rejectOrRetry(parsedResponse);
+                        }
+                    } catch (e) {
+                        rejectOrRetry();
+                    }
+                };
+
+                if (body) {
+                    req.send(JSON.stringify(body));
+                } else {
+                    req.send();
+                }
             });
+        } catch (e) {
+            console.warn(e);
+            if (!this.isPublicPage) snackbarStore.addFailure("Could not refresh login token.", false);
+            if ([401, 403].includes(e.status)) HttpClient.clearTokens();
+        }
     }
 
     public computeURL(context: string, path: string): string {

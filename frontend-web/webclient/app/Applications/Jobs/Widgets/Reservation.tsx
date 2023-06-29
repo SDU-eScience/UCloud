@@ -88,7 +88,7 @@ export const ReservationParameter: React.FunctionComponent<{
 
     const toolBackend = application.invocation.tool.tool?.description?.backend ?? "DOCKER";
 
-    return <Box>
+    return <div>
         <Flex>
             <Label mb={"4px"}>
                 <Heading>Job name</Heading>
@@ -135,12 +135,12 @@ export const ReservationParameter: React.FunctionComponent<{
             </>
         )}
 
-        <Box mt="28px">
-            <Label><Heading>Machine type <MandatoryField /></Heading></Label>
-            <Machines machines={allMachines} support={support} onMachineChange={setSelectedMachine} />
+        <div>
+            <Label>Machine type <MandatoryField /></Label>
+            <Machines machines={allMachines} loading={machineSupport.loading} support={support} onMachineChange={setSelectedMachine} />
             {errors["product"] ? <TextP color={"red"}>{errors["product"]}</TextP> : null}
-        </Box>
-    </Box>
+        </div>        
+    </div>
 };
 
 export type ReservationValues = Pick<UCloud.compute.JobSpecification, "name" | "timeAllocation" | "replicas" | "product">;

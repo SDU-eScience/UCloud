@@ -5,7 +5,7 @@ import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "@/Providers/ConnectionState";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {Box, Button, Icon, Input, Link, theme, Tooltip} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, Link, theme, Tooltip} from "@/ui-components";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {useUState} from "@/Utilities/UState";
 import {grantsLink, stopPropagation} from "@/UtilityFunctions";
@@ -259,7 +259,9 @@ export const ProductSelector: React.FunctionComponent<{
             ReactDOM.createPortal(
                 <SelectorDialog style={{left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} onClick={stopPropagation}>
                     {props.loading && props.products.length === 0 ? <>
-                        <HexSpin />
+                        <Flex mt={(dialogHeight - 64 - 20) / 2 /* subract margin + height of HexSpin */}>
+                            <HexSpin size={64} />
+                        </Flex>
                     </> : props.products.length === 0 ?
                         <>
                             <NoResultsCardBody title={`No ${productName} available for use`}>
@@ -545,6 +547,7 @@ export const ProductSelectorPlayground: React.FunctionComponent = () => {
         <Box height={50} width={400}>
             <ProductSelector
                 products={products}
+                loading={false}
                 selected={selected}
                 onSelect={setSelected}
                 slim
@@ -552,6 +555,7 @@ export const ProductSelectorPlayground: React.FunctionComponent = () => {
         </Box>
         <ProductSelector
             products={products}
+            loading={false}
             selected={selected}
             onSelect={setSelected}
         />

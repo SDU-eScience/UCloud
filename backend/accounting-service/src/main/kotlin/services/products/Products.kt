@@ -34,22 +34,25 @@ class ProductService(
                         setParameter("charge_type", req.chargeType.name)
                         setParameter("product_type", req.productType.name)
                         setParameter("unit_of_price", req.unitOfPrice.name)
+                        setParameter("allow_allocation_requests_from", req.allowAllocationRequestsFrom.name)
                     },
                     """
                         insert into accounting.product_categories
-                        (provider, category, product_type, charge_type, unit_of_price) 
+                        (provider, category, product_type, charge_type, unit_of_price, allow_allocation_requests_from) 
                         values (
                             :provider, 
                             :category, 
                             :product_type::accounting.product_type, 
                             :charge_type::accounting.charge_type, 
-                            :unit_of_price::accounting.product_price_unit
+                            :unit_of_price::accounting.product_price_unit,
+                            :allow_allocation_requests_from::accounting.allocation_requests_group
                         )
                         on conflict (provider, category)  
                         do update set
                             charge_type = excluded.charge_type,
                             product_type = excluded.product_type,
-                            unit_of_price = excluded.unit_of_price
+                            unit_of_price = excluded.unit_of_price,
+                            allow_allocation_requests_from = excluded.allow_allocation_requests_from
                     """
                 )
             }
@@ -161,6 +164,7 @@ class ProductService(
     ): PageV2<Product> {
         return db.withSession { session ->
             val itemsPerPage = request.normalize().itemsPerPage
+
             val rows = session.sendPreparedStatement(
                 {
                     setParameter("name_filter", request.filterName)

@@ -16,6 +16,7 @@ import deicBackground from "@/Assets/Images/deic-cloud.svg";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {InputProps} from "@/ui-components/Input";
 import {ButtonProps} from "@/ui-components/Button";
+import {Feature, hasFeature} from "@/Features";
 
 
 const BackgroundImage = injectStyleSimple("background-image", `
@@ -164,8 +165,6 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
         }
     }
 
-
-
     function handleCompleteLogin(result: any): void {
         Client.setTokens(result.accessToken, result.csrfToken);
         navigate("/loginSuccess");
@@ -253,6 +252,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                             <TextSpan className={LoginTextSpanClass} fontSize={2} ml="2.5em">Login</TextSpan>
                         </Button>
                     </a>
+                    {!hasFeature(Feature.NEW_IDPS) ? null : <IdpList />}
                     <Text color="#000" onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other login options →</Text>
                 </>) : null}
                 {(!challengeId) ? (
@@ -510,5 +510,47 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
         </div>
     </Box >);
 }
+
+interface IdentityProvider {
+    id: number;
+    title: string;
+    logoUrl?: string | null;
+}
+
+const IdpList: React.FunctionComponent = () => {
+    const [idps, setIdps] = useState<IdentityProvider[]>([]);
+
+    useEffect(() => {
+        (async () => {
+            const textResponse = await fetch("/auth/browseIdentityProviders").then(it => it.text());
+            const parsed = JSON.parse(textResponse);
+            if ("responses" in parsed) {
+                const providers = (parsed as { responses: IdentityProvider[] }).responses;
+                setIdps(providers);
+            }
+        })();
+    }, []);
+
+    if (idps.length === 0) return null;
+
+    return <div style={{display: "flex", gap: "8px", flexDirection: "column", marginBottom: "16px"}}>{
+        idps.map(idp => {
+            let title = idp.title;
+            switch (title) {
+                case "wayf": return null;
+                case "orcid": {
+                    title = "ORCID";
+                    break;
+                }
+            }
+
+            return <a href={`/auth/startLogin?id=${idp.id}`} key={idp.id}>
+                <Button borderRadius="16px" fullWidth color="wayfGreen">
+                    Sign in with {title}
+                </Button>
+            </a>
+        })
+    }</div>
+};
 
 export default LoginPage;

@@ -3,6 +3,7 @@ package dk.sdu.cloud
 import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.withTransaction
 import kotlinx.coroutines.runBlocking
 import java.io.*
@@ -75,13 +76,14 @@ fun runInstaller(configDir: File) {
                 )
 
                 session.sendPreparedStatement(
+                    {},
                     """
                         insert into auth.principals
                             (dtype, id, created_at, modified_at, role, first_names, last_name, 
-                            orc_id,phone_number, title, hashed_password, salt, org_id, email)
+                            hashed_password, salt, org_id, email)
                         values
                             ('PASSWORD', 'admin@dev', now(), now(), 'ADMIN', 'Admin', 'Dev',
-                            null, null, null, E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'admin@dev')
+                            E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'admin@dev')
                     """
                 )
 

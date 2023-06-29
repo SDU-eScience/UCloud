@@ -7,6 +7,61 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 20-06-23
+
+```
+UCloud/Core @ 2023.3.1
+UCloud/Frontend @ 2023.3.2
+```
+
+
+
+## 12-06-23
+
+```
+UCloud/Core @ 2023.3.0
+UCloud/Frontend @ 2023.3.0
+```
+
+## 06-06-23
+
+```
+UCloud/Accounting-service @ 2023.2.27
+```
+
+## 06-06-23
+
+```
+Type 1/SDU Provider @ 2023.2.25
+```
+
+## 01-06-23
+
+```
+UCloud/Core @ 2023.2.23
+Type 1/SDU Provider @ 2023.2.23
+```
+
+## 31-05-23
+
+```
+UCloud/Core @ 2023.2.22
+UCloud/Frontend @ 2023.2.22
+Type 1/SDU Provider @ 2023.2.22
+```
+
+## 24-05-23
+
+```
+Type 1/SDU Provider @ 2023.2.18
+```
+
+## 23-05-23
+
+```
+Type 1/SDU Provider @ 2023.2.17
+```
+
 ## 15-03-23
 
 ```

@@ -27,7 +27,7 @@ class Server(private val config: MailConfiguration, override val micro: Micro) :
             authenticatedClient,
             config.fromAddress,
             config.whitelist,
-            micro.developmentModeEnabled,
+            micro.developmentModeEnabled || config.useFakeSend,
             db,
             settingsService
         )

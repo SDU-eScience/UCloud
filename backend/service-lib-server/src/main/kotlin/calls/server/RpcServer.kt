@@ -7,7 +7,10 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.microWhichIsConfiguringCalls
+import dk.sdu.cloud.systemName
 import io.ktor.http.*
+import io.prometheus.client.Counter
+import io.prometheus.client.Gauge
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlin.random.Random
@@ -321,6 +324,11 @@ class RpcServer {
         val microImplementedBy = microWhichIsConfiguringCalls ?: error("no micro")
         call.microImplementedBy = microImplementedBy
         delayedHandlers.add(DelayedHandler(call, requiredContext, handler))
+
+        if (isRunning) {
+            delayedHandlers.forEach { notifyInterceptors(it) }
+            delayedHandlers.clear()
+        }
     }
 
     fun start() {
@@ -345,6 +353,9 @@ class RpcServer {
         val start = Time.now()
         var request: R? = null
         var response: OutgoingCallResponse<S, E>?
+
+        requestCounter.labels(call.fullName).inc()
+        requestsInFlight.labels(call.fullName).inc()
 
         @Suppress("TooGenericExceptionCaught")
         try {
@@ -464,6 +475,14 @@ class RpcServer {
                     }
                 }
             }
+
+        if (responseOrDefault.statusCode.isSuccess()) {
+            requestsSuccessCounter.labels(call.fullName).inc()
+        } else {
+            requestsErrorCounter.labels(call.fullName).inc()
+        }
+
+        requestsInFlight.labels(call.fullName).dec()
     }
 
     companion object : Loggable {
@@ -475,5 +494,36 @@ class RpcServer {
             val handler: suspend CallHandler<R, S, E>.() -> Unit
         )
 
+        private val requestCounter = Counter.build()
+            .namespace(systemName)
+            .subsystem("rpc_server")
+            .name("requests_started")
+            .labelNames("request_name")
+            .help("Total number of requests passing through RpcServer")
+            .register()
+
+        private val requestsSuccessCounter = Counter.build()
+            .namespace(systemName)
+            .subsystem("rpc_server")
+            .name("requests_success")
+            .labelNames("request_name")
+            .help("Total number of requests which has passed through RpcServer successfully")
+            .register()
+
+        private val requestsErrorCounter = Counter.build()
+            .namespace(systemName)
+            .subsystem("rpc_server")
+            .name("requests_error")
+            .labelNames("request_name")
+            .help("Total number of requests which has passed through RpcServer with a failure")
+            .register()
+
+        private val requestsInFlight = Gauge.build()
+            .namespace(systemName)
+            .subsystem("rpc_server")
+            .name("requests_in_flight")
+            .labelNames("request_name")
+            .help("Number of requests currently in-flight in the RpcServer")
+            .register()
     }
 }

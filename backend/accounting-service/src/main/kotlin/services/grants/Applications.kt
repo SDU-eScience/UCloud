@@ -95,12 +95,19 @@ class GrantApplicationService(
                     it.paysFor
                 }
 
+                val allocationRequestsGroup = if (request.recipientType == "personalWorkspace") {
+                    AllocationRequestsGroup.PERSONAL
+                } else {
+                    AllocationRequestsGroup.PROJECT
+                }
+
                 val results = session.sendPreparedStatement(
                     {
                         products.split {
-                            into("providers") {it.provider}
-                            into("category_names") { it.name}
+                            into("providers") { it.provider }
+                            into("category_names") { it.name }
                         }
+                        setParameter("allocation_request_group", allocationRequestsGroup.name)
                     },
                     """
                         with names_and_providers as (
@@ -113,6 +120,9 @@ class GrantApplicationService(
                             accounting.products p join
                             accounting.product_categories pc on p.category = pc.id join 
                             names_and_providers nap on pc.provider = nap.provider and pc.category = nap.category_name                        
+                        where
+                            pc.allow_allocation_requests_from = 'ALL'::accounting.allocation_requests_group or 
+                            pc.allow_allocation_requests_from = :allocation_request_group::accounting.allocation_requests_group
                         order by pc.provider, pc.category
                     """.trimIndent()
                 ).rows.map { defaultMapper.decodeFromString<Product>(it.getString(0)!!) }
@@ -177,10 +187,78 @@ class GrantApplicationService(
             }
             if (recipient is GrantApplication.Recipient.NewProject) {
                 if (willResultInDuplicateProjectTitle(recipient.title, createRequest.document.parentProjectId!!)) {
-                    throw RPCException("Primary affiliation already has a subproject with this title.", HttpStatusCode.BadRequest)
+                    throw RPCException(
+                        "Primary affiliation already has a subproject with this title.",
+                        HttpStatusCode.BadRequest
+                    )
                 }
             }
         }
+
+        val providersAndCategories = request.items.flatMap { createRequest ->
+            createRequest.document.allocationRequests.map { Pair(it.provider, it.category) }
+        }
+
+        data class ProviderCategoryAllocationGroup(
+            val provider: String,
+            val category: String,
+            val allocationRequestsGroup: AllocationRequestsGroup
+        )
+
+        val providerCategoryAllocationGroups = db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("providers", providersAndCategories.map { it.first })
+                    setParameter("categories", providersAndCategories.map { it.second })
+                },
+                """
+                    select provider, category, allow_allocation_requests_from
+                    from accounting.product_categories
+                    where
+                        (provider, category) in (select unnest(:providers::text[]), unnest(:categories::text[]))
+                """
+            ).rows.mapNotNull {
+                ProviderCategoryAllocationGroup(
+                    it.getString(0)!!,
+                    it.getString(1)!!,
+                    it.getString(2)?.let { group -> AllocationRequestsGroup.valueOf(group) }!!
+                )
+            }
+        }
+
+        // Note(Brian): A bit messy. We are checking if any of the allocation requests are for recipients with another
+        // type than what is allowed by the provider.
+        request.items.forEach { createRequest ->
+            val recipient = createRequest.document.recipient
+            for (allocationRequest in createRequest.document.allocationRequests) {
+                val allowedAllocationGroups = providerCategoryAllocationGroups.filter {
+                    it.provider == allocationRequest.provider && it.category == allocationRequest.category
+                }.map { it.allocationRequestsGroup }
+
+                // Skip check if provider accepts allocation requests from all
+                if (allowedAllocationGroups.contains(AllocationRequestsGroup.ALL)) {
+                    continue
+                }
+
+                when (recipient) {
+                    is GrantApplication.Recipient.PersonalWorkspace ->
+                        if (!allowedAllocationGroups.contains(AllocationRequestsGroup.PERSONAL)) {
+                            throw RPCException(
+                                "Provider ${allocationRequest.provider} does not accept ${allocationRequest.category} allocations to personal workspaces",
+                                HttpStatusCode.Forbidden
+                            )
+                        }
+                    is GrantApplication.Recipient.NewProject, is GrantApplication.Recipient.ExistingProject ->
+                        if (!allowedAllocationGroups.contains(AllocationRequestsGroup.PROJECT)) {
+                            throw RPCException(
+                                "Provider ${allocationRequest.provider} does not accept ${allocationRequest.category} allocations to projects",
+                                HttpStatusCode.Forbidden
+                            )
+                        }
+                }
+            }
+        }
+
         val results = mutableListOf<Pair<Long, GrantNotification>>()
         db.withSession(remapExceptions = true) { session ->
             request.items.forEach { createRequest ->
@@ -196,7 +274,6 @@ class GrantApplicationService(
                         setParameter("grant_recipient", recipientToSqlField(recipient))
                         setParameter("grant_recipient_type", recipientToSqlType(recipient))
                         setParameter("sources", sourceProjects)
-
                     },
                     """
                         with ids as (
@@ -462,7 +539,7 @@ class GrantApplicationService(
                 "Applications without resource requests not allowed"
             )
         }
-        val validRequests = allocationRequests.map{ req ->
+        val validRequests = allocationRequests.map { req ->
             accounting.retrieveAllocationsInternal(
                 ActorAndProject(Actor.System, null),
                 WalletOwner.Project(req.grantGiver),
@@ -1186,7 +1263,7 @@ class GrantApplicationService(
                         HttpStatusCode.InternalServerError,
                         "Error in creating project and PI"
                     )
-                
+
                 Pair(createdProject, GrantApplication.Recipient.NewProject)
 
             }
@@ -1205,7 +1282,10 @@ class GrantApplicationService(
         }
 
         val requestItems = application.currentRevision.document.allocationRequests.map {
-            if (it.sourceAllocation == null ) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Source Allocations not chosen")
+            if (it.sourceAllocation == null) throw RPCException.fromStatusCode(
+                HttpStatusCode.BadRequest,
+                "Source Allocations not chosen"
+            )
             DepositToWalletRequestItem(
                 recipient = if (type == GrantApplication.Recipient.PersonalWorkspace) WalletOwner.User(workspaceId) else WalletOwner.Project(
                     workspaceId

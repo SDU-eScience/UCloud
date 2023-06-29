@@ -1,37 +1,35 @@
 package dk.sdu.cloud.auth.http
 
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.*
-import dk.sdu.cloud.auth.services.PersonService
+import dk.sdu.cloud.auth.services.PasswordHashingService
 import dk.sdu.cloud.auth.services.TokenService
-import dk.sdu.cloud.auth.services.UserAsyncDAO
-import dk.sdu.cloud.auth.services.UserCreationService
-import dk.sdu.cloud.auth.services.UserIterationService
+import dk.sdu.cloud.auth.services.PrincipalService
+import dk.sdu.cloud.auth.services.UserType
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
+import dk.sdu.cloud.calls.server.remoteHost
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.server.plugins.*
 import io.ktor.server.request.*
+import io.ktor.server.response.*
 
 class UserController(
     private val db: AsyncDBSessionFactory,
-    private val personService: PersonService,
-    private val userDAO: UserAsyncDAO,
-    private val userCreationService: UserCreationService,
-    private val userIterationService: UserIterationService,
+    private val principalService: PrincipalService,
     private val tokenService: TokenService,
     private val unconditionalPasswordResetWhitelist: List<String>,
-    private val developmentMode: Boolean = false
+    private val passwordHashingService: PasswordHashingService,
+    private val devMode: Boolean,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(UserDescriptions.createNewUser) {
@@ -40,38 +38,34 @@ class UserController(
 
                 val principals: List<Principal> = request.map { user ->
                     when (user.role) {
-                        Role.SERVICE -> ServicePrincipal(user.username, Role.SERVICE)
+                        Role.SERVICE -> {
+                            principalService.insert(user.username, Role.SERVICE, UserType.SERVICE)
+                            principalService.findByUsername(user.username)
+                        }
 
                         null, Role.ADMIN, Role.USER -> {
                             val email = user.email
-                            if (!email.isNullOrBlank() && email.contains("@")) {
-                                if (user.firstnames.isNullOrBlank() || user.lastname.isNullOrBlank()) {
-                                    personService.createUserByPassword(
-                                        firstNames = user.username,
-                                        lastName = "N/A",
-                                        username = user.username,
-                                        role = user.role ?: Role.USER,
-                                        password = user.password
-                                            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
-                                        email = email,
-                                        organization = user.orgId
-                                    )
-                                } else {
-                                    personService.createUserByPassword(
-                                        firstNames = user.firstnames!!,
-                                        lastName = user.lastname!!,
-                                        username = user.username,
-                                        role = user.role ?: Role.USER,
-                                        password = user.password
-                                            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
-                                        email = email,
-                                        organization = user.orgId
-                                    )
-                                }
-                            }
-                            else {
+                            if (email.isNullOrBlank() || !email.contains("@")) {
                                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Valid email required")
                             }
+
+                            val (hashedPassword, salt) = passwordHashingService.hashPassword(
+                                user.password ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                            )
+
+                            principalService.insert(
+                                user.username,
+                                user.role ?: Role.USER,
+                                UserType.PERSON,
+                                firstNames = user.firstnames!!,
+                                lastName = user.lastname!!,
+                                hashedPassword = hashedPassword,
+                                salt = salt,
+                                email = email,
+                                organizationId = user.orgId
+                            )
+
+                            principalService.findByUsername(user.username)
                         }
                         else -> {
                             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
@@ -79,7 +73,6 @@ class UserController(
                     }
                 }
 
-                userCreationService.createUsers(principals)
                 ok(principals.map { user ->
                     tokenService.createAndRegisterTokenFor(
                         user,
@@ -92,7 +85,8 @@ class UserController(
 
         implement(UserDescriptions.updateUserInfo) {
             val username = ctx.securityPrincipal.username
-            userCreationService.updateUserInfo(
+            principalService.updateUserInfo(
+                ctx.remoteHost ?: throw RPCException("No remote host info?", HttpStatusCode.InternalServerError),
                 username,
                 request.firstNames,
                 request.lastName,
@@ -100,9 +94,10 @@ class UserController(
             )
             ok(Unit)
         }
+
         implement(UserDescriptions.getUserInfo) {
             val username = ctx.securityPrincipal.username
-            val information = userCreationService.getUserInfo(username)
+            val information = principalService.getUserInfo(username)
             ok(GetUserInfoResponse(
                 information.email,
                 information.firstNames,
@@ -110,25 +105,22 @@ class UserController(
             ))
         }
 
-        implement(UserDescriptions.retrievePrincipal) {
-            val principal = db.withTransaction {
-                userDAO.findById(it, request.username)
-            }
-            ok(
-                principal
-            )
+        implement(UserDescriptions.verifyUserInfo) {
+            val success = principalService.verifyUserInfoUpdate(request.id)
+            (ctx as HttpCall).call.respondRedirect("/app/verifyResult?success=$success")
+            okContentAlreadyDelivered()
         }
 
         implement(UserDescriptions.changePassword) {
             audit(ChangePasswordAudit())
 
             db.withTransaction { session ->
-                userDAO.updatePassword(
-                    session,
+                principalService.updatePassword(
                     ctx.securityPrincipal.username,
                     request.newPassword,
                     true,
-                    request.currentPassword
+                    request.currentPassword,
+                    session
                 )
                 ok(Unit)
             }
@@ -137,17 +129,17 @@ class UserController(
         implement(UserDescriptions.changePasswordWithReset) {
             audit(ChangePasswordAudit())
 
-            if (ctx.securityPrincipal.username !in unconditionalPasswordResetWhitelist) {
+            if (!devMode && ctx.securityPrincipal.username !in unconditionalPasswordResetWhitelist) {
                 throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
             }
 
             db.withTransaction { session ->
-                userDAO.updatePassword(
-                    session,
+                principalService.updatePassword(
                     request.userId,
                     request.newPassword,
                     conditionalChange = false,
-                    currentPasswordForVerification = null
+                    currentPasswordForVerification = null,
+                    session
                 )
                 ok(Unit)
             }
@@ -157,7 +149,7 @@ class UserController(
             ok(
                 LookupUsersResponse(
                     db.withTransaction { session ->
-                        userDAO.findAllByIds(session, request.users).mapValues { (_, principal) ->
+                        principalService.findAllByUsername(request.users, session).mapValues { (_, principal) ->
                             principal?.let { UserLookup(it.id, it.role) }
                         }
                     }
@@ -169,7 +161,7 @@ class UserController(
             ok(
                 LookupEmailResponse(
                     db.withTransaction { session ->
-                        userDAO.findEmail(session, request.userId)
+                        principalService.findEmailByUsernameOrNull(request.userId, session)
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Email address not found")
                     }
                 )
@@ -179,7 +171,7 @@ class UserController(
         implement(UserDescriptions.lookupUserWithEmail) {
             ok(
                 db.withTransaction { session ->
-                    val user = userDAO.findByEmail(session, request.email)
+                    val user = principalService.findByEmail(request.email, session)
                     LookupUserWithEmailResponse(
                         user.userId,
                         user.firstNames,
@@ -189,30 +181,16 @@ class UserController(
             )
         }
 
-        implement(UserDescriptions.openUserIterator) {
-            checkUserAccessToIterator(ctx.securityPrincipal)
-            ok(FindByStringId(userIterationService.create()))
+        implement(UserDescriptions.retrieveOptionalUserInfo) {
+            ok(principalService.retrieveOptionalUserInfo(actorAndProject))
         }
 
-        implement(UserDescriptions.fetchNextIterator) {
-            checkUserAccessToIterator(ctx.securityPrincipal)
-            ok(userIterationService.fetchNext(request.id))
-        }
-
-        implement(UserDescriptions.closeIterator) {
-            checkUserAccessToIterator(ctx.securityPrincipal)
-            ok(userIterationService.close(request.id))
+        implement(UserDescriptions.updateOptionalUserInfo) {
+            audit(Unit)
+            principalService.updateOptionalUserInfo(actorAndProject, request)
+            ok(Unit)
         }
     }
-
-    private fun checkUserAccessToIterator(principal: SecurityPrincipal) {
-        if (developmentMode) return
-        val allowed = principal.role in allowedRoles && principal.username in allowedUsernames
-        if (!allowed) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-    }
-
-    private val allowedRoles = setOf(Role.SERVICE, Role.ADMIN)
-    private val allowedUsernames = setOf("_auth", "_accounting", "_accounting-storage", "admin@dev")
 
     companion object : Loggable {
         override val log = logger()

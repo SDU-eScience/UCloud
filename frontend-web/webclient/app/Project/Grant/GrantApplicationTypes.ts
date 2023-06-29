@@ -185,7 +185,10 @@ export function deleteGrantApplicationComment(
     return apiDelete(bulkRequestOf(request), "api/grant/comment");
 }
 
-export type GrantsRetrieveAffiliationsRequest = PaginationRequestV2;
+export interface GrantsRetrieveAffiliationsRequest extends PaginationRequestV2 {
+    recipientId?: string;
+    recipientType?: string;
+}
 
 export type GrantsRetrieveAffiliationsResponse = PageV2<ProjectWithTitle>;
 

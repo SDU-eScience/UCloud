@@ -42,6 +42,7 @@ data class VerifiedConfig(
         val cors: Cors,
         val disableInsecureFileCheck: Boolean,
         val maintenance: Maintenance,
+        val internalBindAddress: String,
     ) {
         data class Hosts(
             val ucloud: Host,
@@ -101,6 +102,8 @@ data class VerifiedConfig(
             val directory: String,
             val downstreamTls: Boolean,
             val funceWrapper: Boolean,
+            val internalAddressToProvider: String,
+            val envoyIsManagedExternally: Boolean,
         )
     }
 
@@ -416,6 +419,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             core.maintenance?.alwaysAllowAccessFrom ?: emptyList()
         )
 
+        val internalBindAddress = core.internalBindAddress ?: "127.0.0.1"
+
         VerifiedConfig.Core(
             certificate,
             providerId,
@@ -428,6 +433,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             cors,
             core.disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy && core.developmentMode == true,
             maintenance,
+            internalBindAddress
         )
     }
 
@@ -591,7 +597,16 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             val directory = config.server.envoy?.directory ?: "/var/run/ucloud/envoy"
             val downstreamTls = config.server.envoy?.downstreamTls ?: false
             val funceWrapper = config.server.envoy?.funceWrapper ?: true
-            VerifiedConfig.Server.Envoy(executable, directory, downstreamTls, funceWrapper)
+            val internalAddressToProvider = config.server.envoy?.internalAddressToProvider ?: "127.0.0.1"
+            val envoyIsManagedExternally = config.server.envoy?.envoyIsManagedExternally ?: false
+            VerifiedConfig.Server.Envoy(
+                executable,
+                directory,
+                downstreamTls,
+                funceWrapper,
+                internalAddressToProvider,
+                envoyIsManagedExternally
+            )
         }
 
         VerifiedConfig.Server(refreshToken, network, developmentMode, database, envoy)
