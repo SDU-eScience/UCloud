@@ -7,7 +7,6 @@ import {doNothing} from "@/UtilityFunctions";
 import {selectHoverColor, ThemeColor} from "@/ui-components/theme";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {div} from "@/Utilities/HTMLUtilities";
-//import {div} from "./ResourceBrowser";
 
 const ConfirmButtonClass = injectStyle("confirm-button", k => `
     ${k} {
@@ -480,9 +479,8 @@ export function ConfirmationButtonPlainHTML(
     function success() {
         timer.time -= tickRate;
         if (timer.time <= 0) {
-            debugger;
             button.classList.add("success");
-            timer.time = holdToConfirmTime;
+            end();
             setTimeout(() => {
                 action();
             }, actionDelay);
@@ -503,9 +501,6 @@ export function ConfirmationButtonPlainHTML(
     const divEl = document.createElement("div");
     divEl.className = "ucloud-native-icons";
     divEl.append(icon);
-    icon.innerHTML = `
-    <svg viewBox="0 0 24 22" xmlns="http://www.w3.org/2000/svg" fill-rule="evenodd" clip-rule="evenodd" fill="currentcolor" data-component="icon-files" width="24" height="24" color2="#8393A7" color="iconColor" class="icon6" data-spin="false" style="color: var(--iconColor); --hoverColor: inherit; cursor: inherit;"><path d="M16.711 4.128H23.4c.33 0 .6.309.6.687v16.5c0 .378-.27.688-.6.688H6.309L16.711 4.128z" fill="#8393A7"></path><path d="M10.8 4.125h5.911L6.309 22H.6c-.33 0-.6-.309-.6-.687V.688C0 .339.229.049.6 0h6.6l3.6 4.125z"></path></svg>
-    `
     button.append(divEl);
 
     const icons = div(`
@@ -540,6 +535,5 @@ export function ConfirmationButtonPlainHTML(
     ul.append(doneTextLi);
     button.append(ul);
 
-    console.log(button.outerHTML);
     return button;
 }

@@ -546,7 +546,7 @@ const IdpList: React.FunctionComponent = () => {
 
             return <a href={`/auth/startLogin?id=${idp.id}`} key={idp.id}>
                 <Button borderRadius="16px" fullWidth color="wayfGreen">
-                    Sign in with {title}
+                    <Text color="fixedWhite">Sign in with {title}</Text>
                 </Button>
             </a>
         })

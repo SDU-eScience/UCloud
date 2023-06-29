@@ -1266,7 +1266,8 @@ export class ResourceBrowser<T> {
         const renderOpIconAndText = (
             op: OperationOrGroup<unknown, unknown>,
             element: HTMLElement,
-            shortcut?: string
+            shortcut?: string,
+            inContextMenu?: boolean
         ) => {
             const isConfirmButton = isOperation(op) && op.confirm;
 
@@ -1300,10 +1301,10 @@ export class ResourceBrowser<T> {
                         op.onClick(selected, callbacks);
                         if (useContextMenu) this.closeContextMenu();
                     },
-                    {asSquare: useContextMenu}
+                    {asSquare: inContextMenu, color: "red", hoverColor: "darkRed"}
                 );
 
-                if (useContextMenu) {
+                if (inContextMenu) {
                     button.style.width = "100%";
                 }
 
@@ -1375,6 +1376,14 @@ export class ResourceBrowser<T> {
             const menuList = allowCreation ? document.createElement("ul") : menu.querySelector("ul")!;
             if (allowCreation) menu.append(menuList);
             let shortcutNumber = counter;
+
+            // Note(Jonas): Push confirm actions to bottom.
+            operations.sort((a, b) => {
+                if (!isOperation(a)) return 1;
+                if (!isOperation(b)) return -1;
+                return a.confirm ? 1 : -1;
+            })
+
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             for (const child of operations) {
                 if (!isOperation(child)) {
@@ -1383,26 +1392,29 @@ export class ResourceBrowser<T> {
                 }
 
                 var item: HTMLElement = document.createElement("li");
-                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts ? `[${shortcutNumber}]` : undefined);
+                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts ? `[${shortcutNumber}]` : undefined, true);
 
                 const myIndex = shortcutNumber - 1;
-                this.contextMenuHandlers.push(() => {
-                    if (isOperation(child) && child.confirm) return;
-                    child.onClick(selected, callbacks, page);
-                });
+                const isConfirm = isOperation(child) && child.confirm;
+                if (!isConfirm) {
+                    this.contextMenuHandlers.push(() => {
+                        child.onClick(selected, callbacks, page);
+                    });
+                    shortcutNumber++;
+                }
+
                 item.addEventListener("mouseover", () => {
                     this.findActiveContextMenuItem(true);
-                    this.selectContextMenuItem(myIndex);
+                    if (!isConfirm) this.selectContextMenuItem(myIndex);
                 });
                 item.addEventListener("click", ev => {
                     ev.stopPropagation();
                     this.findActiveContextMenuItem(true);
-                    this.selectContextMenuItem(myIndex);
+                    if (!isConfirm) this.selectContextMenuItem(myIndex);
                     this.onContextMenuItemSelection();
                 });
 
                 menuList.append(item);
-                shortcutNumber++;
             }
             return counter;
         };
