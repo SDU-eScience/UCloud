@@ -10,6 +10,8 @@ import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.checkLooksLikeEmail
+import dk.sdu.cloud.calls.checkSingleLine
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -362,6 +364,12 @@ class PrincipalService(
 
         ctx: DBContext = db,
     ): Int {
+        checkSingleLine("id", id, allowSpecial = true)
+        if (firstNames != null) checkSingleLine("firstNames", firstNames)
+        if (lastName != null) checkSingleLine("lastName", lastName)
+        if (organizationId != null) checkSingleLine("organizationId", organizationId)
+        if (email != null) checkLooksLikeEmail("email", email)
+
         when (type) {
             UserType.SERVICE -> {
                 require(role == Role.SERVICE)
