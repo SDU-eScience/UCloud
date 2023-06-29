@@ -24,7 +24,7 @@ suspend fun createUser(
     username: String = "user-${Random.nextLong()}",
     password: String = UUID.randomUUID().toString(),
     role: Role = Role.USER,
-    email: String = "$username@mail",
+    email: String = "$username@example.com",
     organization: String? = null,
 ): CreatedUser {
     val refreshToken = UserDescriptions.createNewUser.call(
