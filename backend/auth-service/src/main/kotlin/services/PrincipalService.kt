@@ -368,7 +368,7 @@ class PrincipalService(
         if (firstNames != null) checkSingleLine("firstNames", firstNames)
         if (lastName != null) checkSingleLine("lastName", lastName)
         if (organizationId != null) checkSingleLine("organizationId", organizationId)
-        if (email != null) checkLooksLikeEmail("email", firstNames)
+        if (email != null) checkLooksLikeEmail("email", email)
 
         when (type) {
             UserType.SERVICE -> {
