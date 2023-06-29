@@ -8,8 +8,15 @@ fun checkNoSpecialCharacters(
     property: KProperty<*>,
     value: String
 ) {
+    checkNoSpecialCharacters(property.name, value)
+}
+
+fun checkNoSpecialCharacters(
+    propertyName: String,
+    value: String
+) {
     if (!value.matches(noSpecialCharsRegex)) {
-        throw RPCException("${property.name} cannot contain special characters!", HttpStatusCode.BadRequest)
+        throw RPCException("${propertyName} cannot contain special characters!", HttpStatusCode.BadRequest)
     }
 }
 
@@ -21,12 +28,32 @@ fun checkSingleLine(
     maximumSize: Int = 1024 * 16,
     allowSpecial: Boolean = true,
 ) {
-    if (value.contains("\n")) throw RPCException("${property.name} cannot contain new-lines", HttpStatusCode.BadRequest)
-    if (!allowBlanks && value.isBlank()) throw RPCException("${property.name} cannot be blank", HttpStatusCode.BadRequest)
-    if (value.length < minimumSize) throw RPCException("${property.name} is too short", HttpStatusCode.BadRequest)
-    if (value.length > maximumSize) throw RPCException("${property.name} is too long", HttpStatusCode.BadRequest)
-    if (!allowSpecial) checkNoSpecialCharacters(property, value)
+    checkSingleLine(property.name, value, allowBlanks, minimumSize, maximumSize, allowSpecial)
 }
+
+fun checkSingleLine(
+    propertyName: String,
+    value: String,
+    allowBlanks: Boolean = false,
+    minimumSize: Int = 1,
+    maximumSize: Int = 1024 * 16,
+    allowSpecial: Boolean = true,
+) {
+    if (value.contains("\n")) throw RPCException("${propertyName} cannot contain new-lines", HttpStatusCode.BadRequest)
+    if (!allowBlanks && value.isBlank()) throw RPCException("${propertyName} cannot be blank", HttpStatusCode.BadRequest)
+    if (value.length < minimumSize) throw RPCException("${propertyName} is too short", HttpStatusCode.BadRequest)
+    if (value.length > maximumSize) throw RPCException("${propertyName} is too long", HttpStatusCode.BadRequest)
+    if (!allowSpecial) checkNoSpecialCharacters(propertyName, value)
+}
+
+fun checkLooksLikeEmail(propertyName: String, email: String?) {
+    if (email == null) return
+    checkSingleLine(propertyName, email, minimumSize = 5, allowSpecial = true)
+    if (!(email.contains("@") && email.substringAfter('@').contains('.'))) {
+        throw RPCException("$propertyName does not look like a valid email address!", HttpStatusCode.BadRequest)
+    }
+}
+
 
 fun checkTextLength(
     property: KProperty<*>,

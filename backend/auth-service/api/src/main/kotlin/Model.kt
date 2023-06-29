@@ -72,6 +72,10 @@ data class Person(
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Username contains illegal chars")
         }
     }
+
+    override fun toString(): String {
+        return "Person(id='$id', role=$role, firstNames='$firstNames', lastName='$lastName', email=$email, serviceLicenseAgreement=$serviceLicenseAgreement, organizationId=$organizationId, twoFactorAuthentication=$twoFactorAuthentication, connections=$connections)"
+    }
 }
 
 /**
