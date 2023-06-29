@@ -37,7 +37,9 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job>}): JSX.Elemen
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
-    useTitle("Jobs");
+    if (!opts?.embedded) {
+        useTitle("Jobs");
+    }
 
     const dateRanges = dateRangeFilters("Created after");
 

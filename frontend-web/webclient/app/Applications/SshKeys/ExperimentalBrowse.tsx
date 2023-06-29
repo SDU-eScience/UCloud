@@ -4,10 +4,9 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
-import {useDispatch, useSelector} from "react-redux";
+import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
-import {useProjectId} from "@/Project/Api";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -27,7 +26,6 @@ export function ExperimentalSSHKey(): JSX.Element {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     useTitle("SSH keys");
-    const projectId = useProjectId();
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     React.useLayoutEffect(() => {

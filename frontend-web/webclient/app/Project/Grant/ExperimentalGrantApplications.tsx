@@ -32,7 +32,9 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [switcher, setSwitcherWorkaround] = React.useState(<></>);
-    useTitle("Grant Applications");
+    if (!opts?.embedded) {
+        useTitle("Grant Applications");
+    }
 
     const location = useLocation();
     let isIngoing = location.pathname.endsWith("/ingoing/");
