@@ -91,7 +91,9 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
     const browserRef = useRef<ResourceBrowser<UFile> | null>(null);
     const openTriggeredByPath = useRef<string | null>(null);
     const dispatch = useDispatch();
-    useTitle("Files");
+    if (!opts?.embedded) {
+        useTitle("Files");
+    }
     const isInitialMount = useRef<boolean>(true);
     useEffect(() => {
         isInitialMount.current = false;
