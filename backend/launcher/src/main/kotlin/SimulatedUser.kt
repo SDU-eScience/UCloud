@@ -152,11 +152,6 @@ private fun ProductCategoryId.toReference(): ProductReference {
     return ProductReference("$name-1", name, provider)
 }
 
-enum class SimulatedUserState {
-    Normal,
-    Following
-}
-
 class SimulatedUser(
     private val serviceClient: AuthenticatedClient,
 ) {
@@ -166,9 +161,6 @@ class SimulatedUser(
     lateinit var client: AuthenticatedClient
     lateinit var wsClient: AuthenticatedClient
     lateinit var project: Project
-
-    val jobs = ArrayList<JobSpecification>()
-    var state: SimulatedUserState = SimulatedUserState.Normal
 
     suspend fun initialize(username: String? = null, password: String? = null, refreshToken: String? = null) {
         this.refreshToken = if (refreshToken != null) {
@@ -487,9 +479,7 @@ class SimulatedUser(
                                 Jobs.follow.subscribe(
                                     FindByStringId(running.id),
                                     wsClient,
-                                    handler = { message ->
-
-                                    }
+                                    handler = { _ -> }
                                 ).orThrow()
                             } catch (ex: RPCException) {
                                 if (ex.httpStatusCode.value == 499) {
